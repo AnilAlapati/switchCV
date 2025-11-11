@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Model Dashboard - SwitchCV</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .header {
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    h1 {
+      color: #667eea;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      color: #666;
+      font-size: 14px;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .stat-value {
+      font-size: 32px;
+      font-weight: bold;
+      color: #667eea;
+    }
+    .stat-label {
+      color: #666;
+      font-size: 14px;
+      margin-top: 5px;
+    }
+    .models {
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    .model-item {
+      padding: 15px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .model-item:last-child {
+      border-bottom: none;
+    }
+    .model-name {
+      font-weight: 600;
+      color: #333;
+    }
+    .model-display {
+      color: #666;
+      font-size: 14px;
+    }
+    .model-badge {
+      background: #667eea;
+      color: white;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+    }
+    .model-badge.preferred {
+      background: #10b981;
+    }
+    .refresh-btn {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      margin-top: 20px;
+      transition: all 0.3s;
+    }
+    .refresh-btn:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: white;
+      font-size: 18px;
+    }
+    .timestamp {
+      color: #999;
+      font-size: 12px;
+      margin-top: 20px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🤖 AI Model Dashboard</h1>
+      <p class="subtitle">Real-time monitoring of available Gemini models</p>
+    </div>
+
+    <div id="loading" class="loading">
+      Loading available models...
+    </div>
+
+    <div id="content" style="display: none;">
+      <div class="stats">
+        <div class="stat-card">
+          <div class="stat-value" id="total">-</div>
+          <div class="stat-label">Total Models</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="compatible">-</div>
+          <div class="stat-label">Compatible Models</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="selected">-</div>
+          <div class="stat-label">Currently Selected</div>
+        </div>
+      </div>
+
+      <div class="models">
+        <h2 style="margin-bottom: 20px;">Available Models</h2>
+        <div id="models-list"></div>
+        <button class="refresh-btn" onclick="loadModels()">🔄 Refresh Models</button>
+        <div class="timestamp" id="timestamp"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const PREFERRED_MODELS = [
+      'gemini-2.5-flash-lite',
+      'gemini-2.0-flash-lite',
+      'gemini-flash-lite-latest',
+      'gemini-2.5-flash',
+      'gemini-2.0-flash',
+      'gemini-flash-latest'
+    ];
+
+    function isPreferred(modelName) {
+      return PREFERRED_MODELS.some(p => 
+        modelName.toLowerCase().includes(p.toLowerCase())
+      );
+    }
+
+    function selectBestModel(models) {
+      for (const preferred of PREFERRED_MODELS) {
+        const match = models.find(m => 
+          m.name.toLowerCase().includes(preferred.toLowerCase())
+        );
+        if (match) return match.name;
+      }
+      return models.length > 0 ? models[0].name : 'none';
+    }
+
+    async function loadModels() {
+      try {
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('content').style.display = 'none';
+
+        const response = await fetch('/api/ai/refresh-models');
+        const data = await response.json();
+
+        if (data.success) {
+          document.getElementById('total').textContent = data.total;
+          document.getElementById('compatible').textContent = data.compatible;
+          
+          const bestModel = selectBestModel(data.models);
+          document.getElementById('selected').textContent = 
+            bestModel.replace('gemini-', '').replace('-', ' ');
+
+          const modelsList = document.getElementById('models-list');
+          modelsList.innerHTML = data.models.map(model => {
+            const preferred = isPreferred(model.name);
+            const selected = model.name === bestModel;
+            return `
+              <div class="model-item">
+                <div>
+                  <div class="model-name">
+                    ${selected ? '⭐ ' : ''}${model.name}
+                  </div>
+                  <div class="model-display">${model.displayName}</div>
+                </div>
+                <span class="model-badge ${preferred ? 'preferred' : ''}">
+                  ${selected ? 'ACTIVE' : preferred ? 'PREFERRED' : 'AVAILABLE'}
+                </span>
+              </div>
+            `;
+          }).join('');
+
+          document.getElementById('timestamp').textContent = 
+            `Last updated: ${new Date(data.timestamp).toLocaleString()}`;
+
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('content').style.display = 'block';
+        }
+      } catch (error) {
+        document.getElementById('loading').innerHTML = 
+          `<div style="color: #ef4444;">Error loading models: ${error.message}</div>`;
+      }
+    }
+
+    // Load on page load
+    loadModels();
+
+    // Auto-refresh every 30 seconds
+    setInterval(loadModels, 30000);
+  </script>
+</body>
+</html>

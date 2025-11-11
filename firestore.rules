@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can read and write their own user document
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Users can read and write their own profiles
+    match /profiles/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Recruiter requests - users can read/write their own, recruiters can create
+    match /recruiterRequests/{requestId} {
+      allow read: if request.auth != null && (
+        request.auth.uid == resource.data.toUserId ||
+        request.auth.uid == resource.data.fromRecruiter.recruiterId
+      );
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && request.auth.uid == resource.data.toUserId;
+    }
+
+    // Analytics - public read for profile views, write by system
+    match /analytics/{slug}/views {
+      allow read: if true;
+      allow write: if false; // Only allow writes from Cloud Functions
+    }
+
+    // Resume profiles - users can read/write their own, public read for published resumes
+    match /resumeProfiles/{profileId} {
+      allow read: if (request.auth != null && request.auth.uid == resource.data.userId) || resource.data.published == true;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      allow update: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+  }
+}
