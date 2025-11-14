@@ -194,7 +194,7 @@ Security: All endpoints validate Firebase Auth tokens and enforce Firestore rule
 
 Data model: each sensitive field (email, phone, address, or full description) includes visibility enum: public|masked|request.
 
-Public page rendering: masked fields are replaced with placeholder (e.g., **_@_**.com or Request access).
+Public page rendering: masked fields are replaced with placeholder (e.g., **_@_**.com or Request access). The public resume route (`/resume/[slug]`) now resolves as a Next.js server component that fetches the published Firestore document by slug, honors the visibility metadata, and uses ISR (revalidate 60s) to keep pages fast while still showing request-only notices where applicable.
 
 Recruiter requests: recruiter clicks "Request Contact" and supplies reason + organization. A recruiterRequest doc is created with requestedFields and an expiry (e.g., 7 days).
 
@@ -407,7 +407,7 @@ src/__tests__/
 │   ├── auth/
 │   ├── dashboard/
 │   ├── onboarding/
-│   └── resume/[id]/
+│   └── resume/[slug]/
 ├── components/             # Reusable component tests
 ├── hooks/                  # Custom hook tests
 ├── lib/                    # Utility and service tests

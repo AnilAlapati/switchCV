@@ -116,7 +116,7 @@ npm run serve
 
 **Root Cause:** `JSON.parse()` being called on empty or malformed data from Firestore
 
-**Location:** `src/app/resume/[id]/page.tsx` line 72
+**Location:** `src/app/resume/[slug]/page.tsx` line 72
 
 **Solution:** Added validation before parsing:
 

@@ -85,13 +85,100 @@ export interface RecruiterRequest {
   updatedAt: string;
 }
 
+// ==================== ANALYTICS TYPES ====================
+
+/**
+ * Profile view analytics
+ * Tracks individual profile views with metadata
+ */
+export interface ProfileViewAnalytics {
+  viewId: string;
+  resumeId: string;
+  userId: string;
+  viewedBy: string; // Viewer's UID
+  viewerName?: string;
+  timestamp: string;
+  source: "search" | "direct" | "link" | "recruiter" | "other";
+  ipAddress?: string;
+  userAgent?: string;
+  referrer?: string;
+  sessionDuration?: number; // seconds
+}
+
+/**
+ * Engagement metrics for a profile
+ */
+export interface EngagementMetrics {
+  resumeId: string;
+  totalViews: number;
+  uniqueViewers: number;
+  avgSessionDuration: number; // seconds
+  viewsBySource: {
+    search: number;
+    direct: number;
+    link: number;
+    recruiter: number;
+    other: number;
+  };
+  topReferrers: { [key: string]: number };
+  lastViewedAt: string;
+  viewTrendLast7Days: { date: string; count: number }[];
+}
+
+/**
+ * Request statistics for access requests
+ */
+export interface RequestStatistics {
+  resumeId: string;
+  totalRequests: number;
+  pendingRequests: number;
+  approvedRequests: number;
+  deniedRequests: number;
+  requestsBySource: { [key: string]: number };
+  avgResponseTime?: number; // hours
+  lastRequestAt: string;
+  requestTrendLast7Days: { date: string; count: number }[];
+}
+
+/**
+ * Complete analytics summary for a resume/profile
+ */
 export interface Analytics {
   slug: string;
+  resumeId: string;
+  userId: string;
+
+  // Views and engagement
   views: {
     count: number;
     lastViewedAt: string;
     topReferrers: { [key: string]: number };
+    uniqueViewers: number;
+    avgSessionDuration: number;
   };
+
+  // Engagement details
+  engagement?: EngagementMetrics;
+
+  // Request statistics
+  requests?: RequestStatistics;
+
+  // Aggregated data
+  totalInteractions: number; // views + requests
+  lastUpdatedAt: string;
+  period?: "daily" | "weekly" | "monthly";
+}
+
+/**
+ * Analytics event for tracking
+ */
+export interface AnalyticsEvent {
+  eventId: string;
+  resumeId: string;
+  userId: string;
+  eventType: "view" | "request" | "approval" | "click" | "share";
+  timestamp: string;
+  metadata?: Record<string, any>;
 }
 
 export interface AuditLog {

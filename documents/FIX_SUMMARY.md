@@ -60,7 +60,7 @@ SyntaxError: Unexpected end of JSON input
 
 **Location:**
 
-- `src/app/resume/[id]/page.tsx:72`
+- `src/app/resume/[slug]/page.tsx:72`
 
 **Fix Applied:**
 Added validation before parsing:
@@ -86,7 +86,7 @@ try {
 
 **Files Changed:**
 
-- `src/app/resume/[id]/page.tsx`
+- `src/app/resume/[slug]/page.tsx`
 
 ---
 
