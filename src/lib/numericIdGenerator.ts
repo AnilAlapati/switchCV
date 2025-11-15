@@ -19,6 +19,7 @@
 
 import { doc, getDoc, setDoc, increment } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { getRecycledIdFromPool } from "@/lib/resumeIdRecycler";
 
 const ID_COUNTER_DOC = "system/resumeIdCounter";
 const MAX_NUMERIC_ID = 99999999; // 8 digits max
@@ -55,14 +56,29 @@ export const initializeIdCounter = async (): Promise<void> => {
 /**
  * Generate the next numeric resume ID
  *
- * Uses Firestore atomic increment to ensure no collisions
- * even with millions of concurrent users
+ * Strategy:
+ * 1. First tries to get a recycled ID from the deleted IDs pool
+ * 2. If pool is empty, generates a new ID from the counter
+ * 3. Uses Firestore atomic increment to ensure no collisions
+ *
+ * Benefits:
+ * - Reuses IDs efficiently when resumes are deleted
+ * - Maximizes utilization of numeric ID space
+ * - Maintains collision-free generation
  *
  * @returns Promise<number> - Next available numeric ID (1-99999999)
  * @throws Error if counter doesn't exist or max IDs reached
  */
 export const generateNumericResumeId = async (): Promise<number> => {
   try {
+    // Step 1: Try to get a recycled ID from the pool first
+    const recycledId = await getRecycledIdFromPool();
+    if (recycledId !== null) {
+      console.log(`✅ Generated numeric resume ID: ${recycledId} (recycled)`);
+      return recycledId;
+    }
+
+    // Step 2: If no recycled ID, generate a new one from the counter
     const counterRef = doc(db, ID_COUNTER_DOC);
 
     // First check if counter exists
@@ -94,7 +110,7 @@ export const generateNumericResumeId = async (): Promise<number> => {
       );
     }
 
-    console.log(`✅ Generated numeric resume ID: ${nextId}`);
+    console.log(`✅ Generated numeric resume ID: ${nextId} (from counter)`);
     return nextId;
   } catch (error) {
     console.error("❌ Error generating numeric ID:", error);
