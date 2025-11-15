@@ -22,7 +22,10 @@ export function EngagementDetails({ engagement }: EngagementDetailsProps) {
           <p className="text-gray-400 text-sm mb-3">Views by Source</p>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {Object.entries(engagement.viewsBySource).map(([source, count]) => (
-              <div key={source} className="bg-gray-700 rounded-lg p-3 text-center">
+              <div
+                key={source}
+                className="bg-gray-700 rounded-lg p-3 text-center"
+              >
                 <p className="text-gray-400 text-xs capitalize mb-1">
                   {source}
                 </p>
