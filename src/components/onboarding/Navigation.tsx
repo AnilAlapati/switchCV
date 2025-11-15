@@ -12,6 +12,7 @@ export function ProgressBar({ currentStep, totalSteps }: ProgressBarProps) {
   return (
     <div className="bg-gray-200 rounded-full h-2">
       <div
+        data-testid="progress-bar"
         className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
         style={{ width: `${percentage}%` }}
       />

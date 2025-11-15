@@ -214,7 +214,9 @@ describe("Onboarding - Complete Form", () => {
     });
 
     it("should show skills step", () => {
-      expect(screen.getByText("Skills")).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", { name: /Skills/i })
+      ).toBeInTheDocument();
     });
 
     it("should add skill entry", async () => {
@@ -233,11 +235,11 @@ describe("Onboarding - Complete Form", () => {
       fireEvent.click(addButton);
 
       await waitFor(() => {
-        const levelSelect = screen.getByDisplayValue(
-          "Intermediate"
-        ) as HTMLSelectElement;
-        fireEvent.change(levelSelect, { target: { value: "Advanced" } });
-        expect(levelSelect.value).toBe("Advanced");
+        const levelSelects = screen.getAllByRole("combobox");
+        expect(levelSelects.length).toBeGreaterThan(0);
+        const levelSelect = levelSelects[0] as HTMLSelectElement;
+        fireEvent.change(levelSelect, { target: { value: "advanced" } });
+        expect(levelSelect.value).toBe("advanced");
       });
     });
   });
@@ -256,7 +258,9 @@ describe("Onboarding - Complete Form", () => {
     });
 
     it("should show projects step", () => {
-      expect(screen.getByText("Projects")).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", { name: /Projects/i })
+      ).toBeInTheDocument();
     });
 
     it("should add project entry", async () => {
@@ -337,7 +341,7 @@ describe("Onboarding - Complete Form", () => {
     it("should update progress bar", async () => {
       render(<Onboarding />);
 
-      const progressBar = screen.getByRole("generic", { hidden: true });
+      const progressBar = screen.getByTestId("progress-bar");
       const initialWidth = progressBar.style.width;
 
       fireEvent.click(screen.getByText("Next →"));

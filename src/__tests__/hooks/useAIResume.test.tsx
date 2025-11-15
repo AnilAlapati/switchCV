@@ -123,7 +123,7 @@ describe("useAIResume", () => {
             resumeData: mockResumeData,
             template: "modern",
             tone: "professional",
-            modelId: "gpt2-medium",
+            modelId: "gemini-1.5-pro",
           }),
         }
       );

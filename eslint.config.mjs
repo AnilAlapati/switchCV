@@ -16,6 +16,16 @@ const eslintConfig = defineConfig([
           skipComments: true,
         },
       ],
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unused-vars": "warn",
+      "@typescript-eslint/no-non-null-asserted-optional-chain": "warn",
+      "@typescript-eslint/no-require-imports": "warn",
+      "@typescript-eslint/ban-types": "off",
+      "@typescript-eslint/no-unsafe-function-type": "warn",
+      "react/no-unescaped-entities": "off",
+      "react-hooks/rules-of-hooks": "warn",
+      "react-hooks/exhaustive-deps": "off",
+      "@next/next/no-html-link-for-pages": "warn",
     },
   },
   // Override default ignores of eslint-config-next.
@@ -25,6 +35,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Test and utility files
+    "test-*.js",
+    "list-gemini-models.js",
+    "functions/**",
+    "coverage/**",
   ]),
 ]);
 

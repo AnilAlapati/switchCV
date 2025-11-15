@@ -1,5 +1,9 @@
 import '@testing-library/jest-dom'
 
+// Handle "use client" directive in tests
+// The babel plugin handles this, but we add a fallback
+global.__dirname = __dirname;
+
 // Polyfill fetch and Response for Node environment
 if (!globalThis.fetch) {
   globalThis.fetch = jest.fn();
@@ -119,4 +123,57 @@ jest.mock('firebase/storage', () => ({
 jest.mock('firebase/functions', () => ({
   getFunctions: jest.fn(() => ({})),
   httpsCallable: jest.fn(),
+}));
+
+// Mock Next.js Image component
+jest.mock('next/image', () => ({
+  __esModule: true,
+  default: (props) => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require('react').createElement('img', props);
+  },
+}));
+
+// Mock next/navigation to handle useRouter and usePathname
+jest.mock('next/navigation', () => {
+  const actual = jest.requireActual('next/navigation');
+  return {
+    ...actual,
+    useRouter: jest.fn(() => ({
+      push: jest.fn(),
+      replace: jest.fn(),
+      prefetch: jest.fn(),
+      back: jest.fn(),
+      forward: jest.fn(),
+      refresh: jest.fn(),
+      pathname: '/',
+      query: {},
+    })),
+    usePathname: jest.fn(() => '/'),
+    useSearchParams: jest.fn(() => new URLSearchParams()),
+  };
+});
+
+// Mock next/link
+jest.mock('next/link', () => {
+  return ({ children }) => {
+    return children;
+  };
+});
+
+// Mock next/dynamic to handle dynamic imports
+jest.mock('next/dynamic', () => ({
+  __esModule: true,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  default: jest.fn((fn, _options) => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const React = require('react');
+    return React.lazy(fn);
+  }),
+}));
+
+// Mock analytics tracking hooks
+jest.mock('@/hooks/useAnalyticsTracking', () => ({
+  useAnalyticsTracking: jest.fn(() => ({ sessionStartTime: Date.now() })),
+  useTrackAnalytics: jest.fn(() => ({ track: jest.fn() })),
 }));

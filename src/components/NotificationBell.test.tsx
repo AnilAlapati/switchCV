@@ -6,10 +6,24 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useAuth } from "@/hooks/useAuth";
 import { mockUser, createMockQuerySnapshot } from "@/__tests__/mocks/firebase";
-import { collection, onSnapshot } from "firebase/firestore";
+import {
+  collection,
+  onSnapshot,
+  orderBy,
+  query,
+  where,
+  limit,
+} from "firebase/firestore";
 
 jest.mock("@/hooks/useAuth");
-jest.mock("firebase/firestore");
+jest.mock("firebase/firestore", () => ({
+  collection: jest.fn(),
+  query: jest.fn(),
+  where: jest.fn(),
+  orderBy: jest.fn(),
+  limit: jest.fn(),
+  onSnapshot: jest.fn(),
+}));
 jest.mock("@/lib/firebase", () => ({
   db: { name: "[DEFAULT]" },
 }));
@@ -27,18 +41,34 @@ jest.mock("@/components/NotificationList", () => ({
 
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 const mockOnSnapshot = onSnapshot as jest.MockedFunction<any>;
+const mockQuery = query as jest.MockedFunction<any>;
+const mockCollection = collection as jest.MockedFunction<any>;
+const mockOrderBy = orderBy as jest.MockedFunction<any>;
+const mockWhere = where as jest.MockedFunction<any>;
+const mockLimit = limit as jest.MockedFunction<any>;
 
 describe("NotificationBell Component", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Set up firestore mocks
+    mockCollection.mockReturnValue({} as any);
+    mockQuery.mockReturnValue({} as any);
+    mockOrderBy.mockReturnValue({} as any);
+    mockWhere.mockReturnValue({} as any);
+    mockLimit.mockReturnValue({} as any);
   });
 
   it("should render without crashing", () => {
     mockUseAuth.mockReturnValue({
-      user: null,
+      user: mockUser,
       loading: false,
       error: null,
     } as any);
+
+    mockOnSnapshot.mockImplementation((q: any, callback: any) => {
+      callback(createMockQuerySnapshot([]) as any);
+      return jest.fn();
+    });
 
     render(<NotificationBell />);
     expect(screen.getByRole("button")).toBeTruthy();
@@ -88,7 +118,7 @@ describe("NotificationBell Component", () => {
       error: null,
     } as any);
 
-    mockOnSnapshot.mockImplementation((q, callback) => {
+    mockOnSnapshot.mockImplementation((q: any, callback: any) => {
       callback(
         createMockQuerySnapshot([
           { id: "notif-1", message: "Notif 1", read: false },
@@ -116,7 +146,7 @@ describe("NotificationBell Component", () => {
       error: null,
     } as any);
 
-    mockOnSnapshot.mockImplementation((q, callback) => {
+    mockOnSnapshot.mockImplementation((q: any, callback: any) => {
       callback(
         createMockQuerySnapshot([
           { id: "notif-1", message: "Test", read: false },
@@ -167,7 +197,7 @@ describe("NotificationBell Component", () => {
       error: null,
     } as any);
 
-    mockOnSnapshot.mockImplementation((q, callback) => {
+    mockOnSnapshot.mockImplementation((q: any, callback: any) => {
       callback(createMockQuerySnapshot([]) as any);
       return jest.fn();
     });
@@ -184,7 +214,7 @@ describe("NotificationBell Component", () => {
       error: null,
     } as any);
 
-    mockOnSnapshot.mockImplementation((q, callback) => {
+    mockOnSnapshot.mockImplementation((q: any, callback: any) => {
       const manyNotifications = Array.from({ length: 100 }, (_, i) => ({
         id: `notif-${i}`,
         message: `Notification ${i}`,
@@ -225,7 +255,7 @@ describe("NotificationBell Component", () => {
       error: null,
     } as any);
 
-    mockOnSnapshot.mockImplementation((q, callback) => {
+    mockOnSnapshot.mockImplementation((q: any, callback: any) => {
       callback(
         createMockQuerySnapshot([
           { id: "1", message: "Test 1", read: false },
@@ -269,7 +299,7 @@ describe("NotificationBell Component", () => {
       },
     ];
 
-    mockOnSnapshot.mockImplementation((q, callback) => {
+    mockOnSnapshot.mockImplementation((q: any, callback: any) => {
       callback(createMockQuerySnapshot(notifications) as any);
       return jest.fn();
     });

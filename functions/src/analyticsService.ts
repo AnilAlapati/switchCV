@@ -120,7 +120,7 @@ function calculateEngagementMetrics(
   now: Date
 ): Omit<EngagementMetrics, "viewTrendLast7Days"> {
   let totalViews = 0;
-  let uniqueViewers = new Set<string>();
+  const uniqueViewers = new Set<string>();
   let totalSessionDuration = 0;
   let sessionCount = 0;
   const viewsBySource: Record<string, number> = {

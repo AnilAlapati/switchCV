@@ -4,24 +4,15 @@
 
 import { GET } from "@/app/api/profiles/check-access/route";
 import { NextRequest } from "next/server";
+import { getDoc, getDocs, collection, doc } from "firebase/firestore";
 import {
-  getDoc,
-  getDocs,
-  query,
-  collection,
-  where,
-  doc,
-} from "firebase/firestore";
-import {
-  mockDocRef,
-  mockCollectionRef,
   createMockFirestoreDoc,
   createMockQuerySnapshot,
 } from "@/__tests__/mocks/firebase";
 
 jest.mock("firebase/firestore", () => ({
-  doc: jest.fn().mockReturnValue(mockDocRef),
-  collection: jest.fn().mockReturnValue(mockCollectionRef),
+  doc: jest.fn(),
+  collection: jest.fn(),
   getDoc: jest.fn(),
   getDocs: jest.fn(),
   query: jest.fn(),
@@ -35,6 +26,12 @@ jest.mock("@/lib/firebase", () => ({
 describe("GET /api/profiles/check-access", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (doc as jest.Mock).mockReturnValue({});
+    (collection as jest.Mock).mockReturnValue({});
+    (getDocs as jest.Mock).mockResolvedValue({
+      empty: true,
+      docs: [],
+    });
   });
 
   it("should return 400 if resumeId is missing", async () => {
@@ -66,7 +63,7 @@ describe("GET /api/profiles/check-access", () => {
   });
 
   it("should grant access to resume owner", async () => {
-    const userId = "test-user-123";
+    const userId = "placeholder-uid"; // Must match the hardcoded currentUserId in route
 
     (getDoc as jest.Mock).mockResolvedValue(
       createMockFirestoreDoc({

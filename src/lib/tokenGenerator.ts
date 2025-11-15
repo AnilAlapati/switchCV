@@ -143,7 +143,7 @@ class TokenGenerator {
    */
   isExpired(expiresAt: number): boolean {
     const now = Math.floor(Date.now() / 1000);
-    return expiresAt < now;
+    return expiresAt <= now;
   }
 
   /**

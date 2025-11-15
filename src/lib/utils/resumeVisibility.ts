@@ -21,7 +21,7 @@ export const maskEmail = (email: string): string => {
  * Shows only last 4 digits
  */
 export const maskPhone = (phone: string): string => {
-  const cleaned = phone.replace(/\D/g, "");
+  const cleaned = phone.replace(/\D/g, "").slice(0, 10);
   if (cleaned.length < 4) return "***-***-****";
   return `***-***-${cleaned.slice(-4)}`;
 };

@@ -7,10 +7,6 @@ import {
   addDoc,
   serverTimestamp,
   getDoc,
-  query,
-  where,
-  getDocs,
-  arrayUnion,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -47,6 +43,15 @@ export async function POST(request: NextRequest) {
     if (!requestId || !resumeId || !duration) {
       return NextResponse.json(
         { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    // Validate duration parameter
+    const validDurations = ["1hour", "1day", "1week", "forever"];
+    if (!validDurations.includes(duration)) {
+      return NextResponse.json(
+        { error: "Invalid duration parameter" },
         { status: 400 }
       );
     }

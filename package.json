@@ -55,14 +55,7 @@
       "<rootDir>/src/**/*.{test,spec}.{js,jsx,ts,tsx}"
     ],
     "transform": {
-      "^.+\\.(js|jsx|ts|tsx)$": [
-        "babel-jest",
-        {
-          "presets": [
-            "next/babel"
-          ]
-        }
-      ]
+      "^.+\\.(js|jsx|ts|tsx)$": "<rootDir>/jest-preprocessor.js"
     }
   },
   "lint-staged": {

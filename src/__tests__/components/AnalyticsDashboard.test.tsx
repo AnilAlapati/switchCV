@@ -303,7 +303,21 @@ describe("AnalyticsDashboard Component", () => {
         ok: true,
         json: async () => ({
           analytics: {
-            views: { count: 100 },
+            slug: "test-slug",
+            resumeId: "resume-2",
+            userId: "user-123",
+            views: {
+              count: 100,
+              uniqueViewers: 50,
+              avgSessionDuration: 120,
+              lastViewedAt: new Date().toISOString(),
+              topReferrers: {
+                "google.com": 40,
+                direct: 30,
+              },
+            },
+            totalInteractions: 110,
+            lastUpdatedAt: new Date().toISOString(),
           },
         }),
       });

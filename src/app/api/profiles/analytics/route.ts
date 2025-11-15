@@ -50,6 +50,15 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const trackingRequest = (await request.json()) as TrackingRequest;
+
+    // Validate required fields
+    if (!trackingRequest.resumeId || !trackingRequest.eventType) {
+      return NextResponse.json(
+        { error: "resumeId and eventType are required" },
+        { status: 400 }
+      );
+    }
+
     const result = await trackAnalyticsEvent(trackingRequest);
     return NextResponse.json(result);
   } catch (error) {

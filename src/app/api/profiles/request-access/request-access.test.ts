@@ -4,25 +4,16 @@
 
 import { POST } from "@/app/api/profiles/request-access/route";
 import { NextRequest } from "next/server";
+import { getDoc, addDoc, getDocs, collection, doc } from "firebase/firestore";
 import {
-  getDoc,
-  addDoc,
-  getDocs,
-  query,
-  collection,
-  where,
-} from "firebase/firestore";
-import {
-  mockDocRef,
-  mockCollectionRef,
   createMockFirestoreDoc,
   createMockQuerySnapshot,
 } from "@/__tests__/mocks/firebase";
 
 // Mock Firebase
 jest.mock("firebase/firestore", () => ({
-  doc: jest.fn().mockReturnValue(mockDocRef),
-  collection: jest.fn().mockReturnValue(mockCollectionRef),
+  doc: jest.fn(),
+  collection: jest.fn(),
   getDoc: jest.fn(),
   getDocs: jest.fn(),
   addDoc: jest.fn(),
@@ -42,6 +33,8 @@ jest.mock("firebase/auth", () => ({
 describe("POST /api/profiles/request-access", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (doc as jest.Mock).mockReturnValue({});
+    (collection as jest.Mock).mockReturnValue({});
   });
 
   it("should create access request successfully", async () => {
@@ -120,7 +113,7 @@ describe("POST /api/profiles/request-access", () => {
   });
 
   it("should return 400 if user tries to request their own resume", async () => {
-    const userId = "test-user-123";
+    const userId = "placeholder-uid"; // Must match hardcoded currentUserId in route
 
     (getDoc as jest.Mock).mockResolvedValue(
       createMockFirestoreDoc({ userId, title: "My Resume" })

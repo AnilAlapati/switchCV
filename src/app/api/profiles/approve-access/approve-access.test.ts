@@ -8,12 +8,9 @@ import {
   getDoc,
   updateDoc,
   addDoc,
-  getDocs,
-  arrayUnion,
 } from "firebase/firestore";
 import {
   createMockFirestoreDoc,
-  createMockQuerySnapshot,
 } from "@/__tests__/mocks/firebase";
 
 jest.mock("firebase/firestore", () => ({
@@ -36,26 +33,18 @@ jest.mock("@/lib/firebase", () => ({
 describe("POST /api/profiles/approve-access", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Set safe defaults for all mocks
+    (getDoc as jest.Mock).mockResolvedValue(
+      createMockFirestoreDoc({
+        fromUserId: "requester-123",
+        status: "pending",
+      })
+    );
+    (updateDoc as jest.Mock).mockResolvedValue(undefined);
+    (addDoc as jest.Mock).mockResolvedValue({ id: "grant-123" });
   });
 
   it("should approve access request and create grant", async () => {
-    (getDoc as jest.Mock)
-      .mockResolvedValueOnce(
-        createMockFirestoreDoc({
-          fromUserId: "requester-123",
-          status: "pending",
-        })
-      )
-      .mockResolvedValueOnce(
-        createMockFirestoreDoc({
-          userId: "owner-123",
-          accessGrants: [],
-        })
-      );
-
-    (updateDoc as jest.Mock).mockResolvedValue(undefined);
-    (addDoc as jest.Mock).mockResolvedValue({ id: "grant-123" });
-
     const payload = {
       requestId: "request-123",
       resumeId: "resume-123",
@@ -97,19 +86,12 @@ describe("POST /api/profiles/approve-access", () => {
   });
 
   it("should calculate correct expiry date for 1hour duration", async () => {
-    (getDoc as jest.Mock)
-      .mockResolvedValueOnce(
-        createMockFirestoreDoc({
-          fromUserId: "requester-123",
-          status: "pending",
-        })
-      )
-      .mockResolvedValueOnce(
-        createMockFirestoreDoc({ userId: "owner-123", accessGrants: [] })
-      );
-
-    (updateDoc as jest.Mock).mockResolvedValue(undefined);
-    (addDoc as jest.Mock).mockResolvedValue({ id: "grant-123" });
+    (getDoc as jest.Mock).mockResolvedValueOnce(
+      createMockFirestoreDoc({
+        fromUserId: "requester-123",
+        status: "pending",
+      })
+    );
 
     const payload = {
       requestId: "request-123",
@@ -132,19 +114,12 @@ describe("POST /api/profiles/approve-access", () => {
   });
 
   it("should handle 'forever' duration without expiry", async () => {
-    (getDoc as jest.Mock)
-      .mockResolvedValueOnce(
-        createMockFirestoreDoc({
-          fromUserId: "requester-123",
-          status: "pending",
-        })
-      )
-      .mockResolvedValueOnce(
-        createMockFirestoreDoc({ userId: "owner-123", accessGrants: [] })
-      );
-
-    (updateDoc as jest.Mock).mockResolvedValue(undefined);
-    (addDoc as jest.Mock).mockResolvedValue({ id: "grant-123" });
+    (getDoc as jest.Mock).mockResolvedValueOnce(
+      createMockFirestoreDoc({
+        fromUserId: "requester-123",
+        status: "pending",
+      })
+    );
 
     const payload = {
       requestId: "request-123",
@@ -169,7 +144,8 @@ describe("POST /api/profiles/approve-access", () => {
 
   it("should return 404 if access request not found", async () => {
     (getDoc as jest.Mock).mockResolvedValueOnce({
-      exists: jest.fn().mockReturnValue(false),
+      exists: () => false,
+      data: () => undefined,
     });
 
     const payload = {
@@ -187,25 +163,17 @@ describe("POST /api/profiles/approve-access", () => {
     );
 
     const response = await POST(request);
-    const data = await response.json();
 
     expect(response.status).toBe(404);
   });
 
   it("should update request status to approved", async () => {
-    (getDoc as jest.Mock)
-      .mockResolvedValueOnce(
-        createMockFirestoreDoc({
-          fromUserId: "requester-123",
-          status: "pending",
-        })
-      )
-      .mockResolvedValueOnce(
-        createMockFirestoreDoc({ userId: "owner-123", accessGrants: [] })
-      );
-
-    (updateDoc as jest.Mock).mockResolvedValue(undefined);
-    (addDoc as jest.Mock).mockResolvedValue({ id: "grant-123" });
+    (getDoc as jest.Mock).mockResolvedValueOnce(
+      createMockFirestoreDoc({
+        fromUserId: "requester-123",
+        status: "pending",
+      })
+    );
 
     const payload = {
       requestId: "request-123",
@@ -229,18 +197,14 @@ describe("POST /api/profiles/approve-access", () => {
   });
 
   it("should create notification for requester", async () => {
-    (getDoc as jest.Mock)
-      .mockResolvedValueOnce(
-        createMockFirestoreDoc({
-          fromUserId: "requester-123",
-          status: "pending",
-        })
-      )
-      .mockResolvedValueOnce(
-        createMockFirestoreDoc({ userId: "owner-123", accessGrants: [] })
-      );
+    (getDoc as jest.Mock).mockResolvedValueOnce(
+      createMockFirestoreDoc({
+        fromUserId: "requester-123",
+        status: "pending",
+      })
+    );
 
-    (updateDoc as jest.Mock).mockResolvedValue(undefined);
+    // addDoc is called twice: once for grant, once for notification
     (addDoc as jest.Mock)
       .mockResolvedValueOnce({ id: "grant-123" })
       .mockResolvedValueOnce({ id: "notification-123" });
@@ -265,7 +229,9 @@ describe("POST /api/profiles/approve-access", () => {
   });
 
   it("should handle errors gracefully", async () => {
-    (getDoc as jest.Mock).mockRejectedValue(new Error("Database error"));
+    (getDoc as jest.Mock).mockImplementation(() => {
+      throw new Error("Database error");
+    });
 
     const payload = {
       requestId: "request-123",

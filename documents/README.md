@@ -2,129 +2,62 @@
 
 A modern resume platform where users create structured, AI-polished resumes with granular privacy controls and shareable unique URLs.
 
-## Features
+## ✨ Features
 
 - **Living Resume**: Structured, versioned resume data
 - **Privacy Controls**: Per-field PII masking with recruiter request/approval flow
-- **AI Polish**: LLM-powered resume text generation
+- **AI Polish**: LLM-powered resume text generation using multiple AI models
 - **Shareable URLs**: Unique slugs for easy sharing
 - **Recruiter Portal**: Request access to masked contact information
+- **Modern UI**: Futuristic design with glassmorphism effects
 
-## Tech Stack
+## 🛠️ Tech Stack
 
 - **Frontend**: Next.js 16, TypeScript, Tailwind CSS
 - **Backend**: Firebase (Auth, Firestore, Cloud Functions, Storage)
-- **AI**: Hugging Face/Replicate API (Mistral 7B)
-- **Deployment**: Vercel
+- **AI**: Hugging Face Inference API (Mistral 7B, GPT-2, FLAN-T5)
+- **Deployment**: Vercel + Firebase
 
-## Getting Started
+## 🚀 Quick Start
 
-### Prerequisites
-
-- Node.js 18+
-- npm or yarn
-- Firebase account
-
-### 1. Clone and Install
+See detailed setup instructions in **[documents/SETUP.md](./documents/SETUP.md)**
 
 ```bash
+# Clone and install
 git clone https://github.com/AnilAlapati/switchCV.git
-cd switchCV
-npm install
-```
+cd switchCV && npm install
+cd functions && npm install && npm run build && cd ..
 
-### 2. Firebase Setup
-
-1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Create a new project called "switchcv"
-3. Enable Authentication with Email/Password provider
-4. Create a Firestore database
-5. Enable Cloud Functions
-6. Enable Storage
-
-### 3. Environment Configuration
-
-Copy the Firebase config from your project settings and update `.env.local`:
-
-```bash
-# Get these values from Firebase Console > Project Settings > General > Your apps
-NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
-NEXT_PUBLIC_FIREBASE_APP_ID=your-app-id
-```
-
-### 4. Run Development Server
-
-```bash
+# Start development (in separate terminals)
 npm run dev
+firebase emulators:start --only functions
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to see the app.
+## 📚 Documentation
 
-## Project Structure
+- **[SETUP.md](./documents/SETUP.md)** - Complete setup guide
+- **[TROUBLESHOOTING.md](./documents/TROUBLESHOOTING.md)** - Solutions to common issues  
+- **[FIX_SUMMARY.md](./documents/FIX_SUMMARY.md)** - Recent fixes (Nov 11, 2025)
+- **[DEVELOPMENT.md](./documents/DEVELOPMENT.md)** - Technical details
+- **[CONTRIBUTING.md](./documents/CONTRIBUTING.md)** - Contribution guidelines
+- **[status.md](./documents/status.md)** - Project status
 
-```
-src/
-├── app/                 # Next.js App Router pages
-│   ├── auth/           # Authentication pages
-│   ├── dashboard/      # User dashboard
-│   ├── onboarding/     # Resume creation flow
-│   └── profile/        # Profile editor
-├── components/         # Reusable UI components
-├── hooks/             # Custom React hooks
-├── lib/               # Utility libraries (Firebase config)
-└── types/             # TypeScript type definitions
-```
+## 📊 Current Status
 
-## Development
+**MVP Progress: ~75% Complete**
 
-### Available Scripts
+✅ Authentication, UI, Firebase integration, AI, Testing (81.62% coverage)  
+🚧 Public pages, Recruiter workflow  
+📋 Production deployment, Advanced features
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run start` - Start production server
-- `npm run lint` - Run ESLint
+## 🤝 Contributing
 
-### Key Components
+See [CONTRIBUTING.md](./documents/CONTRIBUTING.md) for guidelines.
 
-- **Authentication**: Firebase Auth with custom hooks
-- **Data Layer**: Firestore with TypeScript types
-- **UI**: Tailwind CSS with responsive design
-- **State Management**: React Context for auth state
+## 📝 License
 
-## Deployment
+MIT License
 
-### Vercel (Frontend)
+---
 
-1. Connect your GitHub repo to Vercel
-2. Add environment variables in Vercel dashboard
-3. Deploy automatically on push to main
-
-### Firebase (Backend)
-
-```bash
-# Install Firebase CLI
-npm install -g firebase-tools
-
-# Login and initialize
-firebase login
-firebase init
-
-# Deploy functions
-firebase deploy --only functions
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests and linting
-5. Submit a pull request
-
-## License
-
-MIT License - see LICENSE file for details
+_Built with ❤️ for the future of resume sharing_
