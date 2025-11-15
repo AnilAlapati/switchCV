@@ -2,6 +2,7 @@
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { generateUniqueSlug } from "@/lib/slugGenerator";
+import { generateNumericResumeId } from "@/lib/numericIdGenerator";
 import type { ResumeData } from "@/hooks/useAIConversation";
 
 export interface EnhancedResumeContent {
@@ -20,6 +21,7 @@ export interface EnhancedResumeContent {
 
 export interface ResumeProfile {
   userId: string;
+  numericId?: number; // New: numeric ID for public resume URL
   title: string;
   summary: string;
   skills: Array<{
@@ -50,16 +52,16 @@ export interface ResumeProfile {
     polished: string;
     lastGeneratedAt: string;
   };
-  slug: string;
+  slug: string; // Keep for backward compatibility
   published: boolean;
   lastUpdatedAt: string;
 }
 
-export const buildResumeProfile = (
+export const buildResumeProfile = async (
   userId: string,
   resumeData: ResumeData,
   enhancedContent: EnhancedResumeContent
-): ResumeProfile => {
+): Promise<ResumeProfile> => {
   const personalInfo = resumeData.personalInfo || {};
   const structuredData = {
     personalInfo: {
@@ -90,6 +92,9 @@ export const buildResumeProfile = (
   };
 
   const slug = generateUniqueSlug(personalInfo.name || "resume");
+
+  // Generate numeric ID for the resume
+  const numericId = await generateNumericResumeId();
 
   return {
     userId,
@@ -138,6 +143,7 @@ export const buildResumeProfile = (
       lastGeneratedAt: new Date().toISOString(),
     },
     slug,
+    numericId, // Add numeric ID
     published: true,
     lastUpdatedAt: new Date().toISOString(),
   };

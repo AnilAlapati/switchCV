@@ -112,25 +112,25 @@ export default function CreateResume() {
         setAiModelUsed(modelName);
         console.log(`✅ Resume generated using ${modelName}`);
 
-        // Build and save resume profile
-        const resumeProfile = buildResumeProfile(
+        // Build and save resume profile (buildResumeProfile is now async)
+        const resumeProfile = await buildResumeProfile(
           user.uid,
           resumeData,
           enhancedContent
         );
-        const slug = resumeProfile.slug;
+        const numericId = resumeProfile.numericId || resumeProfile.slug;
 
         await saveResumeToDB(resumeProfile);
 
         setStage("complete");
         addAssistantMessageWithDelay(
-          `🎉 Your resume is ready! You can share it at: ${window.location.origin}/resume/${slug}`,
+          `🎉 Your resume is ready! You can share it at: ${window.location.origin}/resumes/${numericId}`,
           1000
         );
 
         // Redirect to the shareable resume page after a delay
         setTimeout(() => {
-          router.push(`/resume/${slug}`);
+          router.push(`/resumes/${numericId}`);
         }, 3000);
       } else {
         throw new Error(aiError || "Failed to generate resume content");

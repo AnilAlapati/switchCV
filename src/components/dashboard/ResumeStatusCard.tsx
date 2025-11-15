@@ -2,16 +2,17 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { getResumeUrl } from "@/lib/config";
 
 interface ResumeStatusCardProps {
   hasResume: boolean;
-  resumeSlug?: string | null;
+  resumeId?: string | number | null;
   resumeLoading: boolean;
 }
 
 export function ResumeStatusCard({
   hasResume,
-  resumeSlug,
+  resumeId,
   resumeLoading,
 }: ResumeStatusCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -80,7 +81,7 @@ export function ResumeStatusCard({
           {hasResume ? (
             <div className="flex gap-3">
               <a
-                href={`https://switchcv.com/${resumeSlug}`}
+                href={getResumeUrl(resumeId || "")}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-medium rounded-xl transition-all duration-200 transform hover:scale-105 hover:shadow-lg hover:shadow-green-500/25"

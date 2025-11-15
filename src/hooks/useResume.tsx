@@ -9,6 +9,7 @@ import { ResumeProfile } from "@/types";
 
 interface ResumeProfileWithId extends ResumeProfile {
   id: string;
+  numericId?: number;
 }
 
 export const useResume = () => {
@@ -61,8 +62,8 @@ export const useResume = () => {
     return resume !== null;
   };
 
-  const getResumeSlug = () => {
-    return resume?.slug || null;
+  const getResumeId = () => {
+    return resume?.numericId || null;
   };
 
   return {
@@ -70,7 +71,7 @@ export const useResume = () => {
     loading,
     error,
     hasResume: hasResume(),
-    resumeSlug: getResumeSlug(),
+    resumeId: getResumeId(),
     refetch: () => {
       if (user) {
         setRefetchTrigger((prev) => prev + 1);

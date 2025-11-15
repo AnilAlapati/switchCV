@@ -1,10 +1,20 @@
 // src/app/resume/[slug]/page.tsx
+/**
+ * Public Resume Page
+ * Supports both legacy slug-based URLs and new numeric ID URLs
+ *
+ * Legacy: /resume/name-slug-abc123
+ * New: /resume/12345 (numeric ID only)
+ */
 
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/firebase";
-import type { ResumeProfile, Visibility } from "@/types";
-import { renderContactField, parseEnhancedContent, countVisibility } from "@/lib/utils/resumeVisibility";
+import type { ResumeProfile } from "@/types";
+import {
+  parseEnhancedContent,
+  countVisibility,
+} from "@/lib/utils/resumeVisibility";
 import { ResumeContactSection } from "@/components/resume/ResumeContactSection";
 import { ResumeExperienceSection } from "@/components/resume/ResumeExperienceSection";
 import { ResumeEducationSection } from "@/components/resume/ResumeEducationSection";
@@ -17,6 +27,22 @@ type EnhancedContent = {
   enhancedSummary?: string;
   enhancedExperience?: Array<{ enhancedDescription?: string }>;
   skillSuggestions?: string[];
+};
+
+const fetchResumeByNumericId = async (
+  numericId: number
+): Promise<ResumeProfile | null> => {
+  const resumesRef = collection(db, "resumeProfiles");
+  const query_obj = query(
+    resumesRef,
+    where("numericId", "==", numericId),
+    where("published", "==", true)
+  );
+  const snapshot = await getDocs(query_obj);
+  if (snapshot.empty) {
+    return null;
+  }
+  return snapshot.docs[0].data() as ResumeProfile;
 };
 
 const fetchResumeBySlug = async (
@@ -42,7 +68,20 @@ interface ResumePageProps {
 }
 
 export default async function ResumePage({ params }: ResumePageProps) {
-  const resume = await fetchResumeBySlug(params.slug);
+  const { slug } = params;
+
+  let resume: ResumeProfile | null = null;
+
+  // Check if slug is numeric (new format: /resume/12345)
+  const isNumeric = /^\d+$/.test(slug);
+
+  if (isNumeric) {
+    const numericId = parseInt(slug, 10);
+    resume = await fetchResumeByNumericId(numericId);
+  } else {
+    // Legacy format: /resume/name-slug-abc123
+    resume = await fetchResumeBySlug(slug);
+  }
 
   if (!resume) {
     notFound();
@@ -51,7 +90,7 @@ export default async function ResumePage({ params }: ResumePageProps) {
   const enhancedContent = parseEnhancedContent(
     resume.generatedText?.polished
   ) as EnhancedContent;
-  
+
   const skillVisibility = countVisibility(resume.skills ?? []);
   const experienceVisibility = countVisibility(resume.experience ?? []);
   const educationVisibility = countVisibility(resume.education ?? []);

@@ -16,7 +16,7 @@ import { DownloadsCard } from "@/components/dashboard/DownloadsCard";
 
 export default function Dashboard() {
   const { user, logout, loading } = useAuth();
-  const { hasResume, resumeSlug, loading: resumeLoading } = useResume();
+  const { hasResume, resumeId, loading: resumeLoading } = useResume();
   const router = useRouter();
 
   useEffect(() => {
@@ -52,7 +52,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <ResumeStatusCard
             hasResume={hasResume}
-            resumeSlug={resumeSlug}
+            resumeId={resumeId}
             resumeLoading={resumeLoading}
           />
           <ProfileViewsCard />
