@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useEffect } from "react";
+
 interface DashboardBackgroundProps {
   children: React.ReactNode;
 }
@@ -12,12 +14,21 @@ interface Particle {
 }
 
 export function DashboardBackground({ children }: DashboardBackgroundProps) {
-  const particles: Particle[] = [...Array(15)].map(() => ({
-    left: `${Math.random() * 100}%`,
-    top: `${Math.random() * 100}%`,
-    delay: `${Math.random() * 3}s`,
-    duration: `${2 + Math.random() * 3}s`,
-  }));
+  const [state, setState] = useState({
+    mounted: false,
+    particles: [] as Particle[],
+  });
+
+  useEffect(() => {
+    // Generate particles only after client-side hydration
+    const generatedParticles: Particle[] = [...Array(15)].map(() => ({
+      left: `${Math.random() * 100}%`,
+      top: `${Math.random() * 100}%`,
+      delay: `${Math.random() * 3}s`,
+      duration: `${2 + Math.random() * 3}s`,
+    }));
+    setState({ mounted: true, particles: generatedParticles });
+  }, []);
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
@@ -30,20 +41,22 @@ export function DashboardBackground({ children }: DashboardBackgroundProps) {
       </div>
 
       {/* Floating Particles */}
-      <div className="absolute inset-0 overflow-hidden">
-        {particles.map((particle, i) => (
-          <div
-            key={i}
-            className="absolute w-1 h-1 bg-cyan-400 rounded-full opacity-60 animate-ping"
-            style={{
-              left: particle.left,
-              top: particle.top,
-              animationDelay: particle.delay,
-              animationDuration: particle.duration,
-            }}
-          ></div>
-        ))}
-      </div>
+      {state.mounted && (
+        <div className="absolute inset-0 overflow-hidden">
+          {state.particles.map((particle: Particle, i: number) => (
+            <div
+              key={i}
+              className="absolute w-1 h-1 bg-cyan-400 rounded-full opacity-60 animate-ping"
+              style={{
+                left: particle.left,
+                top: particle.top,
+                animationDelay: particle.delay,
+                animationDuration: particle.duration,
+              }}
+            ></div>
+          ))}
+        </div>
+      )}
 
       {children}
     </div>

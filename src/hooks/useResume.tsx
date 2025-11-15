@@ -42,9 +42,10 @@ export const useResume = () => {
             ...(resumeDoc.data() as ResumeProfile),
             id: resumeDoc.id,
           };
-          setResume(resumeData);
+          console.log("Resume loaded:", resumeData);
           setResume(resumeData);
         } else {
+          console.log("No resume found for user");
           setResume(null);
         }
       } catch (err) {
@@ -63,7 +64,14 @@ export const useResume = () => {
   };
 
   const getResumeId = () => {
-    return resume?.numericId || null;
+    // Use numericId if available, otherwise fall back to Firestore document ID
+    const id = resume?.numericId || resume?.id || null;
+    console.log("Resume ID resolved:", {
+      numericId: resume?.numericId,
+      docId: resume?.id,
+      resolved: id,
+    });
+    return id;
   };
 
   return {

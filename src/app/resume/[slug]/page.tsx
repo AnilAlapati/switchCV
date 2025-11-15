@@ -32,6 +32,11 @@ type EnhancedContent = {
 const fetchResumeByNumericId = async (
   numericId: number
 ): Promise<ResumeProfile | null> => {
+  // Skip if numericId is NaN (invalid number)
+  if (isNaN(numericId)) {
+    return null;
+  }
+
   const resumesRef = collection(db, "resumeProfiles");
   const query_obj = query(
     resumesRef,
@@ -61,6 +66,24 @@ const fetchResumeBySlug = async (
   return snapshot.docs[0].data() as ResumeProfile;
 };
 
+const fetchResumeByDocId = async (
+  docId: string
+): Promise<ResumeProfile | null> => {
+  // Try to fetch by Firestore document ID (fallback for resumes without numericId)
+  const { getDoc, doc } = await import("firebase/firestore");
+  const docRef = doc(db, "resumeProfiles", docId);
+  const docSnap = await getDoc(docRef);
+  if (!docSnap.exists()) {
+    return null;
+  }
+  const data = docSnap.data() as ResumeProfile;
+  // Only return if published
+  if (data.published) {
+    return data;
+  }
+  return null;
+};
+
 interface ResumePageProps {
   params: {
     slug: string;
@@ -78,9 +101,20 @@ export default async function ResumePage({ params }: ResumePageProps) {
   if (isNumeric) {
     const numericId = parseInt(slug, 10);
     resume = await fetchResumeByNumericId(numericId);
+
+    // Fallback: if no numericId found, try as Firestore document ID
+    if (!resume) {
+      resume = await fetchResumeByDocId(slug);
+    }
   } else {
     // Legacy format: /resume/name-slug-abc123
+    // Or could be a Firestore document ID
     resume = await fetchResumeBySlug(slug);
+
+    // Fallback: if no slug found, try as Firestore document ID
+    if (!resume) {
+      resume = await fetchResumeByDocId(slug);
+    }
   }
 
   if (!resume) {
