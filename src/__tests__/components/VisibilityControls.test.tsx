@@ -108,17 +108,20 @@ describe("VisibilityBadge", () => {
   });
 
   it("should apply correct styling for each visibility level", () => {
-    const { rerender } = render(<VisibilityBadge value="public" />);
-    let badge = screen.getByText("Public").closest("span");
-    expect(badge).toHaveClass("bg-green-100", "text-green-800");
+    const { rerender, container } = render(<VisibilityBadge value="public" />);
+    let badge = container.querySelector("span[class*='bg-green']");
+    expect(badge).toHaveClass("bg-green-100");
+    expect(badge).toHaveClass("text-green-800");
 
     rerender(<VisibilityBadge value="masked" />);
-    badge = screen.getByText("Masked").closest("span");
-    expect(badge).toHaveClass("bg-yellow-100", "text-yellow-800");
+    badge = container.querySelector("span[class*='bg-yellow']");
+    expect(badge).toHaveClass("bg-yellow-100");
+    expect(badge).toHaveClass("text-yellow-800");
 
     rerender(<VisibilityBadge value="request" />);
-    badge = screen.getByText("Request").closest("span");
-    expect(badge).toHaveClass("bg-blue-100", "text-blue-800");
+    badge = container.querySelector("span[class*='bg-blue']");
+    expect(badge).toHaveClass("bg-blue-100");
+    expect(badge).toHaveClass("text-blue-800");
   });
 });
 

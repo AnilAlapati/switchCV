@@ -5,6 +5,41 @@ if (!globalThis.fetch) {
   globalThis.fetch = jest.fn();
 }
 
+// Polyfill Request if not available
+if (typeof globalThis.Request === 'undefined') {
+  globalThis.Request = class Request {
+    constructor(input, init = {}) {
+      this._url = typeof input === 'string' ? input : (input && input.url) || '';
+      this.method = init.method || 'GET';
+      this.headers = new Map(Object.entries(init.headers || {}));
+      this._body = init.body || null;
+    }
+
+    get url() {
+      return this._url;
+    }
+
+    async json() {
+      try {
+        if (typeof this._body === 'string') {
+          return JSON.parse(this._body);
+        }
+        return this._body || {};
+      } catch {
+        return {};
+      }
+    }
+
+    async text() {
+      return this._body || '';
+    }
+
+    async blob() {
+      return new Blob([this._body || '']);
+    }
+  };
+}
+
 // Polyfill Response if not available
 if (typeof globalThis.Response === 'undefined') {
   globalThis.Response = class Response {
@@ -37,6 +72,13 @@ if (typeof globalThis.Response === 'undefined') {
         status: this.status,
         statusText: this.statusText,
         headers: Object.fromEntries(this.headers),
+      });
+    }
+
+    static json(data, init = {}) {
+      return new Response(JSON.stringify(data), {
+        status: init.status || 200,
+        headers: { 'Content-Type': 'application/json', ...init.headers },
       });
     }
   };

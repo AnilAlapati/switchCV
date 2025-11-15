@@ -185,7 +185,9 @@ describe("Onboarding - Complete Form", () => {
     });
 
     it("should show education step", () => {
-      expect(screen.getByText("Education")).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", { name: "Education" })
+      ).toBeInTheDocument();
     });
 
     it("should add education entry", async () => {
