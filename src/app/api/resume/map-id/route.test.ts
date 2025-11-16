@@ -23,10 +23,13 @@ describe("POST /api/resume/map-id", () => {
 
   describe("Authentication", () => {
     it("should return 401 when Authorization header is missing", async () => {
-      const request = new NextRequest("http://localhost:3000/api/resume/map-id", {
-        method: "POST",
-        body: JSON.stringify({ resumeId: 123, documentId: "doc-123" }),
-      });
+      const request = new NextRequest(
+        "http://localhost:3000/api/resume/map-id",
+        {
+          method: "POST",
+          body: JSON.stringify({ resumeId: 123, documentId: "doc-123" }),
+        }
+      );
 
       const response = await POST(request);
       const data = await response.json();
@@ -38,11 +41,14 @@ describe("POST /api/resume/map-id", () => {
     });
 
     it("should return 401 when Authorization header doesn't start with Bearer", async () => {
-      const request = new NextRequest("http://localhost:3000/api/resume/map-id", {
-        method: "POST",
-        headers: { Authorization: "Basic token" },
-        body: JSON.stringify({ resumeId: 123, documentId: "doc-123" }),
-      });
+      const request = new NextRequest(
+        "http://localhost:3000/api/resume/map-id",
+        {
+          method: "POST",
+          headers: { Authorization: "Basic token" },
+          body: JSON.stringify({ resumeId: 123, documentId: "doc-123" }),
+        }
+      );
 
       const response = await POST(request);
       const data = await response.json();
@@ -53,13 +59,18 @@ describe("POST /api/resume/map-id", () => {
     });
 
     it("should return 401 when token verification fails", async () => {
-      (adminAuth.verifyIdToken as jest.Mock).mockRejectedValue(new Error("Invalid token"));
+      (adminAuth.verifyIdToken as jest.Mock).mockRejectedValue(
+        new Error("Invalid token")
+      );
 
-      const request = new NextRequest("http://localhost:3000/api/resume/map-id", {
-        method: "POST",
-        headers: { Authorization: "Bearer invalid-token" },
-        body: JSON.stringify({ resumeId: 123, documentId: "doc-123" }),
-      });
+      const request = new NextRequest(
+        "http://localhost:3000/api/resume/map-id",
+        {
+          method: "POST",
+          headers: { Authorization: "Bearer invalid-token" },
+          body: JSON.stringify({ resumeId: 123, documentId: "doc-123" }),
+        }
+      );
 
       const response = await POST(request);
       const data = await response.json();
@@ -73,11 +84,14 @@ describe("POST /api/resume/map-id", () => {
 
   describe("Request validation", () => {
     it("should return 401 when resumeId is missing", async () => {
-      const request = new NextRequest("http://localhost:3000/api/resume/map-id", {
-        method: "POST",
-        headers: { Authorization: "Bearer valid-token" },
-        body: JSON.stringify({ documentId: "doc-123" }),
-      });
+      const request = new NextRequest(
+        "http://localhost:3000/api/resume/map-id",
+        {
+          method: "POST",
+          headers: { Authorization: "Bearer valid-token" },
+          body: JSON.stringify({ documentId: "doc-123" }),
+        }
+      );
 
       const response = await POST(request);
       const data = await response.json();
@@ -89,11 +103,14 @@ describe("POST /api/resume/map-id", () => {
     });
 
     it("should return 401 when documentId is missing", async () => {
-      const request = new NextRequest("http://localhost:3000/api/resume/map-id", {
-        method: "POST",
-        headers: { Authorization: "Bearer valid-token" },
-        body: JSON.stringify({ resumeId: 123 }),
-      });
+      const request = new NextRequest(
+        "http://localhost:3000/api/resume/map-id",
+        {
+          method: "POST",
+          headers: { Authorization: "Bearer valid-token" },
+          body: JSON.stringify({ resumeId: 123 }),
+        }
+      );
 
       const response = await POST(request);
       const data = await response.json();
@@ -105,11 +122,14 @@ describe("POST /api/resume/map-id", () => {
     });
 
     it("should return 401 when request body is empty", async () => {
-      const request = new NextRequest("http://localhost:3000/api/resume/map-id", {
-        method: "POST",
-        headers: { Authorization: "Bearer valid-token" },
-        body: "",
-      });
+      const request = new NextRequest(
+        "http://localhost:3000/api/resume/map-id",
+        {
+          method: "POST",
+          headers: { Authorization: "Bearer valid-token" },
+          body: "",
+        }
+      );
 
       const response = await POST(request);
       const data = await response.json();
@@ -121,11 +141,17 @@ describe("POST /api/resume/map-id", () => {
     });
 
     it("should return 401 when invalid JSON in request body", async () => {
-      const request = new NextRequest("http://localhost:3000/api/resume/map-id", {
-        method: "POST",
-        headers: { Authorization: "Bearer valid-token", "Content-Type": "application/json" },
-        body: "invalid json",
-      });
+      const request = new NextRequest(
+        "http://localhost:3000/api/resume/map-id",
+        {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer valid-token",
+            "Content-Type": "application/json",
+          },
+          body: "invalid json",
+        }
+      );
 
       const response = await POST(request);
       const data = await response.json();
@@ -137,11 +163,14 @@ describe("POST /api/resume/map-id", () => {
     });
 
     it("should return 401 when request body is missing", async () => {
-      const request = new NextRequest("http://localhost:3000/api/resume/map-id", {
-        method: "POST",
-        headers: { Authorization: "Bearer valid-token" },
-        body: null,
-      });
+      const request = new NextRequest(
+        "http://localhost:3000/api/resume/map-id",
+        {
+          method: "POST",
+          headers: { Authorization: "Bearer valid-token" },
+          body: null,
+        }
+      );
 
       const response = await POST(request);
       const data = await response.json();
@@ -155,7 +184,9 @@ describe("POST /api/resume/map-id", () => {
 
   describe("Successful mapping", () => {
     beforeEach(() => {
-      (adminAuth.verifyIdToken as jest.Mock).mockResolvedValue({ uid: "test-user-123" });
+      (adminAuth.verifyIdToken as jest.Mock).mockResolvedValue({
+        uid: "test-user-123",
+      });
     });
 
     it("should successfully create resume ID mapping", async () => {
@@ -165,11 +196,14 @@ describe("POST /api/resume/map-id", () => {
         userId: "test-user-123",
       });
 
-      const request = new NextRequest("http://localhost:3000/api/resume/map-id", {
-        method: "POST",
-        headers: { Authorization: "Bearer valid-token" },
-        body: JSON.stringify({ resumeId: 123, documentId: "doc-123" }),
-      });
+      const request = new NextRequest(
+        "http://localhost:3000/api/resume/map-id",
+        {
+          method: "POST",
+          headers: { Authorization: "Bearer valid-token" },
+          body: JSON.stringify({ resumeId: 123, documentId: "doc-123" }),
+        }
+      );
 
       const response = await POST(request);
       const data = await response.json();
@@ -191,11 +225,14 @@ describe("POST /api/resume/map-id", () => {
         userId: "test-user-123",
       });
 
-      const request = new NextRequest("http://localhost:3000/api/resume/map-id", {
-        method: "POST",
-        headers: { Authorization: "Bearer valid-token" },
-        body: JSON.stringify({ resumeId: "456", documentId: "doc-456" }),
-      });
+      const request = new NextRequest(
+        "http://localhost:3000/api/resume/map-id",
+        {
+          method: "POST",
+          headers: { Authorization: "Bearer valid-token" },
+          body: JSON.stringify({ resumeId: "456", documentId: "doc-456" }),
+        }
+      );
 
       const response = await POST(request);
       const data = await response.json();
@@ -206,23 +243,34 @@ describe("POST /api/resume/map-id", () => {
         message: "Resume ID mapping created",
         data: { resumeId: "456", documentId: "doc-456" },
       });
-      expect(mapResumeId).toHaveBeenCalledWith("456", "doc-456", "test-user-123");
+      expect(mapResumeId).toHaveBeenCalledWith(
+        "456",
+        "doc-456",
+        "test-user-123"
+      );
     });
   });
 
   describe("Error handling", () => {
     beforeEach(() => {
-      (adminAuth.verifyIdToken as jest.Mock).mockResolvedValue({ uid: "test-user-123" });
+      (adminAuth.verifyIdToken as jest.Mock).mockResolvedValue({
+        uid: "test-user-123",
+      });
     });
 
     it("should handle mapResumeId errors gracefully", async () => {
-      (mapResumeId as jest.Mock).mockRejectedValue(new Error("Database connection failed"));
+      (mapResumeId as jest.Mock).mockRejectedValue(
+        new Error("Database connection failed")
+      );
 
-      const request = new NextRequest("http://localhost:3000/api/resume/map-id", {
-        method: "POST",
-        headers: { Authorization: "Bearer valid-token" },
-        body: JSON.stringify({ resumeId: 123, documentId: "doc-123" }),
-      });
+      const request = new NextRequest(
+        "http://localhost:3000/api/resume/map-id",
+        {
+          method: "POST",
+          headers: { Authorization: "Bearer valid-token" },
+          body: JSON.stringify({ resumeId: 123, documentId: "doc-123" }),
+        }
+      );
 
       const response = await POST(request);
       const data = await response.json();
@@ -237,11 +285,14 @@ describe("POST /api/resume/map-id", () => {
     it("should handle unknown errors", async () => {
       (mapResumeId as jest.Mock).mockRejectedValue("String error");
 
-      const request = new NextRequest("http://localhost:3000/api/resume/map-id", {
-        method: "POST",
-        headers: { Authorization: "Bearer valid-token" },
-        body: JSON.stringify({ resumeId: 123, documentId: "doc-123" }),
-      });
+      const request = new NextRequest(
+        "http://localhost:3000/api/resume/map-id",
+        {
+          method: "POST",
+          headers: { Authorization: "Bearer valid-token" },
+          body: JSON.stringify({ resumeId: 123, documentId: "doc-123" }),
+        }
+      );
 
       const response = await POST(request);
       const data = await response.json();
