@@ -75,12 +75,14 @@ describe("Interview Questions Generator", () => {
       );
       const dataQuestions = generateInterviewQuestions("Data Scientist", 5);
 
-      const engineerIds = engineerQuestions.map((q) => q.id);
-      const dataIds = dataQuestions.map((q) => q.id);
+      const engineerTexts = engineerQuestions.map((q) => q.question);
+      const dataTexts = dataQuestions.map((q) => q.question);
 
       // Should have some different questions
-      const overlap = engineerIds.filter((id) => dataIds.includes(id)).length;
-      expect(overlap).toBeLessThan(engineerIds.length);
+      const overlap = engineerTexts.filter((text) =>
+        dataTexts.includes(text)
+      ).length;
+      expect(overlap).toBeLessThan(engineerTexts.length);
     });
   });
 });

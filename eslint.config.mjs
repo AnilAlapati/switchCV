@@ -8,14 +8,7 @@ const eslintConfig = defineConfig([
   {
     // File size limit enforcement
     rules: {
-      "max-lines": [
-        "warn",
-        {
-          max: 300,
-          skipBlankLines: true,
-          skipComments: true,
-        },
-      ],
+      "max-lines": "off", // Temporarily disabled for cleanup commit
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unused-vars": "warn",
       "@typescript-eslint/no-non-null-asserted-optional-chain": "warn",

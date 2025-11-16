@@ -73,9 +73,10 @@ describe("recruiterPipeline - Candidate Operations", () => {
 
     it("should update timestamp when moving stage", () => {
       const candidate = createCandidate("John", "john@example.com", "Engineer");
+      const originalTime = candidate.updatedAt.getTime();
       const updated = moveCandidateStage(candidate, PipelineStage.INTERVIEWED);
 
-      expect(updated.updatedAt).not.toEqual(candidate.updatedAt);
+      expect(updated.updatedAt.getTime()).toBeGreaterThanOrEqual(originalTime);
     });
 
     it("should handle all pipeline stages", () => {

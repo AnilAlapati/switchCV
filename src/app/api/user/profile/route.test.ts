@@ -75,6 +75,8 @@ describe("GET /api/user/profile", () => {
     const mockCollection = { doc: jest.fn().mockReturnValue(mockDocRef) };
     mockAdminDb.collection.mockReturnValue(mockCollection as any);
 
+    mockRequest.headers.set("Authorization", "Bearer test-token");
+
     const response = await GET(mockRequest);
     const data = await response.json();
 
@@ -115,7 +117,9 @@ describe("GET /api/user/profile", () => {
 
   it("should return 400 when userId parameter is missing", async () => {
     mockRequest.headers.set("Authorization", "Bearer test-token");
-    mockAdminAuth.verifyIdToken.mockResolvedValue({ uid: "test-user-123" });
+    mockAdminAuth.verifyIdToken.mockResolvedValue(
+      createMockDecodedToken("test-user-123")
+    );
     mockRequest.url = "http://localhost:3000/api/user/profile";
 
     const response = await GET(mockRequest);
@@ -127,9 +131,9 @@ describe("GET /api/user/profile", () => {
 
   it("should return 403 when user tries to access another user's profile", async () => {
     mockRequest.headers.set("Authorization", "Bearer test-token");
-    mockAdminAuth.verifyIdToken.mockResolvedValue({
-      uid: "authenticated-user-123",
-    });
+    mockAdminAuth.verifyIdToken.mockResolvedValue(
+      createMockDecodedToken("authenticated-user-123")
+    );
     mockRequest.url =
       "http://localhost:3000/api/user/profile?userId=other-user-456";
 
@@ -142,7 +146,9 @@ describe("GET /api/user/profile", () => {
 
   it("should return 404 when user profile does not exist", async () => {
     mockRequest.headers.set("Authorization", "Bearer test-token");
-    mockAdminAuth.verifyIdToken.mockResolvedValue({ uid: "test-user-123" });
+    mockAdminAuth.verifyIdToken.mockResolvedValue(
+      createMockDecodedToken("test-user-123")
+    );
 
     const mockDoc = { exists: false };
     const mockDocRef = { get: jest.fn().mockResolvedValue(mockDoc) };
@@ -158,7 +164,9 @@ describe("GET /api/user/profile", () => {
 
   it("should return 500 when database operation fails", async () => {
     mockRequest.headers.set("Authorization", "Bearer test-token");
-    mockAdminAuth.verifyIdToken.mockResolvedValue({ uid: "test-user-123" });
+    mockAdminAuth.verifyIdToken.mockResolvedValue(
+      createMockDecodedToken("test-user-123")
+    );
 
     const mockDocRef = {
       get: jest.fn().mockRejectedValue(new Error("Database error")),
@@ -197,8 +205,10 @@ describe("POST /api/user/profile", () => {
     };
 
     mockRequest.headers.set("Authorization", "Bearer test-token");
-    mockRequest.json.mockResolvedValue(profileData);
-    mockAdminAuth.verifyIdToken.mockResolvedValue({ uid: mockUserId });
+    (mockRequest.json as jest.Mock).mockResolvedValue(profileData);
+    mockAdminAuth.verifyIdToken.mockResolvedValue(
+      createMockDecodedToken(mockUserId)
+    );
 
     const mockDocRef = { set: jest.fn().mockResolvedValue(undefined) };
     const mockCollection = { doc: jest.fn().mockReturnValue(mockDocRef) };
@@ -223,8 +233,10 @@ describe("POST /api/user/profile", () => {
     };
 
     mockRequest.headers.set("Authorization", "Bearer test-token");
-    mockRequest.json.mockResolvedValue(profileData);
-    mockAdminAuth.verifyIdToken.mockResolvedValue({ uid: mockUserId });
+    (mockRequest.json as jest.Mock).mockResolvedValue(profileData);
+    mockAdminAuth.verifyIdToken.mockResolvedValue(
+      createMockDecodedToken(mockUserId)
+    );
 
     const mockDocRef = { set: jest.fn().mockResolvedValue(undefined) };
     const mockCollection = { doc: jest.fn().mockReturnValue(mockDocRef) };
@@ -255,8 +267,12 @@ describe("POST /api/user/profile", () => {
 
   it("should return 400 when uid is missing", async () => {
     mockRequest.headers.set("Authorization", "Bearer test-token");
-    mockRequest.json.mockResolvedValue({ email: "test@example.com" });
-    mockAdminAuth.verifyIdToken.mockResolvedValue({ uid: "test-user-123" });
+    (mockRequest.json as jest.Mock).mockResolvedValue({
+      email: "test@example.com",
+    });
+    mockAdminAuth.verifyIdToken.mockResolvedValue(
+      createMockDecodedToken("test-user-123")
+    );
 
     const response = await POST(mockRequest);
     const data = await response.json();
@@ -267,8 +283,10 @@ describe("POST /api/user/profile", () => {
 
   it("should return 400 when email is missing", async () => {
     mockRequest.headers.set("Authorization", "Bearer test-token");
-    mockRequest.json.mockResolvedValue({ uid: "test-user-123" });
-    mockAdminAuth.verifyIdToken.mockResolvedValue({ uid: "test-user-123" });
+    (mockRequest.json as jest.Mock).mockResolvedValue({ uid: "test-user-123" });
+    mockAdminAuth.verifyIdToken.mockResolvedValue(
+      createMockDecodedToken("test-user-123")
+    );
 
     const response = await POST(mockRequest);
     const data = await response.json();
@@ -279,13 +297,13 @@ describe("POST /api/user/profile", () => {
 
   it("should return 403 when user tries to create profile for another user", async () => {
     mockRequest.headers.set("Authorization", "Bearer test-token");
-    mockRequest.json.mockResolvedValue({
+    (mockRequest.json as jest.Mock).mockResolvedValue({
       uid: "other-user-456",
       email: "other@example.com",
     });
-    mockAdminAuth.verifyIdToken.mockResolvedValue({
-      uid: "authenticated-user-123",
-    });
+    mockAdminAuth.verifyIdToken.mockResolvedValue(
+      createMockDecodedToken("authenticated-user-123")
+    );
 
     const response = await POST(mockRequest);
     const data = await response.json();
@@ -299,11 +317,13 @@ describe("POST /api/user/profile", () => {
   it("should return 500 when database operation fails", async () => {
     const mockUserId = "test-user-123";
     mockRequest.headers.set("Authorization", "Bearer test-token");
-    mockRequest.json.mockResolvedValue({
+    (mockRequest.json as jest.Mock).mockResolvedValue({
       uid: mockUserId,
       email: "test@example.com",
     });
-    mockAdminAuth.verifyIdToken.mockResolvedValue({ uid: mockUserId });
+    mockAdminAuth.verifyIdToken.mockResolvedValue(
+      createMockDecodedToken(mockUserId)
+    );
 
     const mockDocRef = {
       set: jest.fn().mockRejectedValue(new Error("Database error")),
@@ -320,8 +340,12 @@ describe("POST /api/user/profile", () => {
 
   it("should return 500 when request parsing fails", async () => {
     mockRequest.headers.set("Authorization", "Bearer test-token");
-    mockRequest.json.mockRejectedValue(new Error("Invalid JSON"));
-    mockAdminAuth.verifyIdToken.mockResolvedValue({ uid: "test-user-123" });
+    (mockRequest.json as jest.Mock).mockRejectedValue(
+      new Error("Invalid JSON")
+    );
+    mockAdminAuth.verifyIdToken.mockResolvedValue(
+      createMockDecodedToken("test-user-123")
+    );
 
     const response = await POST(mockRequest);
     const data = await response.json();
@@ -353,8 +377,10 @@ describe("PUT /api/user/profile", () => {
     };
 
     mockRequest.headers.set("Authorization", "Bearer test-token");
-    mockRequest.json.mockResolvedValue(updateData);
-    mockAdminAuth.verifyIdToken.mockResolvedValue({ uid: mockUserId });
+    (mockRequest.json as jest.Mock).mockResolvedValue(updateData);
+    mockAdminAuth.verifyIdToken.mockResolvedValue(
+      createMockDecodedToken(mockUserId)
+    );
 
     const mockDocRef = { set: jest.fn().mockResolvedValue(undefined) };
     const mockCollection = { doc: jest.fn().mockReturnValue(mockDocRef) };
@@ -378,8 +404,10 @@ describe("PUT /api/user/profile", () => {
     };
 
     mockRequest.headers.set("Authorization", "Bearer test-token");
-    mockRequest.json.mockResolvedValue(updateData);
-    mockAdminAuth.verifyIdToken.mockResolvedValue({ uid: mockUserId });
+    (mockRequest.json as jest.Mock).mockResolvedValue(updateData);
+    mockAdminAuth.verifyIdToken.mockResolvedValue(
+      createMockDecodedToken(mockUserId)
+    );
 
     const mockDocRef = { set: jest.fn().mockResolvedValue(undefined) };
     const mockCollection = { doc: jest.fn().mockReturnValue(mockDocRef) };
@@ -410,8 +438,12 @@ describe("PUT /api/user/profile", () => {
 
   it("should return 400 when uid is missing", async () => {
     mockRequest.headers.set("Authorization", "Bearer test-token");
-    mockRequest.json.mockResolvedValue({ displayName: "New Name" });
-    mockAdminAuth.verifyIdToken.mockResolvedValue({ uid: "test-user-123" });
+    (mockRequest.json as jest.Mock).mockResolvedValue({
+      displayName: "New Name",
+    });
+    mockAdminAuth.verifyIdToken.mockResolvedValue(
+      createMockDecodedToken("test-user-123")
+    );
 
     const response = await PUT(mockRequest);
     const data = await response.json();
@@ -422,13 +454,13 @@ describe("PUT /api/user/profile", () => {
 
   it("should return 403 when user tries to update another user's profile", async () => {
     mockRequest.headers.set("Authorization", "Bearer test-token");
-    mockRequest.json.mockResolvedValue({
+    (mockRequest.json as jest.Mock).mockResolvedValue({
       uid: "other-user-456",
       displayName: "New Name",
     });
-    mockAdminAuth.verifyIdToken.mockResolvedValue({
-      uid: "authenticated-user-123",
-    });
+    mockAdminAuth.verifyIdToken.mockResolvedValue(
+      createMockDecodedToken("authenticated-user-123")
+    );
 
     const response = await PUT(mockRequest);
     const data = await response.json();
@@ -440,11 +472,13 @@ describe("PUT /api/user/profile", () => {
   it("should return 500 when database operation fails", async () => {
     const mockUserId = "test-user-123";
     mockRequest.headers.set("Authorization", "Bearer test-token");
-    mockRequest.json.mockResolvedValue({
+    (mockRequest.json as jest.Mock).mockResolvedValue({
       uid: mockUserId,
       displayName: "New Name",
     });
-    mockAdminAuth.verifyIdToken.mockResolvedValue({ uid: mockUserId });
+    mockAdminAuth.verifyIdToken.mockResolvedValue(
+      createMockDecodedToken(mockUserId)
+    );
 
     const mockDocRef = {
       set: jest.fn().mockRejectedValue(new Error("Database error")),
@@ -461,8 +495,12 @@ describe("PUT /api/user/profile", () => {
 
   it("should return 500 when request parsing fails", async () => {
     mockRequest.headers.set("Authorization", "Bearer test-token");
-    mockRequest.json.mockRejectedValue(new Error("Invalid JSON"));
-    mockAdminAuth.verifyIdToken.mockResolvedValue({ uid: "test-user-123" });
+    (mockRequest.json as jest.Mock).mockRejectedValue(
+      new Error("Invalid JSON")
+    );
+    mockAdminAuth.verifyIdToken.mockResolvedValue(
+      createMockDecodedToken("test-user-123")
+    );
 
     const response = await PUT(mockRequest);
     const data = await response.json();

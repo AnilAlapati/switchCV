@@ -171,9 +171,3 @@ jest.mock('next/dynamic', () => ({
     return React.lazy(fn);
   }),
 }));
-
-// Mock analytics tracking hooks
-jest.mock('@/hooks/useAnalyticsTracking', () => ({
-  useAnalyticsTracking: jest.fn(() => ({ sessionStartTime: Date.now() })),
-  useTrackAnalytics: jest.fn(() => ({ track: jest.fn() })),
-}));

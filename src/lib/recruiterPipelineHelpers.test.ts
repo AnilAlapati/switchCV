@@ -107,10 +107,11 @@ describe("recruiterPipelineHelpers", () => {
   describe("calculateTimeInStage", () => {
     it("should calculate time for pipeline", () => {
       const pipeline = initializePipeline("job_1", "Engineer");
-      const days = calculateTimeInStage(pipeline);
+      const timeInStages = calculateTimeInStage(pipeline);
 
-      expect(typeof days).toBe("number");
-      expect(days).toBeGreaterThanOrEqual(0);
+      expect(typeof timeInStages).toBe("object");
+      expect(timeInStages).toHaveProperty(PipelineStage.LEAD);
+      expect(timeInStages).toHaveProperty(PipelineStage.HIRED);
     });
   });
 

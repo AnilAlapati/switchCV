@@ -1,5 +1,3 @@
- 
-
 import { NextRequest } from "next/server";
 import { GET } from "./route";
 
@@ -179,11 +177,6 @@ describe("GET /api/recruiter/search", () => {
   });
 
   it("should fallback to user search when no resume matches found", async () => {
-    // First call returns no resumes
-    mockGetDocs
-      .mockResolvedValueOnce(createMockSnapshot([]) as any)
-      .mockResolvedValueOnce(createMockSnapshot([]) as any);
-
     // User search returns a user
     const mockUserDoc = createMockDoc("user-999", {
       uid: "user-999",
@@ -201,7 +194,9 @@ describe("GET /api/recruiter/search", () => {
       skills: [{ name: "JavaScript" }, { name: "Python" }],
     });
 
+    // First call returns no resumes
     mockGetDocs
+      .mockResolvedValueOnce(createMockSnapshot([]) as any)
       .mockResolvedValueOnce(createMockSnapshot([mockUserDoc]) as any)
       .mockResolvedValueOnce(createMockSnapshot([mockUserResumeDoc]) as any);
 
@@ -228,7 +223,7 @@ describe("GET /api/recruiter/search", () => {
 
     mockGetDocs
       .mockResolvedValueOnce(createMockSnapshot([mockResumeDoc]) as any)
-      .mockResolvedValueOnce(createMockSnapshot([]) as any); // User not found
+      .mockRejectedValueOnce(new Error("Database connection error"));
 
     const request = new NextRequest(
       "http://localhost:3000/api/recruiter/search?q=backend"

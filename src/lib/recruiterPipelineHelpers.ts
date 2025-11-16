@@ -192,16 +192,18 @@ export function getHiredThisMonth(pipeline: RecruitmentPipeline): number {
 /**
  * Get pending follow-ups
  */
-export function getPendingFollowUps(pipeline: RecruitmentPipeline): number {
+export function getPendingFollowUps(
+  pipeline: RecruitmentPipeline
+): Candidate[] {
   const screened =
     pipeline.columns.find((col) => col.stage === PipelineStage.SCREENED)
-      ?.candidates.length || 0;
+      ?.candidates || [];
 
   const interviewed =
     pipeline.columns.find((col) => col.stage === PipelineStage.INTERVIEWED)
-      ?.candidates.length || 0;
+      ?.candidates || [];
 
-  return screened + interviewed;
+  return [...screened, ...interviewed];
 }
 
 /**
