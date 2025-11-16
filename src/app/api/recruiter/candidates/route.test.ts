@@ -5,7 +5,10 @@
 
 import { NextRequest } from "next/server";
 import { POST, GET } from "./route";
-import { CandidatePriority, PipelineStage } from "@/lib/recruiterDashboard.types";
+import {
+  CandidatePriority,
+  PipelineStage,
+} from "@/lib/recruiterDashboard.types";
 
 // Mock the recruiterPipeline functions
 jest.mock("@/lib/recruiterPipeline", () => ({
@@ -48,18 +51,21 @@ describe("POST /api/recruiter/candidates", () => {
 
       (createCandidate as jest.Mock).mockReturnValue(mockCandidate);
 
-      const request = new NextRequest("http://localhost:3000/api/recruiter/candidates", {
-        method: "POST",
-        body: JSON.stringify({
-          action: "create",
-          name: "John Doe",
-          email: "john@example.com",
-          position: "Software Engineer",
-          phone: "+1234567890",
-          resumeUrl: "https://example.com/resume.pdf",
-          source: "LinkedIn",
-        }),
-      });
+      const request = new NextRequest(
+        "http://localhost:3000/api/recruiter/candidates",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            action: "create",
+            name: "John Doe",
+            email: "john@example.com",
+            position: "Software Engineer",
+            phone: "+1234567890",
+            resumeUrl: "https://example.com/resume.pdf",
+            source: "LinkedIn",
+          }),
+        }
+      );
 
       const response = await POST(request);
       const data = await response.json();
@@ -85,14 +91,17 @@ describe("POST /api/recruiter/candidates", () => {
     });
 
     it("should handle create with missing required fields", async () => {
-      const request = new NextRequest("http://localhost:3000/api/recruiter/candidates", {
-        method: "POST",
-        body: JSON.stringify({
-          action: "create",
-          name: "John Doe",
-          // missing email and position
-        }),
-      });
+      const request = new NextRequest(
+        "http://localhost:3000/api/recruiter/candidates",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            action: "create",
+            name: "John Doe",
+            // missing email and position
+          }),
+        }
+      );
 
       const response = await POST(request);
       const data = await response.json();
@@ -103,15 +112,18 @@ describe("POST /api/recruiter/candidates", () => {
     });
 
     it("should handle create with empty candidateIds array", async () => {
-      const request = new NextRequest("http://localhost:3000/api/recruiter/candidates", {
-        method: "POST",
-        body: JSON.stringify({
-          action: "create",
-          name: "",
-          email: "",
-          position: "",
-        }),
-      });
+      const request = new NextRequest(
+        "http://localhost:3000/api/recruiter/candidates",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            action: "create",
+            name: "",
+            email: "",
+            position: "",
+          }),
+        }
+      );
 
       const response = await POST(request);
       const data = await response.json();
@@ -144,14 +156,17 @@ describe("POST /api/recruiter/candidates", () => {
       candidates.set("cand-123", existingCandidate);
       (updateCandidatePriority as jest.Mock).mockReturnValue(updatedCandidate);
 
-      const request = new NextRequest("http://localhost:3000/api/recruiter/candidates", {
-        method: "POST",
-        body: JSON.stringify({
-          action: "update-priority",
-          candidateId: "cand-123",
-          priority: CandidatePriority.HIGH,
-        }),
-      });
+      const request = new NextRequest(
+        "http://localhost:3000/api/recruiter/candidates",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            action: "update-priority",
+            candidateId: "cand-123",
+            priority: CandidatePriority.HIGH,
+          }),
+        }
+      );
 
       const response = await POST(request);
       const data = await response.json();
@@ -165,19 +180,25 @@ describe("POST /api/recruiter/candidates", () => {
       expect(data.candidate.stage).toBe(PipelineStage.LEAD);
       expect(data.candidate.priority).toBe(CandidatePriority.HIGH);
       expect(data.message).toBe("Candidate priority updated");
-      expect(updateCandidatePriority).toHaveBeenCalledWith(existingCandidate, CandidatePriority.HIGH);
+      expect(updateCandidatePriority).toHaveBeenCalledWith(
+        existingCandidate,
+        CandidatePriority.HIGH
+      );
       expect(candidates.get("cand-123")).toEqual(updatedCandidate);
     });
 
     it("should return 404 for non-existent candidate", async () => {
-      const request = new NextRequest("http://localhost:3000/api/recruiter/candidates", {
-        method: "POST",
-        body: JSON.stringify({
-          action: "update-priority",
-          candidateId: "non-existent",
-          priority: CandidatePriority.LOW,
-        }),
-      });
+      const request = new NextRequest(
+        "http://localhost:3000/api/recruiter/candidates",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            action: "update-priority",
+            candidateId: "non-existent",
+            priority: CandidatePriority.LOW,
+          }),
+        }
+      );
 
       const response = await POST(request);
       const data = await response.json();
@@ -215,17 +236,20 @@ describe("POST /api/recruiter/candidates", () => {
       candidates.set("cand-123", existingCandidate);
       (addCandidateNote as jest.Mock).mockReturnValue(mockNote);
 
-      const request = new NextRequest("http://localhost:3000/api/recruiter/candidates", {
-        method: "POST",
-        body: JSON.stringify({
-          action: "add-note",
-          candidateId: "cand-123",
-          userId: "user-456",
-          content: "Great technical skills",
-          category: "technical",
-          isPrivate: false,
-        }),
-      });
+      const request = new NextRequest(
+        "http://localhost:3000/api/recruiter/candidates",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            action: "add-note",
+            candidateId: "cand-123",
+            userId: "user-456",
+            content: "Great technical skills",
+            category: "technical",
+            isPrivate: false,
+          }),
+        }
+      );
 
       const response = await POST(request);
       const data = await response.json();
@@ -264,33 +288,41 @@ describe("POST /api/recruiter/candidates", () => {
 
       candidates.set("cand-123", existingCandidate);
 
-      const request = new NextRequest("http://localhost:3000/api/recruiter/candidates", {
-        method: "POST",
-        body: JSON.stringify({
-          action: "add-note",
-          candidateId: "cand-123",
-          // missing userId and content
-        }),
-      });
+      const request = new NextRequest(
+        "http://localhost:3000/api/recruiter/candidates",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            action: "add-note",
+            candidateId: "cand-123",
+            // missing userId and content
+          }),
+        }
+      );
 
       const response = await POST(request);
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.error).toBe("Missing required fields: candidateId, userId, content");
+      expect(data.error).toBe(
+        "Missing required fields: candidateId, userId, content"
+      );
       expect(addCandidateNote).not.toHaveBeenCalled();
     });
 
     it("should return 404 for non-existent candidate when adding note", async () => {
-      const request = new NextRequest("http://localhost:3000/api/recruiter/candidates", {
-        method: "POST",
-        body: JSON.stringify({
-          action: "add-note",
-          candidateId: "non-existent",
-          userId: "user-456",
-          content: "Test note",
-        }),
-      });
+      const request = new NextRequest(
+        "http://localhost:3000/api/recruiter/candidates",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            action: "add-note",
+            candidateId: "non-existent",
+            userId: "user-456",
+            content: "Test note",
+          }),
+        }
+      );
 
       const response = await POST(request);
       const data = await response.json();
@@ -303,12 +335,15 @@ describe("POST /api/recruiter/candidates", () => {
 
   describe("error handling", () => {
     it("should return 400 for invalid action", async () => {
-      const request = new NextRequest("http://localhost:3000/api/recruiter/candidates", {
-        method: "POST",
-        body: JSON.stringify({
-          action: "invalid-action",
-        }),
-      });
+      const request = new NextRequest(
+        "http://localhost:3000/api/recruiter/candidates",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            action: "invalid-action",
+          }),
+        }
+      );
 
       const response = await POST(request);
       const data = await response.json();
@@ -318,10 +353,13 @@ describe("POST /api/recruiter/candidates", () => {
     });
 
     it("should return 500 for malformed JSON", async () => {
-      const request = new NextRequest("http://localhost:3000/api/recruiter/candidates", {
-        method: "POST",
-        body: "invalid json",
-      });
+      const request = new NextRequest(
+        "http://localhost:3000/api/recruiter/candidates",
+        {
+          method: "POST",
+          body: "invalid json",
+        }
+      );
 
       const response = await POST(request);
       const data = await response.json();
@@ -367,7 +405,9 @@ describe("GET /api/recruiter/candidates", () => {
     candidates.set("cand-123", mockCandidate);
     notes.set("cand-123", mockNotes);
 
-    const request = new NextRequest("http://localhost:3000/api/recruiter/candidates?id=cand-123");
+    const request = new NextRequest(
+      "http://localhost:3000/api/recruiter/candidates?id=cand-123"
+    );
 
     const response = await GET(request);
     const data = await response.json();
@@ -390,7 +430,9 @@ describe("GET /api/recruiter/candidates", () => {
   });
 
   it("should return 404 for non-existent candidate", async () => {
-    const request = new NextRequest("http://localhost:3000/api/recruiter/candidates?id=non-existent");
+    const request = new NextRequest(
+      "http://localhost:3000/api/recruiter/candidates?id=non-existent"
+    );
 
     const response = await GET(request);
     const data = await response.json();
@@ -425,7 +467,9 @@ describe("GET /api/recruiter/candidates", () => {
     candidates.set("cand-123", mockCandidate1);
     candidates.set("cand-456", mockCandidate2);
 
-    const request = new NextRequest("http://localhost:3000/api/recruiter/candidates");
+    const request = new NextRequest(
+      "http://localhost:3000/api/recruiter/candidates"
+    );
 
     const response = await GET(request);
     const data = await response.json();
@@ -445,7 +489,9 @@ describe("GET /api/recruiter/candidates", () => {
   });
 
   it("should return empty array when no candidates exist", async () => {
-    const request = new NextRequest("http://localhost:3000/api/recruiter/candidates");
+    const request = new NextRequest(
+      "http://localhost:3000/api/recruiter/candidates"
+    );
 
     const response = await GET(request);
     const data = await response.json();

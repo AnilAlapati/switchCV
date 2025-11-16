@@ -102,7 +102,9 @@ describe("POST /api/recruiter/pipeline", () => {
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data).toEqual({ error: "Missing required fields: jobId and jobTitle" });
+      expect(data).toEqual({
+        error: "Missing required fields: jobId and jobTitle",
+      });
     });
   });
 
@@ -295,8 +297,8 @@ describe("POST /api/recruiter/pipeline", () => {
       expect(response.status).toBe(200);
       expect(data).toEqual({
         success: true,
-        candidate: { 
-          ...mockCandidate, 
+        candidate: {
+          ...mockCandidate,
           stage: "screened",
           createdAt: mockCandidate.createdAt.toISOString(),
           updatedAt: mockCandidate.updatedAt.toISOString(),
@@ -431,7 +433,7 @@ describe("POST /api/recruiter/pipeline", () => {
       expect(data).toEqual({
         success: true,
         stage: "screened",
-        candidates: mockCandidates.map(candidate => ({
+        candidates: mockCandidates.map((candidate) => ({
           ...candidate,
           createdAt: candidate.createdAt.toISOString(),
           updatedAt: candidate.updatedAt.toISOString(),

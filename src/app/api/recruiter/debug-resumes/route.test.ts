@@ -96,9 +96,9 @@ describe("GET /api/recruiter/debug-resumes", () => {
 
     // Mock user queries
     mockUsersCollection.doc.mockImplementation((userId) => ({
-      get: jest.fn().mockResolvedValue(
-        userId === "user-1" ? mockUserDoc1 : mockUserDoc2
-      ),
+      get: jest
+        .fn()
+        .mockResolvedValue(userId === "user-1" ? mockUserDoc1 : mockUserDoc2),
     }));
 
     const response = await GET();
@@ -123,7 +123,11 @@ describe("GET /api/recruiter/debug-resumes", () => {
     expect(data.resumes[1].published).toBe(true);
     expect(data.resumes[1].createdAt).toBe("2024-01-02T00:00:00.000Z");
 
-    expect(mockResumesCollection.where).toHaveBeenCalledWith("published", "==", true);
+    expect(mockResumesCollection.where).toHaveBeenCalledWith(
+      "published",
+      "==",
+      true
+    );
     expect(mockCollection).toHaveBeenCalledWith("resumes");
     expect(mockCollection).toHaveBeenCalledWith("users");
   });
@@ -265,7 +269,9 @@ describe("GET /api/recruiter/debug-resumes", () => {
     // Mock database error
     mockResumesCollection.where.mockReturnValue({
       limit: jest.fn().mockReturnValue({
-        get: jest.fn().mockRejectedValue(new Error("Database connection failed")),
+        get: jest
+          .fn()
+          .mockRejectedValue(new Error("Database connection failed")),
       }),
     });
 
