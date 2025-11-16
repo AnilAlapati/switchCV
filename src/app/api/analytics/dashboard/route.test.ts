@@ -339,5 +339,4 @@ describe("GET /api/analytics/dashboard", () => {
       expect(AnalyticsService.aggregateToDashboard).toHaveBeenCalled();
     });
   });
-
 });

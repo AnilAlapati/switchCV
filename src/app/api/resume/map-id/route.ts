@@ -18,7 +18,12 @@ export async function POST(request: NextRequest) {
     const token = authHeader.substring(7);
 
     // Verify the token
-    const decodedToken = await adminAuth.verifyIdToken(token);
+    let decodedToken;
+    try {
+      decodedToken = await adminAuth.verifyIdToken(token);
+    } catch {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const userId = decodedToken.uid;
 
     // Parse request body
