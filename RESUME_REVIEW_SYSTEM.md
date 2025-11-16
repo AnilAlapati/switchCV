@@ -3,6 +3,7 @@
 ## Overview
 
 We've completely revamped the resume generation experience by:
+
 1. ✅ **Removing the preview** from the create-resume flow
 2. ✅ **Building a smart retry system** with max 5 retries
 3. ✅ **Creating a futuristic UI** with creative sections and modern design
@@ -13,11 +14,13 @@ We've completely revamped the resume generation experience by:
 ## 🎯 Key Features
 
 ### 1. **Removed Inline Preview**
+
 - The `GeneratedResumePreview` component has been removed from the create-resume page
 - Users no longer see the resume while filling out the form
 - Clean, focused conversation flow with AI
 
 ### 2. **Smart Review Modal**
+
 - **Location**: `src/components/ResumeReviewModal.tsx`
 - **Features**:
   - Full-screen scrollable review interface
@@ -28,6 +31,7 @@ We've completely revamped the resume generation experience by:
   - Warns user on last retry
 
 ### 3. **Futuristic Resume Display**
+
 - **Location**: `src/components/FuturisticResumeDisplay.tsx`
 - **Design Features**:
   - Gradient header with animated pattern
@@ -40,6 +44,7 @@ We've completely revamped the resume generation experience by:
   - Footer with generation timestamp and status
 
 ### 4. **Intelligent Feedback System**
+
 - Users can request rewrites up to 5 times
 - Feedback is passed to the LLM with context
 - AI learns from feedback to improve subsequent iterations
@@ -50,6 +55,7 @@ We've completely revamped the resume generation experience by:
 ## 📁 New Components
 
 ### `FuturisticResumeDisplay.tsx`
+
 ```tsx
 interface FuturisticResumeDisplayProps {
   generatedResume: EnhancedResumeContent;
@@ -58,12 +64,14 @@ interface FuturisticResumeDisplayProps {
 ```
 
 **Sections**:
+
 - 📋 Professional Summary - with gradient border
 - 💼 Professional Experience - individual cards with timeline
 - 🎯 Key Skills - skill badges with gradient backgrounds
 - ✨ Enhancement Tips - improvement suggestions with icons
 
 **Visual Features**:
+
 - Animated gradient header
 - Glowing shadows matching section colors
 - Responsive grid layouts
@@ -73,6 +81,7 @@ interface FuturisticResumeDisplayProps {
 ---
 
 ### `ResumeReviewModal.tsx`
+
 ```tsx
 interface ResumeReviewModalProps {
   generatedResume: EnhancedResumeContent;
@@ -86,6 +95,7 @@ interface ResumeReviewModalProps {
 ```
 
 **Features**:
+
 - Scrollable container for long content
 - Header with retry progress visualization
 - Large action buttons (Accept/Rewrite)
@@ -134,6 +144,7 @@ Create Resume Page
 ## 💡 Smart LLM Integration
 
 ### Feedback Context Injection
+
 ```tsx
 const feedbackContext = userFeedback
   ? `\n\nUser Feedback from Previous Iteration:\n${userFeedback}\n
@@ -142,6 +153,7 @@ const feedbackContext = userFeedback
 ```
 
 **Example Flow**:
+
 1. **First Generation**: User gets base resume
 2. **User Feedback**: "Make technical skills more prominent"
 3. **Second Generation**: AI receives feedback context, regenerates with emphasis on tech skills
@@ -152,6 +164,7 @@ const feedbackContext = userFeedback
 ## 🎨 UI/UX Design Details
 
 ### Color Scheme
+
 - **Primary**: Cyan (#06B6D4)
 - **Secondary**: Blue (#3B82F6)
 - **Accent**: Purple (#A855F7)
@@ -159,11 +172,13 @@ const feedbackContext = userFeedback
 - **Success**: Green (#10B981)
 
 ### Typography
+
 - Headers: Bold, uppercase with tracking
 - Body: Medium weight with line-height
 - Labels: Small, mono-spaced
 
 ### Effects
+
 - Gradient backgrounds with overlays
 - Blur effects on backdrop
 - Smooth transitions (300ms)
@@ -187,12 +202,14 @@ const MAX_RETRIES = 5;
 ### Three Main Functions
 
 1. **`handleResumeGeneration(userFeedback?: string)`**
+
    - Generates or regenerates resume
    - Optionally includes user feedback context
    - Shows review modal on success
    - Increments retry counter on rewrite
 
 2. **`handleAcceptResume()`**
+
    - Saves resume to Firestore
    - Generates shareable URL
    - Shows success message
@@ -228,13 +245,13 @@ disabled={retriesRemaining === 0}
 ## 🚀 Usage Examples
 
 ### Accepting Resume
+
 ```tsx
-<button onClick={handleAccept}>
-  Accept & Save Resume
-</button>
+<button onClick={handleAccept}>Accept & Save Resume</button>
 ```
 
 ### Requesting Rewrite with Feedback
+
 ```tsx
 const handleRewrite = async () => {
   await onRewrite("Add more leadership metrics to experience");
@@ -242,6 +259,7 @@ const handleRewrite = async () => {
 ```
 
 ### Checking Retry Status
+
 ```tsx
 {retriesRemaining} rewrite{retriesRemaining === 1 ? "" : "s"} remaining
 ```
@@ -251,6 +269,7 @@ const handleRewrite = async () => {
 ## 📝 Resume Data Structure
 
 The `EnhancedResumeContent` includes:
+
 - `enhancedSummary`: Professional summary text
 - `enhancedExperience[]`: Array of experience entries with:
   - `title`: Job title
@@ -309,15 +328,19 @@ The `EnhancedResumeContent` includes:
 ## 🐛 Common Issues & Solutions
 
 ### Issue: Modal appears empty
+
 **Solution**: Check that `EnhancedResumeContent` is populated correctly
 
 ### Issue: Feedback not reflected in regeneration
+
 **Solution**: Verify `feedbackContext` is properly passed to AI prompt
 
 ### Issue: Retry counter not incrementing
+
 **Solution**: Check `setRetryCount` is called before regeneration
 
 ### Issue: Modal won't close after accept
+
 **Solution**: Verify `handleAcceptResume` completes without errors
 
 ---
@@ -325,6 +348,7 @@ The `EnhancedResumeContent` includes:
 ## 📞 Support
 
 For issues or questions about the resume review system, check:
+
 - Component implementations
 - State management flow
 - Error logs in browser console
