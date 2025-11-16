@@ -18,38 +18,46 @@ export function ResumeProjectsSection({
   }
 
   return (
-    <section className="space-y-4">
-      <h3 className="text-2xl font-semibold text-cyan-400">Projects</h3>
-      <div className="space-y-4">
+    <section>
+      <div className="space-y-12">
         {publicProjects.length > 0 ? (
           publicProjects.map((project, index) => (
-            <div key={index} className="border-l-4 border-pink-500 pl-6">
-              <h4 className="text-xl font-semibold text-white">
-                {project.name}
-              </h4>
-              {project.url && (
-                <a
-                  href={project.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-pink-400 hover:text-pink-300 font-medium"
-                >
-                  🔗 View Project
-                </a>
-              )}
-              <p className="text-slate-300 mt-2 leading-relaxed">
+            <div key={index} className="group">
+              <div className="flex items-start justify-between gap-4 mb-3">
+                <div className="flex-1">
+                  <h3 className="text-xl sm:text-2xl font-bold text-white group-hover:text-pink-400 transition-colors">
+                    {project.name}
+                  </h3>
+                </div>
+                {project.url && (
+                  <a
+                    href={project.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-semibold text-pink-400 hover:text-pink-300 transition-colors whitespace-nowrap flex-shrink-0"
+                  >
+                    Visit →
+                  </a>
+                )}
+              </div>
+              <p className="text-slate-300 text-sm leading-relaxed font-normal">
                 {project.description}
               </p>
             </div>
           ))
         ) : (
-          <p className="text-slate-400 text-sm">Projects are kept private.</p>
+          <p className="text-slate-400 text-sm italic">
+            Projects are kept private.
+          </p>
         )}
       </div>
+
       {hasRequests && (
-        <p className="text-amber-200 text-sm">
-          Additional project details are available upon request.
-        </p>
+        <div className="mt-8 px-4 py-3 rounded-lg bg-pink-900/20 border border-pink-500/30 backdrop-blur">
+          <p className="text-pink-300 text-sm font-medium">
+            Additional project details are available upon request.
+          </p>
+        </div>
       )}
     </section>
   );

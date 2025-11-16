@@ -23,36 +23,47 @@ export function ResumeExperienceSection({
   }
 
   return (
-    <section className="space-y-6">
-      <h3 className="text-2xl font-semibold text-cyan-400">Experience</h3>
-      <div className="space-y-6">
+    <section>
+      <div className="space-y-12">
         {publicExperience.length > 0 ? (
           publicExperience.map((exp, index) => (
-            <div key={index} className="border-l-4 border-cyan-500 pl-6">
-              <h4 className="text-xl font-semibold text-white">{exp.role}</h4>
-              <p className="text-purple-400 font-medium">{exp.company}</p>
-              <p className="text-slate-400 text-sm mb-2">
-                {exp.startDate} - {exp.endDate || "Present"}
+            <div key={index} className="group">
+              <div className="flex items-start justify-between gap-4 mb-3">
+                <div className="flex-1">
+                  <h3 className="text-xl sm:text-2xl font-bold text-white group-hover:text-blue-400 transition-colors">
+                    {exp.role}
+                  </h3>
+                  <p className="text-blue-400 font-semibold text-base mt-1">
+                    {exp.company}
+                  </p>
+                </div>
+              </div>
+              <p className="text-slate-400 text-xs mb-4">
+                {exp.startDate} – {exp.endDate || "Present"}
               </p>
-              <p className="text-slate-300 leading-relaxed">
+              <p className="text-slate-300 text-sm leading-relaxed font-normal">
                 {enhancedExperience?.[index]?.enhancedDescription ||
                   exp.description}
               </p>
             </div>
           ))
         ) : (
-          <p className="text-slate-400 text-sm">
+          <p className="text-slate-400 text-sm italic">
             Experience entries are protected for privacy.
           </p>
         )}
       </div>
+
       {hasRequestItems(experience) && (
-        <p className="text-amber-200 text-sm">
-          Additional experience details are available upon request.
-        </p>
+        <div className="mt-8 px-4 py-3 rounded-lg bg-blue-900/20 border border-blue-500/30 backdrop-blur">
+          <p className="text-blue-300 text-sm font-medium">
+            Additional experience details are available upon request.
+          </p>
+        </div>
       )}
+
       {hasMaskedItems(experience) && (
-        <p className="text-slate-400 text-sm">
+        <p className="text-slate-500 text-sm mt-6">
           Some experience entries are hidden to protect sensitive work.
         </p>
       )}

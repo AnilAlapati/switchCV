@@ -11,41 +11,51 @@ export function ResumeContactSection({ resume }: ResumeContactSectionProps) {
   const hasPhone = resume.contact.phone.value;
 
   return (
-    <div>
-      <div className="text-center mb-4">
-        <h2 className="text-3xl font-semibold text-white">
-          {resume.contact.email.visibility === "public"
-            ? resume.contact.email.value.split("@")[0]
-            : "Private Candidate"}
-        </h2>
-        <div className="flex flex-wrap justify-center gap-4 text-slate-300">
-          <span>
-            📧{" "}
-            {renderContactField(
-              resume.contact.email.value,
-              resume.contact.email.visibility,
-              "email"
-            )}
-          </span>
-          {hasPhone && (
-            <span>
-              📱{" "}
-              {renderContactField(
-                resume.contact.phone.value,
-                resume.contact.phone.visibility,
-                "phone"
-              )}
-            </span>
+    <div className="space-y-8">
+      {/* Email */}
+      <div>
+        <p className="text-xs uppercase tracking-widest text-slate-400 font-semibold mb-3">
+          Email
+        </p>
+        <p className="text-slate-200 font-medium break-all hover:text-blue-400 transition-colors cursor-pointer">
+          {renderContactField(
+            resume.contact.email.value,
+            resume.contact.email.visibility,
+            "email"
           )}
-        </div>
+        </p>
       </div>
 
-      <div>
-        <h3 className="text-2xl font-semibold text-cyan-400 mb-4">
-          Professional Summary
-        </h3>
-        <p className="text-slate-300 leading-relaxed">{resume.summary}</p>
-      </div>
+      {/* Phone */}
+      {hasPhone && (
+        <div>
+          <p className="text-xs uppercase tracking-widest text-slate-400 font-semibold mb-3">
+            Phone
+          </p>
+          <p className="text-slate-200 font-medium hover:text-blue-400 transition-colors cursor-pointer">
+            {renderContactField(
+              resume.contact.phone.value,
+              resume.contact.phone.visibility,
+              "phone"
+            )}
+          </p>
+        </div>
+      )}
+
+      {/* Divider */}
+      <div className="h-px bg-gradient-to-r from-slate-600/50 to-transparent"></div>
+
+      {/* About/Summary */}
+      {resume.summary && (
+        <div>
+          <p className="text-xs uppercase tracking-widest text-slate-400 font-semibold mb-3">
+            About
+          </p>
+          <p className="text-slate-300 text-sm leading-relaxed font-normal">
+            {resume.summary}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

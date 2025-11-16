@@ -96,11 +96,14 @@ export const buildResumeProfile = async (
   // Generate numeric ID for the resume
   const numericId = await generateNumericResumeId();
 
+  // Build title safely - avoid "undefined" in title
+  const personName = personalInfo.name?.trim() || "Professional";
+  const jobTarget = resumeData.jobTarget?.trim() || "Resume";
+  const titleText = `${personName}'s ${jobTarget}`;
+
   return {
     userId,
-    title: `${personalInfo.name}'s Resume - ${
-      resumeData.jobTarget || "Professional"
-    }`,
+    title: titleText,
     summary: enhancedContent.enhancedSummary,
     skills: (resumeData.skills
       ? resumeData.skills.split(",").map((s) => s.trim())
