@@ -52,7 +52,7 @@ type InterviewRequest =
   | GetUpcomingRequest;
 
 // In-memory interview storage (replace with database in production)
-const interviews = new Map<string, Interview>();
+export const interviews = new Map<string, Interview>();
 
 export async function POST(request: NextRequest) {
   try {
