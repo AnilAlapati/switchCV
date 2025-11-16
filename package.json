@@ -8,7 +8,11 @@
     "start": "next start",
     "lint": "eslint",
     "test": "jest",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "postinstall": "husky install && chmod +x scripts/*.sh",
+    "precommit": "bash scripts/auto-maintain.sh",
+    "cleanup": "bash scripts/auto-maintain.sh",
+    "health-check": "bash scripts/check-repo-health.sh"
   },
   "dependencies": {
     "firebase": "^12.5.0",
