@@ -31,7 +31,7 @@ type BulkActionRequest =
   | CancelActionRequest;
 
 // In-memory bulk action storage (replace with database in production)
-const actions = new Map<
+export const actions = new Map<
   string,
   BulkAction & {
     metadata?: Record<string, any>;
