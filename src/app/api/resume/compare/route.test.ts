@@ -1,3 +1,5 @@
+ 
+
 import { NextRequest } from "next/server";
 import { POST } from "./route";
 import { compareResumes } from "@/lib/resumeComparison";
@@ -19,15 +21,7 @@ describe("POST /api/resume/compare", () => {
     it("should return 400 when resume1 is missing", async () => {
       const request = new NextRequest("http://localhost", {
         method: "POST",
-        body: JSON.stringify({
-          resume2: {
-            id: "2",
-            title: "Developer",
-            skills: ["JS"],
-            experience: [],
-            education: [],
-          },
-        }),
+        body: JSON.stringify({ resume2: {} }),
       });
 
       const response = await POST(request);
@@ -40,15 +34,7 @@ describe("POST /api/resume/compare", () => {
     it("should return 400 when resume2 is missing", async () => {
       const request = new NextRequest("http://localhost", {
         method: "POST",
-        body: JSON.stringify({
-          resume1: {
-            id: "1",
-            title: "Developer",
-            skills: ["JS"],
-            experience: [],
-            education: [],
-          },
-        }),
+        body: JSON.stringify({ resume1: {} }),
       });
 
       const response = await POST(request);
