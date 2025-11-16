@@ -274,6 +274,35 @@ function getRoleSpecificQuestions(jobTitle: string): InterviewQuestion[] {
         ],
       },
     ];
+  } else if (lower.includes("data")) {
+    return [
+      {
+        id: "role-1",
+        question: "How do you approach data cleaning and preprocessing?",
+        category: "role-specific",
+        difficulty: "medium",
+        timeLimit: 180,
+        tips: [
+          "Discuss handling missing values",
+          "Explain outlier detection",
+          "Mention data transformation techniques",
+          "Show quality assurance methods",
+        ],
+      },
+      {
+        id: "role-2",
+        question: "Describe your experience with statistical modeling.",
+        category: "role-specific",
+        difficulty: "hard",
+        timeLimit: 240,
+        tips: [
+          "Explain model selection process",
+          "Discuss validation techniques",
+          "Mention performance metrics",
+          "Show interpretation of results",
+        ],
+      },
+    ];
   } else {
     return [
       {

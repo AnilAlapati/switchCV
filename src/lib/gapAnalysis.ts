@@ -49,7 +49,7 @@ export function analyzeSkillGap(
     skillRequirement.minimumProficiency
   );
 
-  const isCritical = gap > 2 && skillRequirement.importance === "must-have";
+  const isCritical = gap > 0 && skillRequirement.importance === "must-have";
 
   return {
     skill: {
@@ -184,7 +184,10 @@ function generateRecommendations(
     .map((gap) => ({
       skill: gap.skill,
       priority: gap.isCritical ? "high" : gap.gap > 1 ? "medium" : "low",
-      resources: gap.learningPath || generateDefaultLearningResources(gap),
+      resources:
+        gap.learningPath && gap.learningPath.length > 0
+          ? gap.learningPath
+          : generateDefaultLearningResources(gap),
       suggestedPath: generateSuggestedPath(gap),
       estimatedTimeframe: estimateTimeframe(gap.gap),
     }));
