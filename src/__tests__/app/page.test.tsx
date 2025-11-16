@@ -1,5 +1,5 @@
 // src/__tests__/app/page.test.tsx
-import { render, screen } from "@/__tests__/helpers/testUtils";
+import { render, screen } from "@/__tests__/__support__/testUtils";
 import Home from "../../app/page";
 
 // Mock Next.js navigation

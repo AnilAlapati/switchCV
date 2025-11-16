@@ -5,7 +5,10 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useAuth } from "@/hooks/useAuth";
-import { mockUser, createMockQuerySnapshot } from "@/__tests__/mocks/firebase";
+import {
+  mockUser,
+  createMockQuerySnapshot,
+} from "@/__tests__/__support__/firebase";
 import {
   collection,
   onSnapshot,

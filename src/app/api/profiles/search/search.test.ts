@@ -5,7 +5,7 @@
 import { POST } from "@/app/api/profiles/search/route";
 import { NextRequest } from "next/server";
 import { getDocs } from "firebase/firestore";
-import { createMockQuerySnapshot } from "@/__tests__/mocks/firebase";
+import { createMockQuerySnapshot } from "@/__tests__/__support__/firebase";
 
 jest.mock("firebase/firestore", () => ({
   collection: jest.fn(),

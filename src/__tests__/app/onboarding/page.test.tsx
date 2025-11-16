@@ -4,7 +4,7 @@ import {
   screen,
   fireEvent,
   waitFor,
-} from "@/__tests__/helpers/testUtils";
+} from "@/__tests__/__support__/testUtils";
 import Onboarding from "@/app/onboarding/page";
 
 // Mock the hooks

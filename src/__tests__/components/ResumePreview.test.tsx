@@ -1,6 +1,6 @@
 // src/__tests__/components/ResumePreview.test.tsx
 import React from "react";
-import { render, screen } from "@/__tests__/helpers/testUtils";
+import { render, screen } from "@/__tests__/__support__/testUtils";
 import { ResumePreview, ResumePreviewPanel } from "@/components/ResumePreview";
 import { ResumeProfile } from "@/types";
 
