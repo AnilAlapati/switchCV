@@ -14,6 +14,10 @@ import { ResumeQualityCard } from "@/components/dashboard/ResumeQualityCard";
 import { LastUpdatedCard } from "@/components/dashboard/LastUpdatedCard";
 import { DownloadsCard } from "@/components/dashboard/DownloadsCard";
 import { RecruiterSearchBox } from "@/components/dashboard/RecruiterSearchBox";
+import { CandidatesSearchedCard } from "@/components/dashboard/recruiter/CandidatesSearchedCard";
+import { RecruiterProfileViewsCard } from "@/components/dashboard/recruiter/RecruiterProfileViewsCard";
+import { AccessRequestsCard } from "@/components/dashboard/recruiter/AccessRequestsCard";
+import { CandidatesInteractedCard } from "@/components/dashboard/recruiter/CandidatesInteractedCard";
 
 export default function Dashboard() {
   const { user, logout, loading } = useAuth();
@@ -67,29 +71,45 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <main className="relative z-10 max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        {/* Dashboard Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          <ResumeStatusCard
-            hasResume={hasResume}
-            resumeId={resumeId}
-            resumeLoading={resumeLoading}
-          />
-          <ProfileViewsCard />
-          <ContactRequestsCard />
-        </div>
+        {/* Job Seeker Dashboard */}
+        {!userIsRecruiter && (
+          <>
+            {/* Dashboard Stats Cards - Job Seeker */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              <ResumeStatusCard
+                hasResume={hasResume}
+                resumeId={resumeId}
+                resumeLoading={resumeLoading}
+              />
+              <ProfileViewsCard />
+              <ContactRequestsCard />
+            </div>
 
-        {/* Additional Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          <ResumeQualityCard hasResume={hasResume} />
-          <LastUpdatedCard hasResume={hasResume} />
-          <DownloadsCard hasResume={hasResume} />
-        </div>
+            {/* Additional Metrics - Job Seeker */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              <ResumeQualityCard />
+              <LastUpdatedCard />
+              <DownloadsCard />
+            </div>
+          </>
+        )}
 
-        {/* Recruiter Search Section */}
+        {/* Recruiter Dashboard */}
         {userIsRecruiter && (
-          <div className="mb-8">
-            <RecruiterSearchBox />
-          </div>
+          <>
+            {/* Recruiter Metrics Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <CandidatesSearchedCard />
+              <RecruiterProfileViewsCard />
+              <AccessRequestsCard />
+              <CandidatesInteractedCard />
+            </div>
+
+            {/* Recruiter Search Section */}
+            <div className="mb-8">
+              <RecruiterSearchBox />
+            </div>
+          </>
         )}
       </main>
     </DashboardBackground>

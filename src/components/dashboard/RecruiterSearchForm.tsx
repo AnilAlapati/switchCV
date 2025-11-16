@@ -79,18 +79,19 @@ export function RecruiterSearchForm({
       {/* Search Form */}
       <form onSubmit={onSearch} className="mb-6">
         {searchMode === "basic" ? (
-          // Basic Search: By User ID
+          // Basic Search: By User ID or Resume ID
           <div className="space-y-3">
             <input
               type="text"
               value={userId}
               onChange={(e) => setUserId(e.target.value)}
-              placeholder="Enter candidate user ID..."
+              placeholder="Enter resume ID or user ID..."
               disabled={loading}
               className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/50 focus:bg-white/15 transition-all duration-200 disabled:opacity-50"
             />
             <p className="text-slate-400 text-xs">
-              💡 Enter the exact user ID of the candidate. Returns max 1 resume.
+              💡 Enter the resume ID (e.g., "1", "2") or user ID. Returns max 1
+              resume.
             </p>
           </div>
         ) : (

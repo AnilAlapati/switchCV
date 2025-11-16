@@ -1,6 +1,41 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+
+interface ProfileMetrics {
+  profileViews: number;
+}
+
 export function ProfileViewsCard() {
+  const { user } = useAuth();
+  const [metrics, setMetrics] = useState<ProfileMetrics>({ profileViews: 0 });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    fetchMetrics();
+  }, [user]);
+
+  const fetchMetrics = async () => {
+    try {
+      const response = await fetch(
+        `/api/jobseeker/metrics?userId=${user?.uid}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setMetrics({ profileViews: data.profileViews || 0 });
+      }
+    } catch (error) {
+      console.error("Failed to fetch profile views:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
   return (
     <div className="backdrop-blur-xl bg-white/10 rounded-3xl border border-white/20 shadow-2xl shadow-black/50 p-6 hover:bg-white/15 transition-all duration-300 transform hover:scale-105">
       <div className="flex items-center">
@@ -32,12 +67,22 @@ export function ProfileViewsCard() {
             <dt className="text-sm font-medium text-slate-400 truncate">
               Profile Views
             </dt>
-            <dd className="text-2xl font-bold text-white">0</dd>
+            <dd className="text-2xl font-bold text-white">
+              {loading ? "-" : metrics.profileViews}
+            </dd>
           </dl>
         </div>
       </div>
       <div className="mt-4">
-        <p className="text-slate-400 text-sm">No views yet</p>
+        <p className="text-slate-400 text-sm">
+          {loading
+            ? "Loading..."
+            : metrics.profileViews === 0
+            ? "No views yet"
+            : `${metrics.profileViews} profile view${
+                metrics.profileViews !== 1 ? "s" : ""
+              }`}
+        </p>
       </div>
     </div>
   );

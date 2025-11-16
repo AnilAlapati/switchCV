@@ -41,7 +41,8 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const { userId, isRecruiter, companyName } = await request.json();
+    const body = await request.json();
+    const { userId, isRecruiter, companyName, displayName } = body;
 
     if (!userId) {
       return NextResponse.json(
@@ -50,18 +51,27 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    // Build update object with only provided fields
+    const updateData: Record<string, any> = {
+      settingsUpdatedAt: new Date().toISOString(),
+    };
+
+    // Only add fields that were explicitly provided
+    if (typeof isRecruiter === "boolean") {
+      updateData.isRecruiter = isRecruiter;
+    }
+    if (companyName !== undefined && companyName !== null) {
+      updateData.companyName = companyName;
+    }
+    if (displayName !== undefined && displayName !== null) {
+      updateData.displayName = displayName;
+    }
+
     // Use set with merge to create the document if it doesn't exist
     await adminDb
       .collection("users")
       .doc(userId)
-      .set(
-        {
-          isRecruiter: isRecruiter || false,
-          companyName: companyName || "",
-          settingsUpdatedAt: new Date().toISOString(),
-        },
-        { merge: true }
-      );
+      .set(updateData, { merge: true });
 
     return NextResponse.json({
       success: true,

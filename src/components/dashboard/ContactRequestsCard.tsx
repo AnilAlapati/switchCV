@@ -1,6 +1,43 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+
+interface ContactMetrics {
+  contactRequests: number;
+}
+
 export function ContactRequestsCard() {
+  const { user } = useAuth();
+  const [metrics, setMetrics] = useState<ContactMetrics>({
+    contactRequests: 0,
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    fetchMetrics();
+  }, [user]);
+
+  const fetchMetrics = async () => {
+    try {
+      const response = await fetch(
+        `/api/jobseeker/metrics?userId=${user?.uid}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setMetrics({ contactRequests: data.contactRequests || 0 });
+      }
+    } catch (error) {
+      console.error("Failed to fetch contact requests:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
   return (
     <div className="backdrop-blur-xl bg-white/10 rounded-3xl border border-white/20 shadow-2xl shadow-black/50 p-6 hover:bg-white/15 transition-all duration-300 transform hover:scale-105">
       <div className="flex items-center">
@@ -26,12 +63,22 @@ export function ContactRequestsCard() {
             <dt className="text-sm font-medium text-slate-400 truncate">
               Contact Requests
             </dt>
-            <dd className="text-2xl font-bold text-white">0</dd>
+            <dd className="text-2xl font-bold text-white">
+              {loading ? "-" : metrics.contactRequests}
+            </dd>
           </dl>
         </div>
       </div>
       <div className="mt-4">
-        <p className="text-slate-400 text-sm">No requests yet</p>
+        <p className="text-slate-400 text-sm">
+          {loading
+            ? "Loading..."
+            : metrics.contactRequests === 0
+            ? "No requests yet"
+            : `${metrics.contactRequests} contact request${
+                metrics.contactRequests !== 1 ? "s" : ""
+              }`}
+        </p>
       </div>
     </div>
   );

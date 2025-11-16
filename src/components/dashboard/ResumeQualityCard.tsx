@@ -1,10 +1,46 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+
+interface QualityMetrics {
+  quality: number;
+}
+
 interface ResumeQualityCardProps {
-  hasResume: boolean;
+  hasResume?: boolean;
 }
 
 export function ResumeQualityCard({ hasResume }: ResumeQualityCardProps) {
+  const { user } = useAuth();
+  const [metrics, setMetrics] = useState<QualityMetrics>({ quality: 0 });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    fetchMetrics();
+  }, [user]);
+
+  const fetchMetrics = async () => {
+    try {
+      const response = await fetch(
+        `/api/jobseeker/metrics?userId=${user?.uid}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setMetrics({ quality: data.quality || 0 });
+      }
+    } catch (error) {
+      console.error("Failed to fetch resume quality:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="backdrop-blur-xl bg-white/10 rounded-3xl border border-white/20 shadow-2xl shadow-black/50 p-6 hover:bg-white/15 transition-all duration-300 transform hover:scale-105">
       <div className="flex items-center">
@@ -31,7 +67,7 @@ export function ResumeQualityCard({ hasResume }: ResumeQualityCardProps) {
               Resume Quality
             </dt>
             <dd className="text-2xl font-bold text-white">
-              {hasResume ? "85%" : "0%"}
+              {loading ? "-" : `${metrics.quality}%`}
             </dd>
           </dl>
         </div>
@@ -40,13 +76,19 @@ export function ResumeQualityCard({ hasResume }: ResumeQualityCardProps) {
         <div className="w-full bg-slate-700 rounded-full h-2">
           <div
             className="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full transition-all duration-500"
-            style={{ width: hasResume ? "85%" : "0%" }}
+            style={{ width: loading ? "0%" : `${metrics.quality}%` }}
           ></div>
         </div>
         <p className="text-slate-400 text-sm mt-2">
-          {hasResume
+          {loading
+            ? "Loading..."
+            : metrics.quality === 0
+            ? "Create resume to see quality score"
+            : metrics.quality >= 80
             ? "Well optimized resume"
-            : "Create resume to see quality score"}
+            : metrics.quality >= 60
+            ? "Good resume quality"
+            : "Resume needs improvement"}
         </p>
       </div>
     </div>

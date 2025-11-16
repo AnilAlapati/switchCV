@@ -9,7 +9,7 @@ import {
   orderBy,
   limit as firestoreLimit,
 } from "firebase/firestore";
-import { SearchResult } from "@/components/dashboard/RecruiterSearchBox";
+import type { SearchResult } from "@/components/dashboard/RecruiterSearchForm";
 
 export async function GET(request: NextRequest) {
   try {
@@ -42,9 +42,6 @@ export async function GET(request: NextRequest) {
         const resumeData = doc.data();
         const title = resumeData.title || "Untitled Resume";
         const userId = resumeData.userId;
-        const slug = resumeData.slug || "";
-        const summary =
-          resumeData.summary || resumeData.generatedText?.polished || "";
         const skills = resumeData.skills?.map((s: any) => s.name) || [];
 
         // Check if matches search query (resume number, title, or skill)
@@ -70,11 +67,9 @@ export async function GET(request: NextRequest) {
               resumeId: doc.id,
               title,
               userName: userData.displayName || userData.email || "Anonymous",
-              userEmail: userData.email || "N/A",
-              slug,
+              userId,
               createdAt: resumeData.createdAt || new Date().toISOString(),
               skills: skills.slice(0, 10),
-              summary,
             });
           }
         } catch (err) {
@@ -84,11 +79,9 @@ export async function GET(request: NextRequest) {
             resumeId: doc.id,
             title,
             userName: "Unknown User",
-            userEmail: "N/A",
-            slug,
+            userId,
             createdAt: resumeData.createdAt || new Date().toISOString(),
             skills: skills.slice(0, 10),
-            summary,
           });
         }
       }
@@ -125,15 +118,9 @@ export async function GET(request: NextRequest) {
                 resumeId: resumeDoc.id,
                 title: resumeData.title || "Untitled Resume",
                 userName: displayName,
-                userEmail: email,
-                slug: resumeData.slug || "",
+                userId: doc.id,
                 createdAt: resumeData.createdAt || new Date().toISOString(),
-                skills:
-                  resumeData.skills?.map((s: any) => s.name).slice(0, 10) || [],
-                summary:
-                  resumeData.summary ||
-                  resumeData.generatedText?.polished ||
-                  "",
+                skills: resumeData.skills?.map((s: any) => s.name) || [],
               });
             }
           }

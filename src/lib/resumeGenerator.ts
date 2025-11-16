@@ -153,7 +153,8 @@ export const buildResumeProfile = async (
 };
 
 export const saveResumeToDB = async (
-  resumeProfile: ResumeProfile
+  resumeProfile: ResumeProfile,
+  authToken?: string
 ): Promise<string> => {
   try {
     console.log("📝 Attempting to save resume profile to Firestore...", {
@@ -170,6 +171,50 @@ export const saveResumeToDB = async (
     });
 
     console.log("✅ Resume saved successfully with Firestore ID:", docRef.id);
+
+    // Map the numeric ID to the Firestore document ID for easy lookups
+    if (resumeProfile.numericId && authToken) {
+      try {
+        // Call the API endpoint to create the ID mapping
+        // This avoids importing firebase-admin in client code
+        const response = await fetch("/api/resume/map-id", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({
+            resumeId: resumeProfile.numericId,
+            documentId: docRef.id,
+          }),
+        });
+
+        if (!response.ok) {
+          console.warn(
+            "⚠️ Failed to create resume ID mapping via API:",
+            await response.text()
+          );
+        } else {
+          const result = await response.json();
+          console.log("✅ Resume ID mapping created:", result);
+        }
+      } catch (mappingError) {
+        console.warn(
+          "⚠️ Failed to create resume ID mapping, but resume was saved:",
+          {
+            error: mappingError,
+            numericId: resumeProfile.numericId,
+            documentId: docRef.id,
+          }
+        );
+        // Don't throw - resume is already saved, mapping is just for convenience
+      }
+    } else if (resumeProfile.numericId && !authToken) {
+      console.warn("⚠️ No auth token provided for resume ID mapping");
+    } else {
+      console.warn("⚠️ No numeric ID available for resume mapping");
+    }
+
     return docRef.id;
   } catch (error) {
     const errorMessage =

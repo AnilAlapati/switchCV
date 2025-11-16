@@ -155,7 +155,9 @@ export default function CreateResume() {
 
       console.log("📝 Saving resume to database...", resumeProfile);
 
-      await saveResumeToDB(resumeProfile);
+      // Get auth token for ID mapping
+      const authToken = await user.getIdToken();
+      await saveResumeToDB(resumeProfile, authToken);
       console.log("✅ Resume saved successfully");
 
       // Use numericId for new format, fallback to slug for backward compatibility

@@ -1,10 +1,46 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+
+interface DownloadsMetrics {
+  downloads: number;
+}
+
 interface DownloadsCardProps {
-  hasResume: boolean;
+  hasResume?: boolean;
 }
 
 export function DownloadsCard({ hasResume }: DownloadsCardProps) {
+  const { user } = useAuth();
+  const [metrics, setMetrics] = useState<DownloadsMetrics>({ downloads: 0 });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    fetchMetrics();
+  }, [user]);
+
+  const fetchMetrics = async () => {
+    try {
+      const response = await fetch(
+        `/api/jobseeker/metrics?userId=${user?.uid}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setMetrics({ downloads: data.downloads || 0 });
+      }
+    } catch (error) {
+      console.error("Failed to fetch downloads:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="backdrop-blur-xl bg-white/10 rounded-3xl border border-white/20 shadow-2xl shadow-black/50 p-6 hover:bg-white/15 transition-all duration-300 transform hover:scale-105">
       <div className="flex items-center">
@@ -31,16 +67,20 @@ export function DownloadsCard({ hasResume }: DownloadsCardProps) {
               Downloads
             </dt>
             <dd className="text-2xl font-bold text-white">
-              {hasResume ? "12" : "0"}
+              {loading ? "-" : metrics.downloads}
             </dd>
           </dl>
         </div>
       </div>
       <div className="mt-4">
         <p className="text-slate-400 text-sm">
-          {hasResume
-            ? "Resume downloads this month"
-            : "Downloads will appear here"}
+          {loading
+            ? "Loading..."
+            : metrics.downloads === 0
+            ? "Downloads will appear here"
+            : `${metrics.downloads} resume download${
+                metrics.downloads !== 1 ? "s" : ""
+              }`}
         </p>
       </div>
     </div>
