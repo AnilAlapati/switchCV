@@ -61,6 +61,12 @@ export async function POST(request: NextRequest) {
     switch (body.action) {
       case "initialize": {
         const { jobId, jobTitle } = body as InitializeRequest;
+        if (!jobId || !jobTitle) {
+          return NextResponse.json(
+            { error: "Missing required fields: jobId and jobTitle" },
+            { status: 400 }
+          );
+        }
         const pipeline = initializePipeline(jobId, jobTitle);
         pipelines.set(pipeline.id, pipeline);
 
