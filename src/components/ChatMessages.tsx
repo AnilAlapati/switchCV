@@ -9,6 +9,55 @@ interface ChatMessagesProps {
   isGeneratingQuestion: boolean;
 }
 
+/**
+ * Parse message content and render URLs as clickable links
+ */
+const renderMessageContent = (content: string) => {
+  // URL regex pattern
+  const urlPattern = /https?:\/\/[^\s]+|http:\/\/localhost:[0-9]+\/[^\s]*/g;
+  const parts = content.split(urlPattern);
+  const urls = content.match(urlPattern) || [];
+
+  const elements = [];
+  let urlIndex = 0;
+
+  for (let i = 0; i < parts.length; i++) {
+    // Add non-URL text
+    if (parts[i]) {
+      elements.push(
+        <span key={`text-${i}`} className="whitespace-pre-wrap">
+          {parts[i]}
+        </span>
+      );
+    }
+
+    // Add URL as clickable link
+    if (urlIndex < urls.length) {
+      const url = urls[urlIndex];
+      const isResumeUrl = url.includes("/resume/");
+
+      elements.push(
+        <a
+          key={`url-${urlIndex}`}
+          href={url}
+          target={isResumeUrl ? "_self" : "_blank"}
+          rel="noopener noreferrer"
+          className="text-cyan-400 hover:text-cyan-300 underline font-medium break-all"
+        >
+          {url}
+        </a>
+      );
+      urlIndex++;
+    }
+  }
+
+  return elements.length > 0 ? (
+    <span className="whitespace-pre-wrap">{elements}</span>
+  ) : (
+    <span className="whitespace-pre-wrap">{content}</span>
+  );
+};
+
 export const ChatMessages: React.FC<ChatMessagesProps> = ({
   messages,
   isGeneratingQuestion,
@@ -50,7 +99,9 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
                 : "bg-gray-700 text-white"
             }`}
           >
-            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+            <div className="text-sm">
+              {renderMessageContent(message.content)}
+            </div>
             <p className="text-xs text-gray-400 mt-1">
               {message.timestamp.toLocaleTimeString()}
             </p>

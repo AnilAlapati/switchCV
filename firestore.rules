@@ -183,5 +183,23 @@ service cloud.firestore {
     match /notifications/{userId}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
+
+    // ==================== SYSTEM COLLECTIONS ====================
+    
+    // System configuration and ID generator
+    // These are backend/server-only operations
+    // Read: authenticated users only (for debugging)
+    // Write: allow for bootstrapping/initialization, can be restricted later
+    match /system/{document=**} {
+      // Allow reads for authenticated users (for status checks)
+      allow read: if request.auth != null;
+      
+      // Allow writes for authenticated users (for initialization and updates)
+      // This enables the /api/admin/init-system endpoint to work
+      allow write: if request.auth != null;
+      
+      // For production, consider restricting to Cloud Functions only:
+      // allow write: if false; // Disable client writes, use Cloud Functions instead
+    }
   }
 }

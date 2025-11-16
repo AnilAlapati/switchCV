@@ -135,10 +135,13 @@ export default function CreateResume() {
 
       // Use numericId for new format, fallback to slug for backward compatibility
       const shareId = resumeProfile.numericId?.toString() || resumeProfile.slug;
+      const resumeUrl = `${window.location.origin}/resume/${shareId}`;
 
       setStage("complete");
+
+      // Show the URL to user - do NOT auto-redirect
       addAssistantMessageWithDelay(
-        `🎉 Your resume is ready! You can share it at: ${window.location.origin}/resume/${shareId}`,
+        `🎉 Your resume is ready!\n\n📋 Your Resume URL:\n${resumeUrl}\n\nYou can copy this link and share it with recruiters. Click the link when you're ready to view it!`,
         1000
       );
 
@@ -151,10 +154,8 @@ export default function CreateResume() {
         }
       }
 
-      // Redirect to the shareable resume page after a delay
-      setTimeout(() => {
-        router.push(`/resume/${shareId}`);
-      }, 3000);
+      // DO NOT redirect - user will click the link when ready
+      console.log(`✅ Resume created successfully at: ${resumeUrl}`);
     } catch (error) {
       console.error("❌ Resume generation error:", error);
       const errorMessage =

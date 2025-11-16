@@ -1,14 +1,20 @@
 // src/app/resume/[slug]/page.tsx
 /**
- * Public Resume Page
+ * Public Resume Page (Client-side rendered)
  * Supports both legacy slug-based URLs and new numeric ID URLs
  *
  * Legacy: /resume/name-slug-abc123
  * New: /resume/12345 (numeric ID only)
+ *
+ * Client-side rendering is necessary because Firestore security rules
+ * require proper authentication context, which server-side requests don't have.
  */
 
+"use client";
+
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { collection, getDocs, query, where } from "firebase/firestore";
-import { notFound } from "next/navigation";
 import { db } from "@/lib/firebase";
 import type { ResumeProfile } from "@/types";
 import {
@@ -20,8 +26,6 @@ import { ResumeExperienceSection } from "@/components/resume/ResumeExperienceSec
 import { ResumeEducationSection } from "@/components/resume/ResumeEducationSection";
 import { ResumeSkillsSection } from "@/components/resume/ResumeSkillsSection";
 import { ResumeProjectsSection } from "@/components/resume/ResumeProjectsSection";
-
-export const revalidate = 60;
 
 type EnhancedContent = {
   enhancedSummary?: string;
@@ -54,6 +58,10 @@ const fetchResumeByNumericId = async (
     return snapshot.docs[0].data() as ResumeProfile;
   } catch (error) {
     console.error("❌ Error fetching resume by numericId:", error);
+    console.error("Error details:", {
+      numericId,
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
     return null;
   }
 };
@@ -89,19 +97,32 @@ const fetchResumeBySlug = async (
 const fetchResumeByDocId = async (
   docId: string
 ): Promise<ResumeProfile | null> => {
-  // Try to fetch by Firestore document ID (fallback for resumes without numericId)
-  const { getDoc, doc } = await import("firebase/firestore");
-  const docRef = doc(db, "resumeProfiles", docId);
-  const docSnap = await getDoc(docRef);
-  if (!docSnap.exists()) {
+  // Validate docId before attempting to fetch
+  if (!docId || docId.trim() === "") {
+    console.warn("⚠️ Empty docId provided");
     return null;
   }
-  const data = docSnap.data() as ResumeProfile;
-  // Only return if published
-  if (data.published) {
-    return data;
+
+  try {
+    // Try to fetch by Firestore document ID (fallback for resumes without numericId)
+    const { getDoc, doc } = await import("firebase/firestore");
+    const docRef = doc(db, "resumeProfiles", docId);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) {
+      console.log(`📭 No resume found with docId: ${docId}`);
+      return null;
+    }
+    const data = docSnap.data() as ResumeProfile;
+    // Only return if published
+    if (data.published) {
+      console.log(`✅ Found resume with docId: ${docId}`);
+      return data;
+    }
+    return null;
+  } catch (error) {
+    console.error("❌ Error fetching resume by docId:", error);
+    return null;
   }
-  return null;
 };
 
 interface ResumePageProps {
@@ -110,48 +131,95 @@ interface ResumePageProps {
   };
 }
 
-export default async function ResumePage({ params }: ResumePageProps) {
-  const { slug } = params;
+export default function ResumePage() {
+  const params = useParams();
+  const slug = params?.slug as string | undefined;
+  const router = useRouter();
 
-  console.log("🔍 Loading resume with slug/id:", slug);
+  const [resume, setResume] = useState<ResumeProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  let resume: ResumeProfile | null = null;
+  useEffect(() => {
+    const loadResume = async () => {
+      if (!slug) {
+        console.warn("⚠️ No slug provided");
+        setError("Invalid resume URL");
+        setLoading(false);
+        return;
+      }
 
-  // Check if slug is numeric (new format: /resume/12345)
-  const isNumeric = /^\d+$/.test(slug);
+      console.log("🔍 Loading resume with slug/id:", slug);
 
-  if (isNumeric) {
-    console.log("📊 Detected numeric format, trying numericId lookup...");
-    const numericId = parseInt(slug, 10);
-    resume = await fetchResumeByNumericId(numericId);
+      let resumeData: ResumeProfile | null = null;
 
-    // Fallback: if no numericId found, try as Firestore document ID
-    if (!resume) {
-      console.log("📭 No numeric ID match, trying document ID fallback...");
-      resume = await fetchResumeByDocId(slug);
-    }
-  } else {
-    console.log("📝 Detected slug format, trying slug lookup...");
-    // Legacy format: /resume/name-slug-abc123
-    // Or could be a Firestore document ID
-    resume = await fetchResumeBySlug(slug);
+      // Check if slug is numeric (new format: /resume/12345)
+      const isNumeric = /^\d+$/.test(slug);
 
-    // Fallback: if no slug found, try as Firestore document ID
-    if (!resume) {
-      console.log("📭 No slug match, trying document ID fallback...");
-      resume = await fetchResumeByDocId(slug);
-    }
+      if (isNumeric) {
+        console.log("📊 Detected numeric format, trying numericId lookup...");
+        const numericId = parseInt(slug, 10);
+        resumeData = await fetchResumeByNumericId(numericId);
+
+        // Fallback: if no numericId found, try as slug
+        if (!resumeData) {
+          console.log("📭 No numeric ID match, trying slug lookup...");
+          resumeData = await fetchResumeBySlug(slug);
+        }
+      } else {
+        console.log("📝 Detected slug format, trying slug lookup...");
+        // Legacy format: /resume/name-slug-abc123
+        resumeData = await fetchResumeBySlug(slug);
+      }
+
+      if (!resumeData) {
+        console.error("❌ Resume not found for:", slug);
+        setError("Resume not found");
+      } else {
+        console.log("✅ Resume found, rendering...", {
+          title: resumeData.title,
+          published: resumeData.published,
+        });
+        setResume(resumeData);
+      }
+
+      setLoading(false);
+    };
+
+    loadResume();
+  }, [slug]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-purple-500 mx-auto"></div>
+          <p className="text-slate-400">Loading resume...</p>
+        </div>
+      </div>
+    );
   }
 
-  if (!resume) {
-    console.error("❌ Resume not found for:", slug);
-    notFound();
+  if (error || !resume) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <p className="text-red-400 text-xl font-semibold">
+            {error || "Resume not found"}
+          </p>
+          <p className="text-slate-400">
+            This resume may have been deleted or is not publicly available.
+          </p>
+          <button
+            onClick={() => router.push("/")}
+            className="mt-6 px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+          >
+            Return Home
+          </button>
+        </div>
+      </div>
+    );
   }
-
-  console.log("✅ Resume found, rendering...", {
-    title: resume.title,
-    published: resume.published,
-  });
 
   const enhancedContent = parseEnhancedContent(
     resume.generatedText?.polished
