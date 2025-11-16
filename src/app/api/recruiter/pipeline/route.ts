@@ -52,7 +52,7 @@ type PipelineRequest =
   | GetStageRequest;
 
 // In-memory storage (replace with database in production)
-const pipelines = new Map<string, RecruitmentPipeline>();
+export const pipelines = new Map<string, RecruitmentPipeline>();
 
 export async function POST(request: NextRequest) {
   try {
