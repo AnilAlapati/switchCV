@@ -6,13 +6,11 @@
 import { render, screen } from "@/__tests__/__support__/testUtils";
 import userEvent from "@testing-library/user-event";
 
-// Import the page component using require to handle "use client"
-let RecruiterPortalPage: any;
-
-// Mock router
+// Mock router first
+const mockPush = jest.fn();
 jest.mock("next/navigation", () => ({
   useRouter: () => ({
-    push: jest.fn(),
+    push: mockPush,
   }),
 }));
 
@@ -83,11 +81,9 @@ jest.mock("@/components/recruiter/RecruiterRequestForm", () => {
   };
 });
 
-// Load component after mocks are set up
-beforeAll(() => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  RecruiterPortalPage = require("@/app/recruiter/portal/page").default;
-});
+// Import the page component - Jest will handle "use client"
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const RecruiterPortalPage = require("@/app/recruiter/portal/page").default;
 
 describe.skip("Recruiter Portal Page", () => {
   beforeEach(() => {
