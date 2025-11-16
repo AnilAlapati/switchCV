@@ -7,6 +7,25 @@
  * Run with: npm test -- numericIdGenerator.test.ts
  */
 
+// Ensure we mock firebase/firestore early so the module is mocked for imports
+jest.mock("firebase/firestore", () => {
+  const mocks: any = {
+    getFirestore: jest.fn(() => ({})),
+    collection: jest.fn(),
+    query: jest.fn(),
+    where: jest.fn(),
+    getDocs: jest.fn(),
+    doc: jest.fn((_db: any, path: string) => ({ _path: path })),
+    updateDoc: jest.fn(),
+    setDoc: jest.fn(),
+    onSnapshot: jest.fn(),
+    serverTimestamp: jest.fn(() => new Date()),
+    getDoc: jest.fn(),
+    increment: jest.fn((value: number) => ({ _type: "increment", value })),
+  };
+  return mocks;
+});
+
 import {
   generateNumericResumeId,
   initializeIdCounter,
@@ -14,9 +33,48 @@ import {
   resetIdCounter,
 } from "@/lib/numericIdGenerator";
 
+// Mock Firestore and recycler behavior for isolated unit tests
+// Firestore mocks will be required in beforeAll so Jest's setup mock registrations have applied
+import { getRecycledIdFromPool } from "@/lib/resumeIdRecycler";
+
+jest.mock("@/lib/resumeIdRecycler", () => ({
+  getRecycledIdFromPool: jest.fn(),
+}));
+
 describe("Numeric Resume ID Generator", () => {
+  // Maintain an in-memory counter to simulate Firestore document
+  const inMemoryCounter = { currentId: 0 };
+
   beforeAll(async () => {
-    // Initialize counter before tests
+    // Require the mocked firestore functions after jest.setup ran
+    // Note: Use jest.requireMock to ensure we get the Jest mock instance
+    const firestore: any = jest.requireMock("firebase/firestore");
+    // Mock getDoc to return a document snapshot-like object
+    (firestore.getDoc as jest.Mock).mockImplementation(async () => ({
+      exists: () => true,
+      data: () => ({ ...inMemoryCounter }),
+    }));
+
+    // Mock setDoc to update in-memory counter when increment is used
+    (firestore.setDoc as jest.Mock).mockImplementation(async (_ref, data) => {
+      // Handle increment object (mocked in setup)
+      if (
+        data &&
+        typeof data.currentId === "object" &&
+        data.currentId._type === "increment"
+      ) {
+        const inc = data.currentId.value || 1;
+        inMemoryCounter.currentId += inc;
+      } else if (data && typeof data.currentId === "number") {
+        inMemoryCounter.currentId = data.currentId;
+      }
+      return Promise.resolve();
+    });
+
+    // Default recycled pool returns null to use counter generation path
+    (getRecycledIdFromPool as jest.Mock).mockResolvedValue(null);
+
+    // Initialize counter before tests by calling the library code
     await initializeIdCounter();
     await resetIdCounter(0);
   });
@@ -109,7 +167,9 @@ describe("Numeric Resume ID Generator", () => {
         allIds.push(...batchIds);
 
         console.log(
-          `✅ Batch ${i + 1}/${batchCount} complete. IDs generated: ${(i + 1) * batchSize}`
+          `✅ Batch ${i + 1}/${batchCount} complete. IDs generated: ${
+            (i + 1) * batchSize
+          }`
         );
       }
 
@@ -207,7 +267,9 @@ describe("Numeric Resume ID Generator", () => {
       const duration = endTime - startTime;
 
       console.log(
-        `⏱️  Generated 1000 IDs in ${duration.toFixed(2)}ms (${(duration / 1000).toFixed(2)}ms per ID)`
+        `⏱️  Generated 1000 IDs in ${duration.toFixed(2)}ms (${(
+          duration / 1000
+        ).toFixed(2)}ms per ID)`
       );
 
       // Should complete in reasonable time (adjust based on actual performance)
@@ -223,7 +285,7 @@ describe("Numeric Resume ID Generator", () => {
         const id = await generateNumericResumeId();
         expect(id).toBeGreaterThan(0);
         expect(Number.isInteger(id)).toBe(true);
-      });
+      }
     });
 
     it("should work with string conversion", async () => {

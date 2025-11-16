@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase-admin";
+import { adminDb, adminAuth } from "@/lib/firebase-admin";
 
 interface UserProfile {
   uid: string;
@@ -12,15 +12,50 @@ interface UserProfile {
   updatedAt: string;
 }
 
+/**
+ * Helper function to verify the Firebase ID token from the request
+ */
+async function verifyAuth(request: NextRequest): Promise<string | null> {
+  try {
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return null;
+    }
+
+    const idToken = authHeader.slice(7); // Remove "Bearer " prefix
+    const decodedToken = await adminAuth.verifyIdToken(idToken);
+    return decodedToken.uid;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
-
+    // Verify authentication
+    const userId = await verifyAuth(request);
     if (!userId) {
+      return NextResponse.json(
+        { error: "Unauthorized: Valid Firebase ID token required" },
+        { status: 401 }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    const requestedUserId = searchParams.get("userId");
+
+    if (!requestedUserId) {
       return NextResponse.json(
         { error: "userId is required" },
         { status: 400 }
+      );
+    }
+
+    // Users can only access their own profile
+    if (userId !== requestedUserId) {
+      return NextResponse.json(
+        { error: "Forbidden: Cannot access other user's profile" },
+        { status: 403 }
       );
     }
 
@@ -45,6 +80,15 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Verify authentication
+    const userId = await verifyAuth(request);
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Unauthorized: Valid Firebase ID token required" },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const {
       uid,
@@ -59,6 +103,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "uid and email are required" },
         { status: 400 }
+      );
+    }
+
+    // Users can only create profiles for themselves
+    if (userId !== uid) {
+      return NextResponse.json(
+        { error: "Forbidden: Cannot create profiles for other users" },
+        { status: 403 }
       );
     }
 
@@ -95,12 +147,29 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    // Verify authentication
+    const userId = await verifyAuth(request);
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Unauthorized: Valid Firebase ID token required" },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { uid, displayName, isRecruiter, companyName, subscriptionTier } =
       body;
 
     if (!uid) {
       return NextResponse.json({ error: "uid is required" }, { status: 400 });
+    }
+
+    // Users can only update their own profile
+    if (userId !== uid) {
+      return NextResponse.json(
+        { error: "Forbidden: Cannot update other user's profile" },
+        { status: 403 }
+      );
     }
 
     const updateData: Partial<UserProfile> = {

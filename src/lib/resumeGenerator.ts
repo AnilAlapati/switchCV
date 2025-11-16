@@ -3,6 +3,7 @@ import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { generateUniqueSlug } from "@/lib/slugGenerator";
 import { generateNumericResumeId } from "@/lib/numericIdGenerator";
+import { logger } from "@/lib/logger";
 import type { ResumeData } from "@/hooks/useAIConversation";
 
 export interface EnhancedResumeContent {
@@ -157,7 +158,7 @@ export const saveResumeToDB = async (
   authToken?: string
 ): Promise<string> => {
   try {
-    console.log("📝 Attempting to save resume profile to Firestore...", {
+    logger.log("📝 Attempting to save resume profile to Firestore...", {
       userId: resumeProfile.userId,
       title: resumeProfile.title,
       published: resumeProfile.published,
@@ -170,7 +171,7 @@ export const saveResumeToDB = async (
       updatedAt: serverTimestamp(),
     });
 
-    console.log("✅ Resume saved successfully with Firestore ID:", docRef.id);
+    logger.log("✅ Resume saved successfully with Firestore ID:", docRef.id);
 
     // Map the numeric ID to the Firestore document ID for easy lookups
     if (resumeProfile.numericId && authToken) {
@@ -190,16 +191,16 @@ export const saveResumeToDB = async (
         });
 
         if (!response.ok) {
-          console.warn(
+          logger.warn(
             "⚠️ Failed to create resume ID mapping via API:",
             await response.text()
           );
         } else {
           const result = await response.json();
-          console.log("✅ Resume ID mapping created:", result);
+          logger.log("✅ Resume ID mapping created:", result);
         }
       } catch (mappingError) {
-        console.warn(
+        logger.warn(
           "⚠️ Failed to create resume ID mapping, but resume was saved:",
           {
             error: mappingError,
@@ -210,9 +211,9 @@ export const saveResumeToDB = async (
         // Don't throw - resume is already saved, mapping is just for convenience
       }
     } else if (resumeProfile.numericId && !authToken) {
-      console.warn("⚠️ No auth token provided for resume ID mapping");
+      logger.warn("⚠️ No auth token provided for resume ID mapping");
     } else {
-      console.warn("⚠️ No numeric ID available for resume mapping");
+      logger.warn("⚠️ No numeric ID available for resume mapping");
     }
 
     return docRef.id;
@@ -222,7 +223,7 @@ export const saveResumeToDB = async (
         ? error.message
         : "Unknown error occurred while saving resume";
 
-    console.error("❌ Error saving resume to Firestore:", {
+    logger.error("❌ Error saving resume to Firestore:", {
       error: errorMessage,
       errorDetails: error,
       profileData: {

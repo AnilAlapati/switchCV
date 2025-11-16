@@ -8,6 +8,8 @@ interface SessionData {
 
 const SESSION_STORAGE_KEY = "resume_creation_session";
 
+import { logger } from "@/lib/logger";
+
 export const saveSessionData = (
   userId: string,
   currentQuestionId: string,
@@ -25,7 +27,7 @@ export const saveSessionData = (
   try {
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionData));
   } catch (error) {
-    console.error("Failed to save session data:", error);
+    logger.error("Failed to save session data:", error);
   }
 };
 
@@ -51,7 +53,7 @@ export const loadSessionData = (userId: string): SessionData | null => {
 
     return sessionData;
   } catch (error) {
-    console.error("Failed to load session data:", error);
+    logger.error("Failed to load session data:", error);
     return null;
   }
 };
@@ -60,7 +62,7 @@ export const clearSessionData = (): void => {
   try {
     localStorage.removeItem(SESSION_STORAGE_KEY);
   } catch (error) {
-    console.error("Failed to clear session data:", error);
+    logger.error("Failed to clear session data:", error);
   }
 };
 
@@ -78,7 +80,7 @@ export const updateAnswer = (
 
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionData));
   } catch (error) {
-    console.error("Failed to update answer:", error);
+    logger.error("Failed to update answer:", error);
   }
 };
 
@@ -92,7 +94,7 @@ export const getAnswer = (
     const sessionData: SessionData = JSON.parse(stored);
     return sessionData.answers[questionId] || null;
   } catch (error) {
-    console.error("Failed to get answer:", error);
+    logger.error("Failed to get answer:", error);
     return null;
   }
 };
