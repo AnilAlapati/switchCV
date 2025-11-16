@@ -1,16 +1,49 @@
 // src/app/api/user/settings/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase-admin";
+import { adminDb, adminAuth } from "@/lib/firebase-admin";
+
+/**
+ * Helper function to verify the Firebase ID token from the request
+ */
+async function verifyAuth(request: NextRequest): Promise<string | null> {
+  try {
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return null;
+    }
+
+    const idToken = authHeader.slice(7); // Remove "Bearer " prefix
+    const decodedToken = await adminAuth.verifyIdToken(idToken);
+    return decodedToken.uid;
+  } catch {
+    return null;
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
-
+    // Verify authentication
+    const userId = await verifyAuth(request);
     if (!userId) {
+      return NextResponse.json(
+        { error: "Unauthorized: Valid Firebase ID token required" },
+        { status: 401 }
+      );
+    }
+
+    // Verify that the user can only access their own settings
+    const requestedUserId = new URL(request.url).searchParams.get("userId");
+    if (!requestedUserId) {
       return NextResponse.json(
         { error: "userId is required" },
         { status: 400 }
+      );
+    }
+
+    if (userId !== requestedUserId) {
+      return NextResponse.json(
+        { error: "Forbidden: Cannot access other user's settings" },
+        { status: 403 }
       );
     }
 
@@ -41,13 +74,35 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { userId, isRecruiter, companyName, displayName } = body;
-
+    // Verify authentication
+    const userId = await verifyAuth(request);
     if (!userId) {
+      return NextResponse.json(
+        { error: "Unauthorized: Valid Firebase ID token required" },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const {
+      userId: requestedUserId,
+      isRecruiter,
+      companyName,
+      displayName,
+    } = body;
+
+    if (!requestedUserId) {
       return NextResponse.json(
         { error: "userId is required" },
         { status: 400 }
+      );
+    }
+
+    // Verify that the user can only update their own settings
+    if (userId !== requestedUserId) {
+      return NextResponse.json(
+        { error: "Forbidden: Cannot update other user's settings" },
+        { status: 403 }
       );
     }
 
