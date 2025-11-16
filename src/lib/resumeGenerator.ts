@@ -153,16 +153,36 @@ export const saveResumeToDB = async (
   resumeProfile: ResumeProfile
 ): Promise<string> => {
   try {
+    console.log("📝 Attempting to save resume profile to Firestore...", {
+      userId: resumeProfile.userId,
+      title: resumeProfile.title,
+      published: resumeProfile.published,
+      numericId: resumeProfile.numericId,
+    });
+
     const docRef = await addDoc(collection(db, "resumeProfiles"), {
       ...resumeProfile,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
 
-    console.log("Resume saved with ID:", docRef.id);
+    console.log("✅ Resume saved successfully with Firestore ID:", docRef.id);
     return docRef.id;
   } catch (error) {
-    console.error("Error saving resume:", error);
-    throw error;
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Unknown error occurred while saving resume";
+
+    console.error("❌ Error saving resume to Firestore:", {
+      error: errorMessage,
+      errorDetails: error,
+      profileData: {
+        userId: resumeProfile.userId,
+        title: resumeProfile.title,
+      },
+    });
+
+    throw new Error(`Failed to save resume: ${errorMessage}`);
   }
 };

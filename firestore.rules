@@ -154,6 +154,11 @@ service cloud.firestore {
       allow read: if resource.data.published == true;
       // Allow authenticated users to read their own resumes
       allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      
+      // Allow querying/listing published resumes for anyone
+      // This enables getDocs(query(collection, where("published", "==", true)))
+      allow list: if true;
+      
       // Only authenticated users can create resumes (must be for themselves)
       allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
       // Only the owner can update their resume

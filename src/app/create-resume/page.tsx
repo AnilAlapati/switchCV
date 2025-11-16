@@ -26,7 +26,6 @@ export default function CreateResume() {
   // Use custom hook for AI conversation state management
   const {
     messages,
-    setMessages,
     stage,
     setStage,
     resumeData,
@@ -35,8 +34,6 @@ export default function CreateResume() {
     setAiModelUsed,
     isGeneratingQuestion,
     aiConnectionStatus,
-    setAiConnectionStatus,
-    initializedRef,
     addMessage,
     addAssistantMessageWithDelay,
     initializeAIGreeting,
@@ -104,43 +101,66 @@ export default function CreateResume() {
         "professional"
       );
 
-      if (enhancedContent) {
-        setGeneratedResume(enhancedContent);
-
-        // Track which model was used
-        const modelName = aiConnectionStatus?.model || "AI";
-        setAiModelUsed(modelName);
-        console.log(`✅ Resume generated using ${modelName}`);
-
-        // Build and save resume profile (buildResumeProfile is now async)
-        const resumeProfile = await buildResumeProfile(
-          user.uid,
-          resumeData,
-          enhancedContent
-        );
-        const numericId = resumeProfile.numericId || resumeProfile.slug;
-
-        await saveResumeToDB(resumeProfile);
-
-        setStage("complete");
-        addAssistantMessageWithDelay(
-          `🎉 Your resume is ready! You can share it at: ${window.location.origin}/resumes/${numericId}`,
-          1000
-        );
-
-        // Redirect to the shareable resume page after a delay
-        setTimeout(() => {
-          router.push(`/resumes/${numericId}`);
-        }, 3000);
-      } else {
+      if (!enhancedContent) {
         throw new Error(aiError || "Failed to generate resume content");
       }
-    } catch (error) {
-      console.error("Resume generation error:", error);
+
+      setGeneratedResume(enhancedContent);
+
+      // Track which model was used
+      const modelName = aiConnectionStatus?.model || "AI";
+      setAiModelUsed(modelName);
+      console.log(`✅ Resume generated using ${modelName}`);
+
+      // Build and save resume profile (buildResumeProfile is now async)
+      const resumeProfile = await buildResumeProfile(
+        user.uid,
+        resumeData,
+        enhancedContent
+      );
+
+      console.log("📝 Saving resume to database...", resumeProfile);
+
+      try {
+        await saveResumeToDB(resumeProfile);
+        console.log("✅ Resume saved successfully");
+      } catch (dbError) {
+        console.error("Database save error:", dbError);
+        throw new Error(
+          `Failed to save resume: ${
+            dbError instanceof Error ? dbError.message : "Unknown error"
+          }`
+        );
+      }
+
+      // Use numericId for new format, fallback to slug for backward compatibility
+      const shareId = resumeProfile.numericId?.toString() || resumeProfile.slug;
+
+      setStage("complete");
       addAssistantMessageWithDelay(
-        `I had trouble generating your resume: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }. Please try again.`,
+        `🎉 Your resume is ready! You can share it at: ${window.location.origin}/resume/${shareId}`,
+        1000
+      );
+
+      // Clear session storage after successful creation
+      if (typeof window !== "undefined") {
+        try {
+          sessionStorage.removeItem("switchcv_conversation_session");
+        } catch {
+          // Ignore errors clearing session
+        }
+      }
+
+      // Redirect to the shareable resume page after a delay
+      setTimeout(() => {
+        router.push(`/resume/${shareId}`);
+      }, 3000);
+    } catch (error) {
+      console.error("❌ Resume generation error:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      addAssistantMessageWithDelay(
+        `I had trouble generating your resume: ${errorMessage}. Please try again or contact support if the issue persists.`,
         1000
       );
       setStage("personal"); // Reset to allow retry

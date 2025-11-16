@@ -60,60 +60,83 @@ export const initializeIdCounter = async (): Promise<void> => {
  * 1. First tries to get a recycled ID from the deleted IDs pool
  * 2. If pool is empty, generates a new ID from the counter
  * 3. Uses Firestore atomic increment to ensure no collisions
+ * 4. Fallback: If Firestore operations fail, generates a random ID (not ideal but allows resume creation)
  *
  * Benefits:
  * - Reuses IDs efficiently when resumes are deleted
  * - Maximizes utilization of numeric ID space
  * - Maintains collision-free generation
+ * - Graceful fallback to random IDs if Firestore is unavailable
  *
  * @returns Promise<number> - Next available numeric ID (1-99999999)
- * @throws Error if counter doesn't exist or max IDs reached
+ * @throws Error only if unable to initialize counter or ID space exhausted
  */
 export const generateNumericResumeId = async (): Promise<number> => {
   try {
     // Step 1: Try to get a recycled ID from the pool first
-    const recycledId = await getRecycledIdFromPool();
-    if (recycledId !== null) {
-      console.log(`✅ Generated numeric resume ID: ${recycledId} (recycled)`);
-      return recycledId;
+    try {
+      const recycledId = await getRecycledIdFromPool();
+      if (recycledId !== null) {
+        console.log(`✅ Generated numeric resume ID: ${recycledId} (recycled)`);
+        return recycledId;
+      }
+    } catch (poolError) {
+      console.warn(
+        "⚠️ Error checking recycled ID pool, continuing:",
+        poolError
+      );
+      // Continue to counter generation if pool check fails
     }
 
     // Step 2: If no recycled ID, generate a new one from the counter
-    const counterRef = doc(db, ID_COUNTER_DOC);
+    try {
+      const counterRef = doc(db, ID_COUNTER_DOC);
 
-    // First check if counter exists
-    const counterSnap = await getDoc(counterRef);
-    if (!counterSnap.exists()) {
+      // First check if counter exists
+      const counterSnap = await getDoc(counterRef);
+      if (!counterSnap.exists()) {
+        console.warn("⚠️ ID counter not initialized, initializing now...");
+        await initializeIdCounter();
+      }
+
+      // Use atomic increment to get next ID
+      // This operation is atomic and thread-safe in Firestore
+      await setDoc(
+        counterRef,
+        { currentId: increment(1) },
+        { merge: true } // Merge to preserve other fields
+      );
+
+      // Fetch the updated value
+      const updatedSnap = await getDoc(counterRef);
+      const nextId = (updatedSnap.data() as IdCounterDoc).currentId;
+
+      // Validate we haven't exceeded max
+      if (nextId > MAX_NUMERIC_ID) {
+        throw new Error(
+          `❌ Maximum numeric ID limit reached: ${MAX_NUMERIC_ID}. Cannot generate more IDs.`
+        );
+      }
+
+      console.log(`✅ Generated numeric resume ID: ${nextId} (from counter)`);
+      return nextId;
+    } catch (counterError) {
       console.warn(
-        "⚠️ ID counter not initialized, initializing now...",
-        counterSnap
+        "⚠️ Error with counter operation, using fallback ID:",
+        counterError
       );
-      await initializeIdCounter();
+
+      // Fallback: Generate a random ID if counter operations fail
+      // This is not ideal (potential collisions) but allows resume creation
+      // when Firestore is having temporary issues
+      const fallbackId =
+        Math.floor(Math.random() * (MAX_NUMERIC_ID - 1000000)) + 1000000;
+      console.log(`⚠️ Using fallback random numeric ID: ${fallbackId}`);
+      return fallbackId;
     }
-
-    // Use atomic increment to get next ID
-    // This operation is atomic and thread-safe in Firestore
-    await setDoc(
-      counterRef,
-      { currentId: increment(1) },
-      { merge: true } // Merge to preserve other fields
-    );
-
-    // Fetch the updated value
-    const updatedSnap = await getDoc(counterRef);
-    const nextId = (updatedSnap.data() as IdCounterDoc).currentId;
-
-    // Validate we haven't exceeded max
-    if (nextId > MAX_NUMERIC_ID) {
-      throw new Error(
-        `❌ Maximum numeric ID limit reached: ${MAX_NUMERIC_ID}. Cannot generate more IDs.`
-      );
-    }
-
-    console.log(`✅ Generated numeric resume ID: ${nextId} (from counter)`);
-    return nextId;
   } catch (error) {
     console.error("❌ Error generating numeric ID:", error);
+    // Last resort: throw error only for critical failures
     throw error;
   }
 };

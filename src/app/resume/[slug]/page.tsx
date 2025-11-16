@@ -33,37 +33,57 @@ const fetchResumeByNumericId = async (
   numericId: number
 ): Promise<ResumeProfile | null> => {
   // Skip if numericId is NaN (invalid number)
-  if (isNaN(numericId)) {
+  if (isNaN(numericId) || numericId === null || numericId === undefined) {
+    console.warn("⚠️ Invalid numeric ID:", numericId);
     return null;
   }
 
-  const resumesRef = collection(db, "resumeProfiles");
-  const query_obj = query(
-    resumesRef,
-    where("numericId", "==", numericId),
-    where("published", "==", true)
-  );
-  const snapshot = await getDocs(query_obj);
-  if (snapshot.empty) {
+  try {
+    const resumesRef = collection(db, "resumeProfiles");
+    const query_obj = query(
+      resumesRef,
+      where("numericId", "==", numericId),
+      where("published", "==", true)
+    );
+    const snapshot = await getDocs(query_obj);
+    if (snapshot.empty) {
+      console.log(`📭 No resume found with numericId: ${numericId}`);
+      return null;
+    }
+    console.log(`✅ Found resume with numericId: ${numericId}`);
+    return snapshot.docs[0].data() as ResumeProfile;
+  } catch (error) {
+    console.error("❌ Error fetching resume by numericId:", error);
     return null;
   }
-  return snapshot.docs[0].data() as ResumeProfile;
 };
 
 const fetchResumeBySlug = async (
   slug: string
 ): Promise<ResumeProfile | null> => {
-  const resumesRef = collection(db, "resumeProfiles");
-  const slugQuery = query(
-    resumesRef,
-    where("slug", "==", slug),
-    where("published", "==", true)
-  );
-  const snapshot = await getDocs(slugQuery);
-  if (snapshot.empty) {
+  if (!slug || slug.trim() === "") {
+    console.warn("⚠️ Empty slug provided");
     return null;
   }
-  return snapshot.docs[0].data() as ResumeProfile;
+
+  try {
+    const resumesRef = collection(db, "resumeProfiles");
+    const slugQuery = query(
+      resumesRef,
+      where("slug", "==", slug),
+      where("published", "==", true)
+    );
+    const snapshot = await getDocs(slugQuery);
+    if (snapshot.empty) {
+      console.log(`📭 No resume found with slug: ${slug}`);
+      return null;
+    }
+    console.log(`✅ Found resume with slug: ${slug}`);
+    return snapshot.docs[0].data() as ResumeProfile;
+  } catch (error) {
+    console.error("❌ Error fetching resume by slug:", error);
+    return null;
+  }
 };
 
 const fetchResumeByDocId = async (
@@ -93,33 +113,45 @@ interface ResumePageProps {
 export default async function ResumePage({ params }: ResumePageProps) {
   const { slug } = params;
 
+  console.log("🔍 Loading resume with slug/id:", slug);
+
   let resume: ResumeProfile | null = null;
 
   // Check if slug is numeric (new format: /resume/12345)
   const isNumeric = /^\d+$/.test(slug);
 
   if (isNumeric) {
+    console.log("📊 Detected numeric format, trying numericId lookup...");
     const numericId = parseInt(slug, 10);
     resume = await fetchResumeByNumericId(numericId);
 
     // Fallback: if no numericId found, try as Firestore document ID
     if (!resume) {
+      console.log("📭 No numeric ID match, trying document ID fallback...");
       resume = await fetchResumeByDocId(slug);
     }
   } else {
+    console.log("📝 Detected slug format, trying slug lookup...");
     // Legacy format: /resume/name-slug-abc123
     // Or could be a Firestore document ID
     resume = await fetchResumeBySlug(slug);
 
     // Fallback: if no slug found, try as Firestore document ID
     if (!resume) {
+      console.log("📭 No slug match, trying document ID fallback...");
       resume = await fetchResumeByDocId(slug);
     }
   }
 
   if (!resume) {
+    console.error("❌ Resume not found for:", slug);
     notFound();
   }
+
+  console.log("✅ Resume found, rendering...", {
+    title: resume.title,
+    published: resume.published,
+  });
 
   const enhancedContent = parseEnhancedContent(
     resume.generatedText?.polished

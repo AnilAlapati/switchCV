@@ -1,5 +1,5 @@
 // src/hooks/useResumeDataCollection.ts
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export type ConversationStage =
   | "initial"
@@ -24,12 +24,56 @@ export interface ResumeData {
   };
 }
 
+const STORAGE_KEY = "switchcv_conversation_session";
+
+const getStoredSession = (): {
+  stage: ConversationStage;
+  resumeData: ResumeData;
+} | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = sessionStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    return null;
+  }
+};
+
+const saveSession = (stage: ConversationStage, resumeData: ResumeData) => {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ stage, resumeData }));
+  } catch {
+    console.warn("Failed to save conversation session");
+  }
+};
+
 export const useResumeDataCollection = () => {
-  const [stage, setStage] = useState<ConversationStage>("initial");
-  const [resumeData, setResumeData] = useState<ResumeData>({});
+  const stored = getStoredSession();
+  const [stage, setStageState] = useState<ConversationStage>(
+    stored?.stage || "initial"
+  );
+  const [resumeData, setResumeDataState] = useState<ResumeData>(
+    stored?.resumeData || {}
+  );
+
+  // Auto-save to sessionStorage whenever stage or resumeData changes
+  useEffect(() => {
+    saveSession(stage, resumeData);
+  }, [stage, resumeData]);
+
+  const setStage = (nextStage: ConversationStage) => {
+    setStageState(nextStage);
+  };
 
   const advanceStage = (nextStage: ConversationStage) => {
     setStage(nextStage);
+  };
+
+  const setResumeData = (
+    updates: ResumeData | ((prev: ResumeData) => ResumeData)
+  ) => {
+    setResumeDataState(updates);
   };
 
   const updateResumeData = (updates: Partial<ResumeData>) => {
@@ -39,6 +83,9 @@ export const useResumeDataCollection = () => {
   const resetCollection = () => {
     setStage("initial");
     setResumeData({});
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem(STORAGE_KEY);
+    }
   };
 
   return {
