@@ -44,8 +44,8 @@ interface AddNoteRequest {
 type CandidateRequest = CreateRequest | UpdatePriorityRequest | AddNoteRequest;
 
 // In-memory candidate storage (replace with database in production)
-const candidates = new Map<string, Candidate>();
-const notes = new Map<string, CandidateNote[]>();
+export const candidates = new Map<string, Candidate>();
+export const notes = new Map<string, CandidateNote[]>();
 
 export async function POST(request: NextRequest) {
   try {
