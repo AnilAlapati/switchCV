@@ -1,0 +1,43 @@
+name: Repository Health Check
+
+on:
+  push:
+    branches: [main, develop, feature/*]
+  schedule:
+    # Run weekly on Sundays at 2 AM
+    - cron: "0 2 * * 0"
+  workflow_dispatch:
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check Repository Integrity
+        run: |
+          echo "🔍 Running git fsck..."
+          git fsck --full --strict || echo "⚠️  Repository integrity issues detected"
+
+      - name: Check for Large Files
+        run: |
+          echo "📦 Checking for large files..."
+          git rev-list --objects --all | \
+          git cat-file --batch-check='%(objecttype) %(objectname) %(objectsize) %(rest)' | \
+          awk '$3 > 10485760 {print $3/1024/1024 " MB", $4}' | \
+          sort -rn | head -20
+
+      - name: Repository Statistics
+        run: |
+          echo "📊 Repository statistics:"
+          git count-objects -vH
+
+      - name: Check Ref Integrity
+        run: |
+          echo "🔗 Checking refs..."
+          git for-each-ref --format='%(refname) %(objectname)' | \
+          while read ref sha; do
+            git cat-file -e $sha 2>/dev/null || echo "⚠️  Broken ref: $ref -> $sha"
+          done
