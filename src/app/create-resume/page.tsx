@@ -8,7 +8,7 @@ import { useAIResume } from "@/hooks/useAIResume";
 import { useAIConversation } from "@/hooks/useAIConversation";
 import { buildResumeProfile, saveResumeToDB } from "@/lib/resumeGenerator";
 import { ChatMessages } from "@/components/ChatMessages";
-import { GeneratedResumePreview } from "@/components/GeneratedResumePreview";
+import { ResumeReviewModal } from "@/components/ResumeReviewModal";
 import { CreateResumeHeader } from "@/components/create-resume/CreateResumeHeader";
 import { AILoadingState } from "@/components/create-resume/AILoadingState";
 import { CreateResumeInputForm } from "@/components/create-resume/CreateResumeInputForm";
@@ -43,6 +43,10 @@ export default function CreateResume() {
   const [currentInput, setCurrentInput] = useState("");
   const [generatedResume, setGeneratedResume] =
     useState<EnhancedResumeContent | null>(null);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [isReviewLoading, setIsReviewLoading] = useState(false);
+  const MAX_RETRIES = 5;
 
   // Redirect unauthenticated users
   useEffect(() => {
@@ -59,16 +63,24 @@ export default function CreateResume() {
   }, [user, loading]);
 
   /**
-   * Handle the complete resume generation flow
-   * including saving to database and redirecting
+   * Handle resume generation with smart LLM feedback integration
    */
-  const handleResumeGeneration = async () => {
+  const handleResumeGeneration = async (userFeedback?: string) => {
     try {
       if (!user) {
         throw new Error("User not authenticated");
       }
 
-      console.log("🚀 Starting AI resume generation...");
+      console.log(
+        "🚀 Starting AI resume generation...",
+        userFeedback ? `with feedback: ${userFeedback}` : ""
+      );
+
+      // Build the prompt with feedback context
+      const feedbackContext = userFeedback
+        ? `\n\nUser Feedback from Previous Iteration:\n${userFeedback}\nPlease incorporate this feedback into the new resume generation.`
+        : "";
+
       const enhancedContent = await generateResumeContent(
         {
           personalInfo: {
@@ -76,7 +88,9 @@ export default function CreateResume() {
             email: resumeData.personalInfo?.email || "",
             location: resumeData.personalInfo?.location || "",
           },
-          summary: `Seeking ${resumeData.jobTarget || "new opportunities"}`,
+          summary: `Seeking ${
+            resumeData.jobTarget || "new opportunities"
+          }${feedbackContext}`,
           experience: [
             {
               title: "Professional Experience",
@@ -106,42 +120,54 @@ export default function CreateResume() {
       }
 
       setGeneratedResume(enhancedContent);
+      setShowReviewModal(true);
 
       // Track which model was used
       const modelName = aiConnectionStatus?.model || "AI";
       setAiModelUsed(modelName);
       console.log(`✅ Resume generated using ${modelName}`);
+    } catch (error) {
+      console.error("❌ Resume generation error:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      addAssistantMessageWithDelay(
+        `I had trouble generating your resume: ${errorMessage}. Please try again or contact support if the issue persists.`,
+        1000
+      );
+      setStage("personal");
+    }
+  };
 
-      // Build and save resume profile (buildResumeProfile is now async)
+  /**
+   * Handle accepting the reviewed resume
+   */
+  const handleAcceptResume = async () => {
+    if (!generatedResume || !user) return;
+
+    setIsReviewLoading(true);
+    try {
+      // Build and save resume profile
       const resumeProfile = await buildResumeProfile(
         user.uid,
         resumeData,
-        enhancedContent
+        generatedResume
       );
 
       console.log("📝 Saving resume to database...", resumeProfile);
 
-      try {
-        await saveResumeToDB(resumeProfile);
-        console.log("✅ Resume saved successfully");
-      } catch (dbError) {
-        console.error("Database save error:", dbError);
-        throw new Error(
-          `Failed to save resume: ${
-            dbError instanceof Error ? dbError.message : "Unknown error"
-          }`
-        );
-      }
+      await saveResumeToDB(resumeProfile);
+      console.log("✅ Resume saved successfully");
 
       // Use numericId for new format, fallback to slug for backward compatibility
       const shareId = resumeProfile.numericId?.toString() || resumeProfile.slug;
       const resumeUrl = `${window.location.origin}/resume/${shareId}`;
 
+      setShowReviewModal(false);
       setStage("complete");
 
       // Show the URL to user - do NOT auto-redirect
       addAssistantMessageWithDelay(
-        `🎉 Your resume is ready!\n\n📋 Your Resume URL:\n${resumeUrl}\n\nYou can copy this link and share it with recruiters. Click the link when you're ready to view it!`,
+        `🎉 Your resume has been saved!\n\n📋 Your Resume URL:\n${resumeUrl}\n\nYou can copy this link and share it with recruiters.`,
         1000
       );
 
@@ -154,17 +180,33 @@ export default function CreateResume() {
         }
       }
 
-      // DO NOT redirect - user will click the link when ready
       console.log(`✅ Resume created successfully at: ${resumeUrl}`);
     } catch (error) {
-      console.error("❌ Resume generation error:", error);
+      console.error("❌ Error accepting resume:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred";
-      addAssistantMessageWithDelay(
-        `I had trouble generating your resume: ${errorMessage}. Please try again or contact support if the issue persists.`,
-        1000
-      );
-      setStage("personal"); // Reset to allow retry
+      alert(`Error saving resume: ${errorMessage}`);
+    } finally {
+      setIsReviewLoading(false);
+    }
+  };
+
+  /**
+   * Handle rewriting resume with user feedback
+   */
+  const handleRewriteResume = async (feedback: string) => {
+    if (retryCount >= MAX_RETRIES) {
+      alert("Maximum retries reached. Please accept the current resume.");
+      return;
+    }
+
+    setIsReviewLoading(true);
+    setRetryCount((prev) => prev + 1);
+
+    try {
+      await handleResumeGeneration(feedback);
+    } finally {
+      setIsReviewLoading(false);
     }
   };
 
@@ -245,7 +287,7 @@ export default function CreateResume() {
         );
 
         // Generate resume after delay
-        setTimeout(handleResumeGeneration, 2000);
+        setTimeout(() => handleResumeGeneration(), 2000);
         break;
     }
   };
@@ -271,13 +313,6 @@ export default function CreateResume() {
           isGeneratingQuestion={isGeneratingQuestion}
         />
 
-        <div className="p-4">
-          <GeneratedResumePreview
-            generatedResume={generatedResume}
-            aiModelUsed={aiModelUsed}
-          />
-        </div>
-
         <AILoadingState aiLoading={aiLoading} aiError={aiError} />
 
         <CreateResumeInputForm
@@ -287,6 +322,19 @@ export default function CreateResume() {
           stage={stage}
         />
       </div>
+
+      {/* Resume Review Modal */}
+      {showReviewModal && generatedResume && (
+        <ResumeReviewModal
+          generatedResume={generatedResume}
+          aiModelUsed={aiModelUsed}
+          onAccept={handleAcceptResume}
+          onRewrite={handleRewriteResume}
+          retryCount={retryCount}
+          maxRetries={MAX_RETRIES}
+          isLoading={isReviewLoading}
+        />
+      )}
     </div>
   );
 }
