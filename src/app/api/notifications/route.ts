@@ -35,22 +35,22 @@ export async function POST(request: NextRequest) {
         return handleSend(userId, data);
 
       case "mark-read":
-        return handleMarkRead(data.notificationId);
+        return handleMarkRead(data?.notificationId);
 
       case "mark-all-read":
         return handleMarkAllRead(userId);
 
       case "delete":
-        return handleDelete(data.notificationId);
+        return handleDelete(data?.notificationId);
 
       case "get-preferences":
         return handleGetPreferences(userId);
 
       case "update-preference":
-        return handleUpdatePreference(userId, data.preference);
+        return handleUpdatePreference(userId, data?.preference);
 
       case "get-delivery-status":
-        return handleGetDeliveryStatus(data.notificationId);
+        return handleGetDeliveryStatus(data?.notificationId);
 
       default:
         return NextResponse.json({ error: "Unknown action" }, { status: 400 });
