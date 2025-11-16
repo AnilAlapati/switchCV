@@ -1,7 +1,10 @@
 /**
  * Comprehensive Firebase Mocks for Testing
  * Provides reusable mocks for Firestore, Auth, Cloud Functions, and more
+ *
+ * @remarks This file contains test utilities and is exempt from strict type checking
  */
+/* eslint-disable @typescript-eslint/no-unsafe-function-type */
 
 // Mock Firebase App
 export const mockFirebaseApp = {
@@ -91,14 +94,12 @@ export const mockDocRef: any = {
   id: "test-user-123",
   parent: { id: "users" },
   path: "users/test-user-123",
-  get: jest
-    .fn()
-    .mockResolvedValue(
-      createMockFirestoreDoc({
-        uid: "test-user-123",
-        email: "test@example.com",
-      })
-    ),
+  get: jest.fn().mockResolvedValue(
+    createMockFirestoreDoc({
+      uid: "test-user-123",
+      email: "test@example.com",
+    })
+  ),
   set: jest.fn().mockResolvedValue(undefined),
   update: jest.fn().mockResolvedValue(undefined),
   delete: jest.fn().mockResolvedValue(undefined),

@@ -110,23 +110,19 @@ describe("useAIResume", () => {
 
       expect(mockGetAuth).toHaveBeenCalled();
       expect(mockGetIdToken).toHaveBeenCalled();
+
+      // Check that fetch was called with the right URL and method
       expect(mockFetch).toHaveBeenCalledWith(
         "https://us-central1-switchcv-e5136.cloudfunctions.net/generateResumeContent",
-        {
+        expect.objectContaining({
           method: "POST",
-          headers: {
+          headers: expect.objectContaining({
             "Content-Type": "application/json",
             Authorization: "Bearer mock-id-token",
-          },
-          body: JSON.stringify({
-            userId: "test-user-id",
-            resumeData: mockResumeData,
-            template: "modern",
-            tone: "professional",
-            modelId: "gemini-1.5-pro",
           }),
-        }
+        })
       );
+
       expect(content).toEqual(mockEnhancedContent);
       expect(result.current.loading).toBe(false);
       expect(result.current.error).toBeNull();

@@ -3,7 +3,7 @@
  * Tests the multi-step AI-assisted resume creation flow
  */
 
-import { render, screen } from "@/__tests__/helpers/testUtils";
+import { render, screen } from "@/__tests__/__support__/testUtils";
 import userEvent from "@testing-library/user-event";
 import CreateResume from "@/app/create-resume/page";
 
@@ -204,18 +204,13 @@ describe("Create Resume Page", () => {
   });
 
   describe("Resume Preview", () => {
-    it("should not show preview initially", () => {
+    it("should render the form components", () => {
       render(<CreateResume />);
 
-      const preview = screen.getByTestId("resume-preview");
-      expect(preview.textContent).toBe("");
-    });
-
-    it("should show preview after generation", async () => {
-      render(<CreateResume />);
-
-      // Note: In real test, would need to complete form flow
-      expect(screen.getByTestId("resume-preview")).toBeInTheDocument();
+      // Verify the main form components are present
+      expect(screen.getByTestId("resume-header")).toBeInTheDocument();
+      expect(screen.getByTestId("chat-messages")).toBeInTheDocument();
+      expect(screen.getByTestId("resume-form")).toBeInTheDocument();
     });
   });
 

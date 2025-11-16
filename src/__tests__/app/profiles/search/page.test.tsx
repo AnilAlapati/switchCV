@@ -3,7 +3,7 @@
  * Tests profile discovery with search and filtering
  */
 
-import { render, screen } from "@/__tests__/helpers/testUtils";
+import { render, screen } from "@/__tests__/__support__/testUtils";
 import userEvent from "@testing-library/user-event";
 
 // Import the page component - Jest will handle "use client"

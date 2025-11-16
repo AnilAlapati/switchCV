@@ -8,7 +8,7 @@ import { getDoc, addDoc, getDocs, collection, doc } from "firebase/firestore";
 import {
   createMockFirestoreDoc,
   createMockQuerySnapshot,
-} from "@/__tests__/mocks/firebase";
+} from "@/__tests__/__support__/firebase";
 
 // Mock Firebase
 jest.mock("firebase/firestore", () => ({

@@ -4,14 +4,8 @@
 
 import { POST } from "@/app/api/profiles/approve-access/route";
 import { NextRequest } from "next/server";
-import {
-  getDoc,
-  updateDoc,
-  addDoc,
-} from "firebase/firestore";
-import {
-  createMockFirestoreDoc,
-} from "@/__tests__/mocks/firebase";
+import { getDoc, updateDoc, addDoc } from "firebase/firestore";
+import { createMockFirestoreDoc } from "@/__tests__/__support__/firebase";
 
 jest.mock("firebase/firestore", () => ({
   collection: jest.fn(),
