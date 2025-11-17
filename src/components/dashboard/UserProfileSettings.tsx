@@ -238,11 +238,15 @@ export function UserProfileSettings() {
       {/* Company Name Input (Recruiter Only) */}
       {showCompanyInput && (
         <div className="mb-6 pb-6 border-b border-white/10 animate-in fade-in slide-in-from-top-2">
-          <label className="block text-sm font-semibold text-white mb-3">
+          <label
+            htmlFor="company-name-input"
+            className="block text-sm font-semibold text-white mb-3"
+          >
             Company Name
           </label>
           <div className="flex gap-3">
             <input
+              id="company-name-input"
               type="text"
               value={settings.companyName || ""}
               onChange={(e) =>

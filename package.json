@@ -42,30 +42,7 @@
     "tailwindcss": "^4",
     "typescript": "^5"
   },
-  "jest": {
-    "testEnvironment": "jsdom",
-    "setupFilesAfterEnv": [
-      "<rootDir>/jest.setup.js"
-    ],
-    "moduleNameMapper": {
-      "^@/(.*)$": "<rootDir>/src/$1",
-      "\\.(css|less|scss|sass)$": "identity-obj-proxy"
-    },
-    "collectCoverageFrom": [
-      "src/**/*.{js,jsx,ts,tsx}",
-      "!src/**/*.d.ts"
-    ],
-    "testMatch": [
-      "<rootDir>/src/**/__tests__/**/*.{test,spec}.{js,jsx,ts,tsx}",
-      "<rootDir>/src/**/*.{test,spec}.{js,jsx,ts,tsx}"
-    ],
-    "testPathIgnorePatterns": [
-      "<rootDir>/src/__tests__/__support__/"
-    ],
-    "transform": {
-      "^.+\\.(js|jsx|ts|tsx)$": "<rootDir>/jest-preprocessor.js"
-    }
-  },
+
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
       "eslint --fix",
