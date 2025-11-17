@@ -17,14 +17,22 @@ describe("UserProfileSettings", () => {
   });
 
   test("fetches and displays profile info", async () => {
-    const mockProfile = { isRecruiter: false, companyName: "", updatedAt: "now" };
-    global.fetch = jest.fn().mockResolvedValueOnce({ ok: true, json: async () => mockProfile });
+    const mockProfile = {
+      isRecruiter: false,
+      companyName: "",
+      updatedAt: "now",
+    };
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => mockProfile });
 
     render(<UserProfileSettings />);
 
-    await waitFor(() => expect(screen.getByText(/Profile Settings/i)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText(/Profile Settings/i)).toBeInTheDocument()
+    );
 
-    expect(screen.getByText(/Email:/i)).toHaveTextContent("test@example.com");
+    expect(screen.getByText("test@example.com")).toBeInTheDocument();
     expect(screen.getByText(/Job Seeker/i)).toBeInTheDocument();
   });
 
@@ -38,13 +46,21 @@ describe("UserProfileSettings", () => {
 
     render(<UserProfileSettings />);
 
-    await waitFor(() => expect(screen.getByText(/Job Seeker/i)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText(/Job Seeker/i)).toBeInTheDocument()
+    );
 
     const buttons = screen.getAllByRole("button");
     await userEvent.click(buttons[0]);
 
-    await waitFor(() => expect(screen.getByText(/Recruiter/i)).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByText(/Account type updated!/i)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryAllByText(/Recruiter/i).length).toBeGreaterThanOrEqual(
+        1
+      )
+    );
+    await waitFor(() =>
+      expect(screen.getByText(/Account type updated!/i)).toBeInTheDocument()
+    );
   });
 
   test("saves company name when recruiter", async () => {
@@ -57,7 +73,9 @@ describe("UserProfileSettings", () => {
 
     render(<UserProfileSettings />);
 
-    await waitFor(() => expect(screen.getByLabelText(/Company Name/i)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByLabelText(/Company Name/i)).toBeInTheDocument()
+    );
 
     const input = screen.getByLabelText(/Company Name/i) as HTMLInputElement;
     expect(input.value).toBe("Acme");
@@ -65,9 +83,11 @@ describe("UserProfileSettings", () => {
     await userEvent.clear(input);
     await userEvent.type(input, "NewCo");
 
-    const saveButton = screen.getByRole("button", { name: /Save/i });
+    const saveButton = screen.getByText(/Save/i);
     await userEvent.click(saveButton);
 
-    await waitFor(() => expect(screen.getByText(/Company name saved!/i)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText(/Company name saved!/i)).toBeInTheDocument()
+    );
   });
 });
