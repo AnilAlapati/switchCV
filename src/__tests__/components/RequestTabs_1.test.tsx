@@ -9,11 +9,7 @@ describe("RequestTabs", () => {
   it("renders all status tabs", () => {
     const handle = jest.fn();
     render(
-      <RequestTabs
-        activeTab="pending"
-        onTabChange={handle}
-        stats={mockStats}
-      />
+      <RequestTabs activeTab="pending" onTabChange={handle} stats={mockStats} />
     );
 
     expect(screen.getByText("Pending Approval")).toBeInTheDocument();
@@ -25,11 +21,7 @@ describe("RequestTabs", () => {
   it("displays badge with stat count", () => {
     const handle = jest.fn();
     render(
-      <RequestTabs
-        activeTab="pending"
-        onTabChange={handle}
-        stats={mockStats}
-      />
+      <RequestTabs activeTab="pending" onTabChange={handle} stats={mockStats} />
     );
 
     expect(screen.getByText("3")).toBeInTheDocument();
@@ -41,11 +33,7 @@ describe("RequestTabs", () => {
     const user = userEvent.setup();
     const handle = jest.fn();
     render(
-      <RequestTabs
-        activeTab="pending"
-        onTabChange={handle}
-        stats={mockStats}
-      />
+      <RequestTabs activeTab="pending" onTabChange={handle} stats={mockStats} />
     );
 
     await user.click(screen.getByText("Approved"));
@@ -55,11 +43,7 @@ describe("RequestTabs", () => {
   it("highlights active tab", () => {
     const handle = jest.fn();
     const { container } = render(
-      <RequestTabs
-        activeTab="pending"
-        onTabChange={handle}
-        stats={mockStats}
-      />
+      <RequestTabs activeTab="pending" onTabChange={handle} stats={mockStats} />
     );
 
     const activeBtn = container.querySelector(
