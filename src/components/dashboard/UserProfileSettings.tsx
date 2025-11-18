@@ -29,7 +29,12 @@ export function UserProfileSettings() {
       if (!user) return;
 
       try {
-        const response = await fetch(`/api/user/profile?userId=${user.uid}`);
+        const idToken = await user.getIdToken();
+        const response = await fetch(`/api/user/profile?userId=${user.uid}`, {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
+        });
         if (response.ok) {
           const data = await response.json();
           setSettings(data);
@@ -56,9 +61,13 @@ export function UserProfileSettings() {
 
     setSaving(true);
     try {
+      const idToken = await user.getIdToken();
       const response = await fetch("/api/user/profile", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
         body: JSON.stringify({
           uid: user.uid,
           isRecruiter: checked,
@@ -108,9 +117,13 @@ export function UserProfileSettings() {
 
     setSaving(true);
     try {
+      const idToken = await user.getIdToken();
       const response = await fetch("/api/user/profile", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
         body: JSON.stringify({
           uid: user.uid,
           companyName: settings.companyName,

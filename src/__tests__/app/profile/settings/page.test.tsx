@@ -4,7 +4,11 @@ import { render } from "../../../__support__/testUtils";
 // Mock hooks
 jest.mock("@/hooks/useAuth", () => ({
   useAuth: () => ({
-    user: { uid: "u1", email: "test@example.com" },
+    user: {
+      uid: "u1",
+      email: "test@example.com",
+      getIdToken: jest.fn().mockResolvedValue("mock-id-token"),
+    },
     logout: jest.fn(),
     loading: false,
   }),

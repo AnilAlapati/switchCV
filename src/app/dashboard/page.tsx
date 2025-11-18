@@ -36,7 +36,12 @@ export default function Dashboard() {
     const fetchUserStatus = async () => {
       if (!user) return;
       try {
-        const response = await fetch(`/api/user/settings?userId=${user.uid}`);
+        const idToken = await user.getIdToken();
+        const response = await fetch(`/api/user/settings?userId=${user.uid}`, {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
+        });
         if (response.ok) {
           const data = await response.json();
           setUserIsRecruiter(data.isRecruiter);

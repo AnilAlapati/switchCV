@@ -11,7 +11,6 @@
 import { doc, deleteDoc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { addDeletedIdToPool } from "@/lib/resumeIdRecycler";
-import type { ResumeProfile } from "@/lib/resumeGenerator";
 
 /**
  * Delete a resume by document ID
@@ -42,7 +41,7 @@ export const deleteResumeById = async (
       };
     }
 
-    const resumeData = resumeSnap.data() as ResumeProfile;
+    const resumeData = resumeSnap.data() as any;
 
     // Step 2: Optional: Check authorization (if userId provided)
     if (userId && resumeData.userId !== userId) {
