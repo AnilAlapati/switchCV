@@ -47,8 +47,14 @@ export default function SettingsPage() {
 
   const fetchSettings = async () => {
     try {
-      const response = await fetch(`/api/user/settings?userId=${user?.uid}`, {
+      if (!user) return;
+
+      const idToken = await user.getIdToken();
+      const response = await fetch(`/api/user/settings?userId=${user.uid}`, {
         method: "GET",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
       });
 
       if (!response.ok) {
@@ -74,9 +80,13 @@ export default function SettingsPage() {
 
     setSaving(true);
     try {
+      const idToken = await user.getIdToken();
       const response = await fetch("/api/user/settings", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
         body: JSON.stringify({
           userId: user.uid,
           isRecruiter: checked,
@@ -118,9 +128,13 @@ export default function SettingsPage() {
 
     setSaving(true);
     try {
+      const idToken = await user.getIdToken();
       const response = await fetch("/api/user/settings", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
         body: JSON.stringify({
           userId: user.uid,
           displayName: settings.displayName,
@@ -159,9 +173,13 @@ export default function SettingsPage() {
 
     setSaving(true);
     try {
+      const idToken = await user.getIdToken();
       const response = await fetch("/api/user/settings", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
         body: JSON.stringify({
           userId: user.uid,
           companyName: settings.companyName,

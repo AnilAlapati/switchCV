@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateResumeEnhancement } from "@/lib/resumeEnhancer";
 import { logger } from "@/lib/logger";
-import type { ResumeProfile } from "@/lib/resumeGenerator";
+import type { Resume } from "@/lib/resumeComparison.types";
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     const enhancement = generateResumeEnhancement(
-      resume as ResumeProfile,
+      resume as Resume,
       jobDescription
     );
 

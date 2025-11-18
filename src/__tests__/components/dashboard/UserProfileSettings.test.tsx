@@ -2,7 +2,13 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 jest.mock("@/hooks/useAuth", () => ({
-  useAuth: () => ({ user: { uid: "test-uid", email: "test@example.com" } }),
+  useAuth: () => ({
+    user: {
+      uid: "test-uid",
+      email: "test@example.com",
+      getIdToken: jest.fn().mockResolvedValue("mock-id-token"),
+    },
+  }),
 }));
 
 import { UserProfileSettings } from "@/components/dashboard/UserProfileSettings";

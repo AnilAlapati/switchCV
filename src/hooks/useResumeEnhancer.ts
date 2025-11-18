@@ -5,7 +5,7 @@
  */
 
 import { useState, useCallback } from "react";
-import type { ResumeProfile } from "@/lib/resumeGenerator";
+import type { Resume } from "@/lib/resumeComparison.types";
 import type { ResumeEnhancementResult } from "@/lib/resumeEnhancer";
 import { logger } from "@/lib/logger";
 
@@ -23,7 +23,7 @@ export const useResumeEnhancer = () => {
   });
 
   const enhance = useCallback(
-    async (resume: ResumeProfile, jobDescription?: string) => {
+    async (resume: Resume, jobDescription?: string) => {
       setState({ loading: true, error: null, enhancement: null });
 
       try {

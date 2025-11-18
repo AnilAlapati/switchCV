@@ -5,7 +5,7 @@
  */
 
 import { logger } from "@/lib/logger";
-import type { ResumeProfile } from "@/lib/resumeGenerator";
+import type { Resume } from "@/lib/resumeComparison.types";
 
 export interface ResumeEnhancementResult {
   atsScore: number;
@@ -32,7 +32,7 @@ export interface ResumeEnhancementResult {
  * Checks for common issues that might cause resume to be filtered out
  */
 export const analyzeATS = (
-  resume: ResumeProfile
+  resume: Resume
 ): { score: number; report: string[] } => {
   const issues: string[] = [];
   let score = 100;
@@ -116,8 +116,8 @@ export const analyzeATS = (
 /**
  * Detect formatting style and suggest improvements
  */
-export const analyzeFormatting = (resume: ResumeProfile): string => {
-  const hasBulletPoints = resume.experience.some((exp) =>
+export const analyzeFormatting = (resume: Resume): string => {
+  const hasBulletPoints = resume.experience.some((exp: any) =>
     exp.description?.includes("•")
   );
 
@@ -135,7 +135,7 @@ export const analyzeFormatting = (resume: ResumeProfile): string => {
 /**
  * Generate ATS optimization tips
  */
-export const generateOptimizationTips = (resume: ResumeProfile): string[] => {
+export const generateOptimizationTips = (resume: Resume): string[] => {
   const tips: string[] = [];
 
   // Tips based on content analysis
@@ -154,15 +154,12 @@ export const generateOptimizationTips = (resume: ResumeProfile): string[] => {
     );
   }
 
-  if (
-    !resume.generatedText?.polished ||
-    resume.generatedText.polished.length < 100
-  ) {
+  if (!resume.summary || resume.summary.length < 100) {
     tips.push("✓ Write a compelling professional summary (100-150 words)");
   }
 
   const experienceDescription = resume.experience
-    .map((e) => e.description)
+    .map((e: any) => e.description)
     .join(" ")
     .toLowerCase();
 
@@ -183,7 +180,7 @@ export const generateOptimizationTips = (resume: ResumeProfile): string[] => {
  * Analyze keywords in resume and suggest relevant ones
  */
 export const analyzeKeywords = (
-  resume: ResumeProfile,
+  resume: Resume,
   jobDescription?: string
 ): {
   currentKeywords: string[];
@@ -193,7 +190,9 @@ export const analyzeKeywords = (
   const resumeText = JSON.stringify(resume).toLowerCase();
 
   // Extract current keywords (skills)
-  const currentKeywords = resume.skills.map((s) => s.name.toLowerCase());
+  const currentKeywords = resume.skills.map((s: any) =>
+    (typeof s === "string" ? s : s.name).toLowerCase()
+  );
 
   // Suggested technical keywords
   const technicalKeywords = [
@@ -237,7 +236,7 @@ export const analyzeKeywords = (
  * Generate comprehensive resume analysis
  */
 export const generateResumeEnhancement = (
-  resume: ResumeProfile,
+  resume: Resume,
   jobDescription?: string
 ): ResumeEnhancementResult => {
   try {
@@ -312,9 +311,7 @@ export const generateResumeEnhancement = (
 /**
  * Generate smart formatting recommendations
  */
-export const getFormattingRecommendations = (
-  resume: ResumeProfile
-): string[] => {
+export const getFormattingRecommendations = (resume: Resume): string[] => {
   const recommendations: string[] = [];
 
   // Check document structure
@@ -325,7 +322,9 @@ export const getFormattingRecommendations = (
   }
 
   // Check for action verbs
-  const descriptions = resume.experience.map((e) => e.description).join(" ");
+  const descriptions = resume.experience
+    .map((e: any) => e.description)
+    .join(" ");
   const actionVerbs = [
     "managed",
     "led",
@@ -355,7 +354,7 @@ export const getFormattingRecommendations = (
   // Check for consistency
   if (resume.experience.length > 0) {
     const allHaveDescriptions = resume.experience.every(
-      (e) => e.description && e.description.length > 20
+      (e: any) => e.description && e.description.length > 20
     );
     if (!allHaveDescriptions) {
       recommendations.push("Expand job descriptions with more detail");
