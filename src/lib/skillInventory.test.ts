@@ -430,7 +430,7 @@ describe("Skill Inventory Manager", () => {
     });
 
     it("should default to 1 endorsement", () => {
-      let inventory = initializeSkillInventory(userId);
+      const inventory = initializeSkillInventory(userId);
       const skill = createSkill(
         "Teaching",
         SkillCategory.SOFT_SKILLS,

@@ -27,7 +27,11 @@ export function DashboardBackground({ children }: DashboardBackgroundProps) {
       delay: `${Math.random() * 3}s`,
       duration: `${2 + Math.random() * 3}s`,
     }));
-    setState({ mounted: true, particles: generatedParticles });
+    // Use setTimeout to avoid synchronous state update warning in effect
+    const timer = setTimeout(() => {
+      setState({ mounted: true, particles: generatedParticles });
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   return (

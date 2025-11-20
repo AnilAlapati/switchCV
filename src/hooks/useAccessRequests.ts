@@ -42,7 +42,8 @@ export function useAccessRequests() {
       return () => unsubscribe();
     } catch (err) {
       console.error("Error setting up requests listener:", err);
-      setLoading(false);
+      // Avoid synchronous state update in effect
+      setTimeout(() => setLoading(false), 0);
     }
   }, [user, authLoading]);
 

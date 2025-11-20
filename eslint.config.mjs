@@ -1,12 +1,14 @@
-import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
+import reactHooks from "eslint-plugin-react-hooks";
 
-const eslintConfig = defineConfig([
+const eslintConfig = [
   ...nextVitals,
   ...nextTs,
   {
-    // File size limit enforcement
+    plugins: {
+      "react-hooks": reactHooks,
+    },
     rules: {
       "max-lines": [
         "warn",
@@ -28,19 +30,18 @@ const eslintConfig = defineConfig([
       "@next/next/no-html-link-for-pages": "warn",
     },
   },
-  // Override default ignores of eslint-config-next.
-  globalIgnores([
-    // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
-    // Test and utility files
-    "test-*.js",
-    "list-gemini-models.js",
-    "functions/**",
-    "coverage/**",
-  ]),
-]);
+  {
+    ignores: [
+      ".next/**",
+      "out/**",
+      "build/**",
+      "next-env.d.ts",
+      "test-*.js",
+      "list-gemini-models.js",
+      "functions/**",
+      "coverage/**",
+    ],
+  },
+];
 
 export default eslintConfig;
