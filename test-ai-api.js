@@ -43,7 +43,7 @@ async function testGemini() {
 
   const options = {
     hostname: 'generativelanguage.googleapis.com',
-    path: `/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+    path: `/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -115,8 +115,8 @@ async function testHuggingFace() {
   });
 
   const options = {
-    hostname: 'api-inference.huggingface.co',
-    path: '/models/mistralai/Mistral-7B-Instruct-v0.2',
+    hostname: 'router.huggingface.co',
+    path: '/models/google/flan-t5-base',
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,

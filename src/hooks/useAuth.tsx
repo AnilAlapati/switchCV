@@ -44,12 +44,23 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      setLoading(false);
-    });
+    try {
+      // Check if Firebase is properly initialized
+      if (!auth || auth.__isMock) {
+        setLoading(false);
+        return;
+      }
 
-    return unsubscribe;
+      const unsubscribe = onAuthStateChanged(auth, (user) => {
+        setUser(user);
+        setLoading(false);
+      });
+
+      return unsubscribe;
+    } catch (error) {
+      console.warn("Auth initialization error:", error);
+      setLoading(false);
+    }
   }, []);
 
   const signIn = async (email: string, password: string) => {

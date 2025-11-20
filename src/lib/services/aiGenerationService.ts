@@ -176,7 +176,7 @@ async function generateWithHuggingFace(
 
   // HuggingFace Inference API - using text-generation endpoint
   const response = await fetch(
-    "https://api-inference.huggingface.co/models/google/flan-t5-base",
+    "https://router.huggingface.co/models/google/flan-t5-base",
     {
       method: "POST",
       headers: {
