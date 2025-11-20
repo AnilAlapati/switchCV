@@ -2,6 +2,8 @@
 import { renderHook, waitFor, act } from "@testing-library/react";
 import { useAIResume } from "@/hooks/useAIResume";
 import { getAuth } from "firebase/auth";
+import { generateMockEnhancedResume } from "@/lib/mockAIResume";
+import { getBestModelForTask } from "@/config/aiModels";
 
 // Mock Firebase auth
 jest.mock("@/lib/firebase", () => ({
@@ -13,11 +15,37 @@ jest.mock("firebase/auth", () => ({
   getAuth: jest.fn(),
 }));
 
+jest.mock("@/lib/mockAIResume", () => ({
+  generateMockEnhancedResume: jest.fn(),
+}));
+
+jest.mock("@/config/aiModels", () => ({
+  getBestModelForTask: jest.fn(),
+}));
+
 // Mock fetch
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
 const mockGetAuth = jest.mocked(getAuth);
+const mockGenerateMockEnhancedResume = jest.mocked(generateMockEnhancedResume);
+const mockGetBestModelForTask = jest.mocked(getBestModelForTask);
+
+const mockFallbackContent = {
+  enhancedSummary: "Mock summary",
+  enhancedExperience: [
+    {
+      title: "Professional",
+      company: "Your Organization",
+      duration: "2020 - Present",
+      description: "Mock description",
+      achievements: ["Achievement"],
+      enhancedDescription: "Enhanced description",
+    },
+  ],
+  skillSuggestions: ["Skill"],
+  improvementTips: ["Tip"],
+};
 
 describe("useAIResume", () => {
   let mockUser: any;
@@ -34,6 +62,13 @@ describe("useAIResume", () => {
 
     mockGetAuth.mockReturnValue({
       currentUser: mockUser,
+    } as any);
+    mockGenerateMockEnhancedResume.mockImplementation(
+      () => mockFallbackContent
+    );
+    mockGetBestModelForTask.mockReturnValue({
+      modelId: "mock-model-id",
+      provider: "mock-provider",
     } as any);
   });
 
@@ -113,7 +148,7 @@ describe("useAIResume", () => {
 
       // Check that fetch was called with the right URL and method
       expect(mockFetch).toHaveBeenCalledWith(
-        "https://us-central1-switchcv-e5136.cloudfunctions.net/generateResumeContent",
+        "/api/ai/generate-resume",
         expect.objectContaining({
           method: "POST",
           headers: expect.objectContaining({
@@ -122,6 +157,15 @@ describe("useAIResume", () => {
           }),
         })
       );
+
+      const [, fetchOptions] = mockFetch.mock.calls[0];
+      const parsedBody = JSON.parse((fetchOptions?.body as string) || "{}");
+      expect(parsedBody).toEqual({
+        resumeData: mockResumeData,
+        template: "modern",
+        tone: "professional",
+        modelId: "mock-model-id",
+      });
 
       expect(content).toEqual(mockEnhancedContent);
       expect(result.current.loading).toBe(false);
@@ -147,17 +191,17 @@ describe("useAIResume", () => {
       );
 
       expect(mockFetch).toHaveBeenCalledWith(
-        "https://us-central1-switchcv-e5136.cloudfunctions.net/generateResumeContent",
-        expect.objectContaining({
-          body: JSON.stringify({
-            userId: "test-user-id",
-            resumeData: mockResumeData,
-            template: "minimalist",
-            tone: "creative",
-            modelId: "gpt-4",
-          }),
-        })
+        "/api/ai/generate-resume",
+        expect.anything()
       );
+      const [, fetchOptions] = mockFetch.mock.calls.at(-1)!;
+      const parsedBody = JSON.parse((fetchOptions?.body as string) || "{}");
+      expect(parsedBody).toEqual({
+        resumeData: mockResumeData,
+        template: "minimalist",
+        tone: "creative",
+        modelId: "gpt-4",
+      });
     });
 
     it("should handle unauthenticated user", async () => {
@@ -172,10 +216,15 @@ describe("useAIResume", () => {
         content = await result.current.generateResumeContent(mockResumeData);
       });
 
-      expect(content).toBeNull();
-      await waitFor(() => {
-        expect(result.current.error).toBe("User not authenticated");
-      });
+      expect(mockFetch).not.toHaveBeenCalled();
+      expect(content).toEqual(mockFallbackContent);
+      expect(mockGenerateMockEnhancedResume).toHaveBeenCalledWith(
+        mockResumeData.personalInfo.name,
+        "Professional",
+        "Your Organization",
+        mockResumeData.skills
+      );
+      expect(result.current.error).toBeNull();
       expect(result.current.loading).toBe(false);
     });
 
@@ -189,10 +238,9 @@ describe("useAIResume", () => {
         content = await result.current.generateResumeContent(mockResumeData);
       });
 
-      expect(content).toBeNull();
-      await waitFor(() => {
-        expect(result.current.error).toBe("Token error");
-      });
+      expect(content).toEqual(mockFallbackContent);
+      expect(mockGenerateMockEnhancedResume).toHaveBeenCalled();
+      expect(result.current.error).toBeNull();
       expect(result.current.loading).toBe(false);
     });
 
@@ -212,10 +260,9 @@ describe("useAIResume", () => {
         content = await result.current.generateResumeContent(mockResumeData);
       });
 
-      expect(content).toBeNull();
-      await waitFor(() => {
-        expect(result.current.error).toBe("API Error");
-      });
+      expect(content).toEqual(mockFallbackContent);
+      expect(mockGenerateMockEnhancedResume).toHaveBeenCalled();
+      expect(result.current.error).toBeNull();
       expect(result.current.loading).toBe(false);
     });
 
@@ -231,10 +278,9 @@ describe("useAIResume", () => {
         content = await result.current.generateResumeContent(mockResumeData);
       });
 
-      expect(content).toBeNull();
-      await waitFor(() => {
-        expect(result.current.error).toBe("Network error");
-      });
+      expect(content).toEqual(mockFallbackContent);
+      expect(mockGenerateMockEnhancedResume).toHaveBeenCalled();
+      expect(result.current.error).toBeNull();
       expect(result.current.loading).toBe(false);
     });
 
@@ -254,10 +300,9 @@ describe("useAIResume", () => {
         content = await result.current.generateResumeContent(mockResumeData);
       });
 
-      expect(content).toBeNull();
-      await waitFor(() => {
-        expect(result.current.error).toBe("Invalid JSON");
-      });
+      expect(content).toEqual(mockFallbackContent);
+      expect(mockGenerateMockEnhancedResume).toHaveBeenCalled();
+      expect(result.current.error).toBeNull();
       expect(result.current.loading).toBe(false);
     });
 
@@ -301,12 +346,11 @@ describe("useAIResume", () => {
     it("should clear previous error on new request", async () => {
       mockGetIdToken.mockResolvedValue("mock-id-token");
 
-      // First request fails
-      const mockErrorResponse = {
-        ok: false,
-        json: jest.fn().mockResolvedValue({ error: "First error" }),
-      };
-      mockFetch.mockResolvedValueOnce(mockErrorResponse);
+      // First request fails and fallback also fails
+      mockFetch.mockRejectedValueOnce(new Error("Network error"));
+      mockGenerateMockEnhancedResume.mockImplementationOnce(() => {
+        throw new Error("mock fallback failure");
+      });
 
       const { result } = renderHook(() => useAIResume());
 
@@ -314,15 +358,18 @@ describe("useAIResume", () => {
         await result.current.generateResumeContent(mockResumeData);
       });
       await waitFor(() => {
-        expect(result.current.error).toBe("First error");
+        expect(result.current.error).toBe("Network error");
       });
 
-      // Second request succeeds
+      // Second request succeeds via live endpoint
       const mockSuccessResponse = {
         ok: true,
         json: jest.fn().mockResolvedValue({ data: mockEnhancedContent }),
       };
       mockFetch.mockResolvedValueOnce(mockSuccessResponse);
+      mockGenerateMockEnhancedResume.mockImplementation(
+        () => mockFallbackContent
+      );
 
       await act(async () => {
         await result.current.generateResumeContent(mockResumeData);

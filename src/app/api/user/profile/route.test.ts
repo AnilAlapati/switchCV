@@ -123,6 +123,9 @@ describe("GET /api/user/profile", () => {
 
   it("should return 400 when userId parameter is missing", async () => {
     mockRequest.headers.set("Authorization", "Bearer test-token");
+    mockAdminAuth.verifyIdToken.mockResolvedValue(
+      createMockDecodedToken("test-user-123")
+    );
     Object.defineProperty(mockRequest, "url", {
       value: "http://localhost:3000/api/user/profile",
       writable: true,
