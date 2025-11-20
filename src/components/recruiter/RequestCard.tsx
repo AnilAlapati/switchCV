@@ -19,8 +19,10 @@ export function RequestCard({ request, status, onSelect }: RequestCardProps) {
 
   const config = statusConfig[status];
   const createdDate = new Date(request.createdAt);
+
+  // Calculate days ago safely for hydration
   const daysAgo = Math.floor(
-    (Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24)
+    (new Date().getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24)
   );
 
   return (

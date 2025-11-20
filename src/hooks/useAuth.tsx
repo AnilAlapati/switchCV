@@ -47,7 +47,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       // Check if Firebase is properly initialized
       if (!auth || auth.__isMock) {
-        setLoading(false);
+        // Avoid synchronous state update in effect
+        setTimeout(() => setLoading(false), 0);
         return;
       }
 
@@ -59,7 +60,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       return unsubscribe;
     } catch (error) {
       console.warn("Auth initialization error:", error);
-      setLoading(false);
+      setTimeout(() => setLoading(false), 0);
     }
   }, []);
 
