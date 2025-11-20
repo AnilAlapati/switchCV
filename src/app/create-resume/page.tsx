@@ -52,6 +52,34 @@ export default function CreateResume() {
     checkAIStatus();
   }, []);
 
+  const handleCreateResume = async () => {
+    if (!user) return;
+    try {
+      const idToken = await user.getIdToken();
+      const response = await fetch("/api/resume/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          title: "My New Resume",
+          summary: "Created via AI Assistant",
+          skills: ["JavaScript", "React", "Next.js"],
+          experience: [],
+          education: [],
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        router.push(`/resume/${data.resumeId}`);
+      }
+    } catch (error) {
+      console.error("Failed to create resume", error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentInput.trim() || !user) return;
@@ -132,6 +160,15 @@ export default function CreateResume() {
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       <CreateResumeHeader aiConnectionStatus={aiConnectionStatus} />
+
+      <div className="max-w-4xl mx-auto px-4 pt-4 flex justify-end">
+        <button
+          onClick={handleCreateResume}
+          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+        >
+          Create Empty Resume (Skip AI)
+        </button>
+      </div>
 
       <div className="max-w-4xl mx-auto p-4">
         {/* Messages/Chat History */}

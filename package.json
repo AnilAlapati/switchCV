@@ -9,7 +9,7 @@
     "lint": "eslint",
     "test": "jest",
     "test:coverage": "jest --coverage",
-    "postinstall": "husky install && chmod +x scripts/*.sh",
+    "postinstall": "chmod +x scripts/*.sh 2>/dev/null || true",
     "precommit": "bash scripts/auto-maintain.sh",
     "cleanup": "bash scripts/auto-maintain.sh",
     "health-check": "bash scripts/check-repo-health.sh"
