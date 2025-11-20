@@ -56,21 +56,6 @@ export function RequestManagement({
 
   const filteredRequests = requests.filter((r) => r.status === activeTab);
 
-  const statusConfig = {
-    pending: {
-      description: "Awaiting admin review",
-    },
-    approved: {
-      description: "Access granted",
-    },
-    denied: {
-      description: "Request was denied",
-    },
-    expired: {
-      description: "Access has expired",
-    },
-  };
-
   return (
     <div className="space-y-6">
       <RequestStats

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { useProfileForm } from "@/hooks/useProfileForm";
@@ -41,17 +41,33 @@ const STEPS = [
  * - Much easier to maintain and modify individual steps
  */
 export default function Onboarding() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
-  const {
-    profile,
-    updateProfile,
-    experience,
-    education,
-    skills,
-    projects,
-  } = useProfileForm();
+  const { profile, updateProfile, experience, education, skills, projects } =
+    useProfileForm();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace("/auth/sign-in");
+    }
+  }, [loading, user, router]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-gray-600">Checking your account…</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-gray-600">Redirecting to sign in…</p>
+      </div>
+    );
+  }
 
   const handleNext = () => {
     if (currentStep < STEPS.length - 1) {

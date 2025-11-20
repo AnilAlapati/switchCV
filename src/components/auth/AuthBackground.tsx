@@ -9,15 +9,18 @@ export function AuthBackground() {
   >([]);
 
   useEffect(() => {
-    setParticles(
-      [...Array(20)].map(() => ({
-        left: `${Math.random() * 100}%`,
-        top: `${Math.random() * 100}%`,
-        delay: `${Math.random() * 3}s`,
-        duration: `${2 + Math.random() * 3}s`,
-      }))
-    );
-    setMounted(true);
+    const timer = setTimeout(() => {
+      setParticles(
+        [...Array(20)].map(() => ({
+          left: `${Math.random() * 100}%`,
+          top: `${Math.random() * 100}%`,
+          delay: `${Math.random() * 3}s`,
+          duration: `${2 + Math.random() * 3}s`,
+        }))
+      );
+      setMounted(true);
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   return (

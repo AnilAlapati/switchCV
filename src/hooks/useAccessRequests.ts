@@ -1,12 +1,6 @@
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
-import {
-  collection,
-  query,
-  where,
-  onSnapshot,
-  orderBy,
-} from "firebase/firestore";
+import { collection, query, onSnapshot, orderBy } from "firebase/firestore";
 import type { AccessRequest, AccessGrant } from "@/types/profileSearch";
 import { useAuth } from "@/hooks/useAuth";
 

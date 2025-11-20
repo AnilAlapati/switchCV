@@ -29,10 +29,7 @@ export const fetchResumeBySlug = async (
   }
 };
 
-export const trackResumeView = async (
-  resumeId: string,
-  viewerId?: string
-): Promise<void> => {
+export const trackResumeView = async (resumeId: string): Promise<void> => {
   try {
     const viewsRef = collection(db, "resumeViews");
     const timestamp = new Date().toISOString();

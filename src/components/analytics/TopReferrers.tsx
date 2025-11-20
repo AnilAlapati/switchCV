@@ -1,7 +1,5 @@
 "use client";
 
-import type { Analytics } from "@/types";
-
 interface TopReferrersProps {
   referrers: Record<string, number>;
 }

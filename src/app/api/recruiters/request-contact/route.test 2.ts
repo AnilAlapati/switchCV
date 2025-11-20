@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Coverage-focused recruiter request tests */
 import { NextRequest } from "next/server";
 import { POST, GET } from "./route";
 import {

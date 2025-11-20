@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 // src/app/api/profiles/analytics/route.test.ts
 import { GET, POST } from "@/app/api/profiles/analytics/route";
 import { NextRequest } from "next/server";

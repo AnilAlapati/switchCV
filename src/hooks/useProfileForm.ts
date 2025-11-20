@@ -1,12 +1,5 @@
 import { useState } from "react";
-import {
-  ResumeProfile,
-  Experience,
-  Education,
-  Skill,
-  Project,
-  Visibility,
-} from "@/types";
+import { Skill, Experience, Education, Project, ResumeProfile } from "@/types";
 
 /**
  * Custom hook for managing resume profile form state and operations

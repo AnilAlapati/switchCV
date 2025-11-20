@@ -26,6 +26,7 @@ try {
   console.error("❌ Error: firebase-service-account.json not found");
   console.error("Please download your service account key from Firebase Console");
   console.error("Location: Project Settings → Service Accounts → Generate New Private Key");
+  console.error(error);
   process.exit(1);
 }
 

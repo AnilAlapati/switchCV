@@ -2,13 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { useAuth } from "@/hooks/useAuth";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 export default function ResumeView() {
   const { id } = useParams();
-  const { user } = useAuth();
   const [resume, setResume] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 

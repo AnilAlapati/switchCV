@@ -9,10 +9,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { tokenGenerator } from "@/lib/tokenGenerator";
-import {
-  RecruiterContactRequest,
-  SecureAccessToken,
-} from "@/types/profileSearch";
+import { RecruiterContactRequest } from "@/types/profileSearch";
 
 interface ApproveContactPayload {
   requestId: string;

@@ -20,9 +20,7 @@ describe("RequestAccessDialog", () => {
   });
 
   test("does not render when isOpen is false", () => {
-    const { container } = render(
-      <RequestAccessDialog {...defaultProps} isOpen={false} />
-    );
+    render(<RequestAccessDialog {...defaultProps} isOpen={false} />);
 
     // Check that the dialog content is not visible
     expect(screen.queryByText("Request Full Access")).not.toBeInTheDocument();
@@ -222,7 +220,7 @@ describe("RequestAccessDialog", () => {
       json: async () => ({ success: true }),
     } as Response);
 
-    const { rerender } = render(<RequestAccessDialog {...defaultProps} />);
+    render(<RequestAccessDialog {...defaultProps} />);
 
     const textarea = screen.getByPlaceholderText(
       "Tell them why you'd like to view their full resume..."

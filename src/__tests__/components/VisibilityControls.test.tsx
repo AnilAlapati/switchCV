@@ -1,5 +1,4 @@
 // src/__tests__/components/VisibilityControls.test.tsx
-import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import {
   VisibilityControls,
@@ -153,7 +152,7 @@ describe("VisibilityIndicator", () => {
   });
 
   it("should render compact badge when compact=true", () => {
-    const { container } = render(
+    render(
       <VisibilityIndicator value="public" fieldName="Email" compact={true} />
     );
 

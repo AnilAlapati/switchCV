@@ -15,6 +15,7 @@ export function DownloadsCard({ hasResume }: DownloadsCardProps) {
   const { user } = useAuth();
   const [metrics, setMetrics] = useState<DownloadsMetrics>({ downloads: 0 });
   const [loading, setLoading] = useState(true);
+  const resumePrompt = !loading && hasResume === false;
 
   useEffect(() => {
     if (!user) {
@@ -76,6 +77,8 @@ export function DownloadsCard({ hasResume }: DownloadsCardProps) {
         <p className="text-slate-400 text-sm">
           {loading
             ? "Loading..."
+            : resumePrompt
+            ? "Create your resume to start tracking downloads"
             : metrics.downloads === 0
             ? "Downloads will appear here"
             : `${metrics.downloads} resume download${

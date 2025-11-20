@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Comprehensive integration test covering many scenarios */
 import { NextRequest } from "next/server";
 import { POST } from "./route";
 import { jest } from "@jest/globals";
@@ -44,11 +45,8 @@ const mockGenerateToken =
   tokenGenerator.generateToken as jest.MockedFunction<any>;
 
 describe("POST /api/recruiters/approve-contact", () => {
-  let callCount = 0;
-
   beforeEach(() => {
     jest.clearAllMocks();
-    callCount = 0;
 
     // Mock collection calls
     mockCollection.mockImplementation((db: any, collectionName: string) => {
@@ -359,7 +357,7 @@ describe("POST /api/recruiters/approve-contact", () => {
       );
 
       const response = await POST(request);
-      const data = await response.json();
+      await response.json();
 
       expect(response.status).toBe(200);
 

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 /**
  * Skill Inventory Tests
  */
@@ -430,7 +431,7 @@ describe("Skill Inventory Manager", () => {
     });
 
     it("should default to 1 endorsement", () => {
-      const inventory = initializeSkillInventory(userId);
+      let inventory = initializeSkillInventory(userId);
       const skill = createSkill(
         "Teaching",
         SkillCategory.SOFT_SKILLS,
@@ -496,7 +497,7 @@ describe("Skill Inventory Manager", () => {
 
   describe("importSkills", () => {
     it("should import multiple skills at once", () => {
-      let inventory = initializeSkillInventory(userId);
+      const inventory = initializeSkillInventory(userId);
       const skillsToImport = [
         createSkill(
           "Skill1",
