@@ -1,8 +1,5 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import type { RecruiterSearchFilters } from "@/components/recruiter/SearchInterface";
-
 interface SearchFormProps {
   query: string;
   location: string;

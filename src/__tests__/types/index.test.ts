@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 // src/__tests__/types/index.test.ts
 import {
   Visibility,
@@ -301,8 +302,14 @@ describe("Types", () => {
     it("should create valid Analytics object", () => {
       const analytics: Analytics = {
         slug: "test-slug",
+        resumeId: "resume-123",
+        userId: "user-123",
+        totalInteractions: 100,
+        lastUpdatedAt: "2023-01-01T00:00:00Z",
         views: {
           count: 100,
+          uniqueViewers: 80,
+          avgSessionDuration: 120,
           lastViewedAt: "2023-01-01T00:00:00Z",
           topReferrers: {
             "google.com": 50,

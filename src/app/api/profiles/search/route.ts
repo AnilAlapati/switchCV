@@ -65,7 +65,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const searchLower = (searchQuery || "").toLowerCase();
     const usersRef = collection(db, "users");
 
     // Build query constraints

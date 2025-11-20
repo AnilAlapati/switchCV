@@ -111,7 +111,14 @@ export async function GET(request: NextRequest) {
           ? tokenData.expiresAt.getTime() / 1000
           : tokenData.expiresAt;
 
-      if (tokenGenerator.isExpired(expiresAtNum as number)) {
+      if (typeof expiresAtNum !== "number") {
+        return NextResponse.json({
+          valid: false,
+          error: "Token expiration missing",
+        });
+      }
+
+      if (tokenGenerator.isExpired(expiresAtNum)) {
         return NextResponse.json({
           valid: false,
           expired: true,
@@ -129,31 +136,30 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      const remainingSeconds = tokenGenerator.getRemainingTime(
-        expiresAtNum as number
-      );
+      const remainingSeconds = tokenGenerator.getRemainingTime(expiresAtNum);
+      const payload = verification.payload;
+      const expiresAtDate =
+        tokenData?.expiresAt ||
+        (payload?.expiresAt ? new Date(payload.expiresAt * 1000) : undefined);
+      const issuedAtDate =
+        tokenData?.issuedAt ||
+        (payload?.issuedAt ? new Date(payload.issuedAt * 1000) : undefined);
 
       return NextResponse.json({
         valid: true,
         verified: true,
-        tokenId: tokenId || verification.payload?.tokenId,
-        recruiterId: recruiterId || verification.payload?.recruiterId,
-        userId: verification.payload?.userId,
-        resumeId: verification.payload?.resumeId,
-        accessFields:
-          verification.payload?.accessFields || tokenData.accessFields,
+        tokenId: tokenId || payload?.tokenId,
+        recruiterId: recruiterId || payload?.recruiterId,
+        userId: payload?.userId,
+        resumeId: payload?.resumeId,
+        accessFields: payload?.accessFields || tokenData.accessFields,
         accessType: tokenData?.accessType || "read-only",
-        expiresAt:
-          tokenData?.expiresAt ||
-          new Date(verification.payload?.expiresAt! * 1000),
-        issuedAt:
-          tokenData?.issuedAt ||
-          new Date(verification.payload?.issuedAt! * 1000),
+        expiresAt: expiresAtDate,
+        issuedAt: issuedAtDate,
         duration: tokenData?.duration,
         remainingSeconds,
-        readableTimeRemaining: tokenGenerator.getReadableTimeRemaining(
-          expiresAtNum as number
-        ),
+        readableTimeRemaining:
+          tokenGenerator.getReadableTimeRemaining(expiresAtNum),
         usageCount: tokenData?.usageCount || 0,
         message: "Token is valid and accessible",
       });

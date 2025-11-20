@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 // src/app/api/user/profile/route.test.ts
 import { GET, POST, PUT } from "@/app/api/user/profile/route";
 import { NextRequest } from "next/server";
@@ -38,10 +39,15 @@ describe("GET /api/user/profile", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // @ts-expect-error narrowing NextRequest for tests
     mockRequest = {
       headers: new Headers(),
-      url: "http://localhost:3000/api/user/profile?userId=test-user-123",
+      json: jest.fn(),
     } as NextRequest;
+    Object.defineProperty(mockRequest, "url", {
+      value: "http://localhost:3000/api/user/profile?userId=test-user-123",
+      writable: true,
+    });
   });
 
   it("should return user profile for authenticated user accessing their own profile", async () => {
@@ -117,10 +123,10 @@ describe("GET /api/user/profile", () => {
 
   it("should return 400 when userId parameter is missing", async () => {
     mockRequest.headers.set("Authorization", "Bearer test-token");
-    mockAdminAuth.verifyIdToken.mockResolvedValue(
-      createMockDecodedToken("test-user-123")
-    );
-    mockRequest.url = "http://localhost:3000/api/user/profile";
+    Object.defineProperty(mockRequest, "url", {
+      value: "http://localhost:3000/api/user/profile",
+      writable: true,
+    });
 
     const response = await GET(mockRequest);
     const data = await response.json();
@@ -134,8 +140,10 @@ describe("GET /api/user/profile", () => {
     mockAdminAuth.verifyIdToken.mockResolvedValue(
       createMockDecodedToken("authenticated-user-123")
     );
-    mockRequest.url =
-      "http://localhost:3000/api/user/profile?userId=other-user-456";
+    Object.defineProperty(mockRequest, "url", {
+      value: "http://localhost:3000/api/user/profile?userId=other-user-456",
+      writable: true,
+    });
 
     const response = await GET(mockRequest);
     const data = await response.json();
@@ -253,7 +261,7 @@ describe("POST /api/user/profile", () => {
   });
 
   it("should return 401 when not authenticated", async () => {
-    mockRequest.json.mockResolvedValue({
+    (mockRequest.json as jest.Mock).mockResolvedValue({
       uid: "test-user-123",
       email: "test@example.com",
     });
@@ -424,7 +432,7 @@ describe("PUT /api/user/profile", () => {
   });
 
   it("should return 401 when not authenticated", async () => {
-    mockRequest.json.mockResolvedValue({
+    (mockRequest.json as jest.Mock).mockResolvedValue({
       uid: "test-user-123",
       displayName: "New Name",
     });

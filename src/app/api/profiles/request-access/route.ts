@@ -1,6 +1,5 @@
 // src/app/api/profiles/request-access/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getAuth } from "firebase/auth";
 import {
   collection,
   doc,

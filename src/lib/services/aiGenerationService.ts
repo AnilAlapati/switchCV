@@ -1,11 +1,5 @@
 // src/lib/services/aiGenerationService.ts
 
-interface GenerateRequest {
-  prompt: string;
-  maxTokens?: number;
-  temperature?: number;
-}
-
 // Cache for available models (expires after 24 hours)
 let modelCache: {
   models: string[];

@@ -59,7 +59,9 @@ async function testEndpoint(version) {
             console.log(`   Response: ${text}\n`);
             resolve({ success: true, version });
           } catch (e) {
-            console.log(`❌ ${version} - Parse error\n`);
+            const parseMessage =
+              e instanceof Error ? e.message : String(e ?? "unknown error");
+            console.log(`❌ ${version} - Parse error: ${parseMessage}\n`);
             resolve({ success: false, version });
           }
         } else {

@@ -15,6 +15,8 @@ export function ResumeQualityCard({ hasResume }: ResumeQualityCardProps) {
   const { user } = useAuth();
   const [metrics, setMetrics] = useState<QualityMetrics>({ quality: 0 });
   const [loading, setLoading] = useState(true);
+  const resumePrompt = !loading && hasResume === false;
+  const qualityValue = resumePrompt ? 0 : metrics.quality;
 
   useEffect(() => {
     if (!user) {
@@ -67,7 +69,7 @@ export function ResumeQualityCard({ hasResume }: ResumeQualityCardProps) {
               Resume Quality
             </dt>
             <dd className="text-2xl font-bold text-white">
-              {loading ? "-" : `${metrics.quality}%`}
+              {loading ? "-" : `${qualityValue}%`}
             </dd>
           </dl>
         </div>
@@ -76,17 +78,19 @@ export function ResumeQualityCard({ hasResume }: ResumeQualityCardProps) {
         <div className="w-full bg-slate-700 rounded-full h-2">
           <div
             className="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full transition-all duration-500"
-            style={{ width: loading ? "0%" : `${metrics.quality}%` }}
+            style={{ width: loading ? "0%" : `${qualityValue}%` }}
           ></div>
         </div>
         <p className="text-slate-400 text-sm mt-2">
           {loading
             ? "Loading..."
-            : metrics.quality === 0
-            ? "Create resume to see quality score"
-            : metrics.quality >= 80
+            : resumePrompt
+            ? "Create a resume to see quality insights"
+            : qualityValue === 0
+            ? "Generate your first analysis to view quality"
+            : qualityValue >= 80
             ? "Well optimized resume"
-            : metrics.quality >= 60
+            : qualityValue >= 60
             ? "Good resume quality"
             : "Resume needs improvement"}
         </p>

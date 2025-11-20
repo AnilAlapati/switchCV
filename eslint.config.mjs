@@ -31,6 +31,12 @@ const eslintConfig = [
     },
   },
   {
+    files: ["**/*.cjs", "scripts/**/*.js", "scripts/**/*.cjs"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
+  {
     ignores: [
       ".next/**",
       "out/**",

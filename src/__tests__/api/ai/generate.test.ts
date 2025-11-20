@@ -1,9 +1,10 @@
 import { POST } from "@/app/api/ai/generate/route";
 import { NextRequest } from "next/server";
+import { generateText } from "@/lib/services/aiGenerationService";
 
 jest.mock("@/lib/services/aiGenerationService");
 
-const { generateText } = require("@/lib/services/aiGenerationService");
+const mockedGenerateText = jest.mocked(generateText);
 
 describe("/api/ai/generate route", () => {
   beforeEach(() => {
@@ -17,7 +18,7 @@ describe("/api/ai/generate route", () => {
       provider: "google",
     };
 
-    generateText.mockResolvedValueOnce(mockResult);
+    mockedGenerateText.mockResolvedValueOnce(mockResult);
 
     const request = new NextRequest("http://localhost:3000/api/ai/generate", {
       method: "POST",
@@ -65,7 +66,7 @@ describe("/api/ai/generate route", () => {
       provider: "google",
     };
 
-    generateText.mockResolvedValueOnce(mockResult);
+    mockedGenerateText.mockResolvedValueOnce(mockResult);
 
     const request = new NextRequest("http://localhost:3000/api/ai/generate", {
       method: "POST",
@@ -79,11 +80,11 @@ describe("/api/ai/generate route", () => {
     const response = await POST(request);
     await response.json();
 
-    expect(generateText).toHaveBeenCalledWith("Test", 300, 0.5);
+    expect(mockedGenerateText).toHaveBeenCalledWith("Test", 300, 0.5);
   });
 
   it("should handle errors from generateText", async () => {
-    generateText.mockRejectedValueOnce(new Error("All providers failed"));
+    mockedGenerateText.mockRejectedValueOnce(new Error("All providers failed"));
 
     const request = new NextRequest("http://localhost:3000/api/ai/generate", {
       method: "POST",
@@ -105,7 +106,7 @@ describe("/api/ai/generate route", () => {
       provider: "huggingface",
     };
 
-    generateText.mockResolvedValueOnce(mockResult);
+    mockedGenerateText.mockResolvedValueOnce(mockResult);
 
     const request = new NextRequest("http://localhost:3000/api/ai/generate", {
       method: "POST",
@@ -126,7 +127,7 @@ describe("/api/ai/generate route", () => {
       provider: "google",
     };
 
-    generateText.mockResolvedValueOnce(mockResult);
+    mockedGenerateText.mockResolvedValueOnce(mockResult);
 
     const request = new NextRequest("http://localhost:3000/api/ai/generate", {
       method: "POST",
@@ -136,7 +137,7 @@ describe("/api/ai/generate route", () => {
     const response = await POST(request);
     await response.json();
 
-    expect(generateText).toHaveBeenCalledWith("Test prompt", 150, 0.9);
+    expect(mockedGenerateText).toHaveBeenCalledWith("Test prompt", 150, 0.9);
   });
 
   it("should handle special characters in prompts", async () => {
@@ -146,7 +147,7 @@ describe("/api/ai/generate route", () => {
       provider: "google",
     };
 
-    generateText.mockResolvedValueOnce(mockResult);
+    mockedGenerateText.mockResolvedValueOnce(mockResult);
 
     const specialPrompt = 'Create: "bullet" with @#$% & characters!';
     const request = new NextRequest("http://localhost:3000/api/ai/generate", {
@@ -155,10 +156,10 @@ describe("/api/ai/generate route", () => {
     });
 
     const response = await POST(request);
-    const data = await response.json();
+    await response.json();
 
     expect(response.status).toBe(200);
-    expect(generateText).toHaveBeenCalledWith(specialPrompt, 150, 0.9);
+    expect(mockedGenerateText).toHaveBeenCalledWith(specialPrompt, 150, 0.9);
   });
 
   it("should handle very long prompts", async () => {
@@ -168,7 +169,7 @@ describe("/api/ai/generate route", () => {
       provider: "google",
     };
 
-    generateText.mockResolvedValueOnce(mockResult);
+    mockedGenerateText.mockResolvedValueOnce(mockResult);
 
     const longPrompt = "A".repeat(5000);
     const request = new NextRequest("http://localhost:3000/api/ai/generate", {
@@ -177,7 +178,7 @@ describe("/api/ai/generate route", () => {
     });
 
     const response = await POST(request);
-    const data = await response.json();
+    await response.json();
 
     expect(response.status).toBe(200);
   });
@@ -194,7 +195,7 @@ describe("/api/ai/generate route", () => {
     });
 
     const response = await POST(request);
-    const data = await response.json();
+    await response.json();
 
     expect(response.status).toBe(500);
   });

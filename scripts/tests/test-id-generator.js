@@ -14,9 +14,6 @@
  * - Real-world scenarios with network delays
  */
 
-const fs = require("fs");
-const path = require("path");
-
 console.log("🚀 Numeric Resume ID Generator - Load Test");
 console.log("============================================\n");
 

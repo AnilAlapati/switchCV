@@ -1,9 +1,11 @@
 # SwitchCV
 
 ## Project Overview
+
 SwitchCV is a resume creation and recruitment platform.
 
 ## Documentation
+
 The documentation has been organized into the `docs/` directory:
 
 - **[Architecture](docs/architecture/)**: System architecture, backend services, and database rules.
@@ -15,30 +17,36 @@ The documentation has been organized into the `docs/` directory:
 ## Getting Started
 
 ### Prerequisites
+
 - Node.js
 - Firebase CLI
 
 ### Installation
+
 ```bash
 npm install
 ```
 
 ### Development
+
 ```bash
 npm run dev
 ```
 
 ### Build
+
 ```bash
 npm run build
 ```
 
 ### Testing
+
 ```bash
 npm test
 ```
 
 ## Project Structure
+
 - `src/`: Source code (Next.js App Router)
 - `scripts/`: Utility and maintenance scripts
 - `docs/`: Project documentation

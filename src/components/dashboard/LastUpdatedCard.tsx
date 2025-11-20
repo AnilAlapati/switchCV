@@ -37,6 +37,7 @@ export function LastUpdatedCard({ hasResume }: LastUpdatedCardProps) {
     lastUpdated: null,
   });
   const [loading, setLoading] = useState(true);
+  const resumePrompt = !loading && hasResume === false;
 
   useEffect(() => {
     if (!user) {
@@ -98,9 +99,11 @@ export function LastUpdatedCard({ hasResume }: LastUpdatedCardProps) {
         <p className="text-slate-400 text-sm">
           {loading
             ? "Loading..."
+            : resumePrompt
+            ? "Create your resume to track updates"
             : metrics.lastUpdated
             ? "Keep your resume fresh!"
-            : "Create your resume to track updates"}
+            : "Update history will appear here"}
         </p>
       </div>
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import type { Analytics, RequestStatistics } from "@/types";
+import type { Analytics } from "@/types";
 
 interface MetricCardProps {
   label: string;
