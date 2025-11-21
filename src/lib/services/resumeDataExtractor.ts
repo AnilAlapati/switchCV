@@ -296,7 +296,10 @@ export class ResumeDataExtractor {
     }
 
     if (extracted.education) {
-      merged.education = [...(existing.education || []), ...extracted.education];
+      merged.education = [
+        ...(existing.education || []),
+        ...extracted.education,
+      ];
     }
 
     if (extracted.skills) {

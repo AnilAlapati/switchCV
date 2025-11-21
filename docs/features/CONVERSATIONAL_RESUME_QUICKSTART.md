@@ -162,6 +162,7 @@ const MAX_NUMERIC_ID = 99999999; // Adjust max ID
 ### Progress Tracking
 
 The system tracks:
+
 - **Completeness %**: Calculated from 8 recommended fields
 - **Collected Fields**: Name, email, phone, location, summary, experience, education, skills
 - **Missing Fields**: What's still needed
@@ -181,6 +182,7 @@ The system tracks:
 **Symptom**: Conversation continues indefinitely
 
 **Solution**: Check minimum requirements
+
 ```typescript
 // Need at least:
 {
@@ -195,6 +197,7 @@ The system tracks:
 **Symptom**: Progress stuck at 0%
 
 **Solution**: Use clearer patterns
+
 - ✅ "My name is John Doe"
 - ✅ "Email: john@example.com"
 - ❌ "John" (ambiguous)
@@ -205,6 +208,7 @@ The system tracks:
 **Symptom**: Conversation resets
 
 **Solution**: Ensure `sessionData` is passed:
+
 ```typescript
 {
   message: "...",
@@ -231,16 +235,19 @@ The system tracks:
 ## 🎨 UI Features
 
 ### Progress Bar
+
 - Gradient animation
 - Real-time updates
 - Color-coded completion
 
 ### Field Badges
+
 - ✓ Green: Collected
 - ⏳ Gray: Missing
 - ✨ Animated transitions
 
 ### Auto-redirect
+
 - 2-second delay after creation
 - Shows confirmation message
 - Navigates to `/resume/{id}`
@@ -248,12 +255,14 @@ The system tracks:
 ## 📝 Best Practices
 
 ### For Users
+
 1. Provide complete information in each response
 2. Use natural language (AI understands context)
 3. Don't worry about formatting
 4. Review progress bar to see what's missing
 
 ### For Developers
+
 1. Always pass `sessionData` between requests
 2. Handle errors gracefully (continue conversation)
 3. Log extraction results for debugging
@@ -313,6 +322,7 @@ TOKEN_SECRET=random_secret
 ## 🎉 Success Metrics
 
 Track these KPIs:
+
 - **Completion Rate**: % of started conversations that create resumes
 - **Average Turns**: Number of messages to completion
 - **Extraction Accuracy**: % of correctly extracted fields
