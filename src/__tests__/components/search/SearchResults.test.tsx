@@ -54,7 +54,9 @@ describe("SearchResults", () => {
       />
     );
 
-    expect(screen.getByText("Found 2 profiles of 10 total")).toBeInTheDocument();
+    expect(
+      screen.getByText("Found 2 profiles of 10 total")
+    ).toBeInTheDocument();
     expect(screen.getAllByTestId("profile-card")).toHaveLength(2);
     expect(screen.getByText("User One")).toBeInTheDocument();
     expect(screen.getByText("User Two")).toBeInTheDocument();
@@ -122,7 +124,9 @@ describe("SearchResults", () => {
       />
     );
     expect(
-      screen.getByText("Start typing or use filters to search for professionals")
+      screen.getByText(
+        "Start typing or use filters to search for professionals"
+      )
     ).toBeInTheDocument();
   });
 

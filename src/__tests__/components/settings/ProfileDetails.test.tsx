@@ -62,12 +62,12 @@ describe("ProfileDetails", () => {
 
   it("disables inputs and buttons when saving is true", () => {
     render(<ProfileDetails {...mockProps} saving={true} />);
-    
+
     const inputs = screen.getAllByRole("textbox");
-    inputs.forEach(input => expect(input).toBeDisabled());
+    inputs.forEach((input) => expect(input).toBeDisabled());
 
     const buttons = screen.getAllByText("Saving...");
-    buttons.forEach(button => expect(button).toBeDisabled());
+    buttons.forEach((button) => expect(button).toBeDisabled());
   });
 
   it("displays 'Never' when updatedAt is empty", () => {
