@@ -34,7 +34,12 @@ export default function CreateResume() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Guard against environments (like some test runners) where
+    // `scrollIntoView` may not be implemented on the DOM node.
+    const el = messagesEndRef.current as HTMLElement | null;
+    if (el && typeof el.scrollIntoView === "function") {
+      el.scrollIntoView({ behavior: "smooth" });
+    }
   };
 
   useEffect(() => {
@@ -124,7 +129,8 @@ export default function CreateResume() {
         setStage("complete");
         // Show success message and redirect after a moment
         setTimeout(() => {
-          router.push(`/resumes/${data.resumeId}`);
+          // Redirect to singular `/resume/:id` route (legacy/test expectation)
+          router.push(`/resume/${data.resumeId}`);
         }, 2000);
       } else {
         // Continue conversation - reset to input stage
