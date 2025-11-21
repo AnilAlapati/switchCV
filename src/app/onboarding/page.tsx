@@ -41,17 +41,17 @@ const STEPS = [
  * - Much easier to maintain and modify individual steps
  */
 export default function Onboarding() {
-  const { user, loading } = useAuth();
+  const { user, loading, needsEmailVerification } = useAuth();
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
   const { profile, updateProfile, experience, education, skills, projects } =
     useProfileForm();
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.replace("/auth/sign-in");
+    if (!loading && (!user || needsEmailVerification)) {
+      router.replace("/auth?mode=verify-email");
     }
-  }, [loading, user, router]);
+  }, [loading, user, needsEmailVerification, router]);
 
   if (loading) {
     return (
@@ -61,7 +61,7 @@ export default function Onboarding() {
     );
   }
 
-  if (!user) {
+  if (!user || needsEmailVerification) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <p className="text-gray-600">Redirecting to sign in…</p>

@@ -18,7 +18,12 @@ interface UserSettings {
 }
 
 export default function SettingsPage() {
-  const { user, logout, loading: authLoading } = useAuth();
+  const {
+    user,
+    logout,
+    loading: authLoading,
+    needsEmailVerification,
+  } = useAuth();
   const { resumeId, hasResume } = useResume();
   const router = useRouter();
   const [settings, setSettings] = useState<UserSettings>({
@@ -35,15 +40,15 @@ export default function SettingsPage() {
   } | null>(null);
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.push("/auth");
+    if (!authLoading && (!user || needsEmailVerification)) {
+      router.push("/auth?mode=verify-email");
       return;
     }
 
-    if (user) {
+    if (user && !needsEmailVerification) {
       fetchSettings();
     }
-  }, [user, authLoading, router]);
+  }, [user, needsEmailVerification, authLoading, router]);
 
   const fetchSettings = async () => {
     try {
@@ -226,7 +231,7 @@ export default function SettingsPage() {
     );
   }
 
-  if (!user) {
+  if (!user || needsEmailVerification) {
     return null;
   }
 

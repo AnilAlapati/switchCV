@@ -219,8 +219,8 @@
 ## 8 — Execution Log
 
 ### Nov 21, 2025
+
 - **Action**: Implemented "Preferences" flow (Template/Tone selection).
 - **Tests Added**: `src/__tests__/flows/resume-generation-integration.test.tsx`
 - **Regressions Fixed**: Updated `src/config/resumeQuestions.test.ts` to support new "preferences" category.
 - **Result**: All 160 test suites passed.
-
