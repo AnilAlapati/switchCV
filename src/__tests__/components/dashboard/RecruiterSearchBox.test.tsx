@@ -330,7 +330,7 @@ describe("RecruiterSearchBox", () => {
     const viewButton = screen.getByText("View Full Resume");
     await userEvent.click(viewButton);
 
-    expect(mockOpen).toHaveBeenCalledWith("/resume/resume-1", "_blank");
+    expect(mockOpen).toHaveBeenCalledWith("/resumes/resume-1", "_blank");
   });
 
   it("disables form during loading", async () => {

@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 interface ResumeProgressProps {
   progress: number;
   collectedFields?: string[];
@@ -13,6 +15,7 @@ export function ResumeProgress({
   missingFields = [],
   className,
 }: ResumeProgressProps) {
+  const [isMinimized, setIsMinimized] = useState(false);
   const clampedProgress = Math.min(100, Math.max(0, progress));
 
   if (clampedProgress === 0) return null;
@@ -23,17 +26,81 @@ export function ResumeProgress({
     missingFields.length > 0 && missingFields.length <= 5;
 
   const containerClassName = [
-    "group relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-gray-900/80 backdrop-blur-xl p-5 text-white shadow-[0_20px_60px_rgba(0,0,0,0.55)] transition-transform duration-500 hover:-translate-y-1 hover:shadow-[0_25px_70px_rgba(6,182,212,0.25)]",
+    "group relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-gray-900/80 backdrop-blur-xl text-white shadow-[0_20px_60px_rgba(0,0,0,0.55)] transition-all duration-500",
+    isMinimized
+      ? "w-16 h-16 p-0 hover:scale-110 cursor-pointer rounded-full"
+      : "w-full lg:w-80 p-5 hover:-translate-y-1 hover:shadow-[0_25px_70px_rgba(6,182,212,0.25)]",
     className,
   ]
     .filter((value): value is string => Boolean(value))
     .join(" ");
+
+  if (isMinimized) {
+    return (
+      <button
+        onClick={() => setIsMinimized(false)}
+        className={containerClassName}
+        aria-label="Expand resume progress"
+        title="Click to expand"
+      >
+        <div className="absolute inset-0 flex items-center justify-center">
+          <svg className="h-full w-full -rotate-90 transform p-1">
+            <circle
+              cx="50%"
+              cy="50%"
+              r="24"
+              stroke="currentColor"
+              strokeWidth="4"
+              fill="transparent"
+              className="text-gray-800"
+            />
+            <circle
+              cx="50%"
+              cy="50%"
+              r="24"
+              stroke="currentColor"
+              strokeWidth="4"
+              fill="transparent"
+              strokeDasharray={2 * Math.PI * 24}
+              strokeDashoffset={2 * Math.PI * 24 * (1 - clampedProgress / 100)}
+              className="text-cyan-500 transition-all duration-1000 ease-out"
+              strokeLinecap="round"
+            />
+          </svg>
+          <span className="absolute text-[10px] font-bold text-white">
+            {clampedProgress}%
+          </span>
+        </div>
+        <div className="absolute inset-0 rounded-full bg-cyan-500/10 blur-md" />
+      </button>
+    );
+  }
 
   return (
     <section
       className={containerClassName}
       aria-label="Resume progress overview"
     >
+      <button
+        onClick={() => setIsMinimized(true)}
+        className="absolute top-2 right-2 z-20 rounded-full p-1 text-gray-400 hover:bg-white/10 hover:text-white transition-colors"
+        aria-label="Minimize"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </button>
+
       <div className="pointer-events-none absolute inset-0 opacity-70">
         <div className="absolute -top-16 -right-8 h-44 w-44 rounded-full bg-cyan-500/30 blur-3xl" />
         <div className="absolute -bottom-20 -left-6 h-40 w-40 rounded-full bg-blue-500/20 blur-3xl" />

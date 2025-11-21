@@ -67,7 +67,7 @@ describe("CreateResume Page", () => {
     });
 
     render(<CreateResume />);
-    expect(mockRouter.push).toHaveBeenCalledWith("/auth");
+    expect(mockRouter.push).toHaveBeenCalledWith("/auth?mode=verify-email");
   });
 
   it("shows loading state when auth is loading", () => {
@@ -130,7 +130,8 @@ describe("CreateResume Page", () => {
 
     await waitFor(() => {
       expect(screen.getByText("I can help with that.")).toBeInTheDocument();
-      expect(screen.getByTestId("resume-progress")).toHaveTextContent("20%");
+      const resumeProgressElements = screen.getAllByTestId("resume-progress");
+      expect(resumeProgressElements[0]).toHaveTextContent("20%");
     });
   });
 

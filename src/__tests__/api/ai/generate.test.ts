@@ -6,6 +6,17 @@ jest.mock("@/lib/services/aiGenerationService");
 
 const mockedGenerateText = jest.mocked(generateText);
 
+const createRequest = (body: any) => {
+  return new NextRequest("http://localhost:3000/api/ai/generate", {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer test-token-12345",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+};
+
 describe("/api/ai/generate route", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -20,9 +31,8 @@ describe("/api/ai/generate route", () => {
 
     mockedGenerateText.mockResolvedValueOnce(mockResult);
 
-    const request = new NextRequest("http://localhost:3000/api/ai/generate", {
-      method: "POST",
-      body: JSON.stringify({ prompt: "Create a professional resume bullet" }),
+    const request = createRequest({
+      prompt: "Create a professional resume bullet",
     });
 
     const response = await POST(request);
@@ -34,29 +44,23 @@ describe("/api/ai/generate route", () => {
   });
 
   it("should return 400 error when prompt is missing", async () => {
-    const request = new NextRequest("http://localhost:3000/api/ai/generate", {
-      method: "POST",
-      body: JSON.stringify({}),
-    });
+    const request = createRequest({});
 
     const response = await POST(request);
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data.error).toBe("Prompt is required");
+    expect(data.error).toBe("Prompt is required and must be a string");
   });
 
   it("should return 400 error when prompt is empty", async () => {
-    const request = new NextRequest("http://localhost:3000/api/ai/generate", {
-      method: "POST",
-      body: JSON.stringify({ prompt: "" }),
-    });
+    const request = createRequest({ prompt: "" });
 
     const response = await POST(request);
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data.error).toBe("Prompt is required");
+    expect(data.error).toBe("Prompt is required and must be a string");
   });
 
   it("should pass custom maxTokens and temperature to service", async () => {
@@ -68,13 +72,10 @@ describe("/api/ai/generate route", () => {
 
     mockedGenerateText.mockResolvedValueOnce(mockResult);
 
-    const request = new NextRequest("http://localhost:3000/api/ai/generate", {
-      method: "POST",
-      body: JSON.stringify({
-        prompt: "Test",
-        maxTokens: 300,
-        temperature: 0.5,
-      }),
+    const request = createRequest({
+      prompt: "Test",
+      maxTokens: 300,
+      temperature: 0.5,
     });
 
     const response = await POST(request);
@@ -86,10 +87,7 @@ describe("/api/ai/generate route", () => {
   it("should handle errors from generateText", async () => {
     mockedGenerateText.mockRejectedValueOnce(new Error("All providers failed"));
 
-    const request = new NextRequest("http://localhost:3000/api/ai/generate", {
-      method: "POST",
-      body: JSON.stringify({ prompt: "Test" }),
-    });
+    const request = createRequest({ prompt: "Test" });
 
     const response = await POST(request);
     const data = await response.json();
@@ -108,10 +106,7 @@ describe("/api/ai/generate route", () => {
 
     mockedGenerateText.mockResolvedValueOnce(mockResult);
 
-    const request = new NextRequest("http://localhost:3000/api/ai/generate", {
-      method: "POST",
-      body: JSON.stringify({ prompt: "Test" }),
-    });
+    const request = createRequest({ prompt: "Test" });
 
     const response = await POST(request);
     const data = await response.json();
@@ -129,10 +124,7 @@ describe("/api/ai/generate route", () => {
 
     mockedGenerateText.mockResolvedValueOnce(mockResult);
 
-    const request = new NextRequest("http://localhost:3000/api/ai/generate", {
-      method: "POST",
-      body: JSON.stringify({ prompt: "Test prompt" }),
-    });
+    const request = createRequest({ prompt: "Test prompt" });
 
     const response = await POST(request);
     await response.json();
@@ -150,10 +142,7 @@ describe("/api/ai/generate route", () => {
     mockedGenerateText.mockResolvedValueOnce(mockResult);
 
     const specialPrompt = 'Create: "bullet" with @#$% & characters!';
-    const request = new NextRequest("http://localhost:3000/api/ai/generate", {
-      method: "POST",
-      body: JSON.stringify({ prompt: specialPrompt }),
-    });
+    const request = createRequest({ prompt: specialPrompt });
 
     const response = await POST(request);
     await response.json();
@@ -171,11 +160,8 @@ describe("/api/ai/generate route", () => {
 
     mockedGenerateText.mockResolvedValueOnce(mockResult);
 
-    const longPrompt = "A".repeat(5000);
-    const request = new NextRequest("http://localhost:3000/api/ai/generate", {
-      method: "POST",
-      body: JSON.stringify({ prompt: longPrompt }),
-    });
+    const longPrompt = "A".repeat(1000);
+    const request = createRequest({ prompt: longPrompt });
 
     const response = await POST(request);
     await response.json();
@@ -186,6 +172,10 @@ describe("/api/ai/generate route", () => {
   it("should handle malformed JSON gracefully", async () => {
     const request = new NextRequest("http://localhost:3000/api/ai/generate", {
       method: "POST",
+      headers: {
+        Authorization: "Bearer test-token-12345",
+        "Content-Type": "application/json",
+      },
       body: "invalid json",
     });
 

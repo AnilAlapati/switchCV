@@ -1,5 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import ResumeView from "@/app/resume/[id]/page";
+import ResumeView from "@/app/resumes/[id]/page";
 import { useParams } from "next/navigation";
 import { getDoc } from "firebase/firestore";
 

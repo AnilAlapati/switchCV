@@ -9,6 +9,8 @@
  * @module services/resumePrompts
  */
 
+import { getActiveConfig } from "./conversationConfig";
+
 /**
  * System prompt for conversational resume building
  */
@@ -83,14 +85,22 @@ export function buildConversationalPrompt(
     hasEducation?: boolean;
     hasSkills?: boolean;
   },
-  collectedData?: any
+  collectedData?: any,
+  config?: any,
+  forceCreate?: boolean
 ): string {
+  const activeConfig = config || getActiveConfig();
   const history = conversationHistory
-    .slice(-6) // Last 6 messages for context
+    .slice(-activeConfig.contextWindowSize) // Use configurable context window
     .map((msg) => `${msg.isUser ? "User" : "Assistant"}: ${msg.content}`)
     .join("\n");
 
   let prompt = `${RESUME_ASSISTANT_SYSTEM_PROMPT}\n\n`;
+
+  if (forceCreate) {
+    prompt += `USER REQUEST: The user explicitly wants to create the resume NOW.
+INSTRUCTION: Stop asking questions. Generate the "RESUME_COMPLETE" response with the JSON block immediately, using whatever information you have collected so far. If some fields are missing, leave them empty or infer them from context.\n\n`;
+  }
 
   if (collectedData) {
     prompt += `CURRENTLY COLLECTED DATA:\n${JSON.stringify(
@@ -104,7 +114,7 @@ export function buildConversationalPrompt(
     prompt += `Previous conversation:\n${history}\n\n`;
   }
 
-  // Add progress hints to guide AI
+  // Add progress hints to guide AI with smart question selection for beta mode
   if (currentProgress) {
     const missing: string[] = [];
     if (!currentProgress.hasName) missing.push("name");
@@ -114,7 +124,32 @@ export function buildConversationalPrompt(
     if (!currentProgress.hasSkills) missing.push("skills");
 
     if (missing.length > 0) {
-      prompt += `MISSING INFO: ${missing.join(", ")}\n`;
+      // In beta mode with smart questions, limit the questions
+      if (
+        activeConfig.enableSmartQuestions &&
+        activeConfig.maxQuestionsInBetaMode
+      ) {
+        const questionsAsked = conversationHistory.length;
+        const remainingQuestions = Math.max(
+          0,
+          activeConfig.maxBetaQuestions - questionsAsked / 2
+        );
+
+        if (remainingQuestions > 0) {
+          prompt += `BETA MODE: Ask ONE smart question from priority fields: ${activeConfig.priorityFields.join(
+            ", "
+          )}\n`;
+          prompt += `REMAINING QUESTIONS ALLOWED: ${Math.ceil(
+            remainingQuestions
+          )}\n`;
+        } else {
+          prompt += `BETA MODE: Maximum questions reached (${activeConfig.maxBetaQuestions}). Offer to create resume.\n`;
+          prompt += `MISSING INFO: ${missing.join(", ")}\n`;
+          prompt += `Ask: "I have good information. Shall I create your resume now, or add more details?"\n`;
+        }
+      } else {
+        prompt += `MISSING INFO: ${missing.join(", ")}\n`;
+      }
     } else {
       prompt += `INFO COMPLETE: All required information collected. You can now create the resume.\n`;
     }

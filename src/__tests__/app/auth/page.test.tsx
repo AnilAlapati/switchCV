@@ -10,11 +10,12 @@ jest.mock("@/hooks/useAuth", () => ({
   }),
 }));
 
-// Mock Next.js router
+// Mock Next.js router and navigation
 jest.mock("next/navigation", () => ({
   useRouter: () => ({
     push: jest.fn(),
   }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 describe("AuthPage", () => {

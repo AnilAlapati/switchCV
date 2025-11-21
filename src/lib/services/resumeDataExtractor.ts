@@ -126,8 +126,10 @@ export class ResumeDataExtractor {
 
     // Extract name
     const namePatterns = [
-      /(?:[Mm]y name is|[Ii]'m|[Ii] am|[Cc]all me)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})(?=\s|$|[.,])/,
-      /[Nn]ame:\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})(?=\s|$|[.,])/,
+      /(?:[Mm]y name is|[Ii]'m|[Ii] am|[Cc]all me)\s+([A-Z][a-z]+(?:\s+(?:[A-Z][a-z]+|[A-Z]\.?)){0,3})(?=\s|$|[.,])/,
+      /[Nn]ame:\s*([A-Z][a-z]+(?:\s+(?:[A-Z][a-z]+|[A-Z]\.?)){0,3})(?=\s|$|[.,])/,
+      // Fallback for just the name if it looks like a name (2-3 capitalized words or initials)
+      /^([A-Z][a-z]+(?:\s+(?:[A-Z][a-z]+|[A-Z]\.?)){1,3})$/,
     ];
 
     for (const pattern of namePatterns) {

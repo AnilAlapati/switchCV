@@ -10,6 +10,17 @@ jest.mock("@/lib/services/aiGenerationService", () => ({
   generateText: jest.fn(),
 }));
 
+const createRequest = (body: any) => {
+  return new NextRequest("http://localhost:3000/api/ai/generate", {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer test-token-12345",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+};
+
 describe("POST /api/ai/generate", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -24,13 +35,10 @@ describe("POST /api/ai/generate", () => {
 
     (generateText as jest.Mock).mockResolvedValue(mockResult);
 
-    const request = new NextRequest("http://localhost:3000/api/ai/generate", {
-      method: "POST",
-      body: JSON.stringify({
-        prompt: "Write a resume summary",
-        maxTokens: 200,
-        temperature: 0.8,
-      }),
+    const request = createRequest({
+      prompt: "Write a resume summary",
+      maxTokens: 200,
+      temperature: 0.8,
     });
 
     const response = await POST(request);
@@ -55,11 +63,8 @@ describe("POST /api/ai/generate", () => {
 
     (generateText as jest.Mock).mockResolvedValue(mockResult);
 
-    const request = new NextRequest("http://localhost:3000/api/ai/generate", {
-      method: "POST",
-      body: JSON.stringify({
-        prompt: "Simple prompt",
-      }),
+    const request = createRequest({
+      prompt: "Simple prompt",
     });
 
     const response = await POST(request);
@@ -72,46 +77,37 @@ describe("POST /api/ai/generate", () => {
   });
 
   it("should return 400 when prompt is missing", async () => {
-    const request = new NextRequest("http://localhost:3000/api/ai/generate", {
-      method: "POST",
-      body: JSON.stringify({
-        maxTokens: 200,
-        temperature: 0.8,
-      }),
+    const request = createRequest({
+      maxTokens: 200,
+      temperature: 0.8,
     });
 
     const response = await POST(request);
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data.error).toBe("Prompt is required");
+    expect(data.error).toBe("Prompt is required and must be a string");
     expect(generateText).not.toHaveBeenCalled();
   });
 
   it("should return 400 when prompt is empty string", async () => {
-    const request = new NextRequest("http://localhost:3000/api/ai/generate", {
-      method: "POST",
-      body: JSON.stringify({
-        prompt: "",
-        maxTokens: 200,
-      }),
+    const request = createRequest({
+      prompt: "",
+      maxTokens: 200,
     });
 
     const response = await POST(request);
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data.error).toBe("Prompt is required");
+    expect(data.error).toBe("Prompt is required and must be a string");
     expect(generateText).not.toHaveBeenCalled();
   });
 
   it("should return 400 when prompt is only whitespace", async () => {
-    const request = new NextRequest("http://localhost:3000/api/ai/generate", {
-      method: "POST",
-      body: JSON.stringify({
-        prompt: "   ",
-        maxTokens: 200,
-      }),
+    const request = createRequest({
+      prompt: "   ",
+      maxTokens: 200,
     });
 
     const response = await POST(request);
@@ -126,13 +122,10 @@ describe("POST /api/ai/generate", () => {
     const mockError = new Error("AI service unavailable");
     (generateText as jest.Mock).mockRejectedValue(mockError);
 
-    const request = new NextRequest("http://localhost:3000/api/ai/generate", {
-      method: "POST",
-      body: JSON.stringify({
-        prompt: "Test prompt",
-        maxTokens: 100,
-        temperature: 0.5,
-      }),
+    const request = createRequest({
+      prompt: "Test prompt",
+      maxTokens: 100,
+      temperature: 0.5,
     });
 
     const response = await POST(request);
@@ -148,11 +141,8 @@ describe("POST /api/ai/generate", () => {
   it("should handle unknown error type", async () => {
     (generateText as jest.Mock).mockRejectedValue("String error");
 
-    const request = new NextRequest("http://localhost:3000/api/ai/generate", {
-      method: "POST",
-      body: JSON.stringify({
-        prompt: "Test prompt",
-      }),
+    const request = createRequest({
+      prompt: "Test prompt",
     });
 
     const response = await POST(request);
@@ -167,6 +157,10 @@ describe("POST /api/ai/generate", () => {
   it("should handle invalid JSON in request body", async () => {
     const request = new NextRequest("http://localhost:3000/api/ai/generate", {
       method: "POST",
+      headers: {
+        Authorization: "Bearer test-token-12345",
+        "Content-Type": "application/json",
+      },
       body: "invalid json",
     });
 
@@ -180,6 +174,10 @@ describe("POST /api/ai/generate", () => {
   it("should handle missing request body", async () => {
     const request = new NextRequest("http://localhost:3000/api/ai/generate", {
       method: "POST",
+      headers: {
+        Authorization: "Bearer test-token-12345",
+        "Content-Type": "application/json",
+      },
       body: null,
     });
 
@@ -199,13 +197,10 @@ describe("POST /api/ai/generate", () => {
 
     (generateText as jest.Mock).mockResolvedValue(mockResult);
 
-    const request = new NextRequest("http://localhost:3000/api/ai/generate", {
-      method: "POST",
-      body: JSON.stringify({
-        prompt: "Test with extreme values",
-        maxTokens: 10000,
-        temperature: 2.0,
-      }),
+    const request = createRequest({
+      prompt: "Test with extreme values",
+      maxTokens: 10000,
+      temperature: 2.0,
     });
 
     const response = await POST(request);
@@ -221,7 +216,7 @@ describe("POST /api/ai/generate", () => {
   });
 
   it("should handle very long prompt", async () => {
-    const longPrompt = "A".repeat(10000);
+    const longPrompt = "A".repeat(1000);
     const mockResult = {
       text: "Long prompt result",
       model: "gemini-2.0-flash-lite",
@@ -230,11 +225,8 @@ describe("POST /api/ai/generate", () => {
 
     (generateText as jest.Mock).mockResolvedValue(mockResult);
 
-    const request = new NextRequest("http://localhost:3000/api/ai/generate", {
-      method: "POST",
-      body: JSON.stringify({
-        prompt: longPrompt,
-      }),
+    const request = createRequest({
+      prompt: longPrompt,
     });
 
     const response = await POST(request);

@@ -9,6 +9,7 @@ import {
   extractResumeJSON,
   isCompletionResponse,
 } from "@/lib/services/resumePrompts";
+import { getActiveConfig } from "@/lib/services/conversationConfig";
 import { generateNumericResumeId } from "@/lib/numericIdGenerator";
 import { adminDb } from "@/lib/firebase-admin";
 
@@ -114,7 +115,14 @@ export async function POST(request: NextRequest) {
       missing: progress.missingFields,
     });
 
-    // Step 3: Build AI prompt with progress context
+    // Step 3: Get active configuration
+    const config = getActiveConfig();
+
+    // Check if user explicitly wants to create/finish
+    const userWantsToCreate =
+      /create|generate|finish|done|make it|go ahead/i.test(message);
+
+    // Step 3b: Build AI prompt with progress context and config
     const currentProgress = {
       hasName: !!conversationManager.getData().name,
       hasEmail: !!conversationManager.getData().email,
@@ -127,21 +135,39 @@ export async function POST(request: NextRequest) {
       message,
       conversationHistory,
       currentProgress,
-      conversationManager.getData()
+      conversationManager.getData(),
+      config,
+      userWantsToCreate // Pass forceCreate flag
     );
 
     // Step 4: Generate AI response
-    const aiResponse = await generateText(prompt, 400, 0.7);
+    const aiResponse = await generateText(prompt, 1000, 0.7); // Increased token limit for JSON generation
     const responseText = aiResponse.text;
 
     // Step 5: Check if AI indicates completion or if we have enough data
     const aiIndicatesCompletion = isCompletionResponse(responseText);
-    const shouldCreateResume =
-      aiIndicatesCompletion || progress.isReadyToCreate;
+
+    // In beta mode, use completion threshold from config; otherwise use readiness
+    let shouldCreateResume = false;
+    if (config.maxQuestionsInBetaMode) {
+      // Beta mode: create resume when threshold is met OR user asks for it
+      shouldCreateResume =
+        progress.completenessPercentage >= config.completionThreshold ||
+        (userWantsToCreate && progress.hasMinimumData);
+    } else {
+      // Production mode: create when AI says or when ready OR user asks for it
+      shouldCreateResume =
+        aiIndicatesCompletion ||
+        progress.isReadyToCreate ||
+        (userWantsToCreate && progress.hasMinimumData);
+    }
 
     console.log("🤔 Decision:", {
       aiIndicatesCompletion,
+      userWantsToCreate,
       isReadyToCreate: progress.isReadyToCreate,
+      completenessPercentage: progress.completenessPercentage,
+      completionThreshold: config.completionThreshold,
       shouldCreateResume,
     });
 
