@@ -153,7 +153,7 @@ describe("LastUpdatedCard", () => {
       await waitFor(() => {
         expect(screen.getByText("Never")).toBeInTheDocument();
         expect(
-          screen.getByText("Create your resume to track updates")
+          screen.getByText(/Update history will appear here/i)
         ).toBeInTheDocument();
       });
     });
@@ -233,7 +233,7 @@ describe("LastUpdatedCard", () => {
       expect(screen.getByText("Last Updated")).toBeInTheDocument();
       expect(screen.getByText("Never")).toBeInTheDocument();
       expect(
-        screen.getByText("Create your resume to track updates")
+        screen.getByText(/Update history will appear here/i)
       ).toBeInTheDocument();
     });
 

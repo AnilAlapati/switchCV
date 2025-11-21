@@ -202,7 +202,7 @@ describe("ResumeQualityCard", () => {
       await waitFor(() => {
         expect(screen.getByText("0%")).toBeInTheDocument();
         expect(
-          screen.getByText("Create resume to see quality score")
+          screen.getByText(/Generate your first analysis to view quality/i)
         ).toBeInTheDocument();
       });
     });
@@ -291,7 +291,7 @@ describe("ResumeQualityCard", () => {
       expect(screen.getByText("Resume Quality")).toBeInTheDocument();
       expect(screen.getByText("0%")).toBeInTheDocument();
       expect(
-        screen.getByText("Create resume to see quality score")
+        screen.getByText(/Generate your first analysis to view quality/i)
       ).toBeInTheDocument();
     });
 
