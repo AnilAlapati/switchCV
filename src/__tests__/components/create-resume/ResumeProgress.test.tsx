@@ -10,7 +10,11 @@ describe("ResumeProgress", () => {
 
   it("renders progress bar and percentage", () => {
     render(<ResumeProgress progress={50} />);
-    expect(screen.getByText("50%")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        (content, node) => node?.textContent?.replace(/\s/g, "") === "50%"
+      )
+    ).toBeInTheDocument();
     expect(screen.getByText("Resume Progress")).toBeInTheDocument();
   });
 
