@@ -12,6 +12,7 @@ The documentation has been organized into the `docs/` directory:
 - **[Features](docs/features/)**: Detailed feature specifications, implementation guides, and completion reports.
 - **[Setup](docs/setup/)**: Quick start guides and setup instructions.
 - **[Reports](docs/reports/)**: Session summaries and status reports.
+- **[Testing](docs/testing/TEST_PLAN.md)**: Test plans and QA documentation.
 - **[API](docs/api/)**: API route definitions.
 
 ## Getting Started
