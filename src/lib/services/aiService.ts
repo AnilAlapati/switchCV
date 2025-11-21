@@ -8,6 +8,16 @@ interface AIGenerateResponse {
 }
 
 export const initializeAIGreeting = async (): Promise<AIGenerateResponse> => {
+  const { getAuth } = await import("firebase/auth");
+  const auth = getAuth();
+  const currentUser = auth.currentUser;
+
+  if (!currentUser) {
+    throw new Error("User not authenticated");
+  }
+
+  const token = await currentUser.getIdToken();
+
   const prompt = `You are a professional AI Resume Assistant. Generate a warm, engaging, single-paragraph greeting that:
 - Introduces yourself as an AI Resume Assistant
 - Explains you'll help create a perfect resume
@@ -19,7 +29,10 @@ Greeting:`;
 
   const response = await fetch("/api/ai/generate", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify({
       prompt,
       maxTokens: 150,
@@ -56,11 +69,15 @@ export const generateQuestionForStage = async (
       throw new Error("User not authenticated");
     }
 
+    const token = await currentUser.getIdToken();
     const prompt = getPromptForStage(stage, resumeData);
 
     const response = await fetch("/api/ai/generate", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({
         prompt,
         maxTokens: 100,
