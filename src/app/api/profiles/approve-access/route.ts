@@ -1,14 +1,7 @@
 // src/app/api/profiles/approve-access/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import {
-  collection,
-  doc,
-  updateDoc,
-  addDoc,
-  serverTimestamp,
-  getDoc,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { adminDb, adminAuth } from "@/lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 
 interface ApproveAccessPayload {
   requestId: string;
@@ -35,8 +28,26 @@ function calculateExpiryDate(
   }
 }
 
+async function verifyAuth(request: NextRequest): Promise<string | null> {
+  const authHeader = request.headers.get("Authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
+  try {
+    const token = authHeader.split("Bearer ")[1];
+    const decoded = await adminAuth.verifyIdToken(token);
+    return decoded.uid;
+  } catch (e) {
+    console.error("Auth verification failed", e);
+    return null;
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
+    const userId = await verifyAuth(request);
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { requestId, resumeId, duration } =
       (await request.json()) as ApproveAccessPayload;
 
@@ -56,30 +67,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // TODO: Verify current user is owner of the resume
+    // Verify current user is owner of the resume
+    const resumeRef = adminDb.collection("resumeProfiles").doc(resumeId);
+    const resumeDoc = await resumeRef.get();
+
+    if (!resumeDoc.exists) {
+      return NextResponse.json({ error: "Resume not found" }, { status: 404 });
+    }
+
+    if (resumeDoc.data()?.userId !== userId) {
+      return NextResponse.json(
+        { error: "Forbidden: You do not own this resume" },
+        { status: 403 }
+      );
+    }
 
     // 1. Get the access request
-    const requestRef = doc(
-      db,
-      "resumeProfiles",
-      resumeId,
-      "accessRequests",
-      requestId
-    );
-    const requestDoc = await getDoc(requestRef);
+    const requestRef = resumeRef.collection("accessRequests").doc(requestId);
+    const requestDoc = await requestRef.get();
 
-    if (!requestDoc.exists()) {
+    if (!requestDoc.exists) {
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
     }
 
     const requestData = requestDoc.data();
-    const fromUserId = requestData.fromUserId;
-    const fromUserName = requestData.fromUserName;
+    const fromUserId = requestData?.fromUserId;
+    const fromUserName = requestData?.fromUserName;
 
     // 2. Update request status to approved
-    await updateDoc(requestRef, {
+    await requestRef.update({
       status: "approved",
-      approvedAt: serverTimestamp(),
+      approvedAt: FieldValue.serverTimestamp(),
     });
 
     // 3. Create access grant
@@ -87,19 +105,15 @@ export async function POST(request: NextRequest) {
 
     const accessGrant = {
       toUserId: fromUserId,
-      grantedAt: serverTimestamp(),
+      grantedAt: FieldValue.serverTimestamp(),
       expiresAt: expiresAt,
       duration: duration,
-      grantedBy: "current-user-uid", // TODO: Get from auth
+      grantedBy: userId,
     };
 
-    const grantsCollection = collection(
-      db,
-      "resumeProfiles",
-      resumeId,
-      "accessGrants"
-    );
-    const grantRef = await addDoc(grantsCollection, accessGrant);
+    const grantRef = await resumeRef
+      .collection("accessGrants")
+      .add(accessGrant);
 
     console.log(`✅ Access approved: ${grantRef.id} for duration: ${duration}`);
 
@@ -115,17 +129,18 @@ export async function POST(request: NextRequest) {
       resumeId: resumeId,
       resumeTitle: "Your resume access request",
       message: `Your request was approved! You can view the resume ${expiryText}.`,
-      timestamp: serverTimestamp(),
+      timestamp: FieldValue.serverTimestamp(),
       read: false,
       approvalDuration: duration,
       expiresAt: expiresAt,
-      actionUrl: `/resume/${requestData.resumeSlug || ""}`,
+      actionUrl: `/resume/${requestData?.resumeSlug || ""}`,
     };
 
-    await addDoc(
-      collection(db, "notifications", fromUserId, "messages"),
-      notification
-    );
+    await adminDb
+      .collection("notifications")
+      .doc(fromUserId)
+      .collection("messages")
+      .add(notification);
 
     console.log(`📬 Approval notification sent to: ${fromUserId}`);
 

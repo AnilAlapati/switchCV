@@ -1,24 +1,33 @@
 // src/app/api/profiles/request-access/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import {
-  collection,
-  doc,
-  addDoc,
-  serverTimestamp,
-  getDoc,
-  query,
-  where,
-  getDocs,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { adminAuth, adminDb } from "@/lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 
 interface RequestAccessPayload {
   resumeId: string;
   message?: string;
 }
 
+async function verifyAuth(request: NextRequest): Promise<string | null> {
+  const authHeader = request.headers.get("Authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
+  try {
+    const idToken = authHeader.split("Bearer ")[1];
+    const decodedToken = await adminAuth.verifyIdToken(idToken);
+    return decodedToken.uid;
+  } catch (error) {
+    console.error("Request access auth error", error);
+    return null;
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
+    const currentUserId = await verifyAuth(request);
+    if (!currentUserId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { resumeId, message } =
       (await request.json()) as RequestAccessPayload;
 
@@ -29,23 +38,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // TODO: Get authenticated user from request
-    // For now, this is placeholder
-    const currentUserId = "placeholder-uid";
-    const currentUserName = "Current User";
+    const currentUserDoc = await adminDb
+      .collection("users")
+      .doc(currentUserId)
+      .get();
+    const currentUserName =
+      currentUserDoc.data()?.displayName || "Unknown User";
 
-    // 1. Get resume to verify it exists
-    const resumeRef = doc(db, "resumeProfiles", resumeId);
-    const resumeDoc = await getDoc(resumeRef);
+    const resumeRef = adminDb.collection("resumeProfiles").doc(resumeId);
+    const resumeDoc = await resumeRef.get();
 
-    if (!resumeDoc.exists()) {
+    if (!resumeDoc.exists) {
       return NextResponse.json({ error: "Resume not found" }, { status: 404 });
     }
 
     const resumeData = resumeDoc.data();
-    const resumeOwnerId = resumeData.userId;
+    const resumeOwnerId = resumeData?.userId;
 
-    // Prevent self-requests
     if (currentUserId === resumeOwnerId) {
       return NextResponse.json(
         { error: "Cannot request access to your own resume" },
@@ -53,55 +62,51 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Check if request already exists and is pending
-    const existingRequests = query(
-      collection(db, "resumeProfiles", resumeId, "accessRequests"),
-      where("fromUserId", "==", currentUserId),
-      where("status", "==", "pending")
-    );
+    const existingRequests = await resumeRef
+      .collection("accessRequests")
+      .where("fromUserId", "==", currentUserId)
+      .where("status", "==", "pending")
+      .get();
 
-    const existingSnapshot = await getDocs(existingRequests);
-    if (!existingSnapshot.empty) {
+    if (!existingRequests.empty) {
       return NextResponse.json(
         { error: "You already have a pending request for this resume" },
         { status: 409 }
       );
     }
 
-    // 3. Create access request
     const accessRequest = {
       fromUserId: currentUserId,
       fromUserName: currentUserName,
-      timestamp: serverTimestamp(),
+      timestamp: FieldValue.serverTimestamp(),
       message: message || "",
       status: "pending",
     };
 
-    const requestRef = await addDoc(
-      collection(db, "resumeProfiles", resumeId, "accessRequests"),
-      accessRequest
-    );
+    const requestRef = await resumeRef
+      .collection("accessRequests")
+      .add(accessRequest);
 
     console.log(`📨 Access request created: ${requestRef.id}`);
 
-    // 4. Create notification for resume owner
     const notification = {
       userId: resumeOwnerId,
       type: "request",
       fromUserId: currentUserId,
       fromUserName: currentUserName,
       resumeId: resumeId,
-      resumeTitle: resumeData.title,
+      resumeTitle: resumeData?.title || "Resume",
       message: message || `${currentUserName} requested access to your resume`,
-      timestamp: serverTimestamp(),
+      timestamp: FieldValue.serverTimestamp(),
       read: false,
       actionUrl: `/dashboard/access-requests`,
     };
 
-    await addDoc(
-      collection(db, "notifications", resumeOwnerId, "messages"),
-      notification
-    );
+    await adminDb
+      .collection("notifications")
+      .doc(resumeOwnerId)
+      .collection("messages")
+      .add(notification);
 
     console.log(`✉️ Notification sent to resume owner: ${resumeOwnerId}`);
 
