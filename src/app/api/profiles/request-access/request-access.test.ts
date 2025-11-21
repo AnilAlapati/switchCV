@@ -2,83 +2,149 @@
  * Tests for /api/profiles/request-access route
  */
 
+jest.mock("@/lib/firebase-admin", () => ({
+  adminDb: {
+    collection: jest.fn(),
+  },
+  adminAuth: {
+    verifyIdToken: jest.fn(),
+  },
+}));
+
 import { POST } from "@/app/api/profiles/request-access/route";
 import { NextRequest } from "next/server";
-import { getDoc, addDoc, getDocs, collection, doc } from "firebase/firestore";
-import {
-  createMockFirestoreDoc,
-  createMockQuerySnapshot,
-} from "@/__tests__/__support__/firebase";
+import { adminDb, adminAuth } from "@/lib/firebase-admin";
 
-// Mock Firebase
-jest.mock("firebase/firestore", () => ({
-  doc: jest.fn(),
-  collection: jest.fn(),
-  getDoc: jest.fn(),
-  getDocs: jest.fn(),
-  addDoc: jest.fn(),
-  query: jest.fn(),
-  where: jest.fn(),
-  serverTimestamp: jest.fn(() => ({ _type: "serverTimestamp" })),
-}));
+const mockAdminDb = adminDb as jest.Mocked<typeof adminDb>;
+const mockAdminAuth = adminAuth as jest.Mocked<typeof adminAuth>;
 
-jest.mock("@/lib/firebase", () => ({
-  db: { name: "[DEFAULT]" },
-}));
+const createDecodedToken = (uid: string) => ({
+  uid,
+  aud: "test-audience",
+  auth_time: Date.now() / 1000,
+  exp: Date.now() / 1000 + 3600,
+  firebase: { identities: {}, sign_in_provider: "password" },
+  iat: Date.now() / 1000,
+  iss: "https://securetoken.google.com/test-project",
+  sub: uid,
+});
 
-jest.mock("firebase/auth", () => ({
-  getAuth: jest.fn(),
-}));
+const buildRequest = (
+  payload: unknown,
+  token: string | null = "test-token"
+) => {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  return new NextRequest("http://localhost:3000/api/profiles/request-access", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    headers,
+  });
+};
+
+const mockQuerySnapshot = (docs: any[]) => ({
+  empty: docs.length === 0,
+  docs,
+});
+
+let userDocRef: any;
+let resumeDocRef: any;
+let notificationsDocRef: any;
+let accessRequestsCollection: any;
+let messagesCollection: any;
+
+const setupFirestoreMocks = () => {
+  userDocRef = {
+    get: jest.fn().mockResolvedValue({
+      exists: true,
+      data: () => ({ displayName: "Requesting User" }),
+    }),
+  };
+
+  accessRequestsCollection = {
+    where: jest.fn().mockReturnThis(),
+    get: jest.fn().mockResolvedValue(mockQuerySnapshot([])),
+    add: jest.fn().mockResolvedValue({ id: "request-123" }),
+  };
+
+  messagesCollection = {
+    add: jest.fn().mockResolvedValue({ id: "notification-123" }),
+  };
+
+  resumeDocRef = {
+    get: jest.fn().mockResolvedValue({
+      exists: true,
+      data: () => ({ userId: "owner-123", title: "My Resume" }),
+    }),
+    collection: jest.fn((name: string) => {
+      if (name === "accessRequests") {
+        return accessRequestsCollection;
+      }
+      return null;
+    }),
+  };
+
+  notificationsDocRef = {
+    collection: jest.fn(() => messagesCollection),
+  };
+
+  (mockAdminDb.collection as jest.Mock).mockImplementation((name: string) => {
+    switch (name) {
+      case "users":
+        return { doc: jest.fn(() => userDocRef) };
+      case "resumeProfiles":
+        return { doc: jest.fn(() => resumeDocRef) };
+      case "notifications":
+        return { doc: jest.fn(() => notificationsDocRef) };
+      default:
+        return { doc: jest.fn() };
+    }
+  });
+};
 
 describe("POST /api/profiles/request-access", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (doc as jest.Mock).mockReturnValue({});
-    (collection as jest.Mock).mockReturnValue({});
+    setupFirestoreMocks();
+    mockAdminAuth.verifyIdToken.mockResolvedValue(
+      createDecodedToken("requester-123")
+    );
   });
 
   it("should create access request successfully", async () => {
-    // Setup mocks
-    (getDoc as jest.Mock).mockResolvedValue(
-      createMockFirestoreDoc({ userId: "owner-user-123", title: "My Resume" })
-    );
-    (getDocs as jest.Mock).mockResolvedValue(createMockQuerySnapshot([]));
-    (addDoc as jest.Mock).mockResolvedValue({ id: "request-123" });
-
     const payload = {
       resumeId: "resume-123",
       message: "I'm interested in your resume",
     };
 
-    const request = new NextRequest(
-      "http://localhost:3000/api/profiles/request-access",
-      {
-        method: "POST",
-        body: JSON.stringify(payload),
-      }
-    );
-
-    const response = await POST(request);
+    const response = await POST(buildRequest(payload));
     const data = await response.json();
 
     expect(response.status).toBe(200);
     expect(data.success).toBe(true);
-    expect(data.requestId).toBe("request-123");
-    expect(data.message).toContain("Request sent");
+    expect(accessRequestsCollection.add).toHaveBeenCalledWith(
+      expect.objectContaining({ fromUserId: "requester-123" })
+    );
+    expect(messagesCollection.add).toHaveBeenCalled();
+  });
+
+  it("should return 401 when missing auth header", async () => {
+    const response = await POST(buildRequest({ resumeId: "resume-1" }, null));
+    const data = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(data.error).toBe("Unauthorized");
   });
 
   it("should return 400 if resumeId is missing", async () => {
     const payload = { message: "Test message" };
 
-    const request = new NextRequest(
-      "http://localhost:3000/api/profiles/request-access",
-      {
-        method: "POST",
-        body: JSON.stringify(payload),
-      }
-    );
-
-    const response = await POST(request);
+    const response = await POST(buildRequest(payload));
     const data = await response.json();
 
     expect(response.status).toBe(400);
@@ -86,97 +152,46 @@ describe("POST /api/profiles/request-access", () => {
   });
 
   it("should return 404 if resume doesn't exist", async () => {
-    (getDoc as jest.Mock).mockResolvedValue(
-      createMockFirestoreDoc({}, "not-found")
-    );
-    // Set exists() to return false
-    (getDoc as jest.Mock).mockResolvedValue({
-      exists: jest.fn().mockReturnValue(false),
-      data: jest.fn().mockReturnValue(null),
-    });
+    resumeDocRef.get.mockResolvedValue({ exists: false });
 
     const payload = { resumeId: "non-existent" };
 
-    const request = new NextRequest(
-      "http://localhost:3000/api/profiles/request-access",
-      {
-        method: "POST",
-        body: JSON.stringify(payload),
-      }
-    );
-
-    const response = await POST(request);
+    const response = await POST(buildRequest(payload));
     const data = await response.json();
 
     expect(response.status).toBe(404);
     expect(data.error).toBe("Resume not found");
   });
 
-  it("should return 400 if user tries to request their own resume", async () => {
-    const userId = "placeholder-uid"; // Must match hardcoded currentUserId in route
+  it("should return 400 if user requests their own resume", async () => {
+    resumeDocRef.get.mockResolvedValue({
+      exists: true,
+      data: () => ({ userId: "requester-123", title: "My Resume" }),
+    });
 
-    (getDoc as jest.Mock).mockResolvedValue(
-      createMockFirestoreDoc({ userId, title: "My Resume" })
-    );
-
-    const payload = { resumeId: "resume-123" };
-
-    const request = new NextRequest(
-      "http://localhost:3000/api/profiles/request-access",
-      {
-        method: "POST",
-        body: JSON.stringify(payload),
-      }
-    );
-
-    const response = await POST(request);
+    const response = await POST(buildRequest({ resumeId: "resume-1" }));
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data.error).toContain("Cannot request access to your own resume");
+    expect(data.error).toContain("own resume");
   });
 
   it("should return 409 if pending request already exists", async () => {
-    (getDoc as jest.Mock).mockResolvedValue(
-      createMockFirestoreDoc({ userId: "owner-123", title: "My Resume" })
+    accessRequestsCollection.get.mockResolvedValue(
+      mockQuerySnapshot([{ id: "existing" }])
     );
 
-    // Mock existing pending request
-    (getDocs as jest.Mock).mockResolvedValue(
-      createMockQuerySnapshot([{ status: "pending" }])
-    );
-
-    const payload = { resumeId: "resume-123" };
-
-    const request = new NextRequest(
-      "http://localhost:3000/api/profiles/request-access",
-      {
-        method: "POST",
-        body: JSON.stringify(payload),
-      }
-    );
-
-    const response = await POST(request);
+    const response = await POST(buildRequest({ resumeId: "resume-1" }));
     const data = await response.json();
 
     expect(response.status).toBe(409);
-    expect(data.error).toContain("already have a pending request");
+    expect(data.error).toContain("pending request");
   });
 
-  it("should handle errors gracefully", async () => {
-    (getDoc as jest.Mock).mockRejectedValue(new Error("Database error"));
+  it("should handle unexpected errors gracefully", async () => {
+    resumeDocRef.get.mockRejectedValue(new Error("Database error"));
 
-    const payload = { resumeId: "resume-123" };
-
-    const request = new NextRequest(
-      "http://localhost:3000/api/profiles/request-access",
-      {
-        method: "POST",
-        body: JSON.stringify(payload),
-      }
-    );
-
-    const response = await POST(request);
+    const response = await POST(buildRequest({ resumeId: "resume-1" }));
     const data = await response.json();
 
     expect(response.status).toBe(500);
@@ -184,62 +199,20 @@ describe("POST /api/profiles/request-access", () => {
   });
 
   it("should create notification for resume owner", async () => {
-    (getDoc as jest.Mock).mockResolvedValue(
-      createMockFirestoreDoc({
-        userId: "owner-123",
-        title: "Senior Dev Resume",
-      })
+    await POST(buildRequest({ resumeId: "resume-1" }));
+
+    expect(messagesCollection.add).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "owner-123" })
     );
-    (getDocs as jest.Mock).mockResolvedValue(createMockQuerySnapshot([]));
-    (addDoc as jest.Mock)
-      .mockResolvedValueOnce({ id: "request-123" })
-      .mockResolvedValueOnce({ id: "notification-123" });
-
-    const payload = {
-      resumeId: "resume-123",
-      message: "Great resume!",
-    };
-
-    const request = new NextRequest(
-      "http://localhost:3000/api/profiles/request-access",
-      {
-        method: "POST",
-        body: JSON.stringify(payload),
-      }
-    );
-
-    const response = await POST(request);
-
-    expect(response.status).toBe(200);
-    expect(addDoc).toHaveBeenCalledTimes(2);
   });
 
   it("should include optional message in request", async () => {
-    (getDoc as jest.Mock).mockResolvedValue(
-      createMockFirestoreDoc({ userId: "owner-123", title: "My Resume" })
-    );
-    (getDocs as jest.Mock).mockResolvedValue(createMockQuerySnapshot([]));
-    (addDoc as jest.Mock).mockResolvedValue({ id: "request-123" });
-
     const message = "I think we'd be great colleagues!";
-    const payload = {
-      resumeId: "resume-123",
-      message,
-    };
 
-    const request = new NextRequest(
-      "http://localhost:3000/api/profiles/request-access",
-      {
-        method: "POST",
-        body: JSON.stringify(payload),
-      }
-    );
+    await POST(buildRequest({ resumeId: "resume-1", message }));
 
-    await POST(request);
-
-    // Verify message was included in addDoc call
-    expect(addDoc).toHaveBeenCalled();
-    const firstCall = (addDoc as jest.Mock).mock.calls[0];
-    expect(firstCall[1].message).toBe(message);
+    expect(accessRequestsCollection.add).toHaveBeenCalled();
+    const payloadArg = accessRequestsCollection.add.mock.calls[0][0];
+    expect(payloadArg.message).toBe(message);
   });
 });

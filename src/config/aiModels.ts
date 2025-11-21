@@ -113,12 +113,12 @@ export const AVAILABLE_AI_MODELS: AIModel[] = [
     tier: "premium",
   },
   {
-    id: "gemini-1.5-flash",
-    name: "Gemini 1.5 Flash",
+    id: "gemini-2.5-flash",
+    name: "Gemini 2.5 Flash",
     description:
-      "Fast and efficient multimodal model from Google, excellent for content generation and analysis",
+      "Latest fast and efficient multimodal model from Google, excellent for content generation and analysis with improved performance",
     provider: "google",
-    modelId: "gemini-1.5-flash",
+    modelId: "gemini-2.5-flash",
     maxTokens: 8192,
     costPerToken: 0.000001,
     capabilities: [
@@ -138,10 +138,86 @@ export const AVAILABLE_AI_MODELS: AIModel[] = [
     tier: "free",
   },
   {
-    id: "gemini-1.5-pro",
-    name: "Gemini 1.5 Pro",
+    id: "gemini-2.5-pro",
+    name: "Gemini 2.5 Pro",
     description:
-      "Advanced multimodal model from Google with superior reasoning and long context capabilities",
+      "Most advanced multimodal model from Google with superior reasoning, long context, and enhanced capabilities",
+    provider: "google",
+    modelId: "gemini-2.5-pro",
+    maxTokens: 32768,
+    costPerToken: 0.000005,
+    capabilities: [
+      "text-generation",
+      "instruction-following",
+      "reasoning",
+      "analysis",
+      "complex-tasks",
+      "multimodal",
+    ],
+    recommendedFor: [
+      "resume-enhancement",
+      "job-matching",
+      "skill-analysis",
+      "complex-tasks",
+    ],
+    isEnabled: true,
+    tier: "premium",
+  },
+  {
+    id: "gemini-2.0-flash",
+    name: "Gemini 2.0 Flash",
+    description:
+      "Fast and efficient Gemini 2.0 model, balanced speed and quality for production use",
+    provider: "google",
+    modelId: "gemini-2.0-flash",
+    maxTokens: 8192,
+    costPerToken: 0.000001,
+    capabilities: [
+      "text-generation",
+      "instruction-following",
+      "reasoning",
+      "analysis",
+      "multimodal",
+    ],
+    recommendedFor: [
+      "resume-enhancement",
+      "job-matching",
+      "skill-analysis",
+      "quick-edits",
+    ],
+    isEnabled: true,
+    tier: "free",
+  },
+  {
+    id: "gemini-1.5-flash",
+    name: "Gemini 1.5 Flash (Legacy)",
+    description:
+      "Previous generation fast model from Google, still reliable for most tasks",
+    provider: "google",
+    modelId: "gemini-1.5-flash",
+    maxTokens: 8192,
+    costPerToken: 0.000001,
+    capabilities: [
+      "text-generation",
+      "instruction-following",
+      "reasoning",
+      "analysis",
+      "multimodal",
+    ],
+    recommendedFor: [
+      "resume-enhancement",
+      "job-matching",
+      "skill-analysis",
+      "quick-edits",
+    ],
+    isEnabled: false,
+    tier: "free",
+  },
+  {
+    id: "gemini-1.5-pro",
+    name: "Gemini 1.5 Pro (Legacy)",
+    description:
+      "Previous generation advanced model from Google, maintained for compatibility",
     provider: "google",
     modelId: "gemini-1.5-pro",
     maxTokens: 32768,
@@ -160,7 +236,7 @@ export const AVAILABLE_AI_MODELS: AIModel[] = [
       "skill-analysis",
       "complex-tasks",
     ],
-    isEnabled: true,
+    isEnabled: false,
     tier: "premium",
   },
 ];
@@ -183,9 +259,9 @@ export const getModelById = (id: string): AIModel | undefined => {
 
 // Default model for each task type
 export const DEFAULT_MODELS = {
-  "resume-enhancement": "gemini-1.5-flash", // Use Gemini as default for speed
-  "job-matching": "gemini-1.5-pro",
-  "skill-analysis": "gemini-1.5-flash",
+  "resume-enhancement": "gemini-2.5-flash", // Use latest Gemini for speed and quality
+  "job-matching": "gemini-2.5-pro",
+  "skill-analysis": "gemini-2.5-flash",
   "quick-edit": "distilgpt2",
 } as const;
 

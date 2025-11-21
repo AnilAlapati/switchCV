@@ -81,7 +81,7 @@ export const useAIResume = () => {
       // Auto-select best model if not specified
       if (!modelId) {
         const selectedModel = getBestModelForTask("resume-enhancement");
-        modelId = selectedModel?.modelId || "gemini-1.5-flash";
+        modelId = selectedModel?.modelId || "gemini-2.5-flash";
         console.log(
           `✨ Auto-selected AI model: ${modelId} (${selectedModel?.provider})`
         );
