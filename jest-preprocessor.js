@@ -3,9 +3,16 @@ const babelJest = require('babel-jest');
 
 const transformer = babelJest.createTransformer({
   presets: [
-    ['next/babel', {
-      'preset-env': {},
-    }],
+    [
+      'next/babel',
+      {
+        'preset-env': {},
+        'preset-react': {
+          runtime: 'automatic',
+          importSource: 'react',
+        },
+      },
+    ],
   ],
 });
 

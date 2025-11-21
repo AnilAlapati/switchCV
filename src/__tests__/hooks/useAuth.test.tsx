@@ -1,7 +1,6 @@
 // src/__tests__/hooks/useAuth.test.tsx
 import { renderHook, waitFor } from "@testing-library/react";
-import { ReactNode } from "react";
-import { useAuth, AuthProvider } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuth";
 import {
   User,
   onAuthStateChanged,
@@ -11,6 +10,7 @@ import {
   signInWithPopup,
   sendEmailVerification,
 } from "firebase/auth";
+import { createMockUser, TestWrapper } from "./useAuth.helpers";
 
 // Mock Firebase auth/firestore exports
 jest.mock("@/lib/firebase", () => ({
@@ -39,21 +39,6 @@ const mockCreateUserWithEmailAndPassword = jest.mocked(
 const mockSignOut = jest.mocked(signOut);
 const mockSignInWithPopup = jest.mocked(signInWithPopup);
 const mockSendEmailVerification = jest.mocked(sendEmailVerification);
-
-const createMockUser = (overrides: Partial<User> = {}) =>
-  ({
-    uid: "test-uid",
-    email: "test@example.com",
-    emailVerified: true,
-    displayName: "Test User",
-    providerData: [{ providerId: "password" }],
-    ...overrides,
-  } as unknown as User);
-
-// Test wrapper component
-const TestWrapper = ({ children }: { children: ReactNode }) => (
-  <AuthProvider>{children}</AuthProvider>
-);
 
 describe("useAuth", () => {
   let mockUnsubscribe: jest.Mock;
@@ -358,6 +343,34 @@ describe("useAuth", () => {
       });
 
       await expect(result.current.logout()).rejects.toThrow("Logout failed");
+    });
+  });
+
+  describe("signInWithGoogle", () => {
+    it("should trigger Google popup flow", async () => {
+      const mockUser = createMockUser();
+      mockSignInWithPopup.mockResolvedValue({ user: mockUser } as any);
+
+      const { result } = renderHook(() => useAuth(), {
+        wrapper: TestWrapper,
+      });
+
+      await result.current.signInWithGoogle();
+
+      expect(mockSignInWithPopup).toHaveBeenCalledTimes(1);
+    });
+
+    it("should surface friendly message when popup closed", async () => {
+      const popupError = { code: "auth/popup-closed-by-user" };
+      mockSignInWithPopup.mockRejectedValue(popupError);
+
+      const { result } = renderHook(() => useAuth(), {
+        wrapper: TestWrapper,
+      });
+
+      await expect(result.current.signInWithGoogle()).rejects.toThrow(
+        "Google sign-in was closed before completion."
+      );
     });
   });
 });

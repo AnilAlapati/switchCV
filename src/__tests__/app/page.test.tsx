@@ -12,7 +12,7 @@ jest.mock("next/navigation", () => ({
 }));
 
 jest.mock("next/link", () => {
-  return ({
+  const MockLink = ({
     children,
     href,
     ...rest
@@ -24,6 +24,9 @@ jest.mock("next/link", () => {
       {children}
     </a>
   );
+
+  MockLink.displayName = "MockLink";
+  return MockLink;
 });
 
 // Mock the useAuth hook (already mocked in jest.setup.js but keeping for clarity)
