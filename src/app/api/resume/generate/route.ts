@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuth } from "firebase-admin/auth";
 import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { generateText } from "@/lib/services/aiGenerationService";
+import { ConversationManager } from "@/lib/services/conversationManager";
+import { ResumeDataExtractor } from "@/lib/services/resumeDataExtractor";
+import {
+  buildConversationalPrompt,
+  extractResumeJSON,
+  isCompletionResponse,
+} from "@/lib/services/resumePrompts";
+import { generateNumericResumeId } from "@/lib/numericIdGenerator";
+import { adminDb } from "@/lib/firebase-admin";
 
 // Initialize Firebase Admin safely during runtime, not build time
 let initialized = false;
@@ -41,6 +50,7 @@ interface GenerateResumeRequest {
     isUser: boolean;
     timestamp: string;
   }>;
+  sessionData?: any; // Optional stored session data
 }
 
 export async function POST(request: NextRequest) {
@@ -68,7 +78,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: GenerateResumeRequest = await request.json();
-    const { message, conversationHistory } = body;
+    const { message, conversationHistory, sessionData } = body;
 
     if (!message) {
       return NextResponse.json(
@@ -77,39 +87,173 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Build conversation context
-    const context = conversationHistory
-      .slice(-5) // Last 5 messages for context
-      .map((msg) => `${msg.isUser ? "User" : "Assistant"}: ${msg.content}`)
-      .join("\n");
+    // Step 1: Extract data from conversation history
+    const extractionResult = ResumeDataExtractor.extractFromConversation([
+      ...conversationHistory,
+      { content: message, isUser: true },
+    ]);
 
-    // Create AI prompt for conversational resume generation
-    const prompt = `You are a professional AI Resume Assistant helping someone create their resume through conversation.
+    console.log("📊 Extraction Result:", {
+      confidence: extractionResult.confidence,
+      extractedFields: extractionResult.extractedFields,
+      isComplete: extractionResult.isComplete,
+    });
 
-Previous conversation:
-${context}
+    // Step 2: Initialize conversation manager with extracted data
+    const conversationManager = new ConversationManager(
+      sessionData?.collectedData || extractionResult.data
+    );
 
-User's latest message: "${message}"
+    // Update with latest extraction
+    conversationManager.updateData(extractionResult.data);
+    const progress = conversationManager.getProgress();
 
-Respond as a helpful resume assistant. Ask relevant questions to gather information about their:
-- Professional experience
-- Education
-- Skills
-- Career goals
-- Contact information
+    console.log("🎯 Progress:", {
+      completeness: `${progress.completenessPercentage}%`,
+      isReady: progress.isReadyToCreate,
+      missing: progress.missingFields,
+    });
 
-Keep responses conversational, friendly, and focused on building their resume. When you have enough information, suggest creating the resume.
+    // Step 3: Build AI prompt with progress context
+    const currentProgress = {
+      hasName: !!conversationManager.getData().name,
+      hasEmail: !!conversationManager.getData().email,
+      hasExperience: !!(conversationManager.getData().experience?.length),
+      hasEducation: !!(conversationManager.getData().education?.length),
+      hasSkills: !!(conversationManager.getData().skills?.length),
+    };
 
-Response:`;
+    const prompt = buildConversationalPrompt(
+      message,
+      conversationHistory,
+      currentProgress
+    );
 
-    // Generate AI response
-    const aiResponse = await generateText(prompt, 300, 0.8);
+    // Step 4: Generate AI response
+    const aiResponse = await generateText(prompt, 400, 0.7);
+    const responseText = aiResponse.text;
 
-    // For now, just return the AI response
-    // TODO: Implement resume generation when conversation is complete
+    // Step 5: Check if AI indicates completion or if we have enough data
+    const aiIndicatesCompletion = isCompletionResponse(responseText);
+    const shouldCreateResume =
+      aiIndicatesCompletion || progress.isReadyToCreate;
+
+    console.log("🤔 Decision:", {
+      aiIndicatesCompletion,
+      isReadyToCreate: progress.isReadyToCreate,
+      shouldCreateResume,
+    });
+
+    // Step 6: Create resume if ready
+    if (shouldCreateResume && progress.hasMinimumData) {
+      try {
+        // Extract any JSON data from AI response
+        let resumeData = extractResumeJSON(responseText);
+
+        if (!resumeData) {
+          // Use collected data if no JSON in response
+          resumeData = conversationManager.getData();
+        }
+
+        // Validate we have minimum required data
+        const validation = conversationManager.validate();
+        if (!validation.valid) {
+          console.warn("⚠️ Validation failed:", validation.errors);
+          // Continue conversation to gather missing data
+          return NextResponse.json({
+            response: responseText,
+            model: aiResponse.model,
+            progress: progress.completenessPercentage,
+            sessionData: {
+              collectedData: conversationManager.getData(),
+              progress,
+            },
+          });
+        }
+
+        // Generate numeric ID
+        const numericId = await generateNumericResumeId();
+        const resumeId = numericId.toString();
+
+        console.log("✨ Creating resume with ID:", resumeId);
+
+        // Prepare resume document
+        const resumeDocument = {
+          id: resumeId,
+          userId,
+          numericId,
+          title:
+            `${resumeData.name || "User"}'s Resume` ||
+            "AI Generated Resume",
+          personalInfo: {
+            name: resumeData.name || "",
+            email: resumeData.email || "",
+            phone: resumeData.phone || "",
+            location: resumeData.location || "",
+          },
+          summary: resumeData.summary || "",
+          experience: resumeData.experience || [],
+          education: resumeData.education || [],
+          skills: resumeData.skills || [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          createdVia: "ai-conversation",
+          isPublic: false,
+          status: "draft",
+        };
+
+        // Save to Firestore
+        await adminDb.collection("resumes").doc(resumeId).set(resumeDocument);
+
+        // Also save to user's subcollection
+        await adminDb
+          .collection("users")
+          .doc(userId)
+          .collection("userResumes")
+          .doc(resumeId)
+          .set({
+            id: resumeId,
+            title: resumeDocument.title,
+            createdAt: resumeDocument.createdAt,
+            updatedAt: resumeDocument.updatedAt,
+            numericId,
+          });
+
+        console.log("✅ Resume created successfully:", resumeId);
+
+        // Return success with resume ID
+        return NextResponse.json({
+          response:
+            responseText +
+            `\n\n✅ Great! I've created your resume. You can view it now!`,
+          model: aiResponse.model,
+          resumeId,
+          numericId,
+          created: true,
+          progress: 100,
+        });
+      } catch (createError) {
+        console.error("❌ Error creating resume:", createError);
+        // Fall back to continuing conversation
+        return NextResponse.json({
+          response:
+            "I have all the information, but there was an issue creating your resume. Let me try again. " +
+            responseText,
+          model: aiResponse.model,
+          error: "resume_creation_failed",
+        });
+      }
+    }
+
+    // Step 7: Continue conversation (not ready yet)
     return NextResponse.json({
-      response: aiResponse.text,
+      response: responseText,
       model: aiResponse.model,
+      progress: progress.completenessPercentage,
+      sessionData: {
+        collectedData: conversationManager.getData(),
+        progress,
+      },
     });
   } catch (error) {
     console.error("Error in resume generation:", error);

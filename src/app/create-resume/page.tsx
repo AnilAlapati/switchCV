@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { CreateResumeHeader } from "@/components/create-resume/CreateResumeHeader";
 import { CreateResumeInputForm } from "@/components/create-resume/CreateResumeInputForm";
 import { AILoadingState } from "@/components/create-resume/AILoadingState";
+import { ResumeProgress } from "@/components/create-resume/ResumeProgress";
 
 interface Message {
   id: string;
@@ -28,6 +29,8 @@ export default function CreateResume() {
     connected: boolean;
     model?: string;
   } | null>(null);
+  const [sessionData, setSessionData] = useState<any>(null);
+  const [progress, setProgress] = useState<number>(0);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -51,34 +54,6 @@ export default function CreateResume() {
     };
     checkAIStatus();
   }, []);
-
-  const handleCreateResume = async () => {
-    if (!user) return;
-    try {
-      const idToken = await user.getIdToken();
-      const response = await fetch("/api/resume/create", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({
-          title: "My New Resume",
-          summary: "Created via AI Assistant",
-          skills: ["JavaScript", "React", "Next.js"],
-          experience: [],
-          education: [],
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        router.push(`/resume/${data.resumeId}`);
-      }
-    } catch (error) {
-      console.error("Failed to create resume", error);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,6 +83,7 @@ export default function CreateResume() {
         body: JSON.stringify({
           message: currentInput,
           conversationHistory: messages,
+          sessionData,
         }),
       });
 
@@ -126,10 +102,21 @@ export default function CreateResume() {
 
       setMessages((prev) => [...prev, aiMessage]);
 
+      // Update session data and progress
+      if (data.sessionData) {
+        setSessionData(data.sessionData);
+      }
+
+      if (data.progress !== undefined) {
+        setProgress(data.progress);
+      }
+
       if (data.resumeId) {
         setStage("complete");
-        // Optionally redirect to the resume view
-        // router.push(`/resume/${data.resumeId}`);
+        // Show success message and redirect after a moment
+        setTimeout(() => {
+          router.push(`/resume/${data.resumeId}`);
+        }, 2000);
       } else {
         // Continue conversation - reset to input stage
         setStage("input");
@@ -221,6 +208,12 @@ export default function CreateResume() {
             </div>
           )}
         </div>
+
+        <ResumeProgress
+          progress={progress}
+          collectedFields={sessionData?.progress?.collectedFields}
+          missingFields={sessionData?.progress?.missingFields}
+        />
 
         <AILoadingState aiLoading={aiLoading} aiError={aiError} />
 
