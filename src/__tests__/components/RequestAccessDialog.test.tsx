@@ -180,6 +180,38 @@ describe("RequestAccessDialog", () => {
     });
   });
 
+  test("shows error message from API response message field", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ message: "Custom error message" }),
+    } as Response);
+
+    render(<RequestAccessDialog {...defaultProps} />);
+
+    const submitButton = screen.getByText("Send Request");
+    await userEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(screen.getByText("Custom error message")).toBeInTheDocument();
+    });
+  });
+
+  test("shows default error message when API response has no message", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({}),
+    } as Response);
+
+    render(<RequestAccessDialog {...defaultProps} />);
+
+    const submitButton = screen.getByText("Send Request");
+    await userEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(screen.getByText("Failed to send request")).toBeInTheDocument();
+    });
+  });
+
   test("calls onSuccess callback on successful submission", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
@@ -279,6 +311,46 @@ describe("RequestAccessDialog", () => {
         (mockFetch.mock.calls[0]?.[1] as any)?.body || "{}"
       );
       expect(callBody.message).toBeUndefined();
+    });
+  });
+
+  test("shows error when profileId is empty", async () => {
+    render(<RequestAccessDialog {...defaultProps} profileId="" />);
+
+    const submitButton = screen.getByText("Send Request");
+    await userEvent.click(submitButton);
+
+    expect(screen.getByText("Invalid profile ID")).toBeInTheDocument();
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  test("handles success when onSuccess is not provided", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ success: true }),
+    } as Response);
+
+    const propsWithoutOnSuccess = { ...defaultProps, onSuccess: undefined };
+    render(<RequestAccessDialog {...propsWithoutOnSuccess} />);
+
+    const submitButton = screen.getByText("Send Request");
+    await userEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(defaultProps.onClose).toHaveBeenCalled();
+    });
+  });
+
+  test("handles non-Error objects thrown during submission", async () => {
+    mockFetch.mockRejectedValueOnce("Network failure string");
+
+    render(<RequestAccessDialog {...defaultProps} />);
+
+    const submitButton = screen.getByText("Send Request");
+    await userEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(screen.getByText("Unknown error")).toBeInTheDocument();
     });
   });
 });

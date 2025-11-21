@@ -206,7 +206,9 @@ describe("AuditLogViewer", () => {
     render(<AuditLogViewer />);
 
     await waitFor(() => {
-      expect(screen.queryByText("Loading activity log...")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Loading activity log...")
+      ).not.toBeInTheDocument();
     });
 
     expect(screen.getByText("DELETE")).toBeInTheDocument();
