@@ -86,9 +86,14 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
         }
 
         // Create Resume object
+        const candidateName =
+          typeof answers.name === "string" && answers.name
+            ? answers.name
+            : "Professional";
+
         const resume: Resume = {
           id: `resume_${Date.now()}`,
-          title: `${answers.name || "Professional"}'s Resume`,
+          title: candidateName + "'s Resume",
           summary: result.enhancedSummary,
           skills: [...resumeData.skills, ...result.skillSuggestions],
           experience: result.enhancedExperience.map((exp: any) => ({
@@ -155,6 +160,8 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
       // TODO: Use feedback for AI-guided regeneration in the future
       void feedback; // Mark as intentionally unused for now
 
+      if (!generatedResume) return;
+
       if (retryCount >= 5) {
         alert("Maximum rewrites reached. Please accept this version.");
         return;
@@ -166,19 +173,19 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
 
       try {
         // Regenerate with same data
+        const currentTitle = generatedResume.title;
+        const nameFromTitle = currentTitle.replace("'s Resume", "");
+
         const resumeData = {
           personalInfo: {
-            name:
-              generatedResume?.title?.replace("'s Resume", "") ||
-              "Professional",
+            name: nameFromTitle,
             email: "",
           },
-          summary: generatedResume?.summary || "",
+          summary: generatedResume.summary || "",
           experience: [],
           education: [],
-          skills: generatedResume?.skills || [],
+          skills: generatedResume.skills,
         };
-
         const result = await generateResumeContent(
           resumeData,
           "modern",
@@ -191,7 +198,7 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
 
         const updatedResume: Resume = {
           id: `resume_${Date.now()}`,
-          title: generatedResume?.title || "Professional Resume",
+          title: generatedResume.title,
           summary: result.enhancedSummary,
           skills: [...resumeData.skills, ...result.skillSuggestions],
           experience: result.enhancedExperience.map((exp: any) => ({

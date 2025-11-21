@@ -33,11 +33,8 @@ describe("buildConversationalPrompt", () => {
   it("should not include collected data section if data is not provided", () => {
     const userMessage = "Hello";
     const conversationHistory: any[] = [];
-    
-    const prompt = buildConversationalPrompt(
-      userMessage,
-      conversationHistory
-    );
+
+    const prompt = buildConversationalPrompt(userMessage, conversationHistory);
 
     expect(prompt).not.toContain("CURRENTLY COLLECTED DATA:");
   });

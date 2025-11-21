@@ -5,9 +5,9 @@ import { CreateResumeHeader } from "../../components/create-resume/CreateResumeH
 describe("CreateResumeHeader", () => {
   it("renders heading and subtitle", () => {
     const { getByText } = render(<CreateResumeHeader />);
-    expect(getByText("AI Resume Assistant")).toBeInTheDocument();
+    expect(getByText("AI Resume Builder")).toBeInTheDocument();
     expect(
-      getByText("Smart, conversational resume creation")
+      getByText("Create your professional resume with AI assistance")
     ).toBeInTheDocument();
   });
 

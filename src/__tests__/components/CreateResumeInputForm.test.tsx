@@ -17,7 +17,7 @@ describe("CreateResumeInputForm", () => {
     );
 
     const input = getByPlaceholderText(
-      "Type your response here..."
+      "Tell me about your experience, skills, or job goals..."
     ) as HTMLInputElement;
     const button = getByRole("button");
 
@@ -53,7 +53,7 @@ describe("CreateResumeInputForm", () => {
     );
 
     expect(
-      getByPlaceholderText("Generating your resume...")
+      getByPlaceholderText("✨ Generating your resume...")
     ).toBeInTheDocument();
     expect(getByRole("button")).toBeDisabled();
   });
