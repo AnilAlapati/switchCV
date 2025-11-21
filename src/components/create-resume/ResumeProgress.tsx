@@ -29,7 +29,7 @@ export function ResumeProgress({
     "group relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-gray-900/80 backdrop-blur-xl text-white shadow-[0_20px_60px_rgba(0,0,0,0.55)] transition-all duration-500",
     isMinimized
       ? "w-16 h-16 p-0 hover:scale-110 cursor-pointer rounded-full"
-      : "w-full lg:w-80 p-5 hover:-translate-y-1 hover:shadow-[0_25px_70px_rgba(6,182,212,0.25)]",
+      : "w-full lg:w-52 p-4 hover:-translate-y-1 hover:shadow-[0_25px_70px_rgba(6,182,212,0.25)]",
     className,
   ]
     .filter((value): value is string => Boolean(value))
