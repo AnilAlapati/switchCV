@@ -116,7 +116,26 @@ export async function POST(request: NextRequest) {
     });
 
     // Step 3: Get active configuration
-    const config = getActiveConfig();
+    let config = getActiveConfig();
+
+    // Check for user constraints on questions
+    const allText = [...conversationHistory, { content: message, isUser: true }]
+      .filter((m) => m.isUser)
+      .map((m) => m.content)
+      .join(" ");
+
+    const questionLimitMatch = allText.match(/only\s+(\d+)\s+questions?/i);
+    if (questionLimitMatch && questionLimitMatch[1]) {
+      const limit = parseInt(questionLimitMatch[1], 10);
+      if (!isNaN(limit) && limit > 0) {
+        config = {
+          ...config,
+          maxQuestionsInBetaMode: true,
+          maxBetaQuestions: limit,
+        };
+        console.log(`🎯 User set question limit to ${limit}`);
+      }
+    }
 
     // Check if user explicitly wants to create/finish
     const userWantsToCreate =

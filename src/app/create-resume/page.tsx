@@ -129,8 +129,8 @@ export default function CreateResume() {
         setStage("complete");
         // Show success message and redirect after a moment
         setTimeout(() => {
-          // Redirect to singular `/resume/:id` route (legacy/test expectation)
-          router.push(`/resume/${data.resumeId}`);
+          // Redirect to singular `/resumes/:id` route (legacy/test expectation)
+          router.push(`/resumes/${data.resumeId}`);
         }, 2000);
       } else {
         // Continue conversation - reset to input stage

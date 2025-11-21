@@ -122,7 +122,8 @@ export class ResumeDataExtractor {
     history?: string
   ): Partial<ResumeDataRequirements> {
     const data: Partial<ResumeDataRequirements> = {};
-    const fullText = history ? `${history}\n${text}` : text;
+    const trimmedText = text.trim();
+    const fullText = history ? `${history}\n${trimmedText}` : trimmedText;
 
     // Extract name
     const namePatterns = [
@@ -130,10 +131,12 @@ export class ResumeDataExtractor {
       /[Nn]ame:\s*([A-Z][a-z]+(?:\s+(?:[A-Z][a-z]+|[A-Z]\.?)){0,3})(?=\s|$|[.,])/,
       // Fallback for just the name if it looks like a name (2-3 capitalized words or initials)
       /^([A-Z][a-z]+(?:\s+(?:[A-Z][a-z]+|[A-Z]\.?)){1,3})$/,
+      // Relaxed fallback for name (allow case insensitive if it's short and looks like a name)
+      /^([A-Za-z]+(?:\s+(?:[A-Za-z]+|[A-Za-z]\.?)){1,3})$/,
     ];
 
     for (const pattern of namePatterns) {
-      const match = fullText.match(pattern);
+      const match = trimmedText.match(pattern) || fullText.match(pattern);
       if (match && match[1]) {
         data.name = match[1].trim();
         break;
@@ -199,6 +202,11 @@ export class ResumeDataExtractor {
       "job at",
       "role at",
       "worked as",
+      "work as",
+      "current role",
+      "senior software engineer", // Common job titles as keywords
+      "software engineer",
+      "developer",
     ];
     const hasExperience = experienceKeywords.some((kw) =>
       fullText.toLowerCase().includes(kw)
@@ -206,8 +214,9 @@ export class ResumeDataExtractor {
 
     if (hasExperience) {
       // Extract company and title
+      // Improved regex to better separate title and company
       const expPattern =
-        /(?:worked|work|employed|position|job|role)\s+(?:as|at)\s+([^,.\n]+?)(?:\s+at\s+([^,.\n]+))?/i;
+        /(?:worked|work|employed|position|job|role)\s+(?:as|at)\s+((?:(?! at ).)+)(?:\s+at\s+([^,.\n]+))?/i;
       const expMatch = fullText.match(expPattern);
 
       if (expMatch) {
