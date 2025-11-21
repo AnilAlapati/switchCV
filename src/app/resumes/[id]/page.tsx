@@ -14,15 +14,19 @@ export default function ResumeView() {
     const fetchResume = async () => {
       if (!id) return;
       try {
-        const docRef = doc(db, "resumes", id as string);
+        const docRef = doc(db, "resumeProfiles", id as string);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           setResume(docSnap.data());
         } else {
           console.error("Resume not found");
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error fetching resume:", error);
+        if (error.code === "permission-denied") {
+          // Handle permission denied as not found (likely not published)
+          console.log("Permission denied - resume likely not published");
+        }
       } finally {
         setLoading(false);
       }

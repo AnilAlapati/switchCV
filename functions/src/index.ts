@@ -6,6 +6,8 @@ import {
   cleanupAnalyticsEvents,
 } from "./analyticsService";
 
+export { aggregateGlobalStats } from "./statsService";
+
 admin.initializeApp();
 
 // Initialize environment variable warnings
