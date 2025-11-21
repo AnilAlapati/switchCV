@@ -91,7 +91,7 @@ export default function ResumeView() {
               Download PDF
             </button>
             <p className="text-xs text-gray-400 mt-2 print:hidden">
-              ID: {resume.numericId}
+              ID: <span>{resume.numericId}</span>
             </p>
           </div>
         </div>
