@@ -38,10 +38,6 @@ export const ResumeReviewModal: React.FC<ResumeReviewModalProps> = ({
   };
 
   const handleRewrite = async () => {
-    if (!feedback.trim()) {
-      alert("Please provide feedback for the rewrite");
-      return;
-    }
     setRewriteLoading(true);
     try {
       await onRewrite(feedback);

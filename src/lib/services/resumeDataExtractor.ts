@@ -126,8 +126,8 @@ export class ResumeDataExtractor {
 
     // Extract name
     const namePatterns = [
-      /(?:my name is|i'm|i am|call me)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)/i,
-      /name:\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)/i,
+      /(?:[Mm]y name is|[Ii]'m|[Ii] am|[Cc]all me)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})(?=\s|$|[.,])/,
+      /[Nn]ame:\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})(?=\s|$|[.,])/,
     ];
 
     for (const pattern of namePatterns) {
@@ -155,8 +155,8 @@ export class ResumeDataExtractor {
 
     // Extract location (city, state)
     const locationPatterns = [
-      /(?:located in|based in|from|live in)\s+([A-Z][a-z]+(?:,?\s+[A-Z]{2})?)/i,
-      /location:\s*([A-Z][a-z]+(?:,?\s+[A-Z]{2})?)/i,
+      /(?:located in|based in|from|live in)\s+([A-Z][a-z]+(?: [A-Z][a-z]+)?(?:,?\s+[A-Z]{2})?)/i,
+      /location:\s*([A-Z][a-z]+(?: [A-Z][a-z]+)?(?:,?\s+[A-Z]{2})?)/i,
     ];
 
     for (const pattern of locationPatterns) {
@@ -196,6 +196,7 @@ export class ResumeDataExtractor {
       "position at",
       "job at",
       "role at",
+      "worked as",
     ];
     const hasExperience = experienceKeywords.some((kw) =>
       fullText.toLowerCase().includes(kw)
