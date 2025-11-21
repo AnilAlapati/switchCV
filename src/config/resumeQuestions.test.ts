@@ -31,6 +31,7 @@ describe("resumeQuestions Configuration", () => {
         "skills",
         "projects",
         "summary",
+        "preferences",
       ]).toContain(question.category);
     });
   });

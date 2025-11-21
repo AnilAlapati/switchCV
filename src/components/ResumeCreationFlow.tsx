@@ -27,6 +27,13 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
   const [generationMessage, setGenerationMessage] = useState(
     "Generating your professional resume with AI..."
   );
+  const [preferences, setPreferences] = useState<{
+    template: string;
+    tone: string;
+  }>({
+    template: "modern",
+    tone: "professional",
+  });
 
   const { generateResumeContent, loading: isGenerating } = useAIResume();
 
@@ -74,11 +81,22 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
             : [],
         };
 
+        const selectedTemplate =
+          typeof answers.preferences_template === "string"
+            ? answers.preferences_template
+            : "modern";
+        const selectedTone =
+          typeof answers.preferences_tone === "string"
+            ? answers.preferences_tone
+            : "professional";
+
+        setPreferences({ template: selectedTemplate, tone: selectedTone });
+
         // Call AI to enhance resume
         const result = await generateResumeContent(
           resumeData,
-          "modern",
-          "professional"
+          selectedTemplate,
+          selectedTone
         );
 
         if (!result) {
@@ -188,19 +206,22 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
         };
         const result = await generateResumeContent(
           resumeData,
-          "modern",
-          "professional"
+          preferences.template,
+          preferences.tone
         );
 
         if (!result) {
           throw new Error("Failed to regenerate resume");
         }
 
+        const newSkills = [...resumeData.skills, ...result.skillSuggestions];
+        const newId = `resume_${Date.now()}`;
+
         const updatedResume: Resume = {
-          id: `resume_${Date.now()}`,
+          id: newId,
           title: generatedResume.title,
           summary: result.enhancedSummary,
-          skills: [...resumeData.skills, ...result.skillSuggestions],
+          skills: newSkills,
           experience: result.enhancedExperience.map((exp: any) => ({
             company: exp.company,
             role: exp.title,

@@ -19,7 +19,7 @@ export const MockResumeQAForm = ({ onComplete, onCancel }: any) => (
         onComplete({
           name: ["John", "Doe"], // Invalid name type
           email: null, // Invalid email type
-          skills: "React, TypeScript", // String skills
+          skills: null, // Invalid skills type
           summary: null, // Invalid summary
         })
       }
@@ -50,6 +50,18 @@ export const MockResumeQAForm = ({ onComplete, onCancel }: any) => (
     >
       Submit Missing Name
     </button>
+    <button
+      onClick={() =>
+        onComplete({
+          name: "John Doe",
+          email: "john@example.com",
+          skills: "React, TypeScript",
+          summary: "Experienced developer",
+        })
+      }
+    >
+      Submit String Skills
+    </button>
     <button onClick={onCancel}>Cancel QA</button>
   </div>
 );
@@ -63,6 +75,7 @@ export const MockResumeGenerationLoader = ({ status, message }: any) => (
 export const MockResumeReviewModal = ({ onAccept, onRewrite, resume }: any) => (
   <div data-testid="resume-review-modal">
     <h1>{resume.title}</h1>
+    <p>{resume.summary}</p>
     <button onClick={onAccept}>Accept</button>
     <button onClick={() => onRewrite("Make it better")}>Rewrite</button>
   </div>
