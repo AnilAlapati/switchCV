@@ -41,7 +41,7 @@ describe("RecruiterSearchPage", () => {
     (useAuth as jest.Mock).mockReturnValue({ user: null, loading: false });
     render(<RecruiterSearchPage />);
     expect(screen.getByText("Redirecting to sign in…")).toBeInTheDocument();
-    expect(mockRouter.replace).toHaveBeenCalledWith("/auth/sign-in");
+    expect(mockRouter.replace).toHaveBeenCalledWith("/auth?mode=verify-email");
   });
 
   it("should render search interface when authenticated", () => {

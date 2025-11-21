@@ -1,8 +1,15 @@
 import '@testing-library/jest-dom'
+import { TextEncoder, TextDecoder } from 'util'
 
 // Handle "use client" directive in tests
 // The babel plugin handles this, but we add a fallback
 global.__dirname = __dirname;
+
+// Polyfill TextEncoder for Node environment
+if (typeof global.TextEncoder === 'undefined') {
+  global.TextEncoder = TextEncoder;
+  global.TextDecoder = TextDecoder;
+}
 
 // Polyfill fetch and Response for Node environment
 if (!globalThis.fetch) {
@@ -88,18 +95,89 @@ if (typeof globalThis.Response === 'undefined') {
   };
 }
 
-// Mock Firebase before any imports
-jest.mock('firebase/app', () => ({
+// Mock firebase-admin before any imports
+jest.mock('firebase-admin', () => ({
   initializeApp: jest.fn(() => ({})),
+  credential: {
+    cert: jest.fn(),
+  },
+  firestore: {
+    FieldValue: {
+      serverTimestamp: jest.fn(() => ({ _type: 'serverTimestamp' })),
+    },
+    Timestamp: {
+      now: jest.fn(() => new Date()),
+    },
+  },
 }));
 
-jest.mock('firebase/auth', () => ({
-  getAuth: jest.fn(() => ({ currentUser: null })),
-  onAuthStateChanged: jest.fn(),
-  signInWithEmailAndPassword: jest.fn(),
-  signOut: jest.fn(),
-  createUserWithEmailAndPassword: jest.fn(),
+jest.mock('firebase-admin/app', () => ({
+  initializeApp: jest.fn(() => ({})),
+  getApp: jest.fn(() => ({})),
 }));
+
+jest.mock('@/lib/firebase-admin', () => ({
+  __esModule: true,
+  default: {
+    firestore: {
+      FieldValue: {
+        serverTimestamp: jest.fn(() => ({ _type: 'serverTimestamp' })),
+      },
+    },
+  },
+  adminDb: {
+    collection: jest.fn(() => ({
+      doc: jest.fn(() => ({
+        get: jest.fn().mockResolvedValue({ exists: false }),
+        set: jest.fn().mockResolvedValue({}),
+        update: jest.fn().mockResolvedValue({}),
+        delete: jest.fn().mockResolvedValue({}),
+      })),
+      where: jest.fn(() => ({
+        get: jest.fn().mockResolvedValue({ docs: [] }),
+      })),
+      add: jest.fn().mockResolvedValue({ id: 'test-id' }),
+      get: jest.fn().mockResolvedValue({ docs: [] }),
+    })),
+    batch: jest.fn(() => ({
+      set: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+      commit: jest.fn().mockResolvedValue(undefined),
+    })),
+  },
+  adminAuth: {
+    verifyIdToken: jest.fn(async () => ({
+      uid: 'test-user-id',
+      email: 'test@example.com',
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    })),
+    createUser: jest.fn(),
+    updateUser: jest.fn(),
+    deleteUser: jest.fn(),
+  },
+}));
+
+jest.mock('firebase/auth', () => {
+  const GoogleAuthProvider = class {
+    constructor() {
+      this.providerId = 'google.com';
+    }
+    setCustomParameters() {}
+  };
+  
+  return {
+    getAuth: jest.fn(() => ({ currentUser: null })),
+    onAuthStateChanged: jest.fn(),
+    signInWithEmailAndPassword: jest.fn(),
+    signOut: jest.fn(),
+    createUserWithEmailAndPassword: jest.fn(),
+    GoogleAuthProvider,
+    signInWithPopup: jest.fn(),
+    sendEmailVerification: jest.fn(),
+  };
+});
 
 jest.mock('firebase/firestore', () => ({
   getFirestore: jest.fn(() => ({})),
@@ -130,7 +208,8 @@ jest.mock('next/image', () => ({
   __esModule: true,
   default: (props) => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    return require('react').createElement('img', props);
+    const React = require('react');
+    return React.createElement('img', props);
   },
 }));
 

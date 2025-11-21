@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { CreateResumeHeader } from "@/components/create-resume/CreateResumeHeader";
@@ -31,6 +31,15 @@ export default function CreateResume() {
   } | null>(null);
   const [sessionData, setSessionData] = useState<any>(null);
   const [progress, setProgress] = useState<number>(0);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   useEffect(() => {
     if (!loading && (!user || needsEmailVerification)) {
@@ -115,7 +124,7 @@ export default function CreateResume() {
         setStage("complete");
         // Show success message and redirect after a moment
         setTimeout(() => {
-          router.push(`/resume/${data.resumeId}`);
+          router.push(`/resumes/${data.resumeId}`);
         }, 2000);
       } else {
         // Continue conversation - reset to input stage
@@ -160,11 +169,13 @@ export default function CreateResume() {
       <CreateResumeHeader aiConnectionStatus={aiConnectionStatus} />
 
       {shouldShowProgress && (
-        <div className="hidden lg:block fixed top-28 right-10 z-20 w-80">
-          <ResumeProgress
-            {...resumeProgressProps}
-            className="border-cyan-500/30 shadow-[0_25px_80px_rgba(6,182,212,0.35)]"
-          />
+        <div className="hidden lg:flex fixed top-28 right-10 z-20 justify-end pointer-events-none">
+          <div className="pointer-events-auto">
+            <ResumeProgress
+              {...resumeProgressProps}
+              className="border-cyan-500/30 shadow-[0_25px_80px_rgba(6,182,212,0.35)]"
+            />
+          </div>
         </div>
       )}
 
@@ -228,6 +239,7 @@ export default function CreateResume() {
                   </div>
                 </div>
               ))}
+              <div ref={messagesEndRef} />
             </div>
           )}
         </div>
