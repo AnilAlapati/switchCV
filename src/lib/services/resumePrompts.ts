@@ -82,7 +82,8 @@ export function buildConversationalPrompt(
     hasExperience?: boolean;
     hasEducation?: boolean;
     hasSkills?: boolean;
-  }
+  },
+  collectedData?: any
 ): string {
   const history = conversationHistory
     .slice(-6) // Last 6 messages for context
@@ -90,6 +91,14 @@ export function buildConversationalPrompt(
     .join("\n");
 
   let prompt = `${RESUME_ASSISTANT_SYSTEM_PROMPT}\n\n`;
+
+  if (collectedData) {
+    prompt += `CURRENTLY COLLECTED DATA:\n${JSON.stringify(
+      collectedData,
+      null,
+      2
+    )}\n\n`;
+  }
 
   if (history) {
     prompt += `Previous conversation:\n${history}\n\n`;
