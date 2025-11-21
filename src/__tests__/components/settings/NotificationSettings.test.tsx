@@ -21,7 +21,9 @@ describe("NotificationSettings", () => {
     // Make getPreferences hang to test loading state
     mockGetPreferences.mockImplementation(() => new Promise(() => {}));
     render(<NotificationSettings />);
-    expect(screen.getByText("Loading notification settings...")).toBeInTheDocument();
+    expect(
+      screen.getByText("Loading notification settings...")
+    ).toBeInTheDocument();
   });
 
   it("renders notification options after loading", async () => {
@@ -35,7 +37,9 @@ describe("NotificationSettings", () => {
     render(<NotificationSettings />);
 
     await waitFor(() => {
-      expect(screen.queryByText("Loading notification settings...")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Loading notification settings...")
+      ).not.toBeInTheDocument();
     });
 
     expect(screen.getByText("Notification Preferences")).toBeInTheDocument();
@@ -49,7 +53,9 @@ describe("NotificationSettings", () => {
     render(<NotificationSettings />);
 
     await waitFor(() => {
-      expect(screen.queryByText("Loading notification settings...")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Loading notification settings...")
+      ).not.toBeInTheDocument();
     });
 
     // Check if all toggles are enabled (default state)
@@ -60,13 +66,17 @@ describe("NotificationSettings", () => {
   });
 
   it("handles error when loading preferences fails", async () => {
-    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const consoleSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
     mockGetPreferences.mockRejectedValue(new Error("Failed to fetch"));
 
     render(<NotificationSettings />);
 
     await waitFor(() => {
-      expect(screen.getByText("Failed to load notification preferences")).toBeInTheDocument();
+      expect(
+        screen.getByText("Failed to load notification preferences")
+      ).toBeInTheDocument();
     });
 
     consoleSpy.mockRestore();
@@ -84,21 +94,29 @@ describe("NotificationSettings", () => {
     render(<NotificationSettings />);
 
     await waitFor(() => {
-      expect(screen.queryByText("Loading notification settings...")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Loading notification settings...")
+      ).not.toBeInTheDocument();
     });
 
     const toggles = screen.getAllByRole("button");
     fireEvent.click(toggles[0]); // Toggle Recruiter Requests
 
-    expect(mockUpdatePreferences).toHaveBeenCalledWith({ recruiterRequests: false });
-    
+    expect(mockUpdatePreferences).toHaveBeenCalledWith({
+      recruiterRequests: false,
+    });
+
     await waitFor(() => {
-      expect(screen.getByText("✓ Settings saved successfully")).toBeInTheDocument();
+      expect(
+        screen.getByText("✓ Settings saved successfully")
+      ).toBeInTheDocument();
     });
   });
 
   it("handles error when updating preferences fails", async () => {
-    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const consoleSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
     mockGetPreferences.mockResolvedValue({
       recruiterRequests: true,
       profileViews: true,
@@ -110,7 +128,9 @@ describe("NotificationSettings", () => {
     render(<NotificationSettings />);
 
     await waitFor(() => {
-      expect(screen.queryByText("Loading notification settings...")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Loading notification settings...")
+      ).not.toBeInTheDocument();
     });
 
     const toggles = screen.getAllByRole("button");
@@ -122,7 +142,7 @@ describe("NotificationSettings", () => {
 
     // Should revert the toggle visually (though in the component logic it sets state then reverts on error)
     // Since we can't easily check the intermediate state, we check the final state or the error message.
-    
+
     consoleSpy.mockRestore();
   });
 
@@ -139,7 +159,9 @@ describe("NotificationSettings", () => {
     render(<NotificationSettings />);
 
     await waitFor(() => {
-      expect(screen.queryByText("Loading notification settings...")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Loading notification settings...")
+      ).not.toBeInTheDocument();
     });
 
     const toggles = screen.getAllByRole("button");

@@ -46,30 +46,34 @@ describe("AccountInformation", () => {
   it("displays correct text for Recruiter account type", () => {
     render(<AccountInformation {...mockProps} isRecruiter={true} />);
     expect(screen.getByText("Recruiter")).toBeInTheDocument();
-    expect(screen.getByText("You have recruiter access and can search for candidates")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "You have recruiter access and can search for candidates"
+      )
+    ).toBeInTheDocument();
   });
 
   it("calls onRecruiterToggle when toggle is clicked", () => {
     render(<AccountInformation {...mockProps} />);
-    // The toggle button has no text content directly inside, but we can find it by role or class if needed. 
+    // The toggle button has no text content directly inside, but we can find it by role or class if needed.
     // Actually, there are two buttons. One is "Copy". The other is the toggle.
     // Let's find the toggle specifically. It's the one that's not "Copy".
     const buttons = screen.getAllByRole("button");
-    const toggleButton = buttons.find(b => !b.textContent?.includes("Copy"));
-    
+    const toggleButton = buttons.find((b) => !b.textContent?.includes("Copy"));
+
     if (toggleButton) {
-        fireEvent.click(toggleButton);
-        expect(mockProps.onRecruiterToggle).toHaveBeenCalledWith(true);
+      fireEvent.click(toggleButton);
+      expect(mockProps.onRecruiterToggle).toHaveBeenCalledWith(true);
     } else {
-        throw new Error("Toggle button not found");
+      throw new Error("Toggle button not found");
     }
   });
 
   it("disables toggle when saving is true", () => {
     render(<AccountInformation {...mockProps} saving={true} />);
     const buttons = screen.getAllByRole("button");
-    const toggleButton = buttons.find(b => !b.textContent?.includes("Copy"));
-    
+    const toggleButton = buttons.find((b) => !b.textContent?.includes("Copy"));
+
     expect(toggleButton).toBeDisabled();
   });
 });
