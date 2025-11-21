@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.cleanupAuditLogs = exports.notifyAdminSuspiciousActivity = exports.sendProfileViewDigest = exports.onRecruiterRequestApproved = exports.onRecruiterRequestCreated = exports.onUserCreated = exports.cleanupAnalyticsEvents = exports.aggregateAnalyticsDaily = exports.generateJobMatchSuggestions = exports.generateResumeContent = void 0;
+exports.cleanupAuditLogs = exports.notifyAdminSuspiciousActivity = exports.sendProfileViewDigest = exports.onRecruiterRequestApproved = exports.onRecruiterRequestCreated = exports.onUserCreated = exports.cleanupAnalyticsEvents = exports.aggregateAnalyticsDaily = exports.generateJobMatchSuggestions = exports.generateResumeContent = exports.aggregateGlobalStats = void 0;
 const admin = __importStar(require("firebase-admin"));
 const resumeService_1 = require("./resumeService");
 Object.defineProperty(exports, "generateResumeContent", { enumerable: true, get: function () { return resumeService_1.generateResumeContent; } });
@@ -42,6 +42,8 @@ Object.defineProperty(exports, "generateJobMatchSuggestions", { enumerable: true
 const analyticsService_1 = require("./analyticsService");
 Object.defineProperty(exports, "aggregateAnalyticsDaily", { enumerable: true, get: function () { return analyticsService_1.aggregateAnalyticsDaily; } });
 Object.defineProperty(exports, "cleanupAnalyticsEvents", { enumerable: true, get: function () { return analyticsService_1.cleanupAnalyticsEvents; } });
+var statsService_1 = require("./statsService");
+Object.defineProperty(exports, "aggregateGlobalStats", { enumerable: true, get: function () { return statsService_1.aggregateGlobalStats; } });
 admin.initializeApp();
 // Initialize environment variable warnings
 const HUGGINGFACE_TOKEN = process.env.HUGGINGFACE_TOKEN;

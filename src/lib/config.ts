@@ -23,7 +23,7 @@ export const getBaseUrl = (): string => {
 
 export const getResumeUrl = (resumeId: number | string): string => {
   const baseUrl = getBaseUrl();
-  return `${baseUrl}/resume/${resumeId}`;
+  return `${baseUrl}/resumes/${resumeId}`;
 };
 
 export const getDashboardUrl = (): string => {

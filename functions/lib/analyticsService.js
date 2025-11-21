@@ -127,7 +127,7 @@ exports.cleanupAnalyticsEvents = functions.pubsub
 function calculateEngagementMetrics(analyticsId, eventsSnap, now) {
     var _a, _b, _c, _d;
     let totalViews = 0;
-    let uniqueViewers = new Set();
+    const uniqueViewers = new Set();
     let totalSessionDuration = 0;
     let sessionCount = 0;
     const viewsBySource = {

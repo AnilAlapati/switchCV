@@ -80,7 +80,7 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
   };
 
   const handleViewResume = (resumeId: string) => {
-    window.open(`/resume/${resumeId}`, "_blank");
+    window.open(`/resumes/${resumeId}`, "_blank");
   };
 
   const handleAddSkill = (skill: string) => {

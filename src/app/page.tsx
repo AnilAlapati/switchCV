@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 const HERO_HIGHLIGHTS = [
   {
@@ -20,12 +22,6 @@ const HERO_HIGHLIGHTS = [
     description:
       "Send a secure URL that updates the instant you make a change.",
   },
-];
-
-const HERO_STATS = [
-  { value: "12k+", label: "Resumes published" },
-  { value: "48 hrs", label: "Average time to offer" },
-  { value: "98%", label: "Profile completion rate" },
 ];
 
 const FEATURE_CARDS = [
@@ -119,6 +115,39 @@ export default function Home() {
       duration: `${2 + Math.random() * 3}s`,
     }))
   );
+
+  const [stats, setStats] = useState({
+    resumes: "12k+",
+    users: "10k+",
+    completion: "98%",
+  });
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const statsDoc = await getDoc(doc(db, "analytics", "globalStats"));
+
+        if (statsDoc.exists()) {
+          const data = statsDoc.data();
+          setStats((prev) => ({
+            ...prev,
+            resumes: data.resumeCount ? `${data.resumeCount}+` : "12k+",
+            users: data.userCount ? `${data.userCount}+` : "10k+",
+          }));
+        }
+      } catch (error) {
+        console.error("Error fetching stats:", error);
+        // Fallback to static values on error
+        setStats({
+          resumes: "12k+",
+          users: "10k+",
+          completion: "98%",
+        });
+      }
+    };
+
+    fetchStats();
+  }, []);
 
   const canAccessDashboard =
     !!user &&
@@ -248,14 +277,26 @@ export default function Home() {
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 pt-6">
-                {HERO_STATS.map((stat) => (
-                  <div key={stat.label} className="space-y-1">
-                    <p className="text-3xl font-semibold text-white">
-                      {stat.value}
-                    </p>
-                    <p className="text-sm text-slate-400">{stat.label}</p>
-                  </div>
-                ))}
+                <div className="space-y-1">
+                  <p className="text-3xl font-semibold text-white">
+                    {stats.resumes}
+                  </p>
+                  <p className="text-sm text-slate-400">Resumes published</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-3xl font-semibold text-white">
+                    {stats.users}
+                  </p>
+                  <p className="text-sm text-slate-400">Active Users</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-3xl font-semibold text-white">
+                    {stats.completion}
+                  </p>
+                  <p className="text-sm text-slate-400">
+                    Profile completion rate
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -269,7 +310,7 @@ export default function Home() {
                         Active preview link
                       </p>
                       <p className="text-lg font-semibold text-white">
-                        switchcv.com/avery
+                        switchcv.com/resumes/1
                       </p>
                     </div>
                     <span className="px-3 py-1 rounded-full text-xs bg-emerald-400/10 text-emerald-300 border border-emerald-400/30">
@@ -283,7 +324,7 @@ export default function Home() {
                     </p>
                     <div className="space-y-3">
                       <p className="text-2xl font-semibold text-white">
-                        Avery Kim · Product Design Lead
+                        Anil · Senior Software Engineer
                       </p>
                       <p className="text-slate-300 text-sm leading-relaxed">
                         Scaled design systems across three platforms and led
