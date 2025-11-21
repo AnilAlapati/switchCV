@@ -126,7 +126,8 @@ export async function POST(request: NextRequest) {
     const prompt = buildConversationalPrompt(
       message,
       conversationHistory,
-      currentProgress
+      currentProgress,
+      conversationManager.getData()
     );
 
     // Step 4: Generate AI response
