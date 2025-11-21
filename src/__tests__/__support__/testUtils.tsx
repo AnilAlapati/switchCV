@@ -148,7 +148,14 @@ export const mockImplementations = {
   useAuth: (overrides = {}) => ({
     user: mockFactories.user(),
     loading: false,
-    error: null,
+    needsEmailVerification: false,
+    verificationEmail: "test@example.com",
+    signIn: jest.fn(),
+    signUp: jest.fn(),
+    signInWithGoogle: jest.fn(),
+    resendVerificationEmail: jest.fn(),
+    refreshUser: jest.fn(),
+    logout: jest.fn(),
     ...overrides,
   }),
 

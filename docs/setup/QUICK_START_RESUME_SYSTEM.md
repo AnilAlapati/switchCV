@@ -147,7 +147,15 @@ FIREBASE_CLIENT_EMAIL=your-client-email
 FIREBASE_PRIVATE_KEY=your-private-key
 ```
 
-### 3. Test the Flow
+### 3. Configure Firebase Authentication
+
+1. In the Firebase console, enable both **Email/Password** and **Google** providers under _Build → Authentication → Sign-in method_.
+2. Add your local dev URL (`http://localhost:3000`) and production domain to the authorized domains list.
+3. (Optional) Customize the verification email template so the CTA points users back to `/auth?mode=verify-email`.
+4. If you lock down OAuth consent, be sure to add the project support email and publish the app so Gmail accounts can complete the flow.
+5. Deploy updated environment variables (`NEXT_PUBLIC_FIREBASE_*`) to match the Firebase project you enabled providers on.
+
+### 4. Test the Flow
 
 ```bash
 # 1. Start dev server

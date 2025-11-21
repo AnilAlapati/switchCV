@@ -20,16 +20,16 @@ import { AccessRequestsCard } from "@/components/dashboard/recruiter/AccessReque
 import { CandidatesInteractedCard } from "@/components/dashboard/recruiter/CandidatesInteractedCard";
 
 export default function Dashboard() {
-  const { user, logout, loading } = useAuth();
+  const { user, logout, loading, needsEmailVerification } = useAuth();
   const { hasResume, resumeId, loading: resumeLoading } = useResume();
   const router = useRouter();
   const [userIsRecruiter, setUserIsRecruiter] = useState(false);
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push("/auth");
+    if (!loading && (!user || needsEmailVerification)) {
+      router.push("/auth?mode=verify-email");
     }
-  }, [user, loading, router]);
+  }, [user, loading, needsEmailVerification, router]);
 
   useEffect(() => {
     // Fetch user recruiter status
@@ -66,7 +66,7 @@ export default function Dashboard() {
     );
   }
 
-  if (!user) {
+  if (!user || needsEmailVerification) {
     return null;
   }
 

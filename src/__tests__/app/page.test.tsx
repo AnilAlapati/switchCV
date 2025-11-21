@@ -1,4 +1,5 @@
 // src/__tests__/app/page.test.tsx
+import type { ReactNode } from "react";
 import { render, screen } from "@/__tests__/__support__/testUtils";
 import Home from "../../app/page";
 
@@ -9,6 +10,21 @@ jest.mock("next/navigation", () => ({
     push: mockPush,
   }),
 }));
+
+jest.mock("next/link", () => {
+  return ({
+    children,
+    href,
+    ...rest
+  }: {
+    children: ReactNode;
+    href: string;
+  }) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  );
+});
 
 // Mock the useAuth hook (already mocked in jest.setup.js but keeping for clarity)
 jest.mock("../../hooks/useAuth", () => ({
@@ -33,43 +49,34 @@ describe("Home", () => {
     render(<Home />);
 
     expect(
-      screen.getByText(/Create and share your professional resume/)
+      screen.getByText(/Tell your career story with privacy-first controls/i)
     ).toBeInTheDocument();
   });
 
   it("should render get started button", () => {
     render(<Home />);
-
-    // The link text might be wrapped, so check for partial text
     const button = screen.queryByText(/Get Started/i);
-    // If direct text doesn't work, check if element exists by waiting for it
-    if (!button) {
-      const element = document.querySelector('a[href="/auth"]');
-      expect(element).toBeInTheDocument();
-    } else {
-      expect(button).toBeInTheDocument();
-    }
+    expect(button).toBeInTheDocument();
+
+    const signupLink = document.querySelector('a[href*="/auth?mode=signup"]');
+    expect(signupLink).not.toBeNull();
   });
 
   it("should render sign in button", () => {
     render(<Home />);
-
-    // Check for Sign In link in the DOM
     const signInElement = screen.queryByText(/Sign In/i);
-    if (!signInElement) {
-      // If text is wrapped, check for the link element directly
-      const links = screen.getAllByRole("link");
-      expect(links.length).toBeGreaterThanOrEqual(2);
-    } else {
-      expect(signInElement).toBeInTheDocument();
-    }
+    expect(signInElement).toBeInTheDocument();
+
+    const signInLink = document.querySelector('a[href="/auth"]');
+    expect(signInLink).not.toBeNull();
   });
 
   it("should render feature cards", () => {
     render(<Home />);
 
-    expect(screen.getByText("Privacy First")).toBeInTheDocument();
-    expect(screen.getByText("AI-Powered")).toBeInTheDocument();
-    expect(screen.getByText("Shareable Links")).toBeInTheDocument();
+    expect(screen.getByText("Privacy Controls")).toBeInTheDocument();
+    expect(screen.getByText("AI Resume Polish")).toBeInTheDocument();
+    expect(screen.getByText("Smart Sharing")).toBeInTheDocument();
+    expect(screen.getByText("Collaboration Ready")).toBeInTheDocument();
   });
 });

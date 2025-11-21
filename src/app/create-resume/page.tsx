@@ -16,7 +16,7 @@ interface Message {
 }
 
 export default function CreateResume() {
-  const { user, loading } = useAuth();
+  const { user, loading, needsEmailVerification } = useAuth();
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentInput, setCurrentInput] = useState("");
@@ -33,10 +33,10 @@ export default function CreateResume() {
   const [progress, setProgress] = useState<number>(0);
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push("/auth");
+    if (!loading && (!user || needsEmailVerification)) {
+      router.push("/auth?mode=verify-email");
     }
-  }, [user, loading, router]);
+  }, [user, loading, needsEmailVerification, router]);
 
   useEffect(() => {
     // Check AI connection status
@@ -143,7 +143,7 @@ export default function CreateResume() {
     );
   }
 
-  if (!user) {
+  if (!user || needsEmailVerification) {
     return null;
   }
 
