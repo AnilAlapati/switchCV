@@ -9,18 +9,21 @@ Production-grade conversational AI system that guides users through creating pro
 ### Core Components
 
 1. **ConversationManager** (`src/lib/services/conversationManager.ts`)
+
    - Tracks collected resume data
    - Calculates completion progress
    - Validates data completeness
    - Determines when resume can be created
 
 2. **ResumeDataExtractor** (`src/lib/services/resumeDataExtractor.ts`)
+
    - Extracts structured data from natural language
    - Uses multiple strategies: JSON parsing, regex patterns, NLP
    - Merges data from multiple conversation turns
    - Provides confidence scoring
 
 3. **Resume Prompts** (`src/lib/services/resumePrompts.ts`)
+
    - Structured AI prompts for guiding conversation
    - Completion detection logic
    - Progress-aware prompt engineering
@@ -73,13 +76,13 @@ Conversational resume generation endpoint.
 
 ```typescript
 {
-  response: string;                  // AI's response
-  model: string;                     // AI model used
-  progress: number;                  // Completion percentage (0-100)
+  response: string; // AI's response
+  model: string; // AI model used
+  progress: number; // Completion percentage (0-100)
   sessionData: {
     collectedData: Partial<ResumeDataRequirements>;
     progress: ConversationProgress;
-  };
+  }
 }
 ```
 
@@ -87,9 +90,9 @@ Conversational resume generation endpoint.
 
 ```typescript
 {
-  response: string;                  // Completion message
+  response: string; // Completion message
   model: string;
-  resumeId: string;                  // Numeric ID (e.g., "1", "2")
+  resumeId: string; // Numeric ID (e.g., "1", "2")
   numericId: number;
   created: true;
   progress: 100;
@@ -101,9 +104,9 @@ Conversational resume generation endpoint.
 ```typescript
 interface ResumeDataRequirements {
   // Required Fields (minimum)
-  name: string;                      // Full name
-  email: string;                     // Valid email
-  summary: string;                   // Professional summary
+  name: string; // Full name
+  email: string; // Valid email
+  summary: string; // Professional summary
 
   // Recommended Fields
   phone?: string;
@@ -114,17 +117,17 @@ interface ResumeDataRequirements {
 }
 
 interface ExperienceEntry {
-  title: string;                     // Job title
-  company: string;                   // Company name
-  duration: string;                  // Employment period
-  description: string;               // Role description
-  achievements?: string[];           // Key accomplishments
+  title: string; // Job title
+  company: string; // Company name
+  duration: string; // Employment period
+  description: string; // Role description
+  achievements?: string[]; // Key accomplishments
 }
 
 interface EducationEntry {
-  degree: string;                    // Degree type and field
-  institution: string;               // School name
-  year: string;                      // Graduation year
+  degree: string; // Degree type and field
+  institution: string; // School name
+  year: string; // Graduation year
   major?: string;
   gpa?: string;
 }
@@ -135,6 +138,7 @@ interface EducationEntry {
 ### Minimum Requirements
 
 Resume creation requires AT LEAST:
+
 - Name
 - Email (validated format)
 - Summary
@@ -142,12 +146,14 @@ Resume creation requires AT LEAST:
 ### Recommended Completion
 
 System considers resume "ready" when:
+
 - Minimum requirements met, OR
 - 60%+ of recommended fields collected
 
 ### Validation
 
 Before creating resume:
+
 1. Email format validation
 2. Non-empty arrays check
 3. Minimum data present
@@ -173,6 +179,7 @@ AI can return structured data:
 ### 2. Pattern Matching
 
 Regex patterns extract:
+
 - Names: "My name is John Doe"
 - Emails: email@example.com
 - Phone: 555-123-4567
@@ -182,6 +189,7 @@ Regex patterns extract:
 ### 3. Keyword Detection
 
 Detects mentions of:
+
 - Work experience keywords
 - Education keywords
 - Completion indicators
@@ -212,6 +220,7 @@ State is maintained via `sessionData` object:
 ### ResumeProgress
 
 Visual progress indicator showing:
+
 - Completion percentage
 - Collected fields (green badges)
 - Missing fields (gray badges)
@@ -247,6 +256,7 @@ Uses atomic Firestore counter for collision-free IDs:
 ### Validation Errors
 
 Returns validation feedback without creating resume:
+
 - Invalid email format
 - Missing required fields
 - Empty arrays
@@ -262,6 +272,7 @@ Returns validation feedback without creating resume:
 ### Integration Tests
 
 API route tests covering:
+
 - Full conversation flows
 - Resume creation
 - Error scenarios
@@ -342,6 +353,7 @@ Fallback chain configured in `src/config/aiModels.ts`
 ## Monitoring
 
 Key metrics to track:
+
 - Resume creation success rate
 - Average conversation length
 - Data extraction accuracy
@@ -355,6 +367,7 @@ MIT License - See LICENSE file for details
 ## Support
 
 For issues or questions:
+
 - GitHub Issues: [repository]/issues
 - Documentation: /docs
 - API Reference: /docs/api

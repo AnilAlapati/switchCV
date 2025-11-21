@@ -118,9 +118,9 @@ export async function POST(request: NextRequest) {
     const currentProgress = {
       hasName: !!conversationManager.getData().name,
       hasEmail: !!conversationManager.getData().email,
-      hasExperience: !!(conversationManager.getData().experience?.length),
-      hasEducation: !!(conversationManager.getData().education?.length),
-      hasSkills: !!(conversationManager.getData().skills?.length),
+      hasExperience: !!conversationManager.getData().experience?.length,
+      hasEducation: !!conversationManager.getData().education?.length,
+      hasSkills: !!conversationManager.getData().skills?.length,
     };
 
     const prompt = buildConversationalPrompt(
@@ -183,8 +183,7 @@ export async function POST(request: NextRequest) {
           userId,
           numericId,
           title:
-            `${resumeData.name || "User"}'s Resume` ||
-            "AI Generated Resume",
+            `${resumeData.name || "User"}'s Resume` || "AI Generated Resume",
           personalInfo: {
             name: resumeData.name || "",
             email: resumeData.email || "",

@@ -120,9 +120,7 @@ export function buildConversationalPrompt(
 /**
  * Build prompt for final resume creation
  */
-export function buildResumeCreationPrompt(
-  collectedData: any
-): string {
+export function buildResumeCreationPrompt(collectedData: any): string {
   return `Based on the following information, create a professional resume:
 
 ${JSON.stringify(collectedData, null, 2)}
