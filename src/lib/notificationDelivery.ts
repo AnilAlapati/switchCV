@@ -56,7 +56,7 @@ export function renderTemplate(
 export function sendInApp(notification: Notification): Promise<boolean> {
   return new Promise((resolve) => {
     try {
-      const inAppKey = `inapp_${notification.id}`;
+      const inAppKey = `in-app_${notification.id}`;
       deliveryStore[inAppKey] = true;
 
       updateNotificationStatus(notification.id, NotificationStatus.DELIVERED);
