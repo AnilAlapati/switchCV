@@ -143,10 +143,32 @@ export function createAuthProfileHelpers(db: Firestore | null | undefined) {
     }
   };
 
+  const releaseUsernameReservation = async (
+    uid: string,
+    username?: string
+  ): Promise<void> => {
+    if (firestoreUnavailable || !db || !username) {
+      return;
+    }
+
+    const normalized = sanitizeUsername(username);
+    const usernameRef = doc(db, "usernames", normalized);
+    const profileRef = doc(db, "users", uid);
+
+    await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(usernameRef);
+      if (snap.exists() && snap.data()?.uid === uid) {
+        transaction.delete(usernameRef);
+      }
+      transaction.delete(profileRef);
+    });
+  };
+
   return {
     firestoreUnavailable,
     reserveUsername,
     ensureUserProfile,
     allocateUsernameForUser,
+    releaseUsernameReservation,
   };
 }

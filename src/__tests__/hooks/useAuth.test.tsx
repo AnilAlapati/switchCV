@@ -12,6 +12,13 @@ import {
 } from "firebase/auth";
 import { createMockUser, TestWrapper } from "./useAuth.helpers";
 
+// Mock ConnectivityStatusProvider
+jest.mock("@/context/ConnectivityStatusProvider", () => ({
+  useConnectivityStatus: jest.fn(() => ({
+    firebase: { isReady: true },
+  })),
+}));
+
 // Mock Firebase auth/firestore exports
 jest.mock("@/lib/firebase", () => ({
   auth: {},
@@ -220,7 +227,7 @@ describe("useAuth", () => {
     });
 
     it("should handle generic sign in error", async () => {
-      const mockError = { message: "Network error" };
+      const mockError = new Error("Network error");
       mockSignInWithEmailAndPassword.mockRejectedValue(mockError);
 
       const { result } = renderHook(() => useAuth(), {
@@ -308,7 +315,7 @@ describe("useAuth", () => {
     });
 
     it("should handle generic sign up error", async () => {
-      const mockError = { message: "Network error" };
+      const mockError = new Error("Network error");
       mockCreateUserWithEmailAndPassword.mockRejectedValue(mockError);
 
       const { result } = renderHook(() => useAuth(), {

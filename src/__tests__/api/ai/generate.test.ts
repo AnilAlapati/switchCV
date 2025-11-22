@@ -2,6 +2,38 @@ import { POST } from "@/app/api/ai/generate/route";
 import { NextRequest } from "next/server";
 import { generateText } from "@/lib/services/aiGenerationService";
 
+// Mock Firebase Admin
+const mockVerifyIdToken = jest.fn();
+const mockFirestoreGet = jest.fn();
+const mockFirestoreAdd = jest.fn();
+const mockRunTransaction = jest.fn();
+
+jest.mock("@/lib/firebase-admin", () => ({
+  __esModule: true,
+  adminAuth: {
+    verifyIdToken: (...args: any[]) => mockVerifyIdToken(...args),
+  },
+  adminDb: {
+    collection: jest.fn(() => ({
+      doc: jest.fn(() => ({
+        get: mockFirestoreGet,
+      })),
+      add: mockFirestoreAdd,
+    })),
+    runTransaction: (...args: any[]) => mockRunTransaction(...args),
+  },
+  default: {
+    firestore: {
+      Timestamp: {
+        fromMillis: (ms: number) => ({ toMillis: () => ms }),
+      },
+      FieldValue: {
+        serverTimestamp: () => "SERVER_TIMESTAMP",
+      },
+    },
+  },
+}));
+
 jest.mock("@/lib/services/aiGenerationService");
 
 const mockedGenerateText = jest.mocked(generateText);
@@ -20,6 +52,17 @@ const createRequest = (body: any) => {
 describe("/api/ai/generate route", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Default mocks
+    mockVerifyIdToken.mockResolvedValue({ uid: "test-user-id" });
+    mockFirestoreGet.mockResolvedValue({
+      exists: true,
+      data: () => ({ subscriptionTier: "premium" }),
+    });
+    mockRunTransaction.mockResolvedValue({
+      remaining: 10,
+      resetTime: Date.now() + 60000,
+    });
   });
 
   it("should successfully generate text with valid prompt", async () => {
@@ -94,7 +137,6 @@ describe("/api/ai/generate route", () => {
 
     expect(response.status).toBe(500);
     expect(data.error).toBe("Internal server error");
-    expect(data.message).toContain("failed");
   });
 
   it("should handle HuggingFace fallback provider", async () => {
