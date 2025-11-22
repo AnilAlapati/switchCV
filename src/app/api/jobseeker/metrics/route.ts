@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
+import { handleApiError } from "@/lib/utils/api-helpers";
 
 export async function GET(request: NextRequest) {
   try {
@@ -7,10 +8,7 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get("userId");
 
     if (!userId) {
-      return NextResponse.json(
-        { error: "userId is required" },
-        { status: 400 }
-      );
+      return handleApiError(null, "userId is required", 400);
     }
 
     // Get job seeker metrics from Firestore
@@ -32,10 +30,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(metricsDoc.data());
   } catch (error) {
-    console.error("Error fetching job seeker metrics:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch job seeker metrics" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to fetch job seeker metrics");
   }
 }

@@ -10,13 +10,26 @@ jest.mock("@/lib/firebase-admin", () => ({
     verifyIdToken: jest.fn(),
   },
 }));
+jest.mock("@/lib/utils/api-helpers", () => ({
+  getAuthenticatedUserId: jest.fn(),
+  handleApiError: jest.fn((error, message, status = 500) => ({
+    status,
+    json: async () => ({ error: message, details: error?.message }),
+  })),
+}));
 
 import { POST } from "@/app/api/profiles/request-access/route";
 import { NextRequest } from "next/server";
 import { adminDb, adminAuth } from "@/lib/firebase-admin";
+import {
+  getAuthenticatedUserId,
+  handleApiError,
+} from "@/lib/utils/api-helpers";
 
 const mockAdminDb = adminDb as jest.Mocked<typeof adminDb>;
 const mockAdminAuth = adminAuth as jest.Mocked<typeof adminAuth>;
+const mockGetAuthenticatedUserId = getAuthenticatedUserId as jest.Mock;
+const mockHandleApiError = handleApiError as jest.Mock;
 
 const createDecodedToken = (uid: string) => ({
   uid,
@@ -111,9 +124,9 @@ describe("POST /api/profiles/request-access", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     setupFirestoreMocks();
-    mockAdminAuth.verifyIdToken.mockResolvedValue(
-      createDecodedToken("requester-123")
-    );
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "requester-123",
+    });
   });
 
   it("should create access request successfully", async () => {
@@ -134,6 +147,12 @@ describe("POST /api/profiles/request-access", () => {
   });
 
   it("should return 401 when missing auth header", async () => {
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      error: {
+        status: 401,
+        json: async () => ({ error: "Unauthorized" }),
+      },
+    });
     const response = await POST(buildRequest({ resumeId: "resume-1" }, null));
     const data = await response.json();
 

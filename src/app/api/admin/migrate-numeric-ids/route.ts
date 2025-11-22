@@ -11,17 +11,19 @@ import {
   migrateUserResumesToNumericIds,
   migrateAllResumesToNumericIds,
 } from "@/lib/resumeMigration";
+import {
+  getAuthenticatedUserId,
+  handleApiError,
+} from "@/lib/utils/api-helpers";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { userId, migrateAll } = body;
 
-    // For security, check if request is authenticated (optional - add your auth check)
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // For security, check if request is authenticated
+    const { error } = await getAuthenticatedUserId(request);
+    if (error) return error;
 
     let result;
 
@@ -43,18 +45,13 @@ export async function POST(request: NextRequest) {
         userId,
       });
     } else {
-      return NextResponse.json(
-        { error: "Provide either userId or migrateAll parameter" },
-        { status: 400 }
+      return handleApiError(
+        new Error("Provide either userId or migrateAll parameter"),
+        "Provide either userId or migrateAll parameter",
+        400
       );
     }
   } catch (error) {
-    console.error("Migration error:", error);
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Migration failed",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "Migration failed");
   }
 }

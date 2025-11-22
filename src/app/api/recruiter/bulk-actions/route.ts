@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { BulkAction } from "@/lib/recruiterDashboard.types";
 import { createBulkAction } from "@/lib/recruiterPipelineHelpers";
+import { handleApiError } from "@/lib/utils/api-helpers";
 
 interface CreateBulkActionRequest {
   action: "create";
@@ -50,12 +51,10 @@ export async function POST(request: NextRequest) {
           body as CreateBulkActionRequest;
 
         if (!actionType || !candidateIds || candidateIds.length === 0) {
-          return NextResponse.json(
-            {
-              error:
-                "Missing required fields: actionType, candidateIds (non-empty array)",
-            },
-            { status: 400 }
+          return handleApiError(
+            null,
+            "Missing required fields: actionType, candidateIds (non-empty array)",
+            400
           );
         }
 
@@ -80,17 +79,11 @@ export async function POST(request: NextRequest) {
         const action = actions.get(bulkActionId);
 
         if (!action) {
-          return NextResponse.json(
-            { error: "Bulk action not found" },
-            { status: 404 }
-          );
+          return handleApiError(null, "Bulk action not found", 404);
         }
 
         if (action.status !== "pending") {
-          return NextResponse.json(
-            { error: "Action is not in pending status" },
-            { status: 400 }
-          );
+          return handleApiError(null, "Action is not in pending status", 400);
         }
 
         // Simulate action execution
@@ -119,16 +112,14 @@ export async function POST(request: NextRequest) {
         const action = actions.get(bulkActionId);
 
         if (!action) {
-          return NextResponse.json(
-            { error: "Bulk action not found" },
-            { status: 404 }
-          );
+          return handleApiError(null, "Bulk action not found", 404);
         }
 
         if (action.status !== "pending") {
-          return NextResponse.json(
-            { error: "Only pending actions can be cancelled" },
-            { status: 400 }
+          return handleApiError(
+            null,
+            "Only pending actions can be cancelled",
+            400
           );
         }
 
@@ -144,14 +135,10 @@ export async function POST(request: NextRequest) {
       }
 
       default:
-        return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+        return handleApiError(null, "Invalid action", 400);
     }
   } catch (error) {
-    console.error("Bulk Actions API error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Internal server error");
   }
 }
 
@@ -163,10 +150,7 @@ export async function GET(request: NextRequest) {
     if (bulkActionId) {
       const action = actions.get(bulkActionId);
       if (!action) {
-        return NextResponse.json(
-          { error: "Bulk action not found" },
-          { status: 404 }
-        );
+        return handleApiError(null, "Bulk action not found", 404);
       }
 
       return NextResponse.json(
@@ -197,10 +181,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("GET Bulk Actions API error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Internal server error");
   }
 }

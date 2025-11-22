@@ -7,6 +7,16 @@ import {
   CandidatePriority,
 } from "@/lib/recruiterDashboard.types";
 
+// Mock api-helpers
+jest.mock("@/lib/utils/api-helpers", () => ({
+  handleApiError: jest.fn((error, message, status = 500) => {
+    return {
+      status,
+      json: async () => ({ error: message }),
+    };
+  }),
+}));
+
 // Mock the pipeline helper functions
 jest.mock("@/lib/recruiterPipeline", () => ({
   createCandidate: jest.fn(),

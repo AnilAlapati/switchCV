@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { handleApiError } from "@/lib/utils/api-helpers";
 
 // Model preferences (in order of preference)
 const MODEL_PREFERENCES = [
@@ -74,17 +75,10 @@ export async function GET() {
     } else {
       return NextResponse.json({
         connected: false,
-        error: "No AI provider configured",
+        message: "No AI provider configured",
       });
     }
   } catch (error) {
-    console.error("Error checking AI status:", error);
-    return NextResponse.json(
-      {
-        connected: false,
-        error: "Failed to check AI status",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to check AI status");
   }
 }

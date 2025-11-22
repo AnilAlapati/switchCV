@@ -11,6 +11,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { ProfileSearchResult } from "@/types/profileSearch";
+import { handleApiError } from "@/lib/utils/api-helpers";
 
 interface SearchRequest {
   query?: string;
@@ -59,9 +60,10 @@ export async function POST(request: NextRequest) {
       !filters?.slug &&
       Object.keys(filters || {}).length === 0
     ) {
-      return NextResponse.json(
-        { error: "Either search query or filters are required" },
-        { status: 400 }
+      return handleApiError(
+        null,
+        "Either search query or filters are required",
+        400
       );
     }
 
@@ -162,13 +164,6 @@ export async function POST(request: NextRequest) {
       hasMore: allResults.length > offset + resultLimit,
     });
   } catch (error) {
-    console.error("Search error:", error);
-    return NextResponse.json(
-      {
-        error: "Search failed",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "Search failed");
   }
 }

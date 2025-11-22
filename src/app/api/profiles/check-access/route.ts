@@ -10,6 +10,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { AccessCheckResponse } from "@/types/profileSearch";
+import { handleApiError } from "@/lib/utils/api-helpers";
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,10 +19,7 @@ export async function GET(request: NextRequest) {
     const currentUserId = "placeholder-uid";
 
     if (!resumeId) {
-      return NextResponse.json(
-        { error: "Resume ID is required" },
-        { status: 400 }
-      );
+      return handleApiError(null, "Resume ID is required", 400);
     }
 
     // 1. Get resume document
@@ -29,7 +27,7 @@ export async function GET(request: NextRequest) {
     const resumeDoc = await getDoc(resumeRef);
 
     if (!resumeDoc.exists()) {
-      return NextResponse.json({ error: "Resume not found" }, { status: 404 });
+      return handleApiError(null, "Resume not found", 404);
     }
 
     const resumeData = resumeDoc.data();
@@ -105,15 +103,6 @@ export async function GET(request: NextRequest) {
     };
     return NextResponse.json(response);
   } catch (error) {
-    console.error("Check access error:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to check access",
-        message: error instanceof Error ? error.message : "Unknown error",
-        hasAccess: false,
-        accessType: "none",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to check access");
   }
 }

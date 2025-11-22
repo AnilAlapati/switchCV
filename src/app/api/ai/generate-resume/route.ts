@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateText } from "@/lib/services/aiGenerationService";
+import { handleApiError } from "@/lib/utils/api-helpers";
 
 interface GenerateResumeRequest {
   resumeData: {
@@ -54,9 +55,10 @@ export async function POST(
     const { resumeData, tone = "professional" } = body;
 
     if (!resumeData) {
-      return NextResponse.json(
-        { success: false, error: "Missing resume data" },
-        { status: 400 }
+      return handleApiError(
+        new Error("Missing resume data"),
+        "Missing resume data",
+        400
       );
     }
 
@@ -89,20 +91,7 @@ export async function POST(
       provider,
     });
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-    console.error("❌ Error generating resume:", {
-      error: errorMessage,
-      timestamp: new Date().toISOString(),
-    });
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: errorMessage || "Failed to generate resume enhancement",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to generate resume enhancement");
   }
 }
 

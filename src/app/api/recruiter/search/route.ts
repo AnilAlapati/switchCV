@@ -10,6 +10,7 @@ import {
   limit as firestoreLimit,
 } from "firebase/firestore";
 import type { SearchResult } from "@/components/dashboard/RecruiterSearchForm";
+import { handleApiError } from "@/lib/utils/api-helpers";
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,10 +18,7 @@ export async function GET(request: NextRequest) {
     const searchQuery = searchParams.get("q");
 
     if (!searchQuery) {
-      return NextResponse.json(
-        { error: "Search query is required" },
-        { status: 400 }
-      );
+      return handleApiError(null, "Search query is required", 400);
     }
 
     const searchLower = searchQuery.toLowerCase();
@@ -138,20 +136,9 @@ export async function GET(request: NextRequest) {
         query: searchQuery,
       });
     } catch (error) {
-      console.error("Search error:", error);
-      return NextResponse.json(
-        {
-          error: "Search failed",
-          message: error instanceof Error ? error.message : "Unknown error",
-        },
-        { status: 500 }
-      );
+      return handleApiError(error, "Search failed");
     }
   } catch (error) {
-    console.error("Request handling error:", error);
-    return NextResponse.json(
-      { error: "Failed to process request" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to process request");
   }
 }

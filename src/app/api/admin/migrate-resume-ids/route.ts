@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { mapResumeId } from "@/lib/resumeIdMapping";
+import { handleApiError } from "@/lib/utils/api-helpers";
 
 /**
  * ADMIN ONLY: This endpoint migrates existing resumes to use the new ID mapping system
@@ -65,10 +66,6 @@ export async function POST() {
       nextId,
     });
   } catch (error) {
-    console.error("[Migration] Error:", error);
-    return NextResponse.json(
-      { error: "Migration failed", details: String(error) },
-      { status: 500 }
-    );
+    return handleApiError(error, "Migration failed");
   }
 }

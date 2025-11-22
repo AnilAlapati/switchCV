@@ -15,6 +15,7 @@ import {
   addCandidateToPipeline,
   moveCandidateInPipeline,
 } from "@/lib/recruiterPipelineHelpers";
+import { handleApiError } from "@/lib/utils/api-helpers";
 
 interface InitializeRequest {
   action: "initialize";
@@ -62,9 +63,10 @@ export async function POST(request: NextRequest) {
       case "initialize": {
         const { jobId, jobTitle } = body as InitializeRequest;
         if (!jobId || !jobTitle) {
-          return NextResponse.json(
-            { error: "Missing required fields: jobId and jobTitle" },
-            { status: 400 }
+          return handleApiError(
+            null,
+            "Missing required fields: jobId and jobTitle",
+            400
           );
         }
         const pipeline = initializePipeline(jobId, jobTitle);
@@ -86,10 +88,7 @@ export async function POST(request: NextRequest) {
         const pipeline = pipelines.get(pipelineId);
 
         if (!pipeline) {
-          return NextResponse.json(
-            { error: "Pipeline not found" },
-            { status: 404 }
-          );
+          return handleApiError(null, "Pipeline not found", 404);
         }
 
         const candidate = createCandidate(
@@ -119,10 +118,7 @@ export async function POST(request: NextRequest) {
         const pipeline = pipelines.get(pipelineId);
 
         if (!pipeline) {
-          return NextResponse.json(
-            { error: "Pipeline not found" },
-            { status: 404 }
-          );
+          return handleApiError(null, "Pipeline not found", 404);
         }
 
         const candidate = pipeline.columns
@@ -130,10 +126,7 @@ export async function POST(request: NextRequest) {
           .find((c) => c.id === candidateId);
 
         if (!candidate) {
-          return NextResponse.json(
-            { error: "Candidate not found" },
-            { status: 404 }
-          );
+          return handleApiError(null, "Candidate not found", 404);
         }
 
         const updated = moveCandidateInPipeline(pipeline, candidate, newStage);
@@ -154,10 +147,7 @@ export async function POST(request: NextRequest) {
         const pipeline = pipelines.get(pipelineId);
 
         if (!pipeline) {
-          return NextResponse.json(
-            { error: "Pipeline not found" },
-            { status: 404 }
-          );
+          return handleApiError(null, "Pipeline not found", 404);
         }
 
         const candidates = getCandidatesByStage(pipeline, stage);
@@ -174,13 +164,9 @@ export async function POST(request: NextRequest) {
       }
 
       default:
-        return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+        return handleApiError(null, "Invalid action", 400);
     }
   } catch (error) {
-    console.error("Pipeline API error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Internal server error");
   }
 }

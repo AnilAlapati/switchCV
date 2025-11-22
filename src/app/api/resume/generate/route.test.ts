@@ -325,8 +325,9 @@ describe("POST /api/resume/generate", () => {
     });
     const res = await POST(req);
     const data = await res.json();
-    expect(res.status).toBe(200);
-    expect(data.error).toBe("resume_creation_failed");
+    expect(res.status).toBe(500);
+    expect(data.error).toBe("Resume creation failed");
+    expect(data.details).toBe("DB Error");
   });
 
   it("should handle internal server error", async () => {

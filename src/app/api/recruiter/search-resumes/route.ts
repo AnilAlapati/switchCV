@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { getDocumentIdFromResumeId } from "@/lib/resumeIdMapping";
+import { handleApiError } from "@/lib/utils/api-helpers";
 
 interface SearchRequest {
   recruiterId: string; // Current recruiter's ID
@@ -25,10 +26,7 @@ export async function POST(request: NextRequest) {
     const { recruiterId, userId, skills, location } = body;
 
     if (!recruiterId) {
-      return NextResponse.json(
-        { error: "recruiterId is required" },
-        { status: 400 }
-      );
+      return handleApiError(null, "recruiterId is required", 400);
     }
 
     // Get recruiter's subscription tier
@@ -38,10 +36,7 @@ export async function POST(request: NextRequest) {
       .get();
 
     if (!recruiterDoc.exists) {
-      return NextResponse.json(
-        { error: "Recruiter not found" },
-        { status: 404 }
-      );
+      return handleApiError(null, "Recruiter not found", 404);
     }
 
     const recruiterData = recruiterDoc.data();
@@ -53,12 +48,10 @@ export async function POST(request: NextRequest) {
     // BASIC TIER: Search by user ID only, max 1 result
     if (subscriptionTier === "basic") {
       if (!userId) {
-        return NextResponse.json(
-          {
-            error: "userId is required for basic search",
-            notification: "Basic plan allows searching by candidate ID only",
-          },
-          { status: 400 }
+        return handleApiError(
+          new Error("userId is required for basic search"),
+          "userId is required for basic search",
+          400
         );
       }
 
@@ -256,8 +249,7 @@ export async function POST(request: NextRequest) {
           createdAt: resumeData.createdAt || new Date().toISOString(),
         });
       } catch (error) {
-        console.error("Basic search error:", error);
-        return NextResponse.json({ error: "Search failed" }, { status: 500 });
+        return handleApiError(error, "Search failed");
       }
 
       return NextResponse.json({
@@ -272,9 +264,10 @@ export async function POST(request: NextRequest) {
     // PREMIUM TIER: Search by skills and/or location, multiple results
     if (subscriptionTier === "premium") {
       if (!skills && !location) {
-        return NextResponse.json(
-          { error: "Either skills or location is required for premium search" },
-          { status: 400 }
+        return handleApiError(
+          null,
+          "Either skills or location is required for premium search",
+          400
         );
       }
 
@@ -343,8 +336,7 @@ export async function POST(request: NextRequest) {
           }
         }
       } catch (error) {
-        console.error("Premium search error:", error);
-        return NextResponse.json({ error: "Search failed" }, { status: 500 });
+        return handleApiError(error, "Search failed");
       }
 
       return NextResponse.json({
@@ -355,15 +347,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    return NextResponse.json(
-      { error: "Invalid subscription tier" },
-      { status: 400 }
-    );
+    return handleApiError(null, "Invalid subscription tier", 400);
   } catch (error) {
-    console.error("Request handling error:", error);
-    return NextResponse.json(
-      { error: "Failed to process request" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to process request");
   }
 }

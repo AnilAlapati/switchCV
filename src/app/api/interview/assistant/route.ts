@@ -10,6 +10,7 @@ import {
   createInterviewSession,
   getInterviewTips,
 } from "@/lib/interviewSession";
+import { handleApiError } from "@/lib/utils/api-helpers";
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,10 +26,7 @@ export async function POST(request: NextRequest) {
       } = body;
 
       if (!userId || !jobTitle) {
-        return NextResponse.json(
-          { error: "userId and jobTitle are required" },
-          { status: 400 }
-        );
+        return handleApiError(null, "userId and jobTitle are required", 400);
       }
 
       const session = createInterviewSession(
@@ -46,9 +44,10 @@ export async function POST(request: NextRequest) {
       const { sessionId, questionIndex, answer, duration } = body;
 
       if (!sessionId || questionIndex === undefined || !answer) {
-        return NextResponse.json(
-          { error: "sessionId, questionIndex, and answer are required" },
-          { status: 400 }
+        return handleApiError(
+          null,
+          "sessionId, questionIndex, and answer are required",
+          400
         );
       }
 
@@ -68,10 +67,7 @@ export async function POST(request: NextRequest) {
       const { sessionId } = body;
 
       if (!sessionId) {
-        return NextResponse.json(
-          { error: "sessionId is required" },
-          { status: 400 }
-        );
+        return handleApiError(null, "sessionId is required", 400);
       }
 
       // Note: In production, fetch and update session in database
@@ -84,20 +80,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(
-      {
-        error:
-          "Invalid action. Use: start-session, submit-answer, or complete-session",
-      },
-      { status: 400 }
+    return handleApiError(
+      null,
+      "Invalid action. Use: start-session, submit-answer, or complete-session",
+      400
     );
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json(
-      { error: "Failed to process request", details: errorMessage },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to process request");
   }
 }
 
@@ -112,16 +101,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(tips, { status: 200 });
     }
 
-    return NextResponse.json(
-      { error: "Invalid action. Use: ?action=tips" },
-      { status: 400 }
-    );
+    return handleApiError(null, "Invalid action. Use: ?action=tips", 400);
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json(
-      { error: "Failed to fetch data", details: errorMessage },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to fetch data");
   }
 }

@@ -3,6 +3,7 @@ import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { tokenGenerator, TokenVerificationResult } from "@/lib/tokenGenerator";
 import { SecureAccessToken } from "@/types/profileSearch";
+import { handleApiError } from "@/lib/utils/api-helpers";
 
 /**
  * GET /api/recruiters/verify-token?token=XXX&recruiterId=YYY
@@ -23,12 +24,10 @@ export async function GET(request: NextRequest) {
     const ipAddress = searchParams.get("ipAddress");
 
     if (!token && !tokenId) {
-      return NextResponse.json(
-        {
-          valid: false,
-          error: "Token or tokenId is required",
-        },
-        { status: 400 }
+      return handleApiError(
+        new Error("Token or tokenId is required"),
+        "Token or tokenId is required",
+        400
       );
     }
 
@@ -50,12 +49,10 @@ export async function GET(request: NextRequest) {
       // If token provided with ID, verify they match
       if (tokenId && verification.valid && verification.payload) {
         if (verification.payload.tokenId !== tokenId) {
-          return NextResponse.json(
-            {
-              valid: false,
-              error: "Token mismatch",
-            },
-            { status: 400 }
+          return handleApiError(
+            new Error("Token mismatch"),
+            "Token mismatch",
+            400
           );
         }
       }
@@ -63,12 +60,10 @@ export async function GET(request: NextRequest) {
       // If recruiter ID provided, verify it matches
       if (recruiterId && verification.valid && verification.payload) {
         if (verification.payload.recruiterId !== recruiterId) {
-          return NextResponse.json(
-            {
-              valid: false,
-              error: "Token not issued to this recruiter",
-            },
-            { status: 403 }
+          return handleApiError(
+            new Error("Token not issued to this recruiter"),
+            "Token not issued to this recruiter",
+            403
           );
         }
       }
@@ -81,7 +76,7 @@ export async function GET(request: NextRequest) {
         revoked: true,
         revokedAt: tokenData.revokedAt,
         revokeReason: tokenData.revokeReason,
-        error: "Token has been revoked",
+        message: "Token has been revoked",
       });
     }
 
@@ -91,13 +86,10 @@ export async function GET(request: NextRequest) {
       tokenData.ipAddressWhitelist.length > 0
     ) {
       if (!ipAddress || !tokenData.ipAddressWhitelist.includes(ipAddress)) {
-        return NextResponse.json(
-          {
-            valid: false,
-            error: "IP address not whitelisted for this token",
-            currentIp: ipAddress,
-          },
-          { status: 403 }
+        return handleApiError(
+          new Error("IP address not whitelisted for this token"),
+          "IP address not whitelisted for this token",
+          403
         );
       }
     }
@@ -114,7 +106,7 @@ export async function GET(request: NextRequest) {
       if (typeof expiresAtNum !== "number") {
         return NextResponse.json({
           valid: false,
-          error: "Token expiration missing",
+          message: "Token expiration missing",
         });
       }
 
@@ -123,7 +115,7 @@ export async function GET(request: NextRequest) {
           valid: false,
           expired: true,
           expiresAt: tokenData.expiresAt,
-          error: "Token has expired",
+          message: "Token has expired",
         });
       }
 
@@ -167,19 +159,12 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       valid: false,
-      error: verification.error || "Token verification failed",
+      message: verification.error || "Token verification failed",
       details: verification,
     });
   } catch (error) {
     console.error("❌ Verify token error:", error);
-    return NextResponse.json(
-      {
-        valid: false,
-        error: "Failed to verify token",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to verify token");
   }
 }
 
@@ -193,12 +178,10 @@ export async function POST(request: NextRequest) {
     const { token, tokenId, recruiterId, ipAddress } = body;
 
     if (!token && !tokenId) {
-      return NextResponse.json(
-        {
-          valid: false,
-          error: "Token or tokenId is required",
-        },
-        { status: 400 }
+      return handleApiError(
+        new Error("Token or tokenId is required"),
+        "Token or tokenId is required",
+        400
       );
     }
 
@@ -217,13 +200,6 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     console.error("❌ Verify token error:", error);
-    return NextResponse.json(
-      {
-        valid: false,
-        error: "Failed to verify token",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to verify token");
   }
 }

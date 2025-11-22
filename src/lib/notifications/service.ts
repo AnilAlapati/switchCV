@@ -48,7 +48,10 @@ export class NotificationService {
     return this.repository.getNotification(id);
   }
 
-  async getUserNotifications(userId: string, limit: number = 50): Promise<Notification[]> {
+  async getUserNotifications(
+    userId: string,
+    limit: number = 50
+  ): Promise<Notification[]> {
     return this.repository.getUserNotifications(userId, limit);
   }
 
@@ -112,7 +115,9 @@ export class NotificationService {
     return undefined;
   }
 
-  async savePreference(preference: NotificationPreference): Promise<NotificationPreference> {
+  async savePreference(
+    preference: NotificationPreference
+  ): Promise<NotificationPreference> {
     return this.repository.savePreference(preference);
   }
 

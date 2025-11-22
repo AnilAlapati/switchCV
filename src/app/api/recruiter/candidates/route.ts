@@ -15,6 +15,7 @@ import {
   updateCandidatePriority,
   addCandidateNote,
 } from "@/lib/recruiterPipeline";
+import { handleApiError } from "@/lib/utils/api-helpers";
 
 interface CreateRequest {
   action: "create";
@@ -57,9 +58,10 @@ export async function POST(request: NextRequest) {
           body as CreateRequest;
 
         if (!name || !email || !position) {
-          return NextResponse.json(
-            { error: "Missing required fields: name, email, position" },
-            { status: 400 }
+          return handleApiError(
+            null,
+            "Missing required fields: name, email, position",
+            400
           );
         }
 
@@ -88,10 +90,7 @@ export async function POST(request: NextRequest) {
         const candidate = candidates.get(candidateId);
 
         if (!candidate) {
-          return NextResponse.json(
-            { error: "Candidate not found" },
-            { status: 404 }
-          );
+          return handleApiError(null, "Candidate not found", 404);
         }
 
         const updated = updateCandidatePriority(candidate, priority);
@@ -112,18 +111,16 @@ export async function POST(request: NextRequest) {
           body as AddNoteRequest;
 
         if (!candidateId || !userId || !content) {
-          return NextResponse.json(
-            { error: "Missing required fields: candidateId, userId, content" },
-            { status: 400 }
+          return handleApiError(
+            null,
+            "Missing required fields: candidateId, userId, content",
+            400
           );
         }
 
         const candidate = candidates.get(candidateId);
         if (!candidate) {
-          return NextResponse.json(
-            { error: "Candidate not found" },
-            { status: 404 }
-          );
+          return handleApiError(null, "Candidate not found", 404);
         }
 
         const note = addCandidateNote(
@@ -150,14 +147,10 @@ export async function POST(request: NextRequest) {
       }
 
       default:
-        return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+        return handleApiError(null, "Invalid action", 400);
     }
   } catch (error) {
-    console.error("Candidates API error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Internal server error");
   }
 }
 
@@ -168,10 +161,7 @@ export async function GET(request: NextRequest) {
     if (candidateId) {
       const candidate = candidates.get(candidateId);
       if (!candidate) {
-        return NextResponse.json(
-          { error: "Candidate not found" },
-          { status: 404 }
-        );
+        return handleApiError(null, "Candidate not found", 404);
       }
 
       const candidateNotes = notes.get(candidateId) || [];
@@ -196,10 +186,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("GET Candidates API error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Internal server error");
   }
 }

@@ -5,6 +5,24 @@
 import { POST } from "@/app/api/ai/generate/route";
 import { NextRequest } from "next/server";
 import { generateText } from "@/lib/services/aiGenerationService";
+import {
+  getAuthenticatedUserId,
+  handleApiError,
+} from "@/lib/utils/api-helpers";
+
+// Mock api-helpers
+jest.mock("@/lib/utils/api-helpers", () => ({
+  getAuthenticatedUserId: jest.fn(),
+  handleApiError: jest.fn((error, message, status = 500) => {
+    return {
+      status: status,
+      json: async () => ({
+        error: message || "Internal server error",
+        details: error instanceof Error ? error.message : "Unknown error",
+      }),
+    };
+  }),
+}));
 
 // Mock Firebase Admin
 const mockVerifyIdToken = jest.fn();
@@ -58,6 +76,9 @@ describe("POST /api/ai/generate", () => {
     jest.clearAllMocks();
 
     // Default mocks
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "test-user-id",
+    });
     mockVerifyIdToken.mockResolvedValue({ uid: "test-user-id" });
     mockFirestoreGet.mockResolvedValue({
       exists: true,
@@ -175,7 +196,7 @@ describe("POST /api/ai/generate", () => {
     const data = await response.json();
 
     expect(response.status).toBe(500);
-    expect(data.error).toBe("Internal server error");
+    expect(data.error).toBe("AI text generation failed");
     expect(generateText).toHaveBeenCalledWith("Test prompt", 100, 0.5);
     expect(generateText).toHaveBeenCalledTimes(1);
   });
@@ -191,7 +212,7 @@ describe("POST /api/ai/generate", () => {
     const data = await response.json();
 
     expect(response.status).toBe(500);
-    expect(data.error).toBe("Internal server error");
+    expect(data.error).toBe("AI text generation failed");
     expect(generateText).toHaveBeenCalledTimes(1);
   });
 

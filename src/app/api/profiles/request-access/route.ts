@@ -1,41 +1,30 @@
 // src/app/api/profiles/request-access/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { adminAuth, adminDb } from "@/lib/firebase-admin";
+import { adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
+import {
+  getAuthenticatedUserId,
+  handleApiError,
+} from "@/lib/utils/api-helpers";
 
 interface RequestAccessPayload {
   resumeId: string;
   message?: string;
 }
 
-async function verifyAuth(request: NextRequest): Promise<string | null> {
-  const authHeader = request.headers.get("Authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
-  try {
-    const idToken = authHeader.split("Bearer ")[1];
-    const decodedToken = await adminAuth.verifyIdToken(idToken);
-    return decodedToken.uid;
-  } catch (error) {
-    console.error("Request access auth error", error);
-    return null;
-  }
-}
-
 export async function POST(request: NextRequest) {
   try {
-    const currentUserId = await verifyAuth(request);
-    if (!currentUserId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { userId: currentUserId, error } = await getAuthenticatedUserId(
+      request
+    );
+    if (error) return error;
+    if (!currentUserId) return handleApiError(null, "Unauthorized", 401);
 
     const { resumeId, message } =
       (await request.json()) as RequestAccessPayload;
 
     if (!resumeId) {
-      return NextResponse.json(
-        { error: "Resume ID is required" },
-        { status: 400 }
-      );
+      return handleApiError(null, "Resume ID is required", 400);
     }
 
     const currentUserDoc = await adminDb
@@ -49,16 +38,17 @@ export async function POST(request: NextRequest) {
     const resumeDoc = await resumeRef.get();
 
     if (!resumeDoc.exists) {
-      return NextResponse.json({ error: "Resume not found" }, { status: 404 });
+      return handleApiError(null, "Resume not found", 404);
     }
 
     const resumeData = resumeDoc.data();
     const resumeOwnerId = resumeData?.userId;
 
     if (currentUserId === resumeOwnerId) {
-      return NextResponse.json(
-        { error: "Cannot request access to your own resume" },
-        { status: 400 }
+      return handleApiError(
+        null,
+        "Cannot request access to your own resume",
+        400
       );
     }
 
@@ -69,9 +59,10 @@ export async function POST(request: NextRequest) {
       .get();
 
     if (!existingRequests.empty) {
-      return NextResponse.json(
-        { error: "You already have a pending request for this resume" },
-        { status: 409 }
+      return handleApiError(
+        null,
+        "You already have a pending request for this resume",
+        409
       );
     }
 
@@ -116,13 +107,6 @@ export async function POST(request: NextRequest) {
       message: "Request sent! The resume owner will review it soon.",
     });
   } catch (error) {
-    console.error("Request access error:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to create access request",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to create access request");
   }
 }

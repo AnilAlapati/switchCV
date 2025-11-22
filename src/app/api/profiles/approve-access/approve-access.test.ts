@@ -2,6 +2,11 @@
  * Tests for /api/profiles/approve-access route
  */
 
+jest.mock("firebase-admin/firestore", () => ({
+  FieldValue: {
+    serverTimestamp: jest.fn(() => "SERVER_TIMESTAMP"),
+  },
+}));
 jest.mock("@/lib/firebase-admin", () => ({
   adminDb: {
     collection: jest.fn(),
@@ -11,23 +16,31 @@ jest.mock("@/lib/firebase-admin", () => ({
   },
 }));
 
+// Mock api-helpers
+jest.mock("@/lib/utils/api-helpers", () => ({
+  getAuthenticatedUserId: jest.fn(),
+  handleApiError: jest.fn((error, message, status = 500) => {
+    return {
+      status: status,
+      json: async () => ({
+        error: message,
+        details: error instanceof Error ? error.message : "Unknown error",
+      }),
+    };
+  }),
+  verifyResumeOwnership: jest.fn(),
+}));
+
 import { POST } from "@/app/api/profiles/approve-access/route";
 import { NextRequest } from "next/server";
-import { adminDb, adminAuth } from "@/lib/firebase-admin";
+import { adminDb } from "@/lib/firebase-admin";
+import {
+  getAuthenticatedUserId,
+  verifyResumeOwnership,
+  handleApiError,
+} from "@/lib/utils/api-helpers";
 
 const mockAdminDb = adminDb as jest.Mocked<typeof adminDb>;
-const mockAdminAuth = adminAuth as jest.Mocked<typeof adminAuth>;
-
-const createDecodedToken = (uid: string) => ({
-  uid,
-  aud: "test-audience",
-  auth_time: Date.now() / 1000,
-  exp: Date.now() / 1000 + 3600,
-  firebase: { identities: {}, sign_in_provider: "password" },
-  iat: Date.now() / 1000,
-  iss: "https://securetoken.google.com/test-project",
-  sub: uid,
-});
 
 const buildRequest = (
   payload: unknown,
@@ -115,9 +128,15 @@ describe("POST /api/profiles/approve-access", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     setupFirestoreMocks();
-    mockAdminAuth.verifyIdToken.mockResolvedValue(
-      createDecodedToken("owner-123")
-    );
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "owner-123",
+    });
+    (verifyResumeOwnership as jest.Mock).mockResolvedValue({
+      success: true,
+      userId: "owner-123",
+      docRef: resumeDocRef,
+      resumeData: { userId: "owner-123" },
+    });
   });
 
   const basePayload = {
@@ -141,6 +160,9 @@ describe("POST /api/profiles/approve-access", () => {
   });
 
   it("returns 401 when auth header missing", async () => {
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      error: handleApiError(new Error("Unauthorized"), "Unauthorized", 401),
+    });
     const response = await POST(buildRequest(basePayload, null));
     const data = await response.json();
 
@@ -165,7 +187,14 @@ describe("POST /api/profiles/approve-access", () => {
   });
 
   it("returns 404 if resume not found", async () => {
-    resumeDocRef.get.mockResolvedValue({ exists: false });
+    (verifyResumeOwnership as jest.Mock).mockResolvedValue({
+      success: false,
+      error: handleApiError(
+        new Error("Resume not found"),
+        "Resume not found",
+        404
+      ),
+    });
 
     const response = await POST(buildRequest(basePayload));
 
@@ -173,9 +202,13 @@ describe("POST /api/profiles/approve-access", () => {
   });
 
   it("returns 403 if current user is not owner", async () => {
-    resumeDocRef.get.mockResolvedValue({
-      exists: true,
-      data: () => ({ userId: "other-user" }),
+    (verifyResumeOwnership as jest.Mock).mockResolvedValue({
+      success: false,
+      error: handleApiError(
+        new Error("Forbidden: You do not own this resume"),
+        "Forbidden: You do not own this resume",
+        403
+      ),
     });
 
     const response = await POST(buildRequest(basePayload));
@@ -209,7 +242,9 @@ describe("POST /api/profiles/approve-access", () => {
   });
 
   it("handles errors gracefully", async () => {
-    resumeDocRef.get.mockRejectedValue(new Error("Firestore offline"));
+    // Mock verifyResumeOwnership to throw or return success but subsequent calls fail
+    // Here we want to test the try-catch block in the route
+    requestDocRef.get.mockRejectedValue(new Error("Firestore offline"));
 
     const response = await POST(buildRequest(basePayload));
     const data = await response.json();

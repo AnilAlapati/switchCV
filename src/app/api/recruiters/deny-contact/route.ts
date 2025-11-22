@@ -9,6 +9,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { RecruiterContactRequest } from "@/types/profileSearch";
+import { handleApiError } from "@/lib/utils/api-helpers";
 
 interface DenyContactPayload {
   requestId: string;
@@ -31,12 +32,10 @@ export async function POST(request: NextRequest) {
     const payload = (await request.json()) as DenyContactPayload;
 
     if (!payload.requestId || !payload.reason || !payload.adminUserId) {
-      return NextResponse.json(
-        {
-          error: "Missing required fields",
-          required: ["requestId", "reason", "adminUserId"],
-        },
-        { status: 400 }
+      return handleApiError(
+        new Error("Missing required fields"),
+        "Missing required fields",
+        400
       );
     }
 
@@ -45,19 +44,21 @@ export async function POST(request: NextRequest) {
     const requestDoc = await getDoc(requestRef);
 
     if (!requestDoc.exists()) {
-      return NextResponse.json({ error: "Request not found" }, { status: 404 });
+      return handleApiError(
+        new Error("Request not found"),
+        "Request not found",
+        404
+      );
     }
 
     const contactRequest = requestDoc.data() as RecruiterContactRequest;
 
     // Verify request is still pending
     if (contactRequest.status !== "pending") {
-      return NextResponse.json(
-        {
-          error: `Request is already ${contactRequest.status}`,
-          status: contactRequest.status,
-        },
-        { status: 400 }
+      return handleApiError(
+        new Error(`Request is already ${contactRequest.status}`),
+        `Request is already ${contactRequest.status}`,
+        400
       );
     }
 
@@ -116,12 +117,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("❌ Deny contact error:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to deny contact request",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to deny contact request");
   }
 }

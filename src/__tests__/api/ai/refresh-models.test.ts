@@ -157,7 +157,7 @@ describe("/api/ai/refresh-models route", () => {
     const data = await response.json();
 
     expect(response.status).toBe(500);
-    expect(data.error).toBe("Failed to fetch models");
+    expect(data.error).toBe("Failed to refresh models");
   });
 
   it("should handle 500 server error from Gemini API", async () => {
@@ -172,7 +172,7 @@ describe("/api/ai/refresh-models route", () => {
     const data = await response.json();
 
     expect(response.status).toBe(500);
-    expect(data.error).toBe("Failed to fetch models");
+    expect(data.error).toBe("Failed to refresh models");
   });
 
   it("should handle 429 rate limit error", async () => {
@@ -187,7 +187,7 @@ describe("/api/ai/refresh-models route", () => {
     const data = await response.json();
 
     expect(response.status).toBe(500);
-    expect(data.error).toBe("Failed to fetch models");
+    expect(data.error).toBe("Failed to refresh models");
   });
 
   it("should handle network errors", async () => {
@@ -197,7 +197,7 @@ describe("/api/ai/refresh-models route", () => {
     const data = await response.json();
 
     expect(response.status).toBe(500);
-    expect(data.error).toBe("Failed to fetch models");
+    expect(data.error).toBe("Failed to refresh models");
   });
 
   it("should include timestamp in response", async () => {

@@ -15,6 +15,7 @@ import {
   scheduleInterview,
   getUpcomingInterviews,
 } from "@/lib/recruiterPipeline";
+import { handleApiError } from "@/lib/utils/api-helpers";
 
 interface ScheduleRequest {
   action: "schedule";
@@ -76,12 +77,10 @@ export async function POST(request: NextRequest) {
           !scheduledTime ||
           !interviewers
         ) {
-          return NextResponse.json(
-            {
-              error:
-                "Missing required fields: candidateId, jobId, type, scheduledTime, interviewers",
-            },
-            { status: 400 }
+          return handleApiError(
+            null,
+            "Missing required fields: candidateId, jobId, type, scheduledTime, interviewers",
+            400
           );
         }
 
@@ -111,10 +110,7 @@ export async function POST(request: NextRequest) {
         const interview = interviews.get(interviewId);
 
         if (!interview) {
-          return NextResponse.json(
-            { error: "Interview not found" },
-            { status: 404 }
-          );
+          return handleApiError(null, "Interview not found", 404);
         }
 
         const updated: Interview = {
@@ -139,10 +135,7 @@ export async function POST(request: NextRequest) {
         const interview = interviews.get(interviewId);
 
         if (!interview) {
-          return NextResponse.json(
-            { error: "Interview not found" },
-            { status: 404 }
-          );
+          return handleApiError(null, "Interview not found", 404);
         }
 
         const updated: Interview = {
@@ -179,14 +172,10 @@ export async function POST(request: NextRequest) {
       }
 
       default:
-        return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+        return handleApiError(null, "Invalid action", 400);
     }
   } catch (error) {
-    console.error("Interviews API error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Internal server error");
   }
 }
 
@@ -198,10 +187,7 @@ export async function GET(request: NextRequest) {
     if (interviewId) {
       const interview = interviews.get(interviewId);
       if (!interview) {
-        return NextResponse.json(
-          { error: "Interview not found" },
-          { status: 404 }
-        );
+        return handleApiError(null, "Interview not found", 404);
       }
 
       return NextResponse.json(
@@ -239,10 +225,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("GET Interviews API error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Internal server error");
   }
 }

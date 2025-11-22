@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb, adminAuth } from "@/lib/firebase-admin";
+import { adminDb } from "@/lib/firebase-admin";
 import { sanitizeResumePayload } from "@/lib/utils/resumeEditor";
+import {
+  getAuthenticatedUserId,
+  fetchResumeDocument,
+  handleApiError,
+  verifyResumeOwnership,
+} from "@/lib/utils/api-helpers";
 
 export async function GET(
   request: NextRequest,
@@ -10,27 +16,24 @@ export async function GET(
     const { id } = await params;
 
     if (!id) {
-      return NextResponse.json(
-        { error: "Resume ID is required" },
-        { status: 400 }
+      return handleApiError(
+        new Error("Resume ID is required"),
+        "Resume ID is required",
+        400
       );
     }
 
-    // 1. Try to fetch from 'resumes' collection (new system)
-    let docRef = adminDb.collection("resumes").doc(id);
-    let docSnap = await docRef.get();
+    const resumeDoc = await fetchResumeDocument(id);
 
-    // 2. Fallback to 'resumeProfiles' (legacy)
-    if (!docSnap.exists) {
-      docRef = adminDb.collection("resumeProfiles").doc(id);
-      docSnap = await docRef.get();
+    if (!resumeDoc) {
+      return handleApiError(
+        new Error("Resume not found"),
+        "Resume not found",
+        404
+      );
     }
 
-    if (!docSnap.exists) {
-      return NextResponse.json({ error: "Resume not found" }, { status: 404 });
-    }
-
-    const resumeData = docSnap.data();
+    const { data: resumeData } = resumeDoc;
     const isPublic =
       resumeData?.isPublic ||
       resumeData?.visibility === "public" ||
@@ -43,44 +46,34 @@ export async function GET(
     }
 
     // If private, verify authentication
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { userId: requestUserId, error: authError } =
+      await getAuthenticatedUserId(request);
+    if (authError) {
+      return authError;
     }
 
-    const token = authHeader.split("Bearer ")[1];
-    try {
-      const decodedToken = await adminAuth.verifyIdToken(token);
-      const requestUserId = decodedToken.uid;
-      const ownerId = resumeData?.userId;
+    const ownerId = resumeData?.userId;
 
-      if (requestUserId !== ownerId) {
-        // Check if user is admin (optional, but good for support)
-        const userDoc = await adminDb
-          .collection("users")
-          .doc(requestUserId)
-          .get();
-        const userData = userDoc.data();
-        if (userData?.role !== "admin") {
-          return NextResponse.json(
-            { error: "Permission denied" },
-            { status: 403 }
-          );
-        }
+    if (requestUserId !== ownerId) {
+      // Check if user is admin (optional, but good for support)
+      const userDoc = await adminDb
+        .collection("users")
+        .doc(requestUserId!)
+        .get();
+      const userData = userDoc.data();
+      if (userData?.role !== "admin") {
+        return handleApiError(
+          new Error("Permission denied"),
+          "Permission denied",
+          403
+        );
       }
-    } catch (authError) {
-      console.error("Auth verification failed:", authError);
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
     // 4. Return Data
     return NextResponse.json(resumeData);
   } catch (error) {
-    console.error("Error fetching resume:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Error fetching resume");
   }
 }
 
@@ -94,48 +87,19 @@ export async function PATCH(
     const { isPublic } = body;
 
     if (typeof isPublic !== "boolean") {
-      return NextResponse.json(
-        { error: "Invalid visibility state" },
-        { status: 400 }
+      return handleApiError(
+        new Error("Invalid visibility state"),
+        "Invalid visibility state",
+        400
       );
     }
 
-    // Verify Authentication
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const verification = await verifyResumeOwnership(request, id);
+    if (!verification.success) {
+      return verification.error;
     }
 
-    const token = authHeader.split("Bearer ")[1];
-    let requestUserId: string;
-
-    try {
-      const decodedToken = await adminAuth.verifyIdToken(token);
-      requestUserId = decodedToken.uid;
-    } catch {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
-
-    // Get Document Reference
-    let docRef = adminDb.collection("resumes").doc(id);
-    let docSnap = await docRef.get();
-
-    // Fallback to legacy
-    if (!docSnap.exists) {
-      docRef = adminDb.collection("resumeProfiles").doc(id);
-      docSnap = await docRef.get();
-    }
-
-    if (!docSnap.exists) {
-      return NextResponse.json({ error: "Resume not found" }, { status: 404 });
-    }
-
-    const resumeData = docSnap.data();
-
-    // Verify Ownership
-    if (resumeData?.userId !== requestUserId) {
-      return NextResponse.json({ error: "Permission denied" }, { status: 403 });
-    }
+    const { docRef } = verification;
 
     // Update Visibility
     await docRef.update({
@@ -146,11 +110,7 @@ export async function PATCH(
 
     return NextResponse.json({ success: true, isPublic });
   } catch (error) {
-    console.error("Error updating resume visibility:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Error updating resume visibility");
   }
 }
 
@@ -161,54 +121,33 @@ export async function PUT(
   try {
     const { id } = await params;
     if (!id) {
-      return NextResponse.json(
-        { error: "Resume ID is required" },
-        { status: 400 }
+      return handleApiError(
+        new Error("Resume ID is required"),
+        "Resume ID is required",
+        400
       );
     }
 
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const verification = await verifyResumeOwnership(request, id);
+    if (!verification.success) {
+      return verification.error;
     }
 
-    const token = authHeader.split("Bearer ")[1];
-    let requestUserId: string;
-
-    try {
-      const decodedToken = await adminAuth.verifyIdToken(token);
-      requestUserId = decodedToken.uid;
-    } catch {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
+    const {
+      userId: requestUserId,
+      docRef,
+      resumeData: existingData,
+    } = verification;
 
     const body = await request.json();
     const resumePayload = body?.resume;
 
     if (!resumePayload || typeof resumePayload !== "object") {
-      return NextResponse.json(
-        { error: "Invalid resume payload" },
-        { status: 400 }
+      return handleApiError(
+        new Error("Invalid resume payload"),
+        "Invalid resume payload",
+        400
       );
-    }
-
-    let docRef = adminDb.collection("resumes").doc(id);
-    let docSnap = await docRef.get();
-
-    if (!docSnap.exists) {
-      docRef = adminDb.collection("resumeProfiles").doc(id);
-      docSnap = await docRef.get();
-    }
-
-    if (!docSnap.exists) {
-      return NextResponse.json({ error: "Resume not found" }, { status: 404 });
-    }
-
-    const existingData = docSnap.data() ?? {};
-    const ownerId = existingData.userId;
-
-    if (!ownerId || ownerId !== requestUserId) {
-      return NextResponse.json({ error: "Permission denied" }, { status: 403 });
     }
 
     const sanitizedResume = sanitizeResumePayload(resumePayload);
@@ -226,7 +165,7 @@ export async function PUT(
     try {
       await adminDb
         .collection("users")
-        .doc(ownerId)
+        .doc(requestUserId)
         .collection("resumes")
         .doc(id)
         .set(
@@ -234,10 +173,10 @@ export async function PUT(
             ...sanitizedResume,
             updatedAt: timestamp,
             lastUpdatedAt: timestamp,
-            userId: ownerId,
-            numericId: existingData.numericId,
-            isPublic: existingData.isPublic,
-            visibility: existingData.visibility,
+            userId: requestUserId,
+            numericId: existingData?.numericId,
+            isPublic: existingData?.isPublic,
+            visibility: existingData?.visibility,
           },
           { merge: true }
         );
@@ -254,11 +193,11 @@ export async function PUT(
         .doc(id)
         .set(
           {
-            title: sanitizedResume.title ?? existingData.title,
+            title: sanitizedResume.title ?? existingData?.title,
             updatedAt: timestamp,
-            userId: ownerId,
-            numericId: existingData.numericId,
-            isPublic: existingData.isPublic,
+            userId: requestUserId,
+            numericId: existingData?.numericId,
+            isPublic: existingData?.isPublic,
           },
           { merge: true }
         );
@@ -277,10 +216,6 @@ export async function PUT(
       },
     });
   } catch (error) {
-    console.error("Error updating resume:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Error updating resume");
   }
 }

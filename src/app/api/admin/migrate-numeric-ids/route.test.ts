@@ -134,7 +134,8 @@ describe("POST /api/admin/migrate-numeric-ids", () => {
     const data = await response.json();
 
     expect(response.status).toBe(500);
-    expect(data.error).toBe("Database migration failed");
+    expect(data.error).toBe("Migration failed");
+    expect(data.details).toBe("Database migration failed");
 
     expect(migrateAllResumesToNumericIds).toHaveBeenCalledTimes(1);
   });
@@ -159,7 +160,8 @@ describe("POST /api/admin/migrate-numeric-ids", () => {
     const data = await response.json();
 
     expect(response.status).toBe(500);
-    expect(data.error).toBe("User migration failed");
+    expect(data.error).toBe("Migration failed");
+    expect(data.details).toBe("User migration failed");
 
     expect(migrateUserResumesToNumericIds).toHaveBeenCalledWith(userId);
     expect(migrateUserResumesToNumericIds).toHaveBeenCalledTimes(1);
