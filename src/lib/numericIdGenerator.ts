@@ -18,7 +18,6 @@
  */
 
 import { adminDb } from "@/lib/firebase-admin";
-import * as admin from "firebase-admin";
 import { getRecycledIdFromPool } from "@/lib/resumeIdRecycler";
 
 const ID_COUNTER_DOC = "system/resumeIdCounter";
