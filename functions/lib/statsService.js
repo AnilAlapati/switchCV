@@ -36,39 +36,65 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.aggregateGlobalStats = void 0;
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
+const USERS_COLLECTION = "users";
+const RESUME_COLLECTION = "resumeProfiles";
+const ANALYTICS_COLLECTION = "analytics";
+const GLOBAL_STATS_DOC = "globalStats";
+/**
+ * Get Firestore instance (assumes admin is already initialized in index.ts)
+ */
+const getFirestore = () => {
+    return admin.firestore();
+};
+const fetchCount = async (query, metricName) => {
+    const snapshot = await query.count().get();
+    const rawCount = snapshot.data().count;
+    if (typeof rawCount !== "number") {
+        throw new Error(`Unable to read aggregate count for ${metricName}`);
+    }
+    return rawCount;
+};
 /**
  * Aggregate global statistics (users, resumes) periodically.
  * Runs every hour.
  */
 exports.aggregateGlobalStats = functions.pubsub
-    .schedule("0 * * * *") // Every hour
+    .schedule("0 * * * *")
     .timeZone("UTC")
     .onRun(async (context) => {
-    console.log("📊 Starting global stats aggregation...");
-    const db = admin.firestore();
+    const start = Date.now();
+    functions.logger.info("Global stats aggregation started", {
+        eventId: context.eventId,
+    });
     try {
-        // Count users
-        const usersSnap = await db.collection("users").count().get();
-        const userCount = usersSnap.data().count;
-        // Count published resumes
-        const resumesSnap = await db
-            .collection("resumeProfiles")
-            .where("published", "==", true)
-            .count()
-            .get();
-        const resumeCount = resumesSnap.data().count;
-        // Update global stats document
-        await db.collection("analytics").doc("globalStats").set({
+        const db = getFirestore();
+        const [userCount, resumeCount] = await Promise.all([
+            fetchCount(db.collection(USERS_COLLECTION), "userCount"),
+            fetchCount(db.collection(RESUME_COLLECTION).where("published", "==", true), "resumeCount"),
+        ]);
+        const payload = {
             userCount,
             resumeCount,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        }, { merge: true });
-        console.log(`✅ Global stats updated: ${userCount} users, ${resumeCount} published resumes`);
-        return null;
+            lastRunEventId: context.eventId,
+        };
+        await db
+            .collection(ANALYTICS_COLLECTION)
+            .doc(GLOBAL_STATS_DOC)
+            .set(payload, { merge: true });
+        functions.logger.info("Global stats aggregation completed", {
+            userCount,
+            resumeCount,
+            durationMs: Date.now() - start,
+        });
     }
     catch (error) {
-        console.error("Error aggregating global stats:", error);
-        return null;
+        const message = error instanceof Error ? error.message : String(error);
+        functions.logger.error("Global stats aggregation failed", {
+            message,
+            stack: error instanceof Error ? error.stack : undefined,
+        });
+        throw error;
     }
 });
 //# sourceMappingURL=statsService.js.map
