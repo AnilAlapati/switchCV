@@ -2,58 +2,119 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { templateService } from "@/lib/services/templateService";
 import { TemplateRenderer } from "@/components/resume/TemplateRenderer";
 import { ResumeTemplate } from "@/types";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function ResumeView() {
   const { id } = useParams();
+  const { user, loading: authLoading } = useAuth();
   const [resume, setResume] = useState<any>(null);
   const [template, setTemplate] = useState<ResumeTemplate | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const toggleVisibility = async () => {
+    if (!resume || !user || isUpdating) return;
+
+    setIsUpdating(true);
+    const newVisibility = !resume.isPublic;
+
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch(`/api/resumes/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ isPublic: newVisibility }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update visibility");
+      }
+
+      setResume((prev: any) => ({
+        ...prev,
+        isPublic: newVisibility,
+        visibility: newVisibility ? "public" : "private",
+      }));
+    } catch (error) {
+      console.error("Error updating visibility:", error);
+      alert("Failed to update visibility settings");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   useEffect(() => {
     const fetchResumeAndTemplate = async () => {
-      if (!id) return;
+      if (!id || authLoading) return;
+
       try {
-        // Try fetching from 'resumes' collection first (new system)
-        let docRef = doc(db, "resumes", id as string);
-        let docSnap = await getDoc(docRef);
+        console.log("Fetching resume", id);
 
-        if (!docSnap.exists()) {
-          // Fallback to 'resumeProfiles' (legacy)
-          docRef = doc(db, "resumeProfiles", id as string);
-          docSnap = await getDoc(docRef);
+        // Use API route instead of direct Firestore access to bypass client-side rule issues
+        const headers: HeadersInit = {};
+        if (user) {
+          const token = await user.getIdToken();
+          headers["Authorization"] = `Bearer ${token}`;
         }
 
-        if (docSnap.exists()) {
-          const resumeData = docSnap.data();
-          setResume(resumeData);
+        const response = await fetch(`/api/resumes/${id}`, {
+          headers,
+        });
 
-          // Fetch template if ID exists, otherwise default to standard
-          const templateId = resumeData.templateId || "standard-v1";
-          const fetchedTemplate = await templateService.getTemplateById(
-            templateId
-          );
-          setTemplate(fetchedTemplate);
-        } else {
-          console.error("Resume not found");
+        if (!response.ok) {
+          if (response.status === 404) throw new Error("Resume not found");
+          if (response.status === 401)
+            throw new Error("Unauthorized - Please log in");
+          if (response.status === 403)
+            throw new Error("Permission denied - You do not own this resume");
+          throw new Error("Failed to fetch resume");
         }
+
+        const resumeData = await response.json();
+        setResume(resumeData);
+
+        // Fetch template if ID exists, otherwise default to standard
+        const templateId = resumeData.templateId || "standard-v1";
+        const fetchedTemplate = await templateService.getTemplateById(
+          templateId
+        );
+        setTemplate(fetchedTemplate);
       } catch (error: any) {
         console.error("Error fetching resume:", error);
-        if (error.code === "permission-denied") {
-          // Handle permission denied as not found (likely not published)
-          console.log("Permission denied - resume likely not published");
-        }
+        setError(error.message || "Error loading resume");
       } finally {
         setLoading(false);
       }
     };
 
     fetchResumeAndTemplate();
-  }, [id]);
+  }, [id, authLoading, user]);
+
+  if (authLoading)
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
+        Checking authentication...
+      </div>
+    );
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white flex-col gap-4">
+        <p>You must be logged in to view this resume.</p>
+        <a href="/auth" className="bg-blue-600 px-4 py-2 rounded">
+          Go to Login
+        </a>
+      </div>
+    );
+  }
 
   if (loading)
     return (
@@ -61,6 +122,16 @@ export default function ResumeView() {
         Loading resume...
       </div>
     );
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white flex-col gap-2">
+        <p className="text-red-400 text-xl">Error: {error}</p>
+        <p className="text-gray-400 text-sm">User ID: {user.uid}</p>
+      </div>
+    );
+  }
+
   if (!resume)
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
@@ -71,7 +142,27 @@ export default function ResumeView() {
   // Use the new TemplateRenderer if a template is loaded
   if (template) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white p-8 font-sans">
+      <div className="min-h-screen bg-gray-900 text-white p-8 font-sans relative">
+        {/* Privacy Toggle */}
+        <div className="fixed top-4 right-4 z-50 flex items-center gap-3 bg-gray-800 p-3 rounded-lg shadow-lg border border-gray-700 print:hidden">
+          <span className="text-sm font-medium text-gray-300">
+            {resume.isPublic ? "Public" : "Private"}
+          </span>
+          <button
+            onClick={toggleVisibility}
+            disabled={isUpdating}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 ${
+              resume.isPublic ? "bg-green-500" : "bg-gray-600"
+            }`}
+          >
+            <span
+              className={`${
+                resume.isPublic ? "translate-x-6" : "translate-x-1"
+              } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+            />
+          </button>
+        </div>
+
         <TemplateRenderer template={template} data={resume} />
       </div>
     );

@@ -31,22 +31,43 @@ export const useResume = () => {
         setError(null);
 
         // Query for user's resume profiles
-        const resumesRef = collection(db, "resumeProfiles");
+        // 1. Try new 'resumes' collection first
+        const resumesRef = collection(db, "resumes");
         const q = query(resumesRef, where("userId", "==", user.uid));
         const querySnapshot = await getDocs(q);
 
         if (!querySnapshot.empty) {
           // Get the first (most recent) resume
           const resumeDoc = querySnapshot.docs[0];
+          const data = resumeDoc.data();
           const resumeData: ResumeProfileWithId = {
-            ...(resumeDoc.data() as ResumeProfile),
+            ...(data as any), // Cast to any to handle structure differences
             id: resumeDoc.id,
+            numericId: data.numericId,
           };
-          console.log("Resume loaded:", resumeData);
+          console.log("Resume loaded from 'resumes':", resumeData);
           setResume(resumeData);
         } else {
-          console.log("No resume found for user");
-          setResume(null);
+          // 2. Fallback to legacy 'resumeProfiles'
+          const legacyResumesRef = collection(db, "resumeProfiles");
+          const legacyQ = query(
+            legacyResumesRef,
+            where("userId", "==", user.uid)
+          );
+          const legacySnapshot = await getDocs(legacyQ);
+
+          if (!legacySnapshot.empty) {
+            const resumeDoc = legacySnapshot.docs[0];
+            const resumeData: ResumeProfileWithId = {
+              ...(resumeDoc.data() as ResumeProfile),
+              id: resumeDoc.id,
+            };
+            console.log("Resume loaded from 'resumeProfiles':", resumeData);
+            setResume(resumeData);
+          } else {
+            console.log("No resume found for user");
+            setResume(null);
+          }
         }
       } catch (err) {
         console.error("Error fetching resume:", err);

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import { POST } from "./route";
 import { NextRequest } from "next/server";
 import { getAuth } from "firebase-admin/auth";
@@ -134,15 +135,11 @@ describe("POST /api/resume/generate", () => {
         return { doc: jest.fn().mockReturnValue({ set: mockSet }) };
       if (name === "users")
         return {
-          doc: jest
-            .fn()
-            .mockReturnValue({
-              collection: jest
-                .fn()
-                .mockReturnValue({
-                  doc: jest.fn().mockReturnValue({ set: mockSet }),
-                }),
+          doc: jest.fn().mockReturnValue({
+            collection: jest.fn().mockReturnValue({
+              doc: jest.fn().mockReturnValue({ set: mockSet }),
             }),
+          }),
         };
       return { doc: jest.fn() };
     });
@@ -416,15 +413,11 @@ describe("POST /api/resume/generate", () => {
         return { doc: jest.fn().mockReturnValue({ set: mockSet }) };
       if (name === "users")
         return {
-          doc: jest
-            .fn()
-            .mockReturnValue({
-              collection: jest
-                .fn()
-                .mockReturnValue({
-                  doc: jest.fn().mockReturnValue({ set: mockSet }),
-                }),
+          doc: jest.fn().mockReturnValue({
+            collection: jest.fn().mockReturnValue({
+              doc: jest.fn().mockReturnValue({ set: mockSet }),
             }),
+          }),
         };
       return { doc: jest.fn() };
     });

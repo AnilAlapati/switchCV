@@ -139,7 +139,9 @@ export async function POST(request: NextRequest) {
 
     // Check if user explicitly wants to create/finish
     const userWantsToCreate =
-      /create|generate|finish|done|make it|go ahead/i.test(message);
+      /create|generate|finish|done|make it|go ahead|yes|sure|ok|yep|yeah/i.test(
+        message
+      );
 
     // Step 3b: Build AI prompt with progress context and config
     const currentProgress = {
@@ -160,7 +162,7 @@ export async function POST(request: NextRequest) {
     );
 
     // Step 4: Generate AI response
-    const aiResponse = await generateText(prompt, 1000, 0.7); // Increased token limit for JSON generation
+    const aiResponse = await generateText(prompt, 4000, 0.7); // Increased token limit for JSON generation
     const responseText = aiResponse.text;
 
     // Step 5: Check if AI indicates completion or if we have enough data
@@ -169,8 +171,9 @@ export async function POST(request: NextRequest) {
     // In beta mode, use completion threshold from config; otherwise use readiness
     let shouldCreateResume = false;
     if (config.maxQuestionsInBetaMode) {
-      // Beta mode: create resume when threshold is met OR user asks for it
+      // Beta mode: create resume when threshold is met OR user asks for it OR AI says so
       shouldCreateResume =
+        aiIndicatesCompletion ||
         progress.completenessPercentage >= config.completionThreshold ||
         (userWantsToCreate && progress.hasMinimumData);
     } else {
