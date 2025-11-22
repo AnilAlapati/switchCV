@@ -66,7 +66,7 @@ describe("Numeric ID Generator", () => {
       expect(mockDoc).toHaveBeenCalledWith("system/resumeIdCounter");
       expect(mockGet).toHaveBeenCalled();
       expect(mockSet).toHaveBeenCalledWith({
-        currentId: 0,
+        currentId: 1,
         lastResetAt: expect.any(String),
         createdAt: expect.any(String),
       });

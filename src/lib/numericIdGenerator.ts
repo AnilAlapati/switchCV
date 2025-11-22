@@ -40,7 +40,7 @@ export const initializeIdCounter = async (): Promise<void> => {
     if (!counterSnap.exists) {
       console.log("🔢 Initializing resume ID counter...");
       await counterRef.set({
-        currentId: 0,
+        currentId: 1, // Start at 1 so next ID is 2
         lastResetAt: new Date().toISOString(),
         createdAt: new Date().toISOString(),
       });
@@ -107,7 +107,8 @@ export const generateNumericResumeId = async (): Promise<number> => {
         }
 
         const currentId = counterDoc.data()?.currentId || 0;
-        const newId = currentId + 1;
+        // Skip ID 1 as it is reserved for system/demo use
+        const newId = currentId === 0 ? 2 : currentId + 1;
 
         if (newId > MAX_NUMERIC_ID) {
           throw new Error(
