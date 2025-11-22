@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Skill, Experience, Education, Project, ResumeProfile } from "@/types";
 
 /**
@@ -21,12 +21,12 @@ export function useProfileForm(initialProfile?: Partial<ResumeProfile>) {
     }
   );
 
-  const updateProfile = (updates: Partial<ResumeProfile>) => {
+  const updateProfile = useCallback((updates: Partial<ResumeProfile>) => {
     setProfile((prev) => ({ ...prev, ...updates }));
-  };
+  }, []);
 
   // ===== Experience Management =====
-  const addExperience = () => {
+  const addExperience = useCallback(() => {
     const newExperience: Experience = {
       company: "",
       role: "",
@@ -34,91 +34,120 @@ export function useProfileForm(initialProfile?: Partial<ResumeProfile>) {
       description: "",
       visibility: "public",
     };
-    updateProfile({
-      experience: [...(profile.experience || []), newExperience],
-    });
-  };
+    setProfile((prev) => ({
+      ...prev,
+      experience: [...(prev.experience || []), newExperience],
+    }));
+  }, []);
 
-  const updateExperience = (index: number, updates: Partial<Experience>) => {
-    const updated = [...(profile.experience || [])];
-    updated[index] = { ...updated[index], ...updates };
-    updateProfile({ experience: updated });
-  };
+  const updateExperience = useCallback(
+    (index: number, updates: Partial<Experience>) => {
+      setProfile((prev) => {
+        const experience = [...(prev.experience || [])];
+        experience[index] = { ...experience[index], ...updates };
+        return { ...prev, experience };
+      });
+    },
+    []
+  );
 
-  const removeExperience = (index: number) => {
-    const updated = (profile.experience || []).filter((_, i) => i !== index);
-    updateProfile({ experience: updated });
-  };
+  const removeExperience = useCallback((index: number) => {
+    setProfile((prev) => ({
+      ...prev,
+      experience: (prev.experience || []).filter((_, i) => i !== index),
+    }));
+  }, []);
 
   // ===== Education Management =====
-  const addEducation = () => {
+  const addEducation = useCallback(() => {
     const newEducation: Education = {
       institution: "",
       degree: "",
       startDate: "",
       visibility: "public",
     };
-    updateProfile({
-      education: [...(profile.education || []), newEducation],
-    });
-  };
+    setProfile((prev) => ({
+      ...prev,
+      education: [...(prev.education || []), newEducation],
+    }));
+  }, []);
 
-  const updateEducation = (index: number, updates: Partial<Education>) => {
-    const updated = [...(profile.education || [])];
-    updated[index] = { ...updated[index], ...updates };
-    updateProfile({ education: updated });
-  };
+  const updateEducation = useCallback(
+    (index: number, updates: Partial<Education>) => {
+      setProfile((prev) => {
+        const education = [...(prev.education || [])];
+        education[index] = { ...education[index], ...updates };
+        return { ...prev, education };
+      });
+    },
+    []
+  );
 
-  const removeEducation = (index: number) => {
-    const updated = (profile.education || []).filter((_, i) => i !== index);
-    updateProfile({ education: updated });
-  };
+  const removeEducation = useCallback((index: number) => {
+    setProfile((prev) => ({
+      ...prev,
+      education: (prev.education || []).filter((_, i) => i !== index),
+    }));
+  }, []);
 
   // ===== Skills Management =====
-  const addSkill = () => {
+  const addSkill = useCallback(() => {
     const newSkill: Skill = {
       name: "",
       level: "intermediate",
       visibility: "public",
     };
-    updateProfile({
-      skills: [...(profile.skills || []), newSkill],
+    setProfile((prev) => ({
+      ...prev,
+      skills: [...(prev.skills || []), newSkill],
+    }));
+  }, []);
+
+  const updateSkill = useCallback((index: number, updates: Partial<Skill>) => {
+    setProfile((prev) => {
+      const skills = [...(prev.skills || [])];
+      skills[index] = { ...skills[index], ...updates };
+      return { ...prev, skills };
     });
-  };
+  }, []);
 
-  const updateSkill = (index: number, updates: Partial<Skill>) => {
-    const updated = [...(profile.skills || [])];
-    updated[index] = { ...updated[index], ...updates };
-    updateProfile({ skills: updated });
-  };
-
-  const removeSkill = (index: number) => {
-    const updated = (profile.skills || []).filter((_, i) => i !== index);
-    updateProfile({ skills: updated });
-  };
+  const removeSkill = useCallback((index: number) => {
+    setProfile((prev) => ({
+      ...prev,
+      skills: (prev.skills || []).filter((_, i) => i !== index),
+    }));
+  }, []);
 
   // ===== Projects Management =====
-  const addProject = () => {
+  const addProject = useCallback(() => {
     const newProject: Project = {
       name: "",
       description: "",
       visibility: "public",
     };
-    updateProfile({
-      projects: [...(profile.projects || []), newProject],
-    });
-  };
+    setProfile((prev) => ({
+      ...prev,
+      projects: [...(prev.projects || []), newProject],
+    }));
+  }, []);
 
-  const updateProject = (index: number, updates: Partial<Project>) => {
-    const updated = [...(profile.projects || [])];
-    updated[index] = { ...updated[index], ...updates };
-    updateProfile({ projects: updated });
-  };
+  const updateProject = useCallback(
+    (index: number, updates: Partial<Project>) => {
+      setProfile((prev) => {
+        const projects = [...(prev.projects || [])];
+        projects[index] = { ...projects[index], ...updates };
+        return { ...prev, projects };
+      });
+    },
+    []
+  );
 
-  const removeProject = (index: number) => {
-    const updated = (profile.projects || []).filter((_, i) => i !== index);
-    updateProfile({ projects: updated });
-  };
+  const removeProject = useCallback((index: number) => {
+    setProfile((prev) => ({
+      ...prev,
+      projects: (prev.projects || []).filter((_, i) => i !== index),
+    }));
+  }, []);
 
   return {
     profile,
