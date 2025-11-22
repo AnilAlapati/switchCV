@@ -4,14 +4,18 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { templateService } from "@/lib/services/templateService";
+import { TemplateRenderer } from "@/components/resume/TemplateRenderer";
+import { ResumeTemplate } from "@/types";
 
 export default function ResumeView() {
   const { id } = useParams();
   const [resume, setResume] = useState<any>(null);
+  const [template, setTemplate] = useState<ResumeTemplate | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchResume = async () => {
+    const fetchResumeAndTemplate = async () => {
       if (!id) return;
       try {
         // Try fetching from 'resumes' collection first (new system)
@@ -25,7 +29,15 @@ export default function ResumeView() {
         }
 
         if (docSnap.exists()) {
-          setResume(docSnap.data());
+          const resumeData = docSnap.data();
+          setResume(resumeData);
+
+          // Fetch template if ID exists, otherwise default to standard
+          const templateId = resumeData.templateId || "standard-v1";
+          const fetchedTemplate = await templateService.getTemplateById(
+            templateId
+          );
+          setTemplate(fetchedTemplate);
         } else {
           console.error("Resume not found");
         }
@@ -40,7 +52,7 @@ export default function ResumeView() {
       }
     };
 
-    fetchResume();
+    fetchResumeAndTemplate();
   }, [id]);
 
   if (loading)
@@ -56,6 +68,16 @@ export default function ResumeView() {
       </div>
     );
 
+  // Use the new TemplateRenderer if a template is loaded
+  if (template) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white p-8 font-sans">
+        <TemplateRenderer template={template} data={resume} />
+      </div>
+    );
+  }
+
+  // Fallback to legacy rendering if no template system works
   return (
     <div className="min-h-screen bg-gray-900 text-white p-8 font-sans">
       <div className="max-w-4xl mx-auto bg-white text-gray-900 p-10 rounded-lg shadow-2xl">

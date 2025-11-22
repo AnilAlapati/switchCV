@@ -20,27 +20,43 @@ const serviceAccountPath = path.join(
 );
 
 let serviceAccount;
+let projectId;
+
 try {
   serviceAccount = require(serviceAccountPath);
-} catch (error) {
-  console.error("❌ Error: firebase-service-account.json not found");
-  console.error("Please download your service account key from Firebase Console");
-  console.error("Location: Project Settings → Service Accounts → Generate New Private Key");
-  console.error(error);
-  process.exit(1);
+  projectId = serviceAccount.project_id;
+  console.log("🔑 Found service account key file.");
+  
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    projectId: projectId,
+  });
+} catch {
+  console.log("⚠️ Service account key not found. Trying Application Default Credentials...");
+  projectId = "switchcv-e5136"; // Default project ID
+  
+  try {
+    admin.initializeApp({
+      credential: admin.credential.applicationDefault(),
+      projectId: projectId,
+    });
+    console.log("✅ Initialized with Application Default Credentials.");
+  } catch {
+    console.error("\n❌ Authentication Failed");
+    console.error("Could not authenticate using either Service Account Key or Application Default Credentials.");
+    console.error("\nPlease refer to: docs/setup/admin-scripts-authentication.md");
+    console.error("\nQuick Fix (Recommended):");
+    console.error("Run: gcloud auth application-default login");
+    process.exit(1);
+  }
 }
-
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  projectId: serviceAccount.project_id,
-});
 
 const db = admin.firestore();
 
 async function initializeSystem() {
   try {
     console.log("🔧 Initializing System Collection...");
-    console.log("📍 Project:", serviceAccount.project_id);
+    console.log("📍 Project:", projectId);
 
     // Check if resumeIdCounter already exists
     const counterRef = db.doc("system/resumeIdCounter");

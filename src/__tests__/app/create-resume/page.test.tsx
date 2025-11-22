@@ -182,7 +182,7 @@ describe("CreateResume Page", () => {
 
     jest.advanceTimersByTime(2000);
 
-    expect(mockRouter.push).toHaveBeenCalledWith("/resume/new-resume-123");
+    expect(mockRouter.push).toHaveBeenCalledWith("/resumes/new-resume-123");
     jest.useRealTimers();
   });
 });
