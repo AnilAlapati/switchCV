@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import Link from "next/link";
 import { getResumeUrl } from "@/lib/config";
+import { reloadPage } from "@/lib/utils/navigation";
 
 interface ResumeStatusCardProps {
   hasResume: boolean;
@@ -51,7 +52,7 @@ export function ResumeStatusCard({
       console.log(`🗑️ Resume deleted: ${resumeId}`);
 
       // Reload the page to reflect the changes
-      window.location.reload();
+      reloadPage();
     } catch (error) {
       console.error("Error deleting resume:", error);
       const errorMessage =
