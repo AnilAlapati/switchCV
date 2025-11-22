@@ -2,9 +2,6 @@
 
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { deleteDoc, doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { addDeletedIdToPool } from "@/lib/resumeIdRecycler";
 import Link from "next/link";
 import { getResumeUrl } from "@/lib/config";
 
@@ -36,71 +33,22 @@ export function ResumeStatusCard({
 
     setIsDeleting(true);
     try {
-      // Determine if resumeId is numeric or a document ID
-      const isNumericId =
-        typeof resumeId === "number" || /^\d+$/.test(String(resumeId));
+      const token = await user.getIdToken();
+      const response = await fetch("/api/resume/delete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ resumeId }),
+      });
 
-      let docId: string;
-
-      if (isNumericId) {
-        // If numeric ID, we need to find the document ID first
-        const { query, where, getDocs, collection } = await import(
-          "firebase/firestore"
-        );
-        const resumesRef = collection(db, "resumeProfiles");
-        const q = query(resumesRef, where("numericId", "==", Number(resumeId)));
-        const querySnapshot = await getDocs(q);
-
-        if (querySnapshot.empty) {
-          alert("Resume not found. Please refresh and try again.");
-          setIsDeleting(false);
-          setShowDeleteConfirm(false);
-          return;
-        }
-
-        docId = querySnapshot.docs[0].id;
-      } else {
-        docId = String(resumeId);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to delete resume");
       }
 
-      // Get the resume to extract numeric ID and verify ownership
-      const resumeRef = doc(db, "resumeProfiles", docId);
-      const resumeSnap = await getDoc(resumeRef);
-
-      if (!resumeSnap.exists()) {
-        alert("Resume not found.");
-        setIsDeleting(false);
-        setShowDeleteConfirm(false);
-        return;
-      }
-
-      const resumeData = resumeSnap.data() as any;
-
-      // Verify ownership
-      if (resumeData.userId !== user.uid) {
-        alert("You can only delete your own resumes.");
-        setIsDeleting(false);
-        setShowDeleteConfirm(false);
-        return;
-      }
-
-      // Delete the resume (will be subject to Firestore security rules)
-      await deleteDoc(resumeRef);
-      console.log(`🗑️ Resume deleted: ${docId}`);
-
-      // Recycle the numeric ID back to the pool (non-blocking)
-      const numericId = resumeData.numericId;
-      if (numericId) {
-        try {
-          await addDeletedIdToPool(numericId);
-          console.log(`♻️ Numeric ID ${numericId} recycled`);
-        } catch (poolError) {
-          console.warn(
-            `⚠️ Could not recycle numeric ID ${numericId}:`,
-            poolError
-          );
-        }
-      }
+      console.log(`🗑️ Resume deleted: ${resumeId}`);
 
       // Reload the page to reflect the changes
       window.location.reload();

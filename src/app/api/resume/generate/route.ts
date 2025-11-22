@@ -205,9 +205,20 @@ export async function POST(request: NextRequest) {
         const validation = conversationManager.validate();
         if (!validation.valid) {
           console.warn("⚠️ Validation failed:", validation.errors);
+
+          // If validation fails but we have JSON, don't show raw JSON to user
+          let safeResponse = responseText;
+          if (extractResumeJSON(responseText)) {
+            safeResponse =
+              "I'm almost ready to create your resume, but I need a few more details. " +
+              (validation.errors.length > 0
+                ? "Specifically: " + validation.errors.join(", ")
+                : "Please provide more information.");
+          }
+
           // Continue conversation to gather missing data
           return NextResponse.json({
-            response: responseText,
+            response: safeResponse,
             model: aiResponse.model,
             progress: progress.completenessPercentage,
             sessionData: {

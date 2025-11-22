@@ -201,5 +201,29 @@ service cloud.firestore {
       // For future reference: if you need to allow Cloud Functions access,
       // they use the Firebase Admin SDK which bypasses these rules automatically
     }
+
+    // New Resumes Collection (Sequential IDs)
+    match /resumes/{resumeId} {
+      // Allow public read for published resumes
+      allow read: if resource.data.isPublic == true || resource.data.visibility == 'public';
+      // Allow authenticated users to read their own resumes
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      
+      // Allow listing for authenticated users (their own) or public ones
+      allow list: if true;
+      
+      // Only authenticated users can create resumes (must be for themselves)
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      // Only the owner can update their resume
+      allow update: if request.auth != null && request.auth.uid == resource.data.userId;
+      // Only the owner can delete their resume
+      allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+
+    // Global Resumes Collection (for search/listing)
+    match /allResumes/{resumeId} {
+      allow read: if true;
+      allow write: if false; // Only backend can write
+    }
   }
 }

@@ -116,11 +116,55 @@ export class ResumeDataExtractor {
   }
 
   /**
+   * Detect context from AI message
+   */
+  private static detectContext(
+    text: string
+  ): "education" | "experience" | "skills" | "contact" | null {
+    const lower = text.toLowerCase();
+    if (
+      lower.includes("education") ||
+      lower.includes("degree") ||
+      lower.includes("university") ||
+      lower.includes("school") ||
+      lower.includes("college") ||
+      lower.includes("major") ||
+      lower.includes("graduate")
+    )
+      return "education";
+    if (
+      lower.includes("experience") ||
+      lower.includes("work") ||
+      lower.includes("job") ||
+      lower.includes("company") ||
+      lower.includes("role") ||
+      lower.includes("position")
+    )
+      return "experience";
+    if (
+      lower.includes("skill") ||
+      lower.includes("technology") ||
+      lower.includes("technologies") ||
+      lower.includes("proficient")
+    )
+      return "skills";
+    if (
+      lower.includes("email") ||
+      lower.includes("phone") ||
+      lower.includes("contact") ||
+      lower.includes("name")
+    )
+      return "contact";
+    return null;
+  }
+
+  /**
    * Extract data using regex patterns
    */
   private static extractViaPatterns(
     text: string,
-    history?: string
+    history?: string,
+    context?: "education" | "experience" | "skills" | "contact" | null
   ): Partial<ResumeDataRequirements> {
     const data: Partial<ResumeDataRequirements> = {};
     const trimmedText = text.trim();
@@ -132,8 +176,6 @@ export class ResumeDataExtractor {
       /[Nn]ame:\s*([A-Z][a-z]+(?:\s+(?:[A-Z][a-z]+|[A-Z]\.?)){0,3})(?=\s|$|[.,])/,
       // Fallback for just the name if it looks like a name (2-3 capitalized words or initials)
       /^([A-Z][a-z]+(?:\s+(?:[A-Z][a-z]+|[A-Z]\.?)){1,3})$/,
-      // Relaxed fallback for name (allow case insensitive if it's short and looks like a name)
-      /^([A-Za-z]+(?:\s+(?:[A-Za-z]+|[A-Za-z]\.?)){1,3})$/,
     ];
 
     for (const pattern of namePatterns) {
@@ -383,13 +425,27 @@ export class ResumeDataExtractor {
       "bachelor",
       "master",
       "phd",
+      "b.tech",
+      "m.tech",
+      "b.e",
+      "m.e",
+      "b.s",
+      "m.s",
+      "mba",
+      "bba",
+      "diploma",
+      "btech",
+      "mtech",
     ];
-    const hasEducation = educationKeywords.some((kw) =>
-      fullText.toLowerCase().includes(kw)
-    );
+    const hasEducation =
+      context === "education" ||
+      educationKeywords.some((kw) => fullText.toLowerCase().includes(kw));
 
     if (hasEducation) {
       const eduPatterns = [
+        // Comprehensive pattern for "Degree in Major from Institution Year" or "Degree, Institution, Year"
+        /(B\.?Tech|M\.?Tech|B\.?E|M\.?E|B\.?S|M\.?S|MBA|BBA|Diploma|B\.?A|M\.?A|Bachelor|Master|PhD|Doctorate)(?:\s+(?:in|of)\s+([^,]+?))?(?:[,]\s*|\s+from\s+|\s+at\s+)([^0-9,\n]+?)(?:\s+(?:in\s+)?(\d{4}))?(?:\s|$)/i,
+
         /(bachelor|master|phd|associate|doctorate|degree)(?:['\s]+(?:of|in))?\s+([^,.\n]+)?\s+(?:from|at)?\s*([^,.\n]+)/i,
         // "Graduated from [Institution] with [Degree]" - use non-greedy capture
         /graduated\s+from\s+(.+?)\s+(?:with|in)\s+(?:a\s+)?(.+)/i,
@@ -397,15 +453,42 @@ export class ResumeDataExtractor {
         /(bachelor|master|phd|associate|doctorate|degree)\s+([\w\s.&'-]+)/i,
       ];
 
+      // Context-aware fallback patterns (more permissive)
+      if (context === "education") {
+        eduPatterns.push(
+          // "Degree/Major at Institution Year" (generic)
+          /^(.+?)\s+(?:at|from|in)\s+(.+?)(?:\s+(\d{4}))?$/i,
+          // "Degree/Major, Institution, Year" (generic comma separated)
+          /^(.+?),\s*(.+?)(?:,\s*(\d{4}))?$/i
+        );
+      }
+
       for (const pattern of eduPatterns) {
         const eduMatch = fullText.match(pattern);
         if (eduMatch) {
           let degree = "Degree";
           let institution = "University";
+          let year = new Date().getFullYear().toString();
+          let major = "";
 
-          if (pattern.source.includes("graduated")) {
+          // Handle the new comprehensive pattern (index 0)
+          if (pattern.source.startsWith("(B\\.?Tech")) {
+            degree = eduMatch[1].trim();
+            major = eduMatch[2]?.trim() || "";
+            institution = eduMatch[3]?.trim();
+            if (eduMatch[4]) year = eduMatch[4];
+          } else if (pattern.source.includes("graduated")) {
             institution = eduMatch[1].trim();
             degree = eduMatch[2].trim();
+          } else if (
+            context === "education" &&
+            !pattern.source.includes("bachelor")
+          ) {
+            // Handle generic fallback patterns
+            // Group 1: Degree/Major, Group 2: Institution, Group 3: Year
+            degree = eduMatch[1].trim();
+            institution = eduMatch[2].trim();
+            if (eduMatch[3]) year = eduMatch[3];
           } else {
             degree = eduMatch[1]
               ? `${eduMatch[1]} ${eduMatch[2] || ""}`.trim()
@@ -417,7 +500,8 @@ export class ResumeDataExtractor {
           const education: EducationEntry = {
             degree,
             institution,
-            year: new Date().getFullYear().toString(),
+            year,
+            major: major || undefined,
           };
           data.education = [education];
           break;
@@ -500,6 +584,9 @@ export class ResumeDataExtractor {
     let maxConfidence = 0;
     let isComplete = false;
 
+    let lastContext: "education" | "experience" | "skills" | "contact" | null =
+      null;
+
     // Extract from each AI response
     for (const message of messages) {
       if (!message.isUser) {
@@ -507,16 +594,25 @@ export class ResumeDataExtractor {
         aggregatedData = this.mergeData(aggregatedData, result.data);
         maxConfidence = Math.max(maxConfidence, result.confidence);
         isComplete = isComplete || result.isComplete;
+
+        lastContext = this.detectContext(message.content);
+      } else {
+        // User Message: Extract using patterns + context
+        const userData = this.extractViaPatterns(
+          message.content,
+          undefined,
+          lastContext
+        );
+        aggregatedData = this.mergeData(aggregatedData, userData);
       }
     }
 
     // Also extract from user messages (they contain the actual data)
-    for (const message of messages) {
-      if (message.isUser) {
-        const userData = this.extractViaPatterns(message.content);
-        aggregatedData = this.mergeData(aggregatedData, userData);
-      }
-    }
+    // Note: We already processed user messages above with context, but the original logic
+    // did a second pass. We can keep the original logic for safety or rely on the interleaved loop above.
+    // The interleaved loop is better because it has context.
+    // However, the original code had two separate loops. Let's stick to the single interleaved loop
+    // which is more correct for context.
 
     return {
       data: aggregatedData,

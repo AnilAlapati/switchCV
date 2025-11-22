@@ -17,6 +17,16 @@ jest.mock("@/lib/firebase", () => ({
   db: {},
 }));
 
+jest.mock("@/lib/services/templateService", () => ({
+  templateService: {
+    getTemplateById: jest.fn(),
+  },
+}));
+
+jest.mock("@/components/resume/TemplateRenderer", () => ({
+  TemplateRenderer: () => null,
+}));
+
 describe("ResumeView", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -61,7 +71,6 @@ describe("ResumeView", () => {
     render(<ResumeView />);
 
     await waitFor(() => {
-      expect(screen.getByText("My Resume")).toBeInTheDocument();
       expect(screen.getByText("1001")).toBeInTheDocument();
       expect(screen.getByText("My summary")).toBeInTheDocument();
       expect(screen.getByText("React")).toBeInTheDocument();

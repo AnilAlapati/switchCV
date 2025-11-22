@@ -18,15 +18,8 @@
  * - Maintains sequential generation when pool is empty
  */
 
-import {
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  arrayUnion,
-  arrayRemove,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { adminDb } from "@/lib/firebase-admin";
+import * as admin from "firebase-admin";
 
 const ID_POOL_DOC = "system/deletedIdsPool";
 const MAX_POOL_SIZE = 10000; // Maximum number of recycled IDs to keep
@@ -43,12 +36,12 @@ interface IdPoolDoc {
  */
 export const initializeIdPool = async (): Promise<void> => {
   try {
-    const poolRef = doc(db, ID_POOL_DOC);
-    const poolSnap = await getDoc(poolRef);
+    const poolRef = adminDb.doc(ID_POOL_DOC);
+    const poolSnap = await poolRef.get();
 
-    if (!poolSnap.exists()) {
+    if (!poolSnap.exists) {
       console.log("♻️ Initializing deleted IDs pool...");
-      await setDoc(poolRef, {
+      await poolRef.set({
         deletedIds: [],
         totalRecycled: 0,
         lastUpdatedAt: new Date().toISOString(),
@@ -72,30 +65,30 @@ export const initializeIdPool = async (): Promise<void> => {
  */
 export const addDeletedIdToPool = async (numericId: number): Promise<void> => {
   try {
-    const poolRef = doc(db, ID_POOL_DOC);
+    const poolRef = adminDb.doc(ID_POOL_DOC);
 
     // First ensure pool exists
-    const poolSnap = await getDoc(poolRef);
-    if (!poolSnap.exists()) {
+    const poolSnap = await poolRef.get();
+    if (!poolSnap.exists) {
       await initializeIdPool();
     }
 
     // Add ID to pool
-    await updateDoc(poolRef, {
-      deletedIds: arrayUnion(numericId),
+    await poolRef.update({
+      deletedIds: admin.firestore.FieldValue.arrayUnion(numericId),
       lastUpdatedAt: new Date().toISOString(),
     });
 
     console.log(`♻️ Resume ID ${numericId} added to recycling pool`);
 
     // Trim pool if it exceeds max size (keep only the most recent IDs)
-    const updated = await getDoc(poolRef);
+    const updated = await poolRef.get();
     const poolData = updated.data() as IdPoolDoc;
 
     if (poolData.deletedIds.length > MAX_POOL_SIZE) {
       // Keep only the last MAX_POOL_SIZE IDs (newest)
       const trimmed = poolData.deletedIds.slice(-MAX_POOL_SIZE);
-      await setDoc(poolRef, {
+      await poolRef.set({
         deletedIds: trimmed,
         totalRecycled: (poolData.totalRecycled || 0) + 1,
         lastUpdatedAt: new Date().toISOString(),
@@ -122,10 +115,10 @@ export const addDeletedIdToPool = async (numericId: number): Promise<void> => {
  */
 export const getRecycledIdFromPool = async (): Promise<number | null> => {
   try {
-    const poolRef = doc(db, ID_POOL_DOC);
-    const poolSnap = await getDoc(poolRef);
+    const poolRef = adminDb.doc(ID_POOL_DOC);
+    const poolSnap = await poolRef.get();
 
-    if (!poolSnap.exists()) {
+    if (!poolSnap.exists) {
       console.log("📦 ID pool doesn't exist, will generate new ID");
       return null;
     }
@@ -141,8 +134,8 @@ export const getRecycledIdFromPool = async (): Promise<number | null> => {
     const recycledId = poolData.deletedIds[0];
 
     // Remove it from the pool
-    await updateDoc(poolRef, {
-      deletedIds: arrayRemove(recycledId),
+    await poolRef.update({
+      deletedIds: admin.firestore.FieldValue.arrayRemove(recycledId),
       lastUpdatedAt: new Date().toISOString(),
     });
 
@@ -165,10 +158,10 @@ export const getRecycledIdFromPool = async (): Promise<number | null> => {
  */
 export const getIdPoolStatus = async (): Promise<IdPoolDoc | null> => {
   try {
-    const poolRef = doc(db, ID_POOL_DOC);
-    const poolSnap = await getDoc(poolRef);
+    const poolRef = adminDb.doc(ID_POOL_DOC);
+    const poolSnap = await poolRef.get();
 
-    if (!poolSnap.exists()) {
+    if (!poolSnap.exists) {
       return null;
     }
 
@@ -186,8 +179,8 @@ export const getIdPoolStatus = async (): Promise<IdPoolDoc | null> => {
  */
 export const clearIdPool = async (): Promise<void> => {
   try {
-    const poolRef = doc(db, ID_POOL_DOC);
-    await setDoc(poolRef, {
+    const poolRef = adminDb.doc(ID_POOL_DOC);
+    await poolRef.set({
       deletedIds: [],
       totalRecycled: 0,
       lastUpdatedAt: new Date().toISOString(),
