@@ -109,7 +109,7 @@ async function handleSend(userId: string, data: any) {
     );
   }
 
-  const notification = createNotification(
+  const notification = await createNotification(
     type as NotificationType,
     userId,
     payload,
@@ -140,7 +140,7 @@ async function handleMarkRead(notificationId: string) {
     );
   }
 
-  markAsRead(notificationId);
+  await markAsRead(notificationId);
 
   return NextResponse.json({ success: true });
 }
@@ -150,8 +150,8 @@ async function handleMarkAllRead(userId: string) {
     return NextResponse.json({ error: "Missing userId" }, { status: 400 });
   }
 
-  const unread = getUnreadNotifications(userId);
-  unread.forEach((n) => markAsRead(n.id));
+  const unread = await getUnreadNotifications(userId);
+  await Promise.all(unread.map((n) => markAsRead(n.id)));
 
   return NextResponse.json({ success: true, markedCount: unread.length });
 }
@@ -164,7 +164,7 @@ async function handleDelete(notificationId: string) {
     );
   }
 
-  deleteNotification(notificationId);
+  await deleteNotification(notificationId);
 
   return NextResponse.json({ success: true });
 }
@@ -174,7 +174,7 @@ async function handleGetNotifications(userId: string | null) {
     return NextResponse.json({ error: "Missing userId" }, { status: 400 });
   }
 
-  const notifications = getUserNotifications(userId);
+  const notifications = await getUserNotifications(userId);
 
   return NextResponse.json({
     success: true,
@@ -188,7 +188,7 @@ async function handleGetUnread(userId: string | null) {
     return NextResponse.json({ error: "Missing userId" }, { status: 400 });
   }
 
-  const unread = getUnreadNotifications(userId);
+  const unread = await getUnreadNotifications(userId);
 
   return NextResponse.json({
     success: true,
@@ -202,7 +202,7 @@ async function handleGetPreferences(userId: string) {
     return NextResponse.json({ error: "Missing userId" }, { status: 400 });
   }
 
-  const preferences = getPreferences(userId);
+  const preferences = await getPreferences(userId);
 
   return NextResponse.json({
     success: true,
@@ -225,7 +225,7 @@ async function handleUpdatePreference(userId: string, preference: any) {
     updatedAt: new Date(),
   };
 
-  savePreference(updated);
+  await savePreference(updated);
 
   return NextResponse.json({
     success: true,
@@ -234,7 +234,7 @@ async function handleUpdatePreference(userId: string, preference: any) {
 }
 
 async function handleGetStatistics(userId: string | null) {
-  const stats = getStatistics(userId || undefined);
+  const stats = await getStatistics(userId || undefined);
 
   return NextResponse.json({
     success: true,

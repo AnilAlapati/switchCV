@@ -22,6 +22,7 @@ import {
   savePreference,
   shouldSendNotification,
   getStatistics,
+  deleteNotification as serviceDeleteNotification,
 } from "@/lib/notificationService";
 import {
   sendMultiChannel,
@@ -56,16 +57,16 @@ export function useNotifications(userId: string): UseNotificationsReturn {
   const [error, setError] = useState<string | null>(null);
   const [statistics, setStatistics] = useState<Record<string, number>>({});
 
-  const refreshNotifications = useCallback(() => {
+  const refreshNotifications = useCallback(async () => {
     try {
       setLoading(true);
-      const userNotifications = getUserNotifications(userId);
+      const userNotifications = await getUserNotifications(userId);
       setNotifications(userNotifications);
 
-      const userPreferences = getPreferences(userId);
+      const userPreferences = await getPreferences(userId);
       setPreferences(userPreferences);
 
-      const stats = getStatistics(userId);
+      const stats = await getStatistics(userId);
       setStatistics(stats);
 
       setError(null);
@@ -87,16 +88,19 @@ export function useNotifications(userId: string): UseNotificationsReturn {
         setLoading(true);
 
         // Filter channels based on preferences
-        const allowedChannels = channels.filter((channel) =>
-          shouldSendNotification(userId, type, channel)
-        );
+        const allowedChannels = [];
+        for (const channel of channels) {
+          if (await shouldSendNotification(userId, type, channel)) {
+            allowedChannels.push(channel);
+          }
+        }
 
         if (allowedChannels.length === 0) {
           setError("No enabled notification channels");
           return null;
         }
 
-        const notification = createNotification(
+        const notification = await createNotification(
           type,
           userId,
           payload,
@@ -111,7 +115,7 @@ export function useNotifications(userId: string): UseNotificationsReturn {
           pushToken: "sample_token",
         });
 
-        refreshNotifications();
+        await refreshNotifications();
         return notification;
       } catch (err) {
         const errorMsg = `Failed to send notification: ${err}`;
@@ -125,10 +129,10 @@ export function useNotifications(userId: string): UseNotificationsReturn {
   );
 
   const markRead = useCallback(
-    (notificationId: string) => {
+    async (notificationId: string) => {
       try {
-        markAsRead(notificationId);
-        refreshNotifications();
+        await markAsRead(notificationId);
+        await refreshNotifications();
       } catch (err) {
         setError(`Failed to mark as read: ${err}`);
       }
@@ -136,43 +140,37 @@ export function useNotifications(userId: string): UseNotificationsReturn {
     [refreshNotifications]
   );
 
-  const markAllRead = useCallback(() => {
+  const markAllRead = useCallback(async () => {
     try {
-      const unread = getUnreadNotifications(userId);
-      unread.forEach((n) => markAsRead(n.id));
-      refreshNotifications();
+      const unread = await getUnreadNotifications(userId);
+      await Promise.all(unread.map((n) => markAsRead(n.id)));
+      await refreshNotifications();
     } catch (err) {
       setError(`Failed to mark all as read: ${err}`);
     }
   }, [userId, refreshNotifications]);
 
   const deleteNotification = useCallback(
-    (notificationId: string) => {
+    async (notificationId: string) => {
       try {
-        const notification = getUserNotifications(userId).find(
-          (n) => n.id === notificationId
-        );
-        if (notification) {
-          setNotifications((prev) =>
-            prev.filter((n) => n.id !== notificationId)
-          );
-        }
+        await serviceDeleteNotification(notificationId);
+        await refreshNotifications();
       } catch (err) {
         setError(`Failed to delete notification: ${err}`);
       }
     },
-    [userId]
+    [refreshNotifications]
   );
 
   const updatePreference = useCallback(
-    (preference: NotificationPreference) => {
+    async (preference: NotificationPreference) => {
       try {
         const updated = {
           ...preference,
           userId,
           updatedAt: new Date(),
         };
-        savePreference(updated);
+        await savePreference(updated);
         setPreferences((prev) => {
           const index = prev.findIndex((p) => p.type === preference.type);
           if (index >= 0) {

@@ -53,31 +53,32 @@ export function renderTemplate(
 /**
  * Send in-app notification (immediate)
  */
-export function sendInApp(notification: Notification): Promise<boolean> {
-  return new Promise((resolve) => {
-    try {
-      const inAppKey = `in-app_${notification.id}`;
-      deliveryStore[inAppKey] = true;
+export async function sendInApp(notification: Notification): Promise<boolean> {
+  try {
+    const inAppKey = `in-app_${notification.id}`;
+    deliveryStore[inAppKey] = true;
 
-      updateNotificationStatus(notification.id, NotificationStatus.DELIVERED);
-      logNotification(
-        notification.id,
-        NotificationChannel.IN_APP,
-        NotificationStatus.DELIVERED,
-        "In-app notification delivered"
-      );
+    await updateNotificationStatus(
+      notification.id,
+      NotificationStatus.DELIVERED
+    );
+    await logNotification(
+      notification.id,
+      NotificationChannel.IN_APP,
+      NotificationStatus.DELIVERED,
+      "In-app notification delivered"
+    );
 
-      resolve(true);
-    } catch (error) {
-      logNotification(
-        notification.id,
-        NotificationChannel.IN_APP,
-        NotificationStatus.FAILED,
-        `Failed to deliver in-app notification: ${error}`
-      );
-      resolve(false);
-    }
-  });
+    return true;
+  } catch (error) {
+    await logNotification(
+      notification.id,
+      NotificationChannel.IN_APP,
+      NotificationStatus.FAILED,
+      `Failed to deliver in-app notification: ${error}`
+    );
+    return false;
+  }
 }
 
 /**
@@ -92,7 +93,7 @@ export async function sendEmail(
     const emailKey = `email_${notification.id}`;
     deliveryStore[emailKey] = true;
 
-    logNotification(
+    await logNotification(
       notification.id,
       NotificationChannel.EMAIL,
       NotificationStatus.SENT,
@@ -100,19 +101,26 @@ export async function sendEmail(
     );
 
     // Simulate delivery confirmation after delay
-    setTimeout(() => {
-      updateNotificationStatus(notification.id, NotificationStatus.DELIVERED);
-      logNotification(
-        notification.id,
-        NotificationChannel.EMAIL,
-        NotificationStatus.DELIVERED,
-        "Email delivered"
-      );
+    setTimeout(async () => {
+      try {
+        await updateNotificationStatus(
+          notification.id,
+          NotificationStatus.DELIVERED
+        );
+        await logNotification(
+          notification.id,
+          NotificationChannel.EMAIL,
+          NotificationStatus.DELIVERED,
+          "Email delivered"
+        );
+      } catch (e) {
+        console.error("Error updating email status", e);
+      }
     }, 1000);
 
     return true;
   } catch (error) {
-    logNotification(
+    await logNotification(
       notification.id,
       NotificationChannel.EMAIL,
       NotificationStatus.FAILED,
@@ -138,7 +146,7 @@ export async function sendSMS(
     const smsKey = `sms_${notification.id}`;
     deliveryStore[smsKey] = true;
 
-    logNotification(
+    await logNotification(
       notification.id,
       NotificationChannel.SMS,
       NotificationStatus.SENT,
@@ -146,13 +154,20 @@ export async function sendSMS(
     );
 
     // Simulate delivery
-    setTimeout(() => {
-      updateNotificationStatus(notification.id, NotificationStatus.DELIVERED);
+    setTimeout(async () => {
+      try {
+        await updateNotificationStatus(
+          notification.id,
+          NotificationStatus.DELIVERED
+        );
+      } catch (e) {
+        console.error("Error updating SMS status", e);
+      }
     }, 1500);
 
     return true;
   } catch (error) {
-    logNotification(
+    await logNotification(
       notification.id,
       NotificationChannel.SMS,
       NotificationStatus.FAILED,
@@ -177,7 +192,7 @@ export async function sendPush(
     const pushKey = `push_${notification.id}`;
     deliveryStore[pushKey] = true;
 
-    logNotification(
+    await logNotification(
       notification.id,
       NotificationChannel.PUSH,
       NotificationStatus.SENT,
@@ -185,13 +200,20 @@ export async function sendPush(
     );
 
     // Simulate delivery
-    setTimeout(() => {
-      updateNotificationStatus(notification.id, NotificationStatus.DELIVERED);
+    setTimeout(async () => {
+      try {
+        await updateNotificationStatus(
+          notification.id,
+          NotificationStatus.DELIVERED
+        );
+      } catch (e) {
+        console.error("Error updating push status", e);
+      }
     }, 800);
 
     return true;
   } catch (error) {
-    logNotification(
+    await logNotification(
       notification.id,
       NotificationChannel.PUSH,
       NotificationStatus.FAILED,
@@ -216,7 +238,7 @@ export async function sendWebhook(
     const webhookKey = `webhook_${notification.id}`;
     deliveryStore[webhookKey] = true;
 
-    logNotification(
+    await logNotification(
       notification.id,
       NotificationChannel.WEBHOOK,
       NotificationStatus.SENT,
@@ -224,19 +246,26 @@ export async function sendWebhook(
     );
 
     // Simulate webhook delivery
-    setTimeout(() => {
-      updateNotificationStatus(notification.id, NotificationStatus.DELIVERED);
-      logNotification(
-        notification.id,
-        NotificationChannel.WEBHOOK,
-        NotificationStatus.DELIVERED,
-        "Webhook acknowledged"
-      );
+    setTimeout(async () => {
+      try {
+        await updateNotificationStatus(
+          notification.id,
+          NotificationStatus.DELIVERED
+        );
+        await logNotification(
+          notification.id,
+          NotificationChannel.WEBHOOK,
+          NotificationStatus.DELIVERED,
+          "Webhook acknowledged"
+        );
+      } catch (e) {
+        console.error("Error updating webhook status", e);
+      }
     }, 1200);
 
     return true;
   } catch (error) {
-    logNotification(
+    await logNotification(
       notification.id,
       NotificationChannel.WEBHOOK,
       NotificationStatus.FAILED,

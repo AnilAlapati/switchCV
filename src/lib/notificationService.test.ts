@@ -38,8 +38,8 @@ describe("Notification Service", () => {
   });
 
   describe("createNotification", () => {
-    it("should create a notification with all required fields", () => {
-      const notification = createNotification(
+    it("should create a notification with all required fields", async () => {
+      const notification = await createNotification(
         NotificationType.CANDIDATE_ADDED,
         "user123",
         {
@@ -68,8 +68,8 @@ describe("Notification Service", () => {
       });
     });
 
-    it("should use default priority when not specified", () => {
-      const notification = createNotification(
+    it("should use default priority when not specified", async () => {
+      const notification = await createNotification(
         NotificationType.CANDIDATE_ADDED,
         "user123",
         {
@@ -84,8 +84,8 @@ describe("Notification Service", () => {
   });
 
   describe("getNotification", () => {
-    it("should return notification by ID", () => {
-      const notification = createNotification(
+    it("should return notification by ID", async () => {
+      const notification = await createNotification(
         NotificationType.CANDIDATE_ADDED,
         "user123",
         {
@@ -95,80 +95,80 @@ describe("Notification Service", () => {
         [NotificationChannel.IN_APP]
       );
 
-      const retrieved = getNotification(notification.id);
+      const retrieved = await getNotification(notification.id);
       expect(retrieved).toEqual(notification);
     });
 
-    it("should return undefined for non-existent notification", () => {
-      const retrieved = getNotification("non-existent-id");
+    it("should return undefined for non-existent notification", async () => {
+      const retrieved = await getNotification("non-existent-id");
       expect(retrieved).toBeUndefined();
     });
   });
 
   describe("getUserNotifications", () => {
-    it("should return all notifications for a user", () => {
+    it("should return all notifications for a user", async () => {
       const userId = `user_${Date.now()}_${Math.random()}`;
-      createNotification(
+      await createNotification(
         NotificationType.CANDIDATE_ADDED,
         userId,
         { title: "Candidate 1", body: "Added" },
         [NotificationChannel.IN_APP]
       );
-      createNotification(
+      await createNotification(
         NotificationType.STAGE_CHANGED,
         userId,
         { title: "Stage changed", body: "Updated" },
         [NotificationChannel.EMAIL]
       );
-      createNotification(
+      await createNotification(
         NotificationType.CANDIDATE_ADDED,
         "other_user",
         { title: "Other user", body: "Added" },
         [NotificationChannel.IN_APP]
       );
 
-      const notifications = getUserNotifications(userId);
+      const notifications = await getUserNotifications(userId);
       expect(notifications).toHaveLength(2);
       expect(notifications.every((n) => n.recipientId === userId)).toBe(true);
     });
 
-    it("should return empty array for user with no notifications", () => {
-      const notifications = getUserNotifications("non-existent-user");
+    it("should return empty array for user with no notifications", async () => {
+      const notifications = await getUserNotifications("non-existent-user");
       expect(notifications).toEqual([]);
     });
   });
 
   describe("markAsRead", () => {
-    it("should mark notification as read and add readAt timestamp", () => {
-      const notification = createNotification(
+    it("should mark notification as read and add readAt timestamp", async () => {
+      const notification = await createNotification(
         NotificationType.CANDIDATE_ADDED,
         "user123",
         { title: "Test", body: "Test notification" },
         [NotificationChannel.IN_APP]
       );
 
-      const updated = markAsRead(notification.id);
+      const updated = await markAsRead(notification.id);
 
       expect(updated?.status).toBe(NotificationStatus.READ);
       expect(updated?.readAt).toEqual(expect.any(Date));
     });
 
-    it("should return undefined for non-existent notification", () => {
-      const result = markAsRead("non-existent-id");
+    it("should return undefined for non-existent notification", async () => {
+      const result = await markAsRead("non-existent-id");
       expect(result).toBeUndefined();
     });
   });
 
   describe("updateNotificationStatus", () => {
-    it("should update notification status", () => {
-      const notification = createNotification(
+    it("should update notification status", async () => {
+      const notification = await createNotification(
         NotificationType.CANDIDATE_ADDED,
         "user123",
         { title: "Test", body: "Test notification" },
         [NotificationChannel.IN_APP]
       );
 
-      const updated = updateNotificationStatus(
+      const updated = await updateNotificationStatus(
         notification.id,
         NotificationStatus.SENT
       );
@@ -177,15 +177,15 @@ describe("Notification Service", () => {
       expect(updated?.sentAt).toEqual(expect.any(Date));
     });
 
-    it("should include failure reason when provided", () => {
-      const notification = createNotification(
+    it("should include failure reason when provided", async () => {
+      const notification = await createNotification(
         NotificationType.CANDIDATE_ADDED,
         "user123",
         { title: "Test", body: "Test notification" },
         [NotificationChannel.IN_APP]
       );
 
-      const updated = updateNotificationStatus(
+      const updated = await updateNotificationStatus(
         notification.id,
         NotificationStatus.FAILED,
         "Delivery failed"
@@ -197,7 +197,7 @@ describe("Notification Service", () => {
   });
 
   describe("savePreference", () => {
-    it("should save notification preference", () => {
+    it("should save notification preference", async () => {
       const preference = {
         id: "pref123",
         userId: "user123",
@@ -208,13 +208,13 @@ describe("Notification Service", () => {
         updatedAt: new Date(),
       };
 
-      const saved = savePreference(preference);
+      const saved = await savePreference(preference);
       expect(saved).toEqual(preference);
     });
   });
 
   describe("getPreferences", () => {
-    it("should return all preferences for a user", () => {
+    it("should return all preferences for a user", async () => {
       const userId = `user_${Date.now()}_${Math.random()}`;
       const preference1 = {
         id: "pref1",
@@ -236,21 +236,21 @@ describe("Notification Service", () => {
         updatedAt: new Date(),
       };
 
-      savePreference(preference1);
-      savePreference(preference2);
+      await savePreference(preference1);
+      await savePreference(preference2);
 
-      const preferences = getPreferences(userId);
+      const preferences = await getPreferences(userId);
       expect(preferences).toHaveLength(2);
     });
 
-    it("should return empty array for user with no preferences", () => {
-      const preferences = getPreferences("non-existent-user");
+    it("should return empty array for user with no preferences", async () => {
+      const preferences = await getPreferences("non-existent-user");
       expect(preferences).toEqual([]);
     });
   });
 
   describe("shouldSendNotification", () => {
-    it("should return true when preference allows notification", () => {
+    it("should return true when preference allows notification", async () => {
       const userId = `user_${Date.now()}_${Math.random()}`;
       const preference = {
         id: "pref123",
@@ -261,9 +261,9 @@ describe("Notification Service", () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       };
-      savePreference(preference);
+      await savePreference(preference);
 
-      const shouldSend = shouldSendNotification(
+      const shouldSend = await shouldSendNotification(
         userId,
         NotificationType.CANDIDATE_ADDED,
         NotificationChannel.IN_APP
@@ -271,7 +271,7 @@ describe("Notification Service", () => {
       expect(shouldSend).toBe(true);
     });
 
-    it("should return false when preference is disabled", () => {
+    it("should return false when preference is disabled", async () => {
       const userId = `user_${Date.now()}_${Math.random()}`;
       const preference = {
         id: "pref456",
@@ -282,9 +282,9 @@ describe("Notification Service", () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       };
-      savePreference(preference);
+      await savePreference(preference);
 
-      const shouldSend = shouldSendNotification(
+      const shouldSend = await shouldSendNotification(
         userId,
         NotificationType.CANDIDATE_ADDED,
         NotificationChannel.IN_APP
@@ -292,8 +292,8 @@ describe("Notification Service", () => {
       expect(shouldSend).toBe(false);
     });
 
-    it("should return false when no preference exists", () => {
-      const shouldSend = shouldSendNotification(
+    it("should return false when no preference exists", async () => {
+      const shouldSend = await shouldSendNotification(
         "user456",
         NotificationType.CANDIDATE_ADDED,
         NotificationChannel.IN_APP
