@@ -1,15 +1,18 @@
-import { generateText } from "@/lib/services/aiGenerationService";
-
 // Mock global fetch
 global.fetch = jest.fn();
 
 describe("aiGenerationService", () => {
   const originalEnv = process.env;
+  let generateText: any;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.resetModules();
     process.env = { ...originalEnv };
-    (global.fetch as jest.Mock).mockClear();
+    (global.fetch as jest.Mock).mockReset();
+
+    // Re-import module to ensure fresh state (empty cache)
+    const aiModule = await import("@/lib/services/aiGenerationService");
+    generateText = aiModule.generateText;
   });
 
   afterAll(() => {
@@ -53,12 +56,17 @@ describe("aiGenerationService", () => {
       process.env.GEMINI_API_KEY = "test-gemini-key";
       process.env.HUGGINGFACE_TOKEN = "test-hf-token";
 
-      // Mock Gemini failure (models fetch fails or generation fails)
+      // 1. Gemini Models fetch fails
       (global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error("Gemini Error")
+        new Error("Gemini Models Error")
       );
 
-      // Mock HuggingFace success
+      // 2. Gemini Generation fetch fails (since models fetch failure is caught)
+      (global.fetch as jest.Mock).mockRejectedValueOnce(
+        new Error("Gemini Generation Error")
+      );
+
+      // 3. HuggingFace success
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => [{ generated_text: "HF Generated text" }],
@@ -74,11 +82,15 @@ describe("aiGenerationService", () => {
       process.env.GEMINI_API_KEY = "test-gemini-key";
       process.env.HUGGINGFACE_TOKEN = "test-hf-token";
 
-      // Mock Gemini failure
+      // 1. Gemini Models fail
       (global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error("Gemini Error")
+        new Error("Gemini Models Error")
       );
-      // Mock HuggingFace failure
+      // 2. Gemini Generation fail
+      (global.fetch as jest.Mock).mockRejectedValueOnce(
+        new Error("Gemini Generation Error")
+      );
+      // 3. HuggingFace failure
       (global.fetch as jest.Mock).mockRejectedValueOnce(new Error("HF Error"));
 
       await expect(generateText("prompt")).rejects.toThrow(
@@ -93,6 +105,203 @@ describe("aiGenerationService", () => {
       await expect(generateText("prompt")).rejects.toThrow(
         "All AI providers failed"
       );
+    });
+
+    it("should cache Gemini models", async () => {
+      process.env.GEMINI_API_KEY = "test-gemini-key";
+
+      // First call: Mock models response and generation response
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            models: [
+              {
+                name: "models/gemini-2.0-flash-lite",
+                supportedGenerationMethods: ["generateContent"],
+              },
+            ],
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            candidates: [{ content: { parts: [{ text: "Text 1" }] } }],
+          }),
+        });
+
+      await generateText("prompt 1");
+
+      // Second call: Should use cached models, so only generation fetch
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          candidates: [{ content: { parts: [{ text: "Text 2" }] } }],
+        }),
+      });
+
+      await generateText("prompt 2");
+
+      expect(global.fetch).toHaveBeenCalledTimes(3);
+    });
+
+    it("should retry Gemini on 404 (model not found)", async () => {
+      process.env.GEMINI_API_KEY = "test-gemini-key";
+
+      // 1. Fetch models (success)
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          models: [
+            {
+              name: "models/old-model",
+              supportedGenerationMethods: ["generateContent"],
+            },
+          ],
+        }),
+      });
+
+      // 2. Generate with old-model (404)
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        statusText: "Not Found",
+        text: () => Promise.resolve("Model not found"),
+      });
+
+      // 3. Retry: Fetch models again (success, new model)
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          models: [
+            {
+              name: "models/new-model",
+              supportedGenerationMethods: ["generateContent"],
+            },
+          ],
+        }),
+      });
+
+      // 4. Retry: Generate with new-model (success)
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          candidates: [{ content: { parts: [{ text: "Retry success" }] } }],
+        }),
+      });
+
+      const result = await generateText("prompt");
+      expect(result.text).toBe("Retry success");
+      expect(result.model).toBe("new-model");
+    });
+
+    it("should handle HuggingFace array response", async () => {
+      process.env.GEMINI_API_KEY = "test-gemini-key";
+      process.env.HUGGINGFACE_TOKEN = "test-hf-token";
+
+      // 1. Gemini Models fail
+      (global.fetch as jest.Mock).mockRejectedValueOnce(
+        new Error("Gemini Models Error")
+      );
+      // 2. Gemini Generation fail
+      (global.fetch as jest.Mock).mockRejectedValueOnce(
+        new Error("Gemini Generation Error")
+      );
+
+      // 3. HF returns array
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => [{ generated_text: "Array text" }],
+      });
+
+      const result = await generateText("prompt");
+      expect(result.text).toBe("Array text");
+    });
+
+    it("should handle HuggingFace loading error", async () => {
+      process.env.GEMINI_API_KEY = "test-gemini-key";
+      process.env.HUGGINGFACE_TOKEN = "test-hf-token";
+
+      // 1. Gemini Models fail
+      (global.fetch as jest.Mock).mockRejectedValueOnce(
+        new Error("Gemini Models Error")
+      );
+      // 2. Gemini Generation fail
+      (global.fetch as jest.Mock).mockRejectedValueOnce(
+        new Error("Gemini Generation Error")
+      );
+
+      // 3. HF returns loading error
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ error: "Model is loading" }),
+      });
+
+      try {
+        await generateText("prompt");
+        fail("Should have thrown error");
+      } catch (error: any) {
+        expect(error.message).toContain("All AI providers failed");
+        expect(error.message).toContain("Model is loading");
+      }
+    });
+
+    it("should handle HuggingFace other error", async () => {
+      process.env.GEMINI_API_KEY = "test-gemini-key";
+      process.env.HUGGINGFACE_TOKEN = "test-hf-token";
+
+      // 1. Gemini Models fail
+      (global.fetch as jest.Mock).mockRejectedValueOnce(
+        new Error("Gemini Models Error")
+      );
+      // 2. Gemini Generation fail
+      (global.fetch as jest.Mock).mockRejectedValueOnce(
+        new Error("Gemini Generation Error")
+      );
+
+      // 3. HF returns generic error
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ error: "Some other error" }),
+      });
+
+      try {
+        await generateText("prompt");
+        fail("Should have thrown error");
+      } catch (error: any) {
+        expect(error.message).toContain("All AI providers failed");
+        expect(error.message).toContain("Some other error");
+      }
+    });
+
+    it("should handle HuggingFace unexpected format", async () => {
+      process.env.GEMINI_API_KEY = "test-gemini-key";
+      process.env.HUGGINGFACE_TOKEN = "test-hf-token";
+
+      // 1. Gemini Models fail
+      (global.fetch as jest.Mock).mockRejectedValueOnce(
+        new Error("Gemini Models Error")
+      );
+      // 2. Gemini Generation fail
+      (global.fetch as jest.Mock).mockRejectedValueOnce(
+        new Error("Gemini Generation Error")
+      );
+
+      // 3. HF returns unexpected json
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ foo: "bar" }),
+      });
+
+      try {
+        await generateText("prompt");
+        fail("Should have thrown error");
+      } catch (error: any) {
+        expect(error.message).toContain("All AI providers failed");
+        expect(error.message).toContain(
+          "Unexpected HuggingFace response format"
+        );
+      }
     });
   });
 });
