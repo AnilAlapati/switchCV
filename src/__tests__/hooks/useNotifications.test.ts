@@ -43,18 +43,18 @@ describe("useNotifications", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (notificationService.getUserNotifications as jest.Mock).mockReturnValue(
+    (notificationService.getUserNotifications as jest.Mock).mockResolvedValue(
       mockNotifications
     );
-    (notificationService.getPreferences as jest.Mock).mockReturnValue(
+    (notificationService.getPreferences as jest.Mock).mockResolvedValue(
       mockPreferences
     );
-    (notificationService.getStatistics as jest.Mock).mockReturnValue(mockStats);
-    (notificationService.shouldSendNotification as jest.Mock).mockReturnValue(
+    (notificationService.getStatistics as jest.Mock).mockResolvedValue(mockStats);
+    (notificationService.shouldSendNotification as jest.Mock).mockResolvedValue(
       true
     );
     (notificationService.createNotification as jest.Mock).mockImplementation(
-      (type, userId, payload, channels, priority) => ({
+      async (type, userId, payload, channels, priority) => ({
         id: "new-notif",
         type,
         recipientId: userId,
@@ -69,13 +69,16 @@ describe("useNotifications", () => {
     (notificationDelivery.sendMultiChannel as jest.Mock).mockResolvedValue(
       undefined
     );
+    (notificationService.markAsRead as jest.Mock).mockResolvedValue(undefined);
+    (notificationService.savePreference as jest.Mock).mockResolvedValue(undefined);
+    (notificationService.deleteNotification as jest.Mock).mockResolvedValue(true);
   });
 
-  it("should load state when refreshNotifications is called", () => {
+  it("should load state when refreshNotifications is called", async () => {
     const { result } = renderHook(() => useNotifications(mockUserId));
 
-    act(() => {
-      result.current.refreshNotifications();
+    await act(async () => {
+      await result.current.refreshNotifications();
     });
 
     expect(result.current.notifications).toEqual(mockNotifications);
@@ -85,17 +88,15 @@ describe("useNotifications", () => {
     expect(result.current.error).toBeNull();
   });
 
-  it("should handle load error", () => {
-    (notificationService.getUserNotifications as jest.Mock).mockImplementation(
-      () => {
-        throw new Error("Load failed");
-      }
+  it("should handle load error", async () => {
+    (notificationService.getUserNotifications as jest.Mock).mockRejectedValue(
+      new Error("Load failed")
     );
 
     const { result } = renderHook(() => useNotifications(mockUserId));
 
-    act(() => {
-      result.current.refreshNotifications();
+    await act(async () => {
+      await result.current.refreshNotifications();
     });
 
     expect(result.current.error).toContain("Failed to load notifications");
@@ -140,47 +141,62 @@ describe("useNotifications", () => {
     expect(result.current.error).toContain("Failed to send notification");
   });
 
-  it("should mark notification as read", () => {
+  it("should mark notification as read", async () => {
     const { result } = renderHook(() => useNotifications(mockUserId));
 
-    act(() => {
-      result.current.markRead("notif1");
+    await act(async () => {
+      await result.current.markRead("notif1");
     });
 
     expect(notificationService.markAsRead).toHaveBeenCalledWith("notif1");
     expect(notificationService.getUserNotifications).toHaveBeenCalledTimes(1);
   });
 
-  it("should mark all as read", () => {
-    (notificationService.getUnreadNotifications as jest.Mock).mockReturnValue(
+  it("should mark all as read", async () => {
+    (notificationService.getUnreadNotifications as jest.Mock).mockResolvedValue(
       mockNotifications
     );
     const { result } = renderHook(() => useNotifications(mockUserId));
 
-    act(() => {
-      result.current.markAllRead();
+    await act(async () => {
+      await result.current.markAllRead();
     });
 
     expect(notificationService.markAsRead).toHaveBeenCalledWith("notif1");
     expect(notificationService.getUserNotifications).toHaveBeenCalledTimes(1);
   });
 
-  it("should delete notification", () => {
+  it("should delete notification", async () => {
     const { result } = renderHook(() => useNotifications(mockUserId));
 
-    act(() => {
-      result.current.deleteNotification("notif1");
+    // Initial load
+    await act(async () => {
+      await result.current.refreshNotifications();
+    });
+    expect(result.current.notifications).toHaveLength(1);
+
+    // Mock getUserNotifications to return empty after delete
+    (notificationService.getUserNotifications as jest.Mock).mockResolvedValue([]);
+
+    await act(async () => {
+      await result.current.deleteNotification("notif1");
     });
 
+    expect(notificationService.deleteNotification).toHaveBeenCalledWith("notif1");
     expect(result.current.notifications).toHaveLength(0);
   });
 
-  it("should update preference", () => {
+  it("should update preference", async () => {
     const { result } = renderHook(() => useNotifications(mockUserId));
     const newPref = { ...mockPreferences[0], enabled: false };
 
-    act(() => {
-      result.current.updatePreference(newPref);
+    // Initial load
+    await act(async () => {
+      await result.current.refreshNotifications();
+    });
+
+    await act(async () => {
+      await result.current.updatePreference(newPref);
     });
 
     expect(notificationService.savePreference).toHaveBeenCalledWith(

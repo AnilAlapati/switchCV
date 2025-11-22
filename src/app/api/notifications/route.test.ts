@@ -132,7 +132,7 @@ describe("POST /api/notifications", () => {
         webhook: true,
       };
 
-      mockCreateNotification.mockReturnValue(mockNotification);
+      mockCreateNotification.mockResolvedValue(mockNotification);
       mockSendMultiChannel.mockResolvedValue(mockDeliveryResults);
 
       const request = new NextRequest(
@@ -208,7 +208,7 @@ describe("POST /api/notifications", () => {
 
   describe("mark-read action", () => {
     it("should mark notification as read", async () => {
-      mockMarkAsRead.mockReturnValue(mockNotification);
+      mockMarkAsRead.mockResolvedValue(mockNotification);
 
       const request = new NextRequest(
         "http://localhost:3000/api/notifications",
@@ -283,8 +283,8 @@ describe("POST /api/notifications", () => {
         },
       ];
 
-      mockGetUnreadNotifications.mockReturnValue(mockUnreadNotifications);
-      mockMarkAsRead.mockReturnValue(mockNotification);
+      mockGetUnreadNotifications.mockResolvedValue(mockUnreadNotifications);
+      mockMarkAsRead.mockResolvedValue(mockNotification);
 
       const request = new NextRequest(
         "http://localhost:3000/api/notifications",
@@ -330,7 +330,7 @@ describe("POST /api/notifications", () => {
 
   describe("delete action", () => {
     it("should delete notification", async () => {
-      mockDeleteNotification.mockReturnValue(true);
+      mockDeleteNotification.mockResolvedValue(true);
 
       const request = new NextRequest(
         "http://localhost:3000/api/notifications",
@@ -374,7 +374,7 @@ describe("POST /api/notifications", () => {
 
   describe("get-preferences action", () => {
     it("should get user preferences", async () => {
-      mockGetPreferences.mockReturnValue([mockPreference]);
+      mockGetPreferences.mockResolvedValue([mockPreference]);
 
       const request = new NextRequest(
         "http://localhost:3000/api/notifications",
@@ -432,7 +432,7 @@ describe("POST /api/notifications", () => {
       };
 
       mockGenerateNotificationId.mockReturnValue("pref-123");
-      mockSavePreference.mockReturnValue(mockPreference);
+      mockSavePreference.mockResolvedValue(mockPreference);
 
       const request = new NextRequest(
         "http://localhost:3000/api/notifications",
@@ -600,7 +600,7 @@ describe("GET /api/notifications", () => {
         },
       ];
 
-      mockGetUserNotifications.mockReturnValue(mockNotifications);
+      mockGetUserNotifications.mockResolvedValue(mockNotifications);
 
       const request = new NextRequest(
         "http://localhost:3000/api/notifications?action=get-notifications&userId=user123"
@@ -654,7 +654,7 @@ describe("GET /api/notifications", () => {
         },
       ];
 
-      mockGetUnreadNotifications.mockReturnValue(mockUnreadNotifications);
+      mockGetUnreadNotifications.mockResolvedValue(mockUnreadNotifications);
 
       const request = new NextRequest(
         "http://localhost:3000/api/notifications?action=get-unread&userId=user123"
@@ -697,7 +697,7 @@ describe("GET /api/notifications", () => {
         read: 7,
       };
 
-      mockGetStatistics.mockReturnValue(mockStats);
+      mockGetStatistics.mockResolvedValue(mockStats);
 
       const request = new NextRequest(
         "http://localhost:3000/api/notifications?action=get-statistics&userId=user123"
@@ -721,7 +721,7 @@ describe("GET /api/notifications", () => {
         read: 75,
       };
 
-      mockGetStatistics.mockReturnValue(mockStats);
+      mockGetStatistics.mockResolvedValue(mockStats);
 
       const request = new NextRequest(
         "http://localhost:3000/api/notifications?action=get-statistics"
