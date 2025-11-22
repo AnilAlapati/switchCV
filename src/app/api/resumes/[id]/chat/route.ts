@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb, adminAuth } from "@/lib/firebase-admin";
+import { adminDb } from "@/lib/firebase-admin";
 import { generateText } from "@/lib/services/aiGenerationService";
 import {
   buildResumeEditPrompt,
@@ -13,6 +13,10 @@ import {
   normalizeResumeForEditor,
   sanitizeResumePayload,
 } from "@/lib/utils/resumeEditor";
+import {
+  handleApiError,
+  getAuthenticatedUserId,
+} from "@/lib/utils/api-helpers";
 
 interface ConversationMessage {
   id?: string;
@@ -46,26 +50,16 @@ export async function GET(
   try {
     const { id } = await params;
     if (!id) {
-      return NextResponse.json(
-        { error: "Resume ID is required" },
-        { status: 400 }
+      return handleApiError(
+        new Error("Resume ID is required"),
+        "Resume ID is required",
+        400
       );
     }
 
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const token = authHeader.split("Bearer ")[1];
-    let requestUserId: string;
-    try {
-      const decodedToken = await adminAuth.verifyIdToken(token);
-      requestUserId = decodedToken.uid;
-    } catch (error) {
-      console.error("Failed to verify auth token for edit chat GET:", error);
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
+    const { userId: requestUserId, error: authError } =
+      await getAuthenticatedUserId(request);
+    if (authError) return authError;
 
     const { docRef, snapshot } = await getResumeDocument(id);
     if (!snapshot.exists) {
@@ -79,7 +73,11 @@ export async function GET(
     const resumeData = snapshot.data() ?? {};
     const ownerId = resumeData.userId;
     if (!ownerId || ownerId !== requestUserId) {
-      return NextResponse.json({ error: "Permission denied" }, { status: 403 });
+      return handleApiError(
+        new Error("Permission denied"),
+        "Permission denied",
+        403
+      );
     }
 
     const normalized = normalizeResumeForEditor(resumeData);
@@ -104,10 +102,7 @@ export async function GET(
     });
   } catch (error) {
     console.error("Error in resume edit chat GET:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Internal server error");
   }
 }
 
@@ -118,34 +113,25 @@ export async function POST(
   try {
     const { id } = await params;
     if (!id) {
-      return NextResponse.json(
-        { error: "Resume ID is required" },
-        { status: 400 }
+      return handleApiError(
+        new Error("Resume ID is required"),
+        "Resume ID is required",
+        400
       );
     }
 
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const token = authHeader.split("Bearer ")[1];
-    let requestUserId: string;
-    try {
-      const decodedToken = await adminAuth.verifyIdToken(token);
-      requestUserId = decodedToken.uid;
-    } catch (error) {
-      console.error("Failed to verify auth token for edit chat POST:", error);
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
+    const { userId: requestUserId, error: authError } =
+      await getAuthenticatedUserId(request);
+    if (authError) return authError;
 
     const body: ResumeChatRequest = await request.json();
     const { message, conversationHistory = [], sessionData } = body;
 
     if (!message || typeof message !== "string") {
-      return NextResponse.json(
-        { error: "Message is required" },
-        { status: 400 }
+      return handleApiError(
+        new Error("Message is required"),
+        "Message is required",
+        400
       );
     }
 
@@ -164,7 +150,11 @@ export async function POST(
     const resumeData = snapshot.data() ?? {};
     const ownerId = resumeData.userId;
     if (!ownerId || ownerId !== requestUserId) {
-      return NextResponse.json({ error: "Permission denied" }, { status: 403 });
+      return handleApiError(
+        new Error("Permission denied"),
+        "Permission denied",
+        403
+      );
     }
 
     const normalized = normalizeResumeForEditor(resumeData);
@@ -287,11 +277,6 @@ export async function POST(
     });
   } catch (error) {
     console.error("Error handling resume edit chat:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to process resume edit",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to process resume edit");
   }
 }

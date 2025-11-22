@@ -37,6 +37,25 @@ const eslintConfig = [
     },
   },
   {
+    files: ["src/app/api/**/*.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "warn",
+        {
+          selector: "CallExpression[callee.property.name='verifyIdToken']",
+          message:
+            "Direct use of verifyIdToken is discouraged in API routes. Use getAuthenticatedUserId from @/lib/utils/api-helpers instead.",
+        },
+        {
+          selector:
+            "CallExpression[callee.object.name='NextResponse'][callee.property.name='json'] ObjectExpression Property[key.name='error']",
+          message:
+            "Consider using handleApiError from @/lib/utils/api-helpers for consistent error handling.",
+        },
+      ],
+    },
+  },
+  {
     ignores: [
       ".next/**",
       "out/**",

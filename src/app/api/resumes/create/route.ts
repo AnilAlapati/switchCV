@@ -1,39 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuth } from "firebase-admin/auth";
-import { initializeApp, getApps, cert } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
+import { adminDb } from "@/lib/firebase-admin";
 import { generateNumericResumeId } from "@/lib/numericIdGenerator";
 import { Resume } from "@/lib/resumeComparison.types";
-
-// Initialize Firebase Admin safely during runtime, not build time
-let initialized = false;
-
-function initializeFirebaseAdmin() {
-  if (initialized || getApps().length > 0) return;
-
-  try {
-    if (
-      !process.env.FIREBASE_PROJECT_ID ||
-      !process.env.FIREBASE_CLIENT_EMAIL
-    ) {
-      console.warn(
-        "Firebase credentials not configured - API may not work properly"
-      );
-      return;
-    }
-
-    initializeApp({
-      credential: cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-      }),
-    });
-    initialized = true;
-  } catch (error) {
-    console.error("Failed to initialize Firebase Admin:", error);
-  }
-}
+import {
+  handleApiError,
+  getAuthenticatedUserId,
+} from "@/lib/utils/api-helpers";
 
 interface CreateResumeRequest {
   userId: string;
@@ -50,29 +22,30 @@ interface CreateResumeResponse {
 
 export async function POST(request: NextRequest) {
   try {
-    // Initialize Firebase during request, not during build
-    initializeFirebaseAdmin();
+    // Verify authentication
+    const { userId: authenticatedUserId, error } = await getAuthenticatedUserId(
+      request
+    );
+    if (error) return error;
 
     // Parse request body
     const body = (await request.json()) as CreateResumeRequest;
     const { userId, resume, isPublic = true } = body;
 
     if (!userId || !resume) {
-      return NextResponse.json(
-        { error: "Missing required fields: userId or resume" },
-        { status: 400 }
+      return handleApiError(
+        new Error("Missing required fields"),
+        "Missing required fields: userId or resume",
+        400
       );
     }
 
-    // Verify authentication via ID token
-    const authHeader = request.headers.get("authorization");
-    const tokenUserId = await verifyAuthToken(authHeader);
-
     // Security: Only users can save their own resumes
-    if (tokenUserId && tokenUserId !== userId) {
-      return NextResponse.json(
-        { error: "Unauthorized: Cannot save resume for another user" },
-        { status: 403 }
+    if (authenticatedUserId !== userId) {
+      return handleApiError(
+        new Error("Unauthorized"),
+        "Unauthorized: Cannot save resume for another user",
+        403
       );
     }
 
@@ -80,9 +53,10 @@ export async function POST(request: NextRequest) {
     const numericId = await generateNumericResumeId();
 
     if (!numericId) {
-      return NextResponse.json(
-        { error: "Failed to generate numeric resume ID" },
-        { status: 500 }
+      return handleApiError(
+        new Error("Failed to generate ID"),
+        "Failed to generate numeric resume ID",
+        500
       );
     }
 
@@ -100,13 +74,12 @@ export async function POST(request: NextRequest) {
 
     // Save to Firestore
     // Structure: resumes/{numericId} (Root collection for easy access by ID)
-    const db = getFirestore();
-    const docRef = db.collection("resumes").doc(String(numericId));
+    const docRef = adminDb.collection("resumes").doc(String(numericId));
 
     await docRef.set(resumeDoc);
 
     // Also store in user's subcollection for listing
-    const userResumeRef = db
+    const userResumeRef = adminDb
       .collection("users")
       .doc(userId)
       .collection("resumes")
@@ -118,7 +91,9 @@ export async function POST(request: NextRequest) {
     });
 
     // Also store in a global resumes collection for search/listing (optional, if needed separately)
-    const globalResumesRef = db.collection("allResumes").doc(String(numericId));
+    const globalResumesRef = adminDb
+      .collection("allResumes")
+      .doc(String(numericId));
     await globalResumesRef.set({
       userId,
       numericId,
@@ -144,33 +119,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(response);
   } catch (error) {
     console.error("❌ Error creating resume:", error);
-
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json(
-      { error: "Failed to create resume", details: errorMessage },
-      { status: 500 }
-    );
-  }
-}
-
-/**
- * Verify Firebase ID token and return user ID
- * Returns null if no token, throws if invalid
- */
-async function verifyAuthToken(
-  authHeader: string | null
-): Promise<string | null> {
-  if (!authHeader?.startsWith("Bearer ")) {
-    return null;
-  }
-
-  const idToken = authHeader.split("Bearer ")[1];
-  try {
-    const decodedToken = await getAuth().verifyIdToken(idToken);
-    return decodedToken.uid;
-  } catch {
-    console.warn("⚠️ Invalid auth token provided");
-    return null;
+    return handleApiError(error, "Failed to create resume");
   }
 }

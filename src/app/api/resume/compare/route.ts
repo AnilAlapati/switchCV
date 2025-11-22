@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { compareResumes } from "@/lib/resumeComparison";
 import { Resume } from "@/lib/resumeComparison.types";
+import { handleApiError } from "@/lib/utils/api-helpers";
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,18 +15,12 @@ export async function POST(request: NextRequest) {
 
     // Validate input
     if (!resume1 || !resume2) {
-      return NextResponse.json(
-        { error: "Both resume1 and resume2 are required" },
-        { status: 400 }
-      );
+      return handleApiError(null, "Both resume1 and resume2 are required", 400);
     }
 
     // Type validation
     if (!isValidResume(resume1) || !isValidResume(resume2)) {
-      return NextResponse.json(
-        { error: "Invalid resume format" },
-        { status: 400 }
-      );
+      return handleApiError(null, "Invalid resume format", 400);
     }
 
     // Perform comparison
@@ -33,12 +28,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(result, { status: 200 });
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json(
-      { error: "Failed to compare resumes", details: errorMessage },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to compare resumes");
   }
 }
 

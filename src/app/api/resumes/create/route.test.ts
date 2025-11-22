@@ -1,35 +1,52 @@
 import { POST } from "./route";
 import { NextRequest } from "next/server";
-import { getAuth } from "firebase-admin/auth";
-import { getFirestore } from "firebase-admin/firestore";
 import { generateNumericResumeId } from "@/lib/numericIdGenerator";
+import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
+import { adminDb } from "@/lib/firebase-admin";
 
-jest.mock("firebase-admin/auth", () => ({
-  getAuth: jest.fn(),
+// Mock api-helpers
+jest.mock("@/lib/utils/api-helpers", () => ({
+  getAuthenticatedUserId: jest.fn(),
+  handleApiError: jest.fn((error, message, status = 500) => ({
+    status,
+    json: async () => ({ error: message, details: error.message }),
+  })),
 }));
 
-jest.mock("firebase-admin/app", () => ({
-  initializeApp: jest.fn(),
-  getApps: jest.fn().mockReturnValue([]),
-  cert: jest.fn(),
-}));
-
-jest.mock("firebase-admin/firestore", () => ({
-  getFirestore: jest.fn(),
-}));
-
-jest.mock("@/lib/firebase-admin", () => ({
-  adminDb: {},
-  adminAuth: {},
-}));
-
+// Mock numericIdGenerator
 jest.mock("@/lib/numericIdGenerator");
 
+// Mock firebase-admin
+jest.mock("@/lib/firebase-admin", () => ({
+  adminDb: {
+    collection: jest.fn(),
+  },
+}));
+
 describe("POST /api/resumes/create", () => {
+  const mockSet = jest.fn();
+  const mockDoc = jest.fn();
+  const mockCollection = jest.fn();
+
   beforeEach(() => {
     jest.clearAllMocks();
-    (getAuth as jest.Mock).mockReturnValue({
-      verifyIdToken: jest.fn().mockResolvedValue({ uid: "user123" }),
+
+    // Setup default Firestore mock chain
+    (adminDb.collection as jest.Mock).mockImplementation(mockCollection);
+
+    mockCollection.mockReturnValue({
+      doc: mockDoc,
+    });
+    mockDoc.mockReturnValue({
+      set: mockSet,
+      collection: mockCollection, // For nested collections
+    });
+    mockSet.mockResolvedValue(undefined);
+
+    // Default auth mock
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "user123",
+      error: null,
     });
   });
 
@@ -49,9 +66,6 @@ describe("POST /api/resumes/create", () => {
   it("should return 403 if user tries to save for another user", async () => {
     const req = new NextRequest("http://localhost/api/resumes/create", {
       method: "POST",
-      headers: {
-        authorization: "Bearer valid-token",
-      },
       body: JSON.stringify({
         userId: "otherUser",
         resume: { title: "Resume" },
@@ -72,38 +86,8 @@ describe("POST /api/resumes/create", () => {
 
     (generateNumericResumeId as jest.Mock).mockResolvedValue(mockNumericId);
 
-    const mockSet = jest.fn();
-    const mockDocRef = { set: mockSet };
-
-    // Mock collection behavior
-    const mockCollectionImpl = jest.fn((name) => {
-      if (name === "resumes") {
-        return { doc: jest.fn().mockReturnValue(mockDocRef) };
-      }
-      if (name === "users") {
-        return {
-          doc: jest.fn().mockReturnValue({
-            collection: jest.fn().mockReturnValue({
-              doc: jest.fn().mockReturnValue(mockDocRef),
-            }),
-          }),
-        };
-      }
-      if (name === "allResumes") {
-        return { doc: jest.fn().mockReturnValue(mockDocRef) };
-      }
-      return { doc: jest.fn().mockReturnValue(mockDocRef) };
-    });
-
-    (getFirestore as jest.Mock).mockReturnValue({
-      collection: mockCollectionImpl,
-    });
-
     const req = new NextRequest("http://localhost/api/resumes/create", {
       method: "POST",
-      headers: {
-        authorization: "Bearer valid-token",
-      },
       body: JSON.stringify({
         userId: mockUserId,
         resume: mockResume,
@@ -116,6 +100,11 @@ describe("POST /api/resumes/create", () => {
     expect(res.status).toBe(200);
     expect(data.success).toBe(true);
     expect(data.numericId).toBe(mockNumericId);
+
+    // Verify Firestore calls
+    expect(mockCollection).toHaveBeenCalledWith("resumes");
+    expect(mockDoc).toHaveBeenCalledWith(String(mockNumericId));
+    expect(mockSet).toHaveBeenCalled();
   });
 
   it("should handle errors", async () => {
@@ -125,9 +114,6 @@ describe("POST /api/resumes/create", () => {
 
     const req = new NextRequest("http://localhost/api/resumes/create", {
       method: "POST",
-      headers: {
-        authorization: "Bearer valid-token",
-      },
       body: JSON.stringify({
         userId: "user123",
         resume: { title: "Resume" },

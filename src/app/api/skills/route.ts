@@ -19,6 +19,7 @@ import {
   addSkillToInventory,
 } from "@/lib/skillInventory";
 import { performGapAnalysis, compareJobFit } from "@/lib/gapAnalysis";
+import { handleApiError } from "@/lib/utils/api-helpers";
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,9 +29,10 @@ export async function POST(request: NextRequest) {
       const { userId } = body;
 
       if (!userId) {
-        return NextResponse.json(
-          { error: "userId is required" },
-          { status: 400 }
+        return handleApiError(
+          new Error("userId is required"),
+          "userId is required",
+          400
         );
       }
 
@@ -49,12 +51,12 @@ export async function POST(request: NextRequest) {
       } = body;
 
       if (!inventory || !name || !category || !proficiencyLevel) {
-        return NextResponse.json(
-          {
-            error:
-              "inventory, name, category, and proficiencyLevel are required",
-          },
-          { status: 400 }
+        return handleApiError(
+          new Error(
+            "inventory, name, category, and proficiencyLevel are required"
+          ),
+          "inventory, name, category, and proficiencyLevel are required",
+          400
         );
       }
 
@@ -70,13 +72,7 @@ export async function POST(request: NextRequest) {
         const updated = addSkillToInventory(inventory as SkillInventory, skill);
         return NextResponse.json(updated, { status: 200 });
       } catch (error) {
-        return NextResponse.json(
-          {
-            error:
-              error instanceof Error ? error.message : "Failed to add skill",
-          },
-          { status: 400 }
-        );
+        return handleApiError(error, "Failed to add skill", 400);
       }
     }
 
@@ -84,9 +80,10 @@ export async function POST(request: NextRequest) {
       const { inventory, jobPosting } = body;
 
       if (!inventory || !jobPosting) {
-        return NextResponse.json(
-          { error: "inventory and jobPosting are required" },
-          { status: 400 }
+        return handleApiError(
+          new Error("inventory and jobPosting are required"),
+          "inventory and jobPosting are required",
+          400
         );
       }
 
@@ -97,13 +94,7 @@ export async function POST(request: NextRequest) {
         );
         return NextResponse.json(report, { status: 200 });
       } catch (error) {
-        return NextResponse.json(
-          {
-            error:
-              error instanceof Error ? error.message : "Gap analysis failed",
-          },
-          { status: 500 }
-        );
+        return handleApiError(error, "Gap analysis failed", 500);
       }
     }
 
@@ -111,9 +102,10 @@ export async function POST(request: NextRequest) {
       const { inventory, jobs } = body;
 
       if (!inventory || !jobs || !Array.isArray(jobs)) {
-        return NextResponse.json(
-          { error: "inventory and jobs array are required" },
-          { status: 400 }
+        return handleApiError(
+          new Error("inventory and jobs array are required"),
+          "inventory and jobs array are required",
+          400
         );
       }
 
@@ -124,23 +116,12 @@ export async function POST(request: NextRequest) {
         );
         return NextResponse.json(comparisons, { status: 200 });
       } catch (error) {
-        return NextResponse.json(
-          {
-            error:
-              error instanceof Error ? error.message : "Job comparison failed",
-          },
-          { status: 500 }
-        );
+        return handleApiError(error, "Job comparison failed", 500);
       }
     }
 
-    return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+    return handleApiError(new Error("Unknown action"), "Unknown action", 400);
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Internal server error",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "Internal server error");
   }
 }

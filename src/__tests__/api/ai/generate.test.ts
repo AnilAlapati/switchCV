@@ -1,18 +1,15 @@
 import { POST } from "@/app/api/ai/generate/route";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { generateText } from "@/lib/services/aiGenerationService";
+import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 
 // Mock Firebase Admin
-const mockVerifyIdToken = jest.fn();
 const mockFirestoreGet = jest.fn();
 const mockFirestoreAdd = jest.fn();
 const mockRunTransaction = jest.fn();
 
 jest.mock("@/lib/firebase-admin", () => ({
   __esModule: true,
-  adminAuth: {
-    verifyIdToken: (...args: any[]) => mockVerifyIdToken(...args),
-  },
   adminDb: {
     collection: jest.fn(() => ({
       doc: jest.fn(() => ({
@@ -37,6 +34,20 @@ jest.mock("@/lib/firebase-admin", () => ({
 }));
 
 jest.mock("@/lib/services/aiGenerationService");
+jest.mock("@/lib/utils/api-helpers", () => ({
+  getAuthenticatedUserId: jest.fn(),
+  handleApiError: jest.fn((error, message, status = 500) => {
+    const headers = new Map();
+    return {
+      status,
+      headers: {
+        set: (key: string, value: string) => headers.set(key, value),
+        get: (key: string) => headers.get(key),
+      },
+      json: async () => ({ error: message, details: error.message }),
+    };
+  }),
+}));
 
 const mockedGenerateText = jest.mocked(generateText);
 
@@ -56,7 +67,9 @@ describe("/api/ai/generate route", () => {
     jest.clearAllMocks();
 
     // Default mocks
-    mockVerifyIdToken.mockResolvedValue({ uid: "test-user-id" });
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "test-user-id",
+    });
     mockFirestoreGet.mockResolvedValue({
       exists: true,
       data: () => ({ subscriptionTier: "premium" }),
@@ -138,7 +151,7 @@ describe("/api/ai/generate route", () => {
     const data = await response.json();
 
     expect(response.status).toBe(500);
-    expect(data.error).toBe("Internal server error");
+    expect(data.error).toBe("AI text generation failed");
   });
 
   it("should handle HuggingFace fallback provider", async () => {
@@ -234,7 +247,14 @@ describe("/api/ai/generate route", () => {
     expect(response.status).toBe(500);
   });
 
-  it("should return 401 error when Authorization header is missing", async () => {
+  it("should return 401 error when authentication fails", async () => {
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      error: NextResponse.json(
+        { error: "Unauthorized: Missing or invalid token" },
+        { status: 401 }
+      ),
+    });
+
     const request = new NextRequest("http://localhost:3000/api/ai/generate", {
       method: "POST",
       headers: {
@@ -248,35 +268,6 @@ describe("/api/ai/generate route", () => {
 
     expect(response.status).toBe(401);
     expect(data.error).toBe("Unauthorized: Missing or invalid token");
-  });
-
-  it("should return 401 error when Authorization header is invalid", async () => {
-    const request = new NextRequest("http://localhost:3000/api/ai/generate", {
-      method: "POST",
-      headers: {
-        Authorization: "InvalidToken",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ prompt: "Test" }),
-    });
-
-    const response = await POST(request);
-    const data = await response.json();
-
-    expect(response.status).toBe(401);
-    expect(data.error).toBe("Unauthorized: Missing or invalid token");
-  });
-
-  it("should return 401 error when token verification fails", async () => {
-    mockVerifyIdToken.mockRejectedValueOnce(new Error("Invalid token"));
-
-    const request = createRequest({ prompt: "Test" });
-
-    const response = await POST(request);
-    const data = await response.json();
-
-    expect(response.status).toBe(401);
-    expect(data.error).toBe("Unauthorized: Invalid token");
   });
 
   it("should return 403 error when user is on basic plan", async () => {
@@ -314,36 +305,7 @@ describe("/api/ai/generate route", () => {
   });
 
   it("should return 429 error when rate limit is exceeded", async () => {
-    // Mock runTransaction to throw RateLimitError-like object or we can mock the helper if it was exported.
-    // Since enforceRateLimit is internal, we have to mock runTransaction to throw.
-    // But wait, the error is thrown INSIDE the transaction callback.
-    // The current mockRunTransaction just returns a value.
-    // We need to make mockRunTransaction execute the callback or simulate the error.
-
-    // However, the route catches RateLimitError.
-    // Let's mock runTransaction to throw a custom error that looks like RateLimitError?
-    // No, RateLimitError is defined in the route file and not exported.
-    // We can't instantiate it easily in the test.
-
-    // Alternative: We can mock the implementation of runTransaction to throw an error
-    // that has the same structure if we can't import the class.
-    // Or we can rely on the fact that the route catches `RateLimitError`.
-
-    // Actually, `enforceRateLimit` calls `runTransaction`.
-    // If `runTransaction` throws, `enforceRateLimit` throws.
-    // But `RateLimitError` is thrown FROM WITHIN the transaction callback.
-
-    // Let's try to mock `runTransaction` to throw an error that has `retryAfterSeconds` property?
-    // The `instanceof RateLimitError` check in `handleRouteError` will fail if it's not the same class.
-
-    // Since `RateLimitError` is not exported, we can't use `instanceof` in our mock to throw it.
-    // We might need to export `RateLimitError` from the route file to test it properly,
-    // or we can test the behavior by mocking `adminDb.runTransaction` to execute the callback
-    // and ensuring the callback logic throws.
-
-    // Let's try to make `mockRunTransaction` execute the callback.
     mockRunTransaction.mockImplementation(async (callback) => {
-      // We need to mock the transaction object passed to the callback
       const mockTx = {
         get: jest.fn().mockResolvedValue({
           exists: true,
@@ -354,13 +316,6 @@ describe("/api/ai/generate route", () => {
         }),
         set: jest.fn(),
       };
-
-      // We can't easily make the callback throw the exact RateLimitError class instance
-      // because the callback logic inside enforceRateLimit instantiates it.
-      // But wait, if we execute the callback, it WILL throw the RateLimitError
-      // because the logic inside the callback checks the count and throws.
-      // So we just need to execute the callback!
-
       return callback(mockTx);
     });
 

@@ -96,10 +96,10 @@ describe("GET /api/jobseeker/metrics", () => {
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data).toEqual({ error: "userId is required" });
+    expect(data).toEqual({
+      error: "userId is required",
+    });
     expect(mockCollection).not.toHaveBeenCalled();
-    expect(mockDoc).not.toHaveBeenCalled();
-    expect(mockGet).not.toHaveBeenCalled();
   });
 
   it("should return 500 when database operation fails", async () => {
@@ -113,7 +113,10 @@ describe("GET /api/jobseeker/metrics", () => {
     const data = await response.json();
 
     expect(response.status).toBe(500);
-    expect(data).toEqual({ error: "Failed to fetch job seeker metrics" });
+    expect(data).toEqual({
+      error: "Failed to fetch job seeker metrics",
+      details: "Database connection failed",
+    });
     expect(mockCollection).toHaveBeenCalledWith("jobSeekerMetrics");
     expect(mockDoc).toHaveBeenCalledWith("user789");
     expect(mockGet).toHaveBeenCalled();
@@ -128,7 +131,9 @@ describe("GET /api/jobseeker/metrics", () => {
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data).toEqual({ error: "userId is required" });
+    expect(data).toEqual({
+      error: "userId is required",
+    });
     expect(mockCollection).not.toHaveBeenCalled();
     expect(mockDoc).not.toHaveBeenCalled();
     expect(mockGet).not.toHaveBeenCalled();

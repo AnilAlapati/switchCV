@@ -8,15 +8,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateResumeEnhancement } from "@/lib/resumeEnhancer";
 import { logger } from "@/lib/logger";
 import type { Resume } from "@/lib/resumeComparison.types";
+import { handleApiError } from "@/lib/utils/api-helpers";
 
 export async function POST(request: NextRequest) {
   try {
     const { resume, jobDescription } = await request.json();
 
     if (!resume || typeof resume !== "object") {
-      return NextResponse.json(
-        { error: "Invalid resume data" },
-        { status: 400 }
+      return handleApiError(
+        new Error("Invalid resume data"),
+        "Invalid resume data",
+        400
       );
     }
 
@@ -28,9 +30,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(enhancement, { status: 200 });
   } catch (error) {
     logger.error("Error enhancing resume:", error);
-    return NextResponse.json(
-      { error: "Failed to enhance resume" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to enhance resume");
   }
 }

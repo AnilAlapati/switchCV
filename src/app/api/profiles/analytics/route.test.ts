@@ -129,7 +129,7 @@ describe("GET /api/profiles/analytics", () => {
 
     expect(response.status).toBe(500);
     expect(data.error).toBe("Failed to retrieve analytics");
-    expect(data.message).toBe(errorMessage);
+    expect(data.details).toBe(errorMessage);
     expect(mockGetAnalytics).toHaveBeenCalledWith("resume-123");
   });
 
@@ -143,7 +143,7 @@ describe("GET /api/profiles/analytics", () => {
 
     expect(response.status).toBe(500);
     expect(data.error).toBe("Failed to retrieve analytics");
-    expect(data.message).toBe("Unknown error");
+    expect(data.details).toBe("String error");
   });
 });
 
@@ -273,7 +273,7 @@ describe("POST /api/profiles/analytics", () => {
 
     expect(response.status).toBe(500);
     expect(data.error).toBe("Failed to track analytics");
-    expect(data.message).toBe(errorMessage);
+    expect(data.details).toBe(errorMessage);
     expect(mockTrackAnalyticsEvent).toHaveBeenCalledWith(trackingRequest);
   });
 
@@ -291,7 +291,7 @@ describe("POST /api/profiles/analytics", () => {
 
     expect(response.status).toBe(500);
     expect(data.error).toBe("Failed to track analytics");
-    expect(data.message).toBe("Unknown error");
+    expect(data.details).toBe("String error");
   });
 
   it("should handle different event types correctly", async () => {
@@ -371,7 +371,7 @@ describe("POST /api/profiles/analytics", () => {
 
     expect(response.status).toBe(500);
     expect(data.error).toBe("Failed to track analytics");
-    expect(data.message).toBe(errorMessage);
+    expect(data.details).toBe(errorMessage);
     expect(mockTrackAnalyticsEvent).not.toHaveBeenCalled();
   });
 });

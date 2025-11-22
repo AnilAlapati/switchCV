@@ -59,7 +59,7 @@ describe("GET /api/ai/status", () => {
     const data = await res.json();
 
     expect(data.connected).toBe(false);
-    expect(data.error).toBe("No AI provider configured");
+    expect(data.message).toBe("No AI provider configured");
   });
 
   it("should handle fetch errors for Gemini models gracefully", async () => {

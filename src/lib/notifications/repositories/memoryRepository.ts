@@ -1,4 +1,8 @@
-import { Notification, NotificationPreference, NotificationLog } from "../../notifications.types";
+import {
+  Notification,
+  NotificationPreference,
+  NotificationLog,
+} from "../../notifications.types";
 import { NotificationRepository } from "../repository";
 
 export class MemoryNotificationRepository implements NotificationRepository {
@@ -15,7 +19,10 @@ export class MemoryNotificationRepository implements NotificationRepository {
     return this.notificationStore.get(id);
   }
 
-  async getUserNotifications(userId: string, limit: number = 50): Promise<Notification[]> {
+  async getUserNotifications(
+    userId: string,
+    limit: number = 50
+  ): Promise<Notification[]> {
     return Array.from(this.notificationStore.values())
       .filter((n) => n.recipientId === userId)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
@@ -35,7 +42,9 @@ export class MemoryNotificationRepository implements NotificationRepository {
     return this.preferenceStore.get(userId) || [];
   }
 
-  async savePreference(preference: NotificationPreference): Promise<NotificationPreference> {
+  async savePreference(
+    preference: NotificationPreference
+  ): Promise<NotificationPreference> {
     const preferences = this.preferenceStore.get(preference.userId) || [];
     const index = preferences.findIndex((p) => p.type === preference.type);
 
@@ -53,7 +62,10 @@ export class MemoryNotificationRepository implements NotificationRepository {
     this.logStore.push(log);
   }
 
-  async getLogs(notificationId?: string, limit: number = 100): Promise<NotificationLog[]> {
+  async getLogs(
+    notificationId?: string,
+    limit: number = 100
+  ): Promise<NotificationLog[]> {
     let logs = this.logStore;
     if (notificationId) {
       logs = logs.filter((l) => l.notificationId === notificationId);
@@ -72,7 +84,10 @@ export class MemoryNotificationRepository implements NotificationRepository {
     return deletedCount;
   }
 
-  async getStatistics(userId?: string, days: number = 7): Promise<Record<string, number>> {
+  async getStatistics(
+    userId?: string,
+    days: number = 7
+  ): Promise<Record<string, number>> {
     const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     let notifications = Array.from(this.notificationStore.values()).filter(
       (n) => n.createdAt > cutoffDate

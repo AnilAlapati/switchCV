@@ -28,6 +28,7 @@ import { GET } from "./route";
 
 import { doc, updateDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { tokenGenerator } from "@/lib/tokenGenerator";
+import { handleApiError } from "@/lib/utils/api-helpers";
 
 const mockDoc = doc as jest.MockedFunction<typeof doc>;
 const mockUpdateDoc = updateDoc as jest.MockedFunction<typeof updateDoc>;
@@ -41,6 +42,15 @@ const mockGetRemainingTime =
   tokenGenerator.getRemainingTime as jest.MockedFunction<any>;
 const mockGetReadableTimeRemaining =
   tokenGenerator.getReadableTimeRemaining as jest.MockedFunction<any>;
+
+jest.mock("@/lib/utils/api-helpers", () => ({
+  handleApiError: jest.fn((error, message, status = 500) => {
+    return {
+      status,
+      json: async () => ({ error: message, details: error?.message }),
+    };
+  }),
+}));
 
 describe("GET /api/recruiters/verify-token", () => {
   beforeEach(() => {
@@ -62,7 +72,6 @@ describe("GET /api/recruiters/verify-token", () => {
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data.valid).toBe(false);
     expect(data.error).toBe("Token or tokenId is required");
   });
 
@@ -81,7 +90,7 @@ describe("GET /api/recruiters/verify-token", () => {
 
     expect(response.status).toBe(200);
     expect(data.valid).toBe(false);
-    expect(data.error).toBe("Token verification failed");
+    expect(data.message).toBe("Token verification failed");
   });
 
   it("should successfully verify valid token", async () => {
@@ -155,7 +164,7 @@ describe("GET /api/recruiters/verify-token", () => {
     expect(response.status).toBe(200);
     expect(data.valid).toBe(false); // JWT verification alone is not enough, needs tokenData
     expect(data.verified).toBeUndefined();
-    expect(data.error).toBe("Token verification failed");
+    expect(data.message).toBe("Token verification failed");
   });
 
   it("should return 400 when token and tokenId don't match", async () => {
@@ -185,7 +194,6 @@ describe("GET /api/recruiters/verify-token", () => {
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data.valid).toBe(false);
     expect(data.error).toBe("Token mismatch");
   });
 
@@ -206,7 +214,6 @@ describe("GET /api/recruiters/verify-token", () => {
     const data = await response.json();
 
     expect(response.status).toBe(403);
-    expect(data.valid).toBe(false);
     expect(data.error).toBe("Token not issued to this recruiter");
   });
 
@@ -234,7 +241,7 @@ describe("GET /api/recruiters/verify-token", () => {
     expect(data.valid).toBe(false);
     expect(data.revoked).toBe(true);
     expect(data.revokeReason).toBe("Security breach");
-    expect(data.error).toBe("Token has been revoked");
+    expect(data.message).toBe("Token has been revoked");
   });
 
   it("should handle expired tokens", async () => {
@@ -268,7 +275,7 @@ describe("GET /api/recruiters/verify-token", () => {
     expect(response.status).toBe(200);
     expect(data.valid).toBe(false);
     expect(data.expired).toBe(true);
-    expect(data.error).toBe("Token has expired");
+    expect(data.message).toBe("Token has expired");
   });
 
   it("should handle database errors gracefully", async () => {
@@ -282,7 +289,6 @@ describe("GET /api/recruiters/verify-token", () => {
     const data = await response.json();
 
     expect(response.status).toBe(500);
-    expect(data.valid).toBe(false);
     expect(data.error).toBe("Failed to verify token");
   });
 });

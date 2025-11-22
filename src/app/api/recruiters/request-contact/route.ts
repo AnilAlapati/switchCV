@@ -11,6 +11,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { RecruiterContactRequest } from "@/types/profileSearch";
+import { handleApiError } from "@/lib/utils/api-helpers";
 
 interface RequestContactPayload {
   recruiterId: string;
@@ -44,12 +45,10 @@ export async function POST(request: NextRequest) {
       !payload.resumeId ||
       !payload.requestedFields?.length
     ) {
-      return NextResponse.json(
-        {
-          error: "Missing required fields",
-          required: ["recruiterId", "userId", "resumeId", "requestedFields"],
-        },
-        { status: 400 }
+      return handleApiError(
+        new Error("Missing required fields"),
+        "Missing required fields",
+        400
       );
     }
 
@@ -59,19 +58,19 @@ export async function POST(request: NextRequest) {
       (f) => !validFields.includes(f)
     );
     if (invalidFields.length > 0) {
-      return NextResponse.json(
-        {
-          error: `Invalid fields requested: ${invalidFields.join(", ")}`,
-        },
-        { status: 400 }
+      return handleApiError(
+        new Error(`Invalid fields requested: ${invalidFields.join(", ")}`),
+        `Invalid fields requested: ${invalidFields.join(", ")}`,
+        400
       );
     }
 
     // Prevent self-requests
     if (payload.recruiterId === payload.userId) {
-      return NextResponse.json(
-        { error: "Recruiters cannot request their own contact info" },
-        { status: 400 }
+      return handleApiError(
+        new Error("Recruiters cannot request their own contact info"),
+        "Recruiters cannot request their own contact info",
+        400
       );
     }
 
@@ -80,12 +79,10 @@ export async function POST(request: NextRequest) {
     const resumeDoc = await getDoc(resumeRef);
 
     if (!resumeDoc.exists()) {
-      return NextResponse.json(
-        {
-          error: "Resume not found",
-          resumeId: payload.resumeId,
-        },
-        { status: 404 }
+      return handleApiError(
+        new Error("Resume not found"),
+        "Resume not found",
+        404
       );
     }
 
@@ -93,9 +90,10 @@ export async function POST(request: NextRequest) {
 
     // Verify recruiter and candidate match
     if (resumeData.userId !== payload.userId) {
-      return NextResponse.json(
-        { error: "Resume does not belong to specified user" },
-        { status: 400 }
+      return handleApiError(
+        new Error("Resume does not belong to specified user"),
+        "Resume does not belong to specified user",
+        400
       );
     }
 
@@ -111,12 +109,10 @@ export async function POST(request: NextRequest) {
     );
 
     if (!existingRequests.empty) {
-      return NextResponse.json(
-        {
-          error: "You already have a pending request for this candidate",
-          existingRequestId: existingRequests.docs[0].id,
-        },
-        { status: 409 }
+      return handleApiError(
+        new Error("You already have a pending request for this candidate"),
+        "You already have a pending request for this candidate",
+        409
       );
     }
 
@@ -183,13 +179,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("❌ Request contact error:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to create contact request",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to create contact request");
   }
 }
 
@@ -203,9 +193,10 @@ export async function GET(request: NextRequest) {
     const recruiterId = searchParams.get("recruiterId");
 
     if (!recruiterId) {
-      return NextResponse.json(
-        { error: "recruiterId is required" },
-        { status: 400 }
+      return handleApiError(
+        new Error("recruiterId is required"),
+        "recruiterId is required",
+        400
       );
     }
 
@@ -245,12 +236,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("❌ Get requests error:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to fetch requests",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to fetch requests");
   }
 }

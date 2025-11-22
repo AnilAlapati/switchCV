@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuth } from "firebase-admin/auth";
-import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { generateText } from "@/lib/services/aiGenerationService";
 import { ConversationManager } from "@/lib/services/conversationManager";
 import { ResumeDataExtractor } from "@/lib/services/resumeDataExtractor";
@@ -12,36 +10,10 @@ import {
 import { getActiveConfig } from "@/lib/services/conversationConfig";
 import { generateNumericResumeId } from "@/lib/numericIdGenerator";
 import { adminDb } from "@/lib/firebase-admin";
-
-// Initialize Firebase Admin safely during runtime, not build time
-let initialized = false;
-
-function initializeFirebaseAdmin() {
-  if (initialized || getApps().length > 0) return;
-
-  try {
-    if (
-      !process.env.FIREBASE_PROJECT_ID ||
-      !process.env.FIREBASE_CLIENT_EMAIL
-    ) {
-      console.warn(
-        "Firebase credentials not configured - API may not work properly"
-      );
-      return;
-    }
-
-    initializeApp({
-      credential: cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-      }),
-    });
-    initialized = true;
-  } catch (error) {
-    console.error("Failed to initialize Firebase Admin:", error);
-  }
-}
+import {
+  handleApiError,
+  getAuthenticatedUserId,
+} from "@/lib/utils/api-helpers";
 
 interface GenerateResumeRequest {
   message: string;
@@ -56,35 +28,27 @@ interface GenerateResumeRequest {
 
 export async function POST(request: NextRequest) {
   try {
-    // Initialize Firebase during request, not during build
-    initializeFirebaseAdmin();
-
     // Verify authentication (optional - log but don't block)
-    const authHeader = request.headers.get("authorization");
     let userId = "anonymous";
+    const { userId: authenticatedUserId } = await getAuthenticatedUserId(
+      request
+    );
 
-    if (authHeader?.startsWith("Bearer ")) {
-      const idToken = authHeader.split("Bearer ")[1];
-      try {
-        const decodedToken = await getAuth().verifyIdToken(idToken);
-        userId = decodedToken.uid;
-        console.log("✅ Authenticated user:", userId);
-      } catch (error) {
-        console.warn(
-          "⚠️ Invalid token, proceeding as anonymous:",
-          error instanceof Error ? error.message : "Unknown error"
-        );
-        // Don't block - allow anonymous usage for now
-      }
+    if (authenticatedUserId) {
+      userId = authenticatedUserId;
+      console.log("✅ Authenticated user:", userId);
+    } else {
+      console.warn("⚠️ No valid token, proceeding as anonymous");
     }
 
     const body: GenerateResumeRequest = await request.json();
     const { message, conversationHistory, sessionData } = body;
 
     if (!message) {
-      return NextResponse.json(
-        { error: "Message is required" },
-        { status: 400 }
+      return handleApiError(
+        new Error("Message is required"),
+        "Message is required",
+        400
       );
     }
 
@@ -294,13 +258,7 @@ export async function POST(request: NextRequest) {
       } catch (createError) {
         console.error("❌ Error creating resume:", createError);
         // Fall back to continuing conversation
-        return NextResponse.json({
-          response:
-            "I have all the information, but there was an issue creating your resume. Let me try again. " +
-            responseText,
-          model: aiResponse.model,
-          error: "resume_creation_failed",
-        });
+        return handleApiError(createError, "Resume creation failed");
       }
     }
 
@@ -316,12 +274,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Error in resume generation:", error);
-    return NextResponse.json(
-      {
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "Internal server error");
   }
 }

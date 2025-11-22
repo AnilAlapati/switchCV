@@ -3,10 +3,12 @@ import { FirestoreNotificationRepository } from "./repositories/firestoreReposit
 import { MemoryNotificationRepository } from "./repositories/memoryRepository";
 
 // Determine which repository to use based on environment
-const useFirestore = process.env.NEXT_PUBLIC_USE_FIRESTORE_NOTIFICATIONS === "true" || process.env.NODE_ENV === "production";
+const useFirestore =
+  process.env.NEXT_PUBLIC_USE_FIRESTORE_NOTIFICATIONS === "true" ||
+  process.env.NODE_ENV === "production";
 
-const repository = useFirestore 
-  ? new FirestoreNotificationRepository() 
+const repository = useFirestore
+  ? new FirestoreNotificationRepository()
   : new MemoryNotificationRepository();
 
 export const notificationService = new NotificationService(repository);

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
+import { handleApiError } from "@/lib/utils/api-helpers";
 
 export async function GET() {
   try {
@@ -37,10 +38,6 @@ export async function GET() {
       resumes,
     });
   } catch (error) {
-    console.error("Debug error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch resumes" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to fetch resumes");
   }
 }

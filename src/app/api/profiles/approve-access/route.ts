@@ -1,7 +1,12 @@
 // src/app/api/profiles/approve-access/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb, adminAuth } from "@/lib/firebase-admin";
+import { adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
+import {
+  getAuthenticatedUserId,
+  handleApiError,
+  verifyResumeOwnership,
+} from "@/lib/utils/api-helpers";
 
 interface ApproveAccessPayload {
   requestId: string;
@@ -28,66 +33,39 @@ function calculateExpiryDate(
   }
 }
 
-async function verifyAuth(request: NextRequest): Promise<string | null> {
-  const authHeader = request.headers.get("Authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
-  try {
-    const token = authHeader.split("Bearer ")[1];
-    const decoded = await adminAuth.verifyIdToken(token);
-    return decoded.uid;
-  } catch (e) {
-    console.error("Auth verification failed", e);
-    return null;
-  }
-}
-
 export async function POST(request: NextRequest) {
   try {
-    const userId = await verifyAuth(request);
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { userId, error: authError } = await getAuthenticatedUserId(request);
+    if (authError) {
+      return authError;
     }
 
     const { requestId, resumeId, duration } =
       (await request.json()) as ApproveAccessPayload;
 
     if (!requestId || !resumeId || !duration) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
+      return handleApiError(null, "Missing required fields", 400);
     }
 
     // Validate duration parameter
     const validDurations = ["1hour", "1day", "1week", "forever"];
     if (!validDurations.includes(duration)) {
-      return NextResponse.json(
-        { error: "Invalid duration parameter" },
-        { status: 400 }
-      );
+      return handleApiError(null, "Invalid duration parameter", 400);
     }
 
     // Verify current user is owner of the resume
-    const resumeRef = adminDb.collection("resumeProfiles").doc(resumeId);
-    const resumeDoc = await resumeRef.get();
-
-    if (!resumeDoc.exists) {
-      return NextResponse.json({ error: "Resume not found" }, { status: 404 });
+    const verification = await verifyResumeOwnership(request, resumeId);
+    if (!verification.success) {
+      return verification.error;
     }
-
-    if (resumeDoc.data()?.userId !== userId) {
-      return NextResponse.json(
-        { error: "Forbidden: You do not own this resume" },
-        { status: 403 }
-      );
-    }
+    const { docRef: resumeRef } = verification;
 
     // 1. Get the access request
     const requestRef = resumeRef.collection("accessRequests").doc(requestId);
     const requestDoc = await requestRef.get();
 
     if (!requestDoc.exists) {
-      return NextResponse.json({ error: "Request not found" }, { status: 404 });
+      return handleApiError(null, "Request not found", 404);
     }
 
     const requestData = requestDoc.data();
@@ -151,13 +129,6 @@ export async function POST(request: NextRequest) {
       message: `Access approved for ${fromUserName}!`,
     });
   } catch (error) {
-    console.error("Approve access error:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to approve access",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to approve access");
   }
 }

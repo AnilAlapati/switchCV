@@ -1,26 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminAuth, adminDb } from "@/lib/firebase-admin";
+import { adminDb } from "@/lib/firebase-admin";
 import { generateNumericResumeId } from "@/lib/numericIdGenerator";
+import {
+  getAuthenticatedUserId,
+  handleApiError,
+} from "@/lib/utils/api-helpers";
 
 export async function POST(request: NextRequest) {
   try {
     // 1. Authenticate
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { userId, error: authError } = await getAuthenticatedUserId(request);
+    if (authError) {
+      return authError;
     }
-    const idToken = authHeader.split("Bearer ")[1];
-    const decodedToken = await adminAuth.verifyIdToken(idToken);
-    const userId = decodedToken.uid;
 
     // 2. Parse Body
     const body = await request.json();
 
     // Basic validation
     if (!body) {
-      return NextResponse.json(
-        { error: "Resume data is required" },
-        { status: 400 }
+      return handleApiError(
+        new Error("Resume data is required"),
+        "Resume data is required",
+        400
       );
     }
 
@@ -65,13 +67,6 @@ export async function POST(request: NextRequest) {
       numericId,
     });
   } catch (error) {
-    console.error("Error creating resume:", error);
-    return NextResponse.json(
-      {
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "Error creating resume");
   }
 }

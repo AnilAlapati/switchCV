@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { generateText } from "@/lib/services/aiGenerationService";
-import admin, { adminAuth, adminDb } from "@/lib/firebase-admin";
+import admin, { adminDb } from "@/lib/firebase-admin";
+import {
+  getAuthenticatedUserId,
+  handleApiError,
+} from "@/lib/utils/api-helpers";
 
 interface GenerateRequest {
   prompt: string;
@@ -27,16 +31,10 @@ export class EntitlementError extends Error {
   }
 }
 
-export class AuthenticationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "AuthenticationError";
-  }
-}
-
 const RATE_LIMIT_WINDOW_MS = Number(
   process.env.AI_RATE_LIMIT_WINDOW_MS || 60_000
 );
+
 const BASE_LIMIT = Math.max(
   1,
   Number(
@@ -70,42 +68,40 @@ export async function POST(request: NextRequest) {
   const requestId = randomUUID();
 
   try {
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return unauthorized("Missing or invalid token");
+    const { userId, error: authError } = await getAuthenticatedUserId(request);
+    if (authError) {
+      return authError;
     }
-
-    const token = authHeader.split("Bearer ")[1];
-    const decodedToken = await verifyToken(token);
-    const userId = decodedToken.uid;
 
     const body: GenerateRequest = await request.json();
     const { prompt, maxTokens = 150, temperature = 0.9 } = body;
 
     if (!prompt || typeof prompt !== "string") {
-      return NextResponse.json(
-        { error: "Prompt is required and must be a string" },
-        { status: 400 }
+      return handleApiError(
+        new Error("Prompt is required and must be a string"),
+        "Prompt is required and must be a string",
+        400
       );
     }
 
     if (prompt.length > 2000) {
-      return NextResponse.json(
-        { error: "Prompt exceeds maximum length of 2000 characters" },
-        { status: 400 }
+      return handleApiError(
+        new Error("Prompt exceeds maximum length of 2000 characters"),
+        "Prompt exceeds maximum length of 2000 characters",
+        400
       );
     }
 
-    const entitlement = await getEntitlement(userId);
+    const entitlement = await getEntitlement(userId!);
     enforceEntitlement(entitlement);
 
-    const rateLimit = await enforceRateLimit(userId, entitlement.plan);
+    const rateLimit = await enforceRateLimit(userId!, entitlement.plan);
 
     const result = await generateText(prompt, maxTokens, temperature);
 
     await Promise.all([
       logUsage({
-        userId,
+        userId: userId!,
         prompt,
         model: result.model,
         plan: entitlement.plan,
@@ -113,7 +109,7 @@ export async function POST(request: NextRequest) {
         temperature,
       }),
       logAuditEvent({
-        userId,
+        userId: userId!,
         prompt,
         model: result.model,
         status: "success",
@@ -131,18 +127,7 @@ export async function POST(request: NextRequest) {
     });
     return response;
   } catch (error) {
-    return handleRouteError(error, requestId);
-  }
-}
-
-async function verifyToken(token: string) {
-  try {
-    return await adminAuth.verifyIdToken(token);
-  } catch (error) {
-    log("warn", "Token verification failed", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    throw new AuthenticationError("Invalid token");
+    return handleRouteError(error);
   }
 }
 
@@ -277,35 +262,20 @@ async function logAuditEvent(params: {
   });
 }
 
-function unauthorized(message: string) {
-  return NextResponse.json(
-    { error: `Unauthorized: ${message}` },
-    { status: 401 }
-  );
-}
-
-function handleRouteError(error: unknown, requestId: string) {
+function handleRouteError(error: unknown) {
   if (error instanceof RateLimitError) {
-    const response = NextResponse.json(
-      { error: "Too many requests. Please try again later." },
-      { status: 429 }
+    const response = handleApiError(
+      error,
+      "Too many requests. Please try again later.",
+      429
     );
     response.headers.set("Retry-After", error.retryAfterSeconds.toString());
     return response;
   }
 
   if (error instanceof EntitlementError) {
-    return NextResponse.json({ error: error.message }, { status: 403 });
+    return handleApiError(error, error.message, 403);
   }
 
-  if (error instanceof AuthenticationError) {
-    return unauthorized(error.message);
-  }
-
-  log("error", "AI text generation failed", {
-    requestId,
-    error: error instanceof Error ? error.message : String(error),
-  });
-
-  return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  return handleApiError(error, "AI text generation failed");
 }

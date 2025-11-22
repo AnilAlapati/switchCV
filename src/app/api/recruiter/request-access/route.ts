@@ -12,6 +12,7 @@ import {
   updateDoc,
   increment,
 } from "firebase/firestore";
+import { handleApiError } from "@/lib/utils/api-helpers";
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,10 +20,7 @@ export async function POST(request: NextRequest) {
       await request.json();
 
     if (!resumeId) {
-      return NextResponse.json(
-        { error: "resumeId is required" },
-        { status: 400 }
-      );
+      return handleApiError(null, "resumeId is required", 400);
     }
 
     // Get resume to find owner
@@ -30,7 +28,7 @@ export async function POST(request: NextRequest) {
     const resumeDoc = await getDoc(resumeRef);
 
     if (!resumeDoc.exists()) {
-      return NextResponse.json({ error: "Resume not found" }, { status: 404 });
+      return handleApiError(null, "Resume not found", 404);
     }
 
     const resumeData = resumeDoc.data();
@@ -42,7 +40,7 @@ export async function POST(request: NextRequest) {
     const userDoc = await getDoc(userRef);
 
     if (!userDoc.exists()) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return handleApiError(null, "User not found", 404);
     }
 
     const userData = userDoc.data();
@@ -56,12 +54,10 @@ export async function POST(request: NextRequest) {
     const existingDocs = await getDocs(existingQuery);
 
     if (!existingDocs.empty) {
-      return NextResponse.json(
-        {
-          error: "A pending request already exists for this resume",
-          requestId: existingDocs.docs[0].id,
-        },
-        { status: 409 }
+      return handleApiError(
+        new Error("A pending request already exists for this resume"),
+        "A pending request already exists for this resume",
+        409
       );
     }
 
@@ -94,13 +90,6 @@ export async function POST(request: NextRequest) {
         "Access request sent successfully. The candidate will be notified.",
     });
   } catch (error) {
-    console.error("Error creating access request:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to send access request",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to send access request");
   }
 }

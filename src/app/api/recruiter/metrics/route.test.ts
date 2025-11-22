@@ -121,7 +121,10 @@ describe("GET /api/recruiter/metrics", () => {
     const data = await response.json();
 
     expect(response.status).toBe(500);
-    expect(data).toEqual({ error: "Failed to fetch recruiter metrics" });
+    expect(data).toEqual({
+      error: "Failed to fetch recruiter metrics",
+      details: "Database connection failed",
+    });
     expect(mockCollection).toHaveBeenCalledWith("recruiterMetrics");
     expect(mockDoc).toHaveBeenCalledWith("recruiter789");
     expect(mockGet).toHaveBeenCalled();

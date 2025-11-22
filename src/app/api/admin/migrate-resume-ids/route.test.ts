@@ -301,7 +301,7 @@ describe("POST /api/admin/migrate-resume-ids", () => {
 
     expect(response.status).toBe(500);
     expect(data.error).toBe("Migration failed");
-    expect(data.details).toBe("Error: Database connection failed");
+    expect(data.details).toBe("Database connection failed");
   });
 
   it("should handle unknown error", async () => {

@@ -24,6 +24,7 @@ import {
   sendMultiChannel,
   getDeliveryStatus,
 } from "@/lib/notificationDelivery";
+import { handleApiError } from "@/lib/utils/api-helpers";
 
 export async function POST(request: NextRequest) {
   try {
@@ -53,13 +54,10 @@ export async function POST(request: NextRequest) {
         return handleGetDeliveryStatus(data?.notificationId);
 
       default:
-        return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+        return handleApiError(null, "Unknown action", 400);
     }
   } catch (error) {
-    return NextResponse.json(
-      { error: `Failed to process request: ${error}` },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to process request");
   }
 }
 
@@ -84,13 +82,10 @@ export async function GET(request: NextRequest) {
         return handleGetDeliveryStatus(notificationId);
 
       default:
-        return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+        return handleApiError(null, "Unknown action", 400);
     }
   } catch (error) {
-    return NextResponse.json(
-      { error: `Failed to process request: ${error}` },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to process request");
   }
 }
 
@@ -103,10 +98,7 @@ async function handleSend(userId: string, data: any) {
   } = data;
 
   if (!userId || !type || !payload || !channels) {
-    return NextResponse.json(
-      { error: "Missing required fields" },
-      { status: 400 }
-    );
+    return handleApiError(null, "Missing required fields", 400);
   }
 
   const notification = await createNotification(
@@ -134,10 +126,7 @@ async function handleSend(userId: string, data: any) {
 
 async function handleMarkRead(notificationId: string) {
   if (!notificationId) {
-    return NextResponse.json(
-      { error: "Missing notificationId" },
-      { status: 400 }
-    );
+    return handleApiError(null, "Missing notificationId", 400);
   }
 
   await markAsRead(notificationId);
@@ -147,7 +136,7 @@ async function handleMarkRead(notificationId: string) {
 
 async function handleMarkAllRead(userId: string) {
   if (!userId) {
-    return NextResponse.json({ error: "Missing userId" }, { status: 400 });
+    return handleApiError(null, "Missing userId", 400);
   }
 
   const unread = await getUnreadNotifications(userId);
@@ -158,10 +147,7 @@ async function handleMarkAllRead(userId: string) {
 
 async function handleDelete(notificationId: string) {
   if (!notificationId) {
-    return NextResponse.json(
-      { error: "Missing notificationId" },
-      { status: 400 }
-    );
+    return handleApiError(null, "Missing notificationId", 400);
   }
 
   await deleteNotification(notificationId);
@@ -171,7 +157,7 @@ async function handleDelete(notificationId: string) {
 
 async function handleGetNotifications(userId: string | null) {
   if (!userId) {
-    return NextResponse.json({ error: "Missing userId" }, { status: 400 });
+    return handleApiError(null, "Missing userId", 400);
   }
 
   const notifications = await getUserNotifications(userId);
@@ -185,7 +171,7 @@ async function handleGetNotifications(userId: string | null) {
 
 async function handleGetUnread(userId: string | null) {
   if (!userId) {
-    return NextResponse.json({ error: "Missing userId" }, { status: 400 });
+    return handleApiError(null, "Missing userId", 400);
   }
 
   const unread = await getUnreadNotifications(userId);
@@ -199,7 +185,7 @@ async function handleGetUnread(userId: string | null) {
 
 async function handleGetPreferences(userId: string) {
   if (!userId) {
-    return NextResponse.json({ error: "Missing userId" }, { status: 400 });
+    return handleApiError(null, "Missing userId", 400);
   }
 
   const preferences = await getPreferences(userId);
@@ -212,10 +198,7 @@ async function handleGetPreferences(userId: string) {
 
 async function handleUpdatePreference(userId: string, preference: any) {
   if (!userId || !preference) {
-    return NextResponse.json(
-      { error: "Missing required fields" },
-      { status: 400 }
-    );
+    return handleApiError(null, "Missing required fields", 400);
   }
 
   const updated = {
@@ -244,10 +227,7 @@ async function handleGetStatistics(userId: string | null) {
 
 async function handleGetDeliveryStatus(notificationId: string | null) {
   if (!notificationId) {
-    return NextResponse.json(
-      { error: "Missing notificationId" },
-      { status: 400 }
-    );
+    return handleApiError(null, "Missing notificationId", 400);
   }
 
   const status = getDeliveryStatus(notificationId);

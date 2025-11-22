@@ -2,22 +2,50 @@
 import { NextRequest } from "next/server";
 
 // Mock Firebase Admin
-jest.mock("firebase-admin/app", () => ({
-  getApps: jest.fn(),
-  initializeApp: jest.fn(),
-  cert: jest.fn(),
-}));
+const mockCollection = jest.fn();
+const mockDoc = jest.fn();
+const mockGet = jest.fn();
+const mockDelete = jest.fn();
+const mockWhere = jest.fn();
+const mockLimit = jest.fn();
 
-jest.mock("firebase-admin/auth", () => ({
-  getAuth: jest.fn(),
-}));
+const mockCollectionObj = {
+  doc: mockDoc,
+  where: mockWhere,
+  limit: mockLimit,
+  get: mockGet,
+};
 
-jest.mock("firebase-admin/firestore", () => ({
-  getFirestore: jest.fn(),
+const mockDocObj = {
+  get: mockGet,
+  delete: mockDelete,
+  collection: mockCollection,
+};
+
+// Setup chain
+mockCollection.mockReturnValue(mockCollectionObj);
+mockDoc.mockReturnValue(mockDocObj);
+mockWhere.mockReturnValue(mockCollectionObj);
+mockLimit.mockReturnValue(mockCollectionObj);
+
+jest.mock("@/lib/firebase-admin", () => ({
+  adminDb: {
+    collection: mockCollection,
+  },
 }));
 
 jest.mock("@/lib/resumeIdRecycler", () => ({
   addDeletedIdToPool: jest.fn(),
+}));
+
+jest.mock("@/lib/utils/api-helpers", () => ({
+  getAuthenticatedUserId: jest.fn(),
+  handleApiError: jest.fn((error, message, status = 500) => {
+    return {
+      status,
+      json: async () => ({ error: message }),
+    };
+  }),
 }));
 
 describe("POST /api/resume/delete", () => {
@@ -26,16 +54,8 @@ describe("POST /api/resume/delete", () => {
   const mockToken = "valid-token";
 
   let POST: any;
-  let mockVerifyIdToken: jest.Mock;
-  let mockCollection: jest.Mock;
-  let mockDoc: jest.Mock;
-  let mockGet: jest.Mock;
-  let mockDelete: jest.Mock;
-  let mockWhere: jest.Mock;
-
-  let appModule: any;
-  let firestoreModule: any;
   let recyclerModule: any;
+  let apiHelpersModule: any;
 
   const originalEnv = process.env;
 
@@ -54,59 +74,37 @@ describe("POST /api/resume/delete", () => {
       FIREBASE_PRIVATE_KEY: "test-key",
     };
 
-    // Re-require mocks to get the fresh instances used by the re-required module
-    // eslint-disable-next-line
-    appModule = require("firebase-admin/app");
-    // eslint-disable-next-line
-    const authModule = require("firebase-admin/auth");
-    // eslint-disable-next-line
-    firestoreModule = require("firebase-admin/firestore");
+    // Re-require mocks
     // eslint-disable-next-line
     recyclerModule = require("@/lib/resumeIdRecycler");
+    // eslint-disable-next-line
+    apiHelpersModule = require("@/lib/utils/api-helpers");
 
-    // Setup Firebase Auth mock
-    mockVerifyIdToken = jest.fn().mockResolvedValue({ uid: mockUserId });
-    authModule.getAuth.mockReturnValue({
-      verifyIdToken: mockVerifyIdToken,
+    // Setup api-helpers mock
+    apiHelpersModule.getAuthenticatedUserId.mockResolvedValue({
+      userId: mockUserId,
     });
 
-    // Setup Firebase Firestore mock
-    mockDelete = jest.fn().mockResolvedValue({});
-    mockGet = jest.fn();
+    // Reset mock implementations
+    mockDelete.mockResolvedValue({});
+    mockGet.mockReset();
+    mockCollection.mockClear();
+    mockDoc.mockClear();
+    mockWhere.mockClear();
+    mockLimit.mockClear();
 
-    // Create a recursive mock structure for chained calls
-    const mockCollectionObj = {
-      doc: jest.fn(),
-      where: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockReturnThis(),
-      get: mockGet,
-    };
+    // Re-setup chain defaults
+    mockCollection.mockReturnValue(mockCollectionObj);
+    mockDoc.mockReturnValue(mockDocObj);
+    mockWhere.mockReturnValue(mockCollectionObj);
+    mockLimit.mockReturnValue(mockCollectionObj);
 
-    const mockDocObj = {
-      get: mockGet,
-      delete: mockDelete,
-      collection: jest.fn(() => mockCollectionObj),
-    };
-
-    mockCollectionObj.doc.mockReturnValue(mockDocObj);
-
-    mockDoc = mockCollectionObj.doc as jest.Mock;
-    mockCollection = jest.fn(() => mockCollectionObj);
-    mockWhere = mockCollectionObj.where as jest.Mock;
-
-    firestoreModule.getFirestore.mockReturnValue({
-      collection: mockCollection,
-    });
-
-    appModule.getApps.mockReturnValue([]);
-    appModule.initializeApp.mockReturnValue({});
-    appModule.cert.mockReturnValue({});
-
-    // Re-import the module to reset 'initialized' state
+    // Re-import the module
     // eslint-disable-next-line
     const routeModule = require("./route");
     POST = routeModule.POST;
   });
+
   const createRequest = (body: any, authHeader?: string) => {
     return new NextRequest("http://localhost/api/resume/delete", {
       method: "POST",
@@ -128,6 +126,13 @@ describe("POST /api/resume/delete", () => {
   });
 
   it("should return 401 if authorization header is missing", async () => {
+    apiHelpersModule.getAuthenticatedUserId.mockResolvedValue({
+      userId: null,
+      error: {
+        status: 401,
+        json: async () => ({ error: "Unauthorized" }),
+      },
+    });
     const req = createRequest({ resumeId: mockResumeId });
     const res = await POST(req);
     const data = await res.json();
@@ -137,7 +142,13 @@ describe("POST /api/resume/delete", () => {
   });
 
   it("should return 401 if token is invalid", async () => {
-    mockVerifyIdToken.mockRejectedValue(new Error("Invalid token"));
+    apiHelpersModule.getAuthenticatedUserId.mockResolvedValue({
+      userId: null,
+      error: {
+        status: 401,
+        json: async () => ({ error: "Invalid token" }),
+      },
+    });
     const req = createRequest(
       { resumeId: mockResumeId },
       `Bearer ${mockToken}`
@@ -313,22 +324,6 @@ describe("POST /api/resume/delete", () => {
     expect(recyclerModule.addDeletedIdToPool).toHaveBeenCalled();
   });
 
-  it("should warn if Firebase credentials are missing", async () => {
-    const originalEnv = process.env;
-    process.env = { ...originalEnv, FIREBASE_PROJECT_ID: "" };
-    const consoleSpy = jest.spyOn(console, "warn").mockImplementation();
-
-    const req = createRequest({ resumeId: mockResumeId });
-    await POST(req);
-
-    expect(consoleSpy).toHaveBeenCalledWith(
-      "Firebase credentials not configured - API may not work properly"
-    );
-
-    process.env = originalEnv;
-    consoleSpy.mockRestore();
-  });
-
   it("should try 'resumeProfiles' if not found in 'resumes'", async () => {
     // Mock not found in 'resumes'
     mockGet.mockResolvedValueOnce({ exists: false });
@@ -360,22 +355,6 @@ describe("POST /api/resume/delete", () => {
     );
   });
 
-  it("should handle initialization error", async () => {
-    appModule.initializeApp.mockImplementationOnce(() => {
-      throw new Error("Init failed");
-    });
-    const consoleSpy = jest.spyOn(console, "error").mockImplementation();
-
-    const req = createRequest({ resumeId: mockResumeId });
-    await POST(req);
-
-    expect(consoleSpy).toHaveBeenCalledWith(
-      "Failed to initialize Firebase Admin:",
-      expect.any(Error)
-    );
-    consoleSpy.mockRestore();
-  });
-
   it("should return 404 if resume not found in any collection", async () => {
     // Mock not found in 'resumes'
     mockGet.mockResolvedValueOnce({ exists: false });
@@ -395,8 +374,8 @@ describe("POST /api/resume/delete", () => {
   });
 
   it("should return 500 if an internal error occurs", async () => {
-    // Mock getFirestore to throw
-    firestoreModule.getFirestore.mockImplementationOnce(() => {
+    // Mock collection to throw
+    mockCollection.mockImplementationOnce(() => {
       throw new Error("Firestore error");
     });
     const consoleSpy = jest.spyOn(console, "error").mockImplementation();
@@ -409,11 +388,7 @@ describe("POST /api/resume/delete", () => {
     const data = await res.json();
 
     expect(res.status).toBe(500);
-    expect(data.error).toBe("Internal server error");
-    expect(consoleSpy).toHaveBeenCalledWith(
-      "Error deleting resume:",
-      expect.any(Error)
-    );
+    expect(data.error).toBe("Error deleting resume");
     consoleSpy.mockRestore();
   });
 
@@ -475,36 +450,6 @@ describe("POST /api/resume/delete", () => {
 
     expect(res.status).toBe(403);
     expect(data.error).toBe("Unauthorized");
-  });
-
-  it("should skip initialization if already initialized", async () => {
-    // Mock success for first call
-    mockGet.mockResolvedValue({
-      exists: true,
-      data: () => ({ userId: mockUserId, numericId: Number(mockResumeId) }),
-    });
-
-    // First call
-    const req1 = createRequest(
-      { resumeId: mockResumeId },
-      `Bearer ${mockToken}`
-    );
-    await POST(req1);
-
-    expect(appModule.initializeApp).toHaveBeenCalled();
-
-    // Clear mocks
-    appModule.initializeApp.mockClear();
-
-    // Second call
-    const req2 = createRequest(
-      { resumeId: mockResumeId },
-      `Bearer ${mockToken}`
-    );
-    await POST(req2);
-
-    // Should not initialize again
-    expect(appModule.initializeApp).not.toHaveBeenCalled();
   });
 
   it("should handle resume with no numeric ID in data or doc ID", async () => {

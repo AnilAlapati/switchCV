@@ -2,40 +2,31 @@
 // src/app/api/user/profile/route.test.ts
 import { GET, POST, PUT } from "@/app/api/user/profile/route";
 import { NextRequest } from "next/server";
+import { adminDb } from "@/lib/firebase-admin";
+import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 
 // Mock Firebase admin
 jest.mock("@/lib/firebase-admin", () => ({
   adminDb: {
-    collection: jest.fn(() => ({
-      doc: jest.fn(() => ({
-        get: jest.fn(),
-        set: jest.fn(),
-      })),
-    })),
-  },
-  adminAuth: {
-    verifyIdToken: jest.fn(),
+    collection: jest.fn(),
   },
 }));
 
-import { adminDb, adminAuth } from "@/lib/firebase-admin";
-
-const mockAdminDb = adminDb as jest.Mocked<typeof adminDb>;
-const mockAdminAuth = adminAuth as jest.Mocked<typeof adminAuth>;
-
-const createMockDecodedToken = (uid: string) => ({
-  uid,
-  aud: "test-audience",
-  auth_time: Date.now() / 1000,
-  exp: Date.now() / 1000 + 3600,
-  firebase: { identities: {}, sign_in_provider: "password" },
-  iat: Date.now() / 1000,
-  iss: "https://securetoken.google.com/test-project",
-  sub: uid,
-});
+// Mock api-helpers
+jest.mock("@/lib/utils/api-helpers", () => ({
+  getAuthenticatedUserId: jest.fn(),
+  handleApiError: jest.fn((error, message, status = 500) => ({
+    status,
+    json: async () => ({ error: message, details: error.message }),
+  })),
+}));
 
 describe("GET /api/user/profile", () => {
   let mockRequest: NextRequest;
+  const mockCollection = jest.fn();
+  const mockDoc = jest.fn();
+  const mockGet = jest.fn();
+  const mockSet = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -48,6 +39,11 @@ describe("GET /api/user/profile", () => {
       value: "http://localhost:3000/api/user/profile?userId=test-user-123",
       writable: true,
     });
+
+    // Setup Firestore mocks
+    (adminDb.collection as jest.Mock).mockImplementation(mockCollection);
+    mockCollection.mockReturnValue({ doc: mockDoc });
+    mockDoc.mockReturnValue({ get: mockGet, set: mockSet });
   });
 
   it("should return user profile for authenticated user accessing their own profile", async () => {
@@ -61,25 +57,16 @@ describe("GET /api/user/profile", () => {
     };
 
     // Mock authentication
-    mockAdminAuth.verifyIdToken.mockResolvedValue({
-      uid: mockUserId,
-      aud: "test-audience",
-      auth_time: Date.now() / 1000,
-      exp: Date.now() / 1000 + 3600,
-      firebase: { identities: {}, sign_in_provider: "password" },
-      iat: Date.now() / 1000,
-      iss: "https://securetoken.google.com/test-project",
-      sub: mockUserId,
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: mockUserId,
+      error: null,
     });
 
     // Mock database
-    const mockDoc = {
+    mockGet.mockResolvedValue({
       exists: true,
       data: () => mockProfileData,
-    };
-    const mockDocRef = { get: jest.fn().mockResolvedValue(mockDoc) };
-    const mockCollection = { doc: jest.fn().mockReturnValue(mockDocRef) };
-    mockAdminDb.collection.mockReturnValue(mockCollection as any);
+    });
 
     mockRequest.headers.set("Authorization", "Bearer test-token");
 
@@ -88,21 +75,39 @@ describe("GET /api/user/profile", () => {
 
     expect(response.status).toBe(200);
     expect(data).toEqual(mockProfileData);
-    expect(mockAdminAuth.verifyIdToken).toHaveBeenCalledWith("test-token");
-    expect(mockAdminDb.collection).toHaveBeenCalledWith("users");
+    expect(mockCollection).toHaveBeenCalledWith("users");
   });
 
   it("should return 401 when no authorization header is provided", async () => {
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: null,
+      error: {
+        status: 401,
+        json: async () => ({
+          error: "Unauthorized: Valid Firebase ID token required",
+        }),
+      },
+    });
+
     const response = await GET(mockRequest);
     const data = await response.json();
 
     expect(response.status).toBe(401);
     expect(data.error).toBe("Unauthorized: Valid Firebase ID token required");
-    expect(mockAdminAuth.verifyIdToken).not.toHaveBeenCalled();
   });
 
   it("should return 401 when authorization header is malformed", async () => {
     mockRequest.headers.set("Authorization", "InvalidToken");
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: null,
+      error: {
+        status: 401,
+        json: async () => ({
+          error: "Unauthorized: Valid Firebase ID token required",
+        }),
+      },
+    });
+
     const response = await GET(mockRequest);
     const data = await response.json();
 
@@ -112,7 +117,15 @@ describe("GET /api/user/profile", () => {
 
   it("should return 401 when token verification fails", async () => {
     mockRequest.headers.set("Authorization", "Bearer invalid-token");
-    mockAdminAuth.verifyIdToken.mockRejectedValue(new Error("Invalid token"));
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: null,
+      error: {
+        status: 401,
+        json: async () => ({
+          error: "Unauthorized: Valid Firebase ID token required",
+        }),
+      },
+    });
 
     const response = await GET(mockRequest);
     const data = await response.json();
@@ -123,9 +136,10 @@ describe("GET /api/user/profile", () => {
 
   it("should return 400 when userId parameter is missing", async () => {
     mockRequest.headers.set("Authorization", "Bearer test-token");
-    mockAdminAuth.verifyIdToken.mockResolvedValue(
-      createMockDecodedToken("test-user-123")
-    );
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "test-user-123",
+      error: null,
+    });
     Object.defineProperty(mockRequest, "url", {
       value: "http://localhost:3000/api/user/profile",
       writable: true,
@@ -140,9 +154,10 @@ describe("GET /api/user/profile", () => {
 
   it("should return 403 when user tries to access another user's profile", async () => {
     mockRequest.headers.set("Authorization", "Bearer test-token");
-    mockAdminAuth.verifyIdToken.mockResolvedValue(
-      createMockDecodedToken("authenticated-user-123")
-    );
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "authenticated-user-123",
+      error: null,
+    });
     Object.defineProperty(mockRequest, "url", {
       value: "http://localhost:3000/api/user/profile?userId=other-user-456",
       writable: true,
@@ -157,14 +172,12 @@ describe("GET /api/user/profile", () => {
 
   it("should return 404 when user profile does not exist", async () => {
     mockRequest.headers.set("Authorization", "Bearer test-token");
-    mockAdminAuth.verifyIdToken.mockResolvedValue(
-      createMockDecodedToken("test-user-123")
-    );
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "test-user-123",
+      error: null,
+    });
 
-    const mockDoc = { exists: false };
-    const mockDocRef = { get: jest.fn().mockResolvedValue(mockDoc) };
-    const mockCollection = { doc: jest.fn().mockReturnValue(mockDocRef) };
-    mockAdminDb.collection.mockReturnValue(mockCollection as any);
+    mockGet.mockResolvedValue({ exists: false });
 
     const response = await GET(mockRequest);
     const data = await response.json();
@@ -175,15 +188,12 @@ describe("GET /api/user/profile", () => {
 
   it("should return 500 when database operation fails", async () => {
     mockRequest.headers.set("Authorization", "Bearer test-token");
-    mockAdminAuth.verifyIdToken.mockResolvedValue(
-      createMockDecodedToken("test-user-123")
-    );
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "test-user-123",
+      error: null,
+    });
 
-    const mockDocRef = {
-      get: jest.fn().mockRejectedValue(new Error("Database error")),
-    };
-    const mockCollection = { doc: jest.fn().mockReturnValue(mockDocRef) };
-    mockAdminDb.collection.mockReturnValue(mockCollection as any);
+    mockGet.mockRejectedValue(new Error("Database error"));
 
     const response = await GET(mockRequest);
     const data = await response.json();
@@ -195,6 +205,9 @@ describe("GET /api/user/profile", () => {
 
 describe("POST /api/user/profile", () => {
   let mockRequest: NextRequest;
+  const mockCollection = jest.fn();
+  const mockDoc = jest.fn();
+  const mockSet = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -202,6 +215,11 @@ describe("POST /api/user/profile", () => {
       headers: new Headers(),
       json: jest.fn(),
     } as any;
+
+    // Setup Firestore mocks
+    (adminDb.collection as jest.Mock).mockImplementation(mockCollection);
+    mockCollection.mockReturnValue({ doc: mockDoc });
+    mockDoc.mockReturnValue({ set: mockSet });
   });
 
   it("should create user profile successfully for authenticated user", async () => {
@@ -217,13 +235,12 @@ describe("POST /api/user/profile", () => {
 
     mockRequest.headers.set("Authorization", "Bearer test-token");
     (mockRequest.json as jest.Mock).mockResolvedValue(profileData);
-    mockAdminAuth.verifyIdToken.mockResolvedValue(
-      createMockDecodedToken(mockUserId)
-    );
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: mockUserId,
+      error: null,
+    });
 
-    const mockDocRef = { set: jest.fn().mockResolvedValue(undefined) };
-    const mockCollection = { doc: jest.fn().mockReturnValue(mockDocRef) };
-    mockAdminDb.collection.mockReturnValue(mockCollection as any);
+    mockSet.mockResolvedValue(undefined);
 
     const response = await POST(mockRequest);
     const data = await response.json();
@@ -245,13 +262,12 @@ describe("POST /api/user/profile", () => {
 
     mockRequest.headers.set("Authorization", "Bearer test-token");
     (mockRequest.json as jest.Mock).mockResolvedValue(profileData);
-    mockAdminAuth.verifyIdToken.mockResolvedValue(
-      createMockDecodedToken(mockUserId)
-    );
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: mockUserId,
+      error: null,
+    });
 
-    const mockDocRef = { set: jest.fn().mockResolvedValue(undefined) };
-    const mockCollection = { doc: jest.fn().mockReturnValue(mockDocRef) };
-    mockAdminDb.collection.mockReturnValue(mockCollection as any);
+    mockSet.mockResolvedValue(undefined);
 
     const response = await POST(mockRequest);
     const data = await response.json();
@@ -269,6 +285,16 @@ describe("POST /api/user/profile", () => {
       email: "test@example.com",
     });
 
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: null,
+      error: {
+        status: 401,
+        json: async () => ({
+          error: "Unauthorized: Valid Firebase ID token required",
+        }),
+      },
+    });
+
     const response = await POST(mockRequest);
     const data = await response.json();
 
@@ -281,9 +307,10 @@ describe("POST /api/user/profile", () => {
     (mockRequest.json as jest.Mock).mockResolvedValue({
       email: "test@example.com",
     });
-    mockAdminAuth.verifyIdToken.mockResolvedValue(
-      createMockDecodedToken("test-user-123")
-    );
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "test-user-123",
+      error: null,
+    });
 
     const response = await POST(mockRequest);
     const data = await response.json();
@@ -295,9 +322,10 @@ describe("POST /api/user/profile", () => {
   it("should return 400 when email is missing", async () => {
     mockRequest.headers.set("Authorization", "Bearer test-token");
     (mockRequest.json as jest.Mock).mockResolvedValue({ uid: "test-user-123" });
-    mockAdminAuth.verifyIdToken.mockResolvedValue(
-      createMockDecodedToken("test-user-123")
-    );
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "test-user-123",
+      error: null,
+    });
 
     const response = await POST(mockRequest);
     const data = await response.json();
@@ -312,9 +340,10 @@ describe("POST /api/user/profile", () => {
       uid: "other-user-456",
       email: "other@example.com",
     });
-    mockAdminAuth.verifyIdToken.mockResolvedValue(
-      createMockDecodedToken("authenticated-user-123")
-    );
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "authenticated-user-123",
+      error: null,
+    });
 
     const response = await POST(mockRequest);
     const data = await response.json();
@@ -332,15 +361,12 @@ describe("POST /api/user/profile", () => {
       uid: mockUserId,
       email: "test@example.com",
     });
-    mockAdminAuth.verifyIdToken.mockResolvedValue(
-      createMockDecodedToken(mockUserId)
-    );
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: mockUserId,
+      error: null,
+    });
 
-    const mockDocRef = {
-      set: jest.fn().mockRejectedValue(new Error("Database error")),
-    };
-    const mockCollection = { doc: jest.fn().mockReturnValue(mockDocRef) };
-    mockAdminDb.collection.mockReturnValue(mockCollection as any);
+    mockSet.mockRejectedValue(new Error("Database error"));
 
     const response = await POST(mockRequest);
     const data = await response.json();
@@ -354,9 +380,10 @@ describe("POST /api/user/profile", () => {
     (mockRequest.json as jest.Mock).mockRejectedValue(
       new Error("Invalid JSON")
     );
-    mockAdminAuth.verifyIdToken.mockResolvedValue(
-      createMockDecodedToken("test-user-123")
-    );
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "test-user-123",
+      error: null,
+    });
 
     const response = await POST(mockRequest);
     const data = await response.json();
@@ -368,6 +395,9 @@ describe("POST /api/user/profile", () => {
 
 describe("PUT /api/user/profile", () => {
   let mockRequest: NextRequest;
+  const mockCollection = jest.fn();
+  const mockDoc = jest.fn();
+  const mockSet = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -375,6 +405,11 @@ describe("PUT /api/user/profile", () => {
       headers: new Headers(),
       json: jest.fn(),
     } as any;
+
+    // Setup Firestore mocks
+    (adminDb.collection as jest.Mock).mockImplementation(mockCollection);
+    mockCollection.mockReturnValue({ doc: mockDoc });
+    mockDoc.mockReturnValue({ set: mockSet });
   });
 
   it("should update user profile successfully for authenticated user", async () => {
@@ -389,13 +424,12 @@ describe("PUT /api/user/profile", () => {
 
     mockRequest.headers.set("Authorization", "Bearer test-token");
     (mockRequest.json as jest.Mock).mockResolvedValue(updateData);
-    mockAdminAuth.verifyIdToken.mockResolvedValue(
-      createMockDecodedToken(mockUserId)
-    );
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: mockUserId,
+      error: null,
+    });
 
-    const mockDocRef = { set: jest.fn().mockResolvedValue(undefined) };
-    const mockCollection = { doc: jest.fn().mockReturnValue(mockDocRef) };
-    mockAdminDb.collection.mockReturnValue(mockCollection as any);
+    mockSet.mockResolvedValue(undefined);
 
     const response = await PUT(mockRequest);
     const data = await response.json();
@@ -416,13 +450,12 @@ describe("PUT /api/user/profile", () => {
 
     mockRequest.headers.set("Authorization", "Bearer test-token");
     (mockRequest.json as jest.Mock).mockResolvedValue(updateData);
-    mockAdminAuth.verifyIdToken.mockResolvedValue(
-      createMockDecodedToken(mockUserId)
-    );
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: mockUserId,
+      error: null,
+    });
 
-    const mockDocRef = { set: jest.fn().mockResolvedValue(undefined) };
-    const mockCollection = { doc: jest.fn().mockReturnValue(mockDocRef) };
-    mockAdminDb.collection.mockReturnValue(mockCollection as any);
+    mockSet.mockResolvedValue(undefined);
 
     const response = await PUT(mockRequest);
     const data = await response.json();
@@ -440,6 +473,16 @@ describe("PUT /api/user/profile", () => {
       displayName: "New Name",
     });
 
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: null,
+      error: {
+        status: 401,
+        json: async () => ({
+          error: "Unauthorized: Valid Firebase ID token required",
+        }),
+      },
+    });
+
     const response = await PUT(mockRequest);
     const data = await response.json();
 
@@ -452,9 +495,10 @@ describe("PUT /api/user/profile", () => {
     (mockRequest.json as jest.Mock).mockResolvedValue({
       displayName: "New Name",
     });
-    mockAdminAuth.verifyIdToken.mockResolvedValue(
-      createMockDecodedToken("test-user-123")
-    );
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "test-user-123",
+      error: null,
+    });
 
     const response = await PUT(mockRequest);
     const data = await response.json();
@@ -469,9 +513,10 @@ describe("PUT /api/user/profile", () => {
       uid: "other-user-456",
       displayName: "New Name",
     });
-    mockAdminAuth.verifyIdToken.mockResolvedValue(
-      createMockDecodedToken("authenticated-user-123")
-    );
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "authenticated-user-123",
+      error: null,
+    });
 
     const response = await PUT(mockRequest);
     const data = await response.json();
@@ -487,15 +532,12 @@ describe("PUT /api/user/profile", () => {
       uid: mockUserId,
       displayName: "New Name",
     });
-    mockAdminAuth.verifyIdToken.mockResolvedValue(
-      createMockDecodedToken(mockUserId)
-    );
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: mockUserId,
+      error: null,
+    });
 
-    const mockDocRef = {
-      set: jest.fn().mockRejectedValue(new Error("Database error")),
-    };
-    const mockCollection = { doc: jest.fn().mockReturnValue(mockDocRef) };
-    mockAdminDb.collection.mockReturnValue(mockCollection as any);
+    mockSet.mockRejectedValue(new Error("Database error"));
 
     const response = await PUT(mockRequest);
     const data = await response.json();
@@ -509,9 +551,10 @@ describe("PUT /api/user/profile", () => {
     (mockRequest.json as jest.Mock).mockRejectedValue(
       new Error("Invalid JSON")
     );
-    mockAdminAuth.verifyIdToken.mockResolvedValue(
-      createMockDecodedToken("test-user-123")
-    );
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "test-user-123",
+      error: null,
+    });
 
     const response = await PUT(mockRequest);
     const data = await response.json();

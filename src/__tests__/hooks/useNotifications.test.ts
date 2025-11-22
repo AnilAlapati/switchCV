@@ -49,7 +49,9 @@ describe("useNotifications", () => {
     (notificationService.getPreferences as jest.Mock).mockResolvedValue(
       mockPreferences
     );
-    (notificationService.getStatistics as jest.Mock).mockResolvedValue(mockStats);
+    (notificationService.getStatistics as jest.Mock).mockResolvedValue(
+      mockStats
+    );
     (notificationService.shouldSendNotification as jest.Mock).mockResolvedValue(
       true
     );
@@ -70,8 +72,12 @@ describe("useNotifications", () => {
       undefined
     );
     (notificationService.markAsRead as jest.Mock).mockResolvedValue(undefined);
-    (notificationService.savePreference as jest.Mock).mockResolvedValue(undefined);
-    (notificationService.deleteNotification as jest.Mock).mockResolvedValue(true);
+    (notificationService.savePreference as jest.Mock).mockResolvedValue(
+      undefined
+    );
+    (notificationService.deleteNotification as jest.Mock).mockResolvedValue(
+      true
+    );
   });
 
   it("should load state when refreshNotifications is called", async () => {
@@ -176,13 +182,17 @@ describe("useNotifications", () => {
     expect(result.current.notifications).toHaveLength(1);
 
     // Mock getUserNotifications to return empty after delete
-    (notificationService.getUserNotifications as jest.Mock).mockResolvedValue([]);
+    (notificationService.getUserNotifications as jest.Mock).mockResolvedValue(
+      []
+    );
 
     await act(async () => {
       await result.current.deleteNotification("notif1");
     });
 
-    expect(notificationService.deleteNotification).toHaveBeenCalledWith("notif1");
+    expect(notificationService.deleteNotification).toHaveBeenCalledWith(
+      "notif1"
+    );
     expect(result.current.notifications).toHaveLength(0);
   });
 
