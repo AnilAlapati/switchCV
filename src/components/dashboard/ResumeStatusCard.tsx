@@ -67,12 +67,12 @@ export function ResumeStatusCard({
 
   return (
     <>
-      <div className="backdrop-blur-xl bg-white/10 rounded-3xl border border-white/20 shadow-2xl shadow-black/50 p-6 hover:bg-white/15 transition-all duration-300 transform hover:scale-105">
+      <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6 shadow-lg shadow-slate-950/40 transition hover:border-cyan-500/40">
         <div className="flex items-center">
           <div className="flex-shrink-0">
-            <div className="w-12 h-12 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-xl flex items-center justify-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-slate-700 bg-slate-950 text-cyan-300">
               <svg
-                className="h-6 w-6 text-white"
+                className="h-6 w-6"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -103,17 +103,17 @@ export function ResumeStatusCard({
         </div>
         <div className="mt-4">
           {hasResume ? (
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <a
                 href={getResumeUrl(resumeId || "")}
                 target="_blank"
                 rel="noopener noreferrer"
                 title={`Resume ID: ${resumeId || "Loading..."}`}
-                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-medium rounded-xl transition-all duration-200 transform hover:scale-105 hover:shadow-lg hover:shadow-green-500/25"
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
               >
                 View Resume
                 <svg
-                  className="ml-2 w-4 h-4"
+                  className="h-4 w-4"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -129,11 +129,11 @@ export function ResumeStatusCard({
               {resumeIdString ? (
                 <Link
                   href={`/resumes/${resumeIdString}/edit`}
-                  className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-medium rounded-xl transition-all duration-200 transform hover:scale-105 hover:shadow-lg hover:shadow-blue-500/25"
+                  className="inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
                 >
                   Edit
                   <svg
-                    className="ml-2 w-4 h-4"
+                    className="h-4 w-4"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -148,19 +148,20 @@ export function ResumeStatusCard({
                 </Link>
               ) : (
                 <button
+                  type="button"
                   disabled
-                  className="inline-flex items-center px-4 py-2 bg-gray-600 text-white font-medium rounded-xl opacity-70 cursor-not-allowed"
+                  className="inline-flex items-center gap-2 rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-400 opacity-70"
                 >
                   Edit
                 </button>
               )}
               <button
                 onClick={() => setShowDeleteConfirm(true)}
-                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-medium rounded-xl transition-all duration-200 transform hover:scale-105 hover:shadow-lg hover:shadow-red-500/25"
+                className="inline-flex items-center gap-2 rounded-xl border border-red-500/40 bg-red-500/20 px-4 py-2 text-sm font-semibold text-red-200 transition hover:border-red-400/60 hover:bg-red-500/30"
               >
                 Delete
                 <svg
-                  className="ml-2 w-4 h-4"
+                  className="h-4 w-4"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -201,9 +202,9 @@ export function ResumeStatusCard({
       {/* Delete Confirmation Dialog - Positioned in Middle of Page */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl p-6 max-w-sm mx-4">
+          <div className="mx-4 max-w-sm rounded-2xl border border-slate-800 bg-slate-950/90 p-6 shadow-xl shadow-slate-950/60">
             <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-red-500/20">
                 <svg
                   className="w-6 h-6 text-red-500"
                   fill="none"

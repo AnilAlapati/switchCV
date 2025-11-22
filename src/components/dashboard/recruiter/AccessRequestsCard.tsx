@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useOptionalDashboardMetricsContext } from "@/context/DashboardMetricsContext";
 
 interface AccessMetrics {
   pending: number;
@@ -11,6 +12,12 @@ interface AccessMetrics {
 
 export function AccessRequestsCard() {
   const { user } = useAuth();
+  const metricsContext = useOptionalDashboardMetricsContext();
+  const usingContext = Boolean(
+    metricsContext && metricsContext.recruiterMetrics
+  );
+  const contextMetrics = metricsContext?.recruiterMetrics;
+  const contextLoading = metricsContext?.loading ?? false;
   const [metrics, setMetrics] = useState<AccessMetrics>({
     pending: 0,
     approved: 0,
@@ -19,13 +26,17 @@ export function AccessRequestsCard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (usingContext) {
+      return;
+    }
+
     if (!user) {
       setLoading(false);
       return;
     }
 
     fetchMetrics();
-  }, [user]);
+  }, [user, usingContext]);
 
   const fetchMetrics = async () => {
     try {
@@ -48,15 +59,20 @@ export function AccessRequestsCard() {
     }
   };
 
-  const total = metrics.pending + metrics.approved + metrics.denied;
+  const displayMetrics = usingContext
+    ? contextMetrics?.accessRequests ?? metrics
+    : metrics;
+  const loadingState = usingContext ? contextLoading : loading;
+  const total =
+    displayMetrics.pending + displayMetrics.approved + displayMetrics.denied;
 
   return (
-    <div className="backdrop-blur-xl bg-white/10 rounded-3xl border border-white/20 shadow-2xl shadow-black/50 p-6 hover:bg-white/15 transition-all duration-300 transform hover:scale-105">
+    <div className="backdrop-blur-xl rounded-3xl border border-white/20 bg-white/10 p-6 shadow-lg shadow-slate-950/40 transition hover:border-cyan-500/40">
       <div className="flex items-center">
         <div className="flex-shrink-0">
-          <div className="w-12 h-12 bg-gradient-to-r from-violet-500 to-purple-500 rounded-xl flex items-center justify-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-slate-700 bg-slate-950 text-white">
             <svg
-              className="h-6 w-6 text-white"
+              className="h-6 w-6"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -76,34 +92,34 @@ export function AccessRequestsCard() {
               Access Requests
             </dt>
             <dd className="text-2xl font-bold text-white">
-              {loading ? "-" : total}
+              {loadingState ? "-" : total}
             </dd>
           </dl>
         </div>
       </div>
       <div className="mt-4">
-        <div className="flex gap-2 mb-3">
+        <div className="mb-3 flex gap-2">
           <div className="flex-1">
-            <div className="text-xs text-slate-400 mb-1">Pending</div>
+            <div className="mb-1 text-xs text-slate-400">Pending</div>
             <div className="text-lg font-semibold text-yellow-400">
-              {loading ? "-" : metrics.pending}
+              {loadingState ? "-" : displayMetrics.pending}
             </div>
           </div>
           <div className="flex-1">
-            <div className="text-xs text-slate-400 mb-1">Approved</div>
+            <div className="mb-1 text-xs text-slate-400">Approved</div>
             <div className="text-lg font-semibold text-green-400">
-              {loading ? "-" : metrics.approved}
+              {loadingState ? "-" : displayMetrics.approved}
             </div>
           </div>
           <div className="flex-1">
-            <div className="text-xs text-slate-400 mb-1">Denied</div>
+            <div className="mb-1 text-xs text-slate-400">Denied</div>
             <div className="text-lg font-semibold text-red-400">
-              {loading ? "-" : metrics.denied}
+              {loadingState ? "-" : displayMetrics.denied}
             </div>
           </div>
         </div>
-        <p className="text-slate-400 text-sm">
-          {loading
+        <p className="text-sm text-slate-300">
+          {loadingState
             ? "Loading..."
             : total === 0
             ? "No access requests"
