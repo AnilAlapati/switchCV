@@ -92,30 +92,36 @@ export const generateNumericResumeId = async (): Promise<number> => {
     try {
       const counterRef = adminDb.doc(ID_COUNTER_DOC);
 
-      // First check if counter exists
-      const counterSnap = await counterRef.get();
-      if (!counterSnap.exists) {
-        console.warn("⚠️ ID counter not initialized, initializing now...");
-        await initializeIdCounter();
-      }
+      // Use a transaction to ensure atomic increment and retrieval
+      // This prevents race conditions where two requests might get the same ID
+      const nextId = await adminDb.runTransaction(async (transaction) => {
+        const counterDoc = await transaction.get(counterRef);
 
-      // Use atomic increment to get next ID
-      // This operation is atomic and thread-safe in Firestore
-      await counterRef.set(
-        { currentId: admin.firestore.FieldValue.increment(1) },
-        { merge: true } // Merge to preserve other fields
-      );
+        if (!counterDoc.exists) {
+          // Initialize if missing (should be rare as we check above, but good for safety)
+          transaction.set(counterRef, {
+            currentId: 1,
+            lastResetAt: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+          });
+          return 1;
+        }
 
-      // Fetch the updated value
-      const updatedSnap = await counterRef.get();
-      const nextId = (updatedSnap.data() as IdCounterDoc).currentId;
+        const currentId = counterDoc.data()?.currentId || 0;
+        const newId = currentId + 1;
 
-      // Validate we haven't exceeded max
-      if (nextId > MAX_NUMERIC_ID) {
-        throw new Error(
-          `❌ Maximum numeric ID limit reached: ${MAX_NUMERIC_ID}. Cannot generate more IDs.`
-        );
-      }
+        if (newId > MAX_NUMERIC_ID) {
+          throw new Error(
+            `❌ Maximum numeric ID limit reached: ${MAX_NUMERIC_ID}`
+          );
+        }
+
+        transaction.update(counterRef, {
+          currentId: newId,
+        });
+
+        return newId;
+      });
 
       console.log(`✅ Generated numeric resume ID: ${nextId} (from counter)`);
       return nextId;

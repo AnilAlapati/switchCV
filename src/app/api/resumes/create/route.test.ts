@@ -18,6 +18,11 @@ jest.mock("firebase-admin/firestore", () => ({
   getFirestore: jest.fn(),
 }));
 
+jest.mock("@/lib/firebase-admin", () => ({
+  adminDb: {},
+  adminAuth: {},
+}));
+
 jest.mock("@/lib/numericIdGenerator");
 
 describe("POST /api/resumes/create", () => {
@@ -68,19 +73,26 @@ describe("POST /api/resumes/create", () => {
     (generateNumericResumeId as jest.Mock).mockResolvedValue(mockNumericId);
 
     const mockSet = jest.fn();
-    const mockDoc = jest.fn().mockReturnValue({ set: mockSet });
+    const mockDocRef = { set: mockSet };
 
-    // Mock nested collection: db.collection("resumes").doc(userId).collection("resumes").doc(numericId)
-    const mockResumesCollection = { doc: mockDoc };
-    const mockUserDoc = {
-      collection: jest.fn().mockReturnValue(mockResumesCollection),
-    };
-
+    // Mock collection behavior
     const mockCollectionImpl = jest.fn((name) => {
-      if (name === "resumes")
-        return { doc: jest.fn().mockReturnValue(mockUserDoc) };
-      if (name === "allResumes") return { doc: mockDoc };
-      return { doc: jest.fn() };
+      if (name === "resumes") {
+        return { doc: jest.fn().mockReturnValue(mockDocRef) };
+      }
+      if (name === "users") {
+        return {
+          doc: jest.fn().mockReturnValue({
+            collection: jest.fn().mockReturnValue({
+              doc: jest.fn().mockReturnValue(mockDocRef),
+            }),
+          }),
+        };
+      }
+      if (name === "allResumes") {
+        return { doc: jest.fn().mockReturnValue(mockDocRef) };
+      }
+      return { doc: jest.fn().mockReturnValue(mockDocRef) };
     });
 
     (getFirestore as jest.Mock).mockReturnValue({

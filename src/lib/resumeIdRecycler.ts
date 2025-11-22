@@ -111,40 +111,45 @@ export const addDeletedIdToPool = async (numericId: number): Promise<void> => {
  * Attempts to reuse a deleted resume ID. If pool is empty, returns null
  * and a new ID should be generated from the counter instead.
  *
+ * Uses a transaction to ensure that an ID is claimed by exactly one request.
+ *
  * @returns Promise<number | null> - A recycled ID or null if pool is empty
  */
 export const getRecycledIdFromPool = async (): Promise<number | null> => {
   try {
     const poolRef = adminDb.doc(ID_POOL_DOC);
-    const poolSnap = await poolRef.get();
 
-    if (!poolSnap.exists) {
-      console.log("📦 ID pool doesn't exist, will generate new ID");
-      return null;
-    }
+    return await adminDb.runTransaction(async (transaction) => {
+      const poolSnap = await transaction.get(poolRef);
 
-    const poolData = poolSnap.data() as IdPoolDoc;
+      if (!poolSnap.exists) {
+        return null;
+      }
 
-    if (!poolData.deletedIds || poolData.deletedIds.length === 0) {
-      console.log("📦 ID pool is empty, will generate new ID");
-      return null;
-    }
+      const poolData = poolSnap.data() as IdPoolDoc;
 
-    // Get the first (oldest) ID from the pool
-    const recycledId = poolData.deletedIds[0];
+      if (!poolData.deletedIds || poolData.deletedIds.length === 0) {
+        return null;
+      }
 
-    // Remove it from the pool
-    await poolRef.update({
-      deletedIds: admin.firestore.FieldValue.arrayRemove(recycledId),
-      lastUpdatedAt: new Date().toISOString(),
+      // Get the first (oldest) ID from the pool
+      const recycledId = poolData.deletedIds[0];
+
+      // Remove it from the pool
+      // We use the array filter to remove it from the local copy and write back
+      // This is safer than arrayRemove inside a transaction when we want to be sure WE removed it
+      const newDeletedIds = poolData.deletedIds.slice(1);
+
+      transaction.update(poolRef, {
+        deletedIds: newDeletedIds,
+        lastUpdatedAt: new Date().toISOString(),
+      });
+
+      console.log(
+        `♻️ Reusing recycled ID: ${recycledId} (${newDeletedIds.length} IDs remaining in pool)`
+      );
+      return recycledId;
     });
-
-    console.log(
-      `♻️ Reusing recycled ID: ${recycledId} (${
-        poolData.deletedIds.length - 1
-      } IDs remaining in pool)`
-    );
-    return recycledId;
   } catch (error) {
     console.error("❌ Error getting recycled ID from pool:", error);
     return null; // Return null so caller generates new ID

@@ -7,25 +7,6 @@
  * Run with: npm test -- numericIdGenerator.test.ts
  */
 
-// Ensure we mock firebase/firestore early so the module is mocked for imports
-jest.mock("firebase/firestore", () => {
-  const mocks: any = {
-    getFirestore: jest.fn(() => ({})),
-    collection: jest.fn(),
-    query: jest.fn(),
-    where: jest.fn(),
-    getDocs: jest.fn(),
-    doc: jest.fn((_db: any, path: string) => ({ _path: path })),
-    updateDoc: jest.fn(),
-    setDoc: jest.fn(),
-    onSnapshot: jest.fn(),
-    serverTimestamp: jest.fn(() => new Date()),
-    getDoc: jest.fn(),
-    increment: jest.fn((value: number) => ({ _type: "increment", value })),
-  };
-  return mocks;
-});
-
 import {
   generateNumericResumeId,
   initializeIdCounter,
@@ -33,59 +14,90 @@ import {
   resetIdCounter,
 } from "@/lib/numericIdGenerator";
 
-// Mock Firestore and recycler behavior for isolated unit tests
-// Firestore mocks will be required in beforeAll so Jest's setup mock registrations have applied
-import { getRecycledIdFromPool } from "@/lib/resumeIdRecycler";
-
+// Mock the recycler
 jest.mock("@/lib/resumeIdRecycler", () => ({
-  getRecycledIdFromPool: jest.fn(),
+  getRecycledIdFromPool: jest.fn().mockResolvedValue(null),
 }));
+
+// Mock Firebase Admin
+jest.mock("@/lib/firebase-admin", () => ({
+  adminDb: {
+    doc: jest.fn(),
+    runTransaction: jest.fn(),
+  },
+}));
+
+jest.mock("firebase-admin", () => ({
+  firestore: {
+    FieldValue: {
+      increment: jest.fn(),
+    },
+  },
+}));
+
+import { adminDb } from "@/lib/firebase-admin";
+const mockDoc = adminDb.doc as jest.Mock;
+const mockRunTransaction = adminDb.runTransaction as jest.Mock;
+
+// Helper mocks
+const mockGet = jest.fn();
+const mockSet = jest.fn();
+const mockUpdate = jest.fn();
 
 describe("Numeric Resume ID Generator", () => {
   // Maintain an in-memory counter to simulate Firestore document
-  const inMemoryCounter = { currentId: 0 };
+  let inMemoryCounter = { currentId: 0 };
 
-  beforeAll(async () => {
-    // Require the mocked firestore functions after jest.setup ran
-    // Note: Use jest.requireMock to ensure we get the Jest mock instance
-    const firestore: any = jest.requireMock("firebase/firestore");
+  beforeEach(() => {
+    jest.clearAllMocks();
+    inMemoryCounter = { currentId: 0 };
 
-    // Mock getDoc to return a document snapshot-like object
-    // IMPORTANT: Must create a new copy each time so getDoc returns current state
-    (firestore.getDoc as jest.Mock).mockImplementation(async () => {
-      return {
-        exists: () => true,
-        data: () => ({ currentId: inMemoryCounter.currentId }),
-      };
+    // Mock doc() to return a ref that can be used in transaction
+    mockDoc.mockReturnValue({
+      path: "system/resumeIdCounter",
+      get: mockGet,
+      set: mockSet,
+      update: mockUpdate,
     });
 
-    // Mock setDoc to update in-memory counter when increment is used
-    // This simulates Firestore's atomic increment behavior
-    (firestore.setDoc as jest.Mock).mockImplementation(
-      async (_ref: any, data: any) => {
-        // Handle increment object (mocked in setup)
-        if (
-          data &&
-          typeof data.currentId === "object" &&
-          data.currentId._type === "increment"
-        ) {
-          const inc = data.currentId.value || 1;
-          inMemoryCounter.currentId += inc;
-        } else if (data && typeof data.currentId === "number") {
-          // Don't merge, just set the value
-          inMemoryCounter.currentId = data.currentId;
-        }
-        return Promise.resolve();
+    // Mock runTransaction to simulate atomic updates
+    mockRunTransaction.mockImplementation(async (updateFunction) => {
+      // Create a fake transaction object
+      const transaction = {
+        get: jest.fn().mockImplementation(async (ref) => {
+          return {
+            exists: true,
+            data: () => ({ ...inMemoryCounter }),
+          };
+        }),
+        update: jest.fn().mockImplementation((ref, data) => {
+          if (data.currentId !== undefined) {
+            inMemoryCounter.currentId = data.currentId;
+          }
+        }),
+        set: jest.fn().mockImplementation((ref, data) => {
+          if (data.currentId !== undefined) {
+            inMemoryCounter.currentId = data.currentId;
+          }
+        }),
+      };
+
+      return updateFunction(transaction);
+    });
+
+    // Mock direct get/set for helper functions
+    mockGet.mockImplementation(async () => ({
+      exists: true,
+      data: () => ({ ...inMemoryCounter }),
+    }));
+
+    mockSet.mockImplementation(async (data) => {
+      if (data.currentId !== undefined) {
+        inMemoryCounter.currentId = data.currentId;
       }
-    );
-
-    // Default recycled pool returns null to use counter generation path
-    (getRecycledIdFromPool as jest.Mock).mockResolvedValue(null);
-
-    // Initialize counter before tests by calling the library code
-    await initializeIdCounter();
-    await resetIdCounter(0);
+    });
   });
+
   describe("Basic Functionality", () => {
     beforeEach(async () => {
       await resetIdCounter(0);
