@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useOptionalDashboardMetricsContext } from "@/context/DashboardMetricsContext";
 
 interface SearchMetrics {
   totalSearches: number;
@@ -9,17 +10,27 @@ interface SearchMetrics {
 
 export function CandidatesSearchedCard() {
   const { user } = useAuth();
+  const metricsContext = useOptionalDashboardMetricsContext();
+  const usingContext = Boolean(
+    metricsContext && metricsContext.recruiterMetrics
+  );
+  const contextMetrics = metricsContext?.recruiterMetrics;
+  const contextLoading = metricsContext?.loading ?? false;
   const [metrics, setMetrics] = useState<SearchMetrics>({ totalSearches: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (usingContext) {
+      return;
+    }
+
     if (!user) {
       setLoading(false);
       return;
     }
 
     fetchMetrics();
-  }, [user]);
+  }, [user, usingContext]);
 
   const fetchMetrics = async () => {
     try {
@@ -37,11 +48,16 @@ export function CandidatesSearchedCard() {
     }
   };
 
+  const displayValue = usingContext
+    ? contextMetrics?.totalSearches ?? 0
+    : metrics.totalSearches;
+  const loadingState = usingContext ? contextLoading : loading;
+
   return (
-    <div className="backdrop-blur-xl bg-white/10 rounded-3xl border border-white/20 shadow-2xl shadow-black/50 p-6 hover:bg-white/15 transition-all duration-300 transform hover:scale-105">
+    <div className="backdrop-blur-xl rounded-3xl border border-white/20 bg-white/10 p-6 shadow-lg shadow-slate-950/40 transition hover:border-cyan-500/40">
       <div className="flex items-center">
         <div className="flex-shrink-0">
-          <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-slate-700 bg-slate-950 text-white">
             <svg
               className="h-6 w-6 text-white"
               fill="none"
@@ -63,19 +79,19 @@ export function CandidatesSearchedCard() {
               Candidates Searched
             </dt>
             <dd className="text-2xl font-bold text-white">
-              {loading ? "-" : metrics.totalSearches}
+              {loadingState ? "-" : displayValue}
             </dd>
           </dl>
         </div>
       </div>
       <div className="mt-4">
-        <p className="text-slate-400 text-sm">
-          {loading
+        <p className="text-sm text-slate-300">
+          {loadingState
             ? "Loading..."
-            : metrics.totalSearches === 0
+            : displayValue === 0
             ? "Start searching for candidates"
-            : `${metrics.totalSearches} search${
-                metrics.totalSearches !== 1 ? "es" : ""
+            : `${displayValue} search${
+                displayValue !== 1 ? "es" : ""
               } performed`}
         </p>
       </div>

@@ -13,6 +13,8 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
   const userInitial = userEmail ? userEmail.charAt(0).toUpperCase() : "U";
+  const displayName = userEmail?.split("@")[0] || "User";
+  const emailLabel = userEmail || "Signed out";
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -36,24 +38,32 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
       {/* User Profile Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative z-40 flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/10 transition-all duration-200"
+        className="group relative z-40 flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-left shadow-[0_10px_30px_-18px_rgba(0,0,0,0.8)] transition-all duration-200 hover:border-cyan-400/40 hover:bg-white/[0.08]"
       >
+        <span className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-r from-cyan-500/20 via-transparent to-purple-600/20 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+
         {/* Avatar */}
-        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg shadow-cyan-500/25">
-          {userInitial}
+        <div className="relative flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-gradient-to-br from-slate-900 via-slate-900/80 to-slate-950 text-base font-semibold text-white shadow-[0_12px_30px_-20px_rgba(56,189,248,0.9)]">
+          <span className="absolute inset-0 rounded-full bg-gradient-to-br from-cyan-500/60 to-purple-600/60 opacity-70" />
+          <span className="relative text-lg">{userInitial}</span>
         </div>
 
         {/* Username & Email */}
-        <div className="hidden sm:block text-left">
-          <p className="text-sm font-semibold text-white">
-            {userEmail?.split("@")[0] || "User"}
+        <div className="relative hidden min-w-[9rem] sm:flex flex-col">
+          <p className="text-sm font-semibold leading-tight text-white">
+            {displayName}
           </p>
-          <p className="text-xs text-slate-400">{userEmail}</p>
+          <p className="text-xs text-slate-400">{emailLabel}</p>
         </div>
+
+        <span className="relative hidden lg:inline-flex items-center gap-1 rounded-full border border-emerald-400/20 bg-emerald-500/10 px-2.5 py-1 text-[0.68rem] font-medium uppercase tracking-wide text-emerald-300">
+          <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-300" />
+          Recruiting seat
+        </span>
 
         {/* Chevron */}
         <svg
-          className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+          className={`relative h-4 w-4 text-slate-300 transition-transform duration-200 group-hover:text-white ${
             isOpen ? "rotate-180" : ""
           }`}
           fill="none"
@@ -80,9 +90,9 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
               </div>
               <div>
                 <p className="text-sm font-semibold text-white">
-                  {userEmail?.split("@")[0] || "User"}
+                  {displayName}
                 </p>
-                <p className="text-xs text-slate-400">{userEmail}</p>
+                <p className="text-xs text-slate-400">{emailLabel}</p>
               </div>
             </div>
           </div>

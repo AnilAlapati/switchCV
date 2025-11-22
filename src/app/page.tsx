@@ -12,18 +12,19 @@ import { useGlobalStats } from "@/hooks/useGlobalStats";
 
 const HERO_HIGHLIGHTS = [
   {
-    title: "Privacy-first sharing",
+    title: "Live engagement analytics",
     description:
-      "Choose exactly what information recruiters can see at every step.",
+      "Understand open rates, time on page, and follow-ups for every secure link.",
   },
   {
-    title: "AI-powered polish",
-    description: "Turn structured inputs into recruiter-ready copy in seconds.",
+    title: "Precision privacy controls",
+    description:
+      "Gate sections, watermark assets, and expire access by viewer in seconds.",
   },
   {
-    title: "Live resume links",
+    title: "AI refresh suggestions",
     description:
-      "Send a secure URL that updates the instant you make a change.",
+      "Get tailored prompts to update bullets the moment performance dips.",
   },
 ];
 

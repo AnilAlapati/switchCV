@@ -17,52 +17,68 @@ export function DashboardBackground({ children }: DashboardBackgroundProps) {
   const [state, setState] = useState({
     mounted: false,
     particles: [] as Particle[],
+    animate: true,
   });
 
   useEffect(() => {
-    // Generate particles only after client-side hydration
-    const generatedParticles: Particle[] = [...Array(15)].map(() => ({
+    if (typeof window === "undefined") return;
+
+    const prefersReducedMotion = window.matchMedia
+      ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      : false;
+
+    if (prefersReducedMotion) {
+      const reduceMotionTimer = window.setTimeout(() => {
+        setState({ mounted: true, particles: [], animate: false });
+      }, 0);
+
+      return () => {
+        window.clearTimeout(reduceMotionTimer);
+      };
+    }
+
+    const generatedParticles: Particle[] = [...Array(9)].map(() => ({
       left: `${Math.random() * 100}%`,
       top: `${Math.random() * 100}%`,
-      delay: `${Math.random() * 3}s`,
-      duration: `${2 + Math.random() * 3}s`,
+      delay: `${Math.random() * 4}s`,
+      duration: `${3 + Math.random() * 4}s`,
     }));
-    // Use setTimeout to avoid synchronous state update warning in effect
+
     const timer = setTimeout(() => {
-      setState({ mounted: true, particles: generatedParticles });
+      setState({ mounted: true, particles: generatedParticles, animate: true });
     }, 0);
-    return () => clearTimeout(timer);
+
+    return () => {
+      clearTimeout(timer);
+    };
   }, []);
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      {/* Animated Background */}
-      <div className="absolute inset-0">
-        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-cyan-500/10 animate-pulse"></div>
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse delay-2000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-blue-500/10 rounded-full blur-2xl animate-spin duration-[20s]"></div>
+    <div className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.18),_transparent_55%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,_rgba(139,92,246,0.16),_transparent_60%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0.85),rgba(15,23,42,0.95))]" />
+        <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-cyan-500/20 via-transparent to-transparent" />
       </div>
 
-      {/* Floating Particles */}
-      {state.mounted && (
-        <div className="absolute inset-0 overflow-hidden">
+      {state.mounted && state.animate && (
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
           {state.particles.map((particle: Particle, i: number) => (
             <div
               key={i}
-              className="absolute w-1 h-1 bg-cyan-400 rounded-full opacity-60 animate-ping"
+              className="absolute h-1 w-1 rounded-full bg-cyan-300/70"
               style={{
                 left: particle.left,
                 top: particle.top,
-                animationDelay: particle.delay,
-                animationDuration: particle.duration,
+                animation: `float ${particle.duration} ease-in-out ${particle.delay} infinite`,
               }}
-            ></div>
+            />
           ))}
         </div>
       )}
 
-      {children}
+      <div className="relative z-10">{children}</div>
     </div>
   );
 }

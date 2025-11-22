@@ -94,12 +94,12 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
   };
 
   return (
-    <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border border-white/20 rounded-2xl p-6 hover:border-cyan-500/30 transition-all duration-300">
+    <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-lg shadow-slate-950/40 transition hover:border-cyan-500/40">
       {/* Header */}
       <div className="flex items-center mb-6">
-        <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-amber-500 to-orange-600 flex items-center justify-center mr-3">
+        <div className="mr-3 flex h-10 w-10 items-center justify-center rounded-lg border border-slate-700 bg-slate-950 text-amber-300">
           <svg
-            className="w-6 h-6 text-white"
+            className="h-6 w-6"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -112,7 +112,7 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
             />
           </svg>
         </div>
-        <h2 className="text-xl font-bold bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
+        <h2 className="text-xl font-semibold text-white">
           Recruiter Resume Search
         </h2>
       </div>
@@ -137,7 +137,7 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
 
       {/* Error Message */}
       {error && (
-        <div className="px-4 py-3 rounded-lg text-sm font-medium bg-red-500/20 text-red-300 border border-red-500/30 mb-6">
+        <div className="mb-6 rounded-lg border border-red-500/40 bg-red-500/15 px-4 py-3 text-sm font-medium text-red-200">
           {error}
         </div>
       )}

@@ -59,20 +59,21 @@ export function HomeHero({ stats, highlights }: HomeHeroProps) {
           </div>
           <div>
             <p className="text-base font-semibold text-white">SwitchCV</p>
-            <p className="text-sm text-slate-400">Privacy-first resume OS</p>
+            <p className="text-sm text-slate-400">Live resume intelligence</p>
           </div>
         </div>
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/10 shadow-lg shadow-cyan-500/20 text-sm font-medium text-slate-200">
           <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse"></span>
-          Now onboarding private beta candidates
+          Live metrics sync across every share link
         </div>
         <h1 className="text-4xl sm:text-5xl xl:text-6xl font-bold leading-tight bg-gradient-to-r from-cyan-300 via-purple-300 to-pink-300 bg-clip-text text-transparent">
-          Tell your career story with privacy-first controls and AI polish.
+          Ship a living resume with real-time engagement signals.
         </h1>
         <p className="text-lg text-slate-300 max-w-2xl">
-          SwitchCV is the modern resume workspace that keeps sensitive details
-          secure, helps you articulate impact, and lets you ship updates
-          instantly to teams that matter.
+          Tell your career story with privacy-first controls. SwitchCV turns
+          static PDFs into a data-aware experience. Stream share analytics,
+          tighten access controls, and let AI keep every bullet recruiter-ready
+          the moment someone opens your link.
         </p>
 
         <div className="grid sm:grid-cols-2 gap-4 pt-2">

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useOptionalDashboardMetricsContext } from "@/context/DashboardMetricsContext";
 
 interface QualityMetrics {
   quality: number;
@@ -13,19 +14,31 @@ interface ResumeQualityCardProps {
 
 export function ResumeQualityCard({ hasResume }: ResumeQualityCardProps) {
   const { user } = useAuth();
+  const metricsContext = useOptionalDashboardMetricsContext();
+  const usingContext = Boolean(metricsContext);
+  const contextMetrics = metricsContext?.jobSeekerMetrics;
+  const contextLoading = metricsContext?.loading ?? false;
   const [metrics, setMetrics] = useState<QualityMetrics>({ quality: 0 });
   const [loading, setLoading] = useState(true);
-  const resumePrompt = !loading && hasResume === false;
-  const qualityValue = resumePrompt ? 0 : metrics.quality;
+  const displayQuality = usingContext
+    ? contextMetrics?.quality ?? 0
+    : metrics.quality;
+  const loadingState = usingContext ? contextLoading : loading;
+  const resumePrompt = !loadingState && hasResume === false;
+  const qualityValue = resumePrompt ? 0 : displayQuality;
 
   useEffect(() => {
+    if (usingContext) {
+      return;
+    }
+
     if (!user) {
       setLoading(false);
       return;
     }
 
     fetchMetrics();
-  }, [user]);
+  }, [user, usingContext]);
 
   const fetchMetrics = async () => {
     try {
@@ -44,12 +57,12 @@ export function ResumeQualityCard({ hasResume }: ResumeQualityCardProps) {
   };
 
   return (
-    <div className="backdrop-blur-xl bg-white/10 rounded-3xl border border-white/20 shadow-2xl shadow-black/50 p-6 hover:bg-white/15 transition-all duration-300 transform hover:scale-105">
+    <div className="backdrop-blur-xl rounded-3xl border border-white/20 bg-white/10 p-6 shadow-lg shadow-slate-950/40 transition hover:border-cyan-500/40">
       <div className="flex items-center">
         <div className="flex-shrink-0">
-          <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-slate-700 bg-slate-950 text-white">
             <svg
-              className="h-6 w-6 text-white"
+              className="h-6 w-6"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -75,14 +88,14 @@ export function ResumeQualityCard({ hasResume }: ResumeQualityCardProps) {
         </div>
       </div>
       <div className="mt-4">
-        <div className="w-full bg-slate-700 rounded-full h-2">
+        <div className="h-2 w-full rounded-full bg-slate-800">
           <div
-            className="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full transition-all duration-500"
-            style={{ width: loading ? "0%" : `${qualityValue}%` }}
+            className="h-2 rounded-full bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-600 transition-all duration-500"
+            style={{ width: loadingState ? "0%" : `${qualityValue}%` }}
           ></div>
         </div>
-        <p className="text-slate-400 text-sm mt-2">
-          {loading
+        <p className="mt-2 text-sm text-slate-300">
+          {loadingState
             ? "Loading..."
             : resumePrompt
             ? "Create a resume to see quality insights"
