@@ -21,14 +21,6 @@ jest.mock("@/lib/firebase-admin", () => ({
 
 describe("Resume Generation Flow Simulation", () => {
   // Test Data
-  const userMessages = [
-    "Hi, I want to create a resume.",
-    "My name is Anil A",
-    "anilalapati.66@gmail.com",
-    "I am a Senior Software Engineer at TechNova Systems since Jan 2022.",
-    "I have a B.Tech in CS from JNTU, 2016.",
-    "I know Java, Python, and React.",
-  ];
 
   it("should extract name correctly even if short", () => {
     const text = "My name is Anil A";

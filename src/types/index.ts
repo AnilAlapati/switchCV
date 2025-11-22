@@ -38,8 +38,32 @@ export interface Project {
   visibility: Visibility;
 }
 
+export interface TemplateField {
+  id: string;
+  label: string;
+  type: "text" | "textarea" | "list" | "complex_list";
+  required: boolean;
+  description: string;
+  placeholder?: string;
+}
+
+export interface TemplateSection {
+  id: string;
+  title: string;
+  fields: TemplateField[];
+  order: number;
+}
+
+export interface ResumeTemplate {
+  id: string;
+  name: string;
+  description: string;
+  sections: TemplateSection[];
+}
+
 export interface ResumeProfile {
   versionId: string;
+  templateId?: string; // ID of the selected template
   title: string;
   summary: string;
   skills: Skill[];

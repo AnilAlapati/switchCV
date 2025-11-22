@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 /**
  * Resume Data Extractor Service
  *
@@ -160,15 +161,82 @@ export class ResumeDataExtractor {
 
     // Extract location (city, state)
     const locationPatterns = [
-      /(?:located in|based in|from|live in)\s+([A-Z][a-z]+(?: [A-Z][a-z]+)?(?:,?\s+[A-Z]{2})?)/i,
-      /location:\s*([A-Z][a-z]+(?: [A-Z][a-z]+)?(?:,?\s+[A-Z]{2})?)/i,
+      /(?:located in|based in|live in)\s+([a-z]+(?: [a-z]+)?(?:,?\s+[a-z]{2})?)/i,
+      /location:\s*([a-z]+(?: [a-z]+)?(?:,?\s+[a-z]{2})?)/i,
+      // "from" requires strict City, State format to avoid "from University"
+      /from\s+([a-z]+(?: [a-z]+)?,\s*[a-z]{2})/i,
+      // City, State format (e.g. New York, NY) - relaxed case
+      /([a-z]+(?: [a-z]+)?,\s*([a-z]{2}))/i,
     ];
+
+    const US_STATE_CODES = new Set([
+      "AL",
+      "AK",
+      "AZ",
+      "AR",
+      "CA",
+      "CO",
+      "CT",
+      "DE",
+      "FL",
+      "GA",
+      "HI",
+      "ID",
+      "IL",
+      "IN",
+      "IA",
+      "KS",
+      "KY",
+      "LA",
+      "ME",
+      "MD",
+      "MA",
+      "MI",
+      "MN",
+      "MS",
+      "MO",
+      "MT",
+      "NE",
+      "NV",
+      "NH",
+      "NJ",
+      "NM",
+      "NY",
+      "NC",
+      "ND",
+      "OH",
+      "OK",
+      "OR",
+      "PA",
+      "RI",
+      "SC",
+      "SD",
+      "TN",
+      "TX",
+      "UT",
+      "VT",
+      "VA",
+      "WA",
+      "WV",
+      "WI",
+      "WY",
+      "DC",
+    ]);
 
     for (const pattern of locationPatterns) {
       const match = fullText.match(pattern);
-      if (match && match[1]) {
-        data.location = match[1].trim();
-        break;
+      if (match) {
+        // For the last pattern (generic City, State), validate the state code
+        if (pattern.source.includes("([a-z]{2}))")) {
+          const stateCode = match[2].toUpperCase();
+          if (US_STATE_CODES.has(stateCode)) {
+            data.location = match[1].trim();
+            break;
+          }
+        } else if (match[1]) {
+          data.location = match[1].trim();
+          break;
+        }
       }
     }
 
@@ -177,19 +245,79 @@ export class ResumeDataExtractor {
       /skills?:\s*([^.\n]+(?:,\s*[^.\n]+)*)/i,
       /proficient in:\s*([^.\n]+(?:,\s*[^.\n]+)*)/i,
       /technologies?:\s*([^.\n]+(?:,\s*[^.\n]+)*)/i,
+      /(?:I know|I use|experience with)\s+([^.\n]+(?:,\s*[^.\n]+)*)/i,
     ];
 
+    // 1. Try explicit patterns first
     for (const pattern of skillsPatterns) {
       const match = fullText.match(pattern);
       if (match && match[1]) {
         const skillsList = match[1]
-          .split(/,|;|\n/)
+          .split(/,|;|\n|\s+and\s+/)
           .map((s) => s.trim())
           .filter((s) => s.length > 0 && s.length < 50);
+
         if (skillsList.length > 0) {
           data.skills = skillsList;
           break;
         }
+      }
+    }
+
+    // 2. Fallback: Look for lines containing tech keywords
+    if (!data.skills) {
+      const techKeywords = [
+        "Java",
+        "Python",
+        "React",
+        "Node.js",
+        "AWS",
+        "Docker",
+        "SQL",
+        "NoSQL",
+        "TypeScript",
+        "Go",
+        "Rust",
+        "HTML",
+        "CSS",
+        "Git",
+        "C++",
+        "C#",
+        "Kubernetes",
+        "CI/CD",
+        "Agile",
+        "Scrum",
+        "JavaScript",
+      ];
+      const lines = fullText.split("\n");
+      const foundSkills: string[] = [];
+
+      for (const line of lines) {
+        // If line contains at least 2 keywords, treat it as a skills list
+        const keywordsInLine = techKeywords.filter((kw) =>
+          line.toLowerCase().includes(kw.toLowerCase())
+        );
+        if (keywordsInLine.length >= 1) {
+          // Split by comma or space if no commas
+          const hasComma = line.includes(",");
+          const parts = hasComma ? line.split(/,|;/) : line.split(/\s+/);
+
+          parts.forEach((p) => {
+            const clean = p.trim().replace(/[^a-zA-Z0-9+#.]/g, ""); // Clean punctuation
+            if (
+              clean.length > 1 &&
+              clean.length < 20 &&
+              !["and", "with", "i", "know", "use", "the", "a"].includes(
+                clean.toLowerCase()
+              )
+            ) {
+              foundSkills.push(clean);
+            }
+          });
+        }
+      }
+      if (foundSkills.length > 0) {
+        data.skills = [...new Set(foundSkills)];
       }
     }
 
@@ -207,26 +335,41 @@ export class ResumeDataExtractor {
       "senior software engineer", // Common job titles as keywords
       "software engineer",
       "developer",
+      "engineer",
+      "manager",
     ];
     const hasExperience = experienceKeywords.some((kw) =>
       fullText.toLowerCase().includes(kw)
     );
 
-    if (hasExperience) {
+    if (hasExperience || /@/.test(fullText)) {
+      // @ often used for "Title @ Company"
       // Extract company and title
-      // Improved regex to better separate title and company
-      const expPattern =
-        /(?:worked|work|employed|position|job|role)\s+(?:as|at)\s+((?:(?! at ).)+)(?:\s+at\s+([^,.\n]+))?/i;
-      const expMatch = fullText.match(expPattern);
+      const expPatterns = [
+        /(?:worked|work|employed|position|job|role)\s+(?:as|at)\s+((?:(?! at ).)+)(?:\s+at\s+([^,.\n]+))?/i,
+        // "Title @ Company"
+        /([A-Za-z\s]+)\s+@\s+([A-Za-z\s]+)/,
+        // "I spent X years at Company"
+        /(?:spent|worked)\s+(?:.*?)\s+at\s+([A-Za-z\s]+)/i,
+      ];
 
-      if (expMatch) {
-        const experience: ExperienceEntry = {
-          title: expMatch[1]?.trim() || "Professional",
-          company: expMatch[2]?.trim() || "Company",
-          duration: "Present",
-          description: "Contributed to various projects and initiatives",
-        };
-        data.experience = [experience];
+      for (const pattern of expPatterns) {
+        const expMatch = fullText.match(pattern);
+        if (expMatch) {
+          const experience: ExperienceEntry = {
+            title: expMatch[1]?.trim() || "Professional",
+            company:
+              expMatch[2]?.trim() ||
+              (pattern.source.includes("spent")
+                ? expMatch[1].trim()
+                : "Company"),
+            duration: "Present",
+            description: "Contributed to various projects and initiatives",
+          };
+
+          data.experience = [experience];
+          break;
+        }
       }
     }
 
@@ -246,19 +389,39 @@ export class ResumeDataExtractor {
     );
 
     if (hasEducation) {
-      const eduPattern =
-        /(bachelor|master|phd|associate|doctorate|degree)(?:['\s]+(?:of|in))?\s+([^,.\n]+)?\s+(?:from|at)?\s*([^,.\n]+)/i;
-      const eduMatch = fullText.match(eduPattern);
+      const eduPatterns = [
+        /(bachelor|master|phd|associate|doctorate|degree)(?:['\s]+(?:of|in))?\s+([^,.\n]+)?\s+(?:from|at)?\s*([^,.\n]+)/i,
+        // "Graduated from [Institution] with [Degree]" - use non-greedy capture
+        /graduated\s+from\s+(.+?)\s+(?:with|in)\s+(?:a\s+)?(.+)/i,
+        // "[Degree] [Institution]" (messy)
+        /(bachelor|master|phd|associate|doctorate|degree)\s+([\w\s.&'-]+)/i,
+      ];
 
-      if (eduMatch) {
-        const education: EducationEntry = {
-          degree: eduMatch[1]
-            ? `${eduMatch[1]} ${eduMatch[2] || ""}`.trim()
-            : "Degree",
-          institution: eduMatch[3]?.trim() || "University",
-          year: new Date().getFullYear().toString(),
-        };
-        data.education = [education];
+      for (const pattern of eduPatterns) {
+        const eduMatch = fullText.match(pattern);
+        if (eduMatch) {
+          let degree = "Degree";
+          let institution = "University";
+
+          if (pattern.source.includes("graduated")) {
+            institution = eduMatch[1].trim();
+            degree = eduMatch[2].trim();
+          } else {
+            degree = eduMatch[1]
+              ? `${eduMatch[1]} ${eduMatch[2] || ""}`.trim()
+              : "Degree";
+            institution =
+              eduMatch[3]?.trim() || eduMatch[2]?.trim() || "University";
+          }
+
+          const education: EducationEntry = {
+            degree,
+            institution,
+            year: new Date().getFullYear().toString(),
+          };
+          data.education = [education];
+          break;
+        }
       }
     }
 
