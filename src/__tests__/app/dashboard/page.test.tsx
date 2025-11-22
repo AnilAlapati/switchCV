@@ -51,7 +51,7 @@ describe("Dashboard", () => {
     expect(viewResumeLink).toBeInTheDocument();
     expect(viewResumeLink.closest("a")).toHaveAttribute(
       "href",
-      "http://localhost:3000/resume/test-slug"
+      "http://localhost:3000/resumes/test-slug"
     );
   });
 

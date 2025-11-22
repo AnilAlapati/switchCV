@@ -76,19 +76,19 @@ describe("Config Utility", () => {
     it("should construct resume URL with numeric ID", () => {
       process.env.NEXT_PUBLIC_BASE_URL = "https://app.com";
 
-      expect(getResumeUrl(123)).toBe("https://app.com/resume/123");
+      expect(getResumeUrl(123)).toBe("https://app.com/resumes/123");
     });
 
     it("should construct resume URL with string ID", () => {
       process.env.NEXT_PUBLIC_BASE_URL = "https://app.com";
 
-      expect(getResumeUrl("abc-123")).toBe("https://app.com/resume/abc-123");
+      expect(getResumeUrl("abc-123")).toBe("https://app.com/resumes/abc-123");
     });
 
     it("should use default localhost when no BASE_URL set", () => {
       delete process.env.NEXT_PUBLIC_BASE_URL;
 
-      expect(getResumeUrl(456)).toBe("http://localhost:3000/resume/456");
+      expect(getResumeUrl(456)).toBe("http://localhost:3000/resumes/456");
     });
   });
 

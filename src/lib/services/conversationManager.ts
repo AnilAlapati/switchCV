@@ -253,21 +253,28 @@ export class ConversationManager {
     }
 
     // Validate arrays are not empty if they exist
+    // Only strictly validate if they are in minimum requirements
     if (
       this.collectedData.experience &&
-      this.collectedData.experience.length === 0
+      this.collectedData.experience.length === 0 &&
+      ConversationManager.MINIMUM_REQUIRED_FIELDS.includes("experience")
     ) {
       errors.push("Experience array is empty");
     }
 
     if (
       this.collectedData.education &&
-      this.collectedData.education.length === 0
+      this.collectedData.education.length === 0 &&
+      ConversationManager.MINIMUM_REQUIRED_FIELDS.includes("education")
     ) {
       errors.push("Education array is empty");
     }
 
-    if (this.collectedData.skills && this.collectedData.skills.length === 0) {
+    if (
+      this.collectedData.skills &&
+      this.collectedData.skills.length === 0 &&
+      ConversationManager.MINIMUM_REQUIRED_FIELDS.includes("skills")
+    ) {
       errors.push("Skills array is empty");
     }
 

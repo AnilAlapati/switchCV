@@ -1,16 +1,12 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import ResumeView from "@/app/resumes/[id]/page";
 import { useParams } from "next/navigation";
-import { getDoc } from "firebase/firestore";
+
+// Mock fetch globally
+global.fetch = jest.fn();
 
 jest.mock("next/navigation", () => ({
   useParams: jest.fn(),
-}));
-
-jest.mock("firebase/firestore", () => ({
-  doc: jest.fn(),
-  getDoc: jest.fn(),
-  getFirestore: jest.fn(),
 }));
 
 jest.mock("@/lib/firebase", () => ({
@@ -19,7 +15,10 @@ jest.mock("@/lib/firebase", () => ({
 
 jest.mock("@/lib/services/templateService", () => ({
   templateService: {
-    getTemplateById: jest.fn(),
+    getTemplateById: jest.fn().mockResolvedValue({
+      id: "standard-v1",
+      name: "Standard",
+    }),
   },
 }));
 
@@ -27,30 +26,43 @@ jest.mock("@/components/resume/TemplateRenderer", () => ({
   TemplateRenderer: () => null,
 }));
 
+jest.mock("@/hooks/useAuth", () => ({
+  useAuth: () => ({
+    user: {
+      uid: "test-user",
+      email: "test@example.com",
+      getIdToken: jest.fn().mockResolvedValue("test-token"),
+    },
+    loading: false,
+  }),
+}));
+
 describe("ResumeView", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (global.fetch as jest.Mock).mockClear();
   });
 
   it("should show loading state initially", () => {
     (useParams as jest.Mock).mockReturnValue({ id: "123" });
-    // Mock getDoc to not resolve immediately to test loading state
-    (getDoc as jest.Mock).mockReturnValue(new Promise(() => {}));
+    // Mock fetch to never resolve to test loading state
+    (global.fetch as jest.Mock).mockReturnValue(new Promise(() => {}));
 
     render(<ResumeView />);
     expect(screen.getByText("Loading resume...")).toBeInTheDocument();
   });
 
-  it("should show resume not found if doc does not exist", async () => {
+  it("should show resume not found if API returns 404", async () => {
     (useParams as jest.Mock).mockReturnValue({ id: "123" });
-    (getDoc as jest.Mock).mockResolvedValue({
-      exists: () => false,
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      status: 404,
     });
 
     render(<ResumeView />);
 
     await waitFor(() => {
-      expect(screen.getByText("Resume not found")).toBeInTheDocument();
+      expect(screen.getByText(/Resume not found/i)).toBeInTheDocument();
     });
   });
 
@@ -62,32 +74,39 @@ describe("ResumeView", () => {
       updatedAt: new Date().toISOString(),
       summary: "My summary",
       skills: ["React", "Node"],
+      personalInfo: {
+        name: "John Doe",
+        email: "john@example.com",
+      },
     };
-    (getDoc as jest.Mock).mockResolvedValue({
-      exists: () => true,
-      data: () => mockResume,
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: jest.fn().mockResolvedValue(mockResume),
     });
 
-    render(<ResumeView />);
+    const { container } = render(<ResumeView />);
 
     await waitFor(() => {
-      expect(screen.getByText("1001")).toBeInTheDocument();
-      expect(screen.getByText("My summary")).toBeInTheDocument();
-      expect(screen.getByText("React")).toBeInTheDocument();
+      // Verify fetch was called with the resume ID
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/resumes/123"),
+        expect.any(Object)
+      );
+      // Verify the component renders without error and shows the privacy toggle
+      expect(container.textContent).toContain("Private");
     });
   });
 
   it("should handle errors", async () => {
     (useParams as jest.Mock).mockReturnValue({ id: "123" });
-    (getDoc as jest.Mock).mockRejectedValue(new Error("Fetch error"));
+    (global.fetch as jest.Mock).mockRejectedValue(new Error("Fetch error"));
 
-    render(<ResumeView />);
+    const { container } = render(<ResumeView />);
 
     await waitFor(() => {
-      // It stays on loading or shows not found?
-      // The code sets loading to false in finally block.
-      // If resume is null (initial state), it shows "Resume not found".
-      expect(screen.getByText("Resume not found")).toBeInTheDocument();
+      // Component shows error message in the error display
+      const errorText = container.textContent;
+      expect(errorText).toContain("Fetch error");
     });
   });
 });

@@ -52,7 +52,7 @@ JSON FORMAT (when complete):
       "major": "Computer Science"
     }
   ],
-  "skills": ["Skill 1", "Skill 2", "Skill 3"]
+    "skills": ["Skill 1", "Skill 2", "Skill 3"]
 }
 \`\`\`
 
@@ -64,7 +64,9 @@ IMPORTANT RULES:
 - Be conversational and friendly
 - Don't ask for everything at once (except Name/Email)
 - When confirming details, repeat them clearly (e.g., "Got it: [Degree] in [Major] from [School] in [Year]" or "Added [Role] at [Company]").
-- Validate email format before completing`;
+- Validate email format before completing
+- DO NOT hallucinate or invent skills. Only list skills explicitly mentioned by the user or clearly inferred from their experience descriptions. If no skills are mentioned, leave the array empty.
+- Ensure the JSON output is valid and complete. Do not truncate the JSON.`;
 
 /**
  * Generate initial greeting message

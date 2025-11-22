@@ -1,4 +1,4 @@
-import { POST, RateLimitError } from "@/app/api/ai/generate/route";
+import { POST } from "@/app/api/ai/generate/route";
 import { NextRequest } from "next/server";
 import { generateText } from "@/lib/services/aiGenerationService";
 

@@ -1,6 +1,13 @@
 import { db } from "@/lib/firebase";
 import { ResumeTemplate } from "@/types";
 import { RESUME_TEMPLATES } from "@/lib/templates/resumeTemplates";
+import {
+  collection,
+  getDocs,
+  doc,
+  getDoc,
+  writeBatch,
+} from "firebase/firestore";
 
 const COLLECTION_NAME = "templates";
 
@@ -11,14 +18,15 @@ export const templateService = {
    */
   async getAllTemplates(): Promise<ResumeTemplate[]> {
     try {
-      const snapshot = await db.collection(COLLECTION_NAME).get();
+      const templatesRef = collection(db, COLLECTION_NAME);
+      const snapshot = await getDocs(templatesRef);
 
       if (snapshot.empty) {
         console.warn("No templates found in DB, using local defaults.");
         return RESUME_TEMPLATES;
       }
 
-      return snapshot.docs.map((doc: any) => doc.data() as ResumeTemplate);
+      return snapshot.docs.map((doc) => doc.data() as ResumeTemplate);
     } catch (error) {
       console.error("Error fetching templates:", error);
       // Fallback to local templates on error
@@ -31,10 +39,11 @@ export const templateService = {
    */
   async getTemplateById(templateId: string): Promise<ResumeTemplate | null> {
     try {
-      const doc = await db.collection(COLLECTION_NAME).doc(templateId).get();
+      const docRef = doc(db, COLLECTION_NAME, templateId);
+      const docSnap = await getDoc(docRef);
 
-      if (doc.exists) {
-        return doc.data() as ResumeTemplate;
+      if (docSnap.exists()) {
+        return docSnap.data() as ResumeTemplate;
       }
 
       // Check local defaults
@@ -52,10 +61,10 @@ export const templateService = {
    * This can be called by an admin endpoint.
    */
   async seedTemplates(): Promise<void> {
-    const batch = db.batch();
+    const batch = writeBatch(db);
 
     for (const template of RESUME_TEMPLATES) {
-      const ref = db.collection(COLLECTION_NAME).doc(template.id);
+      const ref = doc(db, COLLECTION_NAME, template.id);
       batch.set(ref, template, { merge: true });
     }
 
