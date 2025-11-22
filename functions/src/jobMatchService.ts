@@ -4,9 +4,26 @@ import { HfInference } from "@huggingface/inference";
 import cors from "cors";
 import helmet from "helmet";
 import { JobMatchSuggestions, ResumeData } from "./types";
+import {
+  resilientCall,
+  CircuitBreaker,
+  RetryOptions,
+} from "./utils/retryHandler";
 
 const HUGGINGFACE_TOKEN = process.env.HUGGINGFACE_TOKEN;
 const hf = new HfInference(HUGGINGFACE_TOKEN);
+
+// Circuit breaker for HuggingFace
+const huggingFaceCircuitBreaker = new CircuitBreaker(5, 60000, 2);
+
+// Retry options
+const aiRetryOptions: RetryOptions = {
+  maxAttempts: 3,
+  initialDelayMs: 1000,
+  maxDelayMs: 5000,
+  backoffMultiplier: 2,
+  retryableErrors: ["ECONNRESET", "ETIMEDOUT", "503", "429", "UNAVAILABLE"],
+};
 
 // CORS configuration
 const corsHandler = cors({ origin: true });
@@ -125,15 +142,25 @@ Provide:
 3. Experience alignment suggestions
 4. Resume customization tips for this job`;
 
-    const response = await hf.textGeneration({
-      model: modelId,
-      inputs: prompt,
-      parameters: {
-        max_new_tokens:
-          modelId === "mistralai/Mistral-7B-Instruct-v0.3" ? 300 : 200,
-        temperature: 0.6,
+    const response = await resilientCall(
+      async () => {
+        return hf.textGeneration({
+          model: modelId,
+          inputs: prompt,
+          parameters: {
+            max_new_tokens:
+              modelId === "mistralai/Mistral-7B-Instruct-v0.3" ? 300 : 200,
+            temperature: 0.6,
+          },
+        });
       },
-    });
+      {
+        retryOptions: aiRetryOptions,
+        circuitBreaker: huggingFaceCircuitBreaker,
+        timeoutMs: 30000,
+        operationName: "job-match-analysis",
+      }
+    );
 
     return {
       analysis: response.generated_text || "Analysis generated",

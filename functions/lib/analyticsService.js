@@ -45,7 +45,10 @@ exports.aggregateAnalyticsDaily = functions.pubsub
     .schedule("0 1 * * *")
     .timeZone("UTC")
     .onRun(async (context) => {
-    console.log("📊 Starting daily analytics aggregation...");
+    const startTime = Date.now();
+    functions.logger.info("Daily analytics aggregation started", {
+        eventId: context.eventId,
+    });
     const db = admin.firestore();
     const analyticsRef = db.collection("analytics");
     const now = new Date();
@@ -73,14 +76,25 @@ exports.aggregateAnalyticsDaily = functions.pubsub
                 .collection("engagement")
                 .doc("current")
                 .set(engagementMetrics, { merge: true });
-            console.log(`✅ Aggregated analytics for ${analyticsId}`);
+            functions.logger.info("Analytics aggregated for document", {
+                analyticsId,
+                eventId: context.eventId,
+            });
         }
-        console.log("📊 Daily analytics aggregation completed");
+        functions.logger.info("Daily analytics aggregation completed", {
+            durationMs: Date.now() - startTime,
+            eventId: context.eventId,
+        });
         return null;
     }
     catch (error) {
-        console.error("Error aggregating analytics:", error);
-        return null;
+        const message = error instanceof Error ? error.message : String(error);
+        functions.logger.error("Daily analytics aggregation failed", {
+            message,
+            stack: error instanceof Error ? error.stack : undefined,
+            eventId: context.eventId,
+        });
+        throw error;
     }
 });
 /**
@@ -91,34 +105,66 @@ exports.cleanupAnalyticsEvents = functions.pubsub
     .schedule("0 2 * * 0")
     .timeZone("UTC")
     .onRun(async (context) => {
-    console.log("🧹 Starting analytics cleanup...");
+    const startTime = Date.now();
+    functions.logger.info("Analytics cleanup started", {
+        eventId: context.eventId,
+    });
     const db = admin.firestore();
     const analyticsRef = db.collection("analytics");
     const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
     try {
         const analyticsSnap = await analyticsRef.get();
         let deletedCount = 0;
+        const BATCH_SIZE = 500; // Firestore batch limit
         for (const doc of analyticsSnap.docs) {
             const analyticsId = doc.id;
             const eventsRef = db
                 .collection("analytics")
                 .doc(analyticsId)
                 .collection("events");
-            const oldEventsSnap = await eventsRef
-                .where("timestamp", "<", ninetyDaysAgo.toISOString())
-                .limit(100)
-                .get();
-            for (const eventDoc of oldEventsSnap.docs) {
-                await eventDoc.ref.delete();
-                deletedCount++;
+            let hasMore = true;
+            while (hasMore) {
+                const oldEventsSnap = await eventsRef
+                    .where("timestamp", "<", ninetyDaysAgo.toISOString())
+                    .limit(BATCH_SIZE)
+                    .get();
+                if (oldEventsSnap.empty) {
+                    hasMore = false;
+                    break;
+                }
+                // Use batched writes for efficiency
+                const batch = db.batch();
+                oldEventsSnap.docs.forEach((eventDoc) => {
+                    batch.delete(eventDoc.ref);
+                    deletedCount++;
+                });
+                await batch.commit();
+                functions.logger.info("Batch deleted", {
+                    analyticsId,
+                    batchSize: oldEventsSnap.size,
+                    totalDeleted: deletedCount,
+                });
+                // If we got less than batch size, we're done
+                if (oldEventsSnap.size < BATCH_SIZE) {
+                    hasMore = false;
+                }
             }
         }
-        console.log(`🧹 Cleanup completed. Deleted ${deletedCount} old analytics events`);
+        functions.logger.info("Analytics cleanup completed", {
+            deletedCount,
+            durationMs: Date.now() - startTime,
+            eventId: context.eventId,
+        });
         return null;
     }
     catch (error) {
-        console.error("Error cleaning up analytics:", error);
-        return null;
+        const message = error instanceof Error ? error.message : String(error);
+        functions.logger.error("Analytics cleanup failed", {
+            message,
+            stack: error instanceof Error ? error.stack : undefined,
+            eventId: context.eventId,
+        });
+        throw error;
     }
 });
 /**

@@ -9,6 +9,11 @@ import {
   ResumeData,
   GenerateResumeRequest,
 } from "./types";
+import {
+  resilientCall,
+  CircuitBreaker,
+  RetryOptions,
+} from "./utils/retryHandler";
 
 // Initialize AI clients
 const HUGGINGFACE_TOKEN = process.env.HUGGINGFACE_TOKEN;
@@ -16,6 +21,19 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 const hf = new HfInference(HUGGINGFACE_TOKEN);
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
+
+// Circuit breakers for AI services
+const geminiCircuitBreaker = new CircuitBreaker(5, 60000, 2);
+const huggingFaceCircuitBreaker = new CircuitBreaker(5, 60000, 2);
+
+// Retry options for AI calls
+const aiRetryOptions: RetryOptions = {
+  maxAttempts: 3,
+  initialDelayMs: 1000,
+  maxDelayMs: 5000,
+  backoffMultiplier: 2,
+  retryableErrors: ["ECONNRESET", "ETIMEDOUT", "503", "429", "UNAVAILABLE"],
+};
 
 // CORS configuration
 const corsHandler = cors({ origin: true });
@@ -161,12 +179,22 @@ export async function enhanceResumeWithAI(
       console.log(`✨ Using ${actualProvider}: ${actualModel}`);
       console.log("📡 Calling Gemini API...");
 
-      const model = genAI!.getGenerativeModel({
-        model: actualModel,
-      });
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      enhancedText = response.text();
+      enhancedText = await resilientCall(
+        async () => {
+          const model = genAI!.getGenerativeModel({
+            model: actualModel,
+          });
+          const result = await model.generateContent(prompt);
+          const response = await result.response;
+          return response.text();
+        },
+        {
+          retryOptions: aiRetryOptions,
+          circuitBreaker: geminiCircuitBreaker,
+          timeoutMs: 30000,
+          operationName: "gemini-api-call",
+        }
+      );
 
       console.log("✅ Gemini API Response Received", {
         responseLength: enhancedText.length,
@@ -179,16 +207,26 @@ export async function enhanceResumeWithAI(
       console.log("📡 Calling Hugging Face API...");
 
       const isMistral = actualModel === "mistralai/Mistral-7B-Instruct-v0.3";
-      const response = await hf.textGeneration({
-        model: actualModel,
-        inputs: prompt,
-        parameters: {
-          max_new_tokens: isMistral ? 500 : 300,
-          temperature: isMistral ? 0.6 : 0.7,
-          do_sample: true,
-          top_p: 0.9,
+      const response = await resilientCall(
+        async () => {
+          return hf.textGeneration({
+            model: actualModel,
+            inputs: prompt,
+            parameters: {
+              max_new_tokens: isMistral ? 500 : 300,
+              temperature: isMistral ? 0.6 : 0.7,
+              do_sample: true,
+              top_p: 0.9,
+            },
+          });
         },
-      });
+        {
+          retryOptions: aiRetryOptions,
+          circuitBreaker: huggingFaceCircuitBreaker,
+          timeoutMs: 30000,
+          operationName: "huggingface-api-call",
+        }
+      );
       enhancedText = response.generated_text || "";
 
       console.log("✅ Hugging Face API Response Received", {
