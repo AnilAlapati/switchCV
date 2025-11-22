@@ -1,21 +1,13 @@
 import * as functions from "firebase-functions";
-import * as admin from "firebase-admin";
+import "./config/bootstrap";
 import { generateResumeContent } from "./resumeService";
 import { generateJobMatchSuggestions } from "./jobMatchService";
 import {
   aggregateAnalyticsDaily,
   cleanupAnalyticsEvents,
 } from "./analyticsService";
-import { config } from "./config";
 
 export { aggregateGlobalStats } from "./statsService";
-
-admin.initializeApp();
-
-const environment = config.get("app", "environment");
-functions.logger.info("SwitchCV Cloud Functions initialized", {
-  environment,
-});
 
 // Initialize environment variable warnings
 const HUGGINGFACE_TOKEN = process.env.HUGGINGFACE_TOKEN;

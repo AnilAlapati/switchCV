@@ -27,6 +27,8 @@ import {
   USERNAME_REGEX,
   type UsernameReservationError,
 } from "./useAuth.helpers";
+import { useConnectivityStatus } from "@/context/ConnectivityStatusProvider";
+import { getSanitizedMessage, reportError } from "@/lib/errorReporter";
 
 const googleProvider =
   typeof window !== "undefined" ? new GoogleAuthProvider() : null;
@@ -50,6 +52,7 @@ interface AuthContextType {
   loading: boolean;
   needsEmailVerification: boolean;
   verificationEmail: string | null;
+  connectivityIssue: string | null;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, username: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
@@ -78,21 +81,41 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [verificationEmail, setVerificationEmail] = useState<string | null>(
     null
   );
+  const [connectivityIssue, setConnectivityIssue] = useState<string | null>(
+    null
+  );
 
-  const { reserveUsername, ensureUserProfile } = createAuthProfileHelpers(db);
+  const { firebase: firebaseConnectivity } = useConnectivityStatus();
+  const firebaseReady = Boolean(firebaseConnectivity?.isReady);
+
+  const { reserveUsername, ensureUserProfile, releaseUsernameReservation } =
+    createAuthProfileHelpers(db);
 
   const needsEmailVerification =
     !!user && isPasswordProvider(user) && !user.emailVerified;
 
-  useEffect(() => {
-    try {
-      // Check if Firebase is properly initialized
-      if (!auth || auth.__isMock) {
-        // Avoid synchronous state update in effect
-        setTimeout(() => setLoading(false), 0);
-        return;
-      }
+  const ensureAuthAvailable = () => {
+    if (!firebaseReady) {
+      throw new Error(
+        connectivityIssue ||
+          "Authentication service is temporarily unavailable. Please try again later."
+      );
+    }
+  };
 
+  useEffect(() => {
+    if (!firebaseReady) {
+      setConnectivityIssue(
+        firebaseConnectivity?.error ||
+          "Firebase configuration is incomplete. Please contact support."
+      );
+      setLoading(false);
+      return;
+    }
+
+    setConnectivityIssue(null);
+
+    try {
       const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
         setUser(nextUser);
         setVerificationEmail(nextUser?.email ?? null);
@@ -101,15 +124,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       return unsubscribe;
     } catch (error) {
-      console.warn("Auth initialization error:", error);
-      setTimeout(() => setLoading(false), 0);
+      reportError(error, { source: "useAuth.init", severity: "error" });
+      setLoading(false);
     }
-  }, []);
+  }, [firebaseReady, firebaseConnectivity?.error]);
 
   const sendVerification = async (targetUser?: User | null) => {
-    if (!auth || auth.__isMock) {
-      return;
-    }
+    ensureAuthAvailable();
     const activeUser = targetUser || auth.currentUser;
     if (!activeUser) {
       throw new Error("No signed-in user to verify.");
@@ -119,6 +140,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const signIn = async (email: string, password: string) => {
+    ensureAuthAvailable();
     try {
       const credential = await signInWithEmailAndPassword(
         auth,
@@ -129,7 +151,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       await ensureUserProfile(credential.user);
     } catch (error) {
       const authError = error as { code?: string; message?: string };
-      console.error("Sign in error:", authError);
+      reportError(error, {
+        source: "useAuth.signIn",
+        severity: "warning",
+        meta: { code: authError.code },
+      });
       throw new Error(
         authError.code === "auth/invalid-credential"
           ? "Invalid email or password. Please check your credentials or sign up first."
@@ -139,13 +165,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           ? "Incorrect password. Please try again."
           : authError.code === "auth/too-many-requests"
           ? "Too many failed login attempts. Please try again later."
-          : authError.message || "Failed to sign in"
+          : getSanitizedMessage(authError, "Failed to sign in")
       );
     }
   };
 
   const signUp = async (email: string, password: string, username: string) => {
+    ensureAuthAvailable();
     let credential: { user: User } | null = null;
+    let reservedUsername: string | null = null;
     try {
       const normalized = sanitizeUsername(username);
       if (!normalized || !USERNAME_REGEX.test(normalized)) {
@@ -157,12 +185,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       credential = await createUserWithEmailAndPassword(auth, email, password);
       setVerificationEmail(credential.user.email ?? email);
 
-      await reserveUsername(credential.user.uid, normalized, {
-        email,
-        displayName: normalized,
-        authProvider: "password",
-        createdAt: serverTimestamp(),
-      });
+      reservedUsername = await reserveUsername(
+        credential.user.uid,
+        normalized,
+        {
+          email,
+          displayName: normalized,
+          authProvider: "password",
+          createdAt: serverTimestamp(),
+        }
+      );
 
       if (!credential.user.emailVerified) {
         await sendVerification(credential.user);
@@ -172,12 +204,26 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         try {
           await credential.user.delete();
         } catch (deleteError) {
-          console.warn("Failed to rollback user creation", deleteError);
+          reportError(deleteError, {
+            source: "useAuth.signUp.rollback",
+            severity: "warning",
+          });
+        }
+
+        if (reservedUsername) {
+          await releaseUsernameReservation(
+            credential.user.uid,
+            reservedUsername
+          );
         }
       }
 
       const authError = error as { code?: string; message?: string };
-      console.error("Sign up error:", authError);
+      reportError(error, {
+        source: "useAuth.signUp",
+        severity: "warning",
+        meta: { code: authError.code },
+      });
       throw new Error(
         authError.code === "auth/email-already-in-use"
           ? "This email is already registered. Please sign in instead."
@@ -187,17 +233,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           ? "Invalid email address."
           : (authError as UsernameReservationError).code === "username-taken"
           ? "This username is already taken. Please choose another."
-          : authError.message || "Failed to create account"
+          : getSanitizedMessage(authError, "Failed to create account")
       );
     }
   };
 
   const logout = async () => {
+    ensureAuthAvailable();
     await signOut(auth);
   };
 
   const signInWithGoogle = async () => {
-    if (!googleProvider || !auth || auth.__isMock) {
+    ensureAuthAvailable();
+    if (!googleProvider) {
       throw new Error("Google Sign-In is not available in this environment.");
     }
 
@@ -207,11 +255,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       await ensureUserProfile(credential.user);
     } catch (error) {
       const authError = error as { code?: string; message?: string };
-      console.error("Google sign-in error:", authError);
+      reportError(error, {
+        source: "useAuth.googleSignIn",
+        severity: "warning",
+        meta: { code: authError.code },
+      });
       throw new Error(
         authError.code === "auth/popup-closed-by-user"
           ? "Google sign-in was closed before completion."
-          : authError.message || "Failed to sign in with Google"
+          : getSanitizedMessage(authError, "Failed to sign in with Google")
       );
     }
   };
@@ -221,12 +273,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const refreshUser = async () => {
-    if (!auth || auth.__isMock || !auth.currentUser) {
+    if (!auth?.currentUser) {
       return;
     }
-    await auth.currentUser.reload();
-    setUser(auth.currentUser ? ({ ...auth.currentUser } as User) : null);
-    setVerificationEmail(auth.currentUser?.email ?? null);
+    try {
+      await auth.currentUser.reload();
+      setUser(auth.currentUser ? ({ ...auth.currentUser } as User) : null);
+      setVerificationEmail(auth.currentUser?.email ?? null);
+    } catch (error) {
+      reportError(error, {
+        source: "useAuth.refreshUser",
+        severity: "warning",
+      });
+    }
   };
 
   const value = {
@@ -234,6 +293,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     loading,
     needsEmailVerification,
     verificationEmail,
+    connectivityIssue,
     signIn,
     signUp,
     signInWithGoogle,

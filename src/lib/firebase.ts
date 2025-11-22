@@ -1,11 +1,8 @@
-// src/lib/firebase.ts
-import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
-// import { connectAuthEmulator, getAuth } from "firebase/auth";
-// import { connectFirestoreEmulator, getFirestore } from "firebase/firestore";
-import { getFunctions } from "firebase/functions";
+import { initializeApp, type FirebaseApp } from "firebase/app";
+import { getAuth, type Auth } from "firebase/auth";
+import { getFirestore, type Firestore } from "firebase/firestore";
+import { getStorage, type FirebaseStorage } from "firebase/storage";
+import { getFunctions, type Functions } from "firebase/functions";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "",
@@ -16,42 +13,75 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "",
 };
 
-let app: any;
-let auth: any;
-let db: any;
-let storage: any;
-let functions: any;
+type FirebaseStatus = {
+  isConfigured: boolean;
+  isReady: boolean;
+  missingKeys: string[];
+  error?: string;
+};
+
+const missingKeys = Object.entries(firebaseConfig)
+  .filter(([, value]) => !value || value.trim() === "")
+  .map(([key]) => key);
+
+export const firebaseStatus: FirebaseStatus = {
+  isConfigured: missingKeys.length === 0,
+  isReady: false,
+  missingKeys,
+};
+
+let app: FirebaseApp | null = null;
+let auth: Auth | null = null;
+let db: Firestore | null = null;
+let storage: FirebaseStorage | null = null;
+let functions: Functions | null = null;
+
+const canInitialize = firebaseStatus.isConfigured;
 
 try {
-  // Initialize Firebase only if config is available
-  const hasConfig = Object.values(firebaseConfig).some(
-    (val) => val && val.trim() !== ""
-  );
-
-  if (hasConfig) {
+  if (canInitialize) {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
     db = getFirestore(app);
     storage = getStorage(app);
     functions = getFunctions(app);
+    firebaseStatus.isReady = true;
   } else {
-    console.warn(
-      "Firebase config not fully configured. Using mock initialization."
-    );
-    app = { __isMock: true };
-    auth = { __isMock: true };
-    db = { __isMock: true };
-    storage = { __isMock: true };
-    functions = { __isMock: true };
+    firebaseStatus.error = `Missing Firebase config keys: ${firebaseStatus.missingKeys.join(
+      ", "
+    )}`;
+
+    if (process.env.NODE_ENV === "test") {
+      app = {} as FirebaseApp;
+      auth = { __isMock: true } as Auth;
+      db = { __isMock: true } as Firestore;
+      storage = { __isMock: true } as FirebaseStorage;
+      functions = { __isMock: true } as Functions;
+      firebaseStatus.isReady = true;
+    }
   }
 } catch (error) {
-  console.warn("Firebase initialization error:", error);
-  app = { __isMock: true };
-  auth = { __isMock: true };
-  db = { __isMock: true };
-  storage = { __isMock: true };
-  functions = { __isMock: true };
+  firebaseStatus.error =
+    error instanceof Error ? error.message : "Unknown Firebase init error";
+  if (process.env.NODE_ENV === "test") {
+    app = {} as FirebaseApp;
+    auth = { __isMock: true } as Auth;
+    db = { __isMock: true } as Firestore;
+    storage = { __isMock: true } as FirebaseStorage;
+    functions = { __isMock: true } as Functions;
+    firebaseStatus.isReady = true;
+  }
 }
 
-export { auth, db, storage, functions };
+const authClient = auth as Auth;
+const dbClient = db as Firestore;
+const storageClient = storage as FirebaseStorage;
+const functionsClient = functions as Functions;
+
+export {
+  authClient as auth,
+  dbClient as db,
+  storageClient as storage,
+  functionsClient as functions,
+};
 export default app;

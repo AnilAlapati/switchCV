@@ -1,6 +1,17 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { ViewTrendData, EngagementMetrics, AnalyticsEvent } from "./types";
+import { config } from "./config";
+import { resilientCall } from "./utils/retryHandler";
+import {
+  AlertSeverity,
+  MetricType,
+  alertManager,
+  performanceMonitor,
+} from "./utils/monitoring";
+
+const db = admin.firestore();
+const databaseConfig = config.get("database");
 
 /**
  * Aggregate analytics data daily
@@ -10,73 +21,89 @@ export const aggregateAnalyticsDaily = functions.pubsub
   .schedule("0 1 * * *")
   .timeZone("UTC")
   .onRun(async (context) => {
-    const startTime = Date.now();
-    functions.logger.info("Daily analytics aggregation started", {
-      eventId: context.eventId,
-    });
-
-    const db = admin.firestore();
-    const analyticsRef = db.collection("analytics");
-    const now = new Date();
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-    try {
-      const analyticsSnap = await analyticsRef.get();
-
-      for (const doc of analyticsSnap.docs) {
-        const analyticsId = doc.id;
-        const eventsRef = db
-          .collection("analytics")
-          .doc(analyticsId)
-          .collection("events");
-
-        const eventsSnap = await eventsRef
-          .where("timestamp", ">=", sevenDaysAgo.toISOString())
-          .get();
-
-        // Calculate metrics
-        const metrics = calculateEngagementMetrics(
-          analyticsId,
-          eventsSnap,
-          now
-        );
-
-        // Get view trend
-        const viewTrend = await getViewTrendLast7Days(analyticsId);
-
-        // Update engagement document
-        const engagementMetrics: EngagementMetrics = {
-          ...metrics,
-          viewTrendLast7Days: viewTrend,
-        };
-
-        await db
-          .collection("analytics")
-          .doc(analyticsId)
-          .collection("engagement")
-          .doc("current")
-          .set(engagementMetrics, { merge: true });
-
-        functions.logger.info("Analytics aggregated for document", {
-          analyticsId,
+    return performanceMonitor.measure(
+      "functions.aggregateAnalyticsDaily",
+      async () => {
+        const startTime = Date.now();
+        functions.logger.info("Daily analytics aggregation started", {
           eventId: context.eventId,
         });
-      }
 
-      functions.logger.info("Daily analytics aggregation completed", {
-        durationMs: Date.now() - startTime,
-        eventId: context.eventId,
-      });
-      return null;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      functions.logger.error("Daily analytics aggregation failed", {
-        message,
-        stack: error instanceof Error ? error.stack : undefined,
-        eventId: context.eventId,
-      });
-      throw error;
-    }
+        const analyticsRef = db.collection("analytics");
+        const now = new Date();
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+        try {
+          const analyticsSnap = await resilientCall(() => analyticsRef.get(), {
+            retryOptions: { maxAttempts: databaseConfig.maxRetries },
+            timeoutMs: databaseConfig.timeoutMs,
+            operationName: "analytics-fetch-collections",
+          });
+
+          for (const doc of analyticsSnap.docs) {
+            const analyticsId = doc.id;
+            const eventsRef = analyticsRef
+              .doc(analyticsId)
+              .collection("events");
+
+            const eventsSnap = await resilientCall(
+              () =>
+                eventsRef
+                  .where("timestamp", ">=", sevenDaysAgo.toISOString())
+                  .get(),
+              {
+                retryOptions: { maxAttempts: databaseConfig.maxRetries },
+                timeoutMs: databaseConfig.timeoutMs,
+                operationName: "analytics-fetch-events",
+              }
+            );
+
+            const metrics = calculateEngagementMetrics(
+              analyticsId,
+              eventsSnap,
+              now
+            );
+
+            const viewTrend = await getViewTrendLast7Days(analyticsId);
+
+            const engagementMetrics: EngagementMetrics = {
+              ...metrics,
+              viewTrendLast7Days: viewTrend,
+            };
+
+            await resilientCall(
+              () =>
+                analyticsRef
+                  .doc(analyticsId)
+                  .collection("engagement")
+                  .doc("current")
+                  .set(engagementMetrics, { merge: true }),
+              {
+                retryOptions: { maxAttempts: databaseConfig.maxRetries },
+                timeoutMs: databaseConfig.timeoutMs,
+                operationName: "analytics-write-engagement",
+              }
+            );
+
+            functions.logger.info("Analytics aggregated for document", {
+              analyticsId,
+              eventId: context.eventId,
+            });
+          }
+
+          functions.logger.info("Daily analytics aggregation completed", {
+            durationMs: Date.now() - startTime,
+            eventId: context.eventId,
+          });
+          return null;
+        } catch (error) {
+          await handleAnalyticsError("aggregateAnalyticsDaily", error, context);
+          throw error;
+        }
+      },
+      MetricType.FUNCTION_EXECUTION,
+      { eventId: context.eventId }
+    );
   });
 
 /**
@@ -87,76 +114,90 @@ export const cleanupAnalyticsEvents = functions.pubsub
   .schedule("0 2 * * 0")
   .timeZone("UTC")
   .onRun(async (context) => {
-    const startTime = Date.now();
-    functions.logger.info("Analytics cleanup started", {
-      eventId: context.eventId,
-    });
+    return performanceMonitor.measure(
+      "functions.cleanupAnalyticsEvents",
+      async () => {
+        const startTime = Date.now();
+        functions.logger.info("Analytics cleanup started", {
+          eventId: context.eventId,
+        });
 
-    const db = admin.firestore();
-    const analyticsRef = db.collection("analytics");
-    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+        const analyticsRef = db.collection("analytics");
+        const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+        const BATCH_SIZE = 500;
+        let deletedCount = 0;
 
-    try {
-      const analyticsSnap = await analyticsRef.get();
-      let deletedCount = 0;
-      const BATCH_SIZE = 500; // Firestore batch limit
-
-      for (const doc of analyticsSnap.docs) {
-        const analyticsId = doc.id;
-        const eventsRef = db
-          .collection("analytics")
-          .doc(analyticsId)
-          .collection("events");
-
-        let hasMore = true;
-        while (hasMore) {
-          const oldEventsSnap = await eventsRef
-            .where("timestamp", "<", ninetyDaysAgo.toISOString())
-            .limit(BATCH_SIZE)
-            .get();
-
-          if (oldEventsSnap.empty) {
-            hasMore = false;
-            break;
-          }
-
-          // Use batched writes for efficiency
-          const batch = db.batch();
-          oldEventsSnap.docs.forEach((eventDoc) => {
-            batch.delete(eventDoc.ref);
-            deletedCount++;
+        try {
+          const analyticsSnap = await resilientCall(() => analyticsRef.get(), {
+            retryOptions: { maxAttempts: databaseConfig.maxRetries },
+            timeoutMs: databaseConfig.timeoutMs,
+            operationName: "analytics-cleanup-fetch",
           });
 
-          await batch.commit();
+          for (const doc of analyticsSnap.docs) {
+            const analyticsId = doc.id;
+            const eventsRef = analyticsRef
+              .doc(analyticsId)
+              .collection("events");
 
-          functions.logger.info("Batch deleted", {
-            analyticsId,
-            batchSize: oldEventsSnap.size,
-            totalDeleted: deletedCount,
-          });
+            let hasMore = true;
+            while (hasMore) {
+              const oldEventsSnap = await resilientCall(
+                () =>
+                  eventsRef
+                    .where("timestamp", "<", ninetyDaysAgo.toISOString())
+                    .limit(BATCH_SIZE)
+                    .get(),
+                {
+                  retryOptions: { maxAttempts: databaseConfig.maxRetries },
+                  timeoutMs: databaseConfig.timeoutMs,
+                  operationName: "analytics-cleanup-scan",
+                }
+              );
 
-          // If we got less than batch size, we're done
-          if (oldEventsSnap.size < BATCH_SIZE) {
-            hasMore = false;
+              if (oldEventsSnap.empty) {
+                hasMore = false;
+                break;
+              }
+
+              const batch = db.batch();
+              oldEventsSnap.docs.forEach((eventDoc) => {
+                batch.delete(eventDoc.ref);
+                deletedCount++;
+              });
+
+              await resilientCall(() => batch.commit(), {
+                retryOptions: { maxAttempts: databaseConfig.maxRetries },
+                timeoutMs: databaseConfig.timeoutMs,
+                operationName: "analytics-cleanup-commit",
+              });
+
+              functions.logger.info("Batch deleted", {
+                analyticsId,
+                batchSize: oldEventsSnap.size,
+                totalDeleted: deletedCount,
+              });
+
+              if (oldEventsSnap.size < BATCH_SIZE) {
+                hasMore = false;
+              }
+            }
           }
+
+          functions.logger.info("Analytics cleanup completed", {
+            deletedCount,
+            durationMs: Date.now() - startTime,
+            eventId: context.eventId,
+          });
+          return null;
+        } catch (error) {
+          await handleAnalyticsError("cleanupAnalyticsEvents", error, context);
+          throw error;
         }
-      }
-
-      functions.logger.info("Analytics cleanup completed", {
-        deletedCount,
-        durationMs: Date.now() - startTime,
-        eventId: context.eventId,
-      });
-      return null;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      functions.logger.error("Analytics cleanup failed", {
-        message,
-        stack: error instanceof Error ? error.stack : undefined,
-        eventId: context.eventId,
-      });
-      throw error;
-    }
+      },
+      MetricType.FUNCTION_EXECUTION,
+      { eventId: context.eventId }
+    );
   });
 
 /**
@@ -222,7 +263,6 @@ function calculateEngagementMetrics(
 export async function getViewTrendLast7Days(
   analyticsId: string
 ): Promise<ViewTrendData[]> {
-  const db = admin.firestore();
   const trend: ViewTrendData[] = [];
   const eventsRef = db
     .collection("analytics")
@@ -237,11 +277,19 @@ export async function getViewTrendLast7Days(
     const endOfDay = new Date(startOfDay);
     endOfDay.setHours(23, 59, 59, 999);
 
-    const dayEventsSnap = await eventsRef
-      .where("timestamp", ">=", startOfDay.toISOString())
-      .where("timestamp", "<=", endOfDay.toISOString())
-      .where("eventType", "==", "view")
-      .get();
+    const dayEventsSnap = await resilientCall(
+      () =>
+        eventsRef
+          .where("timestamp", ">=", startOfDay.toISOString())
+          .where("timestamp", "<=", endOfDay.toISOString())
+          .where("eventType", "==", "view")
+          .get(),
+      {
+        retryOptions: { maxAttempts: databaseConfig.maxRetries },
+        timeoutMs: databaseConfig.timeoutMs,
+        operationName: "analytics-trend-fetch",
+      }
+    );
 
     trend.push({
       date: startOfDay.toISOString().split("T")[0],
@@ -250,4 +298,28 @@ export async function getViewTrendLast7Days(
   }
 
   return trend;
+}
+
+async function handleAnalyticsError(
+  functionName: string,
+  error: unknown,
+  context: functions.EventContext
+): Promise<void> {
+  const message = error instanceof Error ? error.message : String(error);
+
+  await alertManager.sendAlert(
+    AlertSeverity.ERROR,
+    `${functionName} failed`,
+    message,
+    {
+      eventId: context.eventId,
+      stack: error instanceof Error ? error.stack : undefined,
+    }
+  );
+
+  functions.logger.error(`${functionName} failed`, {
+    message,
+    stack: error instanceof Error ? error.stack : undefined,
+    eventId: context.eventId,
+  });
 }
