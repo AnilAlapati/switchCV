@@ -9,12 +9,20 @@ import {
   resetIdCounter,
 } from "@/lib/numericIdGenerator";
 
-// Mock Firebase
-jest.mock("firebase/firestore", () => ({
-  doc: jest.fn(),
-  getDoc: jest.fn(),
-  setDoc: jest.fn(),
-  increment: jest.fn(),
+// Mock Firebase Admin
+jest.mock("@/lib/firebase-admin", () => ({
+  adminDb: {
+    doc: jest.fn(),
+    runTransaction: jest.fn(),
+  },
+}));
+
+jest.mock("firebase-admin", () => ({
+  firestore: {
+    FieldValue: {
+      increment: jest.fn(),
+    },
+  },
 }));
 
 // Mock the recycler
@@ -22,40 +30,42 @@ jest.mock("@/lib/resumeIdRecycler", () => ({
   getRecycledIdFromPool: jest.fn(),
 }));
 
-// Mock Firebase config
-jest.mock("@/lib/firebase", () => ({
-  db: {},
-}));
-
-import { doc, getDoc, setDoc, increment } from "firebase/firestore";
+import { adminDb } from "@/lib/firebase-admin";
 import { getRecycledIdFromPool } from "@/lib/resumeIdRecycler";
 
-const mockDoc = doc as jest.MockedFunction<typeof doc>;
-const mockGetDoc = getDoc as jest.MockedFunction<typeof getDoc>;
-const mockSetDoc = setDoc as jest.MockedFunction<typeof setDoc>;
-const mockIncrement = increment as jest.MockedFunction<typeof increment>;
+const mockDoc = adminDb.doc as jest.Mock;
+const mockRunTransaction = adminDb.runTransaction as jest.Mock;
 const mockGetRecycledIdFromPool = getRecycledIdFromPool as jest.MockedFunction<
   typeof getRecycledIdFromPool
 >;
 
+// Helper mocks for doc return values
+const mockGet = jest.fn();
+const mockSet = jest.fn();
+const mockUpdate = jest.fn();
+
 describe("Numeric ID Generator", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Setup default mock behaviors
+    mockDoc.mockReturnValue({
+      get: mockGet,
+      set: mockSet,
+      update: mockUpdate,
+    });
   });
 
   describe("initializeIdCounter", () => {
     it("should initialize counter when it doesn't exist", async () => {
-      const mockCounterRef = {};
-      mockDoc.mockReturnValue(mockCounterRef as any);
-      mockGetDoc.mockResolvedValue({
-        exists: jest.fn().mockReturnValue(false),
-      } as any);
+      mockGet.mockResolvedValue({
+        exists: false,
+      });
 
       await initializeIdCounter();
 
-      expect(mockDoc).toHaveBeenCalledWith({}, "system/resumeIdCounter");
-      expect(mockGetDoc).toHaveBeenCalledWith(mockCounterRef);
-      expect(mockSetDoc).toHaveBeenCalledWith(mockCounterRef, {
+      expect(mockDoc).toHaveBeenCalledWith("system/resumeIdCounter");
+      expect(mockGet).toHaveBeenCalled();
+      expect(mockSet).toHaveBeenCalledWith({
         currentId: 0,
         lastResetAt: expect.any(String),
         createdAt: expect.any(String),
@@ -63,21 +73,17 @@ describe("Numeric ID Generator", () => {
     });
 
     it("should not initialize counter when it already exists", async () => {
-      const mockCounterRef = {};
-      mockDoc.mockReturnValue(mockCounterRef as any);
-      mockGetDoc.mockResolvedValue({
-        exists: jest.fn().mockReturnValue(true),
-      } as any);
+      mockGet.mockResolvedValue({
+        exists: true,
+      });
 
       await initializeIdCounter();
 
-      expect(mockSetDoc).not.toHaveBeenCalled();
+      expect(mockSet).not.toHaveBeenCalled();
     });
 
     it("should throw error on initialization failure", async () => {
-      mockDoc.mockImplementation(() => {
-        throw new Error("Firestore error");
-      });
+      mockGet.mockRejectedValue(new Error("Firestore error"));
 
       await expect(initializeIdCounter()).rejects.toThrow(
         "Failed to initialize ID counter"
@@ -98,88 +104,51 @@ describe("Numeric ID Generator", () => {
     });
 
     it("should generate new ID from counter when no recycled ID available", async () => {
-      const mockCounterRef = {};
       mockGetRecycledIdFromPool.mockResolvedValue(null);
-      mockDoc.mockReturnValue(mockCounterRef as any);
-      mockGetDoc.mockResolvedValue({
-        exists: jest.fn().mockReturnValue(true),
-      } as any);
-      mockIncrement.mockReturnValue("incremented" as any);
-      mockSetDoc.mockResolvedValue(undefined);
-      mockGetDoc
-        .mockResolvedValueOnce({
-          exists: jest.fn().mockReturnValue(true),
-        } as any)
-        .mockResolvedValueOnce({
-          data: jest.fn().mockReturnValue({ currentId: 123 }),
-        } as any);
+
+      // Mock transaction behavior
+      mockRunTransaction.mockImplementation(async (callback) => {
+        const mockTransaction = {
+          get: jest.fn().mockResolvedValue({
+            exists: true,
+            data: () => ({ currentId: 122 }),
+          }),
+          update: jest.fn(),
+          set: jest.fn(),
+        };
+        return callback(mockTransaction);
+      });
 
       const result = await generateNumericResumeId();
 
       expect(result).toBe(123);
       expect(mockGetRecycledIdFromPool).toHaveBeenCalled();
-      expect(mockDoc).toHaveBeenCalledWith({}, "system/resumeIdCounter");
-      expect(mockSetDoc).toHaveBeenCalledWith(
-        mockCounterRef,
-        { currentId: "incremented" },
-        { merge: true }
-      );
+      expect(mockDoc).toHaveBeenCalledWith("system/resumeIdCounter");
+      expect(mockRunTransaction).toHaveBeenCalled();
     });
 
-    it("should initialize counter if it doesn't exist", async () => {
-      const mockCounterRef = {};
+    it("should initialize counter if it doesn't exist inside transaction", async () => {
       mockGetRecycledIdFromPool.mockResolvedValue(null);
-      mockDoc.mockReturnValue(mockCounterRef as any);
 
-      // First getDoc call (check if counter exists) - returns false
-      mockGetDoc.mockResolvedValueOnce({
-        exists: jest.fn().mockReturnValue(false),
-      } as any);
-
-      // Second getDoc call (after initialization check) - returns true
-      mockGetDoc.mockResolvedValueOnce({
-        exists: jest.fn().mockReturnValue(true),
-      } as any);
-
-      // Third getDoc call (fetch updated value) - returns the incremented value
-      mockGetDoc.mockResolvedValueOnce({
-        data: jest.fn().mockReturnValue({ currentId: 1 }),
-      } as any);
-
-      mockSetDoc.mockResolvedValue(undefined);
+      mockRunTransaction.mockImplementation(async (callback) => {
+        const mockTransaction = {
+          get: jest.fn().mockResolvedValue({
+            exists: false, // Counter doesn't exist
+          }),
+          update: jest.fn(),
+          set: jest.fn(),
+        };
+        return callback(mockTransaction);
+      });
 
       const result = await generateNumericResumeId();
 
       expect(result).toBe(1);
-      // Should call setDoc at least once for initialization
-      expect(mockSetDoc).toHaveBeenCalled();
     });
 
     it("should use fallback random ID when counter operations fail", async () => {
-      const mockCounterRef = {};
       mockGetRecycledIdFromPool.mockResolvedValue(null);
-      mockDoc.mockReturnValue(mockCounterRef as any);
-      mockGetDoc.mockRejectedValue(new Error("Firestore error"));
-
-      // Mock Math.random to return a predictable value
-      const originalRandom = Math.random;
-      Math.random = jest.fn().mockReturnValue(0.5);
-
-      const result = await generateNumericResumeId();
-
-      // Should be between 1000000 and MAX_NUMERIC_ID
-      expect(result).toBeGreaterThanOrEqual(1000000);
-      expect(result).toBeLessThanOrEqual(99999999);
-
-      // Restore original Math.random
-      Math.random = originalRandom;
-    });
-
-    it("should use fallback random ID when counter operations fail", async () => {
-      const mockCounterRef = {};
-      mockGetRecycledIdFromPool.mockResolvedValue(null);
-      mockDoc.mockReturnValue(mockCounterRef as any);
-      mockGetDoc.mockRejectedValue(new Error("Firestore error"));
+      mockRunTransaction.mockRejectedValue(new Error("Firestore error"));
 
       // Mock Math.random to return a predictable value
       const originalRandom = Math.random;
@@ -196,21 +165,19 @@ describe("Numeric ID Generator", () => {
     });
 
     it("should handle recycler pool errors gracefully", async () => {
-      const mockCounterRef = {};
       mockGetRecycledIdFromPool.mockRejectedValue(new Error("Pool error"));
-      mockDoc.mockReturnValue(mockCounterRef as any);
-      mockGetDoc.mockResolvedValue({
-        exists: jest.fn().mockReturnValue(true),
-      } as any);
-      mockIncrement.mockReturnValue("incremented" as any);
-      mockSetDoc.mockResolvedValue(undefined);
-      mockGetDoc
-        .mockResolvedValueOnce({
-          exists: jest.fn().mockReturnValue(true),
-        } as any)
-        .mockResolvedValueOnce({
-          data: jest.fn().mockReturnValue({ currentId: 456 }),
-        } as any);
+
+      mockRunTransaction.mockImplementation(async (callback) => {
+        const mockTransaction = {
+          get: jest.fn().mockResolvedValue({
+            exists: true,
+            data: () => ({ currentId: 455 }),
+          }),
+          update: jest.fn(),
+          set: jest.fn(),
+        };
+        return callback(mockTransaction);
+      });
 
       const result = await generateNumericResumeId();
 
@@ -221,25 +188,21 @@ describe("Numeric ID Generator", () => {
 
   describe("getCurrentIdCounter", () => {
     it("should return current counter value", async () => {
-      const mockCounterRef = {};
-      mockDoc.mockReturnValue(mockCounterRef as any);
-      mockGetDoc.mockResolvedValue({
-        exists: jest.fn().mockReturnValue(true),
-        data: jest.fn().mockReturnValue({ currentId: 789 }),
-      } as any);
+      mockGet.mockResolvedValue({
+        exists: true,
+        data: () => ({ currentId: 789 }),
+      });
 
       const result = await getCurrentIdCounter();
 
       expect(result).toBe(789);
-      expect(mockDoc).toHaveBeenCalledWith({}, "system/resumeIdCounter");
+      expect(mockDoc).toHaveBeenCalledWith("system/resumeIdCounter");
     });
 
     it("should return 0 when counter doesn't exist", async () => {
-      const mockCounterRef = {};
-      mockDoc.mockReturnValue(mockCounterRef as any);
-      mockGetDoc.mockResolvedValue({
-        exists: jest.fn().mockReturnValue(false),
-      } as any);
+      mockGet.mockResolvedValue({
+        exists: false,
+      });
 
       const result = await getCurrentIdCounter();
 
@@ -247,9 +210,7 @@ describe("Numeric ID Generator", () => {
     });
 
     it("should throw error on firestore failure", async () => {
-      mockDoc.mockImplementation(() => {
-        throw new Error("Firestore error");
-      });
+      mockGet.mockRejectedValue(new Error("Firestore error"));
 
       await expect(getCurrentIdCounter()).rejects.toThrow();
     });
@@ -257,35 +218,29 @@ describe("Numeric ID Generator", () => {
 
   describe("resetIdCounter", () => {
     it("should reset counter to specified value", async () => {
-      const mockCounterRef = {};
-      mockDoc.mockReturnValue(mockCounterRef as any);
-      mockSetDoc.mockResolvedValue(undefined);
+      mockSet.mockResolvedValue(undefined);
 
       await resetIdCounter(1000);
 
-      expect(mockSetDoc).toHaveBeenCalledWith(mockCounterRef, {
+      expect(mockSet).toHaveBeenCalledWith({
         currentId: 1000,
         lastResetAt: expect.any(String),
       });
     });
 
     it("should reset counter to 0 by default", async () => {
-      const mockCounterRef = {};
-      mockDoc.mockReturnValue(mockCounterRef as any);
-      mockSetDoc.mockResolvedValue(undefined);
+      mockSet.mockResolvedValue(undefined);
 
       await resetIdCounter();
 
-      expect(mockSetDoc).toHaveBeenCalledWith(mockCounterRef, {
+      expect(mockSet).toHaveBeenCalledWith({
         currentId: 0,
         lastResetAt: expect.any(String),
       });
     });
 
     it("should throw error on reset failure", async () => {
-      mockDoc.mockImplementation(() => {
-        throw new Error("Firestore error");
-      });
+      mockSet.mockRejectedValue(new Error("Firestore error"));
 
       await expect(resetIdCounter()).rejects.toThrow();
     });
