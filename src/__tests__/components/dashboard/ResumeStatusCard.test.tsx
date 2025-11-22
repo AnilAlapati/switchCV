@@ -72,6 +72,7 @@ describe("ResumeStatusCard", () => {
     );
     expect(screen.getByText("Created")).toBeInTheDocument();
     expect(screen.getByText("View Resume")).toBeInTheDocument();
+    expect(screen.getByText("Edit")).toBeInTheDocument();
     expect(screen.getByText("Delete")).toBeInTheDocument();
   });
 
@@ -205,5 +206,19 @@ describe("ResumeStatusCard", () => {
       "Resume ID not found. Please refresh the page and try again."
     );
     expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("disables edit button when resumeId is missing", () => {
+    render(
+      <ResumeStatusCard
+        hasResume={true}
+        resumeId={null}
+        resumeLoading={false}
+      />
+    );
+
+    const editButton = screen.getByText("Edit");
+    expect(editButton.tagName).toBe("BUTTON");
+    expect(editButton).toBeDisabled();
   });
 });

@@ -20,6 +20,7 @@ export function ResumeStatusCard({
   const { user } = useAuth();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const resumeIdString = resumeId ? String(resumeId) : null;
 
   const handleDeleteResume = async () => {
     if (!user) {
@@ -125,6 +126,34 @@ export function ResumeStatusCard({
                   />
                 </svg>
               </a>
+              {resumeIdString ? (
+                <Link
+                  href={`/resumes/${resumeIdString}/edit`}
+                  className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-medium rounded-xl transition-all duration-200 transform hover:scale-105 hover:shadow-lg hover:shadow-blue-500/25"
+                >
+                  Edit
+                  <svg
+                    className="ml-2 w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11 5h2m-1-1v2m1 5h-4m6-9.5l1.5 1.5M5 19l4.586-4.586a2 2 0 012.828 0L17 19"
+                    />
+                  </svg>
+                </Link>
+              ) : (
+                <button
+                  disabled
+                  className="inline-flex items-center px-4 py-2 bg-gray-600 text-white font-medium rounded-xl opacity-70 cursor-not-allowed"
+                >
+                  Edit
+                </button>
+              )}
               <button
                 onClick={() => setShowDeleteConfirm(true)}
                 className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-medium rounded-xl transition-all duration-200 transform hover:scale-105 hover:shadow-lg hover:shadow-red-500/25"

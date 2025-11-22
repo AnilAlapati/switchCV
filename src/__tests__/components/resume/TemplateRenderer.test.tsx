@@ -65,19 +65,19 @@ describe("TemplateRenderer", () => {
       />
     );
 
-    expect(screen.getByText("Personal Info")).toBeInTheDocument();
+    // personal_info section is filtered out in the new renderer
     expect(screen.getByText("Experience")).toBeInTheDocument();
   });
 
-  it("renders text fields correctly", () => {
+  it("renders hero section with title", () => {
     render(
       <TemplateRenderer
         template={mockTemplate}
         data={mockData as ResumeProfile}
       />
     );
-    // Note: Name logic in component is currently a placeholder "User Name"
-    expect(screen.getByText("User Name")).toBeInTheDocument();
+    // New hero section displays the data.title
+    expect(screen.getByText("Software Engineer")).toBeInTheDocument();
   });
 
   it("renders complex list fields correctly", () => {

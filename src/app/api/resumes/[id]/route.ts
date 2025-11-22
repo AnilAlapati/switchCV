@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb, adminAuth } from "@/lib/firebase-admin";
+import { sanitizeResumePayload } from "@/lib/utils/resumeEditor";
 
 export async function GET(
   request: NextRequest,
@@ -146,6 +147,137 @@ export async function PATCH(
     return NextResponse.json({ success: true, isPublic });
   } catch (error) {
     console.error("Error updating resume visibility:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    if (!id) {
+      return NextResponse.json(
+        { error: "Resume ID is required" },
+        { status: 400 }
+      );
+    }
+
+    const authHeader = request.headers.get("authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const token = authHeader.split("Bearer ")[1];
+    let requestUserId: string;
+
+    try {
+      const decodedToken = await adminAuth.verifyIdToken(token);
+      requestUserId = decodedToken.uid;
+    } catch {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const resumePayload = body?.resume;
+
+    if (!resumePayload || typeof resumePayload !== "object") {
+      return NextResponse.json(
+        { error: "Invalid resume payload" },
+        { status: 400 }
+      );
+    }
+
+    let docRef = adminDb.collection("resumes").doc(id);
+    let docSnap = await docRef.get();
+
+    if (!docSnap.exists) {
+      docRef = adminDb.collection("resumeProfiles").doc(id);
+      docSnap = await docRef.get();
+    }
+
+    if (!docSnap.exists) {
+      return NextResponse.json({ error: "Resume not found" }, { status: 404 });
+    }
+
+    const existingData = docSnap.data() ?? {};
+    const ownerId = existingData.userId;
+
+    if (!ownerId || ownerId !== requestUserId) {
+      return NextResponse.json({ error: "Permission denied" }, { status: 403 });
+    }
+
+    const sanitizedResume = sanitizeResumePayload(resumePayload);
+    const timestamp = new Date().toISOString();
+
+    await docRef.set(
+      {
+        ...sanitizedResume,
+        updatedAt: timestamp,
+        lastUpdatedAt: timestamp,
+      },
+      { merge: true }
+    );
+
+    try {
+      await adminDb
+        .collection("users")
+        .doc(ownerId)
+        .collection("resumes")
+        .doc(id)
+        .set(
+          {
+            ...sanitizedResume,
+            updatedAt: timestamp,
+            lastUpdatedAt: timestamp,
+            userId: ownerId,
+            numericId: existingData.numericId,
+            isPublic: existingData.isPublic,
+            visibility: existingData.visibility,
+          },
+          { merge: true }
+        );
+    } catch (subcollectionError) {
+      console.error(
+        "Error updating user resume subcollection:",
+        subcollectionError
+      );
+    }
+
+    try {
+      await adminDb
+        .collection("allResumes")
+        .doc(id)
+        .set(
+          {
+            title: sanitizedResume.title ?? existingData.title,
+            updatedAt: timestamp,
+            userId: ownerId,
+            numericId: existingData.numericId,
+            isPublic: existingData.isPublic,
+          },
+          { merge: true }
+        );
+    } catch (globalError) {
+      console.error("Error updating allResumes collection:", globalError);
+    }
+
+    const refreshedSnap = await docRef.get();
+    const refreshedData = refreshedSnap.data() ?? {};
+
+    return NextResponse.json({
+      success: true,
+      resume: {
+        ...refreshedData,
+        id,
+      },
+    });
+  } catch (error) {
+    console.error("Error updating resume:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

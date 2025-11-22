@@ -59,6 +59,7 @@ interface StepHeaderProps {
   stepNumber: number;
   stepName: string;
   totalSteps: number;
+  title?: string;
 }
 
 /**
@@ -68,11 +69,14 @@ export function StepHeader({
   stepNumber,
   stepName,
   totalSteps,
+  title,
 }: StepHeaderProps) {
+  const heading = title ?? "Create Your Resume";
+
   return (
     <div>
       <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-        Create Your Resume
+        {heading}
       </h1>
       <p className="text-gray-600 text-sm sm:text-base">
         Step {stepNumber + 1} of {totalSteps}:{" "}
@@ -88,6 +92,10 @@ interface NavigationButtonsProps {
   onPrevious: () => void;
   onNext: () => void;
   onComplete: () => void;
+  nextLabel?: string;
+  completeLabel?: string;
+  isNextDisabled?: boolean;
+  isCompleteDisabled?: boolean;
 }
 
 /**
@@ -99,6 +107,10 @@ export function NavigationButtons({
   onPrevious,
   onNext,
   onComplete,
+  nextLabel,
+  completeLabel,
+  isNextDisabled,
+  isCompleteDisabled,
 }: NavigationButtonsProps) {
   return (
     <div className="flex flex-col-reverse sm:flex-row gap-4 justify-between">
@@ -113,16 +125,18 @@ export function NavigationButtons({
       {currentStep === totalSteps - 1 ? (
         <button
           onClick={onComplete}
-          className="px-6 py-2 bg-indigo-600 text-white rounded-md font-medium hover:bg-indigo-700 transition-colors w-full sm:w-auto"
+          disabled={isCompleteDisabled}
+          className="px-6 py-2 bg-indigo-600 text-white rounded-md font-medium hover:bg-indigo-700 transition-colors w-full sm:w-auto disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          ✓ Complete Setup
+          {completeLabel ?? "✓ Complete Setup"}
         </button>
       ) : (
         <button
           onClick={onNext}
-          className="px-6 py-2 bg-indigo-600 text-white rounded-md font-medium hover:bg-indigo-700 transition-colors w-full sm:w-auto"
+          disabled={isNextDisabled}
+          className="px-6 py-2 bg-indigo-600 text-white rounded-md font-medium hover:bg-indigo-700 transition-colors w-full sm:w-auto disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          Next →
+          {nextLabel ?? "Next →"}
         </button>
       )}
     </div>
