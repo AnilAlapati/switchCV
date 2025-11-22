@@ -38,6 +38,16 @@ export interface Project {
   visibility: Visibility;
 }
 
+export interface PersonalInfo {
+  name?: string;
+  title?: string;
+  email?: string;
+  phone?: string;
+  location?: string;
+  linkedin?: string;
+  github?: string;
+}
+
 export interface TemplateField {
   id: string;
   label: string;
@@ -70,6 +80,7 @@ export interface ResumeProfile {
   experience: Experience[];
   education: Education[];
   contact: ContactInfo;
+  personalInfo?: PersonalInfo;
   projects: Project[];
   generatedText: {
     draft: string;
