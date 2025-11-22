@@ -10,9 +10,15 @@ jest.mock("@/lib/utils/navigation", () => ({
   reloadPage: jest.fn(),
 }));
 jest.mock("next/link", () => {
-  return ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
-  );
+  const MockLink = ({
+    children,
+    href,
+  }: {
+    children: React.ReactNode;
+    href: string;
+  }) => <a href={href}>{children}</a>;
+  MockLink.displayName = "MockLink";
+  return MockLink;
 });
 jest.mock("@/lib/config", () => ({
   getResumeUrl: (id: string) => `http://example.com/resume/${id}`,

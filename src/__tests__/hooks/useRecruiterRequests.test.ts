@@ -69,7 +69,7 @@ describe("useRecruiterRequests", () => {
 
   it("should not fetch if auth is loading", () => {
     (useAuth as jest.Mock).mockReturnValue({ user: null, loading: true });
-    const { result } = renderHook(() => useRecruiterRequests());
+    renderHook(() => useRecruiterRequests());
 
     expect(onSnapshot).not.toHaveBeenCalled();
   });

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import { renderHook, waitFor, act } from "@testing-library/react";
 import { useAuth } from "@/hooks/useAuth";
 import {
