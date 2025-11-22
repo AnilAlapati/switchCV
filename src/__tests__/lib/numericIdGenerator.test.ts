@@ -9,7 +9,6 @@
 
 import {
   generateNumericResumeId,
-  initializeIdCounter,
   getCurrentIdCounter,
   resetIdCounter,
 } from "@/lib/numericIdGenerator";
@@ -64,18 +63,18 @@ describe("Numeric Resume ID Generator", () => {
     mockRunTransaction.mockImplementation(async (updateFunction) => {
       // Create a fake transaction object
       const transaction = {
-        get: jest.fn().mockImplementation(async (ref) => {
+        get: jest.fn().mockImplementation(async () => {
           return {
             exists: true,
             data: () => ({ ...inMemoryCounter }),
           };
         }),
-        update: jest.fn().mockImplementation((ref, data) => {
+        update: jest.fn().mockImplementation((_ref, data) => {
           if (data.currentId !== undefined) {
             inMemoryCounter.currentId = data.currentId;
           }
         }),
-        set: jest.fn().mockImplementation((ref, data) => {
+        set: jest.fn().mockImplementation((_ref, data) => {
           if (data.currentId !== undefined) {
             inMemoryCounter.currentId = data.currentId;
           }
