@@ -99,17 +99,25 @@ export async function POST(request: NextRequest) {
     };
 
     // Save to Firestore
-    // Structure: resumes/{userId}/{numericId}
+    // Structure: resumes/{numericId} (Root collection for easy access by ID)
     const db = getFirestore();
-    const docRef = db
-      .collection("resumes")
+    const docRef = db.collection("resumes").doc(String(numericId));
+
+    await docRef.set(resumeDoc);
+
+    // Also store in user's subcollection for listing
+    const userResumeRef = db
+      .collection("users")
       .doc(userId)
       .collection("resumes")
       .doc(String(numericId));
 
-    await docRef.set(resumeDoc);
+    await userResumeRef.set({
+      ...resumeDoc,
+      // We can store full data or just metadata here
+    });
 
-    // Also store in a global resumes collection for search/listing
+    // Also store in a global resumes collection for search/listing (optional, if needed separately)
     const globalResumesRef = db.collection("allResumes").doc(String(numericId));
     await globalResumesRef.set({
       userId,

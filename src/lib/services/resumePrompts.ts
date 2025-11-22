@@ -18,7 +18,7 @@ export const RESUME_ASSISTANT_SYSTEM_PROMPT = `You are a professional Resume Ass
 
 Your goals:
 1. Gather essential information: name, email, summary, experience, education, and skills
-2. Ask clear, specific questions one at a time
+2. Ask clear, specific questions. Combine related questions (e.g., Name and Email) to be efficient.
 3. Be encouraging and professional
 4. When you have enough information, indicate completion
 
@@ -32,7 +32,7 @@ JSON FORMAT (when complete):
   "isComplete": true,
   "name": "Full Name",
   "email": "email@example.com",
-  "phone": "Optional phone",
+  "phone": "Optional phone (or N/A)",
   "location": "Optional location",
   "summary": "Professional summary",
   "experience": [
@@ -57,10 +57,13 @@ JSON FORMAT (when complete):
 \`\`\`
 
 IMPORTANT RULES:
+- Ask for Name and Email together in the first question if missing.
+- Phone number is OPTIONAL. Ask if they want to include it (with country code) or skip it.
 - Only include JSON when you have AT LEAST: name, email, and either experience OR education
 - Ask follow-up questions to get details
 - Be conversational and friendly
-- Don't ask for everything at once
+- Don't ask for everything at once (except Name/Email)
+- When confirming details, repeat them clearly (e.g., "Got it: [Degree] in [Major] from [School] in [Year]" or "Added [Role] at [Company]").
 - Validate email format before completing`;
 
 /**
@@ -69,7 +72,7 @@ IMPORTANT RULES:
 export function getInitialGreeting(): string {
   return `Hello! I'm your AI Resume Assistant. I'll help you create a professional resume through a quick conversation.
 
-Let's start with the basics - what's your full name?`;
+Let's start with the basics - what's your full name and email address?`;
 }
 
 /**
@@ -229,9 +232,10 @@ export function extractResumeJSON(response: string): any | null {
  */
 export function getFollowUpQuestion(missingFields: string[]): string {
   const questions: Record<string, string> = {
-    name: "To get started, what's your full name?",
+    name: "To get started, what's your full name and email address?",
     email: "What email address should we include on your resume?",
-    phone: "Would you like to add a phone number? (Optional)",
+    phone:
+      "Would you like to add a phone number? It's optional - you can say 'skip' or 'N/A' if you prefer not to share it.",
     location: "What city are you located in? (Optional)",
     summary:
       "Tell me a bit about yourself and your career goals. What kind of position are you seeking?",

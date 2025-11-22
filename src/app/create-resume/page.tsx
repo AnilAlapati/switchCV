@@ -193,7 +193,7 @@ export default function CreateResume() {
 
       <div className="max-w-4xl mx-auto p-4">
         {/* Messages/Chat History */}
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-2xl border border-gray-700/50 mb-4 min-h-[400px] max-h-[600px] overflow-y-auto p-6">
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-2xl border border-gray-700/50 mb-4 min-h-[400px] max-h-[600px] overflow-y-auto p-6 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-600 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-gray-500">
           {messages.length === 0 ? (
             <div className="text-center text-gray-400 py-12">
               <div className="mb-6">

@@ -17,8 +17,8 @@
  * - Simple, fast, and reliable
  */
 
-import { doc, getDoc, setDoc, increment } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { adminDb } from "@/lib/firebase-admin";
+import * as admin from "firebase-admin";
 import { getRecycledIdFromPool } from "@/lib/resumeIdRecycler";
 
 const ID_COUNTER_DOC = "system/resumeIdCounter";
@@ -35,12 +35,12 @@ interface IdCounterDoc {
  */
 export const initializeIdCounter = async (): Promise<void> => {
   try {
-    const counterRef = doc(db, ID_COUNTER_DOC);
-    const counterSnap = await getDoc(counterRef);
+    const counterRef = adminDb.doc(ID_COUNTER_DOC);
+    const counterSnap = await counterRef.get();
 
-    if (!counterSnap.exists()) {
+    if (!counterSnap.exists) {
       console.log("🔢 Initializing resume ID counter...");
-      await setDoc(counterRef, {
+      await counterRef.set({
         currentId: 0,
         lastResetAt: new Date().toISOString(),
         createdAt: new Date().toISOString(),
@@ -90,25 +90,24 @@ export const generateNumericResumeId = async (): Promise<number> => {
 
     // Step 2: If no recycled ID, generate a new one from the counter
     try {
-      const counterRef = doc(db, ID_COUNTER_DOC);
+      const counterRef = adminDb.doc(ID_COUNTER_DOC);
 
       // First check if counter exists
-      const counterSnap = await getDoc(counterRef);
-      if (!counterSnap.exists()) {
+      const counterSnap = await counterRef.get();
+      if (!counterSnap.exists) {
         console.warn("⚠️ ID counter not initialized, initializing now...");
         await initializeIdCounter();
       }
 
       // Use atomic increment to get next ID
       // This operation is atomic and thread-safe in Firestore
-      await setDoc(
-        counterRef,
-        { currentId: increment(1) },
+      await counterRef.set(
+        { currentId: admin.firestore.FieldValue.increment(1) },
         { merge: true } // Merge to preserve other fields
       );
 
       // Fetch the updated value
-      const updatedSnap = await getDoc(counterRef);
+      const updatedSnap = await counterRef.get();
       const nextId = (updatedSnap.data() as IdCounterDoc).currentId;
 
       // Validate we haven't exceeded max
@@ -147,10 +146,10 @@ export const generateNumericResumeId = async (): Promise<number> => {
  */
 export const getCurrentIdCounter = async (): Promise<number> => {
   try {
-    const counterRef = doc(db, ID_COUNTER_DOC);
-    const counterSnap = await getDoc(counterRef);
+    const counterRef = adminDb.doc(ID_COUNTER_DOC);
+    const counterSnap = await counterRef.get();
 
-    if (!counterSnap.exists()) {
+    if (!counterSnap.exists) {
       return 0;
     }
 
@@ -169,8 +168,8 @@ export const getCurrentIdCounter = async (): Promise<number> => {
  */
 export const resetIdCounter = async (startValue: number = 0): Promise<void> => {
   try {
-    const counterRef = doc(db, ID_COUNTER_DOC);
-    await setDoc(counterRef, {
+    const counterRef = adminDb.doc(ID_COUNTER_DOC);
+    await counterRef.set({
       currentId: startValue,
       lastResetAt: new Date().toISOString(),
     });
