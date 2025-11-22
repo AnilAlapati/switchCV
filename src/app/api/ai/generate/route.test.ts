@@ -5,10 +5,7 @@
 import { POST } from "@/app/api/ai/generate/route";
 import { NextRequest } from "next/server";
 import { generateText } from "@/lib/services/aiGenerationService";
-import {
-  getAuthenticatedUserId,
-  handleApiError,
-} from "@/lib/utils/api-helpers";
+import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 
 // Mock api-helpers
 jest.mock("@/lib/utils/api-helpers", () => ({

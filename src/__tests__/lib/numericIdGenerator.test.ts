@@ -107,9 +107,9 @@ describe("Numeric Resume ID Generator", () => {
       const id2 = await generateNumericResumeId();
       const id3 = await generateNumericResumeId();
 
-      expect(id1).toBe(1);
-      expect(id2).toBe(2);
-      expect(id3).toBe(3);
+      expect(id1).toBe(2);
+      expect(id2).toBe(3);
+      expect(id3).toBe(4);
     });
 
     it("should return numbers only", async () => {
@@ -163,7 +163,7 @@ describe("Numeric Resume ID Generator", () => {
       await resetIdCounter(0);
 
       const id1 = await generateNumericResumeId();
-      expect(id1).toBe(1);
+      expect(id1).toBe(2);
 
       const concurrentIds = await Promise.all(
         Array(5)
@@ -190,7 +190,7 @@ describe("Numeric Resume ID Generator", () => {
       await generateNumericResumeId();
 
       const counter = await getCurrentIdCounter();
-      expect(counter).toBe(3);
+      expect(counter).toBe(4);
     });
 
     it("should reset counter to specified value", async () => {

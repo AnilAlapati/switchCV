@@ -23,6 +23,15 @@ export async function GET(
       );
     }
 
+    // Block access to ID 1 (Reserved)
+    if (id === "1") {
+      return handleApiError(
+        new Error("Reserved System ID"),
+        "This ID is reserved for system demonstration purposes and is not publicly accessible.",
+        403
+      );
+    }
+
     const resumeDoc = await fetchResumeDocument(id);
 
     if (!resumeDoc) {

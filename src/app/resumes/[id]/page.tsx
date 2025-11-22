@@ -70,11 +70,16 @@ export default function ResumeView() {
         });
 
         if (!response.ok) {
+          if (response.status === 403) {
+            const errorData = await response.json();
+            if (errorData.error === "Reserved System ID") {
+              throw new Error(errorData.message);
+            }
+            throw new Error("Permission denied - You do not own this resume");
+          }
           if (response.status === 404) throw new Error("Resume not found");
           if (response.status === 401)
             throw new Error("Unauthorized - Please log in");
-          if (response.status === 403)
-            throw new Error("Permission denied - You do not own this resume");
           throw new Error("Failed to fetch resume");
         }
 

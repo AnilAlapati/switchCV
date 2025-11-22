@@ -28,7 +28,6 @@ import { GET } from "./route";
 
 import { doc, updateDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { tokenGenerator } from "@/lib/tokenGenerator";
-import { handleApiError } from "@/lib/utils/api-helpers";
 
 const mockDoc = doc as jest.MockedFunction<typeof doc>;
 const mockUpdateDoc = updateDoc as jest.MockedFunction<typeof updateDoc>;

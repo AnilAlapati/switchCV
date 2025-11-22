@@ -20,27 +20,10 @@ jest.mock("@/lib/utils/api-helpers", () => ({
 
 import { POST } from "@/app/api/profiles/request-access/route";
 import { NextRequest } from "next/server";
-import { adminDb, adminAuth } from "@/lib/firebase-admin";
-import {
-  getAuthenticatedUserId,
-  handleApiError,
-} from "@/lib/utils/api-helpers";
+import { adminDb } from "@/lib/firebase-admin";
+import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 
 const mockAdminDb = adminDb as jest.Mocked<typeof adminDb>;
-const mockAdminAuth = adminAuth as jest.Mocked<typeof adminAuth>;
-const mockGetAuthenticatedUserId = getAuthenticatedUserId as jest.Mock;
-const mockHandleApiError = handleApiError as jest.Mock;
-
-const createDecodedToken = (uid: string) => ({
-  uid,
-  aud: "test-audience",
-  auth_time: Date.now() / 1000,
-  exp: Date.now() / 1000 + 3600,
-  firebase: { identities: {}, sign_in_provider: "password" },
-  iat: Date.now() / 1000,
-  iss: "https://securetoken.google.com/test-project",
-  sub: uid,
-});
 
 const buildRequest = (
   payload: unknown,
