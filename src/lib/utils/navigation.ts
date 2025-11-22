@@ -1,5 +1,8 @@
+import { getWindow } from "./window";
+
 export const reloadPage = () => {
-  if (typeof window !== "undefined") {
-    window.location.reload();
+  const win = getWindow();
+  if (win) {
+    win.location.reload();
   }
 };

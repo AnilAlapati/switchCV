@@ -13,21 +13,21 @@ interface Entitlement {
   plan: "basic" | "premium" | "enterprise" | string;
 }
 
-class RateLimitError extends Error {
+export class RateLimitError extends Error {
   constructor(public readonly retryAfterSeconds: number) {
     super("Too many requests");
     this.name = "RateLimitError";
   }
 }
 
-class EntitlementError extends Error {
+export class EntitlementError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "EntitlementError";
   }
 }
 
-class AuthenticationError extends Error {
+export class AuthenticationError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "AuthenticationError";

@@ -7,7 +7,6 @@ import {
   getIdPoolStats,
 } from "@/lib/resumeIdRecycler";
 import { adminDb } from "@/lib/firebase-admin";
-import * as admin from "firebase-admin";
 
 // Mock firebase-admin
 jest.mock("@/lib/firebase-admin", () => ({

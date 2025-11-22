@@ -1,4 +1,4 @@
-import { POST } from "@/app/api/ai/generate/route";
+import { POST, RateLimitError } from "@/app/api/ai/generate/route";
 import { NextRequest } from "next/server";
 import { generateText } from "@/lib/services/aiGenerationService";
 
@@ -24,8 +24,10 @@ jest.mock("@/lib/firebase-admin", () => ({
   },
   default: {
     firestore: {
-      Timestamp: {
-        fromMillis: (ms: number) => ({ toMillis: () => ms }),
+      Timestamp: class {
+        static fromMillis(ms: number) {
+          return { toMillis: () => ms };
+        }
       },
       FieldValue: {
         serverTimestamp: () => "SERVER_TIMESTAMP",
@@ -230,5 +232,155 @@ describe("/api/ai/generate route", () => {
     await response.json();
 
     expect(response.status).toBe(500);
+  });
+
+  it("should return 401 error when Authorization header is missing", async () => {
+    const request = new NextRequest("http://localhost:3000/api/ai/generate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ prompt: "Test" }),
+    });
+
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(data.error).toBe("Unauthorized: Missing or invalid token");
+  });
+
+  it("should return 401 error when Authorization header is invalid", async () => {
+    const request = new NextRequest("http://localhost:3000/api/ai/generate", {
+      method: "POST",
+      headers: {
+        Authorization: "InvalidToken",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ prompt: "Test" }),
+    });
+
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(data.error).toBe("Unauthorized: Missing or invalid token");
+  });
+
+  it("should return 401 error when token verification fails", async () => {
+    mockVerifyIdToken.mockRejectedValueOnce(new Error("Invalid token"));
+
+    const request = createRequest({ prompt: "Test" });
+
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(data.error).toBe("Unauthorized: Invalid token");
+  });
+
+  it("should return 403 error when user is on basic plan", async () => {
+    mockFirestoreGet.mockResolvedValueOnce({
+      exists: true,
+      data: () => ({ subscriptionTier: "basic" }),
+    });
+
+    const request = createRequest({ prompt: "Test" });
+
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(data.error).toBe(
+      "AI text generation requires a premium or enterprise plan."
+    );
+  });
+
+  it("should default to basic plan if user not found and return 403", async () => {
+    mockFirestoreGet.mockResolvedValueOnce({
+      exists: false,
+      data: () => undefined,
+    });
+
+    const request = createRequest({ prompt: "Test" });
+
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(data.error).toBe(
+      "AI text generation requires a premium or enterprise plan."
+    );
+  });
+
+  it("should return 429 error when rate limit is exceeded", async () => {
+    // Mock runTransaction to throw RateLimitError-like object or we can mock the helper if it was exported.
+    // Since enforceRateLimit is internal, we have to mock runTransaction to throw.
+    // But wait, the error is thrown INSIDE the transaction callback.
+    // The current mockRunTransaction just returns a value.
+    // We need to make mockRunTransaction execute the callback or simulate the error.
+
+    // However, the route catches RateLimitError.
+    // Let's mock runTransaction to throw a custom error that looks like RateLimitError?
+    // No, RateLimitError is defined in the route file and not exported.
+    // We can't instantiate it easily in the test.
+
+    // Alternative: We can mock the implementation of runTransaction to throw an error
+    // that has the same structure if we can't import the class.
+    // Or we can rely on the fact that the route catches `RateLimitError`.
+
+    // Actually, `enforceRateLimit` calls `runTransaction`.
+    // If `runTransaction` throws, `enforceRateLimit` throws.
+    // But `RateLimitError` is thrown FROM WITHIN the transaction callback.
+
+    // Let's try to mock `runTransaction` to throw an error that has `retryAfterSeconds` property?
+    // The `instanceof RateLimitError` check in `handleRouteError` will fail if it's not the same class.
+
+    // Since `RateLimitError` is not exported, we can't use `instanceof` in our mock to throw it.
+    // We might need to export `RateLimitError` from the route file to test it properly,
+    // or we can test the behavior by mocking `adminDb.runTransaction` to execute the callback
+    // and ensuring the callback logic throws.
+
+    // Let's try to make `mockRunTransaction` execute the callback.
+    mockRunTransaction.mockImplementation(async (callback) => {
+      // We need to mock the transaction object passed to the callback
+      const mockTx = {
+        get: jest.fn().mockResolvedValue({
+          exists: true,
+          data: () => ({
+            count: 100, // Exceed limit
+            windowStart: Date.now(), // Current window
+          }),
+        }),
+        set: jest.fn(),
+      };
+
+      // We can't easily make the callback throw the exact RateLimitError class instance
+      // because the callback logic inside enforceRateLimit instantiates it.
+      // But wait, if we execute the callback, it WILL throw the RateLimitError
+      // because the logic inside the callback checks the count and throws.
+      // So we just need to execute the callback!
+
+      return callback(mockTx);
+    });
+
+    const request = createRequest({ prompt: "Test" });
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(429);
+    expect(data.error).toBe("Too many requests. Please try again later.");
+    expect(response.headers.get("Retry-After")).toBeDefined();
+  });
+
+  it("should return 400 error when prompt is too long", async () => {
+    const longPrompt = "a".repeat(2001);
+    const request = createRequest({ prompt: longPrompt });
+
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(data.error).toBe("Prompt exceeds maximum length of 2000 characters");
   });
 });

@@ -5,15 +5,7 @@ import {
   getRequestStatistics,
   getRecentEvents,
 } from "@/lib/services/analyticsService";
-import {
-  getDoc,
-  setDoc,
-  updateDoc,
-  getDocs,
-  collection,
-  doc,
-  increment,
-} from "firebase/firestore";
+import { getDoc, setDoc, updateDoc, getDocs } from "firebase/firestore";
 
 // Mock Firebase
 jest.mock("firebase/firestore", () => ({
