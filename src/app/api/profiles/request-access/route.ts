@@ -37,8 +37,18 @@ export async function POST(request: NextRequest) {
       .collection("users")
       .doc(currentUserId)
       .get();
-    const currentUserName =
-      currentUserDoc.data()?.displayName || "Unknown User";
+    
+    const userData = currentUserDoc.data();
+    const currentUserName = userData?.displayName || "Unknown User";
+
+    // Enforce mandatory company name for recruiters
+    if (!userData?.company || userData.company.trim() === "") {
+      return handleApiError(
+        null,
+        "Company name is required to request access. Please update your profile settings.",
+        403
+      );
+    }
 
     const resumeRef = adminDb.collection("resumes").doc(resumeId);
     const resumeDoc = await resumeRef.get();

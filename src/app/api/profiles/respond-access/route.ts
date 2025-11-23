@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
-import { getAuthenticatedUserId, handleApiError } from "@/lib/utils/api-helpers";
+import {
+  getAuthenticatedUserId,
+  handleApiError,
+} from "@/lib/utils/api-helpers";
 import { createNotification } from "@/lib/notificationService";
-import { NotificationType, NotificationChannel, NotificationPriority } from "@/lib/notifications.types";
+import {
+  NotificationType,
+  NotificationChannel,
+  NotificationPriority,
+} from "@/lib/notifications.types";
 
 export async function POST(request: NextRequest) {
   try {
@@ -43,8 +50,12 @@ export async function POST(request: NextRequest) {
         NotificationType.ACCESS_GRANTED,
         requestData.fromUserId,
         {
-          title: `Resume Access ${status === "approved" ? "Granted" : "Denied"}`,
-          body: `Your request to view ${resumeDoc.data()?.title || "resume"} has been ${status}.`,
+          title: `Resume Access ${
+            status === "approved" ? "Granted" : "Denied"
+          }`,
+          body: `Your request to view ${
+            resumeDoc.data()?.title || "resume"
+          } has been ${status}.`,
           actionUrl: status === "approved" ? `/resumes/${resumeId}` : undefined,
         },
         [NotificationChannel.IN_APP],
