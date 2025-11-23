@@ -61,7 +61,9 @@ export async function GET(request: NextRequest) {
           console.warn(`Error parsing timestamp for request ${doc.id}`, e);
         }
 
-        const { approvedAt, expiresAt, ...rest } = data;
+        const rest = { ...data };
+        delete rest.approvedAt;
+        delete rest.expiresAt;
 
         const responsePayload: Record<string, any> = {
           id: doc.id,
