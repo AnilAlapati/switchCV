@@ -132,9 +132,14 @@ describe("POST /api/profiles/request-access", () => {
     });
   });
 
+  const basePayload = {
+    resumeId: "resume-123",
+    duration: { preset: "1_week" as const },
+  };
+
   it("should create access request successfully", async () => {
     const payload = {
-      resumeId: "resume-123",
+      ...basePayload,
       message: "I'm interested in your resume",
     };
 
@@ -156,7 +161,9 @@ describe("POST /api/profiles/request-access", () => {
         json: async () => ({ error: "Unauthorized" }),
       },
     });
-    const response = await POST(buildRequest({ resumeId: "resume-1" }, null));
+    const response = await POST(
+      buildRequest({ ...basePayload, resumeId: "resume-1" }, null)
+    );
     const data = await response.json();
 
     expect(response.status).toBe(401);
@@ -164,7 +171,7 @@ describe("POST /api/profiles/request-access", () => {
   });
 
   it("should return 400 if resumeId is missing", async () => {
-    const payload = { message: "Test message" };
+    const payload = { message: "Test message", duration: basePayload.duration };
 
     const response = await POST(buildRequest(payload));
     const data = await response.json();
@@ -176,7 +183,7 @@ describe("POST /api/profiles/request-access", () => {
   it("should return 404 if resume doesn't exist", async () => {
     resumeDocRef.get.mockResolvedValue({ exists: false });
 
-    const payload = { resumeId: "non-existent" };
+    const payload = { ...basePayload, resumeId: "non-existent" };
 
     const response = await POST(buildRequest(payload));
     const data = await response.json();
@@ -185,17 +192,40 @@ describe("POST /api/profiles/request-access", () => {
     expect(data.error).toBe("Resume not found");
   });
 
+  it("should return 400 if duration is missing", async () => {
+    const response = await POST(buildRequest({ resumeId: "resume-1" }));
+    const data = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(data.error).toContain("Duration selection is required");
+  });
+
   it("should return 400 if user requests their own resume", async () => {
     resumeDocRef.get.mockResolvedValue({
       exists: true,
       data: () => ({ userId: "requester-123", title: "My Resume" }),
     });
 
-    const response = await POST(buildRequest({ resumeId: "resume-1" }));
+    const response = await POST(
+      buildRequest({ ...basePayload, resumeId: "resume-1" })
+    );
     const data = await response.json();
 
     expect(response.status).toBe(400);
     expect(data.error).toContain("own resume");
+  });
+
+  it("should validate custom duration server-side", async () => {
+    const response = await POST(
+      buildRequest({
+        resumeId: "resume-1",
+        duration: { preset: "custom_days", customDays: 0 },
+      })
+    );
+    const data = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(data.error).toContain("Custom duration");
   });
 
   it("should return 409 if pending request already exists", async () => {
@@ -203,7 +233,9 @@ describe("POST /api/profiles/request-access", () => {
       mockQuerySnapshot([{ id: "existing", status: "pending" }])
     );
 
-    const response = await POST(buildRequest({ resumeId: "resume-1" }));
+    const response = await POST(
+      buildRequest({ ...basePayload, resumeId: "resume-1" })
+    );
     const data = await response.json();
 
     expect(response.status).toBe(409);
@@ -213,7 +245,9 @@ describe("POST /api/profiles/request-access", () => {
   it("should handle unexpected errors gracefully", async () => {
     resumeDocRef.get.mockRejectedValue(new Error("Database error"));
 
-    const response = await POST(buildRequest({ resumeId: "resume-1" }));
+    const response = await POST(
+      buildRequest({ ...basePayload, resumeId: "resume-1" })
+    );
     const data = await response.json();
 
     expect(response.status).toBe(500);
@@ -221,7 +255,7 @@ describe("POST /api/profiles/request-access", () => {
   });
 
   it("should create notification for resume owner", async () => {
-    await POST(buildRequest({ resumeId: "resume-1" }));
+    await POST(buildRequest({ ...basePayload, resumeId: "resume-1" }));
 
     expect(createNotification).toHaveBeenCalledWith(
       expect.anything(),
@@ -235,10 +269,30 @@ describe("POST /api/profiles/request-access", () => {
   it("should include optional message in request", async () => {
     const message = "I think we'd be great colleagues!";
 
-    await POST(buildRequest({ resumeId: "resume-1", message }));
+    await POST(buildRequest({ ...basePayload, resumeId: "resume-1", message }));
 
     expect(accessRequestsCollection.add).toHaveBeenCalled();
     const payloadArg = accessRequestsCollection.add.mock.calls[0][0];
     expect(payloadArg.message).toBe(message);
+  });
+
+  it("should persist normalized duration metadata", async () => {
+    await POST(
+      buildRequest({
+        resumeId: "resume-1",
+        duration: { preset: "custom_days", customDays: 5 },
+        timezone: "America/New_York",
+      })
+    );
+
+    const payloadArg = accessRequestsCollection.add.mock.calls[0][0];
+    expect(payloadArg.requestedDuration).toMatchObject({
+      preset: "custom_days",
+      value: 5,
+      label: "5 Days",
+      timezone: "America/New_York",
+    });
+    expect(payloadArg.requestedDuration.durationHours).toBe(5 * 24);
+    expect(payloadArg.requestedDuration.durationMs).toBeGreaterThan(0);
   });
 });

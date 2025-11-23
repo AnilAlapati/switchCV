@@ -20,6 +20,12 @@ jest.mock("@/lib/firebase-admin", () => ({
 jest.mock("firebase-admin/firestore", () => ({
   FieldValue: {
     increment: jest.fn(),
+    serverTimestamp: jest.fn(() => "SERVER_TS"),
+  },
+  Timestamp: {
+    fromDate: jest.fn((date) => ({
+      toDate: () => date,
+    })),
   },
 }));
 
@@ -118,36 +124,27 @@ describe("POST /api/profiles/respond-access", () => {
       exists: false,
     };
 
-    const mockDoc = jest.fn();
-    mockDoc.mockReturnValueOnce({
-      get: jest.fn().mockResolvedValue(mockResumeDoc),
-    }); // Resume doc
-    mockDoc.mockReturnValueOnce({
-      // Request doc (nested)
-      collection: jest.fn().mockReturnValue({
-        doc: jest.fn().mockReturnValue({
-          get: jest.fn().mockResolvedValue(mockRequestDoc),
-        }),
-      }),
-    });
-
-    // Fix mocking structure for nested collection
     const mockRequestRef = {
       get: jest.fn().mockResolvedValue(mockRequestDoc),
     };
 
-    mockCollection.mockReturnValue({
-      doc: jest.fn().mockImplementation((id) => {
-        if (id === "resume1") {
-          return {
+    mockCollection.mockImplementation((collectionName) => {
+      if (collectionName === "resumes") {
+        return {
+          doc: jest.fn().mockReturnValue({
             get: jest.fn().mockResolvedValue(mockResumeDoc),
-            collection: jest.fn().mockReturnValue({
-              doc: jest.fn().mockReturnValue(mockRequestRef),
+            collection: jest.fn().mockImplementation((subName: string) => {
+              if (subName === "accessRequests") {
+                return {
+                  doc: jest.fn().mockReturnValue(mockRequestRef),
+                };
+              }
+              return {};
             }),
-          };
-        }
-        return { get: jest.fn() };
-      }),
+          }),
+        };
+      }
+      return { doc: jest.fn() };
     });
 
     const request = new NextRequest(
@@ -169,32 +166,54 @@ describe("POST /api/profiles/respond-access", () => {
     expect(data.error).toBe("Request not found");
   });
 
-  it("should successfully approve request and notify recruiter", async () => {
-    mockGetAuthenticatedUserId.mockResolvedValue({ userId: "user123" });
+  const buildApprovedRequest = () => ({
+    exists: true,
+    data: () => ({
+      fromUserId: "recruiter1",
+      requestedDuration: {
+        preset: "1_month",
+        value: 1,
+        unit: "month",
+        durationHours: 720,
+        durationMs: 720 * 60 * 60 * 1000,
+        label: "1 Month",
+        timezone: "UTC",
+        isCustom: false,
+      },
+    }),
+  });
 
-    const mockResumeDoc = {
+  const setupApprovalMocks = () => {
+    const mockResumeSnapshot = {
       exists: true,
       data: () => ({ userId: "user123", title: "My Resume" }),
     };
 
-    const mockRequestDoc = {
-      exists: true,
-      data: () => ({ fromUserId: "recruiter1" }),
+    const mockRequestDoc = buildApprovedRequest();
+    const mockRequestRef = {
+      get: jest.fn().mockResolvedValue(mockRequestDoc),
+      update: jest.fn().mockResolvedValue(undefined),
     };
 
-    const mockRequestUpdate = jest.fn();
-    const mockMetricsSet = jest.fn().mockResolvedValue(true);
+    const mockAccessGrantsCollection = {
+      add: jest.fn().mockResolvedValue({ id: "grant1" }),
+    };
 
     mockCollection.mockImplementation((collectionName) => {
       if (collectionName === "resumes") {
         return {
           doc: jest.fn().mockReturnValue({
-            get: jest.fn().mockResolvedValue(mockResumeDoc),
-            collection: jest.fn().mockReturnValue({
-              doc: jest.fn().mockReturnValue({
-                get: jest.fn().mockResolvedValue(mockRequestDoc),
-                update: mockRequestUpdate,
-              }),
+            get: jest.fn().mockResolvedValue(mockResumeSnapshot),
+            collection: jest.fn().mockImplementation((subName: string) => {
+              if (subName === "accessRequests") {
+                return {
+                  doc: jest.fn().mockReturnValue(mockRequestRef),
+                };
+              }
+              if (subName === "accessGrants") {
+                return mockAccessGrantsCollection;
+              }
+              return {};
             }),
           }),
         };
@@ -202,19 +221,26 @@ describe("POST /api/profiles/respond-access", () => {
       if (collectionName === "recruiterMetrics") {
         return {
           doc: jest.fn().mockReturnValue({
-            set: mockMetricsSet,
+            set: jest.fn().mockResolvedValue(true),
           }),
         };
       }
       if (collectionName === "jobSeekerMetrics") {
         return {
           doc: jest.fn().mockReturnValue({
-            set: mockMetricsSet,
+            set: jest.fn().mockResolvedValue(true),
           }),
         };
       }
-      return {};
+      return { doc: jest.fn() };
     });
+
+    return { mockRequestRef, mockAccessGrantsCollection };
+  };
+
+  it("should successfully approve request, store grant, and notify recruiter", async () => {
+    mockGetAuthenticatedUserId.mockResolvedValue({ userId: "user123" });
+    const { mockRequestRef, mockAccessGrantsCollection } = setupApprovalMocks();
 
     const request = new NextRequest(
       "http://localhost:3000/api/profiles/respond-access",
@@ -233,8 +259,70 @@ describe("POST /api/profiles/respond-access", () => {
 
     expect(response.status).toBe(200);
     expect(data.success).toBe(true);
-    expect(mockRequestUpdate).toHaveBeenCalledWith({ status: "approved" });
+    expect(mockRequestRef.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "approved",
+        grantedDuration: expect.objectContaining({ label: "1 Month" }),
+        expiresAt: expect.any(Object),
+      })
+    );
+    expect(mockAccessGrantsCollection.add).toHaveBeenCalledWith(
+      expect.objectContaining({
+        duration: expect.objectContaining({ label: "1 Month" }),
+      })
+    );
     expect(mockCreateNotification).toHaveBeenCalled();
     expect(mockIncrement).toHaveBeenCalled();
+  });
+
+  it("should reject approvals longer than requested", async () => {
+    mockGetAuthenticatedUserId.mockResolvedValue({ userId: "user123" });
+    setupApprovalMocks();
+
+    const request = new NextRequest(
+      "http://localhost:3000/api/profiles/respond-access",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          requestId: "req1",
+          resumeId: "resume1",
+          action: "approve",
+          grantDuration: { preset: "custom_days", customDays: 400 },
+        }),
+      }
+    );
+
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(data.error).toContain("duration");
+  });
+
+  it("should honor custom overrides within requested duration", async () => {
+    mockGetAuthenticatedUserId.mockResolvedValue({ userId: "user123" });
+    const { mockRequestRef } = setupApprovalMocks();
+
+    const request = new NextRequest(
+      "http://localhost:3000/api/profiles/respond-access",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          requestId: "req1",
+          resumeId: "resume1",
+          action: "approve",
+          grantDuration: { preset: "custom_days", customDays: 10 },
+        }),
+      }
+    );
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(200);
+    expect(mockRequestRef.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        grantedDuration: expect.objectContaining({ label: "10 Days" }),
+      })
+    );
   });
 });

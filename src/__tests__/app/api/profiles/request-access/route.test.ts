@@ -27,6 +27,14 @@ jest.mock("@/lib/notificationService", () => ({
 import { adminDb } from "@/lib/firebase-admin";
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 
+const baseRequestBody = {
+  resumeId: "resume-123",
+  duration: {
+    preset: "1_week" as const,
+  },
+  timezone: "UTC",
+};
+
 describe("POST /api/profiles/request-access", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -102,7 +110,7 @@ describe("POST /api/profiles/request-access", () => {
       {
         method: "POST",
         body: JSON.stringify({
-          resumeId: "resume-123",
+          ...baseRequestBody,
           message: "Hello",
         }),
       }
@@ -185,9 +193,7 @@ describe("POST /api/profiles/request-access", () => {
       "http://localhost:3000/api/profiles/request-access",
       {
         method: "POST",
-        body: JSON.stringify({
-          resumeId: "resume-123",
-        }),
+        body: JSON.stringify(baseRequestBody),
       }
     );
 
@@ -228,9 +234,7 @@ describe("POST /api/profiles/request-access", () => {
       "http://localhost:3000/api/profiles/request-access",
       {
         method: "POST",
-        body: JSON.stringify({
-          resumeId: "resume-123",
-        }),
+        body: JSON.stringify(baseRequestBody),
       }
     );
 
@@ -271,9 +275,7 @@ describe("POST /api/profiles/request-access", () => {
       "http://localhost:3000/api/profiles/request-access",
       {
         method: "POST",
-        body: JSON.stringify({
-          resumeId: "resume-123",
-        }),
+        body: JSON.stringify(baseRequestBody),
       }
     );
 

@@ -12,10 +12,16 @@ import {
   NotificationChannel,
   NotificationPriority,
 } from "@/lib/notifications.types";
+import {
+  DurationSelectionInput,
+  normalizeDuration,
+} from "@/lib/accessDuration";
 
 interface RequestAccessPayload {
   resumeId: string;
   message?: string;
+  duration?: DurationSelectionInput;
+  timezone?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -26,11 +32,28 @@ export async function POST(request: NextRequest) {
     if (error) return error;
     if (!currentUserId) return handleApiError(null, "Unauthorized", 401);
 
-    const { resumeId, message } =
+    const { resumeId, message, duration, timezone } =
       (await request.json()) as RequestAccessPayload;
 
     if (!resumeId) {
       return handleApiError(null, "Resume ID is required", 400);
+    }
+
+    if (!duration) {
+      return handleApiError(null, "Duration selection is required", 400);
+    }
+
+    let normalizedDuration;
+    try {
+      normalizedDuration = normalizeDuration(duration, timezone || "UTC");
+    } catch (durationError) {
+      return handleApiError(
+        durationError,
+        durationError instanceof Error
+          ? durationError.message
+          : "Invalid duration",
+        400
+      );
     }
 
     const currentUserDoc = await adminDb
@@ -103,6 +126,7 @@ export async function POST(request: NextRequest) {
       timestamp: FieldValue.serverTimestamp(),
       message: message || "",
       status: "pending",
+      requestedDuration: normalizedDuration,
     };
 
     const requestRef = await resumeRef
@@ -143,7 +167,9 @@ export async function POST(request: NextRequest) {
       resumeOwnerId,
       {
         title: "Resume Access Request",
-        body: message || `${currentUserName} requested access to your resume`,
+        body:
+          message ||
+          `${currentUserName} requested ${normalizedDuration.label} of resume access`,
         actionUrl: `/dashboard/access-requests`,
         data: {
           requestId: requestRef.id,

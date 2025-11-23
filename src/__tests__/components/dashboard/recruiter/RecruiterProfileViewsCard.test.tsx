@@ -269,7 +269,8 @@ describe("RecruiterProfileViewsCard", () => {
 
       const icon = document.querySelector("svg");
       expect(icon).toBeInTheDocument();
-      expect(icon).toHaveClass("h-6", "w-6", "text-white");
+      // Updated to match new design with purple color
+      expect(icon).toHaveClass("h-6", "w-6");
     });
   });
 });

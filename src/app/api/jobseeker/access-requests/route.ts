@@ -35,6 +35,8 @@ export async function GET(request: NextRequest) {
       accessRequestsSnapshot.docs.forEach((doc) => {
         const data = doc.data();
         let timestampStr = new Date().toISOString();
+        let approvedAtStr: string | null = null;
+        let expiresAtStr: string | null = null;
 
         try {
           if (data.timestamp && typeof data.timestamp.toDate === "function") {
@@ -43,17 +45,41 @@ export async function GET(request: NextRequest) {
             // Handle case where it might be a string or number already
             timestampStr = new Date(data.timestamp).toISOString();
           }
+
+          if (data.approvedAt && typeof data.approvedAt.toDate === "function") {
+            approvedAtStr = data.approvedAt.toDate().toISOString();
+          } else if (data.approvedAt) {
+            approvedAtStr = new Date(data.approvedAt).toISOString();
+          }
+
+          if (data.expiresAt && typeof data.expiresAt.toDate === "function") {
+            expiresAtStr = data.expiresAt.toDate().toISOString();
+          } else if (data.expiresAt) {
+            expiresAtStr = new Date(data.expiresAt).toISOString();
+          }
         } catch (e) {
           console.warn(`Error parsing timestamp for request ${doc.id}`, e);
         }
 
-        requests.push({
+        const { approvedAt, expiresAt, ...rest } = data;
+
+        const responsePayload: Record<string, any> = {
           id: doc.id,
-          ...data,
+          ...rest,
           resumeId: resumeDoc.id,
           resumeTitle: resumeDoc.data().title || "Untitled Resume",
           timestamp: timestampStr,
-        });
+        };
+
+        if (approvedAtStr) {
+          responsePayload.approvedAt = approvedAtStr;
+        }
+
+        if (expiresAtStr) {
+          responsePayload.expiresAt = expiresAtStr;
+        }
+
+        requests.push(responsePayload);
       });
     }
 

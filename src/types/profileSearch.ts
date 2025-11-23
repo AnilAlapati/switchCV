@@ -1,5 +1,25 @@
 // src/types/index.ts - Type definitions for Profile Search System
 
+export type AccessDurationUnit = "hour" | "day" | "week" | "month";
+
+export type AccessDurationPreset =
+  | "1_hour"
+  | "1_day"
+  | "1_week"
+  | "1_month"
+  | "custom_days";
+
+export interface AccessDuration {
+  preset: AccessDurationPreset;
+  value: number;
+  unit: AccessDurationUnit;
+  durationHours: number;
+  durationMs: number;
+  label: string;
+  timezone?: string;
+  isCustom: boolean;
+}
+
 export interface AccessRequest {
   requestId: string;
   fromUserId: string;
@@ -8,14 +28,20 @@ export interface AccessRequest {
   message?: string;
   status: "pending" | "approved" | "denied";
   resumeId?: string;
+  requestedDuration?: AccessDuration;
+  grantedDuration?: AccessDuration;
+  approvedAt?: Date;
+  expiresAt?: Date | null;
 }
 
 export interface AccessGrant {
   grantId: string;
   toUserId: string;
+  requestId?: string;
   grantedAt: Date;
   expiresAt: Date | null; // null means forever
-  duration: "1hour" | "1day" | "1week" | "forever";
+  duration?: AccessDuration;
+  grantedBy?: string;
 }
 
 export interface Notification {
@@ -71,7 +97,7 @@ export interface AccessCheckResponse {
   accessType: "owner" | "public" | "granted" | "none";
   expiresAt?: Date;
   grantId?: string;
-  duration?: string;
+  duration?: AccessDuration;
   message?: string;
 }
 
