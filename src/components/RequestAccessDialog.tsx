@@ -95,6 +95,16 @@ export function RequestAccessDialog({
           {error && (
             <div className="p-3 bg-red-900/30 border border-red-500/50 rounded text-red-300 text-sm">
               {error}
+              {error.includes("Company name is required") && (
+                <div className="mt-2">
+                  <a
+                    href="/profile/settings"
+                    className="text-blue-400 hover:text-blue-300 underline"
+                  >
+                    Update Profile Settings
+                  </a>
+                </div>
+              )}
             </div>
           )}
 

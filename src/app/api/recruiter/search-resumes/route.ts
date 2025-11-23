@@ -21,7 +21,10 @@ interface SearchResultCard {
   accessStatus?: "none" | "pending" | "approved" | "denied";
 }
 
-async function checkAccessStatus(resumeId: string, recruiterId: string): Promise<"none" | "pending" | "approved" | "denied"> {
+async function checkAccessStatus(
+  resumeId: string,
+  recruiterId: string
+): Promise<"none" | "pending" | "approved" | "denied"> {
   try {
     const requests = await adminDb
       .collection("resumes")
@@ -32,11 +35,11 @@ async function checkAccessStatus(resumeId: string, recruiterId: string): Promise
 
     if (requests.empty) return "none";
 
-    const statuses = requests.docs.map(doc => doc.data().status);
+    const statuses = requests.docs.map((doc) => doc.data().status);
     if (statuses.includes("approved")) return "approved";
     if (statuses.includes("pending")) return "pending";
     if (statuses.includes("denied")) return "denied";
-    
+
     return "none";
   } catch (error) {
     console.error("Error checking access status:", error);
@@ -139,7 +142,10 @@ export async function POST(request: NextRequest) {
 
             const userData = userSnapshot.data();
 
-            const accessStatus = await checkAccessStatus(mapping.documentId, recruiterId);
+            const accessStatus = await checkAccessStatus(
+              mapping.documentId,
+              recruiterId
+            );
 
             results.push({
               resumeId: userId, // Use the friendly ID
@@ -206,7 +212,10 @@ export async function POST(request: NextRequest) {
 
           const userData = userSnapshot.data();
 
-          const accessStatus = await checkAccessStatus(resumeSnapshot.id, recruiterId);
+          const accessStatus = await checkAccessStatus(
+            resumeSnapshot.id,
+            recruiterId
+          );
 
           results.push({
             resumeId: resumeSnapshot.id,
@@ -357,7 +366,10 @@ export async function POST(request: NextRequest) {
           // Add if matches either criteria
           if (skillsMatch || locationMatch) {
             seenUserIds.add(userId);
-            const accessStatus = await checkAccessStatus(resumeDoc.id, recruiterId);
+            const accessStatus = await checkAccessStatus(
+              resumeDoc.id,
+              recruiterId
+            );
 
             results.push({
               resumeId: resumeDoc.id,

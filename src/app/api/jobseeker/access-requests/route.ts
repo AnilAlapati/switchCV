@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
-import { getAuthenticatedUserId, handleApiError } from "@/lib/utils/api-helpers";
+import {
+  getAuthenticatedUserId,
+  handleApiError,
+} from "@/lib/utils/api-helpers";
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,7 +25,7 @@ export async function GET(request: NextRequest) {
         .where("status", "==", "pending")
         .get();
 
-      accessRequestsSnapshot.docs.forEach(doc => {
+      accessRequestsSnapshot.docs.forEach((doc) => {
         requests.push({
           id: doc.id,
           ...doc.data(),
