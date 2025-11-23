@@ -83,6 +83,7 @@ const eslintConfig = [
       "list-gemini-models.js",
       "functions/**",
       "coverage/**",
+      ".firebase/**",
     ],
   },
 ];
