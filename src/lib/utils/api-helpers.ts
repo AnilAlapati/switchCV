@@ -28,6 +28,28 @@ export async function getAuthenticatedUserId(
 }
 
 /**
+ * Attempts to verify authentication without treating missing credentials as an error.
+ * Returns the user ID when available, or null when the caller is anonymous.
+ */
+export async function maybeGetAuthenticatedUserId(
+  request: NextRequest
+): Promise<string | null> {
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return null;
+  }
+
+  const token = authHeader.split("Bearer ")[1];
+  try {
+    const decodedToken = await adminAuth.verifyIdToken(token);
+    return decodedToken.uid;
+  } catch (authError) {
+    console.warn("Optional auth verification failed:", authError);
+    return null;
+  }
+}
+
+/**
  * Fetches a resume document by ID, checking both 'resumes' and 'resumeProfiles' collections.
  * Returns the document reference, snapshot, and data if found, or null if not.
  */

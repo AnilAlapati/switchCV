@@ -5,8 +5,10 @@ import {
   getAuthenticatedUserId,
   fetchResumeDocument,
   handleApiError,
+  maybeGetAuthenticatedUserId,
   verifyResumeOwnership,
 } from "@/lib/utils/api-helpers";
+import { sanitizeResumeForPublicView } from "@/lib/utils/resumeVisibility";
 
 export async function GET(
   request: NextRequest,
@@ -48,23 +50,40 @@ export async function GET(
       resumeData?.visibility === "public" ||
       resumeData?.published === true;
 
-    // 3. Security Check
-    // If public, allow access
+    const ownerId = resumeData?.userId ?? null;
+    const optionalUserId = await maybeGetAuthenticatedUserId(request);
+    const isOwner = Boolean(
+      optionalUserId && ownerId && optionalUserId === ownerId
+    );
+
     if (isPublic) {
-      return NextResponse.json(resumeData);
+      if (isOwner) {
+        return NextResponse.json({
+          ...resumeData,
+          viewerAccess: {
+            scope: "owner",
+            isOwner: true,
+          },
+        });
+      }
+
+      const sanitized = sanitizeResumeForPublicView(resumeData);
+      return NextResponse.json(sanitized);
     }
 
-    // If private, verify authentication
-    const { userId: requestUserId, error: authError } =
-      await getAuthenticatedUserId(request);
-    if (authError) {
-      return authError;
+    let requestUserId = optionalUserId;
+    if (!requestUserId) {
+      const authResult = await getAuthenticatedUserId(request);
+      if (authResult.error) {
+        return authResult.error;
+      }
+      if (!authResult.userId) {
+        return handleApiError(new Error("Unauthorized"), "Unauthorized", 401);
+      }
+      requestUserId = authResult.userId;
     }
-
-    const ownerId = resumeData?.userId;
 
     if (requestUserId !== ownerId) {
-      // Check if user is admin (optional, but good for support)
       const userDoc = await adminDb
         .collection("users")
         .doc(requestUserId!)
@@ -77,10 +96,24 @@ export async function GET(
           403
         );
       }
+
+      return NextResponse.json({
+        ...resumeData,
+        viewerAccess: {
+          scope: "admin-view",
+          isOwner: false,
+          isMasked: false,
+        },
+      });
     }
 
-    // 4. Return Data
-    return NextResponse.json(resumeData);
+    return NextResponse.json({
+      ...resumeData,
+      viewerAccess: {
+        scope: "owner",
+        isOwner: true,
+      },
+    });
   } catch (error) {
     return handleApiError(error, "Error fetching resume");
   }

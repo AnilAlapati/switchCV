@@ -1,8 +1,7 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { ResumeProfile, ResumeTemplate } from "@/types";
 import {
   SectionCard,
-  TimelineItem,
   MailIcon,
   PhoneIcon,
   LocationIcon,
@@ -14,45 +13,164 @@ import {
   normalizeTimelineItems,
   normalizeProjects,
 } from "./templateRendererUtils";
+import { renderContactField } from "@/lib/utils/resumeVisibility";
+import { renderTemplateField } from "./renderTemplateField";
+
+type VisibilityLevel = "public" | "masked" | "request";
+type ContactField = "email" | "phone";
+
+interface ViewerAccessMeta {
+  scope?: string;
+  isOwner?: boolean;
+  isMasked?: boolean;
+}
+
 interface TemplateRendererProps {
   template: ResumeTemplate;
-  data: ResumeProfile;
+  data: ResumeProfile & {
+    viewerAccess?: ViewerAccessMeta;
+  };
 }
+
+interface ContactDisplay {
+  label: string;
+  href?: string;
+}
+
+const buildContactHref = (field: ContactField, value?: string) => {
+  if (!value) {
+    return undefined;
+  }
+
+  if (field === "email") {
+    return `mailto:${value}`;
+  }
+
+  const digits = value.replace(/\D+/g, "");
+  return digits ? `tel:${digits}` : undefined;
+};
+
 export const TemplateRenderer: React.FC<TemplateRendererProps> = ({
   template,
   data,
 }) => {
   const personalInfo = data.personalInfo || {};
-  const contactItems = useMemo(() => {
-    const email = personalInfo.email || data.contact?.email?.value;
-    const phone = personalInfo.phone || data.contact?.phone?.value;
-    return [
-      email && {
-        label: email,
-        href: `mailto:${email}`,
-        icon: MailIcon,
-      },
-      phone && {
-        label: phone,
-        href: `tel:${phone}`,
-        icon: PhoneIcon,
-      },
-      personalInfo.location && {
-        label: personalInfo.location,
-        icon: LocationIcon,
-      },
-      personalInfo.linkedin && {
-        label: personalInfo.linkedin.replace(/^https?:\/\//, ""),
-        href: personalInfo.linkedin,
-        icon: LinkIcon,
-      },
-      personalInfo.github && {
-        label: personalInfo.github.replace(/^https?:\/\//, ""),
-        href: personalInfo.github,
-        icon: CodeIcon,
-      },
-    ].filter(Boolean);
-  }, [personalInfo, data.contact]);
+  const viewerAccess = (data.viewerAccess as ViewerAccessMeta) ?? {};
+  const allowsFullContact =
+    viewerAccess.isOwner === true || viewerAccess.scope === "admin-view";
+  const isMaskedView = viewerAccess.isMasked === true;
+
+  // Determine contact presentation for the current viewer
+  const resolveContact = (field: ContactField): ContactDisplay | null => {
+    const contactEntry = data.contact?.[field] as
+      | { value?: string; visibility?: VisibilityLevel }
+      | undefined;
+
+    const personalValue = (personalInfo as Record<string, string | undefined>)[
+      field
+    ];
+    const visibility =
+      (contactEntry?.visibility as VisibilityLevel) ?? "public";
+    const entryValue =
+      typeof contactEntry?.value === "string" ? contactEntry.value : undefined;
+    const baseValue = entryValue || personalValue || "";
+
+    if (allowsFullContact) {
+      if (!baseValue) {
+        return null;
+      }
+
+      return {
+        label: baseValue,
+        href: buildContactHref(field, baseValue),
+      };
+    }
+
+    if (isMaskedView) {
+      const maskedLabel =
+        entryValue ||
+        personalValue ||
+        (visibility === "request"
+          ? "Available upon request"
+          : baseValue
+          ? renderContactField(baseValue, "masked", field)
+          : "Available upon request");
+
+      return maskedLabel ? { label: maskedLabel } : null;
+    }
+
+    if (visibility === "public") {
+      if (!baseValue) {
+        return null;
+      }
+
+      return {
+        label: baseValue,
+        href: buildContactHref(field, baseValue),
+      };
+    }
+
+    if (visibility === "masked") {
+      if (!baseValue) {
+        return null;
+      }
+
+      return {
+        label: renderContactField(baseValue, "masked", field),
+      };
+    }
+
+    return { label: "Available upon request" };
+  };
+
+  const emailContact = resolveContact("email");
+  const phoneContact = resolveContact("phone");
+
+  const contactItems: Array<{
+    label: string;
+    href?: string;
+    icon: React.ComponentType;
+  }> = [];
+
+  if (emailContact?.label) {
+    contactItems.push({
+      label: emailContact.label,
+      href: emailContact.href,
+      icon: MailIcon,
+    });
+  }
+
+  if (phoneContact?.label) {
+    contactItems.push({
+      label: phoneContact.label,
+      href: phoneContact.href,
+      icon: PhoneIcon,
+    });
+  }
+
+  if (personalInfo.location) {
+    contactItems.push({
+      label: personalInfo.location,
+      icon: LocationIcon,
+    });
+  }
+
+  if (personalInfo.linkedin) {
+    contactItems.push({
+      label: personalInfo.linkedin.replace(/^https?:\/\//, ""),
+      href: personalInfo.linkedin,
+      icon: LinkIcon,
+    });
+  }
+
+  if (personalInfo.github) {
+    contactItems.push({
+      label: personalInfo.github.replace(/^https?:\/\//, ""),
+      href: personalInfo.github,
+      icon: CodeIcon,
+    });
+  }
+
   const getFieldValue = (fieldId: string) => {
     switch (fieldId) {
       case "name":
@@ -60,9 +178,9 @@ export const TemplateRenderer: React.FC<TemplateRendererProps> = ({
       case "title":
         return personalInfo.title || data.title;
       case "email":
-        return personalInfo.email || data.contact?.email?.value;
+        return emailContact?.label || personalInfo.email;
       case "phone":
-        return personalInfo.phone || data.contact?.phone?.value;
+        return phoneContact?.label || personalInfo.phone;
       case "location":
         return personalInfo.location;
       case "summary":
@@ -78,156 +196,6 @@ export const TemplateRenderer: React.FC<TemplateRendererProps> = ({
       default:
         return null;
     }
-  };
-  const renderField = (field: any, value: any) => {
-    if (!value || (Array.isArray(value) && value.length === 0)) return null;
-
-    if (field.id === "summary") {
-      return (
-        <p key={field.id} className="text-lg leading-relaxed text-slate-200">
-          {value}
-        </p>
-      );
-    }
-
-    if (field.id === "skills") {
-      return (
-        <div
-          key={field.id}
-          className="flex flex-wrap gap-2"
-          aria-label="Skills"
-        >
-          {value.map((skill: string) => (
-            <span
-              key={skill}
-              className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-4 py-1 text-sm font-medium text-cyan-100"
-            >
-              {skill}
-            </span>
-          ))}
-        </div>
-      );
-    }
-
-    if (field.id === "projects") {
-      return (
-        <div key={field.id} className="grid gap-4">
-          {value.map((project: TimelineItem, index: number) => (
-            <article
-              key={`${project.headline}-${index}`}
-              className="rounded-2xl border border-white/5 bg-slate-900/40 p-5"
-            >
-              <div className="flex flex-wrap items-baseline justify-between gap-3">
-                <div>
-                  <h4 className="text-lg font-semibold text-white">
-                    {project.headline}
-                  </h4>
-                  {project.subline && (
-                    <p className="text-sm text-slate-400">{project.subline}</p>
-                  )}
-                </div>
-                {project.meta && (
-                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    {project.meta}
-                  </span>
-                )}
-              </div>
-              {project.description && (
-                <p className="mt-3 text-sm text-slate-200">
-                  {project.description}
-                </p>
-              )}
-              {project.technologies && project.technologies.length > 0 && (
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {project.technologies.map((tech) => (
-                    <span
-                      key={tech}
-                      className="rounded-full bg-white/5 px-3 py-1 text-xs uppercase tracking-wide text-slate-200"
-                    >
-                      {tech}
-                    </span>
-                  ))}
-                </div>
-              )}
-              {project.url && (
-                <a
-                  href={project.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-cyan-300"
-                >
-                  View project
-                  <span aria-hidden>&rarr;</span>
-                </a>
-              )}
-            </article>
-          ))}
-        </div>
-      );
-    }
-
-    if (field.type === "complex_list") {
-      return (
-        <div key={field.id} className="space-y-5">
-          {value.map((item: TimelineItem, index: number) => (
-            <article
-              key={`${item.headline}-${index}`}
-              className="rounded-2xl border border-white/5 bg-slate-900/40 p-5"
-            >
-              <div className="flex flex-wrap items-baseline justify-between gap-3">
-                <div>
-                  <h4 className="text-lg font-semibold text-white">
-                    {item.headline}
-                  </h4>
-                  {item.subline && (
-                    <p className="text-sm text-slate-400">{item.subline}</p>
-                  )}
-                </div>
-                {item.meta && (
-                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    {item.meta}
-                  </span>
-                )}
-              </div>
-              {item.description && (
-                <p className="mt-3 text-sm text-slate-200">
-                  {item.description}
-                </p>
-              )}
-              {item.bullets && item.bullets.length > 0 && (
-                <ul className="mt-3 list-disc space-y-1 pl-6 text-sm text-slate-200/90">
-                  {item.bullets.map((bullet, bulletIndex) => (
-                    <li key={`${item.headline}-${bulletIndex}`}>{bullet}</li>
-                  ))}
-                </ul>
-              )}
-            </article>
-          ))}
-        </div>
-      );
-    }
-
-    if (field.type === "list") {
-      return (
-        <ul key={field.id} className="space-y-2">
-          {value.map((item: string, index: number) => (
-            <li
-              key={`${field.id}-${index}`}
-              className="flex items-center gap-2 text-slate-200"
-            >
-              <span className="h-2 w-2 rounded-full bg-cyan-400" />
-              {item}
-            </li>
-          ))}
-        </ul>
-      );
-    }
-
-    return (
-      <p key={field.id} className="text-slate-200">
-        {value}
-      </p>
-    );
   };
 
   const orderedSections = template.sections
@@ -286,7 +254,7 @@ export const TemplateRenderer: React.FC<TemplateRendererProps> = ({
           .map((section) => (
             <SectionCard key={section.id} title={section.title}>
               {section.fields.map((field) =>
-                renderField(field, getFieldValue(field.id))
+                renderTemplateField(field, getFieldValue(field.id))
               )}
             </SectionCard>
           ))}

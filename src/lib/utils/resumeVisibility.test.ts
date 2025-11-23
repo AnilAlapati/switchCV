@@ -11,6 +11,7 @@ import {
   parseEnhancedContent,
   hasRequestItems,
   hasMaskedItems,
+  sanitizeResumeForPublicView,
 } from "@/lib/utils/resumeVisibility";
 
 describe("resumeVisibility Utilities", () => {
@@ -237,6 +238,88 @@ describe("resumeVisibility Utilities", () => {
 
     it("should return false for empty array", () => {
       expect(hasMaskedItems([])).toBe(false);
+    });
+  });
+
+  describe("sanitizeResumeForPublicView", () => {
+    const baseResume = {
+      userId: "user-1",
+      summary: "Full stack engineer",
+      contact: {
+        email: { value: "john@example.com", visibility: "public" as const },
+        phone: { value: "555-123-4567", visibility: "public" as const },
+      },
+      personalInfo: {
+        email: "john@example.com",
+        phone: "555-123-4567",
+        name: "John Doe",
+      },
+    };
+
+    it("masks email and phone values", () => {
+      const sanitized = sanitizeResumeForPublicView(baseResume);
+
+      expect(sanitized.contact.email.value).toBe("j***@example.com");
+      expect(sanitized.contact.email.visibility).toBe("masked");
+      expect(sanitized.contact.phone.value).toBe("***-***-4567");
+      expect(sanitized.contact.phone.visibility).toBe("masked");
+      expect(sanitized.personalInfo.email).toBe("j***@example.com");
+      expect(sanitized.personalInfo.phone).toBe("***-***-4567");
+    });
+
+    it("preserves request visibility without revealing values", () => {
+      const resume = {
+        ...baseResume,
+        contact: {
+          email: { value: "john@example.com", visibility: "request" as const },
+          phone: { value: "555-123-4567", visibility: "request" as const },
+        },
+      };
+
+      const sanitized = sanitizeResumeForPublicView(resume);
+
+      expect(sanitized.contact.email.visibility).toBe("request");
+      expect(sanitized.contact.email.value).toBe("");
+      expect(sanitized.personalInfo.email).toBe("Available upon request");
+      expect(sanitized.contact.phone.visibility).toBe("request");
+      expect(sanitized.contact.phone.value).toBe("");
+      expect(sanitized.personalInfo.phone).toBe("Available upon request");
+    });
+
+    it("adds viewer access metadata", () => {
+      const sanitized = sanitizeResumeForPublicView(baseResume);
+
+      expect(sanitized.viewerAccess).toEqual(
+        expect.objectContaining({
+          scope: "public-preview",
+          isOwner: false,
+          isMasked: true,
+        })
+      );
+    });
+
+    it("does not mutate the original resume object", () => {
+      const original = JSON.parse(JSON.stringify(baseResume));
+      sanitizeResumeForPublicView(baseResume);
+      expect(baseResume).toEqual(original);
+    });
+
+    it("masks personalInfo fields even if contact fields are missing", () => {
+      const resume = {
+        userId: "user-1",
+        summary: "Full stack engineer",
+        contact: {}, // Empty contact
+        personalInfo: {
+          email: "john@example.com",
+          phone: "555-123-4567",
+          name: "John Doe",
+        },
+      };
+
+      const sanitized = sanitizeResumeForPublicView(resume);
+
+      expect(sanitized.personalInfo.email).toBe("j***@example.com");
+      expect(sanitized.personalInfo.phone).toBe("***-***-4567");
     });
   });
 });
