@@ -190,6 +190,7 @@ export const sanitizeResumeForPublicView = (
     experience: [],
     education: [],
     projects: [],
+    skills: [],
     viewerAccess,
   };
 };
