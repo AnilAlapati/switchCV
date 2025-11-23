@@ -56,6 +56,24 @@ const eslintConfig = [
     },
   },
   {
+    files: [
+      "**/*.test.ts",
+      "**/*.test.tsx",
+      "**/*.test.js",
+      "**/*.test.jsx",
+      "**/__tests__/**/*.ts",
+      "**/__tests__/**/*.tsx",
+      "**/__tests__/**/*.js",
+      "**/__tests__/**/*.jsx",
+    ],
+    linterOptions: {
+      reportUnusedDisableDirectives: "off",
+    },
+    rules: {
+      "max-lines": "off",
+    },
+  },
+  {
     ignores: [
       ".next/**",
       "out/**",
