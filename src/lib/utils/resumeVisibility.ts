@@ -105,3 +105,86 @@ export const hasMaskedItems = (
 ): boolean => {
   return items.some((item) => item.visibility === "masked");
 };
+
+interface ViewerAccessMeta {
+  scope: string;
+  isOwner: boolean;
+  isMasked?: boolean;
+}
+
+/**
+ * Produce a sanitized resume payload for public viewers
+ * Masks contact details and injects viewer metadata without mutating the source object
+ */
+export const sanitizeResumeForPublicView = (
+  resume: Record<string, any>
+): Record<string, any> => {
+  const clone = JSON.parse(JSON.stringify(resume ?? {}));
+
+  const originalContact = (resume?.contact ?? {}) as Record<string, any>;
+  const originalPersonalInfo = (resume?.personalInfo ?? {}) as Record<
+    string,
+    any
+  >;
+
+  // Get raw values from either contact or personalInfo
+  const emailFromContact =
+    typeof originalContact.email === "string"
+      ? originalContact.email
+      : originalContact.email?.value;
+  const phoneFromContact =
+    typeof originalContact.phone === "string"
+      ? originalContact.phone
+      : originalContact.phone?.value;
+
+  const rawEmail = emailFromContact || originalPersonalInfo.email || "";
+  const rawPhone = phoneFromContact || originalPersonalInfo.phone || "";
+
+  // Determine visibility preference (default to masked if not specified)
+  const emailVisibility =
+    originalContact.email?.visibility === "request" ? "request" : "masked";
+  const phoneVisibility =
+    originalContact.phone?.visibility === "request" ? "request" : "masked";
+
+  // Generate masked values
+  const maskedEmail = rawEmail ? maskEmail(rawEmail) : "";
+  const maskedPhone = rawPhone ? maskPhone(rawPhone) : "";
+
+  // Create sanitized contact object
+  const sanitizedContact = {
+    email: {
+      value: emailVisibility === "request" ? "" : maskedEmail,
+      visibility: emailVisibility,
+    },
+    phone: {
+      value: phoneVisibility === "request" ? "" : maskedPhone,
+      visibility: phoneVisibility,
+    },
+  };
+
+  // Create sanitized personalInfo object
+  const sanitizedPersonalInfo = { ...originalPersonalInfo };
+
+  // Overwrite personalInfo fields with masked values or remove them
+  if (sanitizedPersonalInfo.email) {
+    sanitizedPersonalInfo.email =
+      emailVisibility === "request" ? "Available upon request" : maskedEmail;
+  }
+  if (sanitizedPersonalInfo.phone) {
+    sanitizedPersonalInfo.phone =
+      phoneVisibility === "request" ? "Available upon request" : maskedPhone;
+  }
+
+  const viewerAccess: ViewerAccessMeta = {
+    scope: "public-preview",
+    isOwner: false,
+    isMasked: true,
+  };
+
+  return {
+    ...clone,
+    contact: sanitizedContact,
+    personalInfo: sanitizedPersonalInfo,
+    viewerAccess,
+  };
+};
