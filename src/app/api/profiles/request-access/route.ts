@@ -1,7 +1,12 @@
 // src/app/api/profiles/request-access/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
-import { FieldValue } from "firebase-admin/firestore";
+import {
+  FieldValue,
+  CollectionReference,
+  DocumentData,
+  QueryDocumentSnapshot,
+} from "firebase-admin/firestore";
 import {
   getAuthenticatedUserId,
   handleApiError,
@@ -23,6 +28,8 @@ interface RequestAccessPayload {
   duration?: DurationSelectionInput;
   timezone?: string;
 }
+
+type AccessRequestDoc = QueryDocumentSnapshot<DocumentData>;
 
 export async function POST(request: NextRequest) {
   try {
@@ -92,15 +99,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const existingRequests = await resumeRef
-      .collection("accessRequests")
-      .where("fromUserId", "==", currentUserId)
-      .get();
+    const accessRequestsCollection = resumeRef.collection("accessRequests");
 
-    const pendingRequest = existingRequests.docs.find(
+    const existingRequestDocs = await fetchUserRequestDocs(
+      accessRequestsCollection,
+      currentUserId
+    );
+
+    const pendingRequest = existingRequestDocs.find(
       (doc) => doc.data().status === "pending"
     );
-    const approvedRequest = existingRequests.docs.find(
+    const approvedRequest = existingRequestDocs.find(
       (doc) => doc.data().status === "approved"
     );
 
@@ -129,9 +138,7 @@ export async function POST(request: NextRequest) {
       requestedDuration: normalizedDuration,
     };
 
-    const requestRef = await resumeRef
-      .collection("accessRequests")
-      .add(accessRequest);
+    const requestRef = await accessRequestsCollection.add(accessRequest);
 
     console.log(`📨 Access request created: ${requestRef.id}`);
 
@@ -191,4 +198,42 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return handleApiError(error, "Failed to create access request");
   }
+}
+
+async function fetchUserRequestDocs(
+  collectionRef: CollectionReference<DocumentData>,
+  currentUserId: string
+): Promise<AccessRequestDoc[]> {
+  try {
+    const snapshot = await collectionRef
+      .where("fromUserId", "==", currentUserId)
+      .get();
+    return snapshot.docs as AccessRequestDoc[];
+  } catch (error) {
+    if (isFailedPreconditionError(error)) {
+      console.warn(
+        "[accessRequests] Missing Firestore index on fromUserId. Falling back to in-memory filter. Run `firebase deploy --only firestore:indexes` to restore optimal performance."
+      );
+      const fallbackSnapshot = await collectionRef.get();
+      return fallbackSnapshot.docs.filter(
+        (doc) => doc.data().fromUserId === currentUserId
+      ) as AccessRequestDoc[];
+    }
+    throw error;
+  }
+}
+
+function isFailedPreconditionError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const maybeError = error as { code?: number | string; message?: string };
+  if (typeof maybeError.code === "number" && maybeError.code === 9) {
+    return true;
+  }
+  if (typeof maybeError.code === "string") {
+    const normalizedCode = maybeError.code.toLowerCase();
+    if (normalizedCode.includes("failed_precondition")) {
+      return true;
+    }
+  }
+  return !!maybeError.message?.includes("FAILED_PRECONDITION");
 }

@@ -61,14 +61,16 @@ describe("POST /api/profiles/request-access", () => {
       }),
     };
 
-    const mockExistingRequests = {
-      empty: true,
-      docs: [],
-      get: jest.fn().mockResolvedValue({ empty: true, docs: [] }),
-    };
-
     const mockRequestRef = {
       id: "request-789",
+    };
+
+    const accessRequestsCollectionMock = {
+      where: jest.fn().mockReturnValue({
+        get: jest.fn().mockResolvedValue({ docs: [] }),
+      }),
+      get: jest.fn(),
+      add: jest.fn().mockResolvedValue(mockRequestRef),
     };
 
     const collectionMock = adminDb.collection as jest.Mock;
@@ -84,11 +86,7 @@ describe("POST /api/profiles/request-access", () => {
         return {
           doc: jest.fn().mockReturnValue({
             get: jest.fn().mockResolvedValue(mockResumeDoc),
-            collection: jest.fn().mockReturnValue({
-              where: jest.fn().mockReturnThis(),
-              get: jest.fn().mockResolvedValue(mockExistingRequests),
-              add: jest.fn().mockResolvedValue(mockRequestRef),
-            }),
+            collection: jest.fn().mockReturnValue(accessRequestsCollectionMock),
           }),
         };
       }
@@ -145,14 +143,16 @@ describe("POST /api/profiles/request-access", () => {
       }),
     };
 
-    const mockExistingRequests = {
-      empty: true,
-      docs: [],
-      get: jest.fn().mockResolvedValue({ empty: true, docs: [] }),
-    };
-
     const mockRequestRef = {
       id: "request-789",
+    };
+
+    const accessRequestsCollectionMock = {
+      where: jest.fn().mockReturnValue({
+        get: jest.fn().mockResolvedValue({ docs: [] }),
+      }),
+      get: jest.fn(),
+      add: jest.fn().mockResolvedValue(mockRequestRef),
     };
 
     const collectionMock = adminDb.collection as jest.Mock;
@@ -168,11 +168,7 @@ describe("POST /api/profiles/request-access", () => {
         return {
           doc: jest.fn().mockReturnValue({
             get: jest.fn().mockResolvedValue(mockResumeDoc),
-            collection: jest.fn().mockReturnValue({
-              where: jest.fn().mockReturnThis(),
-              get: jest.fn().mockResolvedValue(mockExistingRequests),
-              add: jest.fn().mockResolvedValue(mockRequestRef),
-            }),
+            collection: jest.fn().mockReturnValue(accessRequestsCollectionMock),
           }),
         };
       }
@@ -284,5 +280,100 @@ describe("POST /api/profiles/request-access", () => {
 
     expect(response.status).toBe(403);
     expect(data.error).toContain("Company name is required");
+  });
+
+  it("falls back to collection scan when Firestore index is missing", async () => {
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "recruiter-123",
+      error: null,
+    });
+
+    const mockUserDoc = {
+      exists: true,
+      data: () => ({
+        displayName: "Recruiter Name",
+        companyName: "Tech Corp",
+      }),
+    };
+
+    const mockResumeDoc = {
+      exists: true,
+      data: () => ({
+        userId: "candidate-456",
+      }),
+    };
+
+    const failedPreconditionError = new Error("Missing index");
+    (failedPreconditionError as any).code = 9;
+    failedPreconditionError.message = "FAILED_PRECONDITION: missing index";
+
+    const fallbackDocs = [
+      {
+        data: () => ({ status: "pending", fromUserId: "another-user" }),
+      },
+    ];
+
+    const whereGetMock = jest.fn().mockRejectedValue(failedPreconditionError);
+    const fallbackGetMock = jest.fn().mockResolvedValue({ docs: fallbackDocs });
+    const addMock = jest.fn().mockResolvedValue({ id: "request-999" });
+
+    const accessRequestsCollectionMock = {
+      where: jest.fn().mockReturnValue({ get: whereGetMock }),
+      get: fallbackGetMock,
+      add: addMock,
+    };
+
+    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+
+    const collectionMock = adminDb.collection as jest.Mock;
+    collectionMock.mockImplementation((collectionName) => {
+      if (collectionName === "users") {
+        return {
+          doc: jest.fn().mockReturnValue({
+            get: jest.fn().mockResolvedValue(mockUserDoc),
+          }),
+        };
+      }
+      if (collectionName === "resumes") {
+        return {
+          doc: jest.fn().mockReturnValue({
+            get: jest.fn().mockResolvedValue(mockResumeDoc),
+            collection: jest.fn().mockReturnValue(accessRequestsCollectionMock),
+          }),
+        };
+      }
+      if (
+        collectionName === "recruiterMetrics" ||
+        collectionName === "jobSeekerMetrics"
+      ) {
+        return {
+          doc: jest.fn().mockReturnValue({
+            set: jest.fn().mockResolvedValue(undefined),
+          }),
+        };
+      }
+      return { doc: jest.fn() };
+    });
+
+    const request = new NextRequest(
+      "http://localhost:3000/api/profiles/request-access",
+      {
+        method: "POST",
+        body: JSON.stringify(baseRequestBody),
+      }
+    );
+
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.success).toBe(true);
+    expect(fallbackGetMock).toHaveBeenCalled();
+    expect(addMock).toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Missing Firestore index")
+    );
+
+    warnSpy.mockRestore();
   });
 });
