@@ -31,30 +31,32 @@ describe("RecruiterSearchForm", () => {
   it("renders basic search mode by default", () => {
     render(<RecruiterSearchForm {...mockProps} />);
 
-    expect(screen.getByText("🔍 Basic (ID Search)")).toBeInTheDocument();
-    expect(screen.getByText("⭐ Premium (Advanced)")).toBeInTheDocument();
+    expect(screen.getByText("Basic Lookup")).toBeInTheDocument();
+    expect(screen.getByText("Premium Filters")).toBeInTheDocument();
     expect(
-      screen.getByPlaceholderText("Enter resume ID or user ID...")
+      screen.getByPlaceholderText("e.g., resume-447 or uid-9abc")
     ).toBeInTheDocument();
-    expect(screen.getByText("Search")).toBeInTheDocument();
+    expect(screen.getByText("Run Search")).toBeInTheDocument();
   });
 
   it("renders premium search mode when selected", () => {
     render(<RecruiterSearchForm {...mockProps} searchMode="premium" />);
 
-    expect(screen.getByText("🔍 Basic (ID Search)")).toBeInTheDocument();
-    expect(screen.getByText("⭐ Premium (Advanced)")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Add a skill...")).toBeInTheDocument();
+    expect(screen.getByText("Basic Lookup")).toBeInTheDocument();
+    expect(screen.getByText("Premium Filters")).toBeInTheDocument();
     expect(
-      screen.getByPlaceholderText("Enter location...")
+      screen.getByPlaceholderText("e.g., React, Python, AWS")
     ).toBeInTheDocument();
-    expect(screen.getByText("Search")).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText("City, region, or remote")
+    ).toBeInTheDocument();
+    expect(screen.getByText("Run Search")).toBeInTheDocument();
   });
 
   it("switches to basic mode when basic button is clicked", () => {
     render(<RecruiterSearchForm {...mockProps} searchMode="premium" />);
 
-    const basicButton = screen.getByText("🔍 Basic (ID Search)");
+    const basicButton = screen.getByRole("button", { name: /Basic Lookup/i });
     fireEvent.click(basicButton);
 
     expect(mockProps.setSearchMode).toHaveBeenCalledWith("basic");
@@ -65,7 +67,9 @@ describe("RecruiterSearchForm", () => {
   it("switches to premium mode when premium button is clicked", () => {
     render(<RecruiterSearchForm {...mockProps} />);
 
-    const premiumButton = screen.getByText("⭐ Premium (Advanced)");
+    const premiumButton = screen.getByRole("button", {
+      name: /Premium Filters/i,
+    });
     fireEvent.click(premiumButton);
 
     expect(mockProps.setSearchMode).toHaveBeenCalledWith("premium");
@@ -76,40 +80,35 @@ describe("RecruiterSearchForm", () => {
   it("applies correct styling to active basic mode button", () => {
     render(<RecruiterSearchForm {...mockProps} />);
 
-    const basicButton = screen.getByText("🔍 Basic (ID Search)");
-    expect(basicButton).toHaveClass(
-      "bg-amber-500/30",
-      "text-amber-300",
-      "border-amber-500/50"
-    );
+    const basicButton = screen.getByRole("button", { name: /Basic Lookup/i });
+    expect(basicButton).toHaveClass("border-amber-400/60", "bg-gradient-to-br");
   });
 
   it("applies correct styling to active premium mode button", () => {
     render(<RecruiterSearchForm {...mockProps} searchMode="premium" />);
 
-    const premiumButton = screen.getByText("⭐ Premium (Advanced)");
+    const premiumButton = screen.getByRole("button", {
+      name: /Premium Filters/i,
+    });
     expect(premiumButton).toHaveClass(
-      "bg-purple-500/30",
-      "text-purple-300",
-      "border-purple-500/50"
+      "border-purple-500/60",
+      "bg-gradient-to-br"
     );
   });
 
   it("applies correct styling to inactive mode buttons", () => {
     render(<RecruiterSearchForm {...mockProps} />);
 
-    const premiumButton = screen.getByText("⭐ Premium (Advanced)");
-    expect(premiumButton).toHaveClass(
-      "bg-white/10",
-      "text-slate-300",
-      "border-white/20"
-    );
+    const premiumButton = screen.getByRole("button", {
+      name: /Premium Filters/i,
+    });
+    expect(premiumButton).toHaveClass("bg-slate-900/40", "border-white/10");
   });
 
   it("updates userId when basic search input changes", () => {
     render(<RecruiterSearchForm {...mockProps} />);
 
-    const input = screen.getByPlaceholderText("Enter resume ID or user ID...");
+    const input = screen.getByPlaceholderText("e.g., resume-447 or uid-9abc");
     fireEvent.change(input, { target: { value: "test-user-123" } });
 
     expect(mockProps.setUserId).toHaveBeenCalledWith("test-user-123");
@@ -118,7 +117,7 @@ describe("RecruiterSearchForm", () => {
   it("calls onSearch when form is submitted in basic mode", async () => {
     render(<RecruiterSearchForm {...mockProps} />);
 
-    const submitButton = screen.getByText("Search");
+    const submitButton = screen.getByText("Run Search");
     fireEvent.click(submitButton);
 
     await waitFor(() => {
@@ -129,7 +128,7 @@ describe("RecruiterSearchForm", () => {
   it("updates location when premium search location input changes", () => {
     render(<RecruiterSearchForm {...mockProps} searchMode="premium" />);
 
-    const input = screen.getByPlaceholderText("Enter location...");
+    const input = screen.getByPlaceholderText("City, region, or remote");
     fireEvent.change(input, { target: { value: "San Francisco" } });
 
     expect(mockProps.setLocation).toHaveBeenCalledWith("San Francisco");
@@ -138,9 +137,9 @@ describe("RecruiterSearchForm", () => {
   it("adds skill when Enter key is pressed in skill input", () => {
     render(<RecruiterSearchForm {...mockProps} searchMode="premium" />);
 
-    const input = screen.getByPlaceholderText("Add a skill...");
+    const input = screen.getByPlaceholderText("e.g., React, Python, AWS");
     fireEvent.change(input, { target: { value: "React" } });
-    fireEvent.keyPress(input, { key: "Enter", code: "Enter", charCode: 13 });
+    fireEvent.keyDown(input, { key: "Enter", code: "Enter", charCode: 13 });
 
     expect(mockProps.onAddSkill).toHaveBeenCalledWith("React");
   });
@@ -148,10 +147,10 @@ describe("RecruiterSearchForm", () => {
   it("adds skill when Add button is clicked", () => {
     render(<RecruiterSearchForm {...mockProps} searchMode="premium" />);
 
-    const input = screen.getByPlaceholderText("Add a skill...");
+    const input = screen.getByPlaceholderText("e.g., React, Python, AWS");
     fireEvent.change(input, { target: { value: "TypeScript" } });
 
-    const addButton = screen.getByText("Add");
+    const addButton = screen.getByText("Add Skill");
     fireEvent.click(addButton);
 
     expect(mockProps.onAddSkill).toHaveBeenCalledWith("TypeScript");
@@ -160,10 +159,10 @@ describe("RecruiterSearchForm", () => {
   it("clears skill input after adding skill", () => {
     render(<RecruiterSearchForm {...mockProps} searchMode="premium" />);
 
-    const input = screen.getByPlaceholderText("Add a skill...");
+    const input = screen.getByPlaceholderText("e.g., React, Python, AWS");
     fireEvent.change(input, { target: { value: "JavaScript" } });
 
-    const addButton = screen.getByText("Add");
+    const addButton = screen.getByText("Add Skill");
     fireEvent.click(addButton);
 
     expect(input).toHaveValue("");
@@ -191,7 +190,7 @@ describe("RecruiterSearchForm", () => {
       />
     );
 
-    const removeButtons = screen.getAllByText("✕");
+    const removeButtons = screen.getAllByText("×");
     fireEvent.click(removeButtons[0]); // Remove first skill
 
     expect(mockProps.onRemoveSkill).toHaveBeenCalledWith(0);
@@ -200,7 +199,7 @@ describe("RecruiterSearchForm", () => {
   it("calls onSearch when form is submitted in premium mode", async () => {
     render(<RecruiterSearchForm {...mockProps} searchMode="premium" />);
 
-    const submitButton = screen.getByText("Search");
+    const submitButton = screen.getByText("Run Search");
     fireEvent.click(submitButton);
 
     await waitFor(() => {
@@ -217,7 +216,7 @@ describe("RecruiterSearchForm", () => {
   it("disables inputs when loading", () => {
     render(<RecruiterSearchForm {...mockProps} loading={true} />);
 
-    const input = screen.getByPlaceholderText("Enter resume ID or user ID...");
+    const input = screen.getByPlaceholderText("e.g., resume-447 or uid-9abc");
     expect(input).toBeDisabled();
   });
 
@@ -225,7 +224,7 @@ describe("RecruiterSearchForm", () => {
     render(<RecruiterSearchForm {...mockProps} loading={true} />);
 
     const button = screen.getByText("Searching...");
-    expect(button).toBeDisabled();
+    expect(button.closest("button")).toBeDisabled();
   });
 
   it("disables skill input when loading in premium mode", () => {
@@ -233,7 +232,7 @@ describe("RecruiterSearchForm", () => {
       <RecruiterSearchForm {...mockProps} searchMode="premium" loading={true} />
     );
 
-    const input = screen.getByPlaceholderText("Add a skill...");
+    const input = screen.getByPlaceholderText("e.g., React, Python, AWS");
     expect(input).toBeDisabled();
   });
 
@@ -242,7 +241,7 @@ describe("RecruiterSearchForm", () => {
       <RecruiterSearchForm {...mockProps} searchMode="premium" loading={true} />
     );
 
-    const input = screen.getByPlaceholderText("Enter location...");
+    const input = screen.getByPlaceholderText("City, region, or remote");
     expect(input).toBeDisabled();
   });
 
@@ -251,36 +250,44 @@ describe("RecruiterSearchForm", () => {
       <RecruiterSearchForm {...mockProps} searchMode="premium" loading={true} />
     );
 
-    const addButton = screen.getByText("Add");
+    const addButton = screen.getByText("Add Skill");
     expect(addButton).toBeDisabled();
   });
 
   it("shows basic search help text", () => {
     render(<RecruiterSearchForm {...mockProps} />);
 
-    expect(screen.getByText(/💡 Enter the resume ID/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Use Basic mode when you already have a unique candidate ID from your pipeline/
+      )
+    ).toBeInTheDocument();
   });
 
   it("shows premium search help text", () => {
     render(<RecruiterSearchForm {...mockProps} searchMode="premium" />);
 
     expect(
-      screen.getByText(/💡 Search by skills, location/)
+      screen.getByText(
+        /Combine skills and location to surface up to 50 curated resumes/
+      )
     ).toBeInTheDocument();
   });
 
   it("applies hover effects to mode buttons", () => {
     render(<RecruiterSearchForm {...mockProps} />);
 
-    const premiumButton = screen.getByText("⭐ Premium (Advanced)");
-    expect(premiumButton).toHaveClass("hover:bg-white/15");
+    const premiumButton = screen.getByRole("button", {
+      name: /Premium Filters/i,
+    });
+    expect(premiumButton).toHaveClass("hover:bg-slate-900/60");
   });
 
   it("applies hover and scale effects to search button", () => {
     render(<RecruiterSearchForm {...mockProps} />);
 
-    const searchButton = screen.getByText("Search");
-    expect(searchButton).toHaveClass("hover:scale-105");
+    const searchButton = screen.getByText("Run Search");
+    expect(searchButton.closest("button")).toHaveClass("hover:shadow-2xl");
   });
 
   it("renders skill tags with correct styling", () => {
@@ -294,8 +301,8 @@ describe("RecruiterSearchForm", () => {
 
     const skillTag = screen.getByText("React").closest("span");
     expect(skillTag).toHaveClass(
-      "bg-purple-500/20",
-      "text-purple-300",
+      "bg-gradient-to-r",
+      "text-purple-100",
       "rounded-full"
     );
   });
@@ -309,13 +316,13 @@ describe("RecruiterSearchForm", () => {
       />
     );
 
-    expect(screen.getByText("✕")).toBeInTheDocument();
+    expect(screen.getByText("×")).toBeInTheDocument();
   });
 
   it("handles empty skill input gracefully", () => {
     render(<RecruiterSearchForm {...mockProps} searchMode="premium" />);
 
-    const addButton = screen.getByText("Add");
+    const addButton = screen.getByText("Add Skill");
     fireEvent.click(addButton);
 
     expect(mockProps.onAddSkill).toHaveBeenCalledWith("");
@@ -324,8 +331,8 @@ describe("RecruiterSearchForm", () => {
   it("prevents form submission when Enter is pressed in skill input", () => {
     render(<RecruiterSearchForm {...mockProps} searchMode="premium" />);
 
-    const input = screen.getByPlaceholderText("Add a skill...");
-    fireEvent.keyPress(input, { key: "Enter", code: "Enter", charCode: 13 });
+    const input = screen.getByPlaceholderText("e.g., React, Python, AWS");
+    fireEvent.keyDown(input, { key: "Enter", code: "Enter", charCode: 13 });
 
     expect(mockProps.onSearch).not.toHaveBeenCalled();
   });

@@ -45,12 +45,12 @@ export function AccessRequestsCard() {
       );
       if (response.ok) {
         const data = await response.json();
-        const requests = data.accessRequests || {
-          pending: 0,
-          approved: 0,
-          denied: 0,
-        };
-        setMetrics(requests);
+        const requests = data.accessRequests || {};
+        setMetrics({
+          pending: requests.pending || 0,
+          approved: requests.approved || 0,
+          denied: requests.denied || 0,
+        });
       }
     } catch (error) {
       console.error("Failed to fetch access requests:", error);

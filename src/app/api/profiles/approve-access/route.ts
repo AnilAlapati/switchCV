@@ -78,6 +78,22 @@ export async function POST(request: NextRequest) {
       approvedAt: FieldValue.serverTimestamp(),
     });
 
+    // Update recruiter metrics
+    if (fromUserId) {
+      const metricsRef = adminDb.collection("recruiterMetrics").doc(fromUserId);
+      await metricsRef
+        .set(
+          {
+            "accessRequests.pending": FieldValue.increment(-1),
+            "accessRequests.approved": FieldValue.increment(1),
+          },
+          { merge: true }
+        )
+        .catch((err) => {
+          console.error("Failed to update recruiter metrics:", err);
+        });
+    }
+
     // 3. Create access grant
     const expiresAt = calculateExpiryDate(duration);
 

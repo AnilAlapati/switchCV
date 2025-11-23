@@ -42,7 +42,8 @@ export async function POST(request: NextRequest) {
     const currentUserName = userData?.displayName || "Unknown User";
 
     // Enforce mandatory company name for recruiters
-    if (!userData?.company || userData.company.trim() === "") {
+    const companyName = userData?.companyName || userData?.company;
+    if (!companyName || companyName.trim() === "") {
       return handleApiError(
         null,
         "Company name is required to request access. Please update your profile settings.",
@@ -95,6 +96,21 @@ export async function POST(request: NextRequest) {
       .add(accessRequest);
 
     console.log(`📨 Access request created: ${requestRef.id}`);
+
+    // Update recruiter metrics
+    await adminDb
+      .collection("recruiterMetrics")
+      .doc(currentUserId)
+      .set(
+        {
+          accessRequests: {
+            pending: FieldValue.increment(1),
+          },
+          totalCandidatesInteracted: FieldValue.increment(1),
+          lastActivityAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
 
     await createNotification(
       NotificationType.ACCESS_REQUEST,

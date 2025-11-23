@@ -104,6 +104,7 @@ describe("POST /api/recruiter/search-resumes", () => {
       mockAdminDb.collection.mockReturnValue({
         doc: jest.fn(() => ({
           get: jest.fn().mockResolvedValue(recruiterDoc),
+          set: jest.fn().mockResolvedValue(undefined),
         })),
       } as any);
 
@@ -163,6 +164,12 @@ describe("POST /api/recruiter/search-resumes", () => {
           return {
             doc: jest.fn(() => ({
               get: jest.fn().mockResolvedValue(resumeDoc),
+            })),
+          } as any;
+        } else if (collectionName === "recruiterMetrics") {
+          return {
+            doc: jest.fn(() => ({
+              set: jest.fn().mockResolvedValue(undefined),
             })),
           } as any;
         }
@@ -226,6 +233,12 @@ describe("POST /api/recruiter/search-resumes", () => {
               get: jest.fn().mockResolvedValue(resumeDoc),
             })),
           } as any;
+        } else if (collectionName === "recruiterMetrics") {
+          return {
+            doc: jest.fn(() => ({
+              set: jest.fn().mockResolvedValue(undefined),
+            })),
+          } as any;
         }
         return {} as any;
       });
@@ -287,6 +300,12 @@ describe("POST /api/recruiter/search-resumes", () => {
           return {
             doc: jest.fn(() => ({
               get: jest.fn().mockResolvedValue(resumeDoc),
+            })),
+          } as any;
+        } else if (collectionName === "recruiterMetrics") {
+          return {
+            doc: jest.fn(() => ({
+              set: jest.fn().mockResolvedValue(undefined),
             })),
           } as any;
         }
@@ -367,6 +386,12 @@ describe("POST /api/recruiter/search-resumes", () => {
               })),
             } as any;
           }
+        } else if (collectionName === "recruiterMetrics") {
+          return {
+            doc: jest.fn(() => ({
+              set: jest.fn().mockResolvedValue(undefined),
+            })),
+          } as any;
         }
         return {} as any;
       });
@@ -417,6 +442,12 @@ describe("POST /api/recruiter/search-resumes", () => {
               })),
             })),
           } as any;
+        } else if (collectionName === "recruiterMetrics") {
+          return {
+            doc: jest.fn(() => ({
+              set: jest.fn().mockResolvedValue(undefined),
+            })),
+          } as any;
         }
         return {} as any;
       });
@@ -452,6 +483,7 @@ describe("POST /api/recruiter/search-resumes", () => {
       mockAdminDb.collection.mockReturnValue({
         doc: jest.fn(() => ({
           get: jest.fn().mockResolvedValue(recruiterDoc),
+          set: jest.fn().mockResolvedValue(undefined),
         })),
       } as any);
 
@@ -516,6 +548,12 @@ describe("POST /api/recruiter/search-resumes", () => {
               get: jest
                 .fn()
                 .mockResolvedValue(createMockQuerySnapshot([resumeDoc])),
+            })),
+          } as any;
+        } else if (collectionName === "recruiterMetrics") {
+          return {
+            doc: jest.fn(() => ({
+              set: jest.fn().mockResolvedValue(undefined),
             })),
           } as any;
         }
@@ -586,6 +624,12 @@ describe("POST /api/recruiter/search-resumes", () => {
               get: jest
                 .fn()
                 .mockResolvedValue(createMockQuerySnapshot([resumeDoc])),
+            })),
+          } as any;
+        } else if (collectionName === "recruiterMetrics") {
+          return {
+            doc: jest.fn(() => ({
+              set: jest.fn().mockResolvedValue(undefined),
             })),
           } as any;
         }
@@ -662,6 +706,12 @@ describe("POST /api/recruiter/search-resumes", () => {
                 .mockResolvedValue(createMockQuerySnapshot(resumeDocs)),
             })),
           } as any;
+        } else if (collectionName === "recruiterMetrics") {
+          return {
+            doc: jest.fn(() => ({
+              set: jest.fn().mockResolvedValue(undefined),
+            })),
+          } as any;
         }
         return {} as any;
       });
@@ -686,18 +736,17 @@ describe("POST /api/recruiter/search-resumes", () => {
     });
   });
 
-  it("should return 400 for invalid subscription tier", async () => {
-    const recruiterDoc = createMockDocSnapshot(true, {
-      subscriptionTier: "invalid",
-    });
+    it("should return 400 for invalid subscription tier", async () => {
+      const recruiterDoc = createMockDocSnapshot(true, {
+        subscriptionTier: "invalid",
+      });
 
-    mockAdminDb.collection.mockReturnValue({
-      doc: jest.fn(() => ({
-        get: jest.fn().mockResolvedValue(recruiterDoc),
-      })),
-    } as any);
-
-    const request = new NextRequest(
+      mockAdminDb.collection.mockReturnValue({
+        doc: jest.fn(() => ({
+          get: jest.fn().mockResolvedValue(recruiterDoc),
+          set: jest.fn().mockResolvedValue(undefined),
+        })),
+      } as any);    const request = new NextRequest(
       "http://localhost:3000/api/recruiter/search-resumes",
       {
         method: "POST",

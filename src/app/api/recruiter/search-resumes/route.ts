@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { handleApiError } from "@/lib/utils/api-helpers";
 import { performBasicSearch, performPremiumSearch } from "./search-service";
+import { FieldValue } from "firebase-admin/firestore";
 
 interface SearchRequest {
   recruiterId: string;
@@ -31,6 +32,19 @@ export async function POST(request: NextRequest) {
 
     const recruiterData = recruiterDoc.data();
     const subscriptionTier = recruiterData?.subscriptionTier || "basic";
+
+    // Update recruiter metrics
+    await adminDb
+      .collection("recruiterMetrics")
+      .doc(recruiterId)
+      .set(
+        {
+          totalSearches: FieldValue.increment(1),
+          lastActivityAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      )
+      .catch((err) => console.error("Failed to update search metrics:", err));
 
     // BASIC TIER: Search by user ID only, max 1 result
     if (subscriptionTier === "basic") {
