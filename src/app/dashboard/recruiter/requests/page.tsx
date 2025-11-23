@@ -1,37 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { DashboardBackground } from "@/components/dashboard/DashboardBackground";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DeleteRequestDialog } from "@/components/dashboard/recruiter/DeleteRequestDialog";
 import { RequestAccessDialog } from "@/components/RequestAccessDialog";
-import {
-  deriveTimeState,
-  formatDateTime,
-} from "@/lib/recruiterRequests/timeUtils";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { deriveTimeState } from "@/lib/recruiterRequests/timeUtils";
+import { RequestCard } from "./RequestCard";
+import type { DecoratedRequest, RecruiterRequest } from "./types";
 
-interface RecruiterRequest {
-  id: string;
-  candidateName: string;
-  resumeTitle: string;
-  resumeId: string;
-  message: string;
-  timestamp: string;
-  status: "pending" | "approved" | "denied";
-  approvedAt?: string | null;
-  expiresAt?: string | null;
-  grantedDuration?: {
-    label?: string;
-    durationMs?: number;
-  } | null;
-  isExpired?: boolean;
-  timeRemainingMs?: number | null;
-}
+type TabKey = "pending" | "active" | "history";
 
 export default function RecruiterRequestsPage() {
   const { user, logout } = useAuth();
+  const router = useRouter();
   const [requests, setRequests] = useState<RecruiterRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +26,17 @@ export default function RecruiterRequestsPage() {
   const [now, setNow] = useState(() => Date.now());
   const [reRequestTarget, setReRequestTarget] =
     useState<RecruiterRequest | null>(null);
+  const [activeTab, setActiveTab] = useState<TabKey>("pending");
+
+  const handleLogout = useCallback(async () => {
+    try {
+      await logout();
+      router.replace("/auth");
+      router.refresh();
+    } catch (error) {
+      console.error("Failed to log out", error);
+    }
+  }, [logout, router]);
 
   useEffect(() => {
     if (!user) return;
@@ -127,16 +123,65 @@ export default function RecruiterRequestsPage() {
     fetchRequests();
   };
 
-  const sortedRequests = useMemo(() => {
-    return [...requests].sort(
-      (a, b) =>
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-    );
-  }, [requests]);
+  const decoratedRequests = useMemo<DecoratedRequest[]>(() => {
+    return [...requests]
+      .sort(
+        (a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      )
+      .map((request) => ({
+        ...request,
+        timeState: deriveTimeState(
+          {
+            expiresAt: request.expiresAt,
+            timeRemainingMs: request.timeRemainingMs,
+          },
+          now
+        ),
+      }));
+  }, [requests, now]);
+
+  const pendingRequests = decoratedRequests.filter(
+    (request) => request.status === "pending"
+  );
+  const activeRequests = decoratedRequests.filter(
+    (request) => request.status === "approved" && !request.timeState.expired
+  );
+  const historyRequests = decoratedRequests.filter((request) => {
+    if (request.status === "denied") return true;
+    return request.status === "approved" && request.timeState.expired;
+  });
+
+  const displayedRequests = useMemo(() => {
+    switch (activeTab) {
+      case "active":
+        return activeRequests;
+      case "history":
+        return historyRequests;
+      default:
+        return pendingRequests;
+    }
+  }, [activeTab, pendingRequests, activeRequests, historyRequests]);
+
+  const tabConfig: Array<{ key: TabKey; label: string; count: number }> = [
+    { key: "pending", label: "Pending", count: pendingRequests.length },
+    { key: "active", label: "Active", count: activeRequests.length },
+    { key: "history", label: "History", count: historyRequests.length },
+  ];
+
+  const emptyStateMessage = useMemo(() => {
+    if (activeTab === "pending") {
+      return "No pending access requests.";
+    }
+    if (activeTab === "active") {
+      return "You have no active access grants.";
+    }
+    return "No request history yet.";
+  }, [activeTab]);
 
   return (
     <DashboardBackground>
-      <DashboardHeader userEmail={user?.email} onLogout={logout} />
+      <DashboardHeader userEmail={user?.email} onLogout={handleLogout} />
       <main className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-white">My Access Requests</h1>
@@ -159,120 +204,39 @@ export default function RecruiterRequestsPage() {
             You haven't sent any access requests yet.
           </div>
         ) : (
-          <div className="grid gap-4">
-            {sortedRequests.map((request) => {
-              const timeState = deriveTimeState(
-                {
-                  expiresAt: request.expiresAt,
-                  timeRemainingMs: request.timeRemainingMs,
-                },
-                now
-              );
-              const isApproved = request.status === "approved";
-              const accessExpired = isApproved && timeState.expired;
-              const hasActiveAccess = isApproved && !accessExpired;
-
-              return (
-                <div
-                  key={request.id}
-                  className="rounded-2xl border border-white/5 bg-gradient-to-br from-slate-900/70 via-slate-900/40 to-slate-950/60 p-6 shadow-xl shadow-slate-950/40"
+          <div className="space-y-4">
+            <div className="flex space-x-4 border-b border-slate-800">
+              {tabConfig.map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`pb-2 px-4 text-sm font-medium transition-colors ${
+                    activeTab === tab.key
+                      ? "text-cyan-400 border-b-2 border-cyan-400"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
                 >
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <h3 className="text-lg font-semibold text-white">
-                        Request to{" "}
-                        <span className="text-cyan-400">
-                          {request.candidateName}
-                        </span>
-                      </h3>
-                      <p className="text-sm text-slate-300">
-                        Resume: {request.resumeTitle}
-                      </p>
-                      {request.message && (
-                        <p className="text-slate-400 mt-1 text-sm italic">
-                          "{request.message}"
-                        </p>
-                      )}
-                      <p className="text-xs text-slate-500 mt-2">
-                        Sent on {formatDateTime(request.timestamp)}
-                      </p>
+                  {`${tab.label} (${tab.count})`}
+                </button>
+              ))}
+            </div>
 
-                      {isApproved && (
-                        <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-slate-200">
-                          {accessExpired ? (
-                            <p className="font-medium text-red-300">
-                              Access expired. Request access again to view this
-                              resume.
-                            </p>
-                          ) : (
-                            <p className="font-medium text-cyan-200">
-                              Time left: {timeState.label}
-                            </p>
-                          )}
-                          <p className="text-xs text-slate-400 mt-1">
-                            {accessExpired
-                              ? "The previous approval period ended."
-                              : `Expires ${formatDateTime(request.expiresAt)}`}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span
-                        className={`px-3 py-1 text-xs font-bold rounded uppercase tracking-wide ${
-                          request.status === "approved"
-                            ? "bg-green-500/20 text-green-300"
-                            : request.status === "denied"
-                            ? "bg-red-500/20 text-red-300"
-                            : "bg-yellow-500/20 text-yellow-300"
-                        }`}
-                      >
-                        {request.status}
-                      </span>
-
-                      {hasActiveAccess && (
-                        <Link
-                          href={`/resumes/${request.resumeId}`}
-                          className="px-4 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-200 rounded-lg transition-colors font-medium text-sm"
-                        >
-                          View Resume
-                        </Link>
-                      )}
-
-                      {accessExpired && (
-                        <button
-                          onClick={() => handleReRequestClick(request)}
-                          className="px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 rounded-lg transition-colors font-medium text-sm"
-                        >
-                          Request Again
-                        </button>
-                      )}
-
-                      <button
-                        onClick={() => handleDeleteClick(request)}
-                        className="text-slate-500 hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-red-500/10"
-                        title="Delete Request"
-                      >
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {displayedRequests.length === 0 ? (
+              <div className="text-center text-slate-400 bg-slate-900/50 p-8 rounded-xl border border-slate-800">
+                {emptyStateMessage}
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {displayedRequests.map((request) => (
+                  <RequestCard
+                    key={request.id}
+                    request={request}
+                    onDelete={handleDeleteClick}
+                    onReRequest={handleReRequestClick}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 

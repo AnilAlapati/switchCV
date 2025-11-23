@@ -135,4 +135,52 @@ describe("RecruiterRequestsPage - Delete Functionality", () => {
     // Check if request is still in UI
     expect(screen.getByText("John Doe")).toBeInTheDocument();
   });
+
+  it("organizes approved requests under the Active tab", async () => {
+    const pendingRequest = {
+      id: "req-1",
+      candidateName: "Pending Person",
+      resumeTitle: "Backend Dev",
+      resumeId: "resume-1",
+      message: "Pending message",
+      timestamp: new Date().toISOString(),
+      status: "pending",
+    };
+
+    const approvedRequest = {
+      id: "req-2",
+      candidateName: "Approved Recruit",
+      resumeTitle: "Data Scientist",
+      resumeId: "resume-2",
+      message: "Approved message",
+      timestamp: new Date().toISOString(),
+      status: "approved" as const,
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      timeRemainingMs: 60 * 60 * 1000,
+    };
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ requests: [pendingRequest, approvedRequest] }),
+    });
+
+    render(<RecruiterRequestsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Pending Person")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText("Approved Recruit")).not.toBeInTheDocument();
+
+    const activeTabButton = screen.getByRole("button", {
+      name: "Active (1)",
+    });
+    fireEvent.click(activeTabButton);
+
+    await waitFor(() => {
+      expect(screen.getByText("Approved Recruit")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText("Pending Person")).not.toBeInTheDocument();
+  });
 });

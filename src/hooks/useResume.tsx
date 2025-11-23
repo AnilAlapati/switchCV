@@ -22,6 +22,8 @@ export const useResume = () => {
   useEffect(() => {
     const fetchUserResume = async () => {
       if (!user) {
+        setResume(null);
+        setError(null);
         setLoading(false);
         return;
       }

@@ -33,6 +33,8 @@ interface TemplateRendererProps {
   };
 }
 
+const CONTACT_FULL_VIEW_SCOPES = new Set(["admin-view", "full"]);
+
 interface ContactDisplay {
   label: string;
   href?: string;
@@ -58,7 +60,10 @@ export const TemplateRenderer: React.FC<TemplateRendererProps> = ({
   const personalInfo = data.personalInfo || {};
   const viewerAccess = (data.viewerAccess as ViewerAccessMeta) ?? {};
   const allowsFullContact =
-    viewerAccess.isOwner === true || viewerAccess.scope === "admin-view";
+    viewerAccess.isOwner === true ||
+    (viewerAccess.scope
+      ? CONTACT_FULL_VIEW_SCOPES.has(viewerAccess.scope)
+      : false);
   const isMaskedView = viewerAccess.isMasked === true;
 
   // Determine contact presentation for the current viewer

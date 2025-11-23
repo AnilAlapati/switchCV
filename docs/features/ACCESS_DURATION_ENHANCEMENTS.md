@@ -23,6 +23,13 @@ This document captures the recruiter access-duration workflow improvements deliv
 - Resume fetch endpoint now checks `expiresAt` on both requests and grants before returning private data.
 - Notifications embed duration details so recruiters know how long their access lasts.
 
+## Access View States
+
+- Public viewers (anonymous or unauthorised accounts) continue to receive the sanitized "snapshot" payload with masked contact details and empty body sections.
+- Approved recruiters inherit the new `viewerAccess.scope = "full"` metadata, which renders the same unmasked contact fields the owner sees while keeping edit controls disabled.
+- Admins share the same unmasked presentation via `viewerAccess.scope = "admin-view"`, ensuring a single rendering path for all privileged viewers.
+- Revoked or expired grants automatically fall back to the masked snapshot without requiring client refresh logic, because the API flips `viewerAccess.isMasked` back to `true` at fetch time.
+
 ## Testing + Validation
 
 - Added Jest coverage for duration metadata persistence, approval guardrails, and UI submission paths.

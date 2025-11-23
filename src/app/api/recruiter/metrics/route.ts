@@ -11,90 +11,60 @@ export async function GET(request: NextRequest) {
       return handleApiError(null, "userId is required", 400);
     }
 
-    // Get recruiter metrics from Firestore
-    const metricsDoc = await adminDb
-      .collection("recruiterMetrics")
-      .doc(userId)
+    // Always compute access requests from source of truth (collectionGroup query)
+    const requestsSnapshot = await adminDb
+      .collectionGroup("accessRequests")
+      .where("fromUserId", "==", userId)
       .get();
 
-    let metrics = metricsDoc.exists ? metricsDoc.data() : null;
-
-    // If metrics don't exist or access requests are all zero, try to recalculate
-    const accessRequests = metrics?.accessRequests || {
+    const accessRequests = {
       pending: 0,
       approved: 0,
       denied: 0,
     };
 
-    const allZeros =
-      accessRequests.pending === 0 &&
-      accessRequests.approved === 0 &&
-      accessRequests.denied === 0;
+    const now = Date.now();
 
-    if (!metrics || allZeros) {
-      try {
-        // Recalculate access requests from source of truth
-        const requestsSnapshot = await adminDb
-          .collectionGroup("accessRequests")
-          .where("fromUserId", "==", userId)
-          .get();
+    requestsSnapshot.forEach((doc) => {
+      const data = doc.data();
+      const status = data.status as "pending" | "approved" | "denied";
 
-        const calculatedRequests = {
-          pending: 0,
-          approved: 0,
-          denied: 0,
-        };
+      // For approved requests, check if they're expired
+      if (status === "approved" && data.expiresAt) {
+        try {
+          const expiresAtMs = data.expiresAt.toDate
+            ? data.expiresAt.toDate().getTime()
+            : new Date(data.expiresAt).getTime();
 
-        requestsSnapshot.forEach((doc) => {
-          const status = doc.data().status as "pending" | "approved" | "denied";
-          if (calculatedRequests[status] !== undefined) {
-            calculatedRequests[status]++;
+          // If expired, don't count it
+          if (expiresAtMs <= now) {
+            return;
           }
-        });
-
-        // Update metrics with calculated values
-        await adminDb
-          .collection("recruiterMetrics")
-          .doc(userId)
-          .set(
-            {
-              accessRequests: calculatedRequests,
-              // Preserve other metrics if they exist, otherwise init to 0
-              totalSearches: metrics?.totalSearches || 0,
-              totalProfileViews: metrics?.totalProfileViews || 0,
-              totalCandidatesInteracted:
-                metrics?.totalCandidatesInteracted || 0,
-            },
-            { merge: true }
-          );
-
-        // Use calculated values
-        metrics = {
-          ...metrics,
-          accessRequests: calculatedRequests,
-        };
-      } catch (calcError) {
-        console.error("Failed to recalculate metrics:", calcError);
-        // Fallback to default if calculation fails (e.g. missing index)
+        } catch (e) {
+          console.warn("Failed to parse expiresAt:", e);
+        }
       }
-    }
 
-    if (!metrics) {
-      // Return default metrics if still not found
-      return NextResponse.json({
-        totalSearches: 0,
-        totalProfileViews: 0,
-        accessRequests: {
-          pending: 0,
-          approved: 0,
-          denied: 0,
-        },
-        totalCandidatesInteracted: 0,
-        lastActivityAt: null,
-      });
-    }
+      if (accessRequests[status] !== undefined) {
+        accessRequests[status]++;
+      }
+    });
 
-    return NextResponse.json(metrics);
+    // Get other metrics from recruiterMetrics collection (preserved for backward compatibility)
+    const metricsDoc = await adminDb
+      .collection("recruiterMetrics")
+      .doc(userId)
+      .get();
+
+    const metrics = metricsDoc.exists ? metricsDoc.data() : {};
+
+    return NextResponse.json({
+      totalSearches: metrics?.totalSearches || 0,
+      totalProfileViews: metrics?.totalProfileViews || 0,
+      accessRequests, // Always use computed values
+      totalCandidatesInteracted: metrics?.totalCandidatesInteracted || 0,
+      lastActivityAt: metrics?.lastActivityAt || null,
+    });
   } catch (error) {
     return handleApiError(error, "Failed to fetch recruiter metrics");
   }

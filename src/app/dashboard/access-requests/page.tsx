@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { DashboardBackground } from "@/components/dashboard/DashboardBackground";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
@@ -9,9 +9,13 @@ import { MAX_CUSTOM_DAYS } from "@/lib/accessDuration";
 import type { DurationPreset } from "@/lib/accessDuration";
 import type { DashboardAccessRequest, DurationFormState } from "./types";
 import { buildDefaultDurationState, validateDuration } from "./durationHelpers";
+import { useRouter } from "next/navigation";
+import { useOptionalDashboardMetricsContext } from "@/context/DashboardMetricsContext";
 
 export default function AccessRequestsPage() {
   const { user, logout } = useAuth();
+  const router = useRouter();
+  const metricsContext = useOptionalDashboardMetricsContext();
   const [requests, setRequests] = useState<DashboardAccessRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +27,16 @@ export default function AccessRequestsPage() {
     () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
     []
   );
+
+  const handleLogout = useCallback(async () => {
+    try {
+      await logout();
+      router.replace("/auth");
+      router.refresh();
+    } catch (error) {
+      console.error("Failed to log out", error);
+    }
+  }, [logout, router]);
 
   useEffect(() => {
     if (!user) return;
@@ -105,6 +119,10 @@ export default function AccessRequestsPage() {
         }),
       });
       fetchRequests(); // Refresh list
+      // Refresh dashboard metrics if available
+      if (metricsContext?.refreshJobSeekerMetrics) {
+        await metricsContext.refreshJobSeekerMetrics();
+      }
     } catch (error) {
       console.error("Failed to respond", error);
     }
@@ -146,6 +164,10 @@ export default function AccessRequestsPage() {
         }),
       });
       fetchRequests();
+      // Refresh dashboard metrics if available
+      if (metricsContext?.refreshJobSeekerMetrics) {
+        await metricsContext.refreshJobSeekerMetrics();
+      }
     } catch (error) {
       console.error("Failed to approve", error);
     }
@@ -172,7 +194,7 @@ export default function AccessRequestsPage() {
 
   return (
     <DashboardBackground>
-      <DashboardHeader userEmail={user?.email} onLogout={logout} />
+      <DashboardHeader userEmail={user?.email} onLogout={handleLogout} />
       <main className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-bold text-white mb-8">Access Requests</h1>
 

@@ -3,7 +3,6 @@ import { POST } from "./route";
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 import { adminDb } from "@/lib/firebase-admin";
 import { createNotification } from "@/lib/notificationService";
-import { FieldValue } from "firebase-admin/firestore";
 
 // Mock dependencies
 jest.mock("@/lib/utils/api-helpers", () => ({
@@ -37,7 +36,6 @@ describe("POST /api/profiles/respond-access", () => {
   const mockGetAuthenticatedUserId = getAuthenticatedUserId as jest.Mock;
   const mockCollection = adminDb.collection as jest.Mock;
   const mockCreateNotification = createNotification as jest.Mock;
-  const mockIncrement = FieldValue.increment as jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -272,7 +270,6 @@ describe("POST /api/profiles/respond-access", () => {
       })
     );
     expect(mockCreateNotification).toHaveBeenCalled();
-    expect(mockIncrement).toHaveBeenCalled();
   });
 
   it("should reject approvals longer than requested", async () => {

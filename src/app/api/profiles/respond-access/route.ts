@@ -135,38 +135,6 @@ export async function POST(request: NextRequest) {
         });
     }
 
-    // Update recruiter metrics
-    if (requestData?.fromUserId) {
-      const metricsRef = adminDb
-        .collection("recruiterMetrics")
-        .doc(requestData.fromUserId);
-
-      const updates: Record<string, any> = {
-        "accessRequests.pending": FieldValue.increment(-1),
-      };
-
-      if (status === "approved") {
-        updates["accessRequests.approved"] = FieldValue.increment(1);
-      } else {
-        updates["accessRequests.denied"] = FieldValue.increment(1);
-      }
-
-      await metricsRef.set(updates, { merge: true }).catch((err) => {
-        console.error("Failed to update recruiter metrics:", err);
-      });
-    }
-
-    // Update job seeker metrics (decrement pending count)
-    await adminDb
-      .collection("jobSeekerMetrics")
-      .doc(userId)
-      .set(
-        {
-          contactRequests: FieldValue.increment(-1),
-        },
-        { merge: true }
-      );
-
     // Notify Recruiter
     const resumeTitle = resumeDoc.data()?.title || "resume";
 

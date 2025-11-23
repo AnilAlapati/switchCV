@@ -142,21 +142,6 @@ export async function POST(request: NextRequest) {
 
     console.log(`📨 Access request created: ${requestRef.id}`);
 
-    // Update recruiter metrics
-    await adminDb
-      .collection("recruiterMetrics")
-      .doc(currentUserId)
-      .set(
-        {
-          accessRequests: {
-            pending: FieldValue.increment(1),
-          },
-          totalCandidatesInteracted: FieldValue.increment(1),
-          lastActivityAt: FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
-
     // Update job seeker metrics
     await adminDb
       .collection("jobSeekerMetrics")
