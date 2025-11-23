@@ -19,18 +19,37 @@ const mockCollection = adminDb.collection as jest.MockedFunction<
 >;
 const mockDoc = jest.fn();
 const mockGet = jest.fn();
+const mockWhere = jest.fn();
+const mockCount = jest.fn();
+const mockQueryGet = jest.fn();
 
 mockCollection.mockReturnValue({
   doc: mockDoc,
+  where: mockWhere,
 } as any);
 
 mockDoc.mockReturnValue({
   get: mockGet,
+  set: jest.fn(),
+} as any);
+
+mockWhere.mockReturnValue({
+  get: mockQueryGet,
+  count: mockCount,
+} as any);
+
+mockCount.mockReturnValue({
+  get: jest.fn().mockResolvedValue({ data: () => ({ count: 0 }) }),
 } as any);
 
 describe("GET /api/jobseeker/metrics", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Default query response (empty)
+    mockQueryGet.mockResolvedValue({
+      empty: true,
+      docs: [],
+    });
   });
 
   it("should return metrics for valid userId", async () => {

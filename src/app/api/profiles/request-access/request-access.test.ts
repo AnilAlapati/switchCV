@@ -55,7 +55,10 @@ const buildRequest = (
 
 const mockQuerySnapshot = (docs: any[]) => ({
   empty: docs.length === 0,
-  docs,
+  docs: docs.map((doc) => ({
+    ...doc,
+    data: () => doc,
+  })),
 });
 
 let userDocRef: any;
@@ -108,6 +111,7 @@ const setupFirestoreMocks = () => {
       case "notifications":
         return { doc: jest.fn(() => notificationsDocRef) };
       case "recruiterMetrics":
+      case "jobSeekerMetrics":
         return {
           doc: jest.fn(() => ({
             set: jest.fn().mockResolvedValue(undefined),
@@ -196,7 +200,7 @@ describe("POST /api/profiles/request-access", () => {
 
   it("should return 409 if pending request already exists", async () => {
     accessRequestsCollection.get.mockResolvedValue(
-      mockQuerySnapshot([{ id: "existing" }])
+      mockQuerySnapshot([{ id: "existing", status: "pending" }])
     );
 
     const response = await POST(buildRequest({ resumeId: "resume-1" }));

@@ -55,7 +55,8 @@ describe("POST /api/profiles/request-access", () => {
 
     const mockExistingRequests = {
       empty: true,
-      get: jest.fn().mockResolvedValue({ empty: true }),
+      docs: [],
+      get: jest.fn().mockResolvedValue({ empty: true, docs: [] }),
     };
 
     const mockRequestRef = {
@@ -83,7 +84,7 @@ describe("POST /api/profiles/request-access", () => {
           }),
         };
       }
-      if (collectionName === "recruiterMetrics") {
+      if (collectionName === "recruiterMetrics" || collectionName === "jobSeekerMetrics") {
         return {
           doc: jest.fn().mockReturnValue({
             set: jest.fn().mockResolvedValue(undefined),
@@ -135,7 +136,8 @@ describe("POST /api/profiles/request-access", () => {
 
     const mockExistingRequests = {
       empty: true,
-      get: jest.fn().mockResolvedValue({ empty: true }),
+      docs: [],
+      get: jest.fn().mockResolvedValue({ empty: true, docs: [] }),
     };
 
     const mockRequestRef = {
@@ -163,7 +165,7 @@ describe("POST /api/profiles/request-access", () => {
           }),
         };
       }
-      if (collectionName === "recruiterMetrics") {
+      if (collectionName === "recruiterMetrics" || collectionName === "jobSeekerMetrics") {
         return {
           doc: jest.fn().mockReturnValue({
             set: jest.fn().mockResolvedValue(undefined),

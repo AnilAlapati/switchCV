@@ -3,7 +3,6 @@ import { adminDb } from "@/lib/firebase-admin";
 import { sanitizeResumePayload } from "@/lib/utils/resumeEditor";
 import { FieldValue } from "firebase-admin/firestore";
 import {
-  getAuthenticatedUserId,
   fetchResumeDocument,
   handleApiError,
   maybeGetAuthenticatedUserId,
@@ -53,82 +52,141 @@ export async function GET(
 
     const ownerId = resumeData?.userId ?? null;
     const optionalUserId = await maybeGetAuthenticatedUserId(request);
+    console.log(
+      `[ResumeAPI] Fetching resume ${id}. AuthUser: ${optionalUserId}`
+    );
+
     const isOwner = Boolean(
       optionalUserId && ownerId && optionalUserId === ownerId
     );
 
-    if (isPublic) {
-      if (isOwner) {
-        return NextResponse.json({
-          ...resumeData,
-          viewerAccess: {
-            scope: "owner",
-            isOwner: true,
-          },
-        });
-      }
-
-      const sanitized = sanitizeResumeForPublicView(resumeData);
-      return NextResponse.json(sanitized);
-    }
-
-    let requestUserId = optionalUserId;
-    if (!requestUserId) {
-      const authResult = await getAuthenticatedUserId(request);
-      if (authResult.error) {
-        return authResult.error;
-      }
-      if (!authResult.userId) {
-        return handleApiError(new Error("Unauthorized"), "Unauthorized", 401);
-      }
-      requestUserId = authResult.userId;
-    }
-
-    if (requestUserId !== ownerId) {
-      // Track view for recruiter metrics
-      // We do this asynchronously and don't await to avoid slowing down the response
-      adminDb
-        .collection("recruiterMetrics")
-        .doc(requestUserId!)
-        .set(
-          {
-            totalProfileViews: FieldValue.increment(1),
-            lastActivityAt: FieldValue.serverTimestamp(),
-          },
-          { merge: true }
-        )
-        .catch((err) => console.error("Failed to track profile view:", err));
-
-      const userDoc = await adminDb
-        .collection("users")
-        .doc(requestUserId!)
-        .get();
-      const userData = userDoc.data();
-      if (userData?.role !== "admin") {
-        return handleApiError(
-          new Error("Permission denied"),
-          "Permission denied",
-          403
-        );
-      }
-
+    // 1. Owner Access
+    if (isOwner) {
+      console.log(`[ResumeAPI] User is owner.`);
       return NextResponse.json({
         ...resumeData,
         viewerAccess: {
-          scope: "admin-view",
-          isOwner: false,
-          isMasked: false,
+          scope: "owner",
+          isOwner: true,
         },
       });
     }
 
-    return NextResponse.json({
-      ...resumeData,
-      viewerAccess: {
-        scope: "owner",
-        isOwner: true,
-      },
-    });
+    // 2. Authenticated User Checks (Admin or Approved Recruiter)
+    if (optionalUserId) {
+      try {
+        // Check Admin
+        const userDoc = await adminDb
+          .collection("users")
+          .doc(optionalUserId)
+          .get();
+        const userData = userDoc.data();
+
+        if (userData?.role === "admin") {
+          console.log(`[ResumeAPI] User is admin.`);
+          return NextResponse.json({
+            ...resumeData,
+            viewerAccess: {
+              scope: "admin-view",
+              isOwner: false,
+              isMasked: false,
+            },
+          });
+        }
+
+        // Check Approved Access Request OR Active Grant
+        console.log(
+          `[ResumeAPI] Checking access for user ${optionalUserId} on resume ${id}`
+        );
+
+        // Fetch all requests and grants for this resume to avoid index issues
+        // We filter in-memory to prevent FAILED_PRECONDITION errors from missing indexes
+        const [requestsSnap, grantsSnap] = await Promise.all([
+          adminDb
+            .collection("resumes")
+            .doc(id)
+            .collection("accessRequests")
+            .get(),
+          adminDb
+            .collection("resumes")
+            .doc(id)
+            .collection("accessGrants")
+            .get(),
+        ]);
+
+        console.log(
+          `[ResumeAPI] Found ${requestsSnap.size} total requests and ${grantsSnap.size} total grants.`
+        );
+
+        const hasApprovedRequest = requestsSnap.docs.some((doc) => {
+          const data = doc.data();
+          return (
+            data.fromUserId === optionalUserId && data.status === "approved"
+          );
+        });
+
+        const hasValidGrant = grantsSnap.docs.some((doc) => {
+          const data = doc.data();
+          return data.toUserId === optionalUserId;
+        });
+
+        if (hasApprovedRequest || hasValidGrant) {
+          console.log(
+            `[ResumeAPI] Access granted via ${
+              hasApprovedRequest ? "request" : "grant"
+            }.`
+          );
+
+          // Track view for recruiter metrics
+          adminDb
+            .collection("recruiterMetrics")
+            .doc(optionalUserId)
+            .set(
+              {
+                totalProfileViews: FieldValue.increment(1),
+                lastActivityAt: FieldValue.serverTimestamp(),
+              },
+              { merge: true }
+            )
+            .catch((err) =>
+              console.error("Failed to track profile view:", err)
+            );
+
+          return NextResponse.json({
+            ...resumeData,
+            viewerAccess: {
+              scope: "full",
+              isOwner: false,
+              isMasked: false,
+            },
+          });
+        }
+      } catch (accessCheckError) {
+        console.error(
+          "Error checking authenticated user access:",
+          accessCheckError
+        );
+        // Fall through to public check or denial
+      }
+    }
+
+    // 3. Public Access
+    if (isPublic) {
+      console.log(`[ResumeAPI] Returning public snapshot.`);
+      const sanitized = sanitizeResumeForPublicView(resumeData);
+      return NextResponse.json(sanitized);
+    }
+
+    // 4. Unauthorized / Forbidden
+    if (!optionalUserId) {
+      return handleApiError(new Error("Unauthorized"), "Unauthorized", 401);
+    }
+
+    return handleApiError(
+      new Error("Permission denied"),
+      "Permission denied",
+      403
+    );
   } catch (error) {
     return handleApiError(error, "Error fetching resume");
   }

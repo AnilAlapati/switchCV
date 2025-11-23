@@ -67,6 +67,17 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Update job seeker metrics (decrement pending count)
+    await adminDb
+      .collection("jobSeekerMetrics")
+      .doc(userId)
+      .set(
+        {
+          contactRequests: FieldValue.increment(-1),
+        },
+        { merge: true }
+      );
+
     // Notify Recruiter
     if (requestData?.fromUserId) {
       await createNotification(
