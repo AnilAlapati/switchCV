@@ -24,16 +24,16 @@ export default function RecruiterSearchPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-gray-600">Preparing recruiter search…</p>
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+        <p className="text-slate-400">Preparing recruiter search…</p>
       </div>
     );
   }
 
   if (!user || needsEmailVerification) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-gray-600">Redirecting to sign in…</p>
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+        <p className="text-slate-400">Redirecting to sign in…</p>
       </div>
     );
   }
@@ -71,11 +71,9 @@ export default function RecruiterSearchPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-slate-950 p-8">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">
-          Candidate Search
-        </h1>
+        <h1 className="text-3xl font-bold text-white mb-8">Candidate Search</h1>
         <SearchInterface
           onSearch={handleSearch}
           results={results}

@@ -147,6 +147,7 @@ export async function PATCH(
     await docRef.update({
       isPublic: isPublic,
       visibility: isPublic ? "public" : "private",
+      published: isPublic,
       updatedAt: new Date().toISOString(),
     });
 

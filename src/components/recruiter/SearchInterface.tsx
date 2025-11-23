@@ -82,7 +82,7 @@ export function SearchInterface({
 
       {/* Error Display */}
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400">
           {error}
         </div>
       )}
@@ -91,11 +91,11 @@ export function SearchInterface({
       {(location || selectedSkills.length > 0 || targetRole) && (
         <div className="flex flex-wrap gap-2">
           {location && (
-            <div className="flex items-center gap-2 bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
+            <div className="flex items-center gap-2 bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 px-3 py-1 rounded-full text-sm">
               {location}
               <button
                 onClick={() => setLocation("")}
-                className="hover:opacity-70"
+                className="hover:text-cyan-100"
               >
                 ❌
               </button>
@@ -104,23 +104,23 @@ export function SearchInterface({
           {selectedSkills.map((skill) => (
             <div
               key={skill}
-              className="flex items-center gap-2 bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm"
+              className="flex items-center gap-2 bg-purple-500/10 text-purple-300 border border-purple-500/20 px-3 py-1 rounded-full text-sm"
             >
               {skill}
               <button
                 onClick={() => toggleSkill(skill)}
-                className="hover:opacity-70"
+                className="hover:text-purple-100"
               >
                 ❌
               </button>
             </div>
           ))}
           {targetRole && (
-            <div className="flex items-center gap-2 bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm">
+            <div className="flex items-center gap-2 bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 px-3 py-1 rounded-full text-sm">
               {targetRole}
               <button
                 onClick={() => setTargetRole("")}
-                className="hover:opacity-70"
+                className="hover:text-emerald-100"
               >
                 ❌
               </button>

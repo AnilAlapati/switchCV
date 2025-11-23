@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       .collection("users")
       .doc(currentUserId)
       .get();
-    
+
     const userData = currentUserDoc.data();
     const currentUserName = userData?.displayName || "Unknown User";
 

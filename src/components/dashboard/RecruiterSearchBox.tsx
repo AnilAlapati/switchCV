@@ -123,7 +123,7 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
     <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-lg shadow-slate-950/40 transition hover:border-cyan-500/40">
       {/* Header */}
       <div className="flex items-center mb-6">
-        <div className="mr-3 flex h-10 w-10 items-center justify-center rounded-lg border border-slate-700 bg-slate-950 text-amber-300">
+        <div className="mr-3 flex h-10 w-10 items-center justify-center rounded-lg border border-slate-700 bg-slate-950 text-cyan-300">
           <svg
             className="h-6 w-6"
             fill="none"

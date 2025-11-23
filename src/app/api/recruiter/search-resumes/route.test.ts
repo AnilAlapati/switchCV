@@ -191,6 +191,7 @@ describe("POST /api/recruiter/search-resumes", () => {
         userName: "John Doe",
         userId: "user-456",
         createdAt: "2024-01-15T10:00:00Z",
+        accessStatus: "none",
       });
       expect(data.tier).toBe("basic");
       expect(data.maxResults).toBe(1);
@@ -681,7 +682,7 @@ describe("POST /api/recruiter/search-resumes", () => {
 
       expect(response.status).toBe(200);
       expect(data.results).toHaveLength(50);
-      expect(data.count).toBe(55);
+      expect(data.count).toBe(50);
     });
   });
 

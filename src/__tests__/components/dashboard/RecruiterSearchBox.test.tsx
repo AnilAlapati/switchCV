@@ -299,6 +299,7 @@ describe("RecruiterSearchBox", () => {
             skills: ["React", "Node.js"],
             location: "New York",
             createdAt: "2024-01-15T10:00:00Z",
+            accessStatus: "approved",
           },
         ],
         notification: null,
