@@ -15,6 +15,7 @@ export interface SearchResult {
 interface RecruiterSearchFormProps {
   searchMode: "basic" | "premium";
   setSearchMode: Dispatch<SetStateAction<"basic" | "premium">>;
+  premiumFiltersEnabled: boolean;
   userId: string;
   setUserId: Dispatch<SetStateAction<string>>;
   skills: string[];
@@ -32,6 +33,7 @@ interface RecruiterSearchFormProps {
 export function RecruiterSearchForm({
   searchMode,
   setSearchMode,
+  premiumFiltersEnabled,
   userId,
   setUserId,
   skills,
@@ -52,6 +54,9 @@ export function RecruiterSearchForm({
   };
 
   const handleModeSwitch = (mode: "basic" | "premium") => {
+    if (!premiumFiltersEnabled && mode === "premium") {
+      return;
+    }
     setSearchMode(mode);
     resetSearchState();
   };
@@ -122,10 +127,13 @@ export function RecruiterSearchForm({
           <button
             type="button"
             onClick={() => handleModeSwitch("premium")}
+            disabled={!premiumFiltersEnabled}
             className={`group relative overflow-hidden rounded-xl border p-4 text-left transition-all duration-300 ${
               searchMode === "premium"
                 ? "border-purple-500/60 bg-gradient-to-br from-purple-500/20 via-purple-500/10 to-transparent shadow-lg shadow-purple-500/20"
                 : "border-white/10 bg-slate-900/40 hover:border-purple-500/40 hover:bg-slate-900/60"
+            } ${
+              !premiumFiltersEnabled ? "cursor-not-allowed opacity-50" : ""
             }`}
           >
             <div className="relative z-10">
@@ -150,11 +158,18 @@ export function RecruiterSearchForm({
                 </span>
               </div>
               <p className="text-xs leading-relaxed text-slate-400">
-                Advanced search with skills and location filters
+                {premiumFiltersEnabled
+                  ? "Advanced search with skills and location filters"
+                  : "Advanced filters will arrive soon for premium recruiters."}
               </p>
             </div>
           </button>
         </div>
+        {!premiumFiltersEnabled && (
+          <p className="mt-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+            Premium search is temporarily disabled while we build the dedicated plan.
+          </p>
+        )}
       </div>
 
       <form onSubmit={onSearch} className="space-y-5">

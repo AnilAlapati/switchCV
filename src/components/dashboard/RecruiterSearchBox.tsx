@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { RequestAccessDialog } from "@/components/RequestAccessDialog";
 import type { SearchResult } from "./RecruiterSearchForm";
 import { RecruiterSearchForm } from "./RecruiterSearchForm";
 import { RecruiterSearchResults } from "./RecruiterSearchResults";
+
+const PREMIUM_FILTERS_ENABLED =
+  process.env.NEXT_PUBLIC_ENABLE_PREMIUM_FILTERS === "true";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface RecruiterSearchBoxProps {}
@@ -31,6 +34,10 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
     profileId: "",
   });
 
+  const effectiveSearchMode = useMemo<"basic" | "premium">(() => {
+    return PREMIUM_FILTERS_ENABLED ? searchMode : "basic";
+  }, [searchMode]);
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -39,12 +46,16 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
       return;
     }
 
-    if (searchMode === "basic" && !userId.trim()) {
+    if (effectiveSearchMode === "basic" && !userId.trim()) {
       setError("Please enter a candidate ID");
       return;
     }
 
-    if (searchMode === "premium" && !skills.length && !location.trim()) {
+    if (
+      effectiveSearchMode === "premium" &&
+      !skills.length &&
+      !location.trim()
+    ) {
       setError("Please enter skills or location");
       return;
     }
@@ -60,8 +71,8 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           recruiterId: user.uid,
-          ...(searchMode === "basic" && { userId }),
-          ...(searchMode === "premium" && {
+          ...(effectiveSearchMode === "basic" && { userId }),
+          ...(effectiveSearchMode === "premium" && {
             ...(skills.length > 0 && { skills }),
             ...(location && { location }),
           }),
@@ -173,8 +184,9 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr),340px]">
             <div className="rounded-2xl border border-white/5 bg-slate-950/50 p-6 backdrop-blur-sm">
               <RecruiterSearchForm
-                searchMode={searchMode}
+                searchMode={effectiveSearchMode}
                 setSearchMode={setSearchMode}
+                premiumFiltersEnabled={PREMIUM_FILTERS_ENABLED}
                 userId={userId}
                 setUserId={setUserId}
                 skills={skills}
@@ -198,7 +210,7 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
         searched={searched}
         error={error}
         notification={notification}
-        searchMode={searchMode}
+        searchMode={effectiveSearchMode}
         onViewResume={handleViewResume}
         onRequestAccess={handleRequestAccess}
       />
