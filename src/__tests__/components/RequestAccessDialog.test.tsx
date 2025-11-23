@@ -34,13 +34,13 @@ describe("RequestAccessDialog", () => {
     render(<RequestAccessDialog {...defaultProps} isOpen={false} />);
 
     // Check that the dialog content is not visible
-    expect(screen.queryByText("Request Full Access")).not.toBeInTheDocument();
+    expect(screen.queryByText("Request View Access")).not.toBeInTheDocument();
   });
 
   test("renders dialog with profile name when isOpen is true", () => {
     render(<RequestAccessDialog {...defaultProps} />);
 
-    expect(screen.getByText("Request Full Access")).toBeInTheDocument();
+    expect(screen.getAllByText(/Request View Access/i)[0]).toBeInTheDocument();
     expect(screen.getByText("Jane Doe")).toBeInTheDocument();
   });
 
@@ -116,7 +116,9 @@ describe("RequestAccessDialog", () => {
 
     await userEvent.type(textarea, "Interested in collaboration");
 
-    const submitButton = screen.getByText("Send Request");
+    const submitButton = screen.getByRole("button", {
+      name: "Request View Access",
+    });
     await userEvent.click(submitButton);
 
     await waitFor(() => {
@@ -147,7 +149,9 @@ describe("RequestAccessDialog", () => {
 
     render(<RequestAccessDialog {...defaultProps} />);
 
-    const submitButton = screen.getByText("Send Request") as HTMLButtonElement;
+    const submitButton = screen.getByRole("button", {
+      name: "Request View Access",
+    }) as HTMLButtonElement;
     await userEvent.click(submitButton);
 
     const sendingButton = await screen.findByText("Sending...");
@@ -162,7 +166,9 @@ describe("RequestAccessDialog", () => {
 
     render(<RequestAccessDialog {...defaultProps} />);
 
-    const submitButton = screen.getByText("Send Request");
+    const submitButton = screen.getByRole("button", {
+      name: "Request View Access",
+    });
     await userEvent.click(submitButton);
 
     await waitFor(() => {
@@ -178,7 +184,9 @@ describe("RequestAccessDialog", () => {
 
     render(<RequestAccessDialog {...defaultProps} />);
 
-    const submitButton = screen.getByText("Send Request");
+    const submitButton = screen.getByRole("button", {
+      name: "Request View Access",
+    });
     await userEvent.click(submitButton);
 
     await waitFor(() => {
@@ -194,7 +202,9 @@ describe("RequestAccessDialog", () => {
 
     render(<RequestAccessDialog {...defaultProps} />);
 
-    const submitButton = screen.getByText("Send Request");
+    const submitButton = screen.getByRole("button", {
+      name: "Request View Access",
+    });
     await userEvent.click(submitButton);
 
     await waitFor(() => {
@@ -211,7 +221,9 @@ describe("RequestAccessDialog", () => {
     const onSuccess = jest.fn();
     render(<RequestAccessDialog {...defaultProps} onSuccess={onSuccess} />);
 
-    const submitButton = screen.getByText("Send Request");
+    const submitButton = screen.getByRole("button", {
+      name: "Request View Access",
+    });
     await userEvent.click(submitButton);
 
     await waitFor(() => {
@@ -228,7 +240,9 @@ describe("RequestAccessDialog", () => {
     const onClose = jest.fn();
     render(<RequestAccessDialog {...defaultProps} onClose={onClose} />);
 
-    const submitButton = screen.getByText("Send Request");
+    const submitButton = screen.getByRole("button", {
+      name: "Request View Access",
+    });
     await userEvent.click(submitButton);
 
     await waitFor(() => {
@@ -250,7 +264,9 @@ describe("RequestAccessDialog", () => {
 
     await userEvent.type(textarea, "Test message");
 
-    const submitButton = screen.getByText("Send Request");
+    const submitButton = screen.getByRole("button", {
+      name: "Request View Access",
+    });
     await userEvent.click(submitButton);
 
     await waitFor(() => {
@@ -272,7 +288,9 @@ describe("RequestAccessDialog", () => {
 
     await userEvent.type(textarea, "Custom message");
 
-    const submitButton = screen.getByText("Send Request");
+    const submitButton = screen.getByRole("button", {
+      name: "Request View Access",
+    });
     await userEvent.click(submitButton);
 
     await waitFor(() => {
@@ -293,7 +311,9 @@ describe("RequestAccessDialog", () => {
 
     render(<RequestAccessDialog {...defaultProps} />);
 
-    const submitButton = screen.getByText("Send Request");
+    const submitButton = screen.getByRole("button", {
+      name: "Request View Access",
+    });
     await userEvent.click(submitButton);
 
     await waitFor(() => {
@@ -304,10 +324,55 @@ describe("RequestAccessDialog", () => {
     });
   });
 
+  test("sends duration metadata with request", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ success: true }),
+    } as Response);
+
+    render(<RequestAccessDialog {...defaultProps} />);
+
+    const submitButton = screen.getByRole("button", {
+      name: "Request View Access",
+    });
+    await userEvent.click(submitButton);
+
+    await waitFor(() => {
+      const callBody = JSON.parse(
+        (mockFetch.mock.calls[0]?.[1] as any)?.body || "{}"
+      );
+      expect(callBody.duration).toMatchObject({ preset: "1_week" });
+      expect(callBody.timezone).toBeTruthy();
+    });
+  });
+
+  test("validates custom duration input", async () => {
+    render(<RequestAccessDialog {...defaultProps} />);
+
+    const customButton = screen.getByText("Custom Days");
+    await userEvent.click(customButton);
+
+    const input = screen.getByLabelText(/Custom duration/);
+    await userEvent.clear(input);
+    await userEvent.type(input, "0");
+
+    const submitButton = screen.getByRole("button", {
+      name: "Request View Access",
+    });
+    await userEvent.click(submitButton);
+
+    expect(
+      await screen.findByText(/Custom duration must be at least 1 day/)
+    ).toBeInTheDocument();
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
   test("shows error when profileId is empty", async () => {
     render(<RequestAccessDialog {...defaultProps} profileId="" />);
 
-    const submitButton = screen.getByText("Send Request");
+    const submitButton = screen.getByRole("button", {
+      name: "Request View Access",
+    });
     await userEvent.click(submitButton);
 
     expect(screen.getByText("Invalid profile ID")).toBeInTheDocument();
@@ -323,7 +388,9 @@ describe("RequestAccessDialog", () => {
     const propsWithoutOnSuccess = { ...defaultProps, onSuccess: undefined };
     render(<RequestAccessDialog {...propsWithoutOnSuccess} />);
 
-    const submitButton = screen.getByText("Send Request");
+    const submitButton = screen.getByRole("button", {
+      name: "Request View Access",
+    });
     await userEvent.click(submitButton);
 
     await waitFor(() => {
@@ -336,7 +403,9 @@ describe("RequestAccessDialog", () => {
 
     render(<RequestAccessDialog {...defaultProps} />);
 
-    const submitButton = screen.getByText("Send Request");
+    const submitButton = screen.getByRole("button", {
+      name: "Request View Access",
+    });
     await userEvent.click(submitButton);
 
     await waitFor(() => {

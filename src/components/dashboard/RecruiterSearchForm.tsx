@@ -132,9 +132,7 @@ export function RecruiterSearchForm({
               searchMode === "premium"
                 ? "border-purple-500/60 bg-gradient-to-br from-purple-500/20 via-purple-500/10 to-transparent shadow-lg shadow-purple-500/20"
                 : "border-white/10 bg-slate-900/40 hover:border-purple-500/40 hover:bg-slate-900/60"
-            } ${
-              !premiumFiltersEnabled ? "cursor-not-allowed opacity-50" : ""
-            }`}
+            } ${!premiumFiltersEnabled ? "cursor-not-allowed opacity-50" : ""}`}
           >
             <div className="relative z-10">
               <div className="mb-2 flex items-center gap-2.5">
@@ -167,7 +165,8 @@ export function RecruiterSearchForm({
         </div>
         {!premiumFiltersEnabled && (
           <p className="mt-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
-            Premium search is temporarily disabled while we build the dedicated plan.
+            Premium search is temporarily disabled while we build the dedicated
+            plan.
           </p>
         )}
       </div>

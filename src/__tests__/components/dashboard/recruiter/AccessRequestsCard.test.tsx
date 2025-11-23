@@ -50,8 +50,8 @@ describe("AccessRequestsCard", () => {
     it("displays loading state initially", () => {
       render(<AccessRequestsCard />);
 
-      expect(screen.getByText("Access Requests")).toBeInTheDocument();
-      expect(screen.getAllByText("-")).toHaveLength(4); // total, pending, approved, denied
+      expect(screen.getByText("Pending Requests")).toBeInTheDocument();
+      expect(screen.getByText("-")).toBeInTheDocument();
       expect(screen.getByText("Loading...")).toBeInTheDocument();
     });
 
@@ -90,7 +90,7 @@ describe("AccessRequestsCard", () => {
       render(<AccessRequestsCard />);
 
       expect(mockFetch).not.toHaveBeenCalled();
-      expect(screen.getAllByText("0")).toHaveLength(4); // total, pending, approved, denied
+      expect(screen.getByText("0")).toBeInTheDocument();
     });
   });
 
@@ -112,13 +112,9 @@ describe("AccessRequestsCard", () => {
       render(<AccessRequestsCard />);
 
       await waitFor(() => {
-        expect(screen.getByText("11")).toBeInTheDocument(); // total
         expect(screen.getByText("3")).toBeInTheDocument(); // pending
-        expect(screen.getByText("7")).toBeInTheDocument(); // approved
-        expect(screen.getByText("1")).toBeInTheDocument(); // denied
+        expect(screen.getByText("3 requests waiting")).toBeInTheDocument();
       });
-
-      expect(screen.getByText("11 total requests")).toBeInTheDocument();
     });
 
     it("displays zero metrics when no requests exist", async () => {
@@ -138,15 +134,15 @@ describe("AccessRequestsCard", () => {
       render(<AccessRequestsCard />);
 
       await waitFor(() => {
-        expect(screen.getAllByText("0")).toHaveLength(4); // total, pending, approved, denied
-        expect(screen.getByText("No access requests")).toBeInTheDocument();
+        expect(screen.getByText("0")).toBeInTheDocument();
+        expect(screen.getByText("No pending requests")).toBeInTheDocument();
       });
     });
 
     it("displays single request correctly", async () => {
       const mockMetrics = {
         accessRequests: {
-          pending: 0,
+          pending: 1,
           approved: 1,
           denied: 0,
         },
@@ -160,7 +156,8 @@ describe("AccessRequestsCard", () => {
       render(<AccessRequestsCard />);
 
       await waitFor(() => {
-        expect(screen.getByText("1 total request")).toBeInTheDocument();
+        expect(screen.getByText("1")).toBeInTheDocument();
+        expect(screen.getByText("1 request waiting")).toBeInTheDocument();
       });
     });
 
@@ -175,8 +172,8 @@ describe("AccessRequestsCard", () => {
       render(<AccessRequestsCard />);
 
       await waitFor(() => {
-        expect(screen.getAllByText("0")).toHaveLength(4); // total, pending, approved, denied
-        expect(screen.getByText("No access requests")).toBeInTheDocument();
+        expect(screen.getByText("0")).toBeInTheDocument();
+        expect(screen.getByText("No pending requests")).toBeInTheDocument();
       });
     });
   });
@@ -188,8 +185,8 @@ describe("AccessRequestsCard", () => {
       render(<AccessRequestsCard />);
 
       await waitFor(() => {
-        expect(screen.getAllByText("0")).toHaveLength(4); // total, pending, approved, denied
-        expect(screen.getByText("No access requests")).toBeInTheDocument();
+        expect(screen.getByText("0")).toBeInTheDocument();
+        expect(screen.getByText("No pending requests")).toBeInTheDocument();
       });
     });
 
@@ -203,8 +200,8 @@ describe("AccessRequestsCard", () => {
       render(<AccessRequestsCard />);
 
       await waitFor(() => {
-        expect(screen.getAllByText("0")).toHaveLength(4); // total, pending, approved, denied
-        expect(screen.getByText("No access requests")).toBeInTheDocument();
+        expect(screen.getByText("0")).toBeInTheDocument();
+        expect(screen.getByText("No pending requests")).toBeInTheDocument();
       });
     });
   });
@@ -227,15 +224,9 @@ describe("AccessRequestsCard", () => {
       render(<AccessRequestsCard />);
 
       await waitFor(() => {
-        expect(screen.getByText("Access Requests")).toBeInTheDocument();
-        expect(screen.getByText("7")).toBeInTheDocument(); // total
-        expect(screen.getByText("Pending")).toBeInTheDocument();
+        expect(screen.getByText("Pending Requests")).toBeInTheDocument();
         expect(screen.getByText("2")).toBeInTheDocument(); // pending count
-        expect(screen.getByText("Approved")).toBeInTheDocument();
-        expect(screen.getByText("4")).toBeInTheDocument(); // approved count
-        expect(screen.getByText("Denied")).toBeInTheDocument();
-        expect(screen.getByText("1")).toBeInTheDocument(); // denied count
-        expect(screen.getByText("7 total requests")).toBeInTheDocument();
+        expect(screen.getByText("2 requests waiting")).toBeInTheDocument();
       });
     });
 
@@ -264,44 +255,6 @@ describe("AccessRequestsCard", () => {
           "border",
           "border-white/20"
         );
-      });
-    });
-
-    it("displays correct colors for different metric types", async () => {
-      const mockMetrics = {
-        accessRequests: {
-          pending: 1,
-          approved: 1,
-          denied: 1,
-        },
-      };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockMetrics),
-      });
-
-      render(<AccessRequestsCard />);
-
-      await waitFor(() => {
-        // Check that the numbers have the correct color classes
-        const pendingElements = screen.getAllByText("1");
-        expect(pendingElements).toHaveLength(3); // pending, approved, denied
-
-        // Find elements by their context - check the parent containers
-        const pendingContainer = screen.getByText("Pending").parentElement;
-        const approvedContainer = screen.getByText("Approved").parentElement;
-        const deniedContainer = screen.getByText("Denied").parentElement;
-
-        expect(
-          pendingContainer?.querySelector(".text-yellow-400")
-        ).toBeInTheDocument();
-        expect(
-          approvedContainer?.querySelector(".text-green-400")
-        ).toBeInTheDocument();
-        expect(
-          deniedContainer?.querySelector(".text-red-400")
-        ).toBeInTheDocument();
       });
     });
   });

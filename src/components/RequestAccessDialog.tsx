@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { MAX_CUSTOM_DAYS } from "@/lib/accessDuration";
+import type { DurationPreset } from "@/lib/accessDuration";
 
 interface RequestAccessDialogProps {
   profileName: string;
@@ -22,6 +24,24 @@ export function RequestAccessDialog({
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [durationError, setDurationError] = useState<string | null>(null);
+  const timezoneRef = useRef(
+    Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
+  );
+  const [durationPreset, setDurationPreset] =
+    useState<DurationPreset>("1_week");
+  const [customDays, setCustomDays] = useState(30);
+
+  const durationOptions = useMemo(
+    () => [
+      { id: "1_hour", label: "1 Hour" },
+      { id: "1_day", label: "1 Day" },
+      { id: "1_week", label: "1 Week" },
+      { id: "1_month", label: "1 Month" },
+      { id: "custom_days", label: "Custom Days" },
+    ],
+    []
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,6 +55,21 @@ export function RequestAccessDialog({
       setError("Invalid profile ID");
       return;
     }
+
+    if (durationPreset === "custom_days") {
+      if (!customDays || customDays < 1) {
+        setDurationError("Custom duration must be at least 1 day");
+        return;
+      }
+      if (customDays > MAX_CUSTOM_DAYS) {
+        setDurationError(
+          `Custom duration cannot exceed ${MAX_CUSTOM_DAYS} days`
+        );
+        return;
+      }
+    }
+
+    setDurationError(null);
 
     try {
       setLoading(true);
@@ -51,6 +86,13 @@ export function RequestAccessDialog({
         body: JSON.stringify({
           resumeId: profileId,
           message: message.trim() || undefined,
+          duration: {
+            preset: durationPreset,
+            ...(durationPreset === "custom_days"
+              ? { customDays: customDays }
+              : {}),
+          },
+          timezone: timezoneRef.current,
         }),
       });
 
@@ -89,7 +131,7 @@ export function RequestAccessDialog({
                 </span>
               </div>
               <h2 className="bg-gradient-to-r from-white to-slate-300 bg-clip-text text-2xl font-black text-transparent">
-                Request Full Access
+                Request View Access
               </h2>
               <p className="mt-1 flex items-center gap-2 text-sm text-slate-400">
                 <svg
@@ -131,7 +173,7 @@ export function RequestAccessDialog({
         </div>
 
         {/* Content */}
-        <form onSubmit={handleSubmit} className="space-y-5 p-6">
+        <form onSubmit={handleSubmit} noValidate className="space-y-5 p-6">
           {/* Error Message */}
           {error && (
             <div className="rounded-2xl border border-rose-500/40 bg-rose-500/15 p-4 shadow-lg shadow-rose-500/20">
@@ -213,10 +255,76 @@ export function RequestAccessDialog({
               <div className="flex-1">
                 <p className="text-xs font-semibold leading-relaxed text-cyan-100">
                   The candidate will be notified via email and can approve or
-                  decline your request
+                  decline your request. You will only have access for the
+                  duration they approve.
                 </p>
               </div>
             </div>
+          </div>
+
+          {/* Duration selector */}
+          <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-4">
+            <label className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-200">
+              <span className="h-1 w-1 rounded-full bg-cyan-400"></span>
+              Access Duration
+              <span className="ml-auto text-xs font-normal text-slate-500">
+                Required
+              </span>
+            </label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {durationOptions.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  disabled={loading}
+                  onClick={() => setDurationPreset(option.id as DurationPreset)}
+                  className={`rounded-xl border px-4 py-3 text-left transition-colors ${
+                    durationPreset === option.id
+                      ? "border-cyan-400/60 bg-cyan-500/10 text-white"
+                      : "border-white/10 bg-slate-900/40 text-slate-300 hover:border-white/30"
+                  }`}
+                >
+                  <p className="text-sm font-semibold">{option.label}</p>
+                  <p className="text-xs text-slate-400">
+                    {option.id === "1_hour" && "Good for quick reviews"}
+                    {option.id === "1_day" && "Expires in 24 hours"}
+                    {option.id === "1_week" && "Covers full interview cycle"}
+                    {option.id === "1_month" && "Longer-term collaboration"}
+                    {option.id === "custom_days" &&
+                      `Choose up to ${MAX_CUSTOM_DAYS} days`}
+                  </p>
+                </button>
+              ))}
+            </div>
+            {durationPreset === "custom_days" && (
+              <div className="mt-4">
+                <label
+                  htmlFor="custom-days"
+                  className="text-xs font-semibold uppercase tracking-wide text-slate-400"
+                >
+                  Custom duration (days)
+                </label>
+                <input
+                  id="custom-days"
+                  type="number"
+                  min={1}
+                  max={MAX_CUSTOM_DAYS}
+                  value={customDays}
+                  onChange={(event) =>
+                    setCustomDays(parseInt(event.target.value, 10) || 0)
+                  }
+                  disabled={loading}
+                  className="mt-2 w-full rounded-xl border border-white/10 bg-slate-900/60 px-4 py-3 text-white shadow-inner shadow-black/30 focus:border-cyan-500/60 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                />
+              </div>
+            )}
+            {durationError && (
+              <p className="mt-3 text-sm text-rose-400">{durationError}</p>
+            )}
+            <p className="mt-3 text-xs text-slate-500">
+              Access starts when the candidate approves. Timezone:{" "}
+              {timezoneRef.current}
+            </p>
           </div>
 
           {/* Buttons */}
@@ -273,7 +381,7 @@ export function RequestAccessDialog({
                         d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
                       />
                     </svg>
-                    Send Request
+                    Request View Access
                   </>
                 )}
               </span>

@@ -9,6 +9,7 @@ import {
 const mockProps = {
   searchMode: "basic" as const,
   setSearchMode: jest.fn(),
+  premiumFiltersEnabled: true,
   userId: "",
   setUserId: jest.fn(),
   skills: [] as string[],

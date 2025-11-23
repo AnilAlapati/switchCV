@@ -1,26 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { DashboardBackground } from "@/components/dashboard/DashboardBackground";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
-
-interface AccessRequest {
-  id: string;
-  fromUserName: string;
-  message: string;
-  timestamp: string;
-  resumeId: string;
-  resumeTitle: string;
-  status: "pending" | "approved" | "denied";
-}
+import { AccessRequestCard } from "@/components/access/AccessRequestCard";
+import { MAX_CUSTOM_DAYS } from "@/lib/accessDuration";
+import type { DurationPreset } from "@/lib/accessDuration";
+import type { DashboardAccessRequest, DurationFormState } from "./types";
+import { buildDefaultDurationState, validateDuration } from "./durationHelpers";
 
 export default function AccessRequestsPage() {
   const { user, logout } = useAuth();
-  const [requests, setRequests] = useState<AccessRequest[]>([]);
+  const [requests, setRequests] = useState<DashboardAccessRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"pending" | "history">("pending");
+  const [durationOverrides, setDurationOverrides] = useState<
+    Record<string, DurationFormState>
+  >({});
+  const timezone = useMemo(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+    []
+  );
 
   useEffect(() => {
     if (!user) return;
@@ -28,6 +30,7 @@ export default function AccessRequestsPage() {
   }, [user]);
 
   const fetchRequests = async () => {
+    setLoading(true);
     setError(null);
     try {
       const token = await user?.getIdToken();
@@ -53,11 +56,40 @@ export default function AccessRequestsPage() {
     }
   };
 
-  const handleResponse = async (
+  const updateDurationState = (
     requestId: string,
-    resumeId: string,
-    action: "approve" | "deny"
+    updater: (prev: DurationFormState) => DurationFormState
   ) => {
+    setDurationOverrides((prev) => {
+      const current =
+        prev[requestId] ||
+        buildDefaultDurationState(
+          requests.find((r) => r.id === requestId)?.requestedDuration
+        );
+      return {
+        ...prev,
+        [requestId]: updater(current),
+      };
+    });
+  };
+
+  const makePresetHandler = (requestId: string) => (preset: DurationPreset) => {
+    updateDurationState(requestId, (prev) => ({
+      ...prev,
+      preset,
+      error: null,
+    }));
+  };
+
+  const makeCustomDaysHandler = (requestId: string) => (value: number) => {
+    updateDurationState(requestId, (prev) => ({
+      ...prev,
+      customDays: value,
+      error: null,
+    }));
+  };
+
+  const handleDeny = async (request: DashboardAccessRequest) => {
     try {
       const token = await user?.getIdToken();
       await fetch("/api/profiles/respond-access", {
@@ -66,13 +98,72 @@ export default function AccessRequestsPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ requestId, resumeId, action }),
+        body: JSON.stringify({
+          requestId: request.id,
+          resumeId: request.resumeId,
+          action: "deny",
+        }),
       });
       fetchRequests(); // Refresh list
     } catch (error) {
       console.error("Failed to respond", error);
     }
   };
+
+  const handleApprove = async (request: DashboardAccessRequest) => {
+    const formState =
+      durationOverrides[request.id] ||
+      buildDefaultDurationState(request.requestedDuration);
+    const validation = validateDuration(request, formState);
+
+    if (!validation.valid) {
+      updateDurationState(request.id, (prev) => ({
+        ...prev,
+        error: validation.error || null,
+      }));
+      return;
+    }
+
+    const payloadDuration =
+      formState.preset === "custom_days"
+        ? { preset: "custom_days" as const, customDays: formState.customDays }
+        : { preset: formState.preset };
+
+    try {
+      const token = await user?.getIdToken();
+      await fetch("/api/profiles/respond-access", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          requestId: request.id,
+          resumeId: request.resumeId,
+          action: "approve",
+          grantDuration: payloadDuration,
+          timezone,
+        }),
+      });
+      fetchRequests();
+    } catch (error) {
+      console.error("Failed to approve", error);
+    }
+  };
+
+  useEffect(() => {
+    setDurationOverrides((prev) => {
+      const next = { ...prev };
+      requests.forEach((request) => {
+        if (!next[request.id]) {
+          next[request.id] = buildDefaultDurationState(
+            request.requestedDuration
+          );
+        }
+      });
+      return next;
+    });
+  }, [requests]);
 
   const pendingRequests = requests.filter((r) => r.status === "pending");
   const historyRequests = requests.filter((r) => r.status !== "pending");
@@ -123,55 +214,31 @@ export default function AccessRequestsPage() {
           </div>
         ) : (
           <div className="grid gap-4">
-            {displayedRequests.map((request) => (
-              <div
-                key={request.id}
-                className="bg-slate-900/80 border border-slate-700 rounded-xl p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
-              >
-                <div>
-                  <h3 className="text-lg font-semibold text-white">
-                    {request.fromUserName} requested access to{" "}
-                    <span className="text-cyan-400">{request.resumeTitle}</span>
-                  </h3>
-                  <p className="text-slate-400 mt-1">"{request.message}"</p>
-                  <p className="text-xs text-slate-500 mt-2">
-                    {activeTab === "pending" ? "Requested on" : "Updated on"}{" "}
-                    {new Date(request.timestamp).toLocaleDateString()}
-                  </p>
-                  {activeTab === "history" && (
-                    <span
-                      className={`mt-2 inline-block px-2 py-1 text-xs font-bold rounded uppercase ${
-                        request.status === "approved"
-                          ? "bg-green-500/20 text-green-400"
-                          : "bg-red-500/20 text-red-400"
-                      }`}
-                    >
-                      {request.status}
-                    </span>
-                  )}
-                </div>
-                {activeTab === "pending" && (
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() =>
-                        handleResponse(request.id, request.resumeId, "deny")
-                      }
-                      className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors"
-                    >
-                      Deny
-                    </button>
-                    <button
-                      onClick={() =>
-                        handleResponse(request.id, request.resumeId, "approve")
-                      }
-                      className="px-4 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-lg transition-colors font-medium"
-                    >
-                      Approve Access
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
+            {displayedRequests.map((request) => {
+              const durationState =
+                durationOverrides[request.id] ||
+                buildDefaultDurationState(request.requestedDuration);
+              const maxHours =
+                request.requestedDuration?.durationHours ??
+                24 * MAX_CUSTOM_DAYS;
+
+              return (
+                <AccessRequestCard
+                  key={request.id}
+                  request={request}
+                  activeTab={activeTab}
+                  ownerTimezone={timezone}
+                  loading={loading}
+                  durationState={durationState}
+                  durationError={durationOverrides[request.id]?.error}
+                  maxHours={maxHours}
+                  onDeny={() => handleDeny(request)}
+                  onApprove={() => handleApprove(request)}
+                  onPresetChange={makePresetHandler(request.id)}
+                  onCustomDaysChange={makeCustomDaysHandler(request.id)}
+                />
+              );
+            })}
           </div>
         )}
       </main>

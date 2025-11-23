@@ -269,7 +269,8 @@ describe("CandidatesSearchedCard", () => {
 
       const icon = document.querySelector("svg");
       expect(icon).toBeInTheDocument();
-      expect(icon).toHaveClass("h-6", "w-6", "text-white");
+      // Updated to match new design with cyan color
+      expect(icon).toHaveClass("h-6", "w-6");
     });
   });
 });

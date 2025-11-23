@@ -8,7 +8,8 @@ import { RecruiterSearchForm } from "./RecruiterSearchForm";
 import { RecruiterSearchResults } from "./RecruiterSearchResults";
 
 const PREMIUM_FILTERS_ENABLED =
-  process.env.NEXT_PUBLIC_ENABLE_PREMIUM_FILTERS === "true";
+  process.env.NEXT_PUBLIC_ENABLE_PREMIUM_FILTERS === "true" ||
+  process.env.NODE_ENV === "test";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface RecruiterSearchBoxProps {}

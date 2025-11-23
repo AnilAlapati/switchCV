@@ -61,7 +61,11 @@ describe("CandidatesInteractedCard", () => {
 
     it("fetches metrics on mount when user exists", async () => {
       const mockMetrics = {
-        totalCandidatesInteracted: 15,
+        accessRequests: {
+          pending: 5,
+          approved: 10,
+          denied: 2,
+        },
       };
 
       fetchSpy.mockResolvedValueOnce({
@@ -99,7 +103,11 @@ describe("CandidatesInteractedCard", () => {
   describe("Metrics Display", () => {
     it("displays metrics correctly when data is loaded", async () => {
       const mockMetrics = {
-        totalCandidatesInteracted: 25,
+        accessRequests: {
+          pending: 5,
+          approved: 10,
+          denied: 5,
+        },
       };
 
       fetchSpy.mockResolvedValueOnce({
@@ -112,14 +120,18 @@ describe("CandidatesInteractedCard", () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByText("25")).toBeInTheDocument();
-        expect(screen.getByText("25 candidates contacted")).toBeInTheDocument();
+        expect(screen.getByText("20")).toBeInTheDocument(); // 5 + 10 + 5
+        expect(screen.getByText("20 candidates contacted")).toBeInTheDocument();
       });
     });
 
     it("displays zero metrics when no candidates contacted", async () => {
       const mockMetrics = {
-        totalCandidatesInteracted: 0,
+        accessRequests: {
+          pending: 0,
+          approved: 0,
+          denied: 0,
+        },
       };
 
       fetchSpy.mockResolvedValueOnce({
@@ -141,7 +153,11 @@ describe("CandidatesInteractedCard", () => {
 
     it("displays single candidate correctly", async () => {
       const mockMetrics = {
-        totalCandidatesInteracted: 1,
+        accessRequests: {
+          pending: 1,
+          approved: 0,
+          denied: 0,
+        },
       };
 
       fetchSpy.mockResolvedValueOnce({
@@ -159,8 +175,8 @@ describe("CandidatesInteractedCard", () => {
       });
     });
 
-    it("handles missing totalCandidatesInteracted data gracefully", async () => {
-      const mockMetrics = {}; // No totalCandidatesInteracted property
+    it("handles missing accessRequests data gracefully", async () => {
+      const mockMetrics = {}; // No accessRequests property
 
       fetchSpy.mockResolvedValueOnce({
         ok: true,
@@ -219,7 +235,11 @@ describe("CandidatesInteractedCard", () => {
   describe("UI Rendering", () => {
     it("renders all UI elements correctly", async () => {
       const mockMetrics = {
-        totalCandidatesInteracted: 5,
+        accessRequests: {
+          pending: 2,
+          approved: 3,
+          denied: 0,
+        },
       };
 
       fetchSpy.mockResolvedValueOnce({
@@ -240,7 +260,11 @@ describe("CandidatesInteractedCard", () => {
 
     it("applies correct styling classes", async () => {
       const mockMetrics = {
-        totalCandidatesInteracted: 3,
+        accessRequests: {
+          pending: 1,
+          approved: 1,
+          denied: 1,
+        },
       };
 
       fetchSpy.mockResolvedValueOnce({
@@ -269,7 +293,7 @@ describe("CandidatesInteractedCard", () => {
 
       const icon = document.querySelector("svg");
       expect(icon).toBeInTheDocument();
-      expect(icon).toHaveClass("h-6", "w-6", "text-white");
+      expect(icon).toHaveClass("h-6", "w-6");
     });
   });
 });

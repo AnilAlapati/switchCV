@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { sanitizeResumePayload } from "@/lib/utils/resumeEditor";
@@ -118,16 +119,39 @@ export async function GET(
           `[ResumeAPI] Found ${requestsSnap.size} total requests and ${grantsSnap.size} total grants.`
         );
 
+        const now = new Date();
+
         const hasApprovedRequest = requestsSnap.docs.some((doc) => {
           const data = doc.data();
-          return (
-            data.fromUserId === optionalUserId && data.status === "approved"
-          );
+          if (
+            data.fromUserId !== optionalUserId ||
+            data.status !== "approved"
+          ) {
+            return false;
+          }
+
+          const expiresAt = data.expiresAt?.toDate?.()
+            ? data.expiresAt.toDate()
+            : data.expiresAt
+            ? new Date(data.expiresAt)
+            : null;
+
+          return !expiresAt || expiresAt > now;
         });
 
         const hasValidGrant = grantsSnap.docs.some((doc) => {
           const data = doc.data();
-          return data.toUserId === optionalUserId;
+          if (data.toUserId !== optionalUserId) {
+            return false;
+          }
+
+          const expiresAt = data.expiresAt?.toDate?.()
+            ? data.expiresAt.toDate()
+            : data.expiresAt
+            ? new Date(data.expiresAt)
+            : null;
+
+          return !expiresAt || expiresAt > now;
         });
 
         if (hasApprovedRequest || hasValidGrant) {

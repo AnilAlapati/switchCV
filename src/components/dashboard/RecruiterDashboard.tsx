@@ -131,7 +131,9 @@ export function RecruiterDashboard({
                   <div className="h-2 w-full rounded-full bg-slate-800">
                     <div
                       className="h-2 rounded-full bg-cyan-500 transition-all duration-500"
-                      style={{ width: `${Math.max(pipelinePanelData.score, 4)}%` }}
+                      style={{
+                        width: `${Math.max(pipelinePanelData.score, 4)}%`,
+                      }}
                     />
                   </div>
                   <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-cyan-200">
