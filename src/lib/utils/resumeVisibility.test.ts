@@ -321,5 +321,21 @@ describe("resumeVisibility Utilities", () => {
       expect(sanitized.personalInfo.email).toBe("j***@example.com");
       expect(sanitized.personalInfo.phone).toBe("***-***-4567");
     });
+
+    it("clears detailed sections for snapshot view", () => {
+      const resume = {
+        ...baseResume,
+        experience: [{ company: "Tech Corp", role: "Dev" }],
+        education: [{ school: "University", degree: "BS" }],
+        projects: [{ name: "Project A" }],
+      };
+
+      const sanitized = sanitizeResumeForPublicView(resume);
+
+      expect(sanitized.experience).toEqual([]);
+      expect(sanitized.education).toEqual([]);
+      expect(sanitized.projects).toEqual([]);
+      expect(sanitized.viewerAccess.isSnapshot).toBe(true);
+    });
   });
 });

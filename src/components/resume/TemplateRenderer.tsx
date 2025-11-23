@@ -23,6 +23,7 @@ interface ViewerAccessMeta {
   scope?: string;
   isOwner?: boolean;
   isMasked?: boolean;
+  isSnapshot?: boolean;
 }
 
 interface TemplateRendererProps {
@@ -205,6 +206,8 @@ export const TemplateRenderer: React.FC<TemplateRendererProps> = ({
   const heroName = personalInfo.name || data.title || "Untitled";
   const heroTitle = personalInfo.title || data.summary?.split(".")[0] || "";
 
+  const isSnapshot = viewerAccess.isSnapshot === true;
+
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8 text-white">
       <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-900/40 p-10 shadow-[0_30px_80px_rgba(2,6,23,0.75)]">
@@ -250,7 +253,18 @@ export const TemplateRenderer: React.FC<TemplateRendererProps> = ({
 
       <div className="grid gap-6">
         {orderedSections
-          .filter((section) => section.id !== "personal_info")
+          .filter((section) => {
+            if (section.id === "personal_info") return false;
+            if (isSnapshot) {
+              // Only show summary and skills in snapshot mode
+              return (
+                section.id === "summary" ||
+                section.id === "skills" ||
+                section.title.toLowerCase().includes("skill")
+              );
+            }
+            return true;
+          })
           .map((section) => (
             <SectionCard key={section.id} title={section.title}>
               {section.fields.map((field) =>
@@ -258,6 +272,25 @@ export const TemplateRenderer: React.FC<TemplateRendererProps> = ({
               )}
             </SectionCard>
           ))}
+
+        {isSnapshot && (
+          <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-slate-900/50 p-8 text-center backdrop-blur-sm">
+            <div className="absolute inset-0 -z-10 bg-gradient-to-b from-transparent to-slate-900/90" />
+            <h3 className="mb-2 text-xl font-semibold text-white">
+              Want to see the full resume?
+            </h3>
+            <p className="mb-6 text-slate-400">
+              Sign in or request access to view detailed work experience,
+              education, and projects.
+            </p>
+            <a
+              href="/auth"
+              className="inline-flex items-center justify-center rounded-full bg-blue-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900"
+            >
+              Sign in to View Full Profile
+            </a>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -110,6 +110,7 @@ interface ViewerAccessMeta {
   scope: string;
   isOwner: boolean;
   isMasked?: boolean;
+  isSnapshot?: boolean;
 }
 
 /**
@@ -179,12 +180,16 @@ export const sanitizeResumeForPublicView = (
     scope: "public-preview",
     isOwner: false,
     isMasked: true,
+    isSnapshot: true,
   };
 
   return {
     ...clone,
     contact: sanitizedContact,
     personalInfo: sanitizedPersonalInfo,
+    experience: [],
+    education: [],
+    projects: [],
     viewerAccess,
   };
 };
