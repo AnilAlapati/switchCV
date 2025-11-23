@@ -113,42 +113,13 @@ export function RequestAccessDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900/95 via-slate-900/90 to-slate-950/95 shadow-2xl shadow-cyan-500/20 backdrop-blur-xl">
-        <AccessRequestHeader profileName={profileName} onClose={onClose} />
-
-        {/* Content */}
-        <form onSubmit={handleSubmit} noValidate className="space-y-5 p-6">
-          <ErrorAlert error={error} />
-
-          <MessageField
-            message={message}
-            onChange={setMessage}
-            loading={loading}
-          />
-
-          {/* Info Box */}
-          <div className="rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-cyan-500/15 to-blue-500/15 p-4 backdrop-blur-sm">
-            <div className="flex items-start gap-3">
-              <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-cyan-400/20 text-cyan-300">
-                <svg
-                  className="h-3.5 w-3.5"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                  <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-                </svg>
-              </span>
-              <div className="flex-1">
-                <p className="text-xs font-semibold leading-relaxed text-cyan-100">
-                  The candidate will be notified via email and can approve or
-                  decline your request. You will only have access for the
-                  duration they approve.
-                </p>
-              </div>
-            </div>
-          </div>
-
+      <form
+        onSubmit={handleSubmit}
+        noValidate
+        className="relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-slate-900 shadow-2xl shadow-cyan-500/20 md:flex-row"
+      >
+        {/* Left Sidebar - Duration Selector */}
+        <div className="w-full border-b border-white/5 bg-slate-950/50 p-6 md:w-80 md:border-b-0 md:border-r md:overflow-y-auto">
           <DurationSelector
             selectedPreset={durationPreset}
             onSelectPreset={setDurationPreset}
@@ -158,10 +129,52 @@ export function RequestAccessDialog({
             durationError={durationError}
             timezone={timezoneRef.current}
           />
+        </div>
 
-          <ActionButtons loading={loading} onClose={onClose} />
-        </form>
-      </div>
+        {/* Right Content */}
+        <div className="flex flex-1 flex-col bg-gradient-to-br from-slate-900/95 via-slate-900/90 to-slate-950/95 backdrop-blur-xl">
+          <AccessRequestHeader profileName={profileName} onClose={onClose} />
+
+          <div className="flex flex-1 flex-col gap-6 overflow-y-auto p-6">
+            <ErrorAlert error={error} />
+
+            <div className="space-y-6">
+              <MessageField
+                message={message}
+                onChange={setMessage}
+                loading={loading}
+              />
+
+              {/* Info Box */}
+              <div className="rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 p-4">
+                <div className="flex items-start gap-3">
+                  <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-cyan-400/20 text-cyan-300">
+                    <svg
+                      className="h-3.5 w-3.5"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                      <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                    </svg>
+                  </span>
+                  <div className="flex-1">
+                    <p className="text-xs font-medium leading-relaxed text-cyan-100/80">
+                      The candidate will be notified via email and can approve
+                      or decline your request. You will only have access for the
+                      duration they approve.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-auto pt-4">
+              <ActionButtons loading={loading} onClose={onClose} />
+            </div>
+          </div>
+        </div>
+      </form>
     </div>
   );
 }

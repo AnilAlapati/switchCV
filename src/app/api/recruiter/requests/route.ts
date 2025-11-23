@@ -46,16 +46,11 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        let timestampStr = new Date().toISOString();
-        try {
-          if (data.timestamp && typeof data.timestamp.toDate === "function") {
-            timestampStr = data.timestamp.toDate().toISOString();
-          } else if (data.timestamp) {
-            timestampStr = new Date(data.timestamp).toISOString();
-          }
-        } catch (e) {
-          console.warn(`Error parsing timestamp for request ${doc.id}`, e);
-        }
+        const timestampStr = serializeTimestamp(data.timestamp);
+        const approvedAt = serializeTimestamp(data.approvedAt);
+        const expiresAt = serializeTimestamp(data.expiresAt);
+
+        const { isExpired, timeRemainingMs } = calculateExpiryState(expiresAt);
 
         return {
           id: doc.id,
@@ -64,6 +59,10 @@ export async function GET(request: NextRequest) {
           resumeTitle,
           candidateName,
           timestamp: timestampStr,
+          approvedAt,
+          expiresAt,
+          isExpired,
+          timeRemainingMs,
         };
       })
     );
@@ -71,5 +70,78 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ requests });
   } catch (error) {
     return handleApiError(error, "Failed to fetch recruiter requests");
+  }
+}
+
+function serializeTimestamp(value: any): string | null {
+  if (!value) return null;
+  try {
+    if (typeof value.toDate === "function") {
+      return value.toDate().toISOString();
+    }
+    if (typeof value === "string" || value instanceof Date) {
+      return new Date(value).toISOString();
+    }
+  } catch (error) {
+    console.warn("Failed to serialize timestamp", error);
+  }
+  return null;
+}
+
+function calculateExpiryState(expiresAtIso: string | null) {
+  if (!expiresAtIso) {
+    return { isExpired: false, timeRemainingMs: null };
+  }
+
+  const expiresAtMs = Date.parse(expiresAtIso);
+  if (Number.isNaN(expiresAtMs)) {
+    return { isExpired: false, timeRemainingMs: null };
+  }
+
+  const nowMs = Date.now();
+  const remaining = expiresAtMs - nowMs;
+
+  return {
+    isExpired: remaining <= 0,
+    timeRemainingMs: remaining,
+  };
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { userId, error } = await getAuthenticatedUserId(request);
+    if (error) return error;
+    if (!userId) return handleApiError(null, "Unauthorized", 401);
+
+    const { searchParams } = new URL(request.url);
+    const requestId = searchParams.get("requestId");
+    const resumeId = searchParams.get("resumeId");
+
+    if (!requestId || !resumeId) {
+      return handleApiError(null, "Missing requestId or resumeId", 400);
+    }
+
+    const requestRef = adminDb
+      .collection("resumes")
+      .doc(resumeId)
+      .collection("accessRequests")
+      .doc(requestId);
+
+    const doc = await requestRef.get();
+
+    if (!doc.exists) {
+      return handleApiError(null, "Request not found", 404);
+    }
+
+    const data = doc.data();
+    if (data?.fromUserId !== userId) {
+      return handleApiError(null, "Unauthorized to delete this request", 403);
+    }
+
+    await requestRef.delete();
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return handleApiError(error, "Failed to delete request");
   }
 }

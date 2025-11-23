@@ -131,6 +131,10 @@ describe("GET /api/recruiter/requests", () => {
           resumeId: "resume-1",
           resumeTitle: "Software Engineer",
           candidateName: "John Doe",
+          approvedAt: null,
+          expiresAt: null,
+          isExpired: false,
+          timeRemainingMs: null,
         },
       ],
     });
@@ -185,6 +189,10 @@ describe("GET /api/recruiter/requests", () => {
           resumeId: "resume-2",
           resumeTitle: "Unknown Resume",
           candidateName: "Unknown Candidate",
+          approvedAt: null,
+          expiresAt: null,
+          isExpired: false,
+          timeRemainingMs: null,
         },
       ],
     });
@@ -247,13 +255,13 @@ describe("GET /api/recruiter/requests", () => {
     const response = (await GET(mockRequest)) as any;
 
     expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining("Error parsing timestamp for request req-3"),
+      expect.stringContaining("Failed to serialize timestamp"),
       expect.any(Error)
     );
 
     // Should still return the request with default timestamp (current date)
     expect(response.requests[0].id).toBe("req-3");
-    expect(response.requests[0].timestamp).toBeDefined();
+    expect(response.requests[0].timestamp).toBeNull();
 
     consoleSpy.mockRestore();
   });

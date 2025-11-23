@@ -76,7 +76,8 @@ describe("RequestAccessDialog", () => {
     ) as HTMLTextAreaElement;
 
     const longMessage = "a".repeat(600);
-    await userEvent.type(textarea, longMessage);
+    await userEvent.click(textarea);
+    await userEvent.paste(longMessage);
 
     expect(textarea.value.length).toBeLessThanOrEqual(500);
   });
@@ -352,7 +353,7 @@ describe("RequestAccessDialog", () => {
     const customButton = screen.getByText("Custom Days");
     await userEvent.click(customButton);
 
-    const input = screen.getByLabelText(/Custom duration/);
+    const input = screen.getByLabelText(/Enter number of days/);
     await userEvent.clear(input);
     await userEvent.type(input, "0");
 
