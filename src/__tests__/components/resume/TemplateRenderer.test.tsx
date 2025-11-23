@@ -90,4 +90,29 @@ describe("TemplateRenderer", () => {
     expect(screen.getByText("Tech Corp")).toBeInTheDocument();
     expect(screen.getByText("Developer")).toBeInTheDocument();
   });
+
+  it("renders only header in snapshot mode", () => {
+    const snapshotData = {
+      ...mockData,
+      viewerAccess: { isSnapshot: true },
+    };
+
+    render(
+      <TemplateRenderer
+        template={mockTemplate}
+        data={snapshotData as ResumeProfile}
+      />
+    );
+
+    // Header should be present
+    expect(screen.getByText("Software Engineer")).toBeInTheDocument();
+
+    // Experience section should NOT be present
+    expect(screen.queryByText("Experience")).not.toBeInTheDocument();
+
+    // CTA should be present
+    expect(
+      screen.getByText("Sign in to View Full Profile")
+    ).toBeInTheDocument();
+  });
 });

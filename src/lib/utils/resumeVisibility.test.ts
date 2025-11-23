@@ -328,6 +328,7 @@ describe("resumeVisibility Utilities", () => {
         experience: [{ company: "Tech Corp", role: "Dev" }],
         education: [{ school: "University", degree: "BS" }],
         projects: [{ name: "Project A" }],
+        skills: [{ name: "React" }],
       };
 
       const sanitized = sanitizeResumeForPublicView(resume);
@@ -335,6 +336,7 @@ describe("resumeVisibility Utilities", () => {
       expect(sanitized.experience).toEqual([]);
       expect(sanitized.education).toEqual([]);
       expect(sanitized.projects).toEqual([]);
+      expect(sanitized.skills).toEqual([]);
       expect(sanitized.viewerAccess.isSnapshot).toBe(true);
     });
   });

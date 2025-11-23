@@ -256,12 +256,9 @@ export const TemplateRenderer: React.FC<TemplateRendererProps> = ({
           .filter((section) => {
             if (section.id === "personal_info") return false;
             if (isSnapshot) {
-              // Only show summary and skills in snapshot mode
-              return (
-                section.id === "summary" ||
-                section.id === "skills" ||
-                section.title.toLowerCase().includes("skill")
-              );
+              // In snapshot mode, we only show the header card (rendered above)
+              // All other sections (Skills, Experience, etc.) are hidden
+              return false;
             }
             return true;
           })
