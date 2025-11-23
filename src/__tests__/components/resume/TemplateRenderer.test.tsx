@@ -115,4 +115,58 @@ describe("TemplateRenderer", () => {
       screen.getByText("Sign in to View Full Profile")
     ).toBeInTheDocument();
   });
+
+  it("shows unmasked contact info for approved recruiters", () => {
+    const recruiterData = {
+      ...mockData,
+      contact: {
+        email: { value: "private@example.com", visibility: "masked" },
+        phone: { value: "987-654-3210", visibility: "masked" },
+      },
+      personalInfo: {
+        email: "private@example.com",
+        phone: "987-654-3210",
+      },
+      viewerAccess: { scope: "full", isMasked: false },
+    };
+
+    render(
+      <TemplateRenderer
+        template={mockTemplate}
+        data={recruiterData as ResumeProfile}
+      />
+    );
+
+    expect(screen.getByText("private@example.com")).toBeInTheDocument();
+    expect(screen.getByText("987-654-3210")).toBeInTheDocument();
+  });
+
+  it("keeps contact masked for public preview viewers", () => {
+    const maskedData = {
+      ...mockData,
+      contact: {
+        email: { value: "h***@example.com", visibility: "masked" },
+        phone: { value: "***-***-9876", visibility: "masked" },
+      },
+      personalInfo: {
+        email: "hidden@example.com",
+        phone: "5551239876",
+      },
+      viewerAccess: {
+        scope: "public-preview",
+        isMasked: true,
+        isSnapshot: true,
+      },
+    };
+
+    render(
+      <TemplateRenderer
+        template={mockTemplate}
+        data={maskedData as ResumeProfile}
+      />
+    );
+
+    expect(screen.getByText("h***@example.com")).toBeInTheDocument();
+    expect(screen.getByText("***-***-9876")).toBeInTheDocument();
+  });
 });

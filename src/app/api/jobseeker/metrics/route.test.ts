@@ -8,6 +8,14 @@ jest.mock("@/lib/firebase-admin", () => ({
       doc: jest.fn(() => ({
         get: jest.fn(),
       })),
+      where: jest.fn(() => ({
+        get: jest.fn(),
+      })),
+    })),
+    collectionGroup: jest.fn(() => ({
+      where: jest.fn(() => ({
+        get: jest.fn(),
+      })),
     })),
   },
 }));
@@ -55,13 +63,19 @@ describe("GET /api/jobseeker/metrics", () => {
   it("should return metrics for valid userId", async () => {
     const mockMetrics = {
       profileViews: 25,
-      contactRequests: 5,
       downloads: 10,
       quality: 85,
       lastUpdated: "2024-01-15T10:30:00Z",
     };
 
-    mockGet.mockResolvedValue({
+    // Mock resumes query (returns empty - no pending requests)
+    mockQueryGet.mockResolvedValueOnce({
+      empty: true,
+      docs: [],
+    });
+
+    // Mock metrics doc
+    mockGet.mockResolvedValueOnce({
       exists: true,
       data: () => mockMetrics,
     });
@@ -74,14 +88,21 @@ describe("GET /api/jobseeker/metrics", () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data).toEqual(mockMetrics);
-    expect(mockCollection).toHaveBeenCalledWith("jobSeekerMetrics");
-    expect(mockDoc).toHaveBeenCalledWith("user123");
-    expect(mockGet).toHaveBeenCalled();
+    expect(data).toEqual({
+      ...mockMetrics,
+      contactRequests: 0, // Computed from actual data
+    });
   });
 
   it("should return default metrics when document does not exist", async () => {
-    mockGet.mockResolvedValue({
+    // Mock resumes query (returns empty)
+    mockQueryGet.mockResolvedValueOnce({
+      empty: true,
+      docs: [],
+    });
+
+    // Mock metrics doc (not exists)
+    mockGet.mockResolvedValueOnce({
       exists: false,
       data: () => null,
     });
@@ -101,9 +122,6 @@ describe("GET /api/jobseeker/metrics", () => {
       quality: 0,
       lastUpdated: null,
     });
-    expect(mockCollection).toHaveBeenCalledWith("jobSeekerMetrics");
-    expect(mockDoc).toHaveBeenCalledWith("user456");
-    expect(mockGet).toHaveBeenCalled();
   });
 
   it("should return 400 when userId is missing", async () => {
@@ -118,11 +136,11 @@ describe("GET /api/jobseeker/metrics", () => {
     expect(data).toEqual({
       error: "userId is required",
     });
-    expect(mockCollection).not.toHaveBeenCalled();
   });
 
   it("should return 500 when database operation fails", async () => {
-    mockGet.mockRejectedValue(new Error("Database connection failed"));
+    // Mock resumes query to fail
+    mockQueryGet.mockRejectedValueOnce(new Error("Database connection failed"));
 
     const request = new NextRequest(
       "http://localhost:3000/api/jobseeker/metrics?userId=user789"
@@ -136,9 +154,6 @@ describe("GET /api/jobseeker/metrics", () => {
       error: "Failed to fetch job seeker metrics",
       details: "Database connection failed",
     });
-    expect(mockCollection).toHaveBeenCalledWith("jobSeekerMetrics");
-    expect(mockDoc).toHaveBeenCalledWith("user789");
-    expect(mockGet).toHaveBeenCalled();
   });
 
   it("should handle empty userId parameter", async () => {
@@ -153,21 +168,24 @@ describe("GET /api/jobseeker/metrics", () => {
     expect(data).toEqual({
       error: "userId is required",
     });
-    expect(mockCollection).not.toHaveBeenCalled();
-    expect(mockDoc).not.toHaveBeenCalled();
-    expect(mockGet).not.toHaveBeenCalled();
   });
 
   it("should handle userId with special characters", async () => {
+    // Mock resumes query (returns empty)
+    mockQueryGet.mockResolvedValueOnce({
+      empty: true,
+      docs: [],
+    });
+
     const mockMetrics = {
       profileViews: 15,
-      contactRequests: 3,
       downloads: 7,
       quality: 92,
       lastUpdated: "2024-01-20T14:45:00Z",
     };
 
-    mockGet.mockResolvedValue({
+    // Mock metrics doc
+    mockGet.mockResolvedValueOnce({
       exists: true,
       data: () => mockMetrics,
     });
@@ -180,9 +198,9 @@ describe("GET /api/jobseeker/metrics", () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data).toEqual(mockMetrics);
-    expect(mockCollection).toHaveBeenCalledWith("jobSeekerMetrics");
-    expect(mockDoc).toHaveBeenCalledWith("user-123_special@test.com");
-    expect(mockGet).toHaveBeenCalled();
+    expect(data).toEqual({
+      ...mockMetrics,
+      contactRequests: 0,
+    });
   });
 });

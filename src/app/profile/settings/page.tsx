@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useResume } from "@/hooks/useResume";
 import { useRouter } from "next/navigation";
@@ -38,6 +38,16 @@ export default function SettingsPage() {
     type: "success" | "error";
     text: string;
   } | null>(null);
+
+  const handleLogout = useCallback(async () => {
+    try {
+      await logout();
+      router.replace("/auth");
+      router.refresh();
+    } catch (error) {
+      console.error("Failed to log out", error);
+    }
+  }, [logout, router]);
 
   useEffect(() => {
     if (!authLoading && (!user || needsEmailVerification)) {
@@ -239,7 +249,7 @@ export default function SettingsPage() {
 
   return (
     <DashboardBackground>
-      <DashboardHeader userEmail={user.email} onLogout={logout} />
+      <DashboardHeader userEmail={user.email} onLogout={handleLogout} />
 
       <main className="relative z-10 max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="mb-8">

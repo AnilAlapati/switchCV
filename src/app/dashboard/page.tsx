@@ -38,6 +38,16 @@ export default function Dashboard() {
 
   const recruiterSearchRef = useRef<HTMLDivElement>(null);
 
+  const handleLogout = useCallback(async () => {
+    try {
+      await logout();
+      router.replace("/auth");
+      router.refresh();
+    } catch (error) {
+      console.error("Failed to log out", error);
+    }
+  }, [logout, router]);
+
   useEffect(() => {
     if (!loading && (!user || needsEmailVerification)) {
       router.push("/auth?mode=verify-email");
@@ -282,7 +292,7 @@ export default function Dashboard() {
 
   return (
     <DashboardBackground>
-      <DashboardHeader userEmail={user.email} onLogout={logout} />
+      <DashboardHeader userEmail={user.email} onLogout={handleLogout} />
 
       <DashboardMetricsProvider value={metricsProviderValue}>
         <main className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
