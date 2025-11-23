@@ -9,12 +9,12 @@ import { getDoc, setDoc, updateDoc, getDocs } from "firebase/firestore";
 
 // Mock Firebase
 jest.mock("firebase/firestore", () => ({
-  collection: jest.fn(),
-  doc: jest.fn(),
+  collection: jest.fn(() => "mock-collection"),
+  doc: jest.fn(() => "mock-doc"),
   getDoc: jest.fn(),
   setDoc: jest.fn(),
   updateDoc: jest.fn(),
-  increment: jest.fn(),
+  increment: jest.fn((n) => ({ type: "increment", value: n })),
   getDocs: jest.fn(),
   query: jest.fn(),
   orderBy: jest.fn(),
@@ -150,6 +150,138 @@ describe("analyticsService", () => {
 
       expect(updateDoc).toHaveBeenCalled();
     });
+
+    it("should track session duration (create new)", async () => {
+      const request = {
+        resumeId: mockResumeId,
+        eventType: "view" as const,
+        metadata: { sessionDuration: 60 },
+      };
+
+      // First call for analytics check (exists=true)
+      // Second call for engagement check (exists=false)
+      (getDoc as jest.Mock)
+        .mockResolvedValueOnce({ exists: () => true, data: () => ({}) })
+        .mockResolvedValueOnce({ exists: () => false });
+
+      await trackAnalyticsEvent(request);
+
+      expect(setDoc).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          avgSessionDuration: 60,
+          totalSessions: 1,
+        })
+      );
+    });
+
+    it("should handle error in trackSessionDuration", async () => {
+      const request = {
+        resumeId: mockResumeId,
+        eventType: "view" as const,
+        metadata: { sessionDuration: 60 },
+      };
+
+      (getDoc as jest.Mock)
+        .mockResolvedValueOnce({ exists: () => true, data: () => ({}) })
+        .mockRejectedValueOnce(new Error("DB Error"));
+
+      const consoleSpy = jest.spyOn(console, "error").mockImplementation();
+
+      await trackAnalyticsEvent(request);
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Failed to track session duration:",
+        expect.any(Error)
+      );
+      consoleSpy.mockRestore();
+    });
+
+    it("should update analytics for request event", async () => {
+      const request = {
+        resumeId: mockResumeId,
+        eventType: "request" as const,
+      };
+
+      (getDoc as jest.Mock).mockResolvedValue({
+        exists: () => true,
+        data: () => ({}),
+      });
+
+      await trackAnalyticsEvent(request);
+
+      expect(updateDoc).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          "requests.totalRequests": expect.anything(),
+          "requests.pendingRequests": expect.anything(),
+        })
+      );
+    });
+
+    it("should update analytics for approval event", async () => {
+      const request = {
+        resumeId: mockResumeId,
+        eventType: "approval" as const,
+      };
+
+      (getDoc as jest.Mock).mockResolvedValue({
+        exists: () => true,
+        data: () => ({}),
+      });
+
+      await trackAnalyticsEvent(request);
+
+      expect(updateDoc).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          "requests.approvedRequests": expect.anything(),
+          "requests.pendingRequests": expect.anything(),
+        })
+      );
+    });
+
+    it("should update top referrers when referrer is present", async () => {
+      const request = {
+        resumeId: mockResumeId,
+        eventType: "view" as const,
+        metadata: { referrer: "linkedin" },
+      };
+
+      (getDoc as jest.Mock).mockResolvedValue({
+        exists: () => true,
+        data: () => ({}),
+      });
+
+      await trackAnalyticsEvent(request);
+
+      expect(updateDoc).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          "views.topReferrers.linkedin": expect.objectContaining({
+            type: "increment",
+            value: 1,
+          }),
+        })
+      );
+    });
+
+    it("should handle view event without metadata", async () => {
+      const request = {
+        resumeId: mockResumeId,
+        eventType: "view" as const,
+        // metadata is undefined
+      };
+
+      (getDoc as jest.Mock).mockResolvedValue({
+        exists: () => true,
+        data: () => ({}),
+      });
+
+      await trackAnalyticsEvent(request);
+
+      expect(updateDoc).toHaveBeenCalled();
+    });
   });
 
   describe("getEngagementMetrics", () => {
@@ -200,6 +332,19 @@ describe("analyticsService", () => {
 
       const result = await getRequestStatistics(mockResumeId);
       expect(result).toBeNull();
+    });
+
+    it("should return null on error", async () => {
+      (getDoc as jest.Mock).mockRejectedValue(new Error("DB Error"));
+      const consoleSpy = jest.spyOn(console, "error").mockImplementation();
+
+      const result = await getRequestStatistics(mockResumeId);
+      expect(result).toBeNull();
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Error getting request statistics:",
+        expect.any(Error)
+      );
+      consoleSpy.mockRestore();
     });
   });
 

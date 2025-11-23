@@ -84,7 +84,10 @@ describe("POST /api/profiles/request-access", () => {
           }),
         };
       }
-      if (collectionName === "recruiterMetrics" || collectionName === "jobSeekerMetrics") {
+      if (
+        collectionName === "recruiterMetrics" ||
+        collectionName === "jobSeekerMetrics"
+      ) {
         return {
           doc: jest.fn().mockReturnValue({
             set: jest.fn().mockResolvedValue(undefined),
@@ -165,7 +168,10 @@ describe("POST /api/profiles/request-access", () => {
           }),
         };
       }
-      if (collectionName === "recruiterMetrics" || collectionName === "jobSeekerMetrics") {
+      if (
+        collectionName === "recruiterMetrics" ||
+        collectionName === "jobSeekerMetrics"
+      ) {
         return {
           doc: jest.fn().mockReturnValue({
             set: jest.fn().mockResolvedValue(undefined),

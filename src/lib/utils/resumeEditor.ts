@@ -262,6 +262,10 @@ const RESERVED_FIELDS = new Set([
 export const sanitizeResumePayload = (
   resume: Record<string, any>
 ): Record<string, any> => {
+  if (!resume || typeof resume !== "object") {
+    return {};
+  }
+
   const sanitizedEntries = Object.entries(resume).filter(
     ([key]) => !RESERVED_FIELDS.has(key)
   );
