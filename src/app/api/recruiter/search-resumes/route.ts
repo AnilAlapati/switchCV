@@ -18,6 +18,30 @@ interface SearchResultCard {
   skills?: string[];
   location?: string;
   createdAt: string;
+  accessStatus?: "none" | "pending" | "approved" | "denied";
+}
+
+async function checkAccessStatus(resumeId: string, recruiterId: string): Promise<"none" | "pending" | "approved" | "denied"> {
+  try {
+    const requests = await adminDb
+      .collection("resumes")
+      .doc(resumeId)
+      .collection("accessRequests")
+      .where("fromUserId", "==", recruiterId)
+      .get();
+
+    if (requests.empty) return "none";
+
+    const statuses = requests.docs.map(doc => doc.data().status);
+    if (statuses.includes("approved")) return "approved";
+    if (statuses.includes("pending")) return "pending";
+    if (statuses.includes("denied")) return "denied";
+    
+    return "none";
+  } catch (error) {
+    console.error("Error checking access status:", error);
+    return "none";
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -115,12 +139,15 @@ export async function POST(request: NextRequest) {
 
             const userData = userSnapshot.data();
 
+            const accessStatus = await checkAccessStatus(mapping.documentId, recruiterId);
+
             results.push({
               resumeId: userId, // Use the friendly ID
               title: resumeData.title || "Untitled Resume",
               userName: userData?.displayName || userData?.email || "Unknown",
               userId: mapping.userId,
               createdAt: resumeData.createdAt || new Date().toISOString(),
+              accessStatus,
             });
 
             console.log(`[Search] Resume found and returned: ${userId}`);
@@ -179,12 +206,15 @@ export async function POST(request: NextRequest) {
 
           const userData = userSnapshot.data();
 
+          const accessStatus = await checkAccessStatus(resumeSnapshot.id, recruiterId);
+
           results.push({
             resumeId: resumeSnapshot.id,
             title: resumeData.title || "Untitled Resume",
             userName: userData?.displayName || userData?.email || "Unknown",
             userId: resumeData.userId,
             createdAt: resumeData.createdAt || new Date().toISOString(),
+            accessStatus,
           });
 
           return NextResponse.json({
@@ -241,12 +271,15 @@ export async function POST(request: NextRequest) {
         const resumeDoc = resumesSnapshot.docs[0];
         const resumeData = resumeDoc.data();
 
+        const accessStatus = await checkAccessStatus(resumeDoc.id, recruiterId);
+
         results.push({
           resumeId: resumeDoc.id,
           title: resumeData.title || "Untitled Resume",
           userName: userData?.displayName || userData?.email || "Unknown",
           userId: userId,
           createdAt: resumeData.createdAt || new Date().toISOString(),
+          accessStatus,
         });
       } catch (error) {
         return handleApiError(error, "Search failed");
@@ -324,6 +357,8 @@ export async function POST(request: NextRequest) {
           // Add if matches either criteria
           if (skillsMatch || locationMatch) {
             seenUserIds.add(userId);
+            const accessStatus = await checkAccessStatus(resumeDoc.id, recruiterId);
+
             results.push({
               resumeId: resumeDoc.id,
               title: resumeData.title || "Untitled Resume",
@@ -332,6 +367,7 @@ export async function POST(request: NextRequest) {
               skills: resumeSkills.slice(0, 5), // Show max 5 skills
               location: resumeLocation || undefined,
               createdAt: resumeData.createdAt || new Date().toISOString(),
+              accessStatus,
             });
           }
         }

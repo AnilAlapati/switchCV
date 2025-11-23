@@ -8,6 +8,7 @@ export interface SearchResult {
   skills?: string[];
   location?: string;
   createdAt: string;
+  accessStatus?: "none" | "pending" | "approved" | "denied";
 }
 
 interface RecruiterSearchFormProps {

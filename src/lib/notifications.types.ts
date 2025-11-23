@@ -14,6 +14,8 @@ export enum NotificationType {
   SKILL_MATCH = "skill-match",
   JOB_POSTED = "job-posted",
   APPLICATION_UPDATE = "application-update",
+  ACCESS_REQUEST = "access-request",
+  ACCESS_GRANTED = "access-granted",
 }
 
 export enum NotificationChannel {
