@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import {
   getAuthenticatedUserId,
   handleApiError,
@@ -43,8 +44,30 @@ export async function POST(request: NextRequest) {
     const status = action === "approve" ? "approved" : "denied";
     await requestRef.update({ status });
 
-    // Notify Recruiter
     const requestData = requestDoc.data();
+
+    // Update recruiter metrics
+    if (requestData?.fromUserId) {
+      const metricsRef = adminDb
+        .collection("recruiterMetrics")
+        .doc(requestData.fromUserId);
+
+      const updates: Record<string, any> = {
+        "accessRequests.pending": FieldValue.increment(-1),
+      };
+
+      if (status === "approved") {
+        updates["accessRequests.approved"] = FieldValue.increment(1);
+      } else {
+        updates["accessRequests.denied"] = FieldValue.increment(1);
+      }
+
+      await metricsRef.set(updates, { merge: true }).catch((err) => {
+        console.error("Failed to update recruiter metrics:", err);
+      });
+    }
+
+    // Notify Recruiter
     if (requestData?.fromUserId) {
       await createNotification(
         NotificationType.ACCESS_GRANTED,

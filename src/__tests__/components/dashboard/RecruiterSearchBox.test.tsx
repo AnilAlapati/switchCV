@@ -22,60 +22,68 @@ describe("RecruiterSearchBox", () => {
   it("renders the search box with header and form", () => {
     render(<RecruiterSearchBox />);
 
-    expect(screen.getByText("Recruiter Resume Search")).toBeInTheDocument();
-    expect(screen.getByText("🔍 Basic (ID Search)")).toBeInTheDocument();
-    expect(screen.getByText("⭐ Premium (Advanced)")).toBeInTheDocument();
+    expect(screen.getByText("Resume Search")).toBeInTheDocument();
+    expect(screen.getByText("Basic Lookup")).toBeInTheDocument();
+    expect(screen.getByText("Premium Filters")).toBeInTheDocument();
   });
 
   it("starts in basic search mode by default", () => {
     render(<RecruiterSearchBox />);
 
-    expect(screen.getByText("🔍 Basic (ID Search)")).toHaveClass(
-      "bg-amber-500/30"
-    );
+    // Basic mode should show the basic search input
     expect(
-      screen.getByPlaceholderText("Enter resume ID or user ID...")
+      screen.getByPlaceholderText("e.g., resume-447 or uid-9abc")
     ).toBeInTheDocument();
+    // Premium mode fields should not be visible
+    expect(
+      screen.queryByPlaceholderText("e.g., React, Python, AWS")
+    ).not.toBeInTheDocument();
   });
 
   it("switches to premium mode when premium button is clicked", async () => {
     render(<RecruiterSearchBox />);
 
-    const premiumButton = screen.getByText("⭐ Premium (Advanced)");
+    const premiumButton = screen.getByText("Premium Filters");
     await userEvent.click(premiumButton);
 
-    expect(screen.getByText("⭐ Premium (Advanced)")).toHaveClass(
-      "bg-purple-500/30"
-    );
-    expect(screen.getByPlaceholderText("Add a skill...")).toBeInTheDocument();
+    // Premium mode fields should be visible
     expect(
-      screen.getByPlaceholderText("Enter location...")
+      screen.getByPlaceholderText("e.g., React, Python, AWS")
     ).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText("City, region, or remote")
+    ).toBeInTheDocument();
+    // Basic mode input should not be visible
+    expect(
+      screen.queryByPlaceholderText("e.g., resume-447 or uid-9abc")
+    ).not.toBeInTheDocument();
   });
 
   it("switches back to basic mode when basic button is clicked", async () => {
     render(<RecruiterSearchBox />);
 
     // Switch to premium first
-    const premiumButton = screen.getByText("⭐ Premium (Advanced)");
+    const premiumButton = screen.getByText("Premium Filters");
     await userEvent.click(premiumButton);
 
     // Switch back to basic
-    const basicButton = screen.getByText("🔍 Basic (ID Search)");
+    const basicButton = screen.getByText("Basic Lookup");
     await userEvent.click(basicButton);
 
-    expect(screen.getByText("🔍 Basic (ID Search)")).toHaveClass(
-      "bg-amber-500/30"
-    );
+    // Basic mode input should be visible again
     expect(
-      screen.getByPlaceholderText("Enter resume ID or user ID...")
+      screen.getByPlaceholderText("e.g., resume-447 or uid-9abc")
     ).toBeInTheDocument();
+    // Premium mode fields should not be visible
+    expect(
+      screen.queryByPlaceholderText("e.g., React, Python, AWS")
+    ).not.toBeInTheDocument();
   });
 
   it("shows error when basic search is submitted without userId", async () => {
     render(<RecruiterSearchBox />);
 
-    const submitButton = screen.getByText("Search");
+    const submitButton = screen.getByText("Run Search");
     await userEvent.click(submitButton);
 
     expect(screen.getByText("Please enter a candidate ID")).toBeInTheDocument();
@@ -85,10 +93,10 @@ describe("RecruiterSearchBox", () => {
     render(<RecruiterSearchBox />);
 
     // Switch to premium mode
-    const premiumButton = screen.getByText("⭐ Premium (Advanced)");
+    const premiumButton = screen.getByText("Premium Filters");
     await userEvent.click(premiumButton);
 
-    const submitButton = screen.getByText("Search");
+    const submitButton = screen.getByText("Run Search");
     await userEvent.click(submitButton);
 
     expect(
@@ -119,11 +127,11 @@ describe("RecruiterSearchBox", () => {
     render(<RecruiterSearchBox />);
 
     const userIdInput = screen.getByPlaceholderText(
-      "Enter resume ID or user ID..."
+      "e.g., resume-447 or uid-9abc"
     );
     await userEvent.type(userIdInput, "user-123");
 
-    const submitButton = screen.getByText("Search");
+    const submitButton = screen.getByText("Run Search");
     await userEvent.click(submitButton);
 
     await waitFor(() => {
@@ -137,7 +145,7 @@ describe("RecruiterSearchBox", () => {
       });
     });
 
-    expect(screen.getByText("Found 1 resume")).toBeInTheDocument();
+    expect(screen.getByText("1 resume found")).toBeInTheDocument();
     expect(screen.getByText("Software Engineer Resume")).toBeInTheDocument();
   });
 
@@ -164,14 +172,14 @@ describe("RecruiterSearchBox", () => {
     render(<RecruiterSearchBox />);
 
     // Switch to premium mode
-    const premiumButton = screen.getByText("⭐ Premium (Advanced)");
+    const premiumButton = screen.getByText("Premium Filters");
     await userEvent.click(premiumButton);
 
     // Add skills
-    const skillInput = screen.getByPlaceholderText("Add a skill...");
+    const skillInput = screen.getByPlaceholderText("e.g., React, Python, AWS");
     await userEvent.type(skillInput, "React{enter}");
 
-    const submitButton = screen.getByText("Search");
+    const submitButton = screen.getByText("Run Search");
     await userEvent.click(submitButton);
 
     await waitFor(() => {
@@ -185,7 +193,7 @@ describe("RecruiterSearchBox", () => {
       });
     });
 
-    expect(screen.getByText("Found 1 resume")).toBeInTheDocument();
+    expect(screen.getByText("1 resume found")).toBeInTheDocument();
     expect(screen.getByText("Frontend Developer Resume")).toBeInTheDocument();
   });
 
@@ -212,14 +220,16 @@ describe("RecruiterSearchBox", () => {
     render(<RecruiterSearchBox />);
 
     // Switch to premium mode
-    const premiumButton = screen.getByText("⭐ Premium (Advanced)");
+    const premiumButton = screen.getByText("Premium Filters");
     await userEvent.click(premiumButton);
 
     // Add location
-    const locationInput = screen.getByPlaceholderText("Enter location...");
+    const locationInput = screen.getByPlaceholderText(
+      "City, region, or remote"
+    );
     await userEvent.type(locationInput, "Austin");
 
-    const submitButton = screen.getByText("Search");
+    const submitButton = screen.getByText("Run Search");
     await userEvent.click(submitButton);
 
     await waitFor(() => {
@@ -233,7 +243,7 @@ describe("RecruiterSearchBox", () => {
       });
     });
 
-    expect(screen.getByText("Found 1 resume")).toBeInTheDocument();
+    expect(screen.getByText("1 resume found")).toBeInTheDocument();
     expect(screen.getByText("Full Stack Developer Resume")).toBeInTheDocument();
   });
 
@@ -247,11 +257,11 @@ describe("RecruiterSearchBox", () => {
     render(<RecruiterSearchBox />);
 
     const userIdInput = screen.getByPlaceholderText(
-      "Enter resume ID or user ID..."
+      "e.g., resume-447 or uid-9abc"
     );
     await userEvent.type(userIdInput, "user-123");
 
-    const submitButton = screen.getByText("Search");
+    const submitButton = screen.getByText("Run Search");
     await userEvent.click(submitButton);
 
     await waitFor(() => {
@@ -272,16 +282,16 @@ describe("RecruiterSearchBox", () => {
     render(<RecruiterSearchBox />);
 
     const userIdInput = screen.getByPlaceholderText(
-      "Enter resume ID or user ID..."
+      "e.g., resume-447 or uid-9abc"
     );
     await userEvent.type(userIdInput, "user-999");
 
-    const submitButton = screen.getByText("Search");
+    const submitButton = screen.getByText("Run Search");
     await userEvent.click(submitButton);
 
     await waitFor(() => {
       expect(
-        screen.getByText("ℹ️ No resumes found matching your search")
+        screen.getByText("No resumes found matching your search")
       ).toBeInTheDocument();
     });
   });
@@ -317,11 +327,11 @@ describe("RecruiterSearchBox", () => {
     render(<RecruiterSearchBox />);
 
     const userIdInput = screen.getByPlaceholderText(
-      "Enter resume ID or user ID..."
+      "e.g., resume-447 or uid-9abc"
     );
     await userEvent.type(userIdInput, "user-123");
 
-    const submitButton = screen.getByText("Search");
+    const submitButton = screen.getByText("Run Search");
     await userEvent.click(submitButton);
 
     await waitFor(() => {
@@ -353,11 +363,11 @@ describe("RecruiterSearchBox", () => {
     render(<RecruiterSearchBox />);
 
     const userIdInput = screen.getByPlaceholderText(
-      "Enter resume ID or user ID..."
+      "e.g., resume-447 or uid-9abc"
     );
     await userEvent.type(userIdInput, "user-123");
 
-    const submitButton = screen.getByText("Search");
+    const submitButton = screen.getByText("Run Search");
     await userEvent.click(submitButton);
 
     // Button should show loading state

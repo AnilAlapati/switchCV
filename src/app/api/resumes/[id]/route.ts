@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { sanitizeResumePayload } from "@/lib/utils/resumeEditor";
+import { FieldValue } from "firebase-admin/firestore";
 import {
   getAuthenticatedUserId,
   fetchResumeDocument,
@@ -84,6 +85,20 @@ export async function GET(
     }
 
     if (requestUserId !== ownerId) {
+      // Track view for recruiter metrics
+      // We do this asynchronously and don't await to avoid slowing down the response
+      adminDb
+        .collection("recruiterMetrics")
+        .doc(requestUserId!)
+        .set(
+          {
+            totalProfileViews: FieldValue.increment(1),
+            lastActivityAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        )
+        .catch((err) => console.error("Failed to track profile view:", err));
+
       const userDoc = await adminDb
         .collection("users")
         .doc(requestUserId!)

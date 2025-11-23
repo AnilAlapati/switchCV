@@ -1,7 +1,7 @@
-// src/components/RequestAccessDialog.tsx
 "use client";
 
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 
 interface RequestAccessDialogProps {
   profileName: string;
@@ -18,15 +18,18 @@ export function RequestAccessDialog({
   onClose,
   onSuccess,
 }: RequestAccessDialogProps) {
+  const { user } = useAuth();
   const [message, setMessage] = useState("");
-  const [duration, setDuration] = useState<
-    "1hour" | "1day" | "1week" | "forever"
-  >("1week");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!user) {
+      setError("You must be logged in to request access");
+      return;
+    }
 
     if (!profileId.trim()) {
       setError("Invalid profile ID");
@@ -37,13 +40,17 @@ export function RequestAccessDialog({
       setLoading(true);
       setError(null);
 
+      const token = await user.getIdToken();
+
       const response = await fetch("/api/profiles/request-access", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
-          toUserId: profileId,
+          resumeId: profileId,
           message: message.trim() || undefined,
-          duration,
         }),
       });
 
@@ -55,11 +62,10 @@ export function RequestAccessDialog({
       }
 
       setMessage("");
-      setDuration("1week");
       onSuccess?.();
       onClose();
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : "Unknown error";
+      const errorMsg = err instanceof Error ? err.message : String(err);
       console.error("Request error:", errorMsg);
       setError(errorMsg);
     } finally {
@@ -70,111 +76,208 @@ export function RequestAccessDialog({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 border border-gray-700 rounded-lg max-w-md w-full max-h-96 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <div className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900/95 via-slate-900/90 to-slate-950/95 shadow-2xl shadow-cyan-500/20 backdrop-blur-xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-700">
-          <div>
-            <h2 className="text-xl font-bold text-white">
-              Request Full Access
-            </h2>
-            <p className="text-gray-400 text-sm mt-1">{profileName}</p>
+        <div className="sticky top-0 z-10 border-b border-white/10 bg-gradient-to-r from-slate-900/95 to-slate-950/95 p-6 backdrop-blur-sm">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-cyan-400/40 bg-cyan-500/15 px-3 py-1 backdrop-blur-sm">
+                <span className="h-1.5 w-1.5 rounded-full bg-cyan-400"></span>
+                <span className="text-xs font-bold uppercase tracking-wider text-cyan-100">
+                  Access Request
+                </span>
+              </div>
+              <h2 className="bg-gradient-to-r from-white to-slate-300 bg-clip-text text-2xl font-black text-transparent">
+                Request Full Access
+              </h2>
+              <p className="mt-1 flex items-center gap-2 text-sm text-slate-400">
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                  />
+                </svg>
+                {profileName}
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-slate-800/60 text-slate-400 transition-all hover:border-white/30 hover:bg-slate-800 hover:text-white"
+              aria-label="Close"
+            >
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-white text-2xl leading-none"
-            aria-label="Close"
-          >
-            ×
-          </button>
         </div>
 
         {/* Content */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5 p-6">
           {/* Error Message */}
           {error && (
-            <div className="p-3 bg-red-900/30 border border-red-500/50 rounded text-red-300 text-sm">
-              {error}
-              {error.includes("Company name is required") && (
-                <div className="mt-2">
-                  <a
-                    href="/profile/settings"
-                    className="text-blue-400 hover:text-blue-300 underline"
-                  >
-                    Update Profile Settings
-                  </a>
+            <div className="rounded-2xl border border-rose-500/40 bg-rose-500/15 p-4 shadow-lg shadow-rose-500/20">
+              <div className="flex items-start gap-3">
+                <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-rose-500/20 text-rose-200">
+                  !
+                </span>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-rose-100">{error}</p>
+                  {error.includes("Company name is required") && (
+                    <a
+                      href="/profile/settings"
+                      className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-cyan-300 hover:text-cyan-200"
+                    >
+                      Update Profile Settings
+                      <svg
+                        className="h-3 w-3"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 5l7 7-7 7"
+                        />
+                      </svg>
+                    </a>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           )}
 
-          {/* Duration Selector */}
-          <div>
-            <label className="block text-sm font-medium text-gray-200 mb-2">
-              How long should they have access?
-            </label>
-            <select
-              value={duration}
-              onChange={(e) =>
-                setDuration(
-                  e.target.value as "1hour" | "1day" | "1week" | "forever"
-                )
-              }
-              disabled={loading}
-              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <option value="1hour">1 Hour</option>
-              <option value="1day">1 Day</option>
-              <option value="1week">1 Week</option>
-              <option value="forever">Forever</option>
-            </select>
-            <p className="text-gray-500 text-xs mt-1">
-              They can accept and specify the duration, but won't exceed your
-              request.
-            </p>
-          </div>
-
           {/* Message Textarea */}
           <div>
-            <label className="block text-sm font-medium text-gray-200 mb-2">
-              Personal Message (Optional)
+            <label className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-200">
+              <span className="h-1 w-1 rounded-full bg-cyan-400"></span>
+              Personal Message
+              <span className="ml-auto text-xs font-normal text-slate-500">
+                (Optional)
+              </span>
             </label>
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               disabled={loading}
-              placeholder="Tell them why you'd like to view their full resume..."
+              placeholder="Hi! I'd love to learn more about your experience with..."
               maxLength={500}
-              rows={4}
-              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed resize-none"
+              rows={5}
+              className="w-full resize-none rounded-xl border border-white/10 bg-slate-900/60 px-4 py-3 text-white placeholder-slate-500 shadow-inner shadow-black/30 transition-all focus:border-cyan-500/60 focus:bg-slate-900/80 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
             />
-            <p className="text-gray-500 text-xs mt-1">
-              {message.length}/500 characters
-            </p>
+            <div className="mt-2 flex items-center justify-between">
+              <p className="text-xs text-slate-500">
+                {message.length}/500 characters
+              </p>
+              <div className="flex items-center gap-1">
+                {message.length > 0 && (
+                  <span className="text-xs text-emerald-400">✓ Looks good</span>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Info Box */}
-          <div className="p-3 bg-blue-900/20 border border-blue-500/30 rounded text-blue-300 text-xs">
-            📧 They'll receive a notification about your request and can approve
-            or deny it.
+          <div className="rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-cyan-500/15 to-blue-500/15 p-4 backdrop-blur-sm">
+            <div className="flex items-start gap-3">
+              <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-cyan-400/20 text-cyan-300">
+                <svg
+                  className="h-3.5 w-3.5"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                  <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                </svg>
+              </span>
+              <div className="flex-1">
+                <p className="text-xs font-semibold leading-relaxed text-cyan-100">
+                  The candidate will be notified via email and can approve or
+                  decline your request
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Buttons */}
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-3 pt-2">
             <button
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 rounded-xl border border-white/10 bg-slate-800/60 px-5 py-3 font-bold text-white transition-all hover:border-white/30 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:bg-blue-900 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="group relative flex-1 overflow-hidden rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-5 py-3 font-bold text-white shadow-lg shadow-cyan-500/30 transition-all hover:shadow-xl hover:shadow-cyan-500/40 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {loading ? "Sending..." : "Send Request"}
+              <span className="relative z-10 flex items-center justify-center gap-2">
+                {loading ? (
+                  <>
+                    <svg
+                      className="h-5 w-5 animate-spin"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="h-5 w-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                      />
+                    </svg>
+                    Send Request
+                  </>
+                )}
+              </span>
+              <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-500 group-hover:translate-x-full"></div>
             </button>
           </div>
         </form>

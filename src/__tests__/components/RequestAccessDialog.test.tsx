@@ -3,6 +3,17 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { RequestAccessDialog } from "@/components/RequestAccessDialog";
 
+// Mock useAuth hook
+jest.mock("@/hooks/useAuth", () => ({
+  useAuth: () => ({
+    user: {
+      uid: "test-user-id",
+      email: "test@example.com",
+      getIdToken: jest.fn().mockResolvedValue("mock-token"),
+    },
+  }),
+}));
+
 const mockFetch = jest.fn();
 global.fetch = mockFetch as any;
 
@@ -33,33 +44,11 @@ describe("RequestAccessDialog", () => {
     expect(screen.getByText("Jane Doe")).toBeInTheDocument();
   });
 
-  test("displays duration selector with all options", () => {
-    render(<RequestAccessDialog {...defaultProps} />);
-
-    const select = screen.getByDisplayValue("1 Week") as HTMLSelectElement;
-
-    expect(select).toBeInTheDocument();
-    expect(screen.getByText("1 Hour")).toBeInTheDocument();
-    expect(screen.getByText("1 Day")).toBeInTheDocument();
-    expect(screen.getByText("1 Week")).toBeInTheDocument();
-    expect(screen.getByText("Forever")).toBeInTheDocument();
-  });
-
-  test("updates duration on select change", async () => {
-    render(<RequestAccessDialog {...defaultProps} />);
-
-    const select = screen.getByDisplayValue("1 Week") as HTMLSelectElement;
-
-    await userEvent.selectOptions(select, "1hour");
-
-    expect(select.value).toBe("1hour");
-  });
-
   test("allows user to type message in textarea", async () => {
     render(<RequestAccessDialog {...defaultProps} />);
 
     const textarea = screen.getByPlaceholderText(
-      "Tell them why you'd like to view their full resume..."
+      "Hi! I'd love to learn more about your experience with..."
     ) as HTMLTextAreaElement;
 
     await userEvent.type(textarea, "I'd like to collaborate on a project");
@@ -71,7 +60,7 @@ describe("RequestAccessDialog", () => {
     render(<RequestAccessDialog {...defaultProps} />);
 
     const textarea = screen.getByPlaceholderText(
-      "Tell them why you'd like to view their full resume..."
+      "Hi! I'd love to learn more about your experience with..."
     ) as HTMLTextAreaElement;
 
     await userEvent.type(textarea, "Test message");
@@ -83,7 +72,7 @@ describe("RequestAccessDialog", () => {
     render(<RequestAccessDialog {...defaultProps} />);
 
     const textarea = screen.getByPlaceholderText(
-      "Tell them why you'd like to view their full resume..."
+      "Hi! I'd love to learn more about your experience with..."
     ) as HTMLTextAreaElement;
 
     const longMessage = "a".repeat(600);
@@ -122,7 +111,7 @@ describe("RequestAccessDialog", () => {
     render(<RequestAccessDialog {...defaultProps} onSuccess={onSuccess} />);
 
     const textarea = screen.getByPlaceholderText(
-      "Tell them why you'd like to view their full resume..."
+      "Hi! I'd love to learn more about your experience with..."
     ) as HTMLTextAreaElement;
 
     await userEvent.type(textarea, "Interested in collaboration");
@@ -135,7 +124,7 @@ describe("RequestAccessDialog", () => {
         "/api/profiles/request-access",
         expect.objectContaining({
           method: "POST",
-          body: expect.stringContaining('"toUserId":"profile123"'),
+          body: expect.stringContaining('"resumeId":"profile123"'),
         })
       );
     });
@@ -161,7 +150,8 @@ describe("RequestAccessDialog", () => {
     const submitButton = screen.getByText("Send Request") as HTMLButtonElement;
     await userEvent.click(submitButton);
 
-    expect(screen.getByText("Sending...")).toBeDisabled();
+    const sendingButton = await screen.findByText("Sending...");
+    expect(sendingButton.closest("button")).toBeDisabled();
   });
 
   test("shows error message on API failure", async () => {
@@ -255,7 +245,7 @@ describe("RequestAccessDialog", () => {
     render(<RequestAccessDialog {...defaultProps} />);
 
     const textarea = screen.getByPlaceholderText(
-      "Tell them why you'd like to view their full resume..."
+      "Hi! I'd love to learn more about your experience with..."
     ) as HTMLTextAreaElement;
 
     await userEvent.type(textarea, "Test message");
@@ -277,7 +267,7 @@ describe("RequestAccessDialog", () => {
     render(<RequestAccessDialog {...defaultProps} />);
 
     const textarea = screen.getByPlaceholderText(
-      "Tell them why you'd like to view their full resume..."
+      "Hi! I'd love to learn more about your experience with..."
     ) as HTMLTextAreaElement;
 
     await userEvent.type(textarea, "Custom message");
@@ -350,7 +340,7 @@ describe("RequestAccessDialog", () => {
     await userEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(screen.getByText("Unknown error")).toBeInTheDocument();
+      expect(screen.getByText(/Network failure string/i)).toBeInTheDocument();
     });
   });
 });

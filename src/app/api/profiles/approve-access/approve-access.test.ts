@@ -5,6 +5,7 @@
 jest.mock("firebase-admin/firestore", () => ({
   FieldValue: {
     serverTimestamp: jest.fn(() => "SERVER_TIMESTAMP"),
+    increment: jest.fn((n) => n),
   },
 }));
 jest.mock("@/lib/firebase-admin", () => ({
@@ -118,6 +119,12 @@ const setupFirestoreMocks = () => {
         return { doc: jest.fn(() => resumeDocRef) };
       case "notifications":
         return { doc: jest.fn(() => notificationsDocRef) };
+      case "recruiterMetrics":
+        return {
+          doc: jest.fn(() => ({
+            set: jest.fn().mockResolvedValue(undefined),
+          })),
+        };
       default:
         return { doc: jest.fn() };
     }

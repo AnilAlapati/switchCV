@@ -120,59 +120,83 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
   };
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-lg shadow-slate-950/40 transition hover:border-cyan-500/40">
-      {/* Header */}
-      <div className="flex items-center mb-6">
-        <div className="mr-3 flex h-10 w-10 items-center justify-center rounded-lg border border-slate-700 bg-slate-950 text-cyan-300">
-          <svg
-            className="h-6 w-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
+    <section className="space-y-6">
+      <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900/90 via-slate-900/80 to-slate-950/90 p-6 shadow-2xl shadow-cyan-500/10 backdrop-blur-sm ring-1 ring-white/5 lg:p-8">
+        <div className="flex flex-col gap-6">
+          <header className="space-y-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="space-y-3">
+                <div className="inline-flex items-center gap-2.5 rounded-full border border-cyan-400/40 bg-gradient-to-r from-cyan-500/15 to-blue-500/15 px-4 py-1.5 backdrop-blur-sm">
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-cyan-400 shadow-lg shadow-cyan-400/50" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-cyan-100">
+                    Recruiter Workspace
+                  </span>
+                </div>
+                <div>
+                  <h2 className="bg-gradient-to-r from-white via-slate-100 to-slate-300 bg-clip-text text-3xl font-black text-transparent lg:text-4xl">
+                    Resume Search
+                  </h2>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-400 lg:text-base">
+                    Discover talent instantly with advanced filters and
+                    real-time insights
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2 rounded-full border border-white/10 bg-slate-950/60 px-4 py-2 backdrop-blur-sm">
+                  <span
+                    className={`h-2.5 w-2.5 rounded-full ${
+                      loading
+                        ? "animate-pulse bg-amber-400 shadow-lg shadow-amber-400/50"
+                        : searched
+                        ? "bg-emerald-400 shadow-lg shadow-emerald-400/50"
+                        : "bg-slate-500"
+                    }`}
+                  />
+                  <span className="text-xs font-semibold text-slate-300">
+                    {loading
+                      ? "Searching"
+                      : searched
+                      ? "Live Results"
+                      : "Ready"}
+                  </span>
+                </div>
+                {searched && (
+                  <span className="hidden text-xs text-slate-500 lg:inline">
+                    Updated just now
+                  </span>
+                )}
+              </div>
+            </div>
+          </header>
+
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr),340px]">
+            <div className="rounded-2xl border border-white/5 bg-slate-950/50 p-6 backdrop-blur-sm">
+              <RecruiterSearchForm
+                searchMode={searchMode}
+                setSearchMode={setSearchMode}
+                userId={userId}
+                setUserId={setUserId}
+                skills={skills}
+                location={location}
+                setLocation={setLocation}
+                loading={loading}
+                onSearch={handleSearch}
+                onAddSkill={handleAddSkill}
+                onRemoveSkill={handleRemoveSkill}
+                searchResults={searchResults}
+                setSearchResults={setSearchResults}
+                setSearched={setSearched}
+              />
+            </div>
+          </div>
         </div>
-        <h2 className="text-xl font-semibold text-white">
-          Recruiter Resume Search
-        </h2>
       </div>
 
-      {/* Search Form */}
-      <RecruiterSearchForm
-        searchMode={searchMode}
-        setSearchMode={setSearchMode}
-        userId={userId}
-        setUserId={setUserId}
-        skills={skills}
-        location={location}
-        setLocation={setLocation}
-        loading={loading}
-        onSearch={handleSearch}
-        onAddSkill={handleAddSkill}
-        onRemoveSkill={handleRemoveSkill}
-        searchResults={searchResults}
-        setSearchResults={setSearchResults}
-        setSearched={setSearched}
-      />
-
-      {/* Error Message */}
-      {error && (
-        <div className="mb-6 rounded-lg border border-red-500/40 bg-red-500/15 px-4 py-3 text-sm font-medium text-red-200">
-          {error}
-        </div>
-      )}
-
-      {/* Results or States */}
       <RecruiterSearchResults
         results={searchResults}
         searched={searched}
-        error={null}
+        error={error}
         notification={notification}
         searchMode={searchMode}
         onViewResume={handleViewResume}
@@ -186,6 +210,6 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
         profileId={requestDialog.profileId}
         onSuccess={handleRequestSuccess}
       />
-    </div>
+    </section>
   );
 }

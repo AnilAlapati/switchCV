@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+import { type ReactNode } from "react";
 import { SearchResult } from "./RecruiterSearchForm";
 
 interface RecruiterSearchResultsProps {
@@ -10,6 +12,58 @@ interface RecruiterSearchResultsProps {
   onRequestAccess?: (resumeId: string, userName: string) => void;
 }
 
+const badgeStyles: Record<
+  NonNullable<SearchResult["accessStatus"]>,
+  { label: string; classes: string; helper: string }
+> = {
+  approved: {
+    label: "Approved",
+    classes:
+      "bg-emerald-500/15 text-emerald-200 border border-emerald-400/40 shadow-lg shadow-emerald-500/10",
+    helper: "Full resume unlocked and ready to view",
+  },
+  pending: {
+    label: "Pending",
+    classes:
+      "bg-amber-500/15 text-amber-200 border border-amber-400/40 shadow-lg shadow-amber-500/10",
+    helper: "You'll be notified when the candidate responds",
+  },
+  denied: {
+    label: "Denied",
+    classes:
+      "bg-rose-500/15 text-rose-200 border border-rose-400/40 shadow-lg shadow-rose-500/10",
+    helper: "Consider personalizing your request and trying again",
+  },
+  none: {
+    label: "Request Access",
+    classes: "bg-slate-800/80 text-slate-200 border border-white/20",
+    helper: "Send a personalized request to view full contact details",
+  },
+};
+
+const Callout = ({
+  variant,
+  children,
+}: {
+  variant: "error" | "info";
+  children: ReactNode;
+}) => (
+  <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6 backdrop-blur-sm">
+    <div
+      className={`flex items-center gap-3 rounded-2xl border px-5 py-4 font-bold shadow-lg ${
+        variant === "error"
+          ? "border-rose-500/40 bg-rose-500/15 text-rose-100 shadow-rose-500/20"
+          : "border-cyan-500/40 bg-cyan-500/15 text-cyan-100 shadow-cyan-500/20"
+      }`}
+    >
+      <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-white/10">
+        {variant === "error" ? "!" : "i"}
+      </span>
+      {children}
+    </div>
+  </section>
+);
+
 export function RecruiterSearchResults({
   results,
   searched,
@@ -19,134 +73,278 @@ export function RecruiterSearchResults({
   onViewResume,
   onRequestAccess,
 }: RecruiterSearchResultsProps) {
-  // Error Message
   if (error) {
-    return (
-      <div className="px-4 py-3 rounded-lg text-sm font-medium bg-red-500/20 text-red-300 border border-red-500/30 mb-6">
-        {error}
-      </div>
-    );
+    return <Callout variant="error">{error}</Callout>;
   }
 
-  // Notification
   if (notification) {
-    return (
-      <div className="px-4 py-3 rounded-lg text-sm font-medium bg-blue-500/20 text-blue-300 border border-blue-500/30 mb-6">
-        ℹ️ {notification}
-      </div>
-    );
+    return <Callout variant="info">{notification}</Callout>;
   }
 
-  // Search Results
-  if (searched && results.length > 0) {
-    return (
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-white mb-4">
-          Found {results.length} resume{results.length !== 1 ? "s" : ""}
-        </h3>
+  const hasResults = searched && results.length > 0;
 
-        {results.map((result) => (
-          <div
-            key={result.resumeId}
-            className="bg-white/5 border border-white/10 rounded-xl p-4 hover:border-cyan-500/30 hover:bg-white/10 transition-all duration-300"
-          >
-            <div className="flex justify-between items-start mb-3">
-              <div className="flex-1">
-                <h4 className="text-lg font-semibold text-white mb-1">
-                  {result.title}
-                </h4>
-                <p className="text-slate-400 text-sm">
-                  👤 <span className="text-slate-300">{result.userName}</span>
-                </p>
-              </div>
-              <div className="flex flex-col items-end gap-2">
-                <span className="px-3 py-1 bg-cyan-500/20 text-cyan-300 rounded-full text-xs font-semibold">
-                  ID: {result.userId.substring(0, 6)}
-                </span>
-                {result.accessStatus && (
-                  <span
-                    className={`px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider ${
-                      result.accessStatus === "approved"
-                        ? "bg-green-500/20 text-green-300"
-                        : result.accessStatus === "pending"
-                        ? "bg-yellow-500/20 text-yellow-300"
-                        : "bg-slate-700 text-slate-400"
-                    }`}
-                  >
-                    {result.accessStatus}
-                  </span>
-                )}
-              </div>
+  if (hasResults) {
+    return (
+      <section className="space-y-5">
+        <div className="flex flex-col gap-3 rounded-3xl border border-white/10 bg-gradient-to-r from-slate-950/90 to-slate-900/70 px-6 py-5 shadow-xl shadow-slate-950/40 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="mb-1 flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                Search Complete
+              </p>
             </div>
-
-            {result.skills && result.skills.length > 0 && (
-              <div className="mb-3">
-                <p className="text-slate-400 text-xs font-semibold mb-2">
-                  Skills:
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {result.skills.map((skill, idx) => (
-                    <span
-                      key={idx}
-                      className="px-2 py-1 bg-purple-500/20 text-purple-300 rounded text-xs"
-                    >
-                      {skill}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {result.location && (
-              <div className="mb-3">
-                <p className="text-slate-400 text-xs font-semibold mb-1">
-                  📍 Location:
-                </p>
-                <p className="text-slate-300 text-sm">{result.location}</p>
-              </div>
-            )}
-
-            {result.accessStatus === "approved" ? (
-              <button
-                onClick={() => onViewResume(result.resumeId)}
-                className="w-full px-4 py-2 mt-3 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 font-medium rounded-lg transition-all duration-200"
-              >
-                View Full Resume
-              </button>
-            ) : result.accessStatus === "pending" ? (
-              <button
-                disabled
-                className="w-full px-4 py-2 mt-3 bg-yellow-500/20 text-yellow-300 font-medium rounded-lg cursor-not-allowed"
-              >
-                Request Pending
-              </button>
-            ) : (
-              <button
-                onClick={() =>
-                  onRequestAccess?.(result.resumeId, result.userName)
-                }
-                className="w-full px-4 py-2 mt-3 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 font-medium rounded-lg transition-all duration-200"
-              >
-                Request Access
-              </button>
-            )}
-
-            <p className="text-slate-500 text-xs mt-3">
-              Posted: {new Date(result.createdAt).toLocaleDateString()}
-            </p>
+            <h3 className="bg-gradient-to-r from-white to-slate-300 bg-clip-text text-2xl font-black text-transparent">
+              {results.length} resume{results.length === 1 ? "" : "s"} found
+            </h3>
           </div>
-        ))}
-      </div>
+          <p className="text-sm leading-relaxed text-slate-400">
+            Results sorted by recency. Refine filters to narrow down.
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          {results.map((result) => {
+            const status = result.accessStatus ?? "none";
+            const badge = badgeStyles[status];
+            const created = new Date(result.createdAt).toLocaleDateString();
+
+            const actionArea = () => {
+              if (status === "approved") {
+                return (
+                  <button
+                    onClick={() => onViewResume(result.resumeId)}
+                    className="group relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/30 transition-all hover:shadow-xl hover:shadow-emerald-500/40"
+                  >
+                    <span className="relative z-10 flex items-center justify-center gap-2">
+                      <svg
+                        className="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                        />
+                      </svg>
+                      View Full Resume
+                    </span>
+                    <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-500 group-hover:translate-x-full"></div>
+                  </button>
+                );
+              }
+              if (status === "pending") {
+                return (
+                  <button
+                    disabled
+                    className="w-full rounded-xl border border-amber-400/40 bg-amber-500/15 px-4 py-3 text-sm font-bold text-amber-100 shadow-lg shadow-amber-500/10"
+                  >
+                    <span className="flex items-center justify-center gap-2">
+                      <svg
+                        className="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                      Request Pending
+                    </span>
+                  </button>
+                );
+              }
+              if (status === "denied") {
+                return (
+                  <button
+                    onClick={() =>
+                      onRequestAccess?.(result.resumeId, result.userName)
+                    }
+                    className="group w-full rounded-xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-sm font-bold text-rose-100 transition-all hover:border-rose-400/60 hover:bg-rose-500/20 hover:shadow-lg hover:shadow-rose-500/20"
+                  >
+                    <span className="flex items-center justify-center gap-2">
+                      <svg
+                        className="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                        />
+                      </svg>
+                      Request Again
+                    </span>
+                  </button>
+                );
+              }
+              return (
+                <button
+                  onClick={() =>
+                    onRequestAccess?.(result.resumeId, result.userName)
+                  }
+                  className="group relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-cyan-500/30 transition-all hover:shadow-xl hover:shadow-cyan-500/40"
+                >
+                  <span className="relative z-10 flex items-center justify-center gap-2">
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                      />
+                    </svg>
+                    Request Access
+                  </span>
+                  <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-500 group-hover:translate-x-full"></div>
+                </button>
+              );
+            };
+
+            return (
+              <article
+                key={result.resumeId}
+                className="group rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900/80 via-slate-950/70 to-slate-900/60 p-6 shadow-lg shadow-slate-950/40 backdrop-blur-sm transition-all hover:border-white/20 hover:shadow-xl hover:shadow-cyan-500/10"
+              >
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
+                  <div className="flex-1 space-y-4">
+                    <div className="flex flex-wrap items-start gap-3">
+                      <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 text-cyan-200 ring-1 ring-cyan-400/30">
+                        <svg
+                          className="h-7 w-7"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                          />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-lg font-bold text-white">
+                          {result.title}
+                        </h4>
+                        <p className="text-sm text-slate-400">
+                          {result.userName}
+                        </p>
+                      </div>
+                      <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-bold text-slate-300 backdrop-blur-sm">
+                        #{result.userId.substring(0, 8)}
+                      </span>
+                    </div>
+
+                    {result.skills && result.skills.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs uppercase tracking-wide text-slate-500">
+                          Core skills
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {result.skills.map((skill, idx) => (
+                            <span
+                              key={`${result.resumeId}-skill-${idx}`}
+                              className="rounded-full border border-purple-400/30 bg-purple-500/10 px-3 py-1 text-xs text-purple-100"
+                            >
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap gap-3 text-xs text-slate-400">
+                      {result.location && (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-white/10 px-3 py-1">
+                          <svg
+                            className="h-3.5 w-3.5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 11c1.657 0 3-1.567 3-3.5S13.657 4 12 4s-3 1.567-3 3.5S10.343 11 12 11z"
+                            />
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 11c-3 0-5 2.239-5 5v2h10v-2c0-2.761-2-5-5-5z"
+                            />
+                          </svg>
+                          {result.location}
+                        </span>
+                      )}
+                      <span className="inline-flex items-center gap-1 rounded-full border border-white/10 px-3 py-1">
+                        Posted {created}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="w-full rounded-2xl border border-white/10 bg-slate-900/80 p-5 backdrop-blur-sm lg:w-80">
+                    <div className="mb-4 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="h-1 w-1 rounded-full bg-cyan-400"></span>
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                          Access Status
+                        </span>
+                      </div>
+                      <span className="rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        {searchMode === "basic" ? "Direct" : "Premium"}
+                      </span>
+                    </div>
+                    <div
+                      className={`mb-4 inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold uppercase tracking-wide ${badge.classes}`}
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-current"></span>
+                      {badge.label}
+                    </div>
+                    <p className="mb-5 text-xs leading-relaxed text-slate-400">
+                      {badge.helper}
+                    </p>
+                    {actionArea()}
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
     );
   }
 
-  // Empty State
   if (searched && results.length === 0) {
     return (
-      <div className="text-center py-12">
-        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-slate-500/20 flex items-center justify-center">
+      <section className="rounded-3xl border border-white/10 bg-slate-950/60 px-6 py-12 text-center text-slate-300">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-white/10 bg-slate-900">
           <svg
-            className="w-8 h-8 text-slate-400"
+            className="h-8 w-8 text-slate-500"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -159,40 +357,38 @@ export function RecruiterSearchResults({
             />
           </svg>
         </div>
-        <p className="text-slate-400 text-sm mb-2">No resumes found</p>
-        <p className="text-slate-500 text-xs">Try different search criteria</p>
-      </div>
-    );
-  }
-
-  // Initial State
-  if (!searched && results.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-cyan-500/20 flex items-center justify-center">
-          <svg
-            className="w-8 h-8 text-cyan-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
-        </div>
-        <p className="text-slate-400 text-sm mb-2">Start searching</p>
-        <p className="text-slate-500 text-xs">
-          {searchMode === "basic"
-            ? "Use Basic mode to search by candidate ID (max 1 result)"
-            : "Use Premium mode to search by skills and location (multiple results)"}
+        <p className="text-lg font-semibold text-white">No resumes found</p>
+        <p className="text-sm text-slate-400">
+          Adjust your filters or widen the location range to discover more
+          talent.
         </p>
-      </div>
+      </section>
     );
   }
 
-  return null;
+  return (
+    <section className="rounded-3xl border border-white/10 bg-slate-950/60 px-6 py-12 text-center text-slate-300">
+      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-white/10 bg-cyan-500/10">
+        <svg
+          className="h-8 w-8 text-cyan-300"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          />
+        </svg>
+      </div>
+      <p className="text-lg font-semibold text-white">Ready when you are</p>
+      <p className="text-sm text-slate-400">
+        {searchMode === "basic"
+          ? "Enter a resume or user ID to pull a single candidate."
+          : "Add at least one skill or a location to preview premium matches."}
+      </p>
+    </section>
+  );
 }

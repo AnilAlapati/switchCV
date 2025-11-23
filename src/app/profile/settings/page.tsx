@@ -100,7 +100,7 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
-        setSettings((prev) => ({ ...prev, isRecruiter: checked }));
+        await fetchSettings(); // Re-fetch to get the latest data
         setShowCompanyInput(checked);
         setMessage({ type: "success", text: "Account type updated!" });
         setTimeout(() => setMessage(null), 3000);
@@ -147,6 +147,7 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
+        await fetchSettings(); // Re-fetch to get the latest data
         setMessage({ type: "success", text: "Display name saved!" });
         setTimeout(() => setMessage(null), 3000);
       } else {
@@ -192,6 +193,7 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
+        await fetchSettings(); // Re-fetch to get the latest data
         setMessage({ type: "success", text: "Company name saved!" });
         setTimeout(() => setMessage(null), 3000);
       } else {
