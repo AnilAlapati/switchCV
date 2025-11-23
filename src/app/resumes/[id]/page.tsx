@@ -106,6 +106,11 @@ export default function ResumeView() {
       let handledAccess = false;
       try {
         console.log("Fetching resume", id);
+        if (user) {
+          console.log("User is authenticated, attaching token.");
+        } else {
+          console.log("User is NOT authenticated.");
+        }
         setAccessBlock(null);
         setError(null);
 

@@ -72,10 +72,24 @@ export async function POST(request: NextRequest) {
     const existingRequests = await resumeRef
       .collection("accessRequests")
       .where("fromUserId", "==", currentUserId)
-      .where("status", "==", "pending")
       .get();
 
-    if (!existingRequests.empty) {
+    const pendingRequest = existingRequests.docs.find(
+      (doc) => doc.data().status === "pending"
+    );
+    const approvedRequest = existingRequests.docs.find(
+      (doc) => doc.data().status === "approved"
+    );
+
+    if (approvedRequest) {
+      return handleApiError(
+        null,
+        "You already have access to this resume",
+        409
+      );
+    }
+
+    if (pendingRequest) {
       return handleApiError(
         null,
         "You already have a pending request for this resume",
@@ -107,6 +121,18 @@ export async function POST(request: NextRequest) {
             pending: FieldValue.increment(1),
           },
           totalCandidatesInteracted: FieldValue.increment(1),
+          lastActivityAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+    // Update job seeker metrics
+    await adminDb
+      .collection("jobSeekerMetrics")
+      .doc(resumeOwnerId)
+      .set(
+        {
+          contactRequests: FieldValue.increment(1),
           lastActivityAt: FieldValue.serverTimestamp(),
         },
         { merge: true }

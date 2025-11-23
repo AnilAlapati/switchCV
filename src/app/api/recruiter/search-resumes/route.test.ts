@@ -736,17 +736,18 @@ describe("POST /api/recruiter/search-resumes", () => {
     });
   });
 
-    it("should return 400 for invalid subscription tier", async () => {
-      const recruiterDoc = createMockDocSnapshot(true, {
-        subscriptionTier: "invalid",
-      });
+  it("should return 400 for invalid subscription tier", async () => {
+    const recruiterDoc = createMockDocSnapshot(true, {
+      subscriptionTier: "invalid",
+    });
 
-      mockAdminDb.collection.mockReturnValue({
-        doc: jest.fn(() => ({
-          get: jest.fn().mockResolvedValue(recruiterDoc),
-          set: jest.fn().mockResolvedValue(undefined),
-        })),
-      } as any);    const request = new NextRequest(
+    mockAdminDb.collection.mockReturnValue({
+      doc: jest.fn(() => ({
+        get: jest.fn().mockResolvedValue(recruiterDoc),
+        set: jest.fn().mockResolvedValue(undefined),
+      })),
+    } as any);
+    const request = new NextRequest(
       "http://localhost:3000/api/recruiter/search-resumes",
       {
         method: "POST",
