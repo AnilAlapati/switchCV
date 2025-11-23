@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import Link from "next/link";
 import { ActionPlanCard } from "@/components/dashboard/ActionPlanCard";
 import { OpportunityInsightsCard } from "@/components/dashboard/OpportunityInsightsCard";
 import { ResourceLinksCard } from "@/components/dashboard/ResourceLinksCard";
@@ -109,12 +108,6 @@ export function RecruiterDashboard({
               >
                 Launch search
               </button>
-              <Link
-                href="/recruiter/search"
-                className="inline-flex items-center justify-center rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-cyan-500/40"
-              >
-                View saved filters
-              </Link>
             </div>
           </div>
 

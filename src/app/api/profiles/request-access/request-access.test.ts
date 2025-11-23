@@ -17,7 +17,16 @@ jest.mock("@/lib/utils/api-helpers", () => ({
     json: async () => ({ error: message, details: error?.message }),
   })),
 }));
+jest.mock("@/lib/notificationService", () => ({
+  createNotification: jest.fn(),
+}));
+jest.mock("firebase-admin/firestore", () => ({
+  FieldValue: {
+    serverTimestamp: jest.fn(() => "mock-timestamp"),
+  },
+}));
 
+import { createNotification } from "@/lib/notificationService";
 import { POST } from "@/app/api/profiles/request-access/route";
 import { NextRequest } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
@@ -58,7 +67,7 @@ const setupFirestoreMocks = () => {
   userDocRef = {
     get: jest.fn().mockResolvedValue({
       exists: true,
-      data: () => ({ displayName: "Requesting User" }),
+      data: () => ({ displayName: "Requesting User", company: "Test Company" }),
     }),
   };
 
@@ -93,7 +102,7 @@ const setupFirestoreMocks = () => {
     switch (name) {
       case "users":
         return { doc: jest.fn(() => userDocRef) };
-      case "resumeProfiles":
+      case "resumes":
         return { doc: jest.fn(() => resumeDocRef) };
       case "notifications":
         return { doc: jest.fn(() => notificationsDocRef) };
@@ -126,7 +135,7 @@ describe("POST /api/profiles/request-access", () => {
     expect(accessRequestsCollection.add).toHaveBeenCalledWith(
       expect.objectContaining({ fromUserId: "requester-123" })
     );
-    expect(messagesCollection.add).toHaveBeenCalled();
+    expect(createNotification).toHaveBeenCalled();
   });
 
   it("should return 401 when missing auth header", async () => {
@@ -203,8 +212,12 @@ describe("POST /api/profiles/request-access", () => {
   it("should create notification for resume owner", async () => {
     await POST(buildRequest({ resumeId: "resume-1" }));
 
-    expect(messagesCollection.add).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: "owner-123" })
+    expect(createNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      "owner-123",
+      expect.anything(),
+      expect.anything(),
+      expect.anything()
     );
   });
 

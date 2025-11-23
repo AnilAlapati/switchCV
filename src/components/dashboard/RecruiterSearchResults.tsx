@@ -169,9 +169,9 @@ export function RecruiterSearchResults({
   if (!searched && results.length === 0) {
     return (
       <div className="text-center py-12">
-        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-500/20 flex items-center justify-center">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-cyan-500/20 flex items-center justify-center">
           <svg
-            className="w-8 h-8 text-amber-400"
+            className="w-8 h-8 text-cyan-400"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"

@@ -41,7 +41,7 @@ describe("Dashboard", () => {
   it("should show resume created status", () => {
     render(<Dashboard />);
 
-    expect(screen.getByText("Created")).toBeInTheDocument();
+    expect(screen.getAllByText("Private Draft")[0]).toBeInTheDocument();
   });
 
   it("should show view resume link when resume exists", () => {

@@ -27,6 +27,8 @@ interface JobSeekerDashboardProps {
   resumeLoading: boolean;
   metrics: JobSeekerMetrics | null;
   metricsLoading: boolean;
+  resume?: any;
+  onRefreshResume?: () => void;
 }
 
 export function JobSeekerDashboard({
@@ -35,6 +37,8 @@ export function JobSeekerDashboard({
   resumeLoading,
   metrics,
   metricsLoading,
+  resume,
+  onRefreshResume,
 }: JobSeekerDashboardProps) {
   const resumeIdString = resumeId ? String(resumeId) : null;
   const resumeUrl =
@@ -219,6 +223,8 @@ export function JobSeekerDashboard({
             hasResume={hasResume}
             resumeId={resumeId}
             resumeLoading={resumeLoading}
+            isPublished={resume?.published ?? false}
+            onRefresh={onRefreshResume}
           />
 
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">

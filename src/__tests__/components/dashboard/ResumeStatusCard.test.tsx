@@ -47,7 +47,7 @@ describe("ResumeStatusCard", () => {
         resumeLoading={true}
       />
     );
-    expect(screen.getByText("Loading...")).toBeInTheDocument();
+    expect(screen.getAllByText("Loading...")[0]).toBeInTheDocument();
   });
 
   it("renders 'Not Created' state", () => {
@@ -58,7 +58,7 @@ describe("ResumeStatusCard", () => {
         resumeLoading={false}
       />
     );
-    expect(screen.getByText("Not Created")).toBeInTheDocument();
+    expect(screen.getAllByText("Not Created")[0]).toBeInTheDocument();
     expect(screen.getByText("Create Resume")).toBeInTheDocument();
   });
 
@@ -70,7 +70,7 @@ describe("ResumeStatusCard", () => {
         resumeLoading={false}
       />
     );
-    expect(screen.getByText("Created")).toBeInTheDocument();
+    expect(screen.getAllByText("Private Draft")[0]).toBeInTheDocument();
     expect(screen.getByText("View Resume")).toBeInTheDocument();
     expect(screen.getByText("Edit")).toBeInTheDocument();
     expect(screen.getByText("Delete")).toBeInTheDocument();

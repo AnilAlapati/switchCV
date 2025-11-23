@@ -39,6 +39,7 @@ export async function POST(request: NextRequest) {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       isPublic: false, // Default to private
+      published: false,
       status: "draft",
     };
 

@@ -20,7 +20,13 @@ import type { JobSeekerMetrics, RecruiterMetrics } from "@/types/dashboard";
 
 export default function Dashboard() {
   const { user, logout, loading, needsEmailVerification } = useAuth();
-  const { hasResume, resumeId, loading: resumeLoading } = useResume();
+  const {
+    hasResume,
+    resumeId,
+    loading: resumeLoading,
+    resume,
+    refetch: refreshResume,
+  } = useResume();
   const router = useRouter();
 
   const [userIsRecruiter, setUserIsRecruiter] = useState(false);
@@ -294,6 +300,8 @@ export default function Dashboard() {
               resumeLoading={resumeLoading}
               metrics={jobMetricsValue}
               metricsLoading={jobMetricsLoading}
+              resume={resume}
+              onRefreshResume={refreshResume}
             />
           )}
         </main>

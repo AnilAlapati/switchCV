@@ -67,6 +67,7 @@ export async function POST(request: NextRequest) {
       numericId,
       isPublic: isPublic,
       visibility: isPublic ? "public" : "private",
+      published: isPublic,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       status: "active",

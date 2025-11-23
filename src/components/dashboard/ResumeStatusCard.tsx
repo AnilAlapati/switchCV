@@ -3,24 +3,63 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import Link from "next/link";
-import { getResumeUrl } from "@/lib/config";
 import { reloadPage } from "@/lib/utils/navigation";
+import { DeleteConfirmationDialog } from "./DeleteConfirmationDialog";
+import { getStatusDetails } from "./useResumeStatus";
+import { ResumeActionButtons } from "./ResumeActionButtons";
 
 interface ResumeStatusCardProps {
   hasResume: boolean;
   resumeId?: string | number | null;
   resumeLoading: boolean;
+  isPublished?: boolean;
+  onRefresh?: () => void;
 }
 
 export function ResumeStatusCard({
   hasResume,
   resumeId,
   resumeLoading,
+  isPublished = false,
+  onRefresh,
 }: ResumeStatusCardProps) {
   const { user } = useAuth();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const resumeIdString = resumeId ? String(resumeId) : null;
+  const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
+
+  const status = getStatusDetails(resumeLoading, hasResume, isPublished);
+
+  const handleToggleVisibility = async () => {
+    if (!user || !resumeId) return;
+    setIsUpdatingVisibility(true);
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch(`/api/resumes/${resumeId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ isPublic: !isPublished }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update visibility");
+      }
+
+      if (onRefresh) {
+        onRefresh();
+      } else {
+        reloadPage();
+      }
+    } catch (error) {
+      console.error("Error updating visibility:", error);
+      alert("Failed to update visibility settings.");
+    } finally {
+      setIsUpdatingVisibility(false);
+    }
+  };
 
   const handleDeleteResume = async () => {
     if (!user) {
@@ -88,93 +127,49 @@ export function ResumeStatusCard({
           </div>
           <div className="ml-5 w-0 flex-1">
             <dl>
-              <dt className="text-sm font-medium text-slate-400 truncate">
+              <dt className="text-sm font-medium text-slate-400 truncate mb-2">
                 Resume Status
               </dt>
-              <dd className="text-2xl font-bold text-white">
-                {resumeLoading
-                  ? "Loading..."
-                  : hasResume
-                  ? "Created"
-                  : "Not Created"}
+              <dd className="flex items-center">
+                <div
+                  className={`group relative flex items-center gap-2.5 px-3 py-1.5 rounded-full border ${status.borderColor} ${status.bgColor} transition-all duration-300 hover:bg-opacity-80 cursor-help`}
+                >
+                  <span className="relative flex h-2.5 w-2.5">
+                    {isPublished && (
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    )}
+                    <span
+                      className={`relative inline-flex rounded-full h-2.5 w-2.5 ${status.dotColor}`}
+                    ></span>
+                  </span>
+                  <span className={`text-sm font-bold ${status.textColor}`}>
+                    {status.label}
+                  </span>
+
+                  {/* Tooltip */}
+                  <div className="absolute left-0 bottom-full mb-2 hidden w-56 rounded-xl border border-slate-700 bg-slate-900/95 p-3 text-xs text-slate-300 shadow-xl backdrop-blur-sm group-hover:block z-20">
+                    <p className="font-medium text-white mb-0.5">
+                      {status.label}
+                    </p>
+                    <p className="text-slate-400 leading-relaxed">
+                      {status.desc}
+                    </p>
+                    <div className="absolute -bottom-1.5 left-6 h-3 w-3 rotate-45 border-b border-r border-slate-700 bg-slate-900/95"></div>
+                  </div>
+                </div>
               </dd>
             </dl>
           </div>
         </div>
         <div className="mt-4">
           {hasResume ? (
-            <div className="flex flex-wrap gap-3">
-              <a
-                href={getResumeUrl(resumeId || "")}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={`Resume ID: ${resumeId || "Loading..."}`}
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
-              >
-                View Resume
-                <svg
-                  className="h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                  />
-                </svg>
-              </a>
-              {resumeIdString ? (
-                <Link
-                  href={`/resumes/${resumeIdString}/edit`}
-                  className="inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
-                >
-                  Edit
-                  <svg
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M11 5h2m-1-1v2m1 5h-4m6-9.5l1.5 1.5M5 19l4.586-4.586a2 2 0 012.828 0L17 19"
-                    />
-                  </svg>
-                </Link>
-              ) : (
-                <button
-                  type="button"
-                  disabled
-                  className="inline-flex items-center gap-2 rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-400 opacity-70"
-                >
-                  Edit
-                </button>
-              )}
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="inline-flex items-center gap-2 rounded-xl border border-red-500/40 bg-red-500/20 px-4 py-2 text-sm font-semibold text-red-200 transition hover:border-red-400/60 hover:bg-red-500/30"
-              >
-                Delete
-                <svg
-                  className="h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  />
-                </svg>
-              </button>
-            </div>
+            <ResumeActionButtons
+              resumeId={resumeId || null}
+              isPublished={isPublished}
+              isUpdatingVisibility={isUpdatingVisibility}
+              onToggleVisibility={handleToggleVisibility}
+              onDelete={() => setShowDeleteConfirm(true)}
+            />
           ) : (
             <Link
               href="/create-resume"
@@ -200,80 +195,12 @@ export function ResumeStatusCard({
       </div>
 
       {/* Delete Confirmation Dialog - Positioned in Middle of Page */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="mx-4 max-w-sm rounded-2xl border border-slate-800 bg-slate-950/90 p-6 shadow-xl shadow-slate-950/60">
-            <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-red-500/20">
-                <svg
-                  className="w-6 h-6 text-red-500"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 9v2m0 4v2m0 4v2M7 13h10M7 17h10"
-                  />
-                </svg>
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-white mb-2">
-                  Delete Resume?
-                </h3>
-                <p className="text-gray-300 text-sm">
-                  Are you sure you want to delete your resume? This action
-                  cannot be undone and any access grants will be revoked.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-6 flex gap-3">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                disabled={isDeleting}
-                className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 text-white font-medium rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteResume}
-                disabled={isDeleting}
-                className="flex-1 px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 disabled:from-red-900 disabled:to-red-900 text-white font-medium rounded-lg transition-all flex items-center justify-center gap-2"
-              >
-                {isDeleting ? (
-                  <>
-                    <span
-                      className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"
-                      aria-hidden="true"
-                    />
-                    Deleting...
-                  </>
-                ) : (
-                  <>
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                      />
-                    </svg>
-                    Delete
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DeleteConfirmationDialog
+        isOpen={showDeleteConfirm}
+        isDeleting={isDeleting}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDeleteResume}
+      />
     </>
   );
 }
