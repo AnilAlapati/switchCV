@@ -6,6 +6,12 @@ import {
   getAuthenticatedUserId,
   handleApiError,
 } from "@/lib/utils/api-helpers";
+import { createNotification } from "@/lib/notificationService";
+import {
+  NotificationType,
+  NotificationChannel,
+  NotificationPriority,
+} from "@/lib/notifications.types";
 
 interface RequestAccessPayload {
   resumeId: string;
@@ -34,7 +40,7 @@ export async function POST(request: NextRequest) {
     const currentUserName =
       currentUserDoc.data()?.displayName || "Unknown User";
 
-    const resumeRef = adminDb.collection("resumeProfiles").doc(resumeId);
+    const resumeRef = adminDb.collection("resumes").doc(resumeId);
     const resumeDoc = await resumeRef.get();
 
     if (!resumeDoc.exists) {
@@ -80,24 +86,22 @@ export async function POST(request: NextRequest) {
 
     console.log(`📨 Access request created: ${requestRef.id}`);
 
-    const notification = {
-      userId: resumeOwnerId,
-      type: "request",
-      fromUserId: currentUserId,
-      fromUserName: currentUserName,
-      resumeId: resumeId,
-      resumeTitle: resumeData?.title || "Resume",
-      message: message || `${currentUserName} requested access to your resume`,
-      timestamp: FieldValue.serverTimestamp(),
-      read: false,
-      actionUrl: `/dashboard/access-requests`,
-    };
-
-    await adminDb
-      .collection("notifications")
-      .doc(resumeOwnerId)
-      .collection("messages")
-      .add(notification);
+    await createNotification(
+      NotificationType.ACCESS_REQUEST,
+      resumeOwnerId,
+      {
+        title: "Resume Access Request",
+        body: message || `${currentUserName} requested access to your resume`,
+        actionUrl: `/dashboard/access-requests`,
+        data: {
+          requestId: requestRef.id,
+          resumeId,
+          fromUserId: currentUserId,
+        },
+      },
+      [NotificationChannel.IN_APP],
+      NotificationPriority.HIGH
+    );
 
     console.log(`✉️ Notification sent to resume owner: ${resumeOwnerId}`);
 

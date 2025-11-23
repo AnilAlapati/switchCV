@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { RequestAccessDialog } from "@/components/RequestAccessDialog";
 import type { SearchResult } from "./RecruiterSearchForm";
 import { RecruiterSearchForm } from "./RecruiterSearchForm";
 import { RecruiterSearchResults } from "./RecruiterSearchResults";
@@ -20,6 +21,15 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
   const [error, setError] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
+  const [requestDialog, setRequestDialog] = useState<{
+    isOpen: boolean;
+    profileName: string;
+    profileId: string;
+  }>({
+    isOpen: false,
+    profileName: "",
+    profileId: "",
+  });
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,6 +91,22 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
 
   const handleViewResume = (resumeId: string) => {
     window.open(`/resumes/${resumeId}`, "_blank");
+  };
+
+  const handleRequestAccess = (resumeId: string, userName: string) => {
+    setRequestDialog({
+      isOpen: true,
+      profileName: userName,
+      profileId: resumeId,
+    });
+  };
+
+  const handleRequestSuccess = () => {
+    setNotification("Request sent successfully!");
+    // Refresh search to update status
+    if (searched) {
+      handleSearch({ preventDefault: () => {} } as React.FormEvent);
+    }
   };
 
   const handleAddSkill = (skill: string) => {
@@ -150,6 +176,15 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
         notification={notification}
         searchMode={searchMode}
         onViewResume={handleViewResume}
+        onRequestAccess={handleRequestAccess}
+      />
+
+      <RequestAccessDialog
+        isOpen={requestDialog.isOpen}
+        onClose={() => setRequestDialog((prev) => ({ ...prev, isOpen: false }))}
+        profileName={requestDialog.profileName}
+        profileId={requestDialog.profileId}
+        onSuccess={handleRequestSuccess}
       />
     </div>
   );

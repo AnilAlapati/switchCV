@@ -7,6 +7,7 @@ interface RecruiterSearchResultsProps {
   notification: string | null;
   searchMode: "basic" | "premium";
   onViewResume: (resumeId: string) => void;
+  onRequestAccess?: (resumeId: string, userName: string) => void;
 }
 
 export function RecruiterSearchResults({
@@ -16,6 +17,7 @@ export function RecruiterSearchResults({
   notification,
   searchMode,
   onViewResume,
+  onRequestAccess,
 }: RecruiterSearchResultsProps) {
   // Error Message
   if (error) {
@@ -57,9 +59,24 @@ export function RecruiterSearchResults({
                   👤 <span className="text-slate-300">{result.userName}</span>
                 </p>
               </div>
-              <span className="px-3 py-1 bg-cyan-500/20 text-cyan-300 rounded-full text-xs font-semibold">
-                ID: {result.userId.substring(0, 6)}
-              </span>
+              <div className="flex flex-col items-end gap-2">
+                <span className="px-3 py-1 bg-cyan-500/20 text-cyan-300 rounded-full text-xs font-semibold">
+                  ID: {result.userId.substring(0, 6)}
+                </span>
+                {result.accessStatus && (
+                  <span
+                    className={`px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider ${
+                      result.accessStatus === "approved"
+                        ? "bg-green-500/20 text-green-300"
+                        : result.accessStatus === "pending"
+                        ? "bg-yellow-500/20 text-yellow-300"
+                        : "bg-slate-700 text-slate-400"
+                    }`}
+                  >
+                    {result.accessStatus}
+                  </span>
+                )}
+              </div>
             </div>
 
             {result.skills && result.skills.length > 0 && (
@@ -89,12 +106,30 @@ export function RecruiterSearchResults({
               </div>
             )}
 
-            <button
-              onClick={() => onViewResume(result.resumeId)}
-              className="w-full px-4 py-2 mt-3 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 font-medium rounded-lg transition-all duration-200"
-            >
-              View Full Resume
-            </button>
+            {result.accessStatus === "approved" ? (
+              <button
+                onClick={() => onViewResume(result.resumeId)}
+                className="w-full px-4 py-2 mt-3 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 font-medium rounded-lg transition-all duration-200"
+              >
+                View Full Resume
+              </button>
+            ) : result.accessStatus === "pending" ? (
+              <button
+                disabled
+                className="w-full px-4 py-2 mt-3 bg-yellow-500/20 text-yellow-300 font-medium rounded-lg cursor-not-allowed"
+              >
+                Request Pending
+              </button>
+            ) : (
+              <button
+                onClick={() =>
+                  onRequestAccess?.(result.resumeId, result.userName)
+                }
+                className="w-full px-4 py-2 mt-3 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 font-medium rounded-lg transition-all duration-200"
+              >
+                Request Access
+              </button>
+            )}
 
             <p className="text-slate-500 text-xs mt-3">
               Posted: {new Date(result.createdAt).toLocaleDateString()}
