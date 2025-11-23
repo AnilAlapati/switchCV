@@ -26,7 +26,9 @@ describe("GET /api/jobseeker/access-requests", () => {
   it("should return 401 if user is not authenticated", async () => {
     mockGetAuthenticatedUserId.mockResolvedValue({ userId: null });
 
-    const request = new NextRequest("http://localhost:3000/api/jobseeker/access-requests");
+    const request = new NextRequest(
+      "http://localhost:3000/api/jobseeker/access-requests"
+    );
     const response = await GET(request);
     const data = await response.json();
 
@@ -74,7 +76,9 @@ describe("GET /api/jobseeker/access-requests", () => {
       }),
     });
 
-    const request = new NextRequest("http://localhost:3000/api/jobseeker/access-requests");
+    const request = new NextRequest(
+      "http://localhost:3000/api/jobseeker/access-requests"
+    );
     const response = await GET(request);
     const data = await response.json();
 
@@ -96,7 +100,9 @@ describe("GET /api/jobseeker/access-requests", () => {
       throw new Error("Database error");
     });
 
-    const request = new NextRequest("http://localhost:3000/api/jobseeker/access-requests");
+    const request = new NextRequest(
+      "http://localhost:3000/api/jobseeker/access-requests"
+    );
     const response = await GET(request);
     const data = await response.json();
 

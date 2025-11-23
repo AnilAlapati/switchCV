@@ -40,10 +40,13 @@ describe("POST /api/profiles/respond-access", () => {
   it("should return 401 if user is not authenticated", async () => {
     mockGetAuthenticatedUserId.mockResolvedValue({ userId: null });
 
-    const request = new NextRequest("http://localhost:3000/api/profiles/respond-access", {
-      method: "POST",
-      body: JSON.stringify({}),
-    });
+    const request = new NextRequest(
+      "http://localhost:3000/api/profiles/respond-access",
+      {
+        method: "POST",
+        body: JSON.stringify({}),
+      }
+    );
 
     const response = await POST(request);
     const data = await response.json();
@@ -55,10 +58,13 @@ describe("POST /api/profiles/respond-access", () => {
   it("should return 400 for invalid request body", async () => {
     mockGetAuthenticatedUserId.mockResolvedValue({ userId: "user123" });
 
-    const request = new NextRequest("http://localhost:3000/api/profiles/respond-access", {
-      method: "POST",
-      body: JSON.stringify({ requestId: "req1" }), // Missing resumeId and action
-    });
+    const request = new NextRequest(
+      "http://localhost:3000/api/profiles/respond-access",
+      {
+        method: "POST",
+        body: JSON.stringify({ requestId: "req1" }), // Missing resumeId and action
+      }
+    );
 
     const response = await POST(request);
     const data = await response.json();
@@ -81,10 +87,17 @@ describe("POST /api/profiles/respond-access", () => {
       }),
     });
 
-    const request = new NextRequest("http://localhost:3000/api/profiles/respond-access", {
-      method: "POST",
-      body: JSON.stringify({ requestId: "req1", resumeId: "resume1", action: "approve" }),
-    });
+    const request = new NextRequest(
+      "http://localhost:3000/api/profiles/respond-access",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          requestId: "req1",
+          resumeId: "resume1",
+          action: "approve",
+        }),
+      }
+    );
 
     const response = await POST(request);
     const data = await response.json();
@@ -106,38 +119,48 @@ describe("POST /api/profiles/respond-access", () => {
     };
 
     const mockDoc = jest.fn();
-    mockDoc.mockReturnValueOnce({ get: jest.fn().mockResolvedValue(mockResumeDoc) }); // Resume doc
-    mockDoc.mockReturnValueOnce({ // Request doc (nested)
-        collection: jest.fn().mockReturnValue({
-            doc: jest.fn().mockReturnValue({
-                get: jest.fn().mockResolvedValue(mockRequestDoc)
-            })
-        })
+    mockDoc.mockReturnValueOnce({
+      get: jest.fn().mockResolvedValue(mockResumeDoc),
+    }); // Resume doc
+    mockDoc.mockReturnValueOnce({
+      // Request doc (nested)
+      collection: jest.fn().mockReturnValue({
+        doc: jest.fn().mockReturnValue({
+          get: jest.fn().mockResolvedValue(mockRequestDoc),
+        }),
+      }),
     });
-    
+
     // Fix mocking structure for nested collection
     const mockRequestRef = {
-        get: jest.fn().mockResolvedValue(mockRequestDoc)
+      get: jest.fn().mockResolvedValue(mockRequestDoc),
     };
 
     mockCollection.mockReturnValue({
       doc: jest.fn().mockImplementation((id) => {
-          if (id === "resume1") {
-              return {
-                  get: jest.fn().mockResolvedValue(mockResumeDoc),
-                  collection: jest.fn().mockReturnValue({
-                      doc: jest.fn().mockReturnValue(mockRequestRef)
-                  })
-              }
-          }
-          return { get: jest.fn() };
+        if (id === "resume1") {
+          return {
+            get: jest.fn().mockResolvedValue(mockResumeDoc),
+            collection: jest.fn().mockReturnValue({
+              doc: jest.fn().mockReturnValue(mockRequestRef),
+            }),
+          };
+        }
+        return { get: jest.fn() };
       }),
     });
 
-    const request = new NextRequest("http://localhost:3000/api/profiles/respond-access", {
-      method: "POST",
-      body: JSON.stringify({ requestId: "req1", resumeId: "resume1", action: "approve" }),
-    });
+    const request = new NextRequest(
+      "http://localhost:3000/api/profiles/respond-access",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          requestId: "req1",
+          resumeId: "resume1",
+          action: "approve",
+        }),
+      }
+    );
 
     const response = await POST(request);
     const data = await response.json();
@@ -163,40 +186,47 @@ describe("POST /api/profiles/respond-access", () => {
     const mockMetricsSet = jest.fn().mockResolvedValue(true);
 
     mockCollection.mockImplementation((collectionName) => {
-        if (collectionName === "resumes") {
-            return {
-                doc: jest.fn().mockReturnValue({
-                    get: jest.fn().mockResolvedValue(mockResumeDoc),
-                    collection: jest.fn().mockReturnValue({
-                        doc: jest.fn().mockReturnValue({
-                            get: jest.fn().mockResolvedValue(mockRequestDoc),
-                            update: mockRequestUpdate
-                        })
-                    })
-                })
-            };
-        }
-        if (collectionName === "recruiterMetrics") {
-            return {
-                doc: jest.fn().mockReturnValue({
-                    set: mockMetricsSet
-                })
-            };
-        }
-        if (collectionName === "jobSeekerMetrics") {
-            return {
-                doc: jest.fn().mockReturnValue({
-                    set: mockMetricsSet
-                })
-            };
-        }
-        return {};
+      if (collectionName === "resumes") {
+        return {
+          doc: jest.fn().mockReturnValue({
+            get: jest.fn().mockResolvedValue(mockResumeDoc),
+            collection: jest.fn().mockReturnValue({
+              doc: jest.fn().mockReturnValue({
+                get: jest.fn().mockResolvedValue(mockRequestDoc),
+                update: mockRequestUpdate,
+              }),
+            }),
+          }),
+        };
+      }
+      if (collectionName === "recruiterMetrics") {
+        return {
+          doc: jest.fn().mockReturnValue({
+            set: mockMetricsSet,
+          }),
+        };
+      }
+      if (collectionName === "jobSeekerMetrics") {
+        return {
+          doc: jest.fn().mockReturnValue({
+            set: mockMetricsSet,
+          }),
+        };
+      }
+      return {};
     });
 
-    const request = new NextRequest("http://localhost:3000/api/profiles/respond-access", {
-      method: "POST",
-      body: JSON.stringify({ requestId: "req1", resumeId: "resume1", action: "approve" }),
-    });
+    const request = new NextRequest(
+      "http://localhost:3000/api/profiles/respond-access",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          requestId: "req1",
+          resumeId: "resume1",
+          action: "approve",
+        }),
+      }
+    );
 
     const response = await POST(request);
     const data = await response.json();
