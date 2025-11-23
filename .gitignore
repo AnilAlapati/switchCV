@@ -47,3 +47,15 @@ yarn-error.log*
 next-env.d.ts
 node_modules_old/
 *.skip
+
+# firebase
+.firebase/
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+
+# functions
+functions/lib/
+
+# logs
+test-output.log
