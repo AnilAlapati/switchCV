@@ -1,81 +1,200 @@
-// src/__tests__/app/dashboard/page.test.tsx
-import { render, screen } from "@testing-library/react";
-import Dashboard from "../../../app/dashboard/page";
+import {
+  render,
+  screen,
+  waitFor,
+  fireEvent,
+  act,
+} from "@testing-library/react";
+import Dashboard from "@/app/dashboard/page";
+import { useAuth } from "@/hooks/useAuth";
+import { useResume } from "@/hooks/useResume";
+import { useRouter } from "next/navigation";
 
-// Mock Next.js navigation
-const mockPush = jest.fn();
-jest.mock("next/navigation", () => ({
-  useRouter: () => ({
-    push: mockPush,
-  }),
+// Mock hooks
+jest.mock("@/hooks/useAuth");
+jest.mock("@/hooks/useResume");
+jest.mock("next/navigation");
+
+// Mock components
+jest.mock("@/components/dashboard/DashboardBackground", () => ({
+  DashboardBackground: ({ children }: any) => (
+    <div data-testid="dashboard-background">{children}</div>
+  ),
+}));
+jest.mock("@/components/dashboard/DashboardHeader", () => ({
+  DashboardHeader: ({ onLogout }: any) => (
+    <button onClick={onLogout}>Logout</button>
+  ),
+}));
+jest.mock("@/components/dashboard/JobSeekerDashboard", () => ({
+  JobSeekerDashboard: () => <div data-testid="job-seeker-dashboard" />,
+}));
+jest.mock("@/components/dashboard/RecruiterDashboard", () => ({
+  RecruiterDashboard: () => <div data-testid="recruiter-dashboard" />,
+}));
+jest.mock("@/context/DashboardMetricsContext", () => ({
+  DashboardMetricsProvider: ({ children }: any) => (
+    <div data-testid="metrics-provider">{children}</div>
+  ),
 }));
 
-// Mock the hooks
-jest.mock("../../../hooks/useAuth", () => ({
-  useAuth: () => ({
-    user: { email: "test@example.com" },
-    logout: jest.fn(),
-    loading: false,
-  }),
-}));
-
-jest.mock("../../../hooks/useResume", () => ({
-  useResume: () => ({
-    hasResume: true,
-    resumeId: "test-slug",
-    loading: false,
-  }),
-}));
+// Mock fetch
+global.fetch = jest.fn();
 
 describe("Dashboard", () => {
+  const mockLogout = jest.fn();
+  const mockPush = jest.fn();
+  const mockReplace = jest.fn();
+  const mockRefresh = jest.fn();
+  const mockRefetchResume = jest.fn();
+
   beforeEach(() => {
     jest.clearAllMocks();
+
+    (useRouter as jest.Mock).mockReturnValue({
+      push: mockPush,
+      replace: mockReplace,
+      refresh: mockRefresh,
+    });
+
+    (useAuth as jest.Mock).mockReturnValue({
+      user: {
+        uid: "user123",
+        email: "test@example.com",
+        getIdToken: jest.fn().mockResolvedValue("token"),
+      },
+      logout: mockLogout,
+      loading: false,
+      needsEmailVerification: false,
+    });
+
+    (useResume as jest.Mock).mockReturnValue({
+      hasResume: false,
+      resumeId: null,
+      loading: false,
+      resume: null,
+      resumes: [],
+      refetch: mockRefetchResume,
+    });
+
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: jest.fn().mockResolvedValue({}),
+    });
   });
 
-  it("should render dashboard with user email", () => {
-    render(<Dashboard />);
+  it("renders loading state", () => {
+    (useAuth as jest.Mock).mockReturnValue({
+      loading: true,
+    });
 
-    expect(screen.getByText("SwitchCV Dashboard")).toBeInTheDocument();
+    render(<Dashboard />);
+    expect(screen.getByText("Loading your dashboard…")).toBeInTheDocument();
   });
 
-  it("should show resume created status", () => {
-    render(<Dashboard />);
+  it("redirects to auth if not logged in", () => {
+    (useAuth as jest.Mock).mockReturnValue({
+      user: null,
+      loading: false,
+    });
 
-    expect(screen.getAllByText("Private Draft")[0]).toBeInTheDocument();
+    render(<Dashboard />);
+    expect(mockPush).toHaveBeenCalledWith("/auth?mode=verify-email");
   });
 
-  it("should show view resume link when resume exists", () => {
-    render(<Dashboard />);
+  it("redirects to auth if email verification needed", () => {
+    (useAuth as jest.Mock).mockReturnValue({
+      user: { uid: "user123" },
+      loading: false,
+      needsEmailVerification: true,
+    });
 
-    const viewResumeLink = screen.getByText("View Resume");
-    expect(viewResumeLink).toBeInTheDocument();
-    expect(viewResumeLink.closest("a")).toHaveAttribute(
-      "href",
-      "http://localhost:3000/resumes/test-slug"
-    );
+    render(<Dashboard />);
+    expect(mockPush).toHaveBeenCalledWith("/auth?mode=verify-email");
   });
 
-  it("should show user profile menu", () => {
+  it("renders job seeker dashboard by default", async () => {
     render(<Dashboard />);
 
-    // The user menu should be present (UserProfileMenu component)
-    expect(screen.getByText("SwitchCV Dashboard")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId("job-seeker-dashboard")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("recruiter-dashboard")).not.toBeInTheDocument();
   });
 
-  it("should show dashboard stats cards", () => {
+  it("renders recruiter dashboard if user is recruiter", async () => {
+    (global.fetch as jest.Mock).mockImplementation((url) => {
+      if (url.includes("/api/user/settings")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ isRecruiter: true }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({}),
+      });
+    });
+
     render(<Dashboard />);
 
-    expect(screen.getByText("Resume Status")).toBeInTheDocument();
-    expect(screen.getByText("Profile Views")).toBeInTheDocument();
-    expect(screen.getByText("Contact Requests")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId("recruiter-dashboard")).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByTestId("job-seeker-dashboard")
+    ).not.toBeInTheDocument();
   });
 
-  it("should show quality metrics", () => {
+  it("handles logout", async () => {
     render(<Dashboard />);
 
-    expect(screen.getByText("Resume Quality")).toBeInTheDocument();
-    // The percentage might be in a separate element
-    const pageContent = screen.getByText("Resume Quality").textContent;
-    expect(pageContent).toBeTruthy();
+    fireEvent.click(screen.getByText("Logout"));
+
+    await waitFor(() => {
+      expect(mockLogout).toHaveBeenCalled();
+      expect(mockReplace).toHaveBeenCalledWith("/auth");
+    });
+  });
+
+  it("fetches job metrics", async () => {
+    render(<Dashboard />);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/jobseeker/metrics"),
+        expect.anything()
+      );
+    });
+  });
+
+  it("fetches recruiter metrics when user is recruiter", async () => {
+    (global.fetch as jest.Mock).mockImplementation((url) => {
+      if (url.includes("/api/user/settings")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ isRecruiter: true }),
+        });
+      }
+      if (url.includes("/api/recruiter/metrics")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({}),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({}),
+      });
+    });
+
+    render(<Dashboard />);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/recruiter/metrics"),
+        expect.anything()
+      );
+    });
   });
 });
