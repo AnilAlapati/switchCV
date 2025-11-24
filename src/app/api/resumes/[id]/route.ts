@@ -204,7 +204,11 @@ export async function GET(
     if (isPublic && !forceFullAccessCheck) {
       console.log(`[ResumeAPI] Returning public snapshot.`);
       const sanitized = sanitizeResumeForPublicView(resumeData);
-      return NextResponse.json(sanitized);
+      return NextResponse.json(sanitized, {
+        headers: {
+          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+        },
+      });
     }
 
     if (!optionalUserId) {
@@ -299,7 +303,12 @@ export async function PUT(
     const sanitizedResume = sanitizeResumePayload(resumePayload);
     const timestamp = new Date().toISOString();
 
-    await docRef.set(
+    // Use a batch write for atomicity and performance
+    const batch = adminDb.batch();
+
+    // 1. Update main resume document
+    batch.set(
+      docRef,
       {
         ...sanitizedResume,
         updatedAt: timestamp,
@@ -308,48 +317,43 @@ export async function PUT(
       { merge: true }
     );
 
-    try {
-      await adminDb
-        .collection("users")
-        .doc(requestUserId)
-        .collection("resumes")
-        .doc(id)
-        .set(
-          {
-            ...sanitizedResume,
-            updatedAt: timestamp,
-            lastUpdatedAt: timestamp,
-            userId: requestUserId,
-            numericId: existingData?.numericId,
-            isPublic: existingData?.isPublic,
-            visibility: existingData?.visibility,
-          },
-          { merge: true }
-        );
-    } catch (subcollectionError) {
-      console.error(
-        "Error updating user resume subcollection:",
-        subcollectionError
-      );
-    }
+    // 2. Update user's subcollection
+    const userResumeRef = adminDb
+      .collection("users")
+      .doc(requestUserId)
+      .collection("resumes")
+      .doc(id);
 
-    try {
-      await adminDb
-        .collection("allResumes")
-        .doc(id)
-        .set(
-          {
-            title: sanitizedResume.title ?? existingData?.title,
-            updatedAt: timestamp,
-            userId: requestUserId,
-            numericId: existingData?.numericId,
-            isPublic: existingData?.isPublic,
-          },
-          { merge: true }
-        );
-    } catch (globalError) {
-      console.error("Error updating allResumes collection:", globalError);
-    }
+    batch.set(
+      userResumeRef,
+      {
+        ...sanitizedResume,
+        updatedAt: timestamp,
+        lastUpdatedAt: timestamp,
+        userId: requestUserId,
+        numericId: existingData?.numericId,
+        isPublic: existingData?.isPublic,
+        visibility: existingData?.visibility,
+      },
+      { merge: true }
+    );
+
+    // 3. Update global search index
+    const globalResumeRef = adminDb.collection("allResumes").doc(id);
+    batch.set(
+      globalResumeRef,
+      {
+        title: sanitizedResume.title ?? existingData?.title,
+        updatedAt: timestamp,
+        userId: requestUserId,
+        numericId: existingData?.numericId,
+        isPublic: existingData?.isPublic,
+      },
+      { merge: true }
+    );
+
+    // Commit all changes atomically
+    await batch.commit();
 
     const refreshedSnap = await docRef.get();
     const refreshedData = refreshedSnap.data() ?? {};

@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "./useAuth";
 import { ResumeProfile } from "@/types";
@@ -37,7 +37,7 @@ export const useResume = () => {
         // Query for user's resume profiles
         // 1. Try new 'resumes' collection first
         const resumesRef = collection(db, "resumes");
-        const q = query(resumesRef, where("userId", "==", user.uid));
+        const q = query(resumesRef, where("userId", "==", user.uid), limit(20));
         const querySnapshot = await getDocs(q);
 
         if (!querySnapshot.empty) {
@@ -62,7 +62,8 @@ export const useResume = () => {
           const legacyResumesRef = collection(db, "resumeProfiles");
           const legacyQ = query(
             legacyResumesRef,
-            where("userId", "==", user.uid)
+            where("userId", "==", user.uid),
+            limit(20)
           );
           const legacySnapshot = await getDocs(legacyQ);
 

@@ -1,4 +1,5 @@
-// src/lib/services/aiGenerationService.ts
+import { withRetry } from "@/lib/utils/retry";
+import { logger } from "@/lib/logger";
 
 // Cache for available models (expires after 24 hours)
 let modelCache: {
@@ -35,8 +36,10 @@ async function getAvailableGeminiModels(apiKey: string): Promise<string[]> {
   if (!inflightModelFetch) {
     inflightModelFetch = (async () => {
       try {
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`
+        const response = await withRetry(() =>
+          fetch(
+            `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`
+          )
         );
 
         if (!response.ok) {
@@ -56,10 +59,10 @@ async function getAvailableGeminiModels(apiKey: string): Promise<string[]> {
           timestamp: Date.now(),
         };
 
-        console.log(`📋 Cached ${models.length} available Gemini models`);
+        logger.info({ count: models.length }, "Cached available Gemini models");
         return models;
       } catch (error) {
-        console.error("Failed to fetch Gemini models:", error);
+        logger.error({ err: error }, "Failed to fetch Gemini models");
         return [];
       } finally {
         inflightModelFetch = null;
@@ -99,14 +102,17 @@ function selectBestModel(availableModels: string[]): string {
       model.toLowerCase().includes(preferred.toLowerCase())
     );
     if (match) {
-      console.log(`✅ Selected model: ${match}`);
+      logger.info({ model: match }, "Selected model");
       return match;
     }
   }
 
   // If no preference matched, use the first available model
   if (availableModels.length > 0) {
-    console.log(`⚠️ Using fallback model: ${availableModels[0]}`);
+    logger.warn(
+      { model: availableModels[0] },
+      "Using fallback model from available list"
+    );
     return availableModels[0];
   }
 
@@ -158,27 +164,29 @@ async function generateWithGemini(
     }
 
     const modelName = selectBestModel(candidatePool);
-    console.log(`🤖 Using Gemini model: ${modelName}`);
+    logger.info({ model: modelName }, "Using Gemini model");
 
     let response: Response;
     try {
-      response = await fetch(
-        `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [{ text: prompt }],
+      response = await withRetry(() =>
+        fetch(
+          `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [
+                {
+                  parts: [{ text: prompt }],
+                },
+              ],
+              generationConfig: {
+                temperature,
+                maxOutputTokens: maxTokens,
               },
-            ],
-            generationConfig: {
-              temperature,
-              maxOutputTokens: maxTokens,
-            },
-          }),
-        }
+            }),
+          }
+        )
       );
     } catch (error) {
       lastError =
@@ -237,9 +245,8 @@ async function generateWithHuggingFace(
   }
 
   // HuggingFace Inference API - using text-generation endpoint
-  const response = await fetch(
-    "https://router.huggingface.co/models/google/flan-t5-base",
-    {
+  const response = await withRetry(() =>
+    fetch("https://router.huggingface.co/models/google/flan-t5-base", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -252,7 +259,7 @@ async function generateWithHuggingFace(
           temperature,
         },
       }),
-    }
+    })
   );
 
   if (!response.ok) {
@@ -299,9 +306,9 @@ export async function generateText(
 
   // Try Gemini first
   try {
-    console.log("🔄 Trying Gemini API...");
+    logger.info("Trying Gemini API...");
     const result = await generateWithGemini(prompt, maxTokens, temperature);
-    console.log(`✅ Gemini API success with ${result.model}`);
+    logger.info({ model: result.model }, "Gemini API success");
     return {
       text: result.text,
       model: result.model,
@@ -310,14 +317,14 @@ export async function generateText(
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : "Unknown error";
     errors.gemini = errorMsg;
-    console.error("❌ Gemini failed:", errorMsg);
+    logger.error({ err: error }, "Gemini failed");
   }
 
   // Try HuggingFace as fallback
   try {
-    console.log("🔄 Trying HuggingFace API...");
+    logger.info("Trying HuggingFace API...");
     const text = await generateWithHuggingFace(prompt, maxTokens, temperature);
-    console.log("✅ HuggingFace API success");
+    logger.info("HuggingFace API success");
     return {
       text,
       model: "FLAN-T5 Base",
@@ -326,7 +333,7 @@ export async function generateText(
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : "Unknown error";
     errors.huggingface = errorMsg;
-    console.error("❌ HuggingFace failed:", errorMsg);
+    logger.error({ err: error }, "HuggingFace failed");
   }
 
   // Both failed

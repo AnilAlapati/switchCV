@@ -141,45 +141,39 @@ service cloud.firestore {
 
     // Analytics - public read for profile views, write by system
     match /analytics/{slug} {
-      allow read: if true; // Public read for analytics
+      allow read: if request.auth != null; // Authenticated users only
       allow write: if request.auth != null; // Authenticated users can write events
       
       // Analytics events subcollection
       match /events/{eventId} {
-        allow read: if true; // Public read
+        allow read: if request.auth != null; // Authenticated users only
         allow create: if request.auth != null; // Authenticated users can create events
         allow delete: if false; // Prevent deletion
       }
       
       // Engagement metrics subcollection
       match /engagement/{document=**} {
-        allow read: if true; // Public read
+        allow read: if request.auth != null; // Authenticated users only
         allow write: if false; // Server-side only
       }
       
       // Request statistics subcollection
       match /requests/{document=**} {
-        allow read: if true; // Public read
+        allow read: if request.auth != null; // Authenticated users only
         allow write: if false; // Server-side only
       }
       
       // View analytics subcollection
       match /views/{document=**} {
-        allow read: if true; // Public read
+        allow read: if request.auth != null; // Authenticated users only
         allow write: if false; // Server-side only
       }
     }
 
-    // Resume profiles - users can read/write their own, public read for published resumes
+    // Resume profiles - users can read/write their own
     match /resumeProfiles/{profileId} {
-      // Allow public read for published resumes (anyone can view shared resumes)
-      allow read: if resource.data.published == true;
       // Allow authenticated users to read their own resumes
       allow read: if request.auth != null && request.auth.uid == resource.data.userId;
-      
-      // Allow querying/listing published resumes for anyone
-      // This enables getDocs(query(collection, where("published", "==", true)))
-      allow list: if true;
       
       // Only authenticated users can create resumes (must be for themselves)
       allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
@@ -226,13 +220,8 @@ service cloud.firestore {
 
     // New Resumes Collection (Sequential IDs)
     match /resumes/{resumeId} {
-      // Allow public read for published resumes
-      allow read: if resource.data.isPublic == true || resource.data.visibility == 'public';
       // Allow authenticated users to read their own resumes
       allow read: if request.auth != null && request.auth.uid == resource.data.userId;
-      
-      // Allow listing for authenticated users (their own) or public ones
-      allow list: if true;
       
       // Only authenticated users can create resumes (must be for themselves)
       allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
@@ -244,7 +233,7 @@ service cloud.firestore {
 
     // Global Resumes Collection (for search/listing)
     match /allResumes/{resumeId} {
-      allow read: if true;
+      allow read: if request.auth != null; // Authenticated users only
       allow write: if false; // Only backend can write
     }
   }

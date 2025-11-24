@@ -20,6 +20,7 @@ jest.mock("@/lib/numericIdGenerator");
 jest.mock("@/lib/firebase-admin", () => ({
   adminDb: {
     collection: jest.fn(),
+    batch: jest.fn(),
   },
 }));
 
@@ -27,12 +28,18 @@ describe("POST /api/resumes/create", () => {
   const mockSet = jest.fn();
   const mockDoc = jest.fn();
   const mockCollection = jest.fn();
+  const mockBatchSet = jest.fn();
+  const mockBatchCommit = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
 
     // Setup default Firestore mock chain
     (adminDb.collection as jest.Mock).mockImplementation(mockCollection);
+    (adminDb.batch as jest.Mock).mockReturnValue({
+      set: mockBatchSet,
+      commit: mockBatchCommit,
+    });
 
     mockCollection.mockReturnValue({
       doc: mockDoc,
@@ -42,6 +49,7 @@ describe("POST /api/resumes/create", () => {
       collection: mockCollection, // For nested collections
     });
     mockSet.mockResolvedValue(undefined);
+    mockBatchCommit.mockResolvedValue(undefined);
 
     // Default auth mock
     (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
@@ -104,7 +112,9 @@ describe("POST /api/resumes/create", () => {
     // Verify Firestore calls
     expect(mockCollection).toHaveBeenCalledWith("resumes");
     expect(mockDoc).toHaveBeenCalledWith(String(mockNumericId));
-    expect(mockSet).toHaveBeenCalled();
+    // expect(mockSet).toHaveBeenCalled(); // Replaced by batch
+    expect(mockBatchSet).toHaveBeenCalledTimes(3);
+    expect(mockBatchCommit).toHaveBeenCalled();
   });
 
   it("should handle errors", async () => {

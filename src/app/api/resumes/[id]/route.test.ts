@@ -1,5 +1,5 @@
-import { NextRequest } from "next/server";
-import { PUT } from "./route";
+import { NextRequest, NextResponse } from "next/server";
+import { PUT, GET } from "./route";
 
 const collectionHandlers: Record<string, any> = {};
 
@@ -23,6 +23,13 @@ jest.mock("@/lib/firebase-admin", () => {
   return {
     adminDb: {
       collection: (name: string) => collectionHandlers[name],
+      batch: () => ({
+        set: (docRef: any, data: any, options: any) => {
+          docRef.set(data, options);
+          return {};
+        },
+        commit: jest.fn().mockResolvedValue(undefined),
+      }),
     },
     adminAuth: {
       verifyIdToken,
@@ -190,4 +197,60 @@ describe("PUT /api/resumes/[id]", () => {
     });
     expect(response.status).toBe(400);
   });
+});
+
+describe("GET /api/resumes/[id]", () => {
+  let mocks: MockSetup;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    Object.keys(collectionHandlers).forEach(
+      (key) => delete collectionHandlers[key]
+    );
+    mocks = setupCollections();
+  });
+
+  it("returns cache headers for public resumes", async () => {
+    // Setup public resume
+    const publicResumeDoc = createDoc({
+      userId: "user-123",
+      numericId: 42,
+      title: "Public Resume",
+      isPublic: true,
+      visibility: "public",
+    });
+    collectionHandlers.resumes = {
+      doc: jest.fn(() => publicResumeDoc),
+    };
+
+    const request = new NextRequest("http://localhost/api/resumes/42", {
+      method: "GET",
+    });
+
+    const response = await GET(request, {
+      params: Promise.resolve({ id: "42" }),
+    });
+
+    console.log("Response headers:", response.headers);
+    console.log("Cache-Control:", response.headers.get("Cache-Control"));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe(
+      "public, s-maxage=60, stale-while-revalidate=300"
+    );
+  });
+});
+
+// Mock NextResponse to ensure headers are passed correctly in test environment
+jest.mock("next/server", () => {
+  const actual = jest.requireActual("next/server");
+  return {
+    ...actual,
+    NextResponse: {
+      ...actual.NextResponse,
+      json: (body: any, init: any) => {
+        return Response.json(body, init);
+      },
+    },
+  };
 });
