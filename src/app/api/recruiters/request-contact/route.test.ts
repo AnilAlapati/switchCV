@@ -204,10 +204,15 @@ describe("POST /api/recruiters/request-contact", () => {
 
   it("should successfully create contact request", async () => {
     // Mock resume exists
-    mockGetDoc.mockResolvedValue({
-      exists: () => true,
-      data: () => ({ userId: "user-123", title: "Test Resume" }),
-    } as any);
+    mockGetDoc
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({ userId: "user-123", title: "Test Resume" }),
+      } as any)
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({ subscriptionTier: "premium" }),
+      } as any);
 
     // Mock no existing requests
     mockGetDocs.mockResolvedValue({ empty: true, docs: [] } as any);
@@ -240,6 +245,53 @@ describe("POST /api/recruiters/request-contact", () => {
     expect(data.success).toBe(true);
     expect(data.requestId).toBe("request-123");
     expect(mockAddDoc).toHaveBeenCalledTimes(2); // request + notification
+  });
+
+  it("should block basic recruiters who exceed free request limit", async () => {
+    // Mock resume exists
+    mockGetDoc
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({ userId: "user-123", title: "Test Resume" }),
+      } as any)
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({ subscriptionTier: "basic" }),
+      } as any);
+
+    // First getDocs -> duplicate check, second -> free plan active requests
+    mockGetDocs
+      .mockResolvedValueOnce({ empty: true, docs: [] } as any)
+      .mockResolvedValueOnce({
+        empty: false,
+        size: 2,
+        docs: [{ id: "req-1" }, { id: "req-2" }],
+      } as any);
+
+    const request = new NextRequest(
+      "http://localhost/api/recruiters/request-contact",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          recruiterId: "recruiter-123",
+          recruiterName: "John Recruiter",
+          recruiterEmail: "john@company.com",
+          companyName: "Tech Corp",
+          userId: "user-123",
+          resumeId: "resume-123",
+          requestedFields: ["email"],
+          purpose: "Hiring",
+          proposedDuration: "1day",
+        }),
+      }
+    );
+
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(data.error).toContain("Free recruiters can request up to");
+    expect(mockAddDoc).not.toHaveBeenCalled();
   });
 
   it("should handle database errors gracefully", async () => {

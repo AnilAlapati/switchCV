@@ -13,6 +13,17 @@ import { db } from "@/lib/firebase";
 import { RecruiterContactRequest } from "@/types/profileSearch";
 import { handleApiError } from "@/lib/utils/api-helpers";
 
+const FREE_RECRUITER_REQUEST_LIMIT = Number(
+  process.env.RECRUITER_FREE_REQUEST_LIMIT ||
+    process.env.NEXT_PUBLIC_RECRUITER_FREE_REQUEST_LIMIT ||
+    2
+);
+
+const FREE_PLAN_ACTIVE_STATUSES: RecruiterContactRequest["status"][] = [
+  "pending",
+  "approved",
+];
+
 interface RequestContactPayload {
   recruiterId: string;
   recruiterName: string;
@@ -114,6 +125,39 @@ export async function POST(request: NextRequest) {
         "You already have a pending request for this candidate",
         409
       );
+    }
+
+    // Enforce free plan limits (basic = no payment)
+    const recruiterRef = doc(db, "users", payload.recruiterId);
+    const recruiterDoc = await getDoc(recruiterRef);
+    if (!recruiterDoc.exists()) {
+      return handleApiError(
+        new Error("Recruiter profile not found"),
+        "Recruiter profile not found",
+        404
+      );
+    }
+
+    const recruiterData = recruiterDoc.data();
+    const subscriptionTier =
+      (recruiterData?.subscriptionTier as string | undefined) || "basic";
+
+    if (subscriptionTier === "basic") {
+      const activeRequestSnapshot = await getDocs(
+        query(
+          collection(db, "recruiterRequests"),
+          where("fromRecruiter.recruiterId", "==", payload.recruiterId),
+          where("status", "in", FREE_PLAN_ACTIVE_STATUSES)
+        )
+      );
+
+      if (activeRequestSnapshot.size >= FREE_RECRUITER_REQUEST_LIMIT) {
+        return handleApiError(
+          new Error("Free recruiter limit reached"),
+          `Free recruiters can request up to ${FREE_RECRUITER_REQUEST_LIMIT} resumes. Upgrade your plan to request more access.`,
+          403
+        );
+      }
     }
 
     // Create contact request

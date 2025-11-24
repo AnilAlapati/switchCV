@@ -1,5 +1,6 @@
 "use client";
 
+/* eslint-disable max-lines */
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { templateService } from "@/lib/services/templateService";
@@ -18,6 +19,40 @@ import { RequestAccessDialog } from "@/components/RequestAccessDialog";
 import { ResumeTemplate } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
 
+type DeletionCountdownNotice = {
+  label: string;
+  deletionLabel: string;
+  severity: "warning" | "danger";
+  warningHours: number | null;
+};
+
+const formatDuration = (ms: number) => {
+  if (ms <= 0) {
+    return "moments";
+  }
+
+  const totalMinutes = Math.floor(ms / 60000);
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const minutes = totalMinutes % 60;
+
+  const parts: string[] = [];
+
+  if (days > 0) {
+    parts.push(`${days} day${days === 1 ? "" : "s"}`);
+  }
+
+  if (hours > 0) {
+    parts.push(`${hours} hour${hours === 1 ? "" : "s"}`);
+  }
+
+  if (parts.length === 0) {
+    parts.push(`${minutes || 1} minute${minutes === 1 ? "" : "s"}`);
+  }
+
+  return parts.slice(0, 2).join(" ");
+};
+
 export default function ResumeView() {
   const { id } = useParams();
   const { user, loading: authLoading } = useAuth();
@@ -32,16 +67,74 @@ export default function ResumeView() {
   const [toast, setToast] = useState<ResumeToast | null>(null);
   const [showPrivacyMenu, setShowPrivacyMenu] = useState(false);
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
+  const [deletionNotice, setDeletionNotice] =
+    useState<DeletionCountdownNotice | null>(null);
 
   const viewerAccess = (resume?.viewerAccess as Record<string, any>) ?? {};
   const viewerIsOwner = Boolean(viewerAccess?.isOwner);
   const isPublicPreview = viewerAccess?.scope === "public-preview";
+  const countdownBanner =
+    viewerIsOwner && deletionNotice ? (
+      <DeletionCountdownBanner notice={deletionNotice} />
+    ) : null;
 
   useEffect(() => {
     if (!toast) return;
     const timer = window.setTimeout(() => setToast(null), 6000);
     return () => window.clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    if (!viewerIsOwner) {
+      setDeletionNotice(null);
+      return;
+    }
+
+    const deletionIso = resume?.deletionScheduledAt;
+    if (!deletionIso) {
+      setDeletionNotice(null);
+      return;
+    }
+
+    const deletionDate = new Date(deletionIso);
+    if (Number.isNaN(deletionDate.getTime())) {
+      setDeletionNotice(null);
+      return;
+    }
+
+    const countdownIso = resume?.countdownStartsAt ?? null;
+    const countdownDate = countdownIso ? new Date(countdownIso) : null;
+    const warningHours =
+      typeof resume?.expirationWarningHours === "number"
+        ? resume.expirationWarningHours
+        : null;
+
+    const updateNotice = () => {
+      const now = new Date();
+      if (countdownDate && now < countdownDate) {
+        setDeletionNotice(null);
+        return;
+      }
+
+      const msRemaining = deletionDate.getTime() - now.getTime();
+      const severity =
+        msRemaining <= 24 * 60 * 60 * 1000 ? "danger" : "warning";
+
+      setDeletionNotice({
+        label: msRemaining <= 0 ? "moments" : formatDuration(msRemaining),
+        deletionLabel: deletionDate.toLocaleString(undefined, {
+          dateStyle: "medium",
+          timeStyle: "short",
+        }),
+        severity,
+        warningHours,
+      });
+    };
+
+    updateNotice();
+    const interval = window.setInterval(updateNotice, 60000);
+    return () => window.clearInterval(interval);
+  }, [resume, viewerIsOwner]);
 
   const toggleVisibility = async () => {
     if (!resume || !user || isUpdating) return;
@@ -232,6 +325,7 @@ export default function ResumeView() {
     return (
       <div className="min-h-screen bg-gray-900 text-white p-8 font-sans relative">
         <ResumeToastOverlay toast={toast} onDismiss={() => setToast(null)} />
+        {countdownBanner}
         {/* Privacy Toggle */}
         <PrivacyMenu
           isPublic={resume.isPublic}
@@ -269,7 +363,43 @@ export default function ResumeView() {
   return (
     <>
       <ResumeToastOverlay toast={toast} onDismiss={() => setToast(null)} />
+      {countdownBanner}
       <LegacyResumeRenderer resume={resume} />
     </>
+  );
+}
+
+const bannerStyles = {
+  warning: "border-amber-400 bg-amber-500/10 text-amber-100",
+  danger: "border-red-400 bg-red-500/10 text-red-100",
+};
+
+function DeletionCountdownBanner({
+  notice,
+}: {
+  notice: DeletionCountdownNotice;
+}) {
+  return (
+    <div
+      className={`mb-4 rounded-lg border px-4 py-3 text-sm leading-relaxed ${
+        bannerStyles[notice.severity]
+      }`}
+      role="status"
+    >
+      <p className="font-semibold text-base">
+        Resume scheduled for deletion in {notice.label}
+      </p>
+      <p>
+        This Basic plan resume will be permanently removed on{" "}
+        <span className="font-semibold">{notice.deletionLabel}</span> unless you
+        upgrade or duplicate it to keep a copy.
+      </p>
+      {typeof notice.warningHours === "number" && (
+        <p className="text-xs opacity-80 mt-1">
+          Countdown warnings start {notice.warningHours} hours before deletion
+          so you have time to upgrade.
+        </p>
+      )}
+    </div>
   );
 }

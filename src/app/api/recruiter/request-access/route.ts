@@ -1,21 +1,20 @@
 // src/app/api/recruiter/request-access/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/firebase";
+import { adminDb } from "@/lib/firebase-admin";
 import {
-  doc,
-  getDoc,
-  addDoc,
-  collection,
-  query,
-  where,
-  getDocs,
-  updateDoc,
-  increment,
-} from "firebase/firestore";
-import { handleApiError } from "@/lib/utils/api-helpers";
+  handleApiError,
+  getAuthenticatedUserId,
+} from "@/lib/utils/api-helpers";
+import { getUserTier } from "@/lib/services/userService";
+import { RECRUITER_CONTACT_LIMITS } from "@/lib/config";
+import { consumeQuota, QuotaExceededError } from "@/lib/services/quotaService";
 
 export async function POST(request: NextRequest) {
   try {
+    const { userId: recruiterId, error: authError } =
+      await getAuthenticatedUserId(request);
+    if (authError) return authError;
+
     const { resumeId, requestedFields = ["email", "phone"] } =
       await request.json();
 
@@ -23,37 +22,59 @@ export async function POST(request: NextRequest) {
       return handleApiError(null, "resumeId is required", 400);
     }
 
-    // Get resume to find owner
-    const resumeRef = doc(db, "resumes", resumeId);
-    const resumeDoc = await getDoc(resumeRef);
+    // Check Quota
+    const tier = await getUserTier(recruiterId!);
+    const limit = RECRUITER_CONTACT_LIMITS[tier];
 
-    if (!resumeDoc.exists()) {
+    try {
+      await consumeQuota({
+        subjectId: recruiterId!,
+        scope: "recruiter_contact",
+        limit: limit,
+        period: "monthly",
+      });
+    } catch (error) {
+      if (error instanceof QuotaExceededError) {
+        return handleApiError(
+          error,
+          `You have reached your monthly limit of ${limit} contacts. Please upgrade to contact more candidates.`,
+          403
+        );
+      }
+      throw error;
+    }
+
+    // Get resume to find owner
+    const resumeRef = adminDb.collection("resumes").doc(resumeId);
+    const resumeDoc = await resumeRef.get();
+
+    if (!resumeDoc.exists) {
       return handleApiError(null, "Resume not found", 404);
     }
 
     const resumeData = resumeDoc.data();
-    const userId = resumeData.userId;
-    const title = resumeData.title || "Untitled Resume";
+    const userId = resumeData?.userId;
+    const title = resumeData?.title || "Untitled Resume";
 
     // Get user info
-    const userRef = doc(db, "users", userId);
-    const userDoc = await getDoc(userRef);
+    const userRef = adminDb.collection("users").doc(userId);
+    const userDoc = await userRef.get();
 
-    if (!userDoc.exists()) {
+    if (!userDoc.exists) {
       return handleApiError(null, "User not found", 404);
     }
 
     const userData = userDoc.data();
 
     // Check if request already exists
-    const existingQuery = query(
-      collection(db, "recruiterRequests"),
-      where("resumeId", "==", resumeId),
-      where("status", "==", "pending")
-    );
-    const existingDocs = await getDocs(existingQuery);
+    const existingQuery = await adminDb
+      .collection("recruiterRequests")
+      .where("resumeId", "==", resumeId)
+      .where("fromRecruiterId", "==", recruiterId) // Also check if THIS recruiter already requested
+      .where("status", "==", "pending")
+      .get();
 
-    if (!existingDocs.empty) {
+    if (!existingQuery.empty) {
       return handleApiError(
         new Error("A pending request already exists for this resume"),
         "A pending request already exists for this resume",
@@ -62,12 +83,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Create new access request
-    const requestsRef = collection(db, "recruiterRequests");
-    const newRequest = await addDoc(requestsRef, {
+    const newRequestRef = adminDb.collection("recruiterRequests").doc();
+    await newRequestRef.set({
       resumeId,
       userId,
+      fromRecruiterId: recruiterId,
       resumeTitle: title,
-      userEmail: userData.email,
+      userEmail: userData?.email,
       requestedFields,
       status: "pending",
       createdAt: new Date().toISOString(),
@@ -76,8 +98,8 @@ export async function POST(request: NextRequest) {
 
     // Increment request count in user document
     try {
-      await updateDoc(userRef, {
-        requestCount: increment(1),
+      await userRef.update({
+        requestCount: adminDb.firestore.FieldValue.increment(1),
       });
     } catch (err) {
       console.warn("Could not update request count:", err);
@@ -85,7 +107,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      requestId: newRequest.id,
+      requestId: newRequestRef.id,
       message:
         "Access request sent successfully. The candidate will be notified.",
     });
