@@ -1,59 +1,19 @@
 import { adminDb } from "@/lib/firebase-admin";
 import { getDocumentIdFromResumeId } from "@/lib/resumeIdMapping";
+import { AccessStatusMap, getAccessStatus } from "./access-status";
+import { getDisplayName } from "./search-result";
+import type { SearchResultCard } from "./search-result";
 
-export interface SearchResultCard {
-  resumeId: string;
-  title: string;
-  userName: string;
-  userId: string;
-  skills?: string[];
-  location?: string;
-  createdAt: string;
-  accessStatus?: "none" | "pending" | "approved" | "denied";
-}
+export { buildAccessStatusMap } from "./access-status";
+export type { SearchResultCard } from "./search-result";
 
-export function maskEmail(email: string): string {
-  const [user, domain] = email.split("@");
-  if (!user || !domain) return email;
-  const maskedUser = user.substring(0, 2) + "***";
-  return `${maskedUser}@${domain}`;
-}
-
-export function getDisplayName(userData: any): string {
-  if (userData.displayName) return userData.displayName;
-  if (userData.email) return maskEmail(userData.email);
-  return "Unknown";
-}
-
-export async function checkAccessStatus(
-  resumeId: string,
-  recruiterId: string
-): Promise<"none" | "pending" | "approved" | "denied"> {
-  try {
-    const requests = await adminDb
-      .collection("resumes")
-      .doc(resumeId)
-      .collection("accessRequests")
-      .where("fromUserId", "==", recruiterId)
-      .get();
-
-    if (requests.empty) return "none";
-
-    const statuses = requests.docs.map((doc) => doc.data().status);
-    if (statuses.includes("approved")) return "approved";
-    if (statuses.includes("pending")) return "pending";
-    if (statuses.includes("denied")) return "denied";
-
-    return "none";
-  } catch (error) {
-    console.error("Error checking access status:", error);
-    return "none";
-  }
-}
+const PREMIUM_RESULT_LIMIT = 50;
+const PREMIUM_SCAN_LIMIT = 200;
 
 export async function performBasicSearch(
   userId: string,
-  recruiterId: string
+  recruiterId: string,
+  accessStatusMap?: AccessStatusMap
 ): Promise<{ results: SearchResultCard[]; notification?: string }> {
   const results: SearchResultCard[] = [];
 
@@ -94,9 +54,10 @@ export async function performBasicSearch(
         }
 
         const userData = userSnapshot.data();
-        const accessStatus = await checkAccessStatus(
+        const accessStatus = await getAccessStatus(
           mapping.documentId,
-          recruiterId
+          recruiterId,
+          accessStatusMap
         );
 
         results.push({
@@ -141,9 +102,10 @@ export async function performBasicSearch(
       }
 
       const userData = userSnapshot.data();
-      const accessStatus = await checkAccessStatus(
+      const accessStatus = await getAccessStatus(
         resumeSnapshot.id,
-        recruiterId
+        recruiterId,
+        accessStatusMap
       );
 
       results.push({
@@ -187,7 +149,11 @@ export async function performBasicSearch(
 
     const resumeDoc = resumesSnapshot.docs[0];
     const resumeData = resumeDoc.data();
-    const accessStatus = await checkAccessStatus(resumeDoc.id, recruiterId);
+    const accessStatus = await getAccessStatus(
+      resumeDoc.id,
+      recruiterId,
+      accessStatusMap
+    );
 
     results.push({
       resumeId: resumeDoc.id,
@@ -208,68 +174,123 @@ export async function performBasicSearch(
 export async function performPremiumSearch(
   skills: string[] | undefined,
   location: string | undefined,
-  recruiterId: string
+  recruiterId: string,
+  accessStatusMap?: AccessStatusMap
 ): Promise<{ results: SearchResultCard[] }> {
   const results: SearchResultCard[] = [];
 
   try {
-    const resumesSnapshot = await adminDb
-      .collection("resumes")
-      .where("published", "==", true)
-      .get();
+    const normalizedSkills =
+      skills?.map((skill) => skill.trim().toLowerCase()).filter(Boolean) || [];
+    const normalizedLocation = location?.trim().toLowerCase() || "";
 
+    let resumesQuery: any = adminDb
+      .collection("resumes")
+      .where("published", "==", true);
+
+    if (typeof resumesQuery.limit === "function") {
+      resumesQuery = resumesQuery.limit(PREMIUM_SCAN_LIMIT);
+    }
+
+    const resumesSnapshot = await resumesQuery.get();
     const seenUserIds = new Set<string>();
+    const userCache = new Map<string, Record<string, any> | null>();
 
     for (const resumeDoc of resumesSnapshot.docs) {
+      if (results.length >= PREMIUM_RESULT_LIMIT) {
+        break;
+      }
+
       const resumeData = resumeDoc.data();
-      const userId = resumeData.userId;
+      const userId = resumeData?.userId;
 
-      if (seenUserIds.has(userId)) continue;
+      if (!userId || seenUserIds.has(userId)) {
+        continue;
+      }
 
-      const userSnapshot = await adminDb.collection("users").doc(userId).get();
+      if (!resumeData?.published) {
+        continue;
+      }
 
-      if (!userSnapshot.exists) continue;
+      let userData: Record<string, any> | null;
+      if (userCache.has(userId)) {
+        userData = userCache.get(userId) ?? null;
+      } else {
+        const userSnapshot = await adminDb
+          .collection("users")
+          .doc(userId)
+          .get();
+        const resolvedData = userSnapshot.exists
+          ? (userSnapshot.data() as Record<string, any>)
+          : null;
+        userCache.set(userId, resolvedData);
+        userData = resolvedData;
+      }
 
-      const userData = userSnapshot.data();
-      if (!userData) continue;
+      if (!userData) {
+        continue;
+      }
 
-      const resumeSkills =
-        resumeData.skills?.map((s: any) =>
-          typeof s === "string" ? s : s.name
-        ) || [];
-      const resumeLocation = userData.location || resumeData.location || "";
+      const resumeSkills = Array.isArray(resumeData.skills)
+        ? resumeData.skills.map((skill: any) =>
+            typeof skill === "string" ? skill : skill?.name || ""
+          )
+        : [];
+      const normalizedResumeSkills = resumeSkills
+        .map((skill: string) => skill.toLowerCase())
+        .filter(Boolean);
 
       const skillsMatch =
-        !skills ||
-        skills.length === 0 ||
-        skills.some((skill) =>
-          resumeSkills.some((rs: string) =>
-            rs.toLowerCase().includes(skill.toLowerCase())
+        normalizedSkills.length === 0 ||
+        normalizedSkills.some((skill: string) =>
+          normalizedResumeSkills.some((resumeSkill: string) =>
+            resumeSkill.includes(skill)
           )
         );
 
+      const candidateLocations = [
+        userData.publicProfile?.location,
+        userData.location,
+        resumeData.location,
+        resumeData.city,
+        resumeData.region,
+      ].filter(
+        (value): value is string =>
+          typeof value === "string" && value.trim().length > 0
+      );
+
+      const normalizedLocations = candidateLocations.map((value) =>
+        value.toLowerCase()
+      );
+
       const locationMatch =
-        !location ||
-        resumeLocation.toLowerCase().includes(location.toLowerCase());
+        !normalizedLocation ||
+        normalizedLocations.some((value) => value.includes(normalizedLocation));
 
-      if (skillsMatch || locationMatch) {
-        seenUserIds.add(userId);
-        const accessStatus = await checkAccessStatus(resumeDoc.id, recruiterId);
-
-        results.push({
-          resumeId: resumeDoc.id,
-          title: resumeData.title || "Untitled Resume",
-          userName: getDisplayName(userData),
-          userId: userId,
-          skills: resumeSkills.slice(0, 5),
-          location: resumeLocation || undefined,
-          createdAt: resumeData.createdAt || new Date().toISOString(),
-          accessStatus,
-        });
+      if (!skillsMatch && !locationMatch) {
+        continue;
       }
+
+      seenUserIds.add(userId);
+      const accessStatus = await getAccessStatus(
+        resumeDoc.id,
+        recruiterId,
+        accessStatusMap
+      );
+
+      results.push({
+        resumeId: resumeDoc.id,
+        title: resumeData.title || "Untitled Resume",
+        userName: getDisplayName(userData),
+        userId,
+        skills: resumeSkills.filter(Boolean).slice(0, 5),
+        location: candidateLocations[0] || undefined,
+        createdAt: resumeData.createdAt || new Date().toISOString(),
+        accessStatus,
+      });
     }
 
-    return { results: results.slice(0, 50) };
+    return { results };
   } catch (error) {
     console.error("Premium search error:", error);
     throw error;

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { handleApiError } from "@/lib/utils/api-helpers";
-import { performBasicSearch, performPremiumSearch } from "./search-service";
+import {
+  buildAccessStatusMap,
+  performBasicSearch,
+  performPremiumSearch,
+} from "./search-service";
 import { FieldValue } from "firebase-admin/firestore";
 
 interface SearchRequest {
@@ -86,10 +90,12 @@ export async function POST(request: NextRequest) {
       }
 
       try {
+        const accessStatusMap = await buildAccessStatusMap(recruiterId);
         const { results } = await performPremiumSearch(
           skills,
           location,
-          recruiterId
+          recruiterId,
+          accessStatusMap
         );
         return NextResponse.json({
           results,
