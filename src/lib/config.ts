@@ -52,3 +52,9 @@ export const getEmailBaseUrl = (): string => {
     "https://switchcv.com"
   );
 };
+
+/**
+ * Feature Flags
+ */
+// ⚠️ TESTING ONLY: Set to true to enable resume seeding and debug lists in dashboard
+export const ENABLE_SEEDING_AND_DEBUG_LISTS = false;

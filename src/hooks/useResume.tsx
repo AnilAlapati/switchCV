@@ -15,6 +15,7 @@ interface ResumeProfileWithId extends ResumeProfile {
 export const useResume = () => {
   const { user } = useAuth();
   const [resume, setResume] = useState<ResumeProfileWithId | null>(null);
+  const [resumes, setResumes] = useState<ResumeProfileWithId[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refetchTrigger, setRefetchTrigger] = useState(0);
@@ -23,6 +24,7 @@ export const useResume = () => {
     const fetchUserResume = async () => {
       if (!user) {
         setResume(null);
+        setResumes([]);
         setError(null);
         setLoading(false);
         return;
@@ -39,16 +41,22 @@ export const useResume = () => {
         const querySnapshot = await getDocs(q);
 
         if (!querySnapshot.empty) {
-          // Get the first (most recent) resume
-          const resumeDoc = querySnapshot.docs[0];
-          const data = resumeDoc.data();
-          const resumeData: ResumeProfileWithId = {
-            ...(data as any), // Cast to any to handle structure differences
-            id: resumeDoc.id,
-            numericId: data.numericId,
-          };
-          console.log("Resume loaded from 'resumes':", resumeData);
-          setResume(resumeData);
+          const allResumes = querySnapshot.docs.map((doc) => ({
+            ...(doc.data() as any),
+            id: doc.id,
+            numericId: doc.data().numericId,
+          }));
+
+          // Sort by createdAt desc (newest first)
+          allResumes.sort((a, b) => {
+            const dateA = new Date(a.createdAt || 0).getTime();
+            const dateB = new Date(b.createdAt || 0).getTime();
+            return dateB - dateA;
+          });
+
+          console.log(`Loaded ${allResumes.length} resumes from 'resumes'`);
+          setResumes(allResumes);
+          setResume(allResumes[0]); // Set the most recent one as primary
         } else {
           // 2. Fallback to legacy 'resumeProfiles'
           const legacyResumesRef = collection(db, "resumeProfiles");
@@ -59,16 +67,26 @@ export const useResume = () => {
           const legacySnapshot = await getDocs(legacyQ);
 
           if (!legacySnapshot.empty) {
-            const resumeDoc = legacySnapshot.docs[0];
-            const resumeData: ResumeProfileWithId = {
-              ...(resumeDoc.data() as ResumeProfile),
-              id: resumeDoc.id,
-            };
-            console.log("Resume loaded from 'resumeProfiles':", resumeData);
-            setResume(resumeData);
+            const allLegacyResumes = legacySnapshot.docs.map((doc) => ({
+              ...(doc.data() as ResumeProfile),
+              id: doc.id,
+            }));
+            // Sort by createdAt desc (newest first)
+            allLegacyResumes.sort((a, b) => {
+              const dateA = new Date(a.lastUpdatedAt || 0).getTime();
+              const dateB = new Date(b.lastUpdatedAt || 0).getTime();
+              return dateB - dateA;
+            });
+
+            console.log(
+              `Loaded ${allLegacyResumes.length} resumes from 'resumeProfiles'`
+            );
+            setResumes(allLegacyResumes);
+            setResume(allLegacyResumes[0]);
           } else {
             console.log("No resume found for user");
             setResume(null);
+            setResumes([]);
           }
         }
       } catch (err) {
@@ -99,6 +117,7 @@ export const useResume = () => {
 
   return {
     resume,
+    resumes,
     loading,
     error,
     hasResume: hasResume(),
