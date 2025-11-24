@@ -193,9 +193,13 @@ describe("RecruiterRequestsPage - Delete Functionality", () => {
     expect(screen.queryByText("Pending Person")).not.toBeInTheDocument();
 
     // And the Active tab should be selected/visible
-    expect(screen.getByRole("button", { name: "Active (1)" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Active (1)" })
+    ).toBeInTheDocument();
 
     // Pending tab should NOT be visible in Active view
-    expect(screen.queryByRole("button", { name: /Pending/ })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Pending/ })
+    ).not.toBeInTheDocument();
   });
 });

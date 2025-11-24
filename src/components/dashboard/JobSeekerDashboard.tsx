@@ -11,6 +11,7 @@ import { DownloadsCard } from "@/components/dashboard/DownloadsCard";
 import { ActionPlanCard } from "@/components/dashboard/ActionPlanCard";
 import { OpportunityInsightsCard } from "@/components/dashboard/OpportunityInsightsCard";
 import { ResourceLinksCard } from "@/components/dashboard/ResourceLinksCard";
+import { ResumeList } from "@/components/dashboard/ResumeList";
 import {
   buildJobSeekerActionPlan,
   buildJobSeekerInsights,
@@ -18,7 +19,7 @@ import {
   formatLastUpdatedMessage,
   readinessLabel,
 } from "@/lib/dashboard/jobSeekerInsights";
-import { getResumeUrl } from "@/lib/config";
+import { getResumeUrl, ENABLE_SEEDING_AND_DEBUG_LISTS } from "@/lib/config";
 import type { JobSeekerMetrics } from "@/types/dashboard";
 
 interface JobSeekerDashboardProps {
@@ -28,6 +29,7 @@ interface JobSeekerDashboardProps {
   metrics: JobSeekerMetrics | null;
   metricsLoading: boolean;
   resume?: any;
+  resumes?: any[];
   onRefreshResume?: () => void;
 }
 
@@ -38,6 +40,7 @@ export function JobSeekerDashboard({
   metrics,
   metricsLoading,
   resume,
+  resumes,
   onRefreshResume,
 }: JobSeekerDashboardProps) {
   const resumeIdString = resumeId ? String(resumeId) : null;
@@ -219,6 +222,10 @@ export function JobSeekerDashboard({
 
       <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
         <div className="space-y-6">
+          {ENABLE_SEEDING_AND_DEBUG_LISTS && resumes && resumes.length > 1 && (
+            <ResumeList resumes={resumes} />
+          )}
+
           <ResumeStatusCard
             hasResume={hasResume}
             resumeId={resumeId}

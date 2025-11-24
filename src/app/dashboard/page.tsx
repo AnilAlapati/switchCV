@@ -25,6 +25,7 @@ export default function Dashboard() {
     resumeId,
     loading: resumeLoading,
     resume,
+    resumes,
     refetch: refreshResume,
   } = useResume();
   const router = useRouter();
@@ -310,6 +311,7 @@ export default function Dashboard() {
               metricsLoading={recruiterMetricsLoading}
               onLaunchSearch={handleLaunchSearch}
               searchSectionRef={recruiterSearchRef}
+              resumes={resumes}
             />
           ) : (
             <JobSeekerDashboard
@@ -319,6 +321,7 @@ export default function Dashboard() {
               metrics={jobMetricsValue}
               metricsLoading={jobMetricsLoading}
               resume={resume}
+              resumes={resumes}
               onRefreshResume={refreshResume}
             />
           )}

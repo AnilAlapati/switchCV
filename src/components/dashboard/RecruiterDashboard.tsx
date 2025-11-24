@@ -9,6 +9,8 @@ import { CandidatesSearchedCard } from "@/components/dashboard/recruiter/Candida
 import { AvailableResumesCard } from "@/components/dashboard/recruiter/AvailableResumesCard";
 import { AccessRequestsCard } from "@/components/dashboard/recruiter/AccessRequestsCard";
 import { CandidatesInteractedCard } from "@/components/dashboard/recruiter/CandidatesInteractedCard";
+import { ResumeList } from "@/components/dashboard/ResumeList";
+import { ENABLE_SEEDING_AND_DEBUG_LISTS } from "@/lib/config";
 import {
   buildRecruiterActionPlan,
   buildRecruiterInsights,
@@ -26,6 +28,7 @@ interface RecruiterDashboardProps {
   metricsLoading: boolean;
   onLaunchSearch?: () => void;
   searchSectionRef?: React.RefObject<HTMLDivElement | null>;
+  resumes?: any[];
 }
 
 export function RecruiterDashboard({
@@ -33,6 +36,7 @@ export function RecruiterDashboard({
   metricsLoading,
   onLaunchSearch,
   searchSectionRef,
+  resumes,
 }: RecruiterDashboardProps) {
   const pipelinePanelData = useMemo(() => {
     if (!pipelinePanelEnabled) {
@@ -168,6 +172,12 @@ export function RecruiterDashboard({
 
       <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
         <div className="space-y-6">
+          {ENABLE_SEEDING_AND_DEBUG_LISTS && resumes && resumes.length > 0 && (
+            <div className="mb-8">
+              <ResumeList resumes={resumes} />
+            </div>
+          )}
+
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
             <CandidatesSearchedCard />
             <AvailableResumesCard />

@@ -133,7 +133,7 @@ export const LegacyResumeRenderer: React.FC<LegacyResumeRendererProps> = ({
                   key={index}
                   className="bg-gray-100 text-gray-700 px-3 py-1 rounded-md text-sm font-medium border border-gray-200"
                 >
-                  {skill}
+                  {typeof skill === "object" ? skill.name : skill}
                 </span>
               ))}
             </div>
