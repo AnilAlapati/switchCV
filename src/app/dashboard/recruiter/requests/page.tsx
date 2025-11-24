@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, Suspense } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { DashboardBackground } from "@/components/dashboard/DashboardBackground";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
@@ -14,7 +14,7 @@ import type { DecoratedRequest, RecruiterRequest } from "./types";
 
 type TabKey = "pending" | "active" | "history";
 
-export default function RecruiterRequestsPage() {
+function RecruiterRequestsContent() {
   const { user, logout } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -285,5 +285,17 @@ export default function RecruiterRequestsPage() {
         )}
       </main>
     </DashboardBackground>
+  );
+}
+
+export default function RecruiterRequestsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="text-center text-slate-400 p-8">Loading...</div>
+      }
+    >
+      <RecruiterRequestsContent />
+    </Suspense>
   );
 }

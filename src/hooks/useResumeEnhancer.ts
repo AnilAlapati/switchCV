@@ -40,13 +40,12 @@ export const useResumeEnhancer = () => {
 
         const enhancement = (await response.json()) as ResumeEnhancementResult;
         setState({ loading: false, error: null, enhancement });
-
         return enhancement;
       } catch (error) {
-        const errorMessage =
+        const message =
           error instanceof Error ? error.message : "Unknown error";
         logger.error("Error enhancing resume:", error);
-        setState({ loading: false, error: errorMessage, enhancement: null });
+        setState({ loading: false, error: message, enhancement: null });
         throw error;
       }
     },

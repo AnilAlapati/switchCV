@@ -4,6 +4,25 @@ import {
   handleApiError,
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
+import { z } from "zod";
+
+// Define validation schemas
+const userProfileSchema = z.object({
+  uid: z.string().min(1, "UID is required"),
+  email: z.string().email("Invalid email address"),
+  displayName: z.string().optional(),
+  isRecruiter: z.boolean().optional().default(false),
+  companyName: z.string().optional(),
+  subscriptionTier: z.enum(["basic", "premium"]).optional().default("basic"),
+});
+
+const updateProfileSchema = z.object({
+  uid: z.string().min(1, "UID is required"),
+  displayName: z.string().optional(),
+  isRecruiter: z.boolean().optional(),
+  companyName: z.string().optional(),
+  subscriptionTier: z.enum(["basic", "premium"]).optional(),
+});
 
 interface UserProfile {
   uid: string;
@@ -11,7 +30,7 @@ interface UserProfile {
   displayName?: string;
   isRecruiter: boolean;
   companyName?: string;
-  subscriptionTier: "basic" | "premium"; // basic or premium
+  subscriptionTier: "basic" | "premium";
   createdAt?: string;
   updatedAt: string;
 }
@@ -66,6 +85,28 @@ export async function POST(request: NextRequest) {
     if (error) return error;
 
     const body = await request.json();
+
+    if (!body?.uid || !body?.email) {
+      return handleApiError(
+        new Error("uid and email are required"),
+        "uid and email are required",
+        400
+      );
+    }
+
+    // Validate input using Zod
+    const validationResult = userProfileSchema.safeParse(body);
+
+    if (!validationResult.success) {
+      return handleApiError(
+        new Error("Validation failed"),
+        validationResult.error.errors
+          .map((e) => `${e.path.join(".")}: ${e.message}`)
+          .join(", "),
+        400
+      );
+    }
+
     const {
       uid,
       email,
@@ -73,15 +114,7 @@ export async function POST(request: NextRequest) {
       isRecruiter,
       companyName,
       subscriptionTier,
-    } = body;
-
-    if (!uid || !email) {
-      return handleApiError(
-        new Error("uid and email are required"),
-        "uid and email are required",
-        400
-      );
-    }
+    } = validationResult.data;
 
     // Users can only create profiles for themselves
     if (userId !== uid) {
@@ -97,9 +130,9 @@ export async function POST(request: NextRequest) {
       uid,
       email,
       displayName: displayName || "",
-      isRecruiter: isRecruiter || false,
+      isRecruiter: isRecruiter,
       companyName: companyName || "",
-      subscriptionTier: subscriptionTier || "basic", // default to basic
+      subscriptionTier: subscriptionTier,
       createdAt: now,
       updatedAt: now,
     };
@@ -127,16 +160,30 @@ export async function PUT(request: NextRequest) {
     if (error) return error;
 
     const body = await request.json();
-    const { uid, displayName, isRecruiter, companyName, subscriptionTier } =
-      body;
 
-    if (!uid) {
+    if (!body?.uid) {
       return handleApiError(
         new Error("uid is required"),
         "uid is required",
         400
       );
     }
+
+    // Validate input using Zod
+    const validationResult = updateProfileSchema.safeParse(body);
+
+    if (!validationResult.success) {
+      return handleApiError(
+        new Error("Validation failed"),
+        validationResult.error.errors
+          .map((e) => `${e.path.join(".")}: ${e.message}`)
+          .join(", "),
+        400
+      );
+    }
+
+    const { uid, displayName, isRecruiter, companyName, subscriptionTier } =
+      validationResult.data;
 
     // Users can only update their own profile
     if (userId !== uid) {

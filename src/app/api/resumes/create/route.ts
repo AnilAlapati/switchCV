@@ -73,35 +73,41 @@ export async function POST(request: NextRequest) {
       status: "active",
     };
 
-    // Save to Firestore
+    // Save to Firestore using Batch Write
+    const batch = adminDb.batch();
+
+    // 1. Main Resume Document
     // Structure: resumes/{numericId} (Root collection for easy access by ID)
     const docRef = adminDb.collection("resumes").doc(String(numericId));
+    batch.set(docRef, resumeDoc);
 
-    await docRef.set(resumeDoc);
-
-    // Also store in user's subcollection for listing
+    // 2. User's Subcollection
     const userResumeRef = adminDb
       .collection("users")
       .doc(userId)
       .collection("resumes")
       .doc(String(numericId));
 
-    await userResumeRef.set({
+    batch.set(userResumeRef, {
       ...resumeDoc,
       // We can store full data or just metadata here
     });
 
-    // Also store in a global resumes collection for search/listing (optional, if needed separately)
+    // 3. Global Resumes Collection (for search/listing)
     const globalResumesRef = adminDb
       .collection("allResumes")
       .doc(String(numericId));
-    await globalResumesRef.set({
+
+    batch.set(globalResumesRef, {
       userId,
       numericId,
       title: resume.title,
       isPublic: isPublic,
       createdAt: new Date().toISOString(),
     });
+
+    // Commit all writes atomically
+    await batch.commit();
 
     console.log(`✅ Resume saved successfully`, {
       userId,
