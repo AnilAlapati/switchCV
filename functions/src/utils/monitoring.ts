@@ -29,14 +29,21 @@ export interface Metric {
  */
 export class PerformanceMonitor {
   private static instance: PerformanceMonitor;
-  private db: FirebaseFirestore.Firestore;
+  private db: FirebaseFirestore.Firestore | null = null;
   private metrics: Metric[] = [];
   private readonly batchSize = 100;
   private readonly flushInterval = 60000; // 1 minute
 
   private constructor() {
-    this.db = admin.firestore();
+    // Lazy initialization of Firestore to avoid circular dependencies
     this.startAutoFlush();
+  }
+
+  private getDb(): FirebaseFirestore.Firestore {
+    if (!this.db) {
+      this.db = admin.firestore();
+    }
+    return this.db;
   }
 
   static getInstance(): PerformanceMonitor {
@@ -112,8 +119,9 @@ export class PerformanceMonitor {
     this.metrics = [];
 
     try {
-      const batch = this.db.batch();
-      const metricsRef = this.db.collection("monitoring").doc("metrics");
+      const db = this.getDb();
+      const batch = db.batch();
+      const metricsRef = db.collection("monitoring").doc("metrics");
       const now = new Date();
 
       // Aggregate metrics by type and name
@@ -244,10 +252,17 @@ export enum AlertSeverity {
  */
 export class AlertManager {
   private static instance: AlertManager;
-  private db: FirebaseFirestore.Firestore;
+  private db: FirebaseFirestore.Firestore | null = null;
 
   private constructor() {
-    this.db = admin.firestore();
+    // Lazy initialization to avoid circular dependencies
+  }
+
+  private getDb(): FirebaseFirestore.Firestore {
+    if (!this.db) {
+      this.db = admin.firestore();
+    }
+    return this.db;
   }
 
   static getInstance(): AlertManager {
@@ -276,7 +291,8 @@ export class AlertManager {
     };
 
     try {
-      await this.db
+      const db = this.getDb();
+      await db
         .collection("monitoring")
         .doc("alerts")
         .collection("active")

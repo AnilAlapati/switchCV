@@ -13,16 +13,21 @@ export function useRecruiterRequests() {
   const { user, loading: authLoading } = useAuth();
   const [requests, setRequests] = useState<PendingRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const shouldListen = Boolean(user?.uid && !authLoading);
 
   useEffect(() => {
-    if (!user || authLoading) return;
+    if (!shouldListen || !user?.uid) {
+      return;
+    }
 
-    const q = query(
+    const requestsQuery = query(
       collection(db, "recruiterRequests"),
-      where("status", "==", "pending")
+      where("status", "==", "pending"),
+      where("toUserId", "==", user.uid)
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    queueMicrotask(() => setLoading(true));
+    const unsubscribe = onSnapshot(requestsQuery, (snapshot) => {
       const pending = snapshot.docs.map((doc) => ({
         id: doc.id,
         request: doc.data() as RecruiterContactRequest,
@@ -39,7 +44,10 @@ export function useRecruiterRequests() {
     });
 
     return () => unsubscribe();
-  }, [user, authLoading]);
+  }, [shouldListen, user?.uid]);
 
-  return { requests, loading } as const;
+  const effectiveRequests = shouldListen ? requests : [];
+  const effectiveLoading = authLoading || (shouldListen ? loading : false);
+
+  return { requests: effectiveRequests, loading: effectiveLoading } as const;
 }

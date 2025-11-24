@@ -14,6 +14,7 @@ import {
   ResumeToastOverlay,
 } from "@/components/resume/ResumeToastOverlay";
 import { PrivacyMenu } from "@/components/resume/PrivacyMenu";
+import { RequestAccessDialog } from "@/components/RequestAccessDialog";
 import { ResumeTemplate } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -30,6 +31,7 @@ export default function ResumeView() {
     useState<ResumeAccessBlockConfig | null>(null);
   const [toast, setToast] = useState<ResumeToast | null>(null);
   const [showPrivacyMenu, setShowPrivacyMenu] = useState(false);
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
 
   const viewerAccess = (resume?.viewerAccess as Record<string, any>) ?? {};
   const viewerIsOwner = Boolean(viewerAccess?.isOwner);
@@ -241,7 +243,25 @@ export default function ResumeView() {
           onToggleVisibility={toggleVisibility}
         />
 
-        <TemplateRenderer template={template} data={resume} />
+        <TemplateRenderer
+          template={template}
+          data={resume}
+          isAuthenticated={!!user}
+          onRequestAccess={() => setRequestDialogOpen(true)}
+        />
+
+        <RequestAccessDialog
+          isOpen={requestDialogOpen}
+          onClose={() => setRequestDialogOpen(false)}
+          profileName={resume.personalInfo?.name || resume.title || "Candidate"}
+          profileId={id as string}
+          onSuccess={() => {
+            setToast({
+              tone: "success",
+              message: "Request sent successfully!",
+            });
+          }}
+        />
       </div>
     );
   }

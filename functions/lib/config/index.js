@@ -113,7 +113,7 @@ class ConfigManager {
             warnings.push("GEMINI_API_KEY not set. Gemini features disabled.");
         }
         if (!aiConfig.huggingfaceToken && !aiConfig.geminiApiKey) {
-            errors.push("No AI service configured. At least one AI provider required.");
+            warnings.push("No AI service configured. AI-dependent functions will not work.");
         }
         // Check email configuration
         const emailConfig = this.config.get("email");
@@ -122,7 +122,8 @@ class ConfigManager {
         }
         // Check app configuration
         const appConfig = this.config.get("app");
-        if (!appConfig.websiteUrl || appConfig.websiteUrl === "https://switchcv.com") {
+        if (!appConfig.websiteUrl ||
+            appConfig.websiteUrl === "https://switchcv.com") {
             warnings.push("WEBSITE_URL not set. Using default.");
         }
         // Log warnings

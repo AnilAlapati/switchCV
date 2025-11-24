@@ -3,19 +3,43 @@ import { render, screen, waitFor, act } from "@testing-library/react";
 import { CandidatesSearchedCard } from "@/components/dashboard/recruiter/CandidatesSearchedCard";
 import { useAuth } from "@/hooks/useAuth";
 
-// Mock the useAuth hook
 jest.mock("@/hooks/useAuth", () => ({
   useAuth: jest.fn(),
 }));
 
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 
-// Mock fetch globally
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
-
-// Spy on the global fetch function
 const fetchSpy = jest.spyOn(global, "fetch");
+
+const buildMetricsResponse = (
+  overrides: Partial<{
+    totalSearches: number;
+    searchBreakdown: {
+      searchesLast24h: number;
+      searchesLast7Days: number;
+      uniqueCandidatesLast7Days: number;
+    };
+  }> = {}
+) => ({
+  totalSearches: overrides.totalSearches ?? 0,
+  searchBreakdown: {
+    searchesLast24h: overrides.searchBreakdown?.searchesLast24h ?? 0,
+    searchesLast7Days: overrides.searchBreakdown?.searchesLast7Days ?? 0,
+    uniqueCandidatesLast7Days:
+      overrides.searchBreakdown?.uniqueCandidatesLast7Days ?? 0,
+    topSkillsLast7Days: [],
+    topLocationsLast7Days: [],
+  },
+});
+
+const renderCard = async () => {
+  await act(async () => {
+    render(<CandidatesSearchedCard />);
+    await Promise.resolve();
+  });
+};
 
 describe("CandidatesSearchedCard", () => {
   const mockUser = {
@@ -41,6 +65,11 @@ describe("CandidatesSearchedCard", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     fetchSpy.mockClear();
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(buildMetricsResponse()),
+    } as Response);
     mockUseAuth.mockReturnValue({
       user: mockUser,
       loading: false,
@@ -54,24 +83,19 @@ describe("CandidatesSearchedCard", () => {
     it("displays loading state initially", () => {
       render(<CandidatesSearchedCard />);
 
-      expect(screen.getByText("Candidates Searched")).toBeInTheDocument();
+      expect(screen.getByText("Searches (last 7 days)")).toBeInTheDocument();
       expect(screen.getByText("-")).toBeInTheDocument();
       expect(screen.getByText("Loading...")).toBeInTheDocument();
     });
 
     it("fetches metrics on mount when user exists", async () => {
-      const mockMetrics = {
-        totalSearches: 15,
-      };
-
       fetchSpy.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(mockMetrics),
+        json: () =>
+          Promise.resolve(buildMetricsResponse({ totalSearches: 15 })),
       } as Response);
 
-      await act(async () => {
-        render(<CandidatesSearchedCard />);
-      });
+      await renderCard();
 
       await waitFor(() => {
         expect(fetchSpy).toHaveBeenCalledWith(
@@ -98,38 +122,39 @@ describe("CandidatesSearchedCard", () => {
 
   describe("Metrics Display", () => {
     it("displays metrics correctly when data is loaded", async () => {
-      const mockMetrics = {
-        totalSearches: 25,
-      };
-
       fetchSpy.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(mockMetrics),
+        json: () =>
+          Promise.resolve(
+            buildMetricsResponse({
+              totalSearches: 25,
+              searchBreakdown: {
+                searchesLast7Days: 8,
+                searchesLast24h: 2,
+                uniqueCandidatesLast7Days: 5,
+              },
+            })
+          ),
       } as Response);
 
-      await act(async () => {
-        render(<CandidatesSearchedCard />);
-      });
+      await renderCard();
 
       await waitFor(() => {
-        expect(screen.getByText("25")).toBeInTheDocument();
-        expect(screen.getByText("25 searches performed")).toBeInTheDocument();
+        expect(screen.getByText("8")).toBeInTheDocument();
+        expect(
+          screen.getByText("25 all-time · 5 unique candidates")
+        ).toBeInTheDocument();
+        expect(screen.getByText("2 in past 24h")).toBeInTheDocument();
       });
     });
 
     it("displays zero metrics when no searches performed", async () => {
-      const mockMetrics = {
-        totalSearches: 0,
-      };
-
       fetchSpy.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(mockMetrics),
+        json: () => Promise.resolve(buildMetricsResponse()),
       } as Response);
 
-      await act(async () => {
-        render(<CandidatesSearchedCard />);
-      });
+      await renderCard();
 
       await waitFor(() => {
         expect(screen.getByText("0")).toBeInTheDocument();
@@ -140,36 +165,39 @@ describe("CandidatesSearchedCard", () => {
     });
 
     it("displays single search correctly", async () => {
-      const mockMetrics = {
-        totalSearches: 1,
-      };
-
       fetchSpy.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(mockMetrics),
+        json: () =>
+          Promise.resolve(
+            buildMetricsResponse({
+              totalSearches: 1,
+              searchBreakdown: {
+                searchesLast7Days: 1,
+                searchesLast24h: 1,
+                uniqueCandidatesLast7Days: 1,
+              },
+            })
+          ),
       } as Response);
 
-      await act(async () => {
-        render(<CandidatesSearchedCard />);
-      });
+      await renderCard();
 
       await waitFor(() => {
         expect(screen.getByText("1")).toBeInTheDocument();
-        expect(screen.getByText("1 search performed")).toBeInTheDocument();
+        expect(
+          screen.getByText("1 all-time · 1 unique candidates")
+        ).toBeInTheDocument();
+        expect(screen.getByText("1 in past 24h")).toBeInTheDocument();
       });
     });
 
     it("handles missing totalSearches data gracefully", async () => {
-      const mockMetrics = {}; // No totalSearches property
-
       fetchSpy.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(mockMetrics),
+        json: () => Promise.resolve({}),
       } as Response);
 
-      await act(async () => {
-        render(<CandidatesSearchedCard />);
-      });
+      await renderCard();
 
       await waitFor(() => {
         expect(screen.getByText("0")).toBeInTheDocument();
@@ -184,9 +212,7 @@ describe("CandidatesSearchedCard", () => {
     it("handles fetch error gracefully", async () => {
       fetchSpy.mockRejectedValueOnce(new Error("Network error"));
 
-      await act(async () => {
-        render(<CandidatesSearchedCard />);
-      });
+      await renderCard();
 
       await waitFor(() => {
         expect(screen.getByText("0")).toBeInTheDocument();
@@ -203,9 +229,7 @@ describe("CandidatesSearchedCard", () => {
         statusText: "Internal Server Error",
       } as Response);
 
-      await act(async () => {
-        render(<CandidatesSearchedCard />);
-      });
+      await renderCard();
 
       await waitFor(() => {
         expect(screen.getByText("0")).toBeInTheDocument();
@@ -218,39 +242,38 @@ describe("CandidatesSearchedCard", () => {
 
   describe("UI Rendering", () => {
     it("renders all UI elements correctly", async () => {
-      const mockMetrics = {
-        totalSearches: 5,
-      };
-
       fetchSpy.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(mockMetrics),
+        json: () =>
+          Promise.resolve(
+            buildMetricsResponse({
+              totalSearches: 5,
+              searchBreakdown: { searchesLast7Days: 5 },
+            })
+          ),
       } as Response);
 
-      await act(async () => {
-        render(<CandidatesSearchedCard />);
-      });
+      await renderCard();
 
       await waitFor(() => {
-        expect(screen.getByText("Candidates Searched")).toBeInTheDocument();
+        expect(screen.getByText("Searches (last 7 days)")).toBeInTheDocument();
         expect(screen.getByText("5")).toBeInTheDocument();
-        expect(screen.getByText("5 searches performed")).toBeInTheDocument();
       });
     });
 
     it("applies correct styling classes", async () => {
-      const mockMetrics = {
-        totalSearches: 3,
-      };
-
       fetchSpy.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(mockMetrics),
+        json: () =>
+          Promise.resolve(
+            buildMetricsResponse({
+              totalSearches: 3,
+              searchBreakdown: { searchesLast7Days: 3 },
+            })
+          ),
       } as Response);
 
-      await act(async () => {
-        render(<CandidatesSearchedCard />);
-      });
+      await renderCard();
 
       await waitFor(() => {
         const card = document.querySelector(".backdrop-blur-xl");
@@ -269,7 +292,6 @@ describe("CandidatesSearchedCard", () => {
 
       const icon = document.querySelector("svg");
       expect(icon).toBeInTheDocument();
-      // Updated to match new design with cyan color
       expect(icon).toHaveClass("h-6", "w-6");
     });
   });

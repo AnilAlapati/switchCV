@@ -11,6 +11,78 @@ import {
 } from "@/lib/utils/api-helpers";
 import { sanitizeResumeForPublicView } from "@/lib/utils/resumeVisibility";
 
+type AccessGrantType = "request" | "grant";
+
+function resolveExpiryTimestamp(value: any): Date | null {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value.toDate === "function") {
+    return value.toDate();
+  }
+
+  if (value instanceof Date) {
+    return value;
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+async function checkPrivateResumeAccess(
+  resumeId: string,
+  viewerId: string
+): Promise<AccessGrantType | null> {
+  try {
+    const resumeRef = adminDb.collection("resumes").doc(resumeId);
+    // Only check grants for valid access. Requests are for history/status tracking.
+    const grantsSnap = await resumeRef
+      .collection("accessGrants")
+      .where("toUserId", "==", viewerId)
+      .get();
+
+    console.log(
+      `[ResumeAPI] Found ${grantsSnap.size} grants for user ${viewerId}.`
+    );
+
+    const now = new Date();
+
+    const hasValidGrant = grantsSnap.docs.some((doc) => {
+      const data = doc.data();
+      // Double check toUserId just in case, though query handles it
+      if (data.toUserId !== viewerId) {
+        return false;
+      }
+
+      const expiresAt = resolveExpiryTimestamp(data.expiresAt);
+      return !expiresAt || expiresAt > now;
+    });
+
+    if (hasValidGrant) {
+      return "grant";
+    }
+  } catch (error) {
+    console.error("Error checking authenticated user access:", error);
+  }
+
+  return null;
+}
+
+async function trackRecruiterProfileView(userId: string) {
+  return adminDb
+    .collection("recruiterMetrics")
+    .doc(userId)
+    .set(
+      {
+        totalProfileViews: FieldValue.increment(1),
+        lastActivityAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    )
+    .catch((err) => console.error("Failed to track profile view:", err));
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -73,139 +145,73 @@ export async function GET(
       });
     }
 
-    // 2. Authenticated User Checks (Admin or Approved Recruiter)
+    const viewMode = request.nextUrl.searchParams.get("view");
+    const forceFullAccessCheck = viewMode === "full";
+
+    let viewerData: Record<string, any> | null = null;
     if (optionalUserId) {
-      try {
-        // Check Admin
-        const userDoc = await adminDb
-          .collection("users")
-          .doc(optionalUserId)
-          .get();
-        const userData = userDoc.data();
+      const userDoc = await adminDb
+        .collection("users")
+        .doc(optionalUserId)
+        .get();
+      viewerData = userDoc.data() || null;
+    }
 
-        if (userData?.role === "admin") {
-          console.log(`[ResumeAPI] User is admin.`);
-          return NextResponse.json({
-            ...resumeData,
-            viewerAccess: {
-              scope: "admin-view",
-              isOwner: false,
-              isMasked: false,
-            },
-          });
-        }
+    if (viewerData?.role === "admin") {
+      console.log(`[ResumeAPI] User is admin.`);
+      return NextResponse.json({
+        ...resumeData,
+        viewerAccess: {
+          scope: "admin-view",
+          isOwner: false,
+          isMasked: false,
+        },
+      });
+    }
 
-        // Check Approved Access Request OR Active Grant
-        console.log(
-          `[ResumeAPI] Checking access for user ${optionalUserId} on resume ${id}`
-        );
+    // 2. Check for explicit access grant (Recruiter)
+    let hasGrantedAccess = false;
+    if (optionalUserId) {
+      console.log(
+        `[ResumeAPI] Checking private access for user ${optionalUserId} on resume ${id}`
+      );
+      const accessGrantType = await checkPrivateResumeAccess(
+        id,
+        optionalUserId
+      );
 
-        // Fetch all requests and grants for this resume to avoid index issues
-        // We filter in-memory to prevent FAILED_PRECONDITION errors from missing indexes
-        const [requestsSnap, grantsSnap] = await Promise.all([
-          adminDb
-            .collection("resumes")
-            .doc(id)
-            .collection("accessRequests")
-            .get(),
-          adminDb
-            .collection("resumes")
-            .doc(id)
-            .collection("accessGrants")
-            .get(),
-        ]);
-
-        console.log(
-          `[ResumeAPI] Found ${requestsSnap.size} total requests and ${grantsSnap.size} total grants.`
-        );
-
-        const now = new Date();
-
-        const hasApprovedRequest = requestsSnap.docs.some((doc) => {
-          const data = doc.data();
-          if (
-            data.fromUserId !== optionalUserId ||
-            data.status !== "approved"
-          ) {
-            return false;
-          }
-
-          const expiresAt = data.expiresAt?.toDate?.()
-            ? data.expiresAt.toDate()
-            : data.expiresAt
-            ? new Date(data.expiresAt)
-            : null;
-
-          return !expiresAt || expiresAt > now;
-        });
-
-        const hasValidGrant = grantsSnap.docs.some((doc) => {
-          const data = doc.data();
-          if (data.toUserId !== optionalUserId) {
-            return false;
-          }
-
-          const expiresAt = data.expiresAt?.toDate?.()
-            ? data.expiresAt.toDate()
-            : data.expiresAt
-            ? new Date(data.expiresAt)
-            : null;
-
-          return !expiresAt || expiresAt > now;
-        });
-
-        if (hasApprovedRequest || hasValidGrant) {
-          console.log(
-            `[ResumeAPI] Access granted via ${
-              hasApprovedRequest ? "request" : "grant"
-            }.`
-          );
-
-          // Track view for recruiter metrics
-          adminDb
-            .collection("recruiterMetrics")
-            .doc(optionalUserId)
-            .set(
-              {
-                totalProfileViews: FieldValue.increment(1),
-                lastActivityAt: FieldValue.serverTimestamp(),
-              },
-              { merge: true }
-            )
-            .catch((err) =>
-              console.error("Failed to track profile view:", err)
-            );
-
-          return NextResponse.json({
-            ...resumeData,
-            viewerAccess: {
-              scope: "full",
-              isOwner: false,
-              isMasked: false,
-            },
-          });
-        }
-      } catch (accessCheckError) {
-        console.error(
-          "Error checking authenticated user access:",
-          accessCheckError
-        );
-        // Fall through to public check or denial
+      if (accessGrantType) {
+        hasGrantedAccess = true;
+        console.log(`[ResumeAPI] Access granted via ${accessGrantType}.`);
+        await trackRecruiterProfileView(optionalUserId);
       }
     }
 
-    // 3. Public Access
-    if (isPublic) {
+    // 3. Return Full Access if granted
+    if (hasGrantedAccess) {
+      return NextResponse.json({
+        ...resumeData,
+        viewerAccess: {
+          scope: "full",
+          isOwner: false,
+          isMasked: false,
+        },
+      });
+    }
+
+    // 4. Public Snapshot Fallback
+    // If public and NO grant, return snapshot
+    if (isPublic && !forceFullAccessCheck) {
       console.log(`[ResumeAPI] Returning public snapshot.`);
       const sanitized = sanitizeResumeForPublicView(resumeData);
       return NextResponse.json(sanitized);
     }
 
-    // 4. Unauthorized / Forbidden
     if (!optionalUserId) {
       return handleApiError(new Error("Unauthorized"), "Unauthorized", 401);
     }
 
+    // If we got here: Not Owner, Not Admin, Not Granted, Not Public (or forced full check failed)
     return handleApiError(
       new Error("Permission denied"),
       "Permission denied",

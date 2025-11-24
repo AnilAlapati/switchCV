@@ -109,11 +109,27 @@ export async function POST(request: NextRequest) {
     const pendingRequest = existingRequestDocs.find(
       (doc) => doc.data().status === "pending"
     );
-    const approvedRequest = existingRequestDocs.find(
-      (doc) => doc.data().status === "approved"
-    );
 
-    if (approvedRequest) {
+    // Check for active access grants instead of just approved requests
+    const accessGrantsCollection = resumeRef.collection("accessGrants");
+    const grantsSnapshot = await accessGrantsCollection
+      .where("toUserId", "==", currentUserId)
+      .get();
+
+    const now = new Date();
+    const hasActiveGrant = grantsSnapshot.docs.some((doc) => {
+      const data = doc.data();
+      // If expiresAt is null/undefined, it's forever
+      if (!data.expiresAt) return true;
+
+      const expiresAt = data.expiresAt.toDate
+        ? data.expiresAt.toDate()
+        : new Date(data.expiresAt);
+
+      return expiresAt > now;
+    });
+
+    if (hasActiveGrant) {
       return handleApiError(
         null,
         "You already have access to this resume",

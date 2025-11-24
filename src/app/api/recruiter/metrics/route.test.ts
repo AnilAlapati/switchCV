@@ -1,6 +1,17 @@
 import { NextRequest } from "next/server";
 import { GET } from "./route";
 
+// Mock getRecruiterSearchBreakdown
+jest.mock("@/lib/recruiterSearchHistory", () => ({
+  getRecruiterSearchBreakdown: jest.fn().mockResolvedValue({
+    searchesLast24h: 0,
+    searchesLast7Days: 0,
+    uniqueCandidatesLast7Days: 0,
+    topSkillsLast7Days: [],
+    topLocationsLast7Days: [],
+  }),
+}));
+
 // Mock Firebase admin
 jest.mock("@/lib/firebase-admin", () => ({
   adminDb: {
@@ -63,13 +74,23 @@ describe("GET /api/recruiter/metrics", () => {
   });
 
   it("should return metrics for valid userId", async () => {
-    // Mock collectionGroup for access requests (computed)
-    mockGroupGet.mockResolvedValue(
+    // Mock collectionGroup for access requests (first call)
+    mockGroupGet.mockResolvedValueOnce(
       createMockSnapshot([
         { status: "pending" },
         { status: "pending" },
         { status: "approved", expiresAt: new Date(Date.now() + 86400000) },
         { status: "denied" },
+      ])
+    );
+
+    // Mock collectionGroup for access grants (second call)
+    mockGroupGet.mockResolvedValueOnce(
+      createMockSnapshot([
+        {
+          toUserId: "recruiter123",
+          expiresAt: new Date(Date.now() + 86400000),
+        },
       ])
     );
 
@@ -102,12 +123,20 @@ describe("GET /api/recruiter/metrics", () => {
       },
       totalCandidatesInteracted: 12,
       lastActivityAt: "2024-01-15T10:30:00Z",
+      searchBreakdown: {
+        searchesLast24h: 0,
+        searchesLast7Days: 0,
+        uniqueCandidatesLast7Days: 0,
+        topSkillsLast7Days: [],
+        topLocationsLast7Days: [],
+      },
     });
     expect(mockCollectionGroup).toHaveBeenCalledWith("accessRequests");
+    expect(mockCollectionGroup).toHaveBeenCalledWith("accessGrants");
   });
 
   it("should return default metrics when no data exists", async () => {
-    // Mock collectionGroup (empty)
+    // Mock collectionGroup (empty for both calls)
     mockGroupGet.mockResolvedValue(createMockSnapshot([]));
 
     // Mock metrics doc (not exists)
@@ -134,6 +163,13 @@ describe("GET /api/recruiter/metrics", () => {
       },
       totalCandidatesInteracted: 0,
       lastActivityAt: null,
+      searchBreakdown: {
+        searchesLast24h: 0,
+        searchesLast7Days: 0,
+        uniqueCandidatesLast7Days: 0,
+        topSkillsLast7Days: [],
+        topLocationsLast7Days: [],
+      },
     });
   });
 
@@ -164,11 +200,14 @@ describe("GET /api/recruiter/metrics", () => {
   });
 
   it("should filter out expired approved requests", async () => {
-    // Mock collectionGroup with expired request
-    mockGroupGet.mockResolvedValue(
+    // Mock collectionGroup for access requests (first call)
+    mockGroupGet.mockResolvedValueOnce(createMockSnapshot([]));
+
+    // Mock collectionGroup for access grants (second call)
+    mockGroupGet.mockResolvedValueOnce(
       createMockSnapshot([
-        { status: "approved", expiresAt: new Date(Date.now() - 1000) }, // expired
-        { status: "approved", expiresAt: new Date(Date.now() + 86400000) }, // active
+        { expiresAt: new Date(Date.now() - 1000) }, // expired
+        { expiresAt: new Date(Date.now() + 86400000) }, // active
       ])
     );
 

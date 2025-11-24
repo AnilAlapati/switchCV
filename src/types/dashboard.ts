@@ -20,6 +20,20 @@ export interface RecruiterMetrics {
   totalCandidatesInteracted: number;
   accessRequests: RecruiterAccessBreakdown;
   lastActivityAt: string | null;
+  searchBreakdown: RecruiterSearchBreakdown;
+}
+
+export interface SearchFacetCount {
+  name: string;
+  count: number;
+}
+
+export interface RecruiterSearchBreakdown {
+  searchesLast24h: number;
+  searchesLast7Days: number;
+  uniqueCandidatesLast7Days: number;
+  topSkillsLast7Days: SearchFacetCount[];
+  topLocationsLast7Days: SearchFacetCount[];
 }
 
 export type ActionStatus =

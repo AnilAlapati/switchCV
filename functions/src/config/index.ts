@@ -99,8 +99,8 @@ export class ConfigManager {
       warnings.push("GEMINI_API_KEY not set. Gemini features disabled.");
     }
     if (!aiConfig.huggingfaceToken && !aiConfig.geminiApiKey) {
-      errors.push(
-        "No AI service configured. At least one AI provider required."
+      warnings.push(
+        "No AI service configured. AI-dependent functions will not work."
       );
     }
 

@@ -15,6 +15,13 @@ const DEFAULT_RECRUITER_METRICS: RecruiterMetrics = {
     denied: 0,
   },
   lastActivityAt: null,
+  searchBreakdown: {
+    searchesLast24h: 0,
+    searchesLast7Days: 0,
+    uniqueCandidatesLast7Days: 0,
+    topSkillsLast7Days: [],
+    topLocationsLast7Days: [],
+  },
 };
 
 const clamp = (value: number, min: number, max: number) =>

@@ -1,37 +1,38 @@
 // src/app/api/profiles/check-access/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import {
-  doc,
-  getDoc,
-  collection,
-  query,
-  where,
-  getDocs,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { adminDb } from "@/lib/firebase-admin";
 import { AccessCheckResponse } from "@/types/profileSearch";
-import { handleApiError } from "@/lib/utils/api-helpers";
+import {
+  getAuthenticatedUserId,
+  handleApiError,
+} from "@/lib/utils/api-helpers";
 
 export async function GET(request: NextRequest) {
   try {
     const resumeId = request.nextUrl.searchParams.get("resumeId");
-    // TODO: Get current user from auth context
-    const currentUserId = "placeholder-uid";
+    const { userId: currentUserId, error } = await getAuthenticatedUserId(
+      request
+    );
+
+    if (error) return error;
+    if (!currentUserId) {
+      return handleApiError(null, "Unauthorized", 401);
+    }
 
     if (!resumeId) {
       return handleApiError(null, "Resume ID is required", 400);
     }
 
     // 1. Get resume document
-    const resumeRef = doc(db, "resumeProfiles", resumeId);
-    const resumeDoc = await getDoc(resumeRef);
+    const resumeRef = adminDb.collection("resumes").doc(resumeId);
+    const resumeDoc = await resumeRef.get();
 
-    if (!resumeDoc.exists()) {
+    if (!resumeDoc.exists) {
       return handleApiError(null, "Resume not found", 404);
     }
 
     const resumeData = resumeDoc.data();
-    const resumeOwnerId = resumeData.userId;
+    const resumeOwnerId = resumeData?.userId;
 
     // If user is owner, they always have access
     if (currentUserId === resumeOwnerId) {
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest) {
     }
 
     // If resume is published, public access
-    if (resumeData.published) {
+    if (resumeData?.published) {
       const response: AccessCheckResponse = {
         hasAccess: true,
         accessType: "public",
@@ -54,14 +55,10 @@ export async function GET(request: NextRequest) {
     }
 
     // 2. Check access grants collection
-    const grantsRef = collection(
-      db,
-      "resumeProfiles",
-      resumeId,
-      "accessGrants"
-    );
-    const q = query(grantsRef, where("toUserId", "==", currentUserId));
-    const grantsSnapshot = await getDocs(q);
+    const grantsSnapshot = await resumeRef
+      .collection("accessGrants")
+      .where("toUserId", "==", currentUserId)
+      .get();
 
     if (grantsSnapshot.empty) {
       const response: AccessCheckResponse = {
@@ -76,7 +73,11 @@ export async function GET(request: NextRequest) {
     const now = new Date();
     for (const grantDoc of grantsSnapshot.docs) {
       const grant = grantDoc.data();
-      const expiresAt = grant.expiresAt?.toDate?.() || null;
+      const expiresAt = grant.expiresAt?.toDate
+        ? grant.expiresAt.toDate()
+        : grant.expiresAt
+        ? new Date(grant.expiresAt)
+        : null;
 
       // If expiresAt is null, it's forever access
       if (expiresAt === null || expiresAt > now) {
