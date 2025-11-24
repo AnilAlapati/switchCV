@@ -31,6 +31,8 @@ interface TemplateRendererProps {
   data: ResumeProfile & {
     viewerAccess?: ViewerAccessMeta;
   };
+  isAuthenticated?: boolean;
+  onRequestAccess?: () => void;
 }
 
 const CONTACT_FULL_VIEW_SCOPES = new Set(["admin-view", "full"]);
@@ -56,6 +58,8 @@ const buildContactHref = (field: ContactField, value?: string) => {
 export const TemplateRenderer: React.FC<TemplateRendererProps> = ({
   template,
   data,
+  isAuthenticated = false,
+  onRequestAccess,
 }) => {
   const personalInfo = data.personalInfo || {};
   const viewerAccess = (data.viewerAccess as ViewerAccessMeta) ?? {};
@@ -282,15 +286,25 @@ export const TemplateRenderer: React.FC<TemplateRendererProps> = ({
               Want to see the full resume?
             </h3>
             <p className="mb-6 text-slate-400">
-              Sign in or request access to view detailed work experience,
-              education, and projects.
+              {isAuthenticated
+                ? "Request access to view detailed work experience, education, and projects."
+                : "Sign in or request access to view detailed work experience, education, and projects."}
             </p>
-            <a
-              href="/auth"
-              className="inline-flex items-center justify-center rounded-full bg-blue-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900"
-            >
-              Sign in to View Full Profile
-            </a>
+            {isAuthenticated ? (
+              <button
+                onClick={onRequestAccess}
+                className="inline-flex items-center justify-center rounded-full bg-blue-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900"
+              >
+                Request Access
+              </button>
+            ) : (
+              <a
+                href="/auth"
+                className="inline-flex items-center justify-center rounded-full bg-blue-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900"
+              >
+                Sign in to View Full Profile
+              </a>
+            )}
           </div>
         )}
       </div>

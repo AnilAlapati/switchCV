@@ -65,6 +65,7 @@ let userDocRef: any;
 let resumeDocRef: any;
 let notificationsDocRef: any;
 let accessRequestsCollection: any;
+let accessGrantsCollection: any;
 let messagesCollection: any;
 
 const setupFirestoreMocks = () => {
@@ -81,6 +82,11 @@ const setupFirestoreMocks = () => {
     add: jest.fn().mockResolvedValue({ id: "request-123" }),
   };
 
+  accessGrantsCollection = {
+    where: jest.fn().mockReturnThis(),
+    get: jest.fn().mockResolvedValue(mockQuerySnapshot([])),
+  };
+
   messagesCollection = {
     add: jest.fn().mockResolvedValue({ id: "notification-123" }),
   };
@@ -93,6 +99,9 @@ const setupFirestoreMocks = () => {
     collection: jest.fn((name: string) => {
       if (name === "accessRequests") {
         return accessRequestsCollection;
+      }
+      if (name === "accessGrants") {
+        return accessGrantsCollection;
       }
       return null;
     }),

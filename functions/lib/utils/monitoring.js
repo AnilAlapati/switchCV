@@ -53,11 +53,18 @@ var MetricType;
  */
 class PerformanceMonitor {
     constructor() {
+        this.db = null;
         this.metrics = [];
         this.batchSize = 100;
         this.flushInterval = 60000; // 1 minute
-        this.db = admin.firestore();
+        // Lazy initialization of Firestore to avoid circular dependencies
         this.startAutoFlush();
+    }
+    getDb() {
+        if (!this.db) {
+            this.db = admin.firestore();
+        }
+        return this.db;
     }
     static getInstance() {
         if (!PerformanceMonitor.instance) {
@@ -114,8 +121,9 @@ class PerformanceMonitor {
         const metricsToFlush = [...this.metrics];
         this.metrics = [];
         try {
-            const batch = this.db.batch();
-            const metricsRef = this.db.collection("monitoring").doc("metrics");
+            const db = this.getDb();
+            const batch = db.batch();
+            const metricsRef = db.collection("monitoring").doc("metrics");
             const now = new Date();
             // Aggregate metrics by type and name
             const aggregated = this.aggregateMetrics(metricsToFlush);
@@ -227,7 +235,14 @@ var AlertSeverity;
  */
 class AlertManager {
     constructor() {
-        this.db = admin.firestore();
+        this.db = null;
+        // Lazy initialization to avoid circular dependencies
+    }
+    getDb() {
+        if (!this.db) {
+            this.db = admin.firestore();
+        }
+        return this.db;
     }
     static getInstance() {
         if (!AlertManager.instance) {
@@ -248,7 +263,12 @@ class AlertManager {
             acknowledged: false,
         };
         try {
-            await this.db.collection("monitoring").doc("alerts").collection("active").add(alert);
+            const db = this.getDb();
+            await db
+                .collection("monitoring")
+                .doc("alerts")
+                .collection("active")
+                .add(alert);
             // Log based on severity
             switch (severity) {
                 case AlertSeverity.CRITICAL:

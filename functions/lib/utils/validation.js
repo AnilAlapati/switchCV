@@ -146,9 +146,7 @@ function validateResumeData(data) {
     if (!name || typeof name !== "string" || name.trim().length === 0) {
         throw new ValidationError("Name is required", "resumeData.personalInfo.name");
     }
-    if (!email ||
-        typeof email !== "string" ||
-        !validateEmail(email)) {
+    if (!email || typeof email !== "string" || !validateEmail(email)) {
         throw new ValidationError("Valid email is required", "resumeData.personalInfo.email");
     }
     // Validate summary

@@ -1,5 +1,13 @@
 import type { JobSeekerMetrics, RecruiterMetrics } from "@/types/dashboard";
 
+export const DEFAULT_SEARCH_BREAKDOWN = {
+  searchesLast24h: 0,
+  searchesLast7Days: 0,
+  uniqueCandidatesLast7Days: 0,
+  topSkillsLast7Days: [] as { name: string; count: number }[],
+  topLocationsLast7Days: [] as { name: string; count: number }[],
+};
+
 export const DEFAULT_JOB_METRICS: JobSeekerMetrics = {
   profileViews: 0,
   contactRequests: 0,
@@ -18,6 +26,11 @@ export const DEFAULT_RECRUITER_METRICS: RecruiterMetrics = {
     denied: 0,
   },
   lastActivityAt: null,
+  searchBreakdown: {
+    ...DEFAULT_SEARCH_BREAKDOWN,
+    topSkillsLast7Days: [],
+    topLocationsLast7Days: [],
+  },
 };
 
 export function normalizeJobSeekerMetrics(
@@ -45,5 +58,17 @@ export function normalizeRecruiterMetrics(
       denied: data?.accessRequests?.denied ?? 0,
     },
     lastActivityAt: data?.lastActivityAt ?? null,
+    searchBreakdown: {
+      searchesLast24h: data?.searchBreakdown?.searchesLast24h ?? 0,
+      searchesLast7Days: data?.searchBreakdown?.searchesLast7Days ?? 0,
+      uniqueCandidatesLast7Days:
+        data?.searchBreakdown?.uniqueCandidatesLast7Days ?? 0,
+      topSkillsLast7Days: data?.searchBreakdown?.topSkillsLast7Days
+        ? [...data.searchBreakdown.topSkillsLast7Days]
+        : [],
+      topLocationsLast7Days: data?.searchBreakdown?.topLocationsLast7Days
+        ? [...data.searchBreakdown.topLocationsLast7Days]
+        : [],
+    },
   } satisfies RecruiterMetrics;
 }

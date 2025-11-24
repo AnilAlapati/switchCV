@@ -73,6 +73,13 @@ describe("POST /api/profiles/request-access", () => {
       add: jest.fn().mockResolvedValue(mockRequestRef),
     };
 
+    const accessGrantsCollectionMock = {
+      where: jest.fn().mockReturnValue({
+        get: jest.fn().mockResolvedValue({ docs: [] }),
+      }),
+      get: jest.fn(),
+    };
+
     const collectionMock = adminDb.collection as jest.Mock;
     collectionMock.mockImplementation((collectionName) => {
       if (collectionName === "users") {
@@ -86,7 +93,15 @@ describe("POST /api/profiles/request-access", () => {
         return {
           doc: jest.fn().mockReturnValue({
             get: jest.fn().mockResolvedValue(mockResumeDoc),
-            collection: jest.fn().mockReturnValue(accessRequestsCollectionMock),
+            collection: jest.fn((subCollectionName) => {
+              if (subCollectionName === "accessRequests") {
+                return accessRequestsCollectionMock;
+              }
+              if (subCollectionName === "accessGrants") {
+                return accessGrantsCollectionMock;
+              }
+              return { get: jest.fn() };
+            }),
           }),
         };
       }
@@ -155,6 +170,13 @@ describe("POST /api/profiles/request-access", () => {
       add: jest.fn().mockResolvedValue(mockRequestRef),
     };
 
+    const accessGrantsCollectionMock = {
+      where: jest.fn().mockReturnValue({
+        get: jest.fn().mockResolvedValue({ docs: [] }),
+      }),
+      get: jest.fn(),
+    };
+
     const collectionMock = adminDb.collection as jest.Mock;
     collectionMock.mockImplementation((collectionName) => {
       if (collectionName === "users") {
@@ -168,7 +190,15 @@ describe("POST /api/profiles/request-access", () => {
         return {
           doc: jest.fn().mockReturnValue({
             get: jest.fn().mockResolvedValue(mockResumeDoc),
-            collection: jest.fn().mockReturnValue(accessRequestsCollectionMock),
+            collection: jest.fn((subCollectionName) => {
+              if (subCollectionName === "accessRequests") {
+                return accessRequestsCollectionMock;
+              }
+              if (subCollectionName === "accessGrants") {
+                return accessGrantsCollectionMock;
+              }
+              return { get: jest.fn() };
+            }),
           }),
         };
       }
@@ -323,6 +353,13 @@ describe("POST /api/profiles/request-access", () => {
       add: addMock,
     };
 
+    const accessGrantsCollectionMock = {
+      where: jest.fn().mockReturnValue({
+        get: jest.fn().mockResolvedValue({ docs: [] }),
+      }),
+      get: jest.fn(),
+    };
+
     const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
 
     const collectionMock = adminDb.collection as jest.Mock;
@@ -338,7 +375,15 @@ describe("POST /api/profiles/request-access", () => {
         return {
           doc: jest.fn().mockReturnValue({
             get: jest.fn().mockResolvedValue(mockResumeDoc),
-            collection: jest.fn().mockReturnValue(accessRequestsCollectionMock),
+            collection: jest.fn((subCollectionName) => {
+              if (subCollectionName === "accessRequests") {
+                return accessRequestsCollectionMock;
+              }
+              if (subCollectionName === "accessGrants") {
+                return accessGrantsCollectionMock;
+              }
+              return { get: jest.fn() };
+            }),
           }),
         };
       }

@@ -4,10 +4,35 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useOptionalDashboardMetricsContext } from "@/context/DashboardMetricsContext";
+import type { RecruiterSearchBreakdown } from "@/types/dashboard";
+import { DEFAULT_SEARCH_BREAKDOWN } from "@/app/dashboard/metricsDefaults";
 
 interface SearchMetrics {
   totalSearches: number;
+  searchBreakdown: RecruiterSearchBreakdown;
 }
+
+const createEmptyBreakdown = (): RecruiterSearchBreakdown => ({
+  searchesLast24h: 0,
+  searchesLast7Days: 0,
+  uniqueCandidatesLast7Days: 0,
+  topSkillsLast7Days: [],
+  topLocationsLast7Days: [],
+});
+
+const normalizeBreakdown = (
+  breakdown?: Partial<RecruiterSearchBreakdown> | null
+): RecruiterSearchBreakdown => ({
+  searchesLast24h: breakdown?.searchesLast24h ?? 0,
+  searchesLast7Days: breakdown?.searchesLast7Days ?? 0,
+  uniqueCandidatesLast7Days: breakdown?.uniqueCandidatesLast7Days ?? 0,
+  topSkillsLast7Days: breakdown?.topSkillsLast7Days
+    ? [...breakdown.topSkillsLast7Days]
+    : [],
+  topLocationsLast7Days: breakdown?.topLocationsLast7Days
+    ? [...breakdown.topLocationsLast7Days]
+    : [],
+});
 
 export function CandidatesSearchedCard() {
   const { user } = useAuth();
@@ -17,7 +42,10 @@ export function CandidatesSearchedCard() {
   );
   const contextMetrics = metricsContext?.recruiterMetrics;
   const contextLoading = metricsContext?.loading ?? false;
-  const [metrics, setMetrics] = useState<SearchMetrics>({ totalSearches: 0 });
+  const [metrics, setMetrics] = useState<SearchMetrics>({
+    totalSearches: 0,
+    searchBreakdown: createEmptyBreakdown(),
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -40,7 +68,12 @@ export function CandidatesSearchedCard() {
       );
       if (response.ok) {
         const data = await response.json();
-        setMetrics({ totalSearches: data.totalSearches || 0 });
+        setMetrics({
+          totalSearches: data.totalSearches || 0,
+          searchBreakdown: normalizeBreakdown(
+            data.searchBreakdown ?? DEFAULT_SEARCH_BREAKDOWN
+          ),
+        });
       }
     } catch (error) {
       console.error("Failed to fetch search metrics:", error);
@@ -49,9 +82,17 @@ export function CandidatesSearchedCard() {
     }
   };
 
-  const displayValue = usingContext
+  const totalSearches = usingContext
     ? contextMetrics?.totalSearches ?? 0
     : metrics.totalSearches;
+
+  const breakdown = usingContext
+    ? contextMetrics?.searchBreakdown ?? DEFAULT_SEARCH_BREAKDOWN
+    : metrics.searchBreakdown;
+
+  const recentSearches = breakdown?.searchesLast7Days ?? 0;
+  const uniqueRecent = breakdown?.uniqueCandidatesLast7Days ?? 0;
+  const lastDaySearches = breakdown?.searchesLast24h ?? 0;
   const loadingState = usingContext ? contextLoading : loading;
 
   return (
@@ -80,10 +121,10 @@ export function CandidatesSearchedCard() {
           <div className="ml-5 w-0 flex-1">
             <dl>
               <dt className="text-sm font-medium text-slate-400 truncate group-hover:text-slate-300 transition-colors">
-                Candidates Searched
+                Searches (last 7 days)
               </dt>
               <dd className="text-2xl font-bold text-white">
-                {loadingState ? "-" : displayValue}
+                {loadingState ? "-" : recentSearches}
               </dd>
             </dl>
           </div>
@@ -92,12 +133,15 @@ export function CandidatesSearchedCard() {
           <p className="text-sm text-slate-400 group-hover:text-slate-300 transition-colors">
             {loadingState
               ? "Loading..."
-              : displayValue === 0
+              : totalSearches === 0
               ? "Start searching for candidates"
-              : `${displayValue} search${
-                  displayValue !== 1 ? "es" : ""
-                } performed`}
+              : `${totalSearches} all-time · ${uniqueRecent} unique candidates`}
           </p>
+          {!loadingState && (
+            <p className="text-xs text-slate-500">
+              {lastDaySearches} in past 24h
+            </p>
+          )}
           <div className="opacity-0 transform translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
             <svg
               className="w-5 h-5 text-cyan-400"

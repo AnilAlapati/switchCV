@@ -1,4 +1,4 @@
-import * as functions from "firebase-functions";
+import * as functions from "firebase-functions/v1";
 import "./config/bootstrap";
 import { generateResumeContent } from "./resumeService";
 import { generateJobMatchSuggestions } from "./jobMatchService";
@@ -6,6 +6,7 @@ import {
   aggregateAnalyticsDaily,
   cleanupAnalyticsEvents,
 } from "./analyticsService";
+import { cleanupRecruiterSearchHistory } from "./recruiterService";
 
 export { aggregateGlobalStats } from "./statsService";
 
@@ -35,6 +36,7 @@ export {
   generateJobMatchSuggestions,
   aggregateAnalyticsDaily,
   cleanupAnalyticsEvents,
+  cleanupRecruiterSearchHistory,
 };
 
 // ==================== EMAIL AND AUDIT FUNCTIONS ====================

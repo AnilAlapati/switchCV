@@ -33,8 +33,9 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.cleanupAuditLogs = exports.notifyAdminSuspiciousActivity = exports.sendProfileViewDigest = exports.onRecruiterRequestApproved = exports.onRecruiterRequestCreated = exports.onUserCreated = exports.cleanupAnalyticsEvents = exports.aggregateAnalyticsDaily = exports.generateJobMatchSuggestions = exports.generateResumeContent = exports.aggregateGlobalStats = void 0;
-const admin = __importStar(require("firebase-admin"));
+exports.cleanupAuditLogs = exports.notifyAdminSuspiciousActivity = exports.sendProfileViewDigest = exports.onRecruiterRequestApproved = exports.onRecruiterRequestCreated = exports.onUserCreated = exports.cleanupRecruiterSearchHistory = exports.cleanupAnalyticsEvents = exports.aggregateAnalyticsDaily = exports.generateJobMatchSuggestions = exports.generateResumeContent = exports.aggregateGlobalStats = void 0;
+const functions = __importStar(require("firebase-functions/v1"));
+require("./config/bootstrap");
 const resumeService_1 = require("./resumeService");
 Object.defineProperty(exports, "generateResumeContent", { enumerable: true, get: function () { return resumeService_1.generateResumeContent; } });
 const jobMatchService_1 = require("./jobMatchService");
@@ -42,17 +43,20 @@ Object.defineProperty(exports, "generateJobMatchSuggestions", { enumerable: true
 const analyticsService_1 = require("./analyticsService");
 Object.defineProperty(exports, "aggregateAnalyticsDaily", { enumerable: true, get: function () { return analyticsService_1.aggregateAnalyticsDaily; } });
 Object.defineProperty(exports, "cleanupAnalyticsEvents", { enumerable: true, get: function () { return analyticsService_1.cleanupAnalyticsEvents; } });
+const recruiterService_1 = require("./recruiterService");
+Object.defineProperty(exports, "cleanupRecruiterSearchHistory", { enumerable: true, get: function () { return recruiterService_1.cleanupRecruiterSearchHistory; } });
 var statsService_1 = require("./statsService");
 Object.defineProperty(exports, "aggregateGlobalStats", { enumerable: true, get: function () { return statsService_1.aggregateGlobalStats; } });
-admin.initializeApp();
 // Initialize environment variable warnings
 const HUGGINGFACE_TOKEN = process.env.HUGGINGFACE_TOKEN;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 if (!HUGGINGFACE_TOKEN) {
-    console.warn("HUGGINGFACE_TOKEN not set. Hugging Face features may not work.");
+    functions.logger.warn("HUGGINGFACE_TOKEN not set. Hugging Face features may not work.", { feature: "huggingface" });
 }
 if (!GEMINI_API_KEY) {
-    console.warn("GEMINI_API_KEY not set. Gemini features may not work.");
+    functions.logger.warn("GEMINI_API_KEY not set. Gemini features may not work.", {
+        feature: "gemini",
+    });
 }
 // ==================== EMAIL AND AUDIT FUNCTIONS ====================
 var emailFunctions_1 = require("./emailFunctions");

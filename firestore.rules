@@ -75,6 +75,14 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Recruiter search history (server-side analytics & retention only)
+    match /recruiterSearchHistory/{eventId} {
+      // Clients should never read or write raw search history directly; these
+      // documents contain telemetry used for aggregate dashboards only.
+      allow read: if false;
+      allow write: if false;
+    }
+
     // Admin notifications for request review
     match /adminNotifications/{notificationId} {
       // Only admins can read

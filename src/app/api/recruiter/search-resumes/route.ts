@@ -7,6 +7,7 @@ import {
   performPremiumSearch,
 } from "./search-service";
 import { FieldValue } from "firebase-admin/firestore";
+import { recordRecruiterSearchEvent } from "@/lib/recruiterSearchHistory";
 
 interface SearchRequest {
   recruiterId: string;
@@ -65,6 +66,14 @@ export async function POST(request: NextRequest) {
           userId,
           recruiterId
         );
+
+        await recordRecruiterSearchEvent({
+          recruiterId,
+          tier: "basic",
+          filters: { userId },
+          resultUserIds: results.map((result) => result.userId).filter(Boolean),
+          resultCount: results.length,
+        });
         return NextResponse.json({
           results,
           notification:
@@ -97,6 +106,13 @@ export async function POST(request: NextRequest) {
           recruiterId,
           accessStatusMap
         );
+        await recordRecruiterSearchEvent({
+          recruiterId,
+          tier: "premium",
+          filters: { skills, location },
+          resultUserIds: results.map((result) => result.userId).filter(Boolean),
+          resultCount: results.length,
+        });
         return NextResponse.json({
           results,
           tier: "premium",

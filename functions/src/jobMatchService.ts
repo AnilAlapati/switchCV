@@ -1,4 +1,4 @@
-import * as functions from "firebase-functions";
+import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
 import { HfInference } from "@huggingface/inference";
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -112,7 +112,9 @@ async function verifyIdTokenCached(
   tokenCache.set(cacheKey, { decoded, expiresAt });
   if (tokenCache.size > MAX_CACHE_ENTRIES) {
     const oldestKey = tokenCache.keys().next().value;
-    tokenCache.delete(oldestKey);
+    if (oldestKey) {
+      tokenCache.delete(oldestKey);
+    }
   }
 
   return decoded;

@@ -5,8 +5,11 @@ let modelCache: {
   models: string[];
   timestamp: number;
 } | null = null;
+let inflightModelFetch: Promise<string[]> | null = null;
 
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+const FALLBACK_MODEL = "gemini-2.0-flash-lite";
+const MAX_REMOTE_MODEL_REFRESHES = 2;
 
 // Preferred model patterns (in order of preference)
 const MODEL_PREFERENCES = [
@@ -29,42 +32,67 @@ async function getAvailableGeminiModels(apiKey: string): Promise<string[]> {
     return modelCache.models;
   }
 
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`
-    );
+  if (!inflightModelFetch) {
+    inflightModelFetch = (async () => {
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`
+        );
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch models: ${response.status}`);
-    }
+        if (!response.ok) {
+          throw new Error(`Failed to fetch models: ${response.status}`);
+        }
 
-    const data = await response.json();
-    const models =
-      data.models
-        ?.filter((model: any) =>
-          model.supportedGenerationMethods?.includes("generateContent")
-        )
-        .map((model: any) => model.name.replace("models/", "")) || [];
+        const data = await response.json();
+        const models =
+          data.models
+            ?.filter((model: any) =>
+              model.supportedGenerationMethods?.includes("generateContent")
+            )
+            .map((model: any) => model.name.replace("models/", "")) || [];
 
-    // Cache the results
-    modelCache = {
-      models,
-      timestamp: Date.now(),
-    };
+        modelCache = {
+          models,
+          timestamp: Date.now(),
+        };
 
-    console.log(`📋 Cached ${models.length} available Gemini models`);
-    return models;
-  } catch (error) {
-    console.error("Failed to fetch Gemini models:", error);
-    // Return empty array, will use fallback
-    return [];
+        console.log(`📋 Cached ${models.length} available Gemini models`);
+        return models;
+      } catch (error) {
+        console.error("Failed to fetch Gemini models:", error);
+        return [];
+      } finally {
+        inflightModelFetch = null;
+      }
+    })();
   }
+
+  return inflightModelFetch;
+}
+
+async function loadModelSelection(apiKey: string): Promise<{
+  models: string[];
+  usingFallback: boolean;
+}> {
+  const models = await getAvailableGeminiModels(apiKey);
+  if (models.length > 0) {
+    return { models, usingFallback: false };
+  }
+
+  return {
+    models: [...MODEL_PREFERENCES],
+    usingFallback: true,
+  };
 }
 
 /**
  * Select the best available model based on preferences
  */
 function selectBestModel(availableModels: string[]): string {
+  if (!availableModels.length) {
+    return FALLBACK_MODEL;
+  }
+
   // Try each preference in order
   for (const preferred of MODEL_PREFERENCES) {
     const match = availableModels.find((model) =>
@@ -83,7 +111,7 @@ function selectBestModel(availableModels: string[]): string {
   }
 
   // Last resort: try the current known model
-  return "gemini-2.0-flash-lite";
+  return FALLBACK_MODEL;
 }
 
 /**
@@ -100,58 +128,98 @@ async function generateWithGemini(
     throw new Error("Gemini API key not configured");
   }
 
-  // Get available models and select the best one
-  const availableModels = await getAvailableGeminiModels(apiKey);
-  const modelName = selectBestModel(availableModels);
+  const attemptedModels = new Set<string>();
+  let remoteRefreshes = 0;
+  let lastError: Error | null = null;
+  let selection = await loadModelSelection(apiKey);
 
-  console.log(`🤖 Using Gemini model: ${modelName}`);
+  while (selection.models.length) {
+    const candidatePool = selection.models.filter(
+      (model) => !attemptedModels.has(model)
+    );
 
-  // Gemini API endpoint with auto-selected model
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: prompt }],
-          },
-        ],
-        generationConfig: {
-          temperature,
-          maxOutputTokens: maxTokens,
-        },
-      }),
-    }
-  );
+    if (!candidatePool.length) {
+      if (selection.usingFallback) {
+        break;
+      }
 
-  if (!response.ok) {
-    const errorText = await response.text();
+      if (remoteRefreshes >= MAX_REMOTE_MODEL_REFRESHES) {
+        modelCache = null;
+        selection = { models: [...MODEL_PREFERENCES], usingFallback: true };
+        attemptedModels.clear();
+        continue;
+      }
 
-    // If model not found, clear cache and retry once
-    if (response.status === 404 && modelCache) {
-      console.log("⚠️ Model not found, clearing cache and retrying...");
       modelCache = null;
-
-      // Recursive retry with fresh model list
-      return generateWithGemini(prompt, maxTokens, temperature);
+      attemptedModels.clear();
+      remoteRefreshes += 1;
+      selection = await loadModelSelection(apiKey);
+      continue;
     }
 
-    throw new Error(`Gemini API error (${response.status}): ${errorText}`);
+    const modelName = selectBestModel(candidatePool);
+    console.log(`🤖 Using Gemini model: ${modelName}`);
+
+    let response: Response;
+    try {
+      response = await fetch(
+        `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [{ text: prompt }],
+              },
+            ],
+            generationConfig: {
+              temperature,
+              maxOutputTokens: maxTokens,
+            },
+          }),
+        }
+      );
+    } catch (error) {
+      lastError =
+        error instanceof Error
+          ? error
+          : new Error(String(error ?? "Unknown Gemini error"));
+      throw lastError;
+    }
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      lastError = new Error(
+        `Gemini API error (${response.status}): ${errorText}`
+      );
+
+      if (response.status === 404) {
+        attemptedModels.add(modelName);
+        continue;
+      }
+
+      throw lastError;
+    }
+
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!text) {
+      throw new Error("No text generated from Gemini");
+    }
+
+    return {
+      text: text.trim(),
+      model: modelName,
+    };
   }
 
-  const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-  if (!text) {
-    throw new Error("No text generated from Gemini");
+  if (lastError) {
+    throw lastError;
   }
 
-  return {
-    text: text.trim(),
-    model: modelName,
-  };
+  throw new Error("Gemini API error: No supported models available");
 }
 
 /**
