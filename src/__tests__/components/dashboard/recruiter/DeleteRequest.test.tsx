@@ -6,6 +6,20 @@ import { useAuth } from "@/hooks/useAuth";
 // Mock useAuth
 jest.mock("@/hooks/useAuth");
 
+// Mock next/navigation
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({
+    replace: jest.fn(),
+    refresh: jest.fn(),
+    push: jest.fn(),
+  }),
+  useSearchParams: jest.fn(() => ({
+    get: jest.fn().mockReturnValue(null), // Default to no params
+  })),
+}));
+
+import { useSearchParams } from "next/navigation";
+
 // Mock DashboardHeader to avoid notification fetch issues
 jest.mock("@/components/dashboard/DashboardHeader", () => ({
   DashboardHeader: () => <div data-testid="dashboard-header">Header</div>,
@@ -136,7 +150,7 @@ describe("RecruiterRequestsPage - Delete Functionality", () => {
     expect(screen.getByText("John Doe")).toBeInTheDocument();
   });
 
-  it("organizes approved requests under the Active tab", async () => {
+  it("organizes approved requests under the Active tab view", async () => {
     const pendingRequest = {
       id: "req-1",
       candidateName: "Pending Person",
@@ -164,23 +178,24 @@ describe("RecruiterRequestsPage - Delete Functionality", () => {
       json: async () => ({ requests: [pendingRequest, approvedRequest] }),
     });
 
+    // Mock search params to be 'active'
+    (useSearchParams as jest.Mock).mockReturnValue({
+      get: jest.fn().mockReturnValue("active"),
+    });
+
     render(<RecruiterRequestsPage />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Pending Person")).toBeInTheDocument();
-    });
-
-    expect(screen.queryByText("Approved Recruit")).not.toBeInTheDocument();
-
-    const activeTabButton = screen.getByRole("button", {
-      name: "Active (1)",
-    });
-    fireEvent.click(activeTabButton);
 
     await waitFor(() => {
       expect(screen.getByText("Approved Recruit")).toBeInTheDocument();
     });
 
+    // In Active view, Pending requests should not be shown
     expect(screen.queryByText("Pending Person")).not.toBeInTheDocument();
+
+    // And the Active tab should be selected/visible
+    expect(screen.getByRole("button", { name: "Active (1)" })).toBeInTheDocument();
+
+    // Pending tab should NOT be visible in Active view
+    expect(screen.queryByRole("button", { name: /Pending/ })).not.toBeInTheDocument();
   });
 });

@@ -175,7 +175,15 @@ export default function Dashboard() {
         );
 
         if (!response || !response.ok) {
-          throw new Error("Failed to fetch recruiter metrics");
+          const errorText = await response.text();
+          console.error(
+            "Recruiter metrics fetch failed:",
+            response.status,
+            errorText
+          );
+          throw new Error(
+            `Failed to fetch recruiter metrics: ${response.status} ${errorText}`
+          );
         }
 
         const data = (await response.json()) as Partial<RecruiterMetrics>;

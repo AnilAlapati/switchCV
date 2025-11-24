@@ -185,8 +185,16 @@ describe("GET /api/recruiter/metrics", () => {
     expect(data).toEqual({ error: "userId is required" });
   });
 
-  it("should return 500 when database operation fails", async () => {
+  it("should return 200 with partial data when access requests query fails", async () => {
     mockGroupGet.mockRejectedValue(new Error("Database connection failed"));
+
+    // Mock metrics doc (still works)
+    mockGet.mockResolvedValue({
+      exists: true,
+      data: () => ({
+        totalSearches: 5,
+      }),
+    });
 
     const request = new NextRequest(
       "http://localhost:3000/api/recruiter/metrics?userId=recruiter789"
@@ -195,8 +203,13 @@ describe("GET /api/recruiter/metrics", () => {
     const response = await GET(request);
     const data = await response.json();
 
-    expect(response.status).toBe(500);
-    expect(data.error).toEqual("Failed to fetch recruiter metrics");
+    expect(response.status).toBe(200);
+    expect(data.accessRequests).toEqual({
+      pending: 0,
+      approved: 0,
+      denied: 0,
+    });
+    expect(data.totalSearches).toBe(5);
   });
 
   it("should filter out expired approved requests", async () => {

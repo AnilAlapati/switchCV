@@ -6,7 +6,7 @@ import { OpportunityInsightsCard } from "@/components/dashboard/OpportunityInsig
 import { ResourceLinksCard } from "@/components/dashboard/ResourceLinksCard";
 import { RecruiterSearchBox } from "@/components/dashboard/RecruiterSearchBox";
 import { CandidatesSearchedCard } from "@/components/dashboard/recruiter/CandidatesSearchedCard";
-import { ResponseRateCard } from "@/components/dashboard/recruiter/ResponseRateCard";
+import { AvailableResumesCard } from "@/components/dashboard/recruiter/AvailableResumesCard";
 import { AccessRequestsCard } from "@/components/dashboard/recruiter/AccessRequestsCard";
 import { CandidatesInteractedCard } from "@/components/dashboard/recruiter/CandidatesInteractedCard";
 import {
@@ -25,7 +25,7 @@ interface RecruiterDashboardProps {
   metrics: RecruiterMetrics | null;
   metricsLoading: boolean;
   onLaunchSearch?: () => void;
-  searchSectionRef?: React.RefObject<HTMLDivElement>;
+  searchSectionRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 export function RecruiterDashboard({
@@ -170,7 +170,7 @@ export function RecruiterDashboard({
         <div className="space-y-6">
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
             <CandidatesSearchedCard />
-            <ResponseRateCard />
+            <AvailableResumesCard />
             <AccessRequestsCard />
             <CandidatesInteractedCard />
           </div>
