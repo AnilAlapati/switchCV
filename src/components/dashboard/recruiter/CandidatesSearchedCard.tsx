@@ -97,7 +97,7 @@ export function CandidatesSearchedCard() {
 
   return (
     <Link href="/recruiter/search">
-      <div className="group relative overflow-hidden backdrop-blur-xl rounded-3xl border border-white/20 bg-white/10 p-6 shadow-lg shadow-slate-950/40 transition-all duration-300 hover:border-cyan-500/40 hover:bg-white/15 hover:scale-[1.02] cursor-pointer">
+      <div className="group relative overflow-hidden backdrop-blur-xl rounded-3xl border border-white/20 bg-white/10 p-6 shadow-lg shadow-slate-950/40 transition-all duration-300 hover:border-cyan-500/40 hover:bg-white/15 hover:scale-[1.02] cursor-pointer h-full flex flex-col justify-between">
         <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-cyan-500/10 blur-2xl transition-all group-hover:bg-cyan-500/20"></div>
 
         <div className="flex items-center relative z-10">

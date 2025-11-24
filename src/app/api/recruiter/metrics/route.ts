@@ -12,58 +12,65 @@ export async function GET(request: NextRequest) {
       return handleApiError(null, "userId is required", 400);
     }
 
-    // Always compute access requests from source of truth (collectionGroup query)
-    // We fetch both requests (for pending/denied) and grants (for active approved)
-    const [requestsSnapshot, grantsSnapshot] = await Promise.all([
-      adminDb
-        .collectionGroup("accessRequests")
-        .where("fromUserId", "==", userId)
-        .get(),
-      adminDb
-        .collectionGroup("accessGrants")
-        .where("toUserId", "==", userId)
-        .get(),
-    ]);
-
     const accessRequests = {
       pending: 0,
       approved: 0,
       denied: 0,
     };
 
-    const now = new Date();
+    try {
+      // Always compute access requests from source of truth (collectionGroup query)
+      // We fetch both requests (for pending/denied) and grants (for active approved)
+      const [requestsSnapshot, grantsSnapshot] = await Promise.all([
+        adminDb
+          .collectionGroup("accessRequests")
+          .where("fromUserId", "==", userId)
+          .get(),
+        adminDb
+          .collectionGroup("accessGrants")
+          .where("toUserId", "==", userId)
+          .get(),
+      ]);
 
-    // Count pending and denied from requests
-    requestsSnapshot.forEach((doc) => {
-      const data = doc.data();
-      const status = data.status as "pending" | "approved" | "denied";
+      const now = new Date();
 
-      if (status === "pending" || status === "denied") {
-        accessRequests[status]++;
-      }
-    });
+      // Count pending and denied from requests
+      requestsSnapshot.forEach((doc) => {
+        const data = doc.data();
+        const status = data.status as "pending" | "approved" | "denied";
 
-    // Count active approved from grants
-    grantsSnapshot.forEach((doc) => {
-      const data = doc.data();
-      // If expiresAt is null/undefined, it's forever
-      if (!data.expiresAt) {
-        accessRequests.approved++;
-        return;
-      }
-
-      try {
-        const expiresAt = data.expiresAt.toDate
-          ? data.expiresAt.toDate()
-          : new Date(data.expiresAt);
-
-        if (expiresAt > now) {
-          accessRequests.approved++;
+        if (status === "pending" || status === "denied") {
+          accessRequests[status]++;
         }
-      } catch (e) {
-        console.warn("Failed to parse expiresAt:", e);
-      }
-    });
+      });
+
+      // Count active approved from grants
+      grantsSnapshot.forEach((doc) => {
+        const data = doc.data();
+        // If expiresAt is null/undefined, it's forever
+        if (!data.expiresAt) {
+          accessRequests.approved++;
+          return;
+        }
+
+        try {
+          const expiresAt = data.expiresAt.toDate
+            ? data.expiresAt.toDate()
+            : new Date(data.expiresAt);
+
+          if (expiresAt > now) {
+            accessRequests.approved++;
+          }
+        } catch (e) {
+          console.warn("Failed to parse expiresAt:", e);
+        }
+      });
+    } catch (error: any) {
+      console.warn(
+        "Failed to fetch access requests/grants (likely missing index):",
+        error.message
+      );
+    }
 
     // Get other metrics from recruiterMetrics collection (preserved for backward compatibility)
     const metricsDoc = await adminDb

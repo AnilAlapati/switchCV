@@ -7,7 +7,7 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DeleteRequestDialog } from "@/components/dashboard/recruiter/DeleteRequestDialog";
 import { RequestAccessDialog } from "@/components/RequestAccessDialog";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { deriveTimeState } from "@/lib/recruiterRequests/timeUtils";
 import { RequestCard } from "./RequestCard";
 import type { DecoratedRequest, RecruiterRequest } from "./types";
@@ -17,6 +17,9 @@ type TabKey = "pending" | "active" | "history";
 export default function RecruiterRequestsPage() {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialTab = (searchParams.get("tab") as TabKey) || "pending";
+
   const [requests, setRequests] = useState<RecruiterRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +29,15 @@ export default function RecruiterRequestsPage() {
   const [now, setNow] = useState(() => Date.now());
   const [reRequestTarget, setReRequestTarget] =
     useState<RecruiterRequest | null>(null);
-  const [activeTab, setActiveTab] = useState<TabKey>("pending");
+  const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
+
+  // Update activeTab when URL param changes
+  useEffect(() => {
+    const tab = searchParams.get("tab") as TabKey;
+    if (tab && ["pending", "active", "history"].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   const handleLogout = useCallback(async () => {
     try {
@@ -163,11 +174,18 @@ export default function RecruiterRequestsPage() {
     }
   }, [activeTab, pendingRequests, activeRequests, historyRequests]);
 
-  const tabConfig: Array<{ key: TabKey; label: string; count: number }> = [
-    { key: "pending", label: "Pending", count: pendingRequests.length },
-    { key: "active", label: "Active", count: activeRequests.length },
-    { key: "history", label: "History", count: historyRequests.length },
-  ];
+  // Filter tabs based on context
+  // If we are in "active" mode (Available Resumes), we only show Active
+  // If we are in "pending" mode (Pending Requests), we show Pending and History
+  const isAvailableResumesView = activeTab === "active";
+
+  const tabConfig: Array<{ key: TabKey; label: string; count: number }> =
+    isAvailableResumesView
+      ? [{ key: "active", label: "Active", count: activeRequests.length }]
+      : [
+          { key: "pending", label: "Pending", count: pendingRequests.length },
+          { key: "history", label: "History", count: historyRequests.length },
+        ];
 
   const emptyStateMessage = useMemo(() => {
     if (activeTab === "pending") {
@@ -184,7 +202,9 @@ export default function RecruiterRequestsPage() {
       <DashboardHeader userEmail={user?.email} onLogout={handleLogout} />
       <main className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-white">My Access Requests</h1>
+          <h1 className="text-3xl font-bold text-white">
+            {isAvailableResumesView ? "Available Resumes" : "Access Requests"}
+          </h1>
           <Link
             href="/dashboard"
             className="text-cyan-400 hover:text-cyan-300 text-sm font-medium"
@@ -209,7 +229,13 @@ export default function RecruiterRequestsPage() {
               {tabConfig.map((tab) => (
                 <button
                   key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
+                  onClick={() => {
+                    setActiveTab(tab.key);
+                    // Optional: Update URL to reflect tab change without full reload
+                    const newUrl = new URL(window.location.href);
+                    newUrl.searchParams.set("tab", tab.key);
+                    window.history.pushState({}, "", newUrl);
+                  }}
                   className={`pb-2 px-4 text-sm font-medium transition-colors ${
                     activeTab === tab.key
                       ? "text-cyan-400 border-b-2 border-cyan-400"
