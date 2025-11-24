@@ -30,6 +30,9 @@ describe("POST /api/resumes/create", () => {
   const mockCollection = jest.fn();
   const mockBatchSet = jest.fn();
   const mockBatchCommit = jest.fn();
+  const mockGet = jest.fn();
+  const mockCount = jest.fn();
+  const mockCountGet = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -43,13 +46,28 @@ describe("POST /api/resumes/create", () => {
 
     mockCollection.mockReturnValue({
       doc: mockDoc,
+      count: mockCount,
     });
     mockDoc.mockReturnValue({
       set: mockSet,
+      get: mockGet,
       collection: mockCollection, // For nested collections
     });
     mockSet.mockResolvedValue(undefined);
     mockBatchCommit.mockResolvedValue(undefined);
+
+    // Mock getUserTier response
+    mockGet.mockResolvedValue({
+      data: () => ({ subscriptionTier: "basic" }),
+    });
+
+    // Mock resume count response
+    mockCount.mockReturnValue({
+      get: mockCountGet,
+    });
+    mockCountGet.mockResolvedValue({
+      data: () => ({ count: 0 }),
+    });
 
     // Default auth mock
     (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
@@ -115,6 +133,73 @@ describe("POST /api/resumes/create", () => {
     // expect(mockSet).toHaveBeenCalled(); // Replaced by batch
     expect(mockBatchSet).toHaveBeenCalledTimes(3);
     expect(mockBatchCommit).toHaveBeenCalled();
+  });
+
+  it("should return 403 if resume limit is reached", async () => {
+    const mockUserId = "user123";
+
+    // Mock Basic tier (limit 3)
+    mockGet.mockResolvedValue({
+      data: () => ({ subscriptionTier: "basic" }),
+    });
+
+    // Mock existing count = 3
+    mockCountGet.mockResolvedValue({
+      data: () => ({ count: 3 }),
+    });
+
+    const req = new NextRequest("http://localhost/api/resumes/create", {
+      method: "POST",
+      body: JSON.stringify({
+        userId: mockUserId,
+        resume: { title: "Resume" },
+      }),
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(403);
+    expect(data.error).toContain("You have reached the limit");
+  });
+
+  it("should set expiration date for basic tier", async () => {
+    const mockUserId = "user123";
+
+    // Mock Basic tier
+    mockGet.mockResolvedValue({
+      data: () => ({ subscriptionTier: "basic" }),
+    });
+
+    // Mock count = 0
+    mockCountGet.mockResolvedValue({
+      data: () => ({ count: 0 }),
+    });
+
+    const req = new NextRequest("http://localhost/api/resumes/create", {
+      method: "POST",
+      body: JSON.stringify({
+        userId: mockUserId,
+        resume: { title: "Resume" },
+      }),
+    });
+
+    await POST(req);
+
+    // Verify expiresAt was set in Firestore
+    const setCall = mockBatchSet.mock.calls[0]; // First set call (main doc)
+    const docData = setCall[1];
+    expect(docData.expiresAt).toBeDefined();
+    expect(typeof docData.expiresAt).toBe("string");
+    expect(docData.deletionScheduledAt).toBeDefined();
+    expect(typeof docData.deletionScheduledAt).toBe("string");
+    expect(docData.countdownStartsAt).toBeDefined();
+    expect(typeof docData.countdownStartsAt).toBe("string");
+    expect(docData.expirationWarningHours).toBe(72);
+
+    const deletionMs = new Date(docData.deletionScheduledAt!).getTime();
+    const countdownMs = new Date(docData.countdownStartsAt!).getTime();
+    expect(deletionMs - countdownMs).toBe(72 * 60 * 60 * 1000);
   });
 
   it("should handle errors", async () => {

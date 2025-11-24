@@ -6,6 +6,13 @@ import {
   handleApiError,
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
+import { getUserTier } from "@/lib/services/userService";
+import {
+  RESUME_CREATION_LIMITS,
+  RESUME_RETENTION_DAYS,
+  RESUME_DELETION_GRACE_DAYS,
+  RESUME_EXPIRY_WARNING_HOURS,
+} from "@/lib/config";
 
 interface CreateResumeRequest {
   userId: string;
@@ -18,6 +25,9 @@ interface CreateResumeResponse {
   resumeId: string;
   numericId: number;
   publicUrl: string;
+  expiresAt: string | null;
+  deletionScheduledAt: string | null;
+  countdownStartsAt: string | null;
 }
 
 export async function POST(request: NextRequest) {
@@ -49,6 +59,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check Quota
+    const tier = await getUserTier(userId);
+    const limit = RESUME_CREATION_LIMITS[tier];
+
+    // We use "resume_create" scope and "monthly" period (or "forever" if we want total limit)
+    // For now, let's assume it's a total limit on active resumes, but consumeQuota is for "events over time".
+    // If we want "Max 3 resumes total", we should count existing resumes, not use consumeQuota.
+    // Let's check existing resumes count first.
+
+    const existingResumesSnapshot = await adminDb
+      .collection("users")
+      .doc(userId)
+      .collection("resumes")
+      .count()
+      .get();
+
+    const currentCount = existingResumesSnapshot.data().count;
+
+    if (currentCount >= limit) {
+      return handleApiError(
+        new Error("Plan limit reached"),
+        `You have reached the limit of ${limit} resumes for the ${tier} plan. Please upgrade to create more.`,
+        403
+      );
+    }
+
     // Generate numeric ID (1-99,999,999)
     const numericId = await generateNumericResumeId();
 
@@ -58,6 +94,34 @@ export async function POST(request: NextRequest) {
         "Failed to generate numeric resume ID",
         500
       );
+    }
+
+    // Calculate Expiration
+    const retentionDays = RESUME_RETENTION_DAYS[tier];
+    const deletionGraceDays = RESUME_DELETION_GRACE_DAYS[tier];
+    const warningHours = RESUME_EXPIRY_WARNING_HOURS[tier];
+
+    let expiresAt: string | null = null;
+    let deletionScheduledAt: string | null = null;
+    let countdownStartsAt: string | null = null;
+
+    if (retentionDays) {
+      const expirationDate = new Date();
+      expirationDate.setDate(expirationDate.getDate() + retentionDays);
+      expiresAt = expirationDate.toISOString();
+
+      if (deletionGraceDays) {
+        const deletionDate = new Date(expirationDate);
+        deletionDate.setDate(deletionDate.getDate() + deletionGraceDays);
+        deletionScheduledAt = deletionDate.toISOString();
+
+        if (warningHours) {
+          const warningDate = new Date(
+            deletionDate.getTime() - warningHours * 60 * 60 * 1000
+          );
+          countdownStartsAt = warningDate.toISOString();
+        }
+      }
     }
 
     // Prepare resume document
@@ -71,6 +135,10 @@ export async function POST(request: NextRequest) {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       status: "active",
+      expiresAt, // Null for premium, date for basic
+      deletionScheduledAt,
+      countdownStartsAt,
+      expirationWarningHours: warningHours ?? null,
     };
 
     // Save to Firestore using Batch Write
@@ -121,6 +189,9 @@ export async function POST(request: NextRequest) {
       resumeId: String(numericId),
       numericId,
       publicUrl: `/resumes/${numericId}`,
+      expiresAt,
+      deletionScheduledAt,
+      countdownStartsAt,
     };
 
     return NextResponse.json(response);

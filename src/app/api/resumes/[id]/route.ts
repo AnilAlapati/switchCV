@@ -10,6 +10,8 @@ import {
   verifyResumeOwnership,
 } from "@/lib/utils/api-helpers";
 import { sanitizeResumeForPublicView } from "@/lib/utils/resumeVisibility";
+import { getUserTier } from "@/lib/services/userService";
+import { RESUME_EDITING_ALLOWED } from "@/lib/config";
 
 type AccessGrantType = "request" | "grant";
 
@@ -288,6 +290,18 @@ export async function PUT(
       docRef,
       resumeData: existingData,
     } = verification;
+
+    // Check Editing Permissions
+    const tier = await getUserTier(requestUserId!);
+    const canEdit = RESUME_EDITING_ALLOWED[tier];
+
+    if (!canEdit) {
+      return handleApiError(
+        new Error("Editing restricted"),
+        `Editing is not allowed on the ${tier} plan. Please upgrade to edit your resume.`,
+        403
+      );
+    }
 
     const body = await request.json();
     const resumePayload = body?.resume;

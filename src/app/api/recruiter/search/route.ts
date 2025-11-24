@@ -10,15 +10,52 @@ import {
   limit as firestoreLimit,
 } from "firebase/firestore";
 import type { SearchResult } from "@/components/dashboard/RecruiterSearchForm";
-import { handleApiError } from "@/lib/utils/api-helpers";
+import {
+  handleApiError,
+  getAuthenticatedUserId,
+} from "@/lib/utils/api-helpers";
+import { getUserTier } from "@/lib/services/userService";
+import { RECRUITER_SEARCH_LIMITS } from "@/lib/config";
+import { consumeQuota, QuotaExceededError } from "@/lib/services/quotaService";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const searchQuery = searchParams.get("q");
+    const rawQuery = searchParams.get("q");
+
+    if (!rawQuery) {
+      return handleApiError(null, "Search query is required", 400);
+    }
+
+    const searchQuery = rawQuery.trim();
 
     if (!searchQuery) {
       return handleApiError(null, "Search query is required", 400);
+    }
+
+    const { userId: recruiterId, error: authError } =
+      await getAuthenticatedUserId(request);
+    if (authError) return authError;
+
+    const tier = await getUserTier(recruiterId!);
+    const limit = RECRUITER_SEARCH_LIMITS[tier];
+
+    try {
+      await consumeQuota({
+        subjectId: recruiterId!,
+        scope: "recruiter_search",
+        limit,
+        period: "monthly",
+      });
+    } catch (error) {
+      if (error instanceof QuotaExceededError) {
+        return handleApiError(
+          error,
+          `You have reached your monthly search limit of ${limit}. Please upgrade to search more candidates.`,
+          403
+        );
+      }
+      throw error;
     }
 
     const searchLower = searchQuery.toLowerCase();

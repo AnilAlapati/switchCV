@@ -7,6 +7,7 @@ import {
   cleanupAnalyticsEvents,
 } from "./analyticsService";
 import { cleanupRecruiterSearchHistory } from "./recruiterService";
+import { cleanupExpiredResumes } from "./resumeCleanupService";
 
 export { aggregateGlobalStats } from "./statsService";
 
@@ -37,6 +38,7 @@ export {
   aggregateAnalyticsDaily,
   cleanupAnalyticsEvents,
   cleanupRecruiterSearchHistory,
+  cleanupExpiredResumes,
 };
 
 // ==================== EMAIL AND AUDIT FUNCTIONS ====================

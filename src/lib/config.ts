@@ -58,3 +58,86 @@ export const getEmailBaseUrl = (): string => {
  */
 // ⚠️ TESTING ONLY: Set to true to enable resume seeding and debug lists in dashboard
 export const ENABLE_SEEDING_AND_DEBUG_LISTS = false;
+
+export type SubscriptionTier = "basic" | "premium" | "enterprise";
+
+export type SeedStrategy = "template" | "live";
+
+const toNumber = (value: string | undefined, fallback: number) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+export const SEEDING_PLAN_LIMITS: Record<
+  SubscriptionTier,
+  {
+    monthlyWrites: number;
+    strategy: SeedStrategy;
+  }
+> = {
+  basic: {
+    monthlyWrites: toNumber(process.env.SEED_BASIC_MONTHLY_LIMIT, 5),
+    strategy: "template",
+  },
+  premium: {
+    monthlyWrites: toNumber(process.env.SEED_PREMIUM_MONTHLY_LIMIT, 50),
+    strategy: "live",
+  },
+  enterprise: {
+    monthlyWrites: toNumber(process.env.SEED_ENTERPRISE_MONTHLY_LIMIT, 200),
+    strategy: "live",
+  },
+};
+
+export const RESUME_CREATION_LIMITS: Record<SubscriptionTier, number> = {
+  basic: 1,
+  premium: 50,
+  enterprise: 9999,
+};
+
+export const RESUME_EDITING_ALLOWED: Record<SubscriptionTier, boolean> = {
+  basic: false,
+  premium: true,
+  enterprise: true,
+};
+
+export const RESUME_RETENTION_DAYS: Record<SubscriptionTier, number | null> = {
+  basic: 7,
+  premium: null, // Forever
+  enterprise: null, // Forever
+};
+
+export const RESUME_DELETION_GRACE_DAYS: Record<
+  SubscriptionTier,
+  number | null
+> = {
+  basic: 3, // Delete on day 10 (7 + 3)
+  premium: null,
+  enterprise: null,
+};
+
+export const RESUME_EXPIRY_WARNING_HOURS: Record<
+  SubscriptionTier,
+  number | null
+> = {
+  basic: 72, // Show timer for final 72 hours
+  premium: null,
+  enterprise: null,
+};
+
+export const RECRUITER_CONTACT_LIMITS: Record<SubscriptionTier, number> = {
+  basic: 2,
+  premium: 9999,
+  enterprise: 9999,
+};
+
+export const RECRUITER_SEARCH_LIMITS: Record<SubscriptionTier, number> = {
+  basic: 2,
+  premium: 9999,
+  enterprise: 9999,
+};
+
+export const GLOBAL_LIVE_SEED_MONTHLY_LIMIT = toNumber(
+  process.env.SEED_GLOBAL_LIVE_MONTHLY_LIMIT,
+  3000
+);

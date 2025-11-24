@@ -1,5 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { PUT, GET } from "./route";
+import { getUserTier } from "@/lib/services/userService";
+
+// Mock userService
+jest.mock("@/lib/services/userService", () => ({
+  getUserTier: jest.fn(),
+}));
+
+const mockGetUserTier = getUserTier as jest.Mock;
 
 const collectionHandlers: Record<string, any> = {};
 
@@ -130,8 +138,26 @@ describe("PUT /api/resumes/[id]", () => {
     expect(response.status).toBe(403);
   });
 
+  it("returns 403 when basic user tries to edit", async () => {
+    adminAuth.verifyIdToken.mockResolvedValue({ uid: "user-123" });
+    mockGetUserTier.mockResolvedValue("basic");
+
+    const request = buildRequest(
+      { resume: { title: "Updated" } },
+      { authorization: "Bearer token" }
+    );
+
+    const response = await PUT(request, {
+      params: Promise.resolve({ id: "42" }),
+    });
+    expect(response.status).toBe(403);
+    const data = await response.json();
+    expect(data.error).toContain("Editing is not allowed");
+  });
+
   it("updates resume content and returns updated payload", async () => {
     adminAuth.verifyIdToken.mockResolvedValue({ uid: "user-123" });
+    mockGetUserTier.mockResolvedValue("premium");
 
     const request = buildRequest(
       {
@@ -190,6 +216,7 @@ describe("PUT /api/resumes/[id]", () => {
 
   it("returns 400 when resume payload is invalid", async () => {
     adminAuth.verifyIdToken.mockResolvedValue({ uid: "user-123" });
+    mockGetUserTier.mockResolvedValue("premium");
 
     const request = buildRequest({}, { authorization: "Bearer token" });
     const response = await PUT(request, {
@@ -200,14 +227,12 @@ describe("PUT /api/resumes/[id]", () => {
 });
 
 describe("GET /api/resumes/[id]", () => {
-  let mocks: MockSetup;
-
   beforeEach(() => {
     jest.clearAllMocks();
     Object.keys(collectionHandlers).forEach(
       (key) => delete collectionHandlers[key]
     );
-    mocks = setupCollections();
+    setupCollections();
   });
 
   it("returns cache headers for public resumes", async () => {

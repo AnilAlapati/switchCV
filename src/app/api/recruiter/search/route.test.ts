@@ -1,5 +1,8 @@
 import { NextRequest } from "next/server";
 import { GET } from "./route";
+import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
+import { getUserTier } from "@/lib/services/userService";
+import { consumeQuota, QuotaExceededError } from "@/lib/services/quotaService";
 
 // Mock Firebase
 jest.mock("@/lib/firebase", () => ({
@@ -15,9 +18,35 @@ jest.mock("firebase/firestore", () => ({
   limit: jest.fn(() => "mock-limit-ref"),
 }));
 
+jest.mock("@/lib/utils/api-helpers", () => {
+  const actual = jest.requireActual("@/lib/utils/api-helpers");
+  return {
+    ...actual,
+    getAuthenticatedUserId: jest.fn(),
+  };
+});
+
+jest.mock("@/lib/services/userService", () => ({
+  getUserTier: jest.fn(),
+}));
+
+jest.mock("@/lib/services/quotaService", () => {
+  const actual = jest.requireActual("@/lib/services/quotaService");
+  return {
+    ...actual,
+    consumeQuota: jest.fn(),
+  };
+});
+
 import { getDocs } from "firebase/firestore";
 
 const mockGetDocs = getDocs as jest.MockedFunction<typeof getDocs>;
+const mockGetAuthenticatedUserId =
+  getAuthenticatedUserId as jest.MockedFunction<typeof getAuthenticatedUserId>;
+const mockGetUserTier = getUserTier as jest.MockedFunction<typeof getUserTier>;
+const mockConsumeQuota = consumeQuota as jest.MockedFunction<
+  typeof consumeQuota
+>;
 
 // Helper to create mock QueryDocumentSnapshot
 const createMockDoc = (id: string, data: any) => ({
@@ -48,6 +77,16 @@ const createMockSnapshot = (docs: any[]) => ({
 describe("GET /api/recruiter/search", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetAuthenticatedUserId.mockResolvedValue({
+      userId: "recruiter-123",
+    });
+    mockGetUserTier.mockResolvedValue("basic");
+    mockConsumeQuota.mockResolvedValue({
+      remaining: 1,
+      limit: 2,
+      resetTime: Date.now(),
+      count: 1,
+    });
   });
 
   it("should return 400 when search query is missing", async () => {
@@ -112,6 +151,27 @@ describe("GET /api/recruiter/search", () => {
     });
     expect(data.count).toBe(1);
     expect(data.query).toBe("engineer");
+  });
+
+  it("should require authentication", async () => {
+    const unauthorized = new Response(
+      JSON.stringify({ error: "Unauthorized" }),
+      {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+    mockGetAuthenticatedUserId.mockResolvedValueOnce({
+      error: unauthorized,
+    });
+
+    const request = new NextRequest(
+      "http://localhost:3000/api/recruiter/search?q=test"
+    );
+
+    const response = await GET(request);
+    expect(response.status).toBe(401);
+    expect(mockConsumeQuota).not.toHaveBeenCalled();
   });
 
   it("should search resumes by skills", async () => {
@@ -337,5 +397,21 @@ describe("GET /api/recruiter/search", () => {
     expect(response.status).toBe(200);
     expect(data.results).toHaveLength(1);
     expect(data.results[0].skills).toEqual([]);
+  });
+
+  it("should enforce search quota limits", async () => {
+    const quotaError = new QuotaExceededError("limit");
+    mockConsumeQuota.mockRejectedValueOnce(quotaError);
+
+    const request = new NextRequest(
+      "http://localhost:3000/api/recruiter/search?q=engineer"
+    );
+
+    const response = await GET(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(data.error).toContain("monthly search limit");
+    expect(mockGetDocs).not.toHaveBeenCalled();
   });
 });
