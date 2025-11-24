@@ -4,10 +4,13 @@
 
 import { GET } from "@/app/api/profiles/check-access/route";
 import { NextRequest } from "next/server";
+import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 
 // Mock api-helpers
 jest.mock("@/lib/utils/api-helpers", () => ({
-  getAuthenticatedUserId: jest.fn().mockResolvedValue({ userId: "test-user-123", error: null }),
+  getAuthenticatedUserId: jest
+    .fn()
+    .mockResolvedValue({ userId: "test-user-123", error: null }),
   handleApiError: jest.requireActual("@/lib/utils/api-helpers").handleApiError,
 }));
 
@@ -29,7 +32,9 @@ jest.mock("@/lib/firebase-admin", () => ({
 
 import { adminDb } from "@/lib/firebase-admin";
 
-const mockCollection = adminDb.collection as jest.MockedFunction<typeof adminDb.collection>;
+const mockCollection = adminDb.collection as jest.MockedFunction<
+  typeof adminDb.collection
+>;
 const mockDoc = jest.fn();
 const mockGet = jest.fn();
 const mockSubCollection = jest.fn();
@@ -98,8 +103,10 @@ describe("GET /api/profiles/check-access", () => {
 
   it("should grant access to resume owner", async () => {
     // Mock current user as owner
-    const { getAuthenticatedUserId } = require("@/lib/utils/api-helpers");
-    getAuthenticatedUserId.mockResolvedValue({ userId: "owner-123", error: null });
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "owner-123",
+      error: null,
+    });
 
     mockGet.mockResolvedValue({
       exists: true,
@@ -120,8 +127,10 @@ describe("GET /api/profiles/check-access", () => {
 
   it("should grant access for published resumes", async () => {
     // Mock current user as NOT owner
-    const { getAuthenticatedUserId } = require("@/lib/utils/api-helpers");
-    getAuthenticatedUserId.mockResolvedValue({ userId: "viewer-123", error: null });
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "viewer-123",
+      error: null,
+    });
 
     mockGet.mockResolvedValue({
       exists: true,
@@ -141,8 +150,10 @@ describe("GET /api/profiles/check-access", () => {
   });
 
   it("should grant access with valid access grant", async () => {
-    const { getAuthenticatedUserId } = require("@/lib/utils/api-helpers");
-    getAuthenticatedUserId.mockResolvedValue({ userId: "viewer-123", error: null });
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "viewer-123",
+      error: null,
+    });
 
     mockGet.mockResolvedValue({
       exists: true,
@@ -175,8 +186,10 @@ describe("GET /api/profiles/check-access", () => {
   });
 
   it("should deny access without grant or published status", async () => {
-    const { getAuthenticatedUserId } = require("@/lib/utils/api-helpers");
-    getAuthenticatedUserId.mockResolvedValue({ userId: "viewer-123", error: null });
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "viewer-123",
+      error: null,
+    });
 
     mockGet.mockResolvedValue({
       exists: true,
@@ -200,8 +213,10 @@ describe("GET /api/profiles/check-access", () => {
   });
 
   it("should deny access if grant is expired", async () => {
-    const { getAuthenticatedUserId } = require("@/lib/utils/api-helpers");
-    getAuthenticatedUserId.mockResolvedValue({ userId: "viewer-123", error: null });
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "viewer-123",
+      error: null,
+    });
 
     mockGet.mockResolvedValue({
       exists: true,
@@ -248,8 +263,10 @@ describe("GET /api/profiles/check-access", () => {
   });
 
   it("should include accessDuration in response when grant exists", async () => {
-    const { getAuthenticatedUserId } = require("@/lib/utils/api-helpers");
-    getAuthenticatedUserId.mockResolvedValue({ userId: "viewer-123", error: null });
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "viewer-123",
+      error: null,
+    });
 
     mockGet.mockResolvedValue({
       exists: true,
