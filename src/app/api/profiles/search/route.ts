@@ -2,16 +2,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   collection,
-  query,
-  where,
+  DocumentSnapshot,
   getDocs,
   limit,
   orderBy,
+  query,
+  startAfter,
   QueryConstraint,
+  QueryDocumentSnapshot,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { ProfileSearchResult } from "@/types/profileSearch";
+import type { ProfileSearchResult } from "@/types/profileSearch";
 import { handleApiError } from "@/lib/utils/api-helpers";
+import {
+  buildBaseConstraints,
+  buildNormalizedFilters,
+  getCursorSnapshot,
+  matchesAllFilters,
+  searchBySlug,
+} from "./search-query";
+import { mapProfileResult } from "./search-utils";
 
 interface SearchRequest {
   query?: string;
@@ -23,27 +33,11 @@ interface SearchRequest {
   };
   limit?: number;
   offset?: number;
+  cursor?: string;
 }
 
-/**
- * Checks if all filter items are included in the target array
- */
-function includesAllSkills(
-  targetSkills: string[] = [],
-  requiredSkills: string[] = []
-): boolean {
-  if (!requiredSkills || requiredSkills.length === 0) return true;
-  return requiredSkills.every((skill) =>
-    targetSkills.some((ts) => ts.toLowerCase().includes(skill.toLowerCase()))
-  );
-}
-
-/**
- * Performs text search on string fields
- */
-function matchesQuery(text: string = "", query: string = ""): boolean {
-  return text.toLowerCase().includes(query.toLowerCase());
-}
+const MAX_PAGE_LIMIT = 50;
+const MAX_FETCH_ROUNDS = 5;
 
 export async function POST(request: NextRequest) {
   try {
@@ -52,12 +46,20 @@ export async function POST(request: NextRequest) {
       filters,
       limit: resultLimit = 20,
       offset = 0,
+      cursor,
     } = (await request.json()) as SearchRequest;
 
-    // Build validation
+    const normalizedFilters = buildNormalizedFilters(filters);
+    const sanitizedQuery = searchQuery?.trim() || "";
+    const normalizedLimit = Math.min(Math.max(resultLimit, 1), MAX_PAGE_LIMIT);
+    const chunkSize = Math.min(normalizedLimit + 5, MAX_PAGE_LIMIT + 5);
+    const desiredResultCount = cursor
+      ? normalizedLimit
+      : normalizedLimit + offset;
+
     if (
-      !searchQuery &&
-      !filters?.slug &&
+      !sanitizedQuery &&
+      !normalizedFilters.slug &&
       Object.keys(filters || {}).length === 0
     ) {
       return handleApiError(
@@ -67,101 +69,99 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const usersRef = collection(db, "users");
-
-    // Build query constraints
-    const constraints: QueryConstraint[] = [
-      where("publicProfile.visible", "==", true),
-      orderBy("displayName"),
-      limit(resultLimit + offset), // Get extra for offset
-    ];
-
-    // Query with constraints
-    const q = query(usersRef, ...constraints);
-    const querySnapshot = await getDocs(q);
-
-    // Filter and process results in memory
-    const allResults: ProfileSearchResult[] = [];
-    const seenUserIds = new Set<string>();
-
-    for (const doc of querySnapshot.docs) {
-      const userData = doc.data();
-      const displayName = userData.displayName || "";
-      const username = userData.publicProfile?.username || "";
-      const slug = userData.profileSlug || "";
-      const bio = userData.publicProfile?.aiSelectedBio || "";
-      const role = userData.publicProfile?.role || "";
-      const location = userData.publicProfile?.location || "";
-      const skills = userData.publicProfile?.skills || [];
-
-      // Skip duplicates
-      if (seenUserIds.has(doc.id)) continue;
-
-      // Apply filters
-      const matchesSearch =
-        !searchQuery ||
-        matchesQuery(displayName, searchQuery) ||
-        matchesQuery(username, searchQuery) ||
-        matchesQuery(bio, searchQuery) ||
-        matchesQuery(role, searchQuery);
-
-      const matchesRole =
-        !filters?.role || role.toLowerCase() === filters.role.toLowerCase();
-      const matchesLocation =
-        !filters?.location ||
-        location.toLowerCase().includes(filters.location.toLowerCase());
-      const matchesSkills = includesAllSkills(skills, filters?.skills);
-      const matchesSlug = !filters?.slug || slug === filters.slug;
-
-      // Check if all filters match
-      if (
-        !matchesSearch ||
-        !matchesRole ||
-        !matchesLocation ||
-        !matchesSkills ||
-        !matchesSlug
-      ) {
-        continue;
-      }
-
-      seenUserIds.add(doc.id);
-
-      // Check if user has valid access grant from current user
-      // TODO: Load from cache for performance
-      const hasApproval = false; // TODO: Check access grants
-      const approvalExpiresAt = undefined;
-
-      allResults.push({
-        userId: doc.id,
-        username: username,
-        displayName: displayName,
-        photoURL: userData.photoURL,
-        bio: bio,
-        role: role || undefined,
-        location: location || undefined,
-        skills: skills.length > 0 ? skills : undefined,
-        hasApproval,
-        approvalExpiresAt,
+    if (normalizedFilters.slug) {
+      const slugResults = await searchBySlug(normalizedFilters);
+      return NextResponse.json({
+        results: slugResults,
+        count: slugResults.length,
+        total: slugResults.length,
+        query: sanitizedQuery,
+        filters,
+        offset: 0,
+        hasMore: false,
       });
     }
 
-    // Apply offset for pagination
-    const paginatedResults = allResults.slice(offset, offset + resultLimit);
+    const usersRef = collection(db, "users");
+    const baseConstraints = buildBaseConstraints(normalizedFilters);
+    const cursorSnapshot = await getCursorSnapshot(cursor);
+    let startAfterDocSnapshot: DocumentSnapshot | null = cursorSnapshot;
+    let hasMore = false;
+    let lastReturnedDoc: QueryDocumentSnapshot | null = null;
+    const results: ProfileSearchResult[] = [];
+    let fetchRounds = 0;
+
+    while (
+      results.length < desiredResultCount &&
+      fetchRounds < MAX_FETCH_ROUNDS
+    ) {
+      const constraints: QueryConstraint[] = [
+        ...baseConstraints,
+        orderBy("displayName"),
+      ];
+
+      if (startAfterDocSnapshot) {
+        constraints.push(startAfter(startAfterDocSnapshot));
+      }
+
+      constraints.push(limit(chunkSize));
+
+      const snapshot = await getDocs(query(usersRef, ...constraints));
+      fetchRounds += 1;
+
+      if (snapshot.empty) {
+        hasMore = false;
+        break;
+      }
+
+      startAfterDocSnapshot = snapshot.docs[snapshot.docs.length - 1];
+      hasMore = snapshot.size === chunkSize;
+
+      for (const docSnap of snapshot.docs) {
+        const userData = docSnap.data();
+        if (!matchesAllFilters(userData, normalizedFilters, sanitizedQuery)) {
+          continue;
+        }
+
+        const result = mapProfileResult(docSnap.id, userData);
+        results.push(result);
+        lastReturnedDoc = docSnap;
+
+        if (results.length === desiredResultCount) {
+          break;
+        }
+      }
+
+      if (!hasMore) {
+        break;
+      }
+    }
+
+    if (results.length < desiredResultCount) {
+      hasMore = false;
+    }
+
+    const effectiveResults = cursor ? results : results.slice(offset);
+    const trimmedResults = effectiveResults.slice(0, normalizedLimit);
+    const exposeHasMore = trimmedResults.length === normalizedLimit && hasMore;
+    const nextCursor =
+      exposeHasMore && lastReturnedDoc ? lastReturnedDoc.id : null;
 
     console.log(
-      `🔍 Search (query: "${searchQuery}", filters: ${JSON.stringify(
+      `🔍 Search (query: "${sanitizedQuery}", filters: ${JSON.stringify(
         filters
-      )}) returned ${paginatedResults.length}/${allResults.length} results`
+      )}) returned ${trimmedResults.length} results`
     );
 
     return NextResponse.json({
-      results: paginatedResults,
-      count: paginatedResults.length,
-      total: allResults.length,
-      query: searchQuery,
+      results: trimmedResults,
+      count: trimmedResults.length,
+      total: trimmedResults.length,
+      query: sanitizedQuery,
       filters,
-      offset,
-      hasMore: allResults.length > offset + resultLimit,
+      cursor: nextCursor,
+      offset: cursor ? undefined : offset,
+      hasMore: exposeHasMore,
     });
   } catch (error) {
     return handleApiError(error, "Search failed");
