@@ -7,7 +7,7 @@ import { AuthBackground } from "@/components/auth/AuthBackground";
 import { AuthBrand } from "@/components/auth/AuthBrand";
 import { AuthFormInputs } from "@/components/auth/AuthFormInputs";
 import { EmailVerificationNotice } from "@/components/auth/EmailVerificationNotice";
-import { REGISTRATION_DISABLED } from "@/lib/config";
+import { REGISTRATION_DISABLED, LOGIN_DISABLED } from "@/lib/config";
 
 function AuthContent() {
   const searchParams = useSearchParams();
@@ -152,6 +152,8 @@ function AuthContent() {
                   ? REGISTRATION_DISABLED
                     ? "Registration is currently closed for maintenance"
                     : "Create your account to get started"
+                  : LOGIN_DISABLED
+                  ? "Login is currently disabled for maintenance"
                   : "Sign in to access your dashboard"}
               </p>
             </div>
@@ -169,6 +171,22 @@ function AuthContent() {
                 >
                   Return to Sign In
                 </button>
+              </div>
+            ) : !isSignUp && LOGIN_DISABLED ? (
+              <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-xl p-6 text-center">
+                <p className="text-yellow-200 mb-4">
+                  We are currently performing system upgrades. Login is
+                  temporarily disabled.
+                </p>
+                {!REGISTRATION_DISABLED && (
+                  <button
+                    type="button"
+                    onClick={() => setIsSignUp(true)}
+                    className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors"
+                  >
+                    Create an Account
+                  </button>
+                )}
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-6">
@@ -206,7 +224,7 @@ function AuthContent() {
                   )}
                 </button>
 
-                {!REGISTRATION_DISABLED && (
+                {(!REGISTRATION_DISABLED || !LOGIN_DISABLED) && (
                   <div className="text-center">
                     <button
                       type="button"
@@ -222,7 +240,7 @@ function AuthContent() {
               </form>
             )}
 
-            {!isSignUp && (
+            {!isSignUp && !LOGIN_DISABLED && (
               <div className="mt-6">
                 <div className="flex items-center gap-3 mb-4">
                   <span className="flex-1 h-px bg-white/20"></span>
