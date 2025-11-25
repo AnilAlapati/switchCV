@@ -56,10 +56,23 @@ _(Replace `YOUR_GITHUB_USERNAME` with your actual GitHub username)_
 PROJECT_NUMBER=$(gcloud projects describe switchcv-e5136 --format="value(projectNumber)")
 
 # Allow the repository to impersonate the service account
+# Allow the repository to impersonate the Firebase Admin SDK service account
 gcloud iam service-accounts add-iam-policy-binding "firebase-adminsdk-xxxxx@switchcv-e5136.iam.gserviceaccount.com" \
   --project="switchcv-e5136" \
   --role="roles/iam.workloadIdentityUser" \
   --member="principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/github-actions/attribute.repository/YOUR_GITHUB_USERNAME/switchCV"
+
+# Allow deployments to use the App Engine runtime service account (required for Cloud Functions)
+gcloud iam service-accounts add-iam-policy-binding "switchcv-e5136@appspot.gserviceaccount.com" \
+  --project="switchcv-e5136" \
+  --role="roles/iam.serviceAccountUser" \
+  --member="principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/github-actions/attribute.repository/YOUR_GITHUB_USERNAME/switchCV"
+
+# Let the Firebase Admin SDK service account act on behalf of the App Engine runtime service account
+gcloud iam service-accounts add-iam-policy-binding "switchcv-e5136@appspot.gserviceaccount.com" \
+  --project="switchcv-e5136" \
+  --role="roles/iam.serviceAccountUser" \
+  --member="serviceAccount:firebase-adminsdk-xxxxx@switchcv-e5136.iam.gserviceaccount.com"
 ```
 
 _(Note: You can find your Service Account email in the Google Cloud Console IAM page. It usually looks like `firebase-adminsdk-xxxxx@...`)_
@@ -133,7 +146,7 @@ name: Deploy to Firebase Hosting on merge
 on:
   push:
     branches:
-      - main
+      - develop
 permissions:
   contents: read
   id-token: write
@@ -156,6 +169,9 @@ jobs:
         with:
           workload_identity_provider: "${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}"
           service_account: "${{ secrets.GCP_SERVICE_ACCOUNT }}"
+
+      - name: Enable Firebase experiments for web frameworks
+        run: npx firebase-tools experiments:enable webframeworks
 
       - name: Deploy to Firebase
         run: npx firebase-tools deploy --only hosting,functions --project switchcv-e5136
