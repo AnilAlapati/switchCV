@@ -155,5 +155,4 @@ export const GLOBAL_LIVE_SEED_MONTHLY_LIMIT = toNumber(
 export const REGISTRATION_DISABLED =
   process.env.NEXT_PUBLIC_REGISTRATION_DISABLED === "true";
 
-export const LOGIN_DISABLED =
-  process.env.NEXT_PUBLIC_LOGIN_DISABLED === "true";
+export const LOGIN_DISABLED = process.env.NEXT_PUBLIC_LOGIN_DISABLED === "true";
