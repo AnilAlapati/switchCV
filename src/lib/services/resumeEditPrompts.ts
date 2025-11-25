@@ -72,6 +72,52 @@ Conversation guidance:
 - If the user wants to make multiple edits, gather them, confirm, and only then deliver the JSON payload.
 - If no resume exists, politely explain that and recommend creating one via the resume creation flow.`;
 
+/**
+ * Result of extracting resume edit JSON from AI response
+ */
+export interface ResumeEditResult {
+  isComplete: boolean;
+  updatedProfile?: {
+    title?: string;
+    summary?: string;
+    experience?: Array<{
+      company: string;
+      role: string;
+      startDate: string;
+      endDate: string | null;
+      description: string;
+    }>;
+    education?: Array<{
+      institution: string;
+      degree: string;
+      startDate: string;
+      endDate: string;
+      description?: string;
+    }>;
+    skills?: Array<{
+      name: string;
+      level: "advanced" | "intermediate" | "beginner";
+    }>;
+    projects?: Array<{
+      name: string;
+      description: string;
+      url?: string;
+    }>;
+    personalInfo?: {
+      name: string;
+      title?: string;
+      location?: string;
+      linkedin?: string;
+      github?: string;
+    };
+    contact?: {
+      email?: { value: string };
+      phone?: { value: string };
+    };
+  };
+  changeSummary?: string;
+}
+
 interface BuildResumeEditPromptArgs {
   userMessage: string;
   conversationHistory: Array<{ content: string; isUser: boolean }>;
@@ -128,12 +174,14 @@ export function buildResumeEditPrompt({
   return prompt;
 }
 
-export function extractResumeEditJSON(response: string): any | null {
+export function extractResumeEditJSON(
+  response: string
+): ResumeEditResult | null {
   try {
     const jsonBlockRegex = /```json\s*([\s\S]*?)\s*```/i;
     const match = response.match(jsonBlockRegex);
     if (match && match[1]) {
-      const parsed = JSON.parse(match[1].trim());
+      const parsed = JSON.parse(match[1].trim()) as ResumeEditResult;
       if (parsed && parsed.isComplete) {
         return parsed;
       }

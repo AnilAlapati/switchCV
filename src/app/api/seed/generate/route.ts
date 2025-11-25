@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import admin, { adminDb } from "@/lib/firebase-admin";
 import { generateText } from "@/lib/services/aiGenerationService";
 import {
@@ -11,6 +12,7 @@ import {
 import {
   getAuthenticatedUserId,
   handleApiError,
+  safeParseBody,
 } from "@/lib/utils/api-helpers";
 import {
   categorizeProfession,
@@ -19,6 +21,25 @@ import {
 } from "@/lib/services/resumeSeedGenerator";
 import { consumeQuota, QuotaExceededError } from "@/lib/services/quotaService";
 import { getUserTier } from "@/lib/services/userService";
+import { logger } from "@/lib/logger";
+
+/**
+ * Zod schema for input validation
+ * Ensures profession is a non-empty string with reasonable length limits
+ */
+const SeedGenerateRequestSchema = z.object({
+  profession: z
+    .string()
+    .min(1, "Profession is required")
+    .max(100, "Profession must be 100 characters or less")
+    .trim()
+    .refine(
+      (val) => /^[a-zA-Z\s\-']+$/.test(val),
+      "Profession must contain only letters, spaces, hyphens, and apostrophes"
+    ),
+});
+
+type SeedGenerateRequest = z.infer<typeof SeedGenerateRequestSchema>;
 
 export async function POST(req: NextRequest) {
   if (!ENABLE_SEEDING_AND_DEBUG_LISTS) {
@@ -35,15 +56,22 @@ export async function POST(req: NextRequest) {
       return authError;
     }
 
+    // Parse and validate request body using Zod schema
     const payload = await safeParseBody(req);
-    if (!payload?.profession || typeof payload.profession !== "string") {
-      return handleApiError(null, "Profession is required", 400);
+    const validationResult = SeedGenerateRequestSchema.safeParse(payload);
+
+    if (!validationResult.success) {
+      const errorMessage = validationResult.error.issues
+        .map((e: z.ZodIssue) => e.message)
+        .join(", ");
+      logger.warn(
+        { userId, errors: validationResult.error.issues },
+        "Invalid seed generate request"
+      );
+      return handleApiError(null, errorMessage, 400);
     }
 
-    const profession = payload.profession.trim();
-    if (!profession) {
-      return handleApiError(null, "Profession is required", 400);
-    }
+    const { profession } = validationResult.data;
 
     const tier = await getUserTier(userId!);
     const plan = SEEDING_PLAN_LIMITS[tier] ?? SEEDING_PLAN_LIMITS.basic;
@@ -124,16 +152,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ...existing code...
-async function safeParseBody(req: NextRequest) {
-  try {
-    return await req.json();
-  } catch (error) {
-    throw error instanceof SyntaxError
-      ? error
-      : new SyntaxError("Invalid JSON payload");
-  }
-}
+// safeParseBody moved to @/lib/utils/api-helpers
 
 function attachQuotaHeaders(
   response: NextResponse,

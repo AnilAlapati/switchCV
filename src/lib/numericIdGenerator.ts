@@ -15,17 +15,35 @@
  * - Each increment is atomic, preventing race conditions
  * - Scales horizontally without additional coordination
  * - Simple, fast, and reliable
+ *
+ * SECURITY NOTE: This service NEVER falls back to random IDs to prevent collisions.
+ * If Firestore is unavailable, operations will fail fast with clear errors.
  */
 
 import { adminDb } from "@/lib/firebase-admin";
 import { getRecycledIdFromPool } from "@/lib/resumeIdRecycler";
+import { logger } from "@/lib/logger";
+import { ID_GENERATION } from "@/config/constants";
 
-const ID_COUNTER_DOC = "system/resumeIdCounter";
-const MAX_NUMERIC_ID = 99999999; // 8 digits max
+const { COUNTER_DOC_PATH: ID_COUNTER_DOC, MAX_NUMERIC_ID } = ID_GENERATION;
 
 interface IdCounterDoc {
   currentId: number;
   lastResetAt?: string;
+}
+
+/**
+ * Custom error class for ID generation failures
+ */
+export class IdGenerationError extends Error {
+  constructor(
+    message: string,
+    public readonly cause?: unknown,
+    public readonly isRetryable: boolean = true
+  ) {
+    super(message);
+    this.name = "IdGenerationError";
+  }
 }
 
 /**
@@ -38,17 +56,17 @@ export const initializeIdCounter = async (): Promise<void> => {
     const counterSnap = await counterRef.get();
 
     if (!counterSnap.exists) {
-      console.log("🔢 Initializing resume ID counter...");
+      logger.info("Initializing resume ID counter...");
       await counterRef.set({
         currentId: 1, // Start at 1 so next ID is 2
         lastResetAt: new Date().toISOString(),
         createdAt: new Date().toISOString(),
       });
-      console.log("✅ Resume ID counter initialized");
+      logger.info("Resume ID counter initialized");
     }
   } catch (error) {
-    console.error("❌ Error initializing ID counter:", error);
-    throw new Error("Failed to initialize ID counter");
+    logger.error({ err: error }, "Error initializing ID counter");
+    throw new IdGenerationError("Failed to initialize ID counter", error, true);
   }
 };
 
@@ -59,90 +77,95 @@ export const initializeIdCounter = async (): Promise<void> => {
  * 1. First tries to get a recycled ID from the deleted IDs pool
  * 2. If pool is empty, generates a new ID from the counter
  * 3. Uses Firestore atomic increment to ensure no collisions
- * 4. Fallback: If Firestore operations fail, generates a random ID (not ideal but allows resume creation)
+ *
+ * SECURITY FIX: No longer falls back to random IDs on error.
+ * This prevents potential data collisions and integrity issues.
+ * Callers should handle errors and implement their own retry logic.
  *
  * Benefits:
  * - Reuses IDs efficiently when resumes are deleted
  * - Maximizes utilization of numeric ID space
  * - Maintains collision-free generation
- * - Graceful fallback to random IDs if Firestore is unavailable
+ * - Fails fast on errors for proper error handling
  *
  * @returns Promise<number> - Next available numeric ID (1-99999999)
- * @throws Error only if unable to initialize counter or ID space exhausted
+ * @throws IdGenerationError if unable to generate ID
  */
 export const generateNumericResumeId = async (): Promise<number> => {
+  // Step 1: Try to get a recycled ID from the pool first
   try {
-    // Step 1: Try to get a recycled ID from the pool first
-    try {
-      const recycledId = await getRecycledIdFromPool();
-      if (recycledId !== null) {
-        console.log(`✅ Generated numeric resume ID: ${recycledId} (recycled)`);
-        return recycledId;
-      }
-    } catch (poolError) {
-      console.warn(
-        "⚠️ Error checking recycled ID pool, continuing:",
-        poolError
+    const recycledId = await getRecycledIdFromPool();
+    if (recycledId !== null) {
+      logger.info(
+        { resumeId: recycledId, source: "recycled" },
+        "Generated numeric resume ID"
       );
-      // Continue to counter generation if pool check fails
+      return recycledId;
     }
+  } catch (poolError) {
+    // Log but continue - pool is optional optimization
+    logger.warn(
+      { err: poolError },
+      "Error checking recycled ID pool, continuing to counter"
+    );
+  }
 
-    // Step 2: If no recycled ID, generate a new one from the counter
-    try {
-      const counterRef = adminDb.doc(ID_COUNTER_DOC);
+  // Step 2: Generate a new ID from the counter
+  try {
+    const counterRef = adminDb.doc(ID_COUNTER_DOC);
 
-      // Use a transaction to ensure atomic increment and retrieval
-      // This prevents race conditions where two requests might get the same ID
-      const nextId = await adminDb.runTransaction(async (transaction) => {
-        const counterDoc = await transaction.get(counterRef);
+    // Use a transaction to ensure atomic increment and retrieval
+    // This prevents race conditions where two requests might get the same ID
+    const nextId = await adminDb.runTransaction(async (transaction) => {
+      const counterDoc = await transaction.get(counterRef);
 
-        if (!counterDoc.exists) {
-          // Initialize if missing (should be rare as we check above, but good for safety)
-          transaction.set(counterRef, {
-            currentId: 1,
-            lastResetAt: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-          });
-          return 1;
-        }
-
-        const currentId = counterDoc.data()?.currentId || 0;
-        // Skip ID 1 as it is reserved for system/demo use
-        const newId = currentId === 0 ? 2 : currentId + 1;
-
-        if (newId > MAX_NUMERIC_ID) {
-          throw new Error(
-            `❌ Maximum numeric ID limit reached: ${MAX_NUMERIC_ID}`
-          );
-        }
-
-        transaction.update(counterRef, {
-          currentId: newId,
+      if (!counterDoc.exists) {
+        // Initialize if missing (should be rare as we check above, but good for safety)
+        transaction.set(counterRef, {
+          currentId: 1,
+          lastResetAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
         });
+        return 1;
+      }
 
-        return newId;
+      const currentId = counterDoc.data()?.currentId || 0;
+      // Skip ID 1 as it is reserved for system/demo use
+      const newId = currentId === 0 ? 2 : currentId + 1;
+
+      if (newId > MAX_NUMERIC_ID) {
+        throw new IdGenerationError(
+          `Maximum numeric ID limit reached: ${MAX_NUMERIC_ID}`,
+          undefined,
+          false // Not retryable - limit reached
+        );
+      }
+
+      transaction.update(counterRef, {
+        currentId: newId,
       });
 
-      console.log(`✅ Generated numeric resume ID: ${nextId} (from counter)`);
-      return nextId;
-    } catch (counterError) {
-      console.warn(
-        "⚠️ Error with counter operation, using fallback ID:",
-        counterError
-      );
+      return newId;
+    });
 
-      // Fallback: Generate a random ID if counter operations fail
-      // This is not ideal (potential collisions) but allows resume creation
-      // when Firestore is having temporary issues
-      const fallbackId =
-        Math.floor(Math.random() * (MAX_NUMERIC_ID - 1000000)) + 1000000;
-      console.log(`⚠️ Using fallback random numeric ID: ${fallbackId}`);
-      return fallbackId;
-    }
+    logger.info(
+      { resumeId: nextId, source: "counter" },
+      "Generated numeric resume ID"
+    );
+    return nextId;
   } catch (error) {
-    console.error("❌ Error generating numeric ID:", error);
-    // Last resort: throw error only for critical failures
-    throw error;
+    // SECURITY FIX: No longer falling back to random IDs
+    // Random IDs could cause collisions and data integrity issues
+    if (error instanceof IdGenerationError) {
+      throw error;
+    }
+
+    logger.error({ err: error }, "Failed to generate numeric ID from counter");
+    throw new IdGenerationError(
+      "Failed to generate numeric ID. Please try again.",
+      error,
+      true // Retryable - temporary Firestore issue
+    );
   }
 };
 
@@ -161,8 +184,12 @@ export const getCurrentIdCounter = async (): Promise<number> => {
 
     return (counterSnap.data() as IdCounterDoc).currentId;
   } catch (error) {
-    console.error("❌ Error getting current ID counter:", error);
-    throw error;
+    logger.error({ err: error }, "Error getting current ID counter");
+    throw new IdGenerationError(
+      "Failed to get current ID counter",
+      error,
+      true
+    );
   }
 };
 
@@ -179,9 +206,9 @@ export const resetIdCounter = async (startValue: number = 0): Promise<void> => {
       currentId: startValue,
       lastResetAt: new Date().toISOString(),
     });
-    console.log(`🔄 ID counter reset to ${startValue}`);
+    logger.info({ startValue }, "ID counter reset");
   } catch (error) {
-    console.error("❌ Error resetting ID counter:", error);
-    throw error;
+    logger.error({ err: error, startValue }, "Error resetting ID counter");
+    throw new IdGenerationError("Failed to reset ID counter", error, true);
   }
 };

@@ -44,9 +44,21 @@ jest.mock("@/lib/utils/api-helpers", () => ({
         set: (key: string, value: string) => headers.set(key, value),
         get: (key: string) => headers.get(key),
       },
-      json: async () => ({ error: message, details: error.message }),
+      json: async () => ({
+        error: message,
+        details: error instanceof Error ? error.message : undefined,
+      }),
     };
   }),
+}));
+
+// Mock logger
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
 }));
 
 const mockedGenerateText = jest.mocked(generateText);
@@ -108,7 +120,7 @@ describe("/api/ai/generate route", () => {
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data.error).toBe("Prompt is required and must be a string");
+    expect(data.error).toContain("expected string"); // Zod error for missing required field
   });
 
   it("should return 400 error when prompt is empty", async () => {
@@ -118,7 +130,7 @@ describe("/api/ai/generate route", () => {
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data.error).toBe("Prompt is required and must be a string");
+    expect(data.error).toBe("Prompt is required");
   });
 
   it("should pass custom maxTokens and temperature to service", async () => {
@@ -336,6 +348,8 @@ describe("/api/ai/generate route", () => {
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data.error).toBe("Prompt exceeds maximum length of 2000 characters");
+    expect(data.error).toContain(
+      "Prompt exceeds maximum length of 2000 characters"
+    );
   });
 });

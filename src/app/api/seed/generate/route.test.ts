@@ -149,14 +149,15 @@ describe("POST /api/seed/generate", () => {
     expect(body.error).toBe("Unauthorized");
   });
 
-  it("blocks missing profession", async () => {
+  it("blocks missing profession with Zod validation", async () => {
     await setupTest();
     const req = createRequest({});
     const response = await POST(req);
     const body = await response.json();
 
     expect(response.status).toBe(400);
-    expect(body.error).toBe("Profession is required");
+    // Zod validation message for missing required field
+    expect(body.error).toContain("Invalid input");
   });
 
   it("serves template resume for basic tier", async () => {

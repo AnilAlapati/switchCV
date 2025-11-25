@@ -57,6 +57,15 @@ jest.mock("@/lib/services/aiGenerationService", () => ({
   generateText: jest.fn(),
 }));
 
+// Mock logger
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
 const createRequest = (body: any) => {
   return new NextRequest("http://localhost:3000/api/ai/generate", {
     method: "POST",
@@ -140,14 +149,14 @@ describe("POST /api/ai/generate", () => {
   it("should return 400 when prompt is missing", async () => {
     const request = createRequest({
       maxTokens: 200,
-      temperature: 0.8,
+      temperature: 0.7,
     });
 
     const response = await POST(request);
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data.error).toBe("Prompt is required and must be a string");
+    expect(data.error).toContain("expected string"); // Zod error for missing required field
     expect(generateText).not.toHaveBeenCalled();
   });
 
@@ -161,7 +170,7 @@ describe("POST /api/ai/generate", () => {
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data.error).toBe("Prompt is required and must be a string");
+    expect(data.error).toBe("Prompt is required");
     expect(generateText).not.toHaveBeenCalled();
   });
 
@@ -247,9 +256,9 @@ describe("POST /api/ai/generate", () => {
     expect(generateText).not.toHaveBeenCalled();
   });
 
-  it("should handle extreme parameter values", async () => {
+  it("should handle maximum allowed parameter values", async () => {
     const mockResult = {
-      text: "Extreme parameters result",
+      text: "Maximum parameters result",
       model: "gemini-2.0-flash-lite",
       provider: "google",
     };
@@ -257,9 +266,9 @@ describe("POST /api/ai/generate", () => {
     (generateText as jest.Mock).mockResolvedValue(mockResult);
 
     const request = createRequest({
-      prompt: "Test with extreme values",
-      maxTokens: 10000,
-      temperature: 2.0,
+      prompt: "Test with maximum allowed values",
+      maxTokens: 4000, // Maximum allowed by Zod schema
+      temperature: 2.0, // Maximum allowed by Zod schema
     });
 
     const response = await POST(request);
@@ -268,10 +277,40 @@ describe("POST /api/ai/generate", () => {
     expect(response.status).toBe(200);
     expect(data).toEqual(mockResult);
     expect(generateText).toHaveBeenCalledWith(
-      "Test with extreme values",
-      10000,
+      "Test with maximum allowed values",
+      4000,
       2.0
     );
+  });
+
+  it("should reject maxTokens exceeding 4000", async () => {
+    const request = createRequest({
+      prompt: "Test with extreme values",
+      maxTokens: 10000, // Exceeds maximum
+      temperature: 1.0,
+    });
+
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(data.error).toContain("maxTokens cannot exceed 4000");
+    expect(generateText).not.toHaveBeenCalled();
+  });
+
+  it("should reject temperature exceeding 2", async () => {
+    const request = createRequest({
+      prompt: "Test with extreme temperature",
+      maxTokens: 100,
+      temperature: 3.0, // Exceeds maximum
+    });
+
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(data.error).toContain("Temperature must be between 0 and 2");
+    expect(generateText).not.toHaveBeenCalled();
   });
 
   it("should handle very long prompt", async () => {

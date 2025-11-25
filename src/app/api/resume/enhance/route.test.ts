@@ -16,8 +16,33 @@ jest.mock("@/lib/resumeEnhancer", () => ({
 jest.mock("@/lib/logger", () => ({
   logger: {
     error: jest.fn(),
+    warn: jest.fn(),
   },
 }));
+
+// Mock api-helpers to properly handle handleApiError
+// Note: Must use require() inside jest.mock to avoid out-of-scope variable errors
+jest.mock("@/lib/utils/api-helpers", () => {
+  const { NextResponse } = require("next/server");
+  return {
+    handleApiError: jest.fn(
+      (error, message = "Internal server error", status = 500) => {
+        return NextResponse.json(
+          {
+            error: message,
+            details:
+              error instanceof Error
+                ? error.message
+                : error
+                ? String(error)
+                : undefined,
+          },
+          { status }
+        );
+      }
+    ),
+  };
+});
 
 import { generateResumeEnhancement } from "@/lib/resumeEnhancer";
 import { logger } from "@/lib/logger";

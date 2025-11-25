@@ -7,6 +7,7 @@ import {
   initializeIdCounter,
   getCurrentIdCounter,
   resetIdCounter,
+  IdGenerationError,
 } from "@/lib/numericIdGenerator";
 
 // Mock Firebase Admin
@@ -146,22 +147,18 @@ describe("Numeric ID Generator", () => {
       expect(result).toBe(1);
     });
 
-    it("should use fallback random ID when counter operations fail", async () => {
+    it("should throw IdGenerationError when counter operations fail (SECURITY FIX: no random fallback)", async () => {
       mockGetRecycledIdFromPool.mockResolvedValue(null);
       mockRunTransaction.mockRejectedValue(new Error("Firestore error"));
 
-      // Mock Math.random to return a predictable value
-      const originalRandom = Math.random;
-      Math.random = jest.fn().mockReturnValue(0.5);
-
-      const result = await generateNumericResumeId();
-
-      // Should be between 1000000 and MAX_NUMERIC_ID
-      expect(result).toBeGreaterThanOrEqual(1000000);
-      expect(result).toBeLessThanOrEqual(99999999);
-
-      // Restore original Math.random
-      Math.random = originalRandom;
+      // SECURITY FIX: Now throws error instead of falling back to random IDs
+      // This prevents potential data collisions
+      await expect(generateNumericResumeId()).rejects.toThrow(
+        IdGenerationError
+      );
+      await expect(generateNumericResumeId()).rejects.toThrow(
+        "Failed to generate numeric ID. Please try again."
+      );
     });
 
     it("should handle recycler pool errors gracefully", async () => {

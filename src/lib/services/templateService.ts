@@ -8,6 +8,7 @@ import {
   getDoc,
   writeBatch,
 } from "firebase/firestore";
+import { logger } from "@/lib/logger";
 
 const COLLECTION_NAME = "templates";
 
@@ -22,13 +23,13 @@ export const templateService = {
       const snapshot = await getDocs(templatesRef);
 
       if (snapshot.empty) {
-        console.warn("No templates found in DB, using local defaults.");
+        logger.warn("No templates found in DB, using local defaults");
         return RESUME_TEMPLATES;
       }
 
       return snapshot.docs.map((doc) => doc.data() as ResumeTemplate);
     } catch (error) {
-      console.error("Error fetching templates:", error);
+      logger.error({ err: error }, "Error fetching templates");
       // Fallback to local templates on error
       return RESUME_TEMPLATES;
     }
@@ -50,7 +51,7 @@ export const templateService = {
       const localTemplate = RESUME_TEMPLATES.find((t) => t.id === templateId);
       return localTemplate || null;
     } catch (error) {
-      console.error(`Error fetching template ${templateId}:`, error);
+      logger.error({ err: error, templateId }, "Error fetching template");
       const localTemplate = RESUME_TEMPLATES.find((t) => t.id === templateId);
       return localTemplate || null;
     }

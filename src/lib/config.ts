@@ -55,9 +55,19 @@ export const getEmailBaseUrl = (): string => {
 
 /**
  * Feature Flags
+ *
+ * Configure via environment variables:
+ * - NEXT_PUBLIC_ENABLE_SEEDING_DEBUG: Enable resume seeding and debug lists
  */
-// ⚠️ TESTING ONLY: Set to true to enable resume seeding and debug lists in dashboard
-export const ENABLE_SEEDING_AND_DEBUG_LISTS = false;
+
+/**
+ * Enable seeding and debug lists in dashboard.
+ * Set NEXT_PUBLIC_ENABLE_SEEDING_DEBUG=true in .env.local for development.
+ * Never enable in production without explicit override.
+ */
+export const ENABLE_SEEDING_AND_DEBUG_LISTS =
+  process.env.NEXT_PUBLIC_ENABLE_SEEDING_DEBUG === "true" &&
+  process.env.NODE_ENV !== "production";
 
 export type SubscriptionTier = "basic" | "premium" | "enterprise";
 

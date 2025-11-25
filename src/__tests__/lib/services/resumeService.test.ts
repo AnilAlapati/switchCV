@@ -4,6 +4,7 @@ import {
 } from "@/lib/services/resumeService";
 import { db } from "@/lib/firebase";
 import { collection, where, getDocs } from "firebase/firestore";
+import { logger } from "@/lib/logger";
 
 // Mock Firebase
 jest.mock("@/lib/firebase", () => ({
@@ -15,6 +16,15 @@ jest.mock("firebase/firestore", () => ({
   query: jest.fn(),
   where: jest.fn(),
   getDocs: jest.fn(),
+}));
+
+// Mock logger
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+  },
 }));
 
 describe("resumeService", () => {
@@ -55,15 +65,16 @@ describe("resumeService", () => {
       expect(result).toBeNull();
     });
 
-    it("should return null on error", async () => {
+    it("should return null on error and log the error", async () => {
       (getDocs as jest.Mock).mockRejectedValue(new Error("DB Error"));
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation();
 
       const result = await fetchResumeBySlug(mockSlug);
 
       expect(result).toBeNull();
-      expect(consoleSpy).toHaveBeenCalled();
-      consoleSpy.mockRestore();
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ slug: mockSlug }),
+        "Error fetching resume"
+      );
     });
   });
 
@@ -78,14 +89,15 @@ describe("resumeService", () => {
       // Note: timestamp check is tricky due to new Date(), but we verify the call structure
     });
 
-    it("should handle errors gracefully", async () => {
+    it("should handle errors gracefully and log the error", async () => {
       (getDocs as jest.Mock).mockRejectedValue(new Error("DB Error"));
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation();
 
       await trackResumeView(mockResumeId);
 
-      expect(consoleSpy).toHaveBeenCalled();
-      consoleSpy.mockRestore();
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ resumeId: mockResumeId }),
+        "Error tracking resume view"
+      );
     });
   });
 });

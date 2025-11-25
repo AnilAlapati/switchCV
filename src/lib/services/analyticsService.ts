@@ -18,6 +18,7 @@ import {
   RequestStatistics,
   AnalyticsEvent,
 } from "@/types";
+import { logger } from "@/lib/logger";
 
 export interface TrackingRequest {
   resumeId: string;
@@ -95,7 +96,7 @@ export async function trackAnalyticsEvent(request: TrackingRequest) {
     await trackSessionDuration(resumeId, metadata.sessionDuration);
   }
 
-  console.log(`📊 Analytics event tracked: ${eventType} for ${resumeId}`);
+  logger.info({ eventType, resumeId, eventId }, "Analytics event tracked");
 
   return {
     success: true,
@@ -114,7 +115,7 @@ async function updateAnalyticsMetrics(
   userId: string | undefined,
   eventType: string,
   timestamp: string,
-  metadata: any
+  metadata: TrackingRequest["metadata"]
 ): Promise<void> {
   const analyticsRef = doc(db, "analytics", resumeId);
   const analyticsSnap = await getDoc(analyticsRef);
@@ -204,7 +205,10 @@ async function trackSessionDuration(
       });
     }
   } catch (error) {
-    console.error("Failed to track session duration:", error);
+    logger.error(
+      { err: error, resumeId, sessionDuration },
+      "Failed to track session duration"
+    );
   }
 }
 
@@ -225,7 +229,7 @@ export async function getEngagementMetrics(
     const snap = await getDoc(engagementRef);
     return snap.exists() ? (snap.data() as EngagementMetrics) : null;
   } catch (error) {
-    console.error("Error getting engagement metrics:", error);
+    logger.error({ err: error, resumeId }, "Error getting engagement metrics");
     return null;
   }
 }
@@ -241,7 +245,7 @@ export async function getRequestStatistics(
     const snap = await getDoc(requestsRef);
     return snap.exists() ? (snap.data() as RequestStatistics) : null;
   } catch (error) {
-    console.error("Error getting request statistics:", error);
+    logger.error({ err: error, resumeId }, "Error getting request statistics");
     return null;
   }
 }
@@ -259,7 +263,10 @@ export async function getRecentEvents(
     const querySnap = await getDocs(q);
     return querySnap.docs.map((doc) => doc.data() as AnalyticsEvent);
   } catch (error) {
-    console.error("Error getting recent events:", error);
+    logger.error(
+      { err: error, resumeId, limitCount },
+      "Error getting recent events"
+    );
     return [];
   }
 }
