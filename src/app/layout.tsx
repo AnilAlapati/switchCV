@@ -15,6 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://switchcv.com"),
   title: "SwitchCV - Privacy-First Living Resume Platform",
   description:
     "Create and share your professional resume with privacy controls and AI-powered polishing.",
