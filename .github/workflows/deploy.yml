@@ -26,5 +26,8 @@ jobs:
           workload_identity_provider: "${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}"
           service_account: "${{ secrets.GCP_SERVICE_ACCOUNT }}"
 
+      - name: Enable Firebase experiments for web frameworks
+        run: npx firebase-tools experiments:enable webframeworks
+
       - name: Deploy to Firebase
         run: npx firebase-tools deploy --only hosting,functions --project switchcv-e5136
