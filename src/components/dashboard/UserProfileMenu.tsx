@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { APP_CONFIG } from "@/config/constants";
 
 interface UserProfileMenuProps {
   userEmail?: string | null;
@@ -15,6 +16,9 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
   const userInitial = userEmail ? userEmail.charAt(0).toUpperCase() : "U";
   const displayName = userEmail?.split("@")[0] || "User";
   const emailLabel = userEmail || "Signed out";
+  const appVersion = `${APP_CONFIG.VERSION_PREFIX}.${
+    process.env.NEXT_PUBLIC_APP_VERSION || "0.0.1"
+  }`;
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -193,8 +197,30 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
                   d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              <span>Help & Support</span>
+              <span>Help Center</span>
             </Link>
+
+            {/* Email Support */}
+            <a
+              href={`mailto:${APP_CONFIG.SUPPORT_EMAIL}`}
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-3 px-4 py-3 text-sm text-slate-300 hover:bg-white/10 transition-colors duration-150"
+            >
+              <svg
+                className="w-4 h-4 text-blue-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                />
+              </svg>
+              <span>Email Support</span>
+            </a>
 
             {/* Divider */}
             <div className="my-2 border-t border-white/10" />
@@ -222,6 +248,11 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
               </svg>
               <span>Logout</span>
             </button>
+
+            {/* Version */}
+            <div className="px-4 py-2 text-[10px] text-slate-600 text-center border-t border-white/5 font-mono">
+              {appVersion}
+            </div>
           </div>
         </div>
       )}
