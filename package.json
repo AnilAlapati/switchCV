@@ -1,10 +1,10 @@
 {
   "name": "switchcv",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run release && next build",
     "start": "next start",
     "lint": "eslint",
     "test": "jest",
@@ -12,7 +12,8 @@
     "postinstall": "chmod +x scripts/*.sh 2>/dev/null || true",
     "precommit": "bash scripts/auto-maintain.sh",
     "cleanup": "bash scripts/auto-maintain.sh",
-    "health-check": "bash scripts/check-repo-health.sh"
+    "health-check": "bash scripts/check-repo-health.sh",
+    "release": "node scripts/increment-version.js"
   },
   "dependencies": {
     "firebase": "^12.5.0",

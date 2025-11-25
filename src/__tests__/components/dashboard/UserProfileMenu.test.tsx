@@ -123,7 +123,8 @@ describe("UserProfileMenu", () => {
     expect(screen.getByText("Account & Security")).toBeInTheDocument();
     expect(screen.getByText("Subscription Plan")).toBeInTheDocument();
     expect(screen.getByText("Basic")).toBeInTheDocument();
-    expect(screen.getByText("Help & Support")).toBeInTheDocument();
+    expect(screen.getByText("Help Center")).toBeInTheDocument();
+    expect(screen.getByText("Email Support")).toBeInTheDocument();
     expect(screen.getByText("Logout")).toBeInTheDocument();
   });
 

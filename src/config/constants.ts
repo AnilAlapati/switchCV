@@ -94,3 +94,13 @@ export const VALIDATION = {
   /** Maximum education entries */
   MAX_EDUCATION_ENTRIES: 10,
 } as const;
+
+/**
+ * Application Configuration
+ */
+export const APP_CONFIG = {
+  /** Support email address */
+  SUPPORT_EMAIL: "support@switchcv.com",
+  /** App version prefix */
+  VERSION_PREFIX: "AI",
+} as const;
