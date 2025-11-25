@@ -151,3 +151,6 @@ export const GLOBAL_LIVE_SEED_MONTHLY_LIMIT = toNumber(
   process.env.SEED_GLOBAL_LIVE_MONTHLY_LIMIT,
   3000
 );
+
+export const REGISTRATION_DISABLED =
+  process.env.NEXT_PUBLIC_REGISTRATION_DISABLED === "true";
