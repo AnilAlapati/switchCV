@@ -32,8 +32,6 @@ const GenerateRequestSchema = z.object({
     .default(0.9),
 });
 
-type GenerateRequest = z.infer<typeof GenerateRequestSchema>;
-
 interface Entitlement {
   plan: "basic" | "premium" | "enterprise" | string;
 }

@@ -27,24 +27,24 @@ export function ProfileViewsCard() {
       return;
     }
 
+    const fetchMetrics = async () => {
+      try {
+        const response = await fetch(
+          `/api/jobseeker/metrics?userId=${user?.uid}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setMetrics({ profileViews: data.profileViews || 0 });
+        }
+      } catch (error) {
+        console.error("Failed to fetch profile views:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchMetrics();
   }, [user, usingContext]);
-
-  const fetchMetrics = async () => {
-    try {
-      const response = await fetch(
-        `/api/jobseeker/metrics?userId=${user?.uid}`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setMetrics({ profileViews: data.profileViews || 0 });
-      }
-    } catch (error) {
-      console.error("Failed to fetch profile views:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
   const displayValue = usingContext
     ? contextMetrics?.profileViews ?? 0
     : metrics.profileViews;

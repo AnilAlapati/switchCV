@@ -49,19 +49,8 @@ function RecruiterRequestsContent() {
     }
   }, [logout, router]);
 
-  useEffect(() => {
+  const fetchRequests = useCallback(async () => {
     if (!user) return;
-    fetchRequests();
-  }, [user]);
-
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      setNow(Date.now());
-    }, 60_000);
-    return () => window.clearInterval(interval);
-  }, []);
-
-  const fetchRequests = async () => {
     setError(null);
     try {
       const token = await user?.getIdToken();
@@ -82,7 +71,19 @@ function RecruiterRequestsContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    fetchRequests();
+  }, [user, fetchRequests]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setNow(Date.now());
+    }, 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   const handleDeleteClick = (request: RecruiterRequest) => {
     setRequestToDelete(request);

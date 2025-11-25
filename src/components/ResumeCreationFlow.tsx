@@ -239,7 +239,13 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
         alert("Failed to regenerate resume. Please try again.");
       }
     },
-    [retryCount, generatedResume, generateResumeContent]
+    [
+      retryCount,
+      generatedResume,
+      generateResumeContent,
+      preferences.template,
+      preferences.tone,
+    ]
   );
 
   return (

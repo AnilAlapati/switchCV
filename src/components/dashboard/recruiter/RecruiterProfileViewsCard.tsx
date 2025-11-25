@@ -30,24 +30,24 @@ export function RecruiterProfileViewsCard() {
       return;
     }
 
+    const fetchMetrics = async () => {
+      try {
+        const response = await fetch(
+          `/api/recruiter/metrics?userId=${user?.uid}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setMetrics({ totalProfileViews: data.totalProfileViews || 0 });
+        }
+      } catch (error) {
+        console.error("Failed to fetch profile views:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchMetrics();
   }, [user, usingContext]);
-
-  const fetchMetrics = async () => {
-    try {
-      const response = await fetch(
-        `/api/recruiter/metrics?userId=${user?.uid}`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setMetrics({ totalProfileViews: data.totalProfileViews || 0 });
-      }
-    } catch (error) {
-      console.error("Failed to fetch profile views:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const displayValue = usingContext
     ? contextMetrics?.totalProfileViews ?? 0

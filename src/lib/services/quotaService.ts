@@ -95,3 +95,87 @@ export async function consumeQuota(
     count,
   };
 }
+
+/**
+ * Refund a previously consumed quota unit.
+ *
+ * Use this when an operation fails after quota was consumed (e.g., AI generation failure).
+ * The refund is performed atomically and will only decrement if count > 0.
+ *
+ * @param request - The same quota request parameters used for consumption
+ * @returns RefundResult with the updated count or false if refund wasn't possible
+ *
+ * @example
+ * ```typescript
+ * const quota = await consumeQuota({ subjectId: userId, scope: 'ai_generate', limit: 10, period: 'monthly' });
+ * try {
+ *   await generateAIContent();
+ * } catch (error) {
+ *   // Refund the quota since the operation failed
+ *   await refundQuota({ subjectId: userId, scope: 'ai_generate', limit: 10, period: 'monthly' });
+ *   throw error;
+ * }
+ * ```
+ */
+export interface RefundResult {
+  refunded: boolean;
+  currentCount: number;
+  reason?: string;
+}
+
+export async function refundQuota(
+  request: Omit<QuotaRequest, "limit">
+): Promise<RefundResult> {
+  const { subjectId, scope, period } = request;
+
+  const now = new Date();
+  const { key } = getPeriodMetadata(period, now);
+  const docId = `${scope}_${subjectId}_${key}`;
+  const docRef = adminDb.collection(COLLECTION_NAME).doc(docId);
+
+  return adminDb.runTransaction(async (tx) => {
+    const snapshot = await tx.get(docRef);
+
+    if (!snapshot.exists) {
+      return {
+        refunded: false,
+        currentCount: 0,
+        reason: "No quota record found for this period",
+      };
+    }
+
+    const data = snapshot.data();
+    const storedKey = data?.periodKey;
+
+    // Only refund if we're in the same period
+    if (storedKey !== key) {
+      return {
+        refunded: false,
+        currentCount: 0,
+        reason: "Quota period has changed, refund not applicable",
+      };
+    }
+
+    const currentCount = Number(data?.count || 0);
+
+    if (currentCount <= 0) {
+      return {
+        refunded: false,
+        currentCount: 0,
+        reason: "No quota to refund",
+      };
+    }
+
+    const newCount = currentCount - 1;
+    tx.update(docRef, {
+      count: newCount,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastRefundAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return {
+      refunded: true,
+      currentCount: newCount,
+    };
+  });
+}

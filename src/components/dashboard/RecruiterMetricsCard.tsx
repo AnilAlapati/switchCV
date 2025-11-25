@@ -32,24 +32,24 @@ export function RecruiterMetricsCard({
       return;
     }
 
+    const fetchMetrics = async () => {
+      try {
+        const response = await fetch(
+          `/api/recruiter/metrics?userId=${user?.uid}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setMetrics(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch recruiter metrics:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchMetrics();
   }, [isRecruiter, user]);
-
-  const fetchMetrics = async () => {
-    try {
-      const response = await fetch(
-        `/api/recruiter/metrics?userId=${user?.uid}`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setMetrics(data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch recruiter metrics:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (!isRecruiter) {
     return null;

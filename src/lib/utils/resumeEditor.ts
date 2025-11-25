@@ -1,3 +1,9 @@
+/**
+ * Resume Editor Utilities
+ *
+ * This module handles dynamic resume data normalization from Firestore.
+ * Uses Record<string, any> intentionally to handle flexible document structures.
+ */
 import type {
   ContactInfo,
   Education,
@@ -9,6 +15,8 @@ import type {
 } from "@/types";
 import { pruneUndefined } from "@/lib/utils/pruneUndefined";
 
+type ResumeRecord = Record<string, any>;
+
 export interface ResumeEditorMeta {
   userId?: string;
   numericId?: number;
@@ -19,7 +27,7 @@ export interface ResumeEditorMeta {
 
 export interface ResumeEditorNormalizationResult {
   profile: Partial<ResumeProfile>;
-  resume: Record<string, any>;
+  resume: ResumeRecord;
   meta: ResumeEditorMeta;
 }
 

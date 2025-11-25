@@ -31,24 +31,24 @@ export function ContactRequestsCard() {
       return;
     }
 
+    const fetchMetrics = async () => {
+      try {
+        const response = await fetch(
+          `/api/jobseeker/metrics?userId=${user?.uid}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setMetrics({ contactRequests: data.contactRequests || 0 });
+        }
+      } catch (error) {
+        console.error("Failed to fetch contact requests:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchMetrics();
   }, [user, usingContext]);
-
-  const fetchMetrics = async () => {
-    try {
-      const response = await fetch(
-        `/api/jobseeker/metrics?userId=${user?.uid}`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setMetrics({ contactRequests: data.contactRequests || 0 });
-      }
-    } catch (error) {
-      console.error("Failed to fetch contact requests:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
   const displayValue = usingContext
     ? contextMetrics?.contactRequests ?? 0
     : metrics.contactRequests;

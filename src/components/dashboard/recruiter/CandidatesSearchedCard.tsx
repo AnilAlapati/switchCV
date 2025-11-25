@@ -58,29 +58,29 @@ export function CandidatesSearchedCard() {
       return;
     }
 
+    const fetchMetrics = async () => {
+      try {
+        const response = await fetch(
+          `/api/recruiter/metrics?userId=${user?.uid}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setMetrics({
+            totalSearches: data.totalSearches || 0,
+            searchBreakdown: normalizeBreakdown(
+              data.searchBreakdown ?? DEFAULT_SEARCH_BREAKDOWN
+            ),
+          });
+        }
+      } catch (error) {
+        console.error("Failed to fetch search metrics:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchMetrics();
   }, [user, usingContext]);
-
-  const fetchMetrics = async () => {
-    try {
-      const response = await fetch(
-        `/api/recruiter/metrics?userId=${user?.uid}`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setMetrics({
-          totalSearches: data.totalSearches || 0,
-          searchBreakdown: normalizeBreakdown(
-            data.searchBreakdown ?? DEFAULT_SEARCH_BREAKDOWN
-          ),
-        });
-      }
-    } catch (error) {
-      console.error("Failed to fetch search metrics:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const totalSearches = usingContext
     ? contextMetrics?.totalSearches ?? 0

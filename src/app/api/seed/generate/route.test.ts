@@ -64,6 +64,9 @@ describe("POST /api/seed/generate", () => {
 
     jest.doMock("@/lib/services/quotaService", () => ({
       consumeQuota: mockConsumeQuota,
+      refundQuota: jest
+        .fn()
+        .mockResolvedValue({ refunded: true, currentCount: 0 }),
       QuotaExceededError: MockQuotaExceededError,
     }));
 
@@ -175,8 +178,49 @@ describe("POST /api/seed/generate", () => {
   it("invokes LLM for premium tier", async () => {
     await setupTest({ tier: "premium" });
     mockGenerateTemplateResume.mockClear();
+
+    // Complete valid AI response matching AIResumeResponseSchema
+    const validAIResponse = {
+      title: "LLM Resume",
+      templateId: "standard-v1",
+      summary:
+        "Experienced software engineer with expertise in cloud technologies.",
+      skills: [{ name: "TypeScript", level: "Expert", visibility: "public" }],
+      experience: [
+        {
+          company: "Tech Corp",
+          role: "Senior Engineer",
+          startDate: "2020-01",
+          endDate: "Present",
+          description: "Led development of cloud applications.",
+          visibility: "public",
+        },
+      ],
+      education: [
+        {
+          institution: "MIT",
+          degree: "B.S. Computer Science",
+          startDate: "2015-09",
+          endDate: "2019-05",
+          description: "Major in Software Engineering",
+          visibility: "public",
+        },
+      ],
+      contact: {
+        email: { value: "test@example.com", visibility: "public" },
+        phone: { value: "+1-555-0123", visibility: "public" },
+      },
+      projects: [
+        {
+          name: "Open Source Project",
+          description: "A popular open source tool",
+          visibility: "public",
+        },
+      ],
+    };
+
     mockGenerateText.mockResolvedValue({
-      text: JSON.stringify({ title: "LLM Resume" }),
+      text: JSON.stringify(validAIResponse),
       model: "gemini",
       provider: "google",
     });
@@ -218,5 +262,36 @@ describe("POST /api/seed/generate", () => {
     expect(response.status).toBe(429);
     expect(body.error).toBe("Limit reached");
     expect(response.headers.get("Retry-After")).toBeDefined();
+  });
+
+  it("returns 502 when AI returns malformed JSON", async () => {
+    await setupTest({ tier: "premium" });
+    mockGenerateText.mockResolvedValue({
+      text: "This is not valid JSON at all",
+      model: "gemini",
+      provider: "google",
+    });
+    mockConsumeQuota
+      .mockResolvedValueOnce({
+        limit: 50,
+        remaining: 40,
+        resetTime: Date.now(),
+        count: 10,
+      })
+      .mockResolvedValueOnce({
+        limit: 100,
+        remaining: 99,
+        resetTime: Date.now(),
+        count: 1,
+      });
+
+    const req = createRequest({ profession: "Engineer" });
+    const response = await POST(req);
+    const body = await response.json();
+
+    expect(response.status).toBe(502);
+    expect(body.error).toBe(
+      "AI service returned an invalid response. Please try again."
+    );
   });
 });

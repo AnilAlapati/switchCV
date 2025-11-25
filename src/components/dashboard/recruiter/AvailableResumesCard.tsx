@@ -36,29 +36,29 @@ export function AvailableResumesCard() {
       return;
     }
 
+    const fetchMetrics = async () => {
+      try {
+        const response = await fetch(
+          `/api/recruiter/metrics?userId=${user?.uid}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          const requests = data.accessRequests || {};
+          setMetrics({
+            pending: requests.pending || 0,
+            approved: requests.approved || 0,
+            denied: requests.denied || 0,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to fetch metrics for available resumes:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchMetrics();
   }, [user, usingContext]);
-
-  const fetchMetrics = async () => {
-    try {
-      const response = await fetch(
-        `/api/recruiter/metrics?userId=${user?.uid}`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        const requests = data.accessRequests || {};
-        setMetrics({
-          pending: requests.pending || 0,
-          approved: requests.approved || 0,
-          denied: requests.denied || 0,
-        });
-      }
-    } catch (error) {
-      console.error("Failed to fetch metrics for available resumes:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const displayMetrics = usingContext
     ? contextMetrics?.accessRequests ?? metrics

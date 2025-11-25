@@ -37,24 +37,24 @@ export function ResumeQualityCard({ hasResume }: ResumeQualityCardProps) {
       return;
     }
 
+    const fetchMetrics = async () => {
+      try {
+        const response = await fetch(
+          `/api/jobseeker/metrics?userId=${user?.uid}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setMetrics({ quality: data.quality || 0 });
+        }
+      } catch (error) {
+        console.error("Failed to fetch resume quality:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchMetrics();
   }, [user, usingContext]);
-
-  const fetchMetrics = async () => {
-    try {
-      const response = await fetch(
-        `/api/jobseeker/metrics?userId=${user?.uid}`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setMetrics({ quality: data.quality || 0 });
-      }
-    } catch (error) {
-      console.error("Failed to fetch resume quality:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="backdrop-blur-xl rounded-3xl border border-white/20 bg-white/10 p-6 shadow-lg shadow-slate-950/40 transition hover:border-cyan-500/40">

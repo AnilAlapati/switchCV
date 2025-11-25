@@ -58,24 +58,24 @@ export function LastUpdatedCard({ hasResume }: LastUpdatedCardProps) {
       return;
     }
 
+    const fetchMetrics = async () => {
+      try {
+        const response = await fetch(
+          `/api/jobseeker/metrics?userId=${user?.uid}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setMetrics({ lastUpdated: data.lastUpdated || null });
+        }
+      } catch (error) {
+        console.error("Failed to fetch last updated:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchMetrics();
   }, [user, usingContext]);
-
-  const fetchMetrics = async () => {
-    try {
-      const response = await fetch(
-        `/api/jobseeker/metrics?userId=${user?.uid}`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setMetrics({ lastUpdated: data.lastUpdated || null });
-      }
-    } catch (error) {
-      console.error("Failed to fetch last updated:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6 shadow-lg shadow-slate-950/40 transition hover:border-cyan-500/40">
