@@ -1,5 +1,7 @@
 # Deployment Checklist
 
+> **💡 Automation Available:** You can automate these steps using GitHub Actions. See [DEPLOYMENT_AUTOMATION.md](DEPLOYMENT_AUTOMATION.md) for setup instructions.
+
 ## Pre-Deployment
 
 ### 1. Environment Variables ⚙️
