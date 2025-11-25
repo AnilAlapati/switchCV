@@ -1,0 +1,46 @@
+{
+  "Switch CV API Route": {
+    "prefix": "scv-api",
+    "body": [
+      "import { NextRequest, NextResponse } from \"next/server\";",
+      "import { getAuthenticatedUserId, handleApiError } from \"@/lib/utils/api-helpers\";",
+      "",
+      "export async function POST(request: NextRequest) {",
+      "  try {",
+      "    const { userId, error } = await getAuthenticatedUserId(request);",
+      "    if (error) return error;",
+      "",
+      "    const body = await request.json();",
+      "    // TODO: Implement logic",
+      "",
+      "    return NextResponse.json({ success: true });",
+      "  } catch (error) {",
+      "    return handleApiError(error, \"Error processing request\");",
+      "  }",
+      "}"
+    ],
+    "description": "Create a standardized Switch CV API route with auth and error handling"
+  },
+  "Switch CV Protected Resume Route": {
+    "prefix": "scv-resume-api",
+    "body": [
+      "import { NextRequest, NextResponse } from \"next/server\";",
+      "import { verifyResumeOwnership, handleApiError } from \"@/lib/utils/api-helpers\";",
+      "",
+      "export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {",
+      "  try {",
+      "    const { success, error, resumeData, docRef } = await verifyResumeOwnership(request, params.id);",
+      "    if (!success) return error;",
+      "",
+      "    const body = await request.json();",
+      "    // TODO: Implement update logic",
+      "",
+      "    return NextResponse.json({ success: true });",
+      "  } catch (error) {",
+      "    return handleApiError(error, \"Error updating resume\");",
+      "  }",
+      "}"
+    ],
+    "description": "Create a standardized API route for resume operations"
+  }
+}

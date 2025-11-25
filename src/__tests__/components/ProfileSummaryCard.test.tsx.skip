@@ -1,0 +1,233 @@
+// src/__tests__/components/ProfileSummaryCard.test.tsx
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { ProfileSummaryCard } from "@/components/ProfileSummaryCard";
+import { useAccessControl } from "@/hooks/useAccessControl";
+import { useRouter } from "next/navigation";
+
+// Mock dependencies
+jest.mock("@/hooks/useAccessControl");
+jest.mock("next/navigation");
+
+const mockUseAccessControl = useAccessControl as jest.MockedFunction<
+  typeof useAccessControl
+>;
+const mockUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
+
+const mockFetch = jest.fn();
+global.fetch = mockFetch as any;
+
+describe("ProfileSummaryCard", () => {
+  const mockProfile = {
+    userId: "profile123",
+    username: "johndoe",
+    displayName: "John Doe",
+    bio: "Passionate software engineer",
+    role: "Senior Engineer",
+    location: "San Francisco, CA",
+    skills: ["React", "Node.js", "TypeScript", "Docker", "AWS", "PostgreSQL"],
+    hasApproval: false,
+  };
+
+  const mockRouter = {
+    push: jest.fn(),
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUseRouter.mockReturnValue(mockRouter as any);
+    mockUseAccessControl.mockReturnValue({
+      activeGrants: [],
+      pendingRequests: [],
+      deniedRequests: [],
+      loading: false,
+      error: null,
+      approve: jest.fn(),
+      deny: jest.fn(),
+      revoke: jest.fn(),
+    } as any);
+  });
+
+  test("renders profile summary card with all info", () => {
+    render(<ProfileSummaryCard profile={mockProfile} />);
+
+    expect(screen.getByText("John Doe")).toBeInTheDocument();
+    expect(screen.getByText("Senior Engineer")).toBeInTheDocument();
+    expect(
+      screen.getByText("Passionate software engineer")
+    ).toBeInTheDocument();
+    expect(screen.getByText("📍 San Francisco, CA")).toBeInTheDocument();
+  });
+
+  test("displays first 5 skills and shows +1 more for extra skills", () => {
+    render(<ProfileSummaryCard profile={mockProfile} />);
+
+    expect(screen.getByText("React")).toBeInTheDocument();
+    expect(screen.getByText("Node.js")).toBeInTheDocument();
+    expect(screen.getByText("TypeScript")).toBeInTheDocument();
+    expect(screen.getByText("Docker")).toBeInTheDocument();
+    expect(screen.getByText("AWS")).toBeInTheDocument();
+    expect(screen.getByText("+1 more")).toBeInTheDocument();
+  });
+
+  test("shows 'Request Access' button when no approval exists", () => {
+    render(<ProfileSummaryCard profile={mockProfile} />);
+
+    expect(screen.getByText("Request Access")).toBeInTheDocument();
+    expect(screen.queryByText("View Full Resume")).not.toBeInTheDocument();
+  });
+
+  test("shows 'View Full Resume' button when user has approval", () => {
+    mockUseAccessControl.mockReturnValue({
+      activeGrants: [
+        {
+          grantId: "grant1",
+          toUserId: "user123",
+          grantedAt: new Date(),
+          expiresAt: new Date(Date.now() + 86400000),
+          duration: "1day",
+        },
+      ],
+      pendingRequests: [],
+      deniedRequests: [],
+      loading: false,
+      error: null,
+      approve: jest.fn(),
+      deny: jest.fn(),
+      revoke: jest.fn(),
+    } as any);
+
+    render(<ProfileSummaryCard profile={mockProfile} />);
+
+    expect(screen.getByText("View Full Resume")).toBeInTheDocument();
+    expect(screen.queryByText("Request Access")).not.toBeInTheDocument();
+  });
+
+  test("shows approved badge when hasApproval is true", () => {
+    const approvedProfile = { ...mockProfile, hasApproval: true };
+
+    render(<ProfileSummaryCard profile={approvedProfile} />);
+
+    expect(screen.getByText("Approved")).toBeInTheDocument();
+  });
+
+  test("handles request access button click", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ success: true }),
+    } as Response);
+
+    render(<ProfileSummaryCard profile={mockProfile} />);
+
+    const requestButton = screen.getByText("Request Access");
+    await userEvent.click(requestButton);
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/profiles/request-access",
+        expect.objectContaining({
+          method: "POST",
+          body: expect.stringContaining('"toUserId":"profile123"'),
+        })
+      );
+    });
+  });
+
+  test("shows success message after successful request", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ success: true }),
+    } as Response);
+
+    render(<ProfileSummaryCard profile={mockProfile} />);
+
+    const requestButton = screen.getByText("Request Access");
+    await userEvent.click(requestButton);
+
+    await waitFor(() => {
+      expect(screen.getByText("Access request sent!")).toBeInTheDocument();
+    });
+  });
+
+  test("shows error message on failed request", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ error: "Already requested" }),
+    } as Response);
+
+    render(<ProfileSummaryCard profile={mockProfile} />);
+
+    const requestButton = screen.getByText("Request Access");
+    await userEvent.click(requestButton);
+
+    await waitFor(() => {
+      expect(screen.getByText("Already requested")).toBeInTheDocument();
+    });
+  });
+
+  test("disables request button while sending", async () => {
+    // Simulate slow network
+    mockFetch.mockImplementationOnce(
+      () =>
+        new Promise((resolve) =>
+          setTimeout(
+            () =>
+              resolve({
+                ok: true,
+                json: async () => ({ success: true }),
+              } as Response),
+            500
+          )
+        )
+    );
+
+    render(<ProfileSummaryCard profile={mockProfile} />);
+
+    const requestButton = screen.getByText(
+      "Request Access"
+    ) as HTMLButtonElement;
+    await userEvent.click(requestButton);
+
+    // Button should show loading state
+    expect(screen.getByText("Sending...")).toBeInTheDocument();
+    expect(screen.getByText("Sending...") as HTMLButtonElement).toBeDisabled();
+  });
+
+  test("navigates to profile view on 'View Summary' click", async () => {
+    render(<ProfileSummaryCard profile={mockProfile} />);
+
+    const viewButton = screen.getByText("View Summary");
+    await userEvent.click(viewButton);
+
+    expect(mockRouter.push).toHaveBeenCalledWith("/profiles/profile123");
+  });
+
+  test("handles missing optional fields gracefully", () => {
+    const minimalProfile = {
+      userId: "profile123",
+      username: "johndoe",
+      displayName: "John Doe",
+      bio: "Short bio",
+      hasApproval: false,
+    };
+
+    render(<ProfileSummaryCard profile={minimalProfile as any} />);
+
+    expect(screen.getByText("John Doe")).toBeInTheDocument();
+    expect(screen.getByText("Short bio")).toBeInTheDocument();
+    expect(screen.queryByText(/Senior Engineer/)).not.toBeInTheDocument();
+  });
+
+  test("displays correct number of skills when less than 5", () => {
+    const smallSkillProfile = {
+      ...mockProfile,
+      skills: ["React", "Node.js"],
+    };
+
+    render(<ProfileSummaryCard profile={smallSkillProfile} />);
+
+    expect(screen.getByText("React")).toBeInTheDocument();
+    expect(screen.getByText("Node.js")).toBeInTheDocument();
+    expect(screen.queryByText(/\+\d+ more/)).not.toBeInTheDocument();
+  });
+});

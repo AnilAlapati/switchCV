@@ -1,0 +1,46 @@
+name: Auto Cleanup & Health Check
+
+on:
+  push:
+    branches: [feature/Nov_15, develop, main]
+  pull_request:
+    branches: [feature/Nov_15, develop, main]
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Clean npm cache
+        run: npm cache clean --force || true
+
+      - name: Check for large files
+        run: |
+          echo "Checking for files > 50MB..."
+          find . -type f -size +50M -not -path "./.git/*" -not -path "./node_modules/*" || true
+
+      - name: Repository health check
+        run: |
+          echo "Running health check..."
+          chmod +x scripts/check-repo-health.sh
+          ./scripts/check-repo-health.sh || true
+
+      - name: Git integrity check
+        run: |
+          git fsck --no-progress || echo "Git fsck completed with warnings"
+
+  disk-space-alert:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check disk space
+        run: |
+          df -h
+          DISK_USAGE=$(df . | tail -1 | awk '{print substr($5, 1, length($5)-1)}')
+          if [ "$DISK_USAGE" -ge 80 ]; then
+            echo "::warning::Disk usage is high: ${DISK_USAGE}%"
+          fi

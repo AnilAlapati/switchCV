@@ -2,18 +2,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "./useAuth";
 import { ResumeProfile } from "@/types";
 
 interface ResumeProfileWithId extends ResumeProfile {
   id: string;
+  numericId?: number;
 }
 
 export const useResume = () => {
   const { user } = useAuth();
   const [resume, setResume] = useState<ResumeProfileWithId | null>(null);
+  const [resumes, setResumes] = useState<ResumeProfileWithId[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refetchTrigger, setRefetchTrigger] = useState(0);
@@ -21,6 +23,9 @@ export const useResume = () => {
   useEffect(() => {
     const fetchUserResume = async () => {
       if (!user) {
+        setResume(null);
+        setResumes([]);
+        setError(null);
         setLoading(false);
         return;
       }
@@ -30,21 +35,60 @@ export const useResume = () => {
         setError(null);
 
         // Query for user's resume profiles
-        const resumesRef = collection(db, "resumeProfiles");
-        const q = query(resumesRef, where("userId", "==", user.uid));
+        // 1. Try new 'resumes' collection first
+        const resumesRef = collection(db, "resumes");
+        const q = query(resumesRef, where("userId", "==", user.uid), limit(20));
         const querySnapshot = await getDocs(q);
 
         if (!querySnapshot.empty) {
-          // Get the first (most recent) resume
-          const resumeDoc = querySnapshot.docs[0];
-          const resumeData: ResumeProfileWithId = {
-            ...(resumeDoc.data() as ResumeProfile),
-            id: resumeDoc.id,
-          };
-          setResume(resumeData);
-          setResume(resumeData);
+          const allResumes = querySnapshot.docs.map((doc) => ({
+            ...(doc.data() as any),
+            id: doc.id,
+            numericId: doc.data().numericId,
+          }));
+
+          // Sort by createdAt desc (newest first)
+          allResumes.sort((a, b) => {
+            const dateA = new Date(a.createdAt || 0).getTime();
+            const dateB = new Date(b.createdAt || 0).getTime();
+            return dateB - dateA;
+          });
+
+          console.log(`Loaded ${allResumes.length} resumes from 'resumes'`);
+          setResumes(allResumes);
+          setResume(allResumes[0]); // Set the most recent one as primary
         } else {
-          setResume(null);
+          // 2. Fallback to legacy 'resumeProfiles'
+          const legacyResumesRef = collection(db, "resumeProfiles");
+          const legacyQ = query(
+            legacyResumesRef,
+            where("userId", "==", user.uid),
+            limit(20)
+          );
+          const legacySnapshot = await getDocs(legacyQ);
+
+          if (!legacySnapshot.empty) {
+            const allLegacyResumes = legacySnapshot.docs.map((doc) => ({
+              ...(doc.data() as ResumeProfile),
+              id: doc.id,
+            }));
+            // Sort by createdAt desc (newest first)
+            allLegacyResumes.sort((a, b) => {
+              const dateA = new Date(a.lastUpdatedAt || 0).getTime();
+              const dateB = new Date(b.lastUpdatedAt || 0).getTime();
+              return dateB - dateA;
+            });
+
+            console.log(
+              `Loaded ${allLegacyResumes.length} resumes from 'resumeProfiles'`
+            );
+            setResumes(allLegacyResumes);
+            setResume(allLegacyResumes[0]);
+          } else {
+            console.log("No resume found for user");
+            setResume(null);
+            setResumes([]);
+          }
         }
       } catch (err) {
         console.error("Error fetching resume:", err);
@@ -61,16 +105,24 @@ export const useResume = () => {
     return resume !== null;
   };
 
-  const getResumeSlug = () => {
-    return resume?.slug || null;
+  const getResumeId = () => {
+    // Use numericId if available, otherwise fall back to Firestore document ID
+    const id = resume?.numericId || resume?.id || null;
+    console.log("Resume ID resolved:", {
+      numericId: resume?.numericId,
+      docId: resume?.id,
+      resolved: id,
+    });
+    return id;
   };
 
   return {
     resume,
+    resumes,
     loading,
     error,
     hasResume: hasResume(),
-    resumeSlug: getResumeSlug(),
+    resumeId: getResumeId(),
     refetch: () => {
       if (user) {
         setRefetchTrigger((prev) => prev + 1);

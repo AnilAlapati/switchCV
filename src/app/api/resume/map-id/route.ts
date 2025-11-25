@@ -1,0 +1,53 @@
+import { NextRequest, NextResponse } from "next/server";
+import { mapResumeId } from "@/lib/resumeIdMapping";
+import {
+  getAuthenticatedUserId,
+  handleApiError,
+} from "@/lib/utils/api-helpers";
+
+/**
+ * POST /api/resume/map-id
+ * Creates a mapping between a numeric resume ID and its Firestore document ID
+ * This is called after a resume is created to enable lookups by numeric ID
+ */
+export async function POST(request: NextRequest) {
+  try {
+    // Verify Authentication
+    const { userId, error: authError } = await getAuthenticatedUserId(request);
+    if (authError) {
+      return authError;
+    }
+
+    // Parse request body
+    const { resumeId, documentId } = await request.json();
+
+    if (!resumeId || !documentId) {
+      return handleApiError(
+        new Error("Missing resumeId or documentId"),
+        "Missing resumeId or documentId",
+        400
+      );
+    }
+
+    // Create the mapping
+    await mapResumeId(resumeId, documentId, userId!);
+
+    console.log("✅ Resume ID mapping created via API:", {
+      resumeId,
+      documentId,
+      userId,
+    });
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: "Resume ID mapping created",
+        data: { resumeId, documentId },
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error("❌ Error creating resume ID mapping:", error);
+    return handleApiError(error, "Failed to create resume ID mapping");
+  }
+}

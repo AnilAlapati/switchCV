@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/hooks/useAuth";
+import { ConnectivityStatusProvider } from "@/context/ConnectivityStatusProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,6 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://switchcv.com"),
   title: "SwitchCV - Privacy-First Living Resume Platform",
   description:
     "Create and share your professional resume with privacy controls and AI-powered polishing.",
@@ -29,7 +31,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <AuthProvider>{children}</AuthProvider>
+        <ConnectivityStatusProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </ConnectivityStatusProvider>
       </body>
     </html>
   );

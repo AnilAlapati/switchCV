@@ -1,66 +1,188 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import CreateResume from "@/app/create-resume/page";
+import { useAuth } from "@/hooks/useAuth";
+import { useRouter } from "next/navigation";
 
-// Mock the hooks
-jest.mock("@/hooks/useAuth", () => ({
-  useAuth: () => ({
-    user: { uid: "test-user-id" },
-    loading: false,
-  }),
-}));
-
-// Mock Next.js router
+// Mock hooks
+jest.mock("@/hooks/useAuth");
 jest.mock("next/navigation", () => ({
-  useRouter: () => ({
-    push: jest.fn(),
-  }),
+  useRouter: jest.fn(),
 }));
 
-// Mock resume questions
-jest.mock("@/config/resumeQuestions", () => ({
-  resumeQuestions: [
-    {
-      id: "personal_name",
-      question: "What's your full name?",
-      type: "text",
-      required: true,
-      placeholder: "e.g., John Doe",
-      category: "personal"
-    }
-  ],
-  getQuestionById: (id: string) => ({
-    id: "personal_name",
-    question: "What's your full name?",
-    type: "text",
-    required: true,
-    placeholder: "e.g., John Doe",
-    category: "personal"
-  })
+// Mock components
+jest.mock("@/components/create-resume/CreateResumeHeader", () => ({
+  CreateResumeHeader: () => <div data-testid="create-resume-header" />,
+}));
+jest.mock("@/components/create-resume/CreateResumeInputForm", () => ({
+  CreateResumeInputForm: ({ onInputChange, onSubmit, currentInput }: any) => (
+    <form onSubmit={onSubmit} data-testid="input-form">
+      <input
+        value={currentInput}
+        onChange={(e) => onInputChange(e.target.value)}
+        data-testid="chat-input"
+      />
+      <button type="submit">Send</button>
+    </form>
+  ),
+}));
+jest.mock("@/components/create-resume/AILoadingState", () => ({
+  AILoadingState: ({ aiLoading, aiError }: any) => (
+    <div data-testid="ai-loading-state">
+      {aiLoading && "Loading..."}
+      {aiError && `Error: ${aiError}`}
+    </div>
+  ),
+}));
+jest.mock("@/components/create-resume/ResumeProgress", () => ({
+  ResumeProgress: ({ progress }: any) => (
+    <div data-testid="resume-progress">{progress}%</div>
+  ),
 }));
 
-describe("CreateResume", () => {
+describe("CreateResume Page", () => {
+  const mockRouter = { push: jest.fn() };
+  const mockUser = {
+    uid: "test-user-id",
+    getIdToken: jest.fn().mockResolvedValue("mock-token"),
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
+    (useRouter as jest.Mock).mockReturnValue(mockRouter);
+    (useAuth as jest.Mock).mockReturnValue({
+      user: mockUser,
+      loading: false,
+    });
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ connected: true }),
+    });
   });
 
-  it("should render the create resume page", () => {
-    render(<CreateResume />);
+  it("redirects to auth if user is not logged in", () => {
+    (useAuth as jest.Mock).mockReturnValue({
+      user: null,
+      loading: false,
+    });
 
-    expect(screen.getByText("Resume Assistant")).toBeInTheDocument();
-    expect(screen.getByText("What's your full name?")).toBeInTheDocument();
+    render(<CreateResume />);
+    expect(mockRouter.push).toHaveBeenCalledWith("/auth?mode=verify-email");
   });
 
-  it("should allow input and submission", () => {
+  it("shows loading state when auth is loading", () => {
+    (useAuth as jest.Mock).mockReturnValue({
+      user: null,
+      loading: true,
+    });
+
+    render(<CreateResume />);
+    expect(screen.getByText("Loading...")).toBeInTheDocument();
+  });
+
+  it("renders the chat interface when user is logged in", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ connected: true }),
+    });
+
     render(<CreateResume />);
 
-    const input = screen.getByPlaceholderText("e.g., John Doe");
-    const button = screen.getByText("Next");
+    expect(screen.getByTestId("create-resume-header")).toBeInTheDocument();
+    expect(
+      screen.getByText("Let's Build Your Perfect Resume")
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("input-form")).toBeInTheDocument();
+  });
 
-    fireEvent.change(input, { target: { value: "John Doe" } });
-    fireEvent.click(button);
+  it("handles user input and API submission", async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ connected: true }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          response: "I can help with that.",
+          sessionData: { progress: { collectedFields: [], missingFields: [] } },
+          progress: 20,
+        }),
+      });
 
-    // Should still show the same question since we haven't implemented navigation yet
-    expect(screen.getByText("What's your full name?")).toBeInTheDocument();
+    render(<CreateResume />);
+
+    const input = screen.getByTestId("chat-input");
+    fireEvent.change(input, { target: { value: "I am a software engineer" } });
+    fireEvent.submit(screen.getByTestId("input-form"));
+
+    expect(screen.getByText("I am a software engineer")).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/resume/generate",
+        expect.objectContaining({
+          method: "POST",
+          body: expect.stringContaining("I am a software engineer"),
+        })
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("I can help with that.")).toBeInTheDocument();
+      const resumeProgressElements = screen.getAllByTestId("resume-progress");
+      expect(resumeProgressElements[0]).toHaveTextContent("20%");
+    });
+  });
+
+  it("handles API errors gracefully", async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ connected: true }),
+      })
+      .mockRejectedValueOnce(new Error("API Error"));
+
+    render(<CreateResume />);
+
+    const input = screen.getByTestId("chat-input");
+    fireEvent.change(input, { target: { value: "Hello" } });
+    fireEvent.submit(screen.getByTestId("input-form"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Error: API Error")).toBeInTheDocument();
+    });
+  });
+
+  it("redirects to resume page when generation is complete", async () => {
+    jest.useFakeTimers();
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ connected: true }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          response: "Resume complete!",
+          resumeId: "new-resume-123",
+          progress: 100,
+        }),
+      });
+
+    render(<CreateResume />);
+
+    const input = screen.getByTestId("chat-input");
+    fireEvent.change(input, { target: { value: "Finish" } });
+    fireEvent.submit(screen.getByTestId("input-form"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Resume complete!")).toBeInTheDocument();
+    });
+
+    jest.advanceTimersByTime(2000);
+
+    expect(mockRouter.push).toHaveBeenCalledWith("/resumes/new-resume-123");
+    jest.useRealTimers();
   });
 });

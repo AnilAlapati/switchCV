@@ -1,0 +1,36 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "🔍 Running automatic health checks..."
+
+# Check disk space
+DISK_USAGE=$(df . | tail -1 | awk '{print substr($5, 1, length($5)-1)}')
+if [ "$DISK_USAGE" -ge 95 ]; then
+    echo "❌ ERROR: Disk is ${DISK_USAGE}% full. Cleaning up..."
+    
+    # Auto-cleanup
+    npm cache clean --force 2>/dev/null || true
+    rm -rf .next/cache 2>/dev/null || true
+    rm -rf node_modules/.cache 2>/dev/null || true
+    
+    echo "✅ Cleanup done. Please try again."
+    exit 1
+elif [ "$DISK_USAGE" -ge 90 ]; then
+    echo "⚠️  WARNING: Disk is ${DISK_USAGE}% full. Auto-cleaning..."
+    npm cache clean --force 2>/dev/null || true
+    rm -rf .next/cache 2>/dev/null || true
+fi
+
+# Remove any lock files automatically
+rm -f .git/*.lock 2>/dev/null || true
+
+# Check git index
+if ! git ls-files >/dev/null 2>&1; then
+    echo "❌ Git index corrupted. Rebuilding..."
+    rm -f .git/index
+    git reset 2>/dev/null || true
+fi
+
+echo "✅ Health check passed. Running linter..."
+
+npx lint-staged

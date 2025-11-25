@@ -1,63 +1,55 @@
-# SwitchCV - Privacy-First Living Resume Platform
+# SwitchCV
 
-A modern resume platform where users create structured, AI-polished resumes with granular privacy controls and shareable unique URLs.
+## Project Overview
 
-## ✨ Features
+SwitchCV is a resume creation and recruitment platform.
 
-- **Living Resume**: Structured, versioned resume data
-- **Privacy Controls**: Per-field PII masking with recruiter request/approval flow
-- **AI Polish**: LLM-powered resume text generation using multiple AI models
-- **Shareable URLs**: Unique slugs for easy sharing
-- **Recruiter Portal**: Request access to masked contact information
-- **Modern UI**: Futuristic design with glassmorphism effects
+## Documentation
 
-## 🛠️ Tech Stack
+The documentation has been organized into the `docs/` directory:
 
-- **Frontend**: Next.js 16, TypeScript, Tailwind CSS
-- **Backend**: Firebase (Auth, Firestore, Cloud Functions, Storage)
-- **AI**: Hugging Face Inference API (Mistral 7B, GPT-2, FLAN-T5)
-- **Deployment**: Vercel + Firebase
+- **[Architecture](docs/architecture/)**: System architecture, backend services, and database rules.
+- **[Features](docs/features/)**: Detailed feature specifications, implementation guides, and completion reports.
+- **[Setup](docs/setup/)**: Quick start guides and setup instructions.
+- **[Reports](docs/reports/)**: Session summaries and status reports.
+- **[Testing](docs/testing/TEST_PLAN.md)**: Test plans and QA documentation.
+- **[API](docs/api/)**: API route definitions.
 
-## 🚀 Quick Start
+## Getting Started
 
-See detailed setup instructions in **[documents/SETUP.md](./documents/SETUP.md)**
+### Prerequisites
+
+- Node.js
+- Firebase CLI
+
+### Installation
 
 ```bash
-# Clone and install
-git clone https://github.com/AnilAlapati/switchCV.git
-cd switchCV && npm install
-cd functions && npm install && npm run build && cd ..
-
-# Start development (in separate terminals)
-npm run dev
-firebase emulators:start --only functions
+npm install
 ```
 
-## 📚 Documentation
+### Development
 
-- **[SETUP.md](./documents/SETUP.md)** - Complete setup guide
-- **[TROUBLESHOOTING.md](./documents/TROUBLESHOOTING.md)** - Solutions to common issues  
-- **[FIX_SUMMARY.md](./documents/FIX_SUMMARY.md)** - Recent fixes (Nov 11, 2025)
-- **[DEVELOPMENT.md](./documents/DEVELOPMENT.md)** - Technical details
-- **[CONTRIBUTING.md](./documents/CONTRIBUTING.md)** - Contribution guidelines
-- **[status.md](./documents/status.md)** - Project status
+```bash
+npm run dev
+```
 
-## 📊 Current Status
+### Build
 
-**MVP Progress: ~75% Complete**
+```bash
+npm run build
+```
 
-✅ Authentication, UI, Firebase integration, AI, Testing (81.62% coverage)  
-🚧 Public pages, Recruiter workflow  
-📋 Production deployment, Advanced features
+### Testing
 
-## 🤝 Contributing
+```bash
+npm test
+```
 
-See [CONTRIBUTING.md](./documents/CONTRIBUTING.md) for guidelines.
+## Project Structure
 
-## 📝 License
-
-MIT License
-
----
-
-_Built with ❤️ for the future of resume sharing_
+- `src/`: Source code (Next.js App Router)
+- `scripts/`: Utility and maintenance scripts
+- `docs/`: Project documentation
+- `functions/`: Firebase Cloud Functions
+- `public/`: Static assets

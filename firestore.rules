@@ -11,28 +11,238 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Recruiter requests - users can read/write their own, recruiters can create
-    match /recruiterRequests/{requestId} {
-      allow read: if request.auth != null && (
-        request.auth.uid == resource.data.toUserId ||
-        request.auth.uid == resource.data.fromRecruiter.recruiterId
-      );
-      allow create: if request.auth != null;
-      allow update: if request.auth != null && request.auth.uid == resource.data.toUserId;
+    // Username reservations (used during signup/profile completion)
+    match /usernames/{usernameId} {
+      allow get: if request.auth != null; // Needed to check if a username is available
+      allow list: if false; // Prevent bulk username scraping
+      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.uid == request.auth.uid;
     }
+
+    // Resume templates (read-only for clients)
+    match /templates/{templateId} {
+      allow read: if true; // Templates are public assets for rendering resumes
+      allow write: if false; // Managed via backend/admin tooling only
+    }
+
+    // ==================== RECRUITER WORKFLOW ====================
+
+    // Recruiter contact requests
+    match /recruiterRequests/{requestId} {
+      // Candidate can read their own requests
+      allow read: if request.auth != null && request.auth.uid == resource.data.toUserId;
+      // Recruiter can read their own requests
+      allow read: if request.auth != null && request.auth.uid == resource.data.fromRecruiter.recruiterId;
+      // Admins can read all requests (add role check if needed)
+      allow read: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      
+      // SECURITY FIX: Recruiters can create requests only with proper validation
+      // - Must be authenticated
+      // - Must have recruiter role
+      // - fromRecruiter.recruiterId must match the authenticated user
+      // - Required fields must be present
+      allow create: if request.auth != null 
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'recruiter'
+        && request.resource.data.fromRecruiter.recruiterId == request.auth.uid
+        && request.resource.data.toUserId is string
+        && request.resource.data.status == 'pending';
+      
+      // Only admins can update (to approve/deny)
+      allow update: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      
+      // Prevent deletion
+      allow delete: if false;
+    }
+
+    // Access tokens for recruiter PII access
+    match /accessTokens/{tokenId} {
+      // Recruiters can read their own tokens
+      allow read: if request.auth != null && request.auth.uid == resource.data.recruiterId;
+      // Candidates can verify tokens for their data
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      
+      // Only backend can create tokens
+      allow create: if false;
+      
+      // Only backend can update (revoke, track usage)
+      allow update: if false;
+      
+      // Prevent deletion
+      allow delete: if false;
+    }
+
+    // Recruiter notifications
+    match /recruiterNotifications/{notificationId} {
+      // Recruiters can read their own notifications
+      allow read: if request.auth != null && request.auth.uid == resource.data.recruiterId;
+      // Recruiters can update their own (mark as read)
+      allow update: if request.auth != null && request.auth.uid == resource.data.recruiterId;
+      
+      // Prevent creation/deletion by users (backend only)
+      allow create: if false;
+      allow delete: if false;
+    }
+
+    // Recruiter search history (server-side analytics & retention only)
+    match /recruiterSearchHistory/{eventId} {
+      // Clients should never read or write raw search history directly; these
+      // documents contain telemetry used for aggregate dashboards only.
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // Admin notifications for request review
+    match /adminNotifications/{notificationId} {
+      // Only admins can read
+      allow read: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Admins can update (mark as read)
+      allow update: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      
+      // Prevent creation/deletion by users
+      allow create: if false;
+      allow delete: if false;
+    }
+
+    // Audit logs for compliance
+    match /auditLogs/{logId} {
+      // Only admins can read audit logs
+      allow read: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      
+      // Users can read their own audit logs (for privacy/GDPR compliance)
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      
+      // Prevent user creation/updates (backend only via Cloud Functions)
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // Email logs for tracking and debugging
+    match /emailLogs/{logId} {
+      // Only admins can read email logs
+      allow read: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      
+      // Users can read their own email logs
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      
+      // Backend only operations
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // Access token audit history
+    match /accessTokenAudit/{auditId} {
+      // Only admins can read
+      allow read: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      
+      // Users can read audit history for their own tokens
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      
+      // Backend only
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // ==================== EXISTING RULES ====================
 
     // Analytics - public read for profile views, write by system
-    match /analytics/{slug}/views {
-      allow read: if true;
-      allow write: if false; // Only allow writes from Cloud Functions
+    match /analytics/{slug} {
+      allow read: if request.auth != null; // Authenticated users only
+      allow write: if request.auth != null; // Authenticated users can write events
+      
+      // Analytics events subcollection
+      match /events/{eventId} {
+        allow read: if request.auth != null; // Authenticated users only
+        allow create: if request.auth != null; // Authenticated users can create events
+        allow delete: if false; // Prevent deletion
+      }
+      
+      // Engagement metrics subcollection
+      match /engagement/{document=**} {
+        allow read: if request.auth != null; // Authenticated users only
+        allow write: if false; // Server-side only
+      }
+      
+      // Request statistics subcollection
+      match /requests/{document=**} {
+        allow read: if request.auth != null; // Authenticated users only
+        allow write: if false; // Server-side only
+      }
+      
+      // View analytics subcollection
+      match /views/{document=**} {
+        allow read: if request.auth != null; // Authenticated users only
+        allow write: if false; // Server-side only
+      }
     }
 
-    // Resume profiles - users can read/write their own, public read for published resumes
+    // Resume profiles - users can read/write their own
     match /resumeProfiles/{profileId} {
-      allow read: if (request.auth != null && request.auth.uid == resource.data.userId) || resource.data.published == true;
+      // Allow authenticated users to read their own resumes
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      
+      // Only authenticated users can create resumes (must be for themselves)
       allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      // Only the owner can update their resume
       allow update: if request.auth != null && request.auth.uid == resource.data.userId;
+      // Only the owner can delete their resume
       allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
+
+      // Access Requests subcollection (existing)
+      match /accessRequests/{requestId} {
+        allow read: if request.auth != null && request.auth.uid == get(/databases/$(database)/documents/resumeProfiles/$(profileId)).data.userId;
+        allow create: if request.auth != null;
+      }
+
+      // Access Grants subcollection (existing)
+      match /accessGrants/{grantId} {
+        allow read: if request.auth != null && request.auth.uid == resource.data.toUserId;
+        allow read: if request.auth != null && request.auth.uid == get(/databases/$(database)/documents/resumeProfiles/$(profileId)).data.userId;
+      }
+    }
+
+    // Notifications
+    match /notifications/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ==================== SYSTEM COLLECTIONS ====================
+    
+    // System configuration and ID generator
+    // These are backend/server-only operations
+    // Backend (Cloud Functions, authenticated server endpoints) can read/write
+    // Clients cannot access directly
+    match /system/{document=**} {
+      // Deny all client access to system collections
+      // The system collection should only be accessed via:
+      // 1. Cloud Functions (server-side operations)
+      // 2. Authenticated Next.js API routes that verify permissions
+      allow read: if false;
+      allow write: if false;
+      
+      // For future reference: if you need to allow Cloud Functions access,
+      // they use the Firebase Admin SDK which bypasses these rules automatically
+    }
+
+    // New Resumes Collection (Sequential IDs)
+    match /resumes/{resumeId} {
+      // Allow authenticated users to read their own resumes
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      
+      // Only authenticated users can create resumes (must be for themselves)
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      // Only the owner can update their resume
+      allow update: if request.auth != null && request.auth.uid == resource.data.userId;
+      // Only the owner can delete their resume
+      allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+
+    // Global Resumes Collection (for search/listing)
+    match /allResumes/{resumeId} {
+      allow read: if request.auth != null; // Authenticated users only
+      allow write: if false; // Only backend can write
     }
   }
 }

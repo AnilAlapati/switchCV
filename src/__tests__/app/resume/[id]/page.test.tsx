@@ -1,162 +1,112 @@
-import React from "react";
-import "@testing-library/jest-dom";
 import { render, screen, waitFor } from "@testing-library/react";
+import ResumeView from "@/app/resumes/[id]/page";
+import { useParams } from "next/navigation";
 
-// Mock Firebase completely before any imports
-jest.mock("firebase/app", () => ({
-  initializeApp: jest.fn(),
-}));
+// Mock fetch globally
+global.fetch = jest.fn();
 
-jest.mock("firebase/auth", () => ({
-  getAuth: jest.fn(),
-}));
-
-jest.mock("firebase/storage", () => ({
-  getStorage: jest.fn(),
-}));
-
-jest.mock("firebase/functions", () => ({
-  getFunctions: jest.fn(),
-}));
-
-// Mock Next.js navigation
-const mockParams: { id?: string } = { id: "test-resume-id" };
 jest.mock("next/navigation", () => ({
-  useParams: () => mockParams,
+  useParams: jest.fn(),
 }));
 
-// Mock Firebase config
 jest.mock("@/lib/firebase", () => ({
-  db: "mock-db",
+  db: {},
 }));
 
-// Mock resume data
-const mockResumeData = {
-  title: "Software Engineer Resume",
-  summary: "Experienced software engineer with expertise in React and Node.js",
-  skills: [
-    { name: "JavaScript", level: "Expert" },
-    { name: "React", level: "Expert" },
-    { name: "Node.js", level: "Advanced" },
-  ],
-  experience: [
-    {
-      company: "Tech Corp",
-      role: "Senior Developer",
-      startDate: "Jan 2020",
-      endDate: "Present",
-      description: "Led development of web applications",
-    },
-  ],
-  education: [
-    {
-      institution: "University of Tech",
-      degree: "Bachelor of Science",
-      startDate: "2016",
-      endDate: "2020",
-      description: "Computer Science major",
-    },
-  ],
-  contact: {
-    email: { value: "john.doe@example.com", visibility: "public" },
-    phone: { value: "+1234567890", visibility: "public" },
-  },
-  projects: [
-    {
-      name: "Portfolio Website",
-      description: "Personal portfolio built with React",
-      url: "https://portfolio.example.com",
-    },
-  ],
-  generatedText: {
-    polished: JSON.stringify({
-      enhancedSummary:
-        "Highly skilled software engineer with extensive experience...",
-      enhancedExperience: [
-        {
-          enhancedDescription:
-            "Successfully led development teams and delivered complex projects...",
-        },
-      ],
-      skillSuggestions: ["TypeScript", "AWS"],
+jest.mock("@/lib/services/templateService", () => ({
+  templateService: {
+    getTemplateById: jest.fn().mockResolvedValue({
+      id: "standard-v1",
+      name: "Standard",
     }),
   },
-  lastUpdatedAt: "2024-01-15T10:00:00Z",
-};
-
-// Mock firestore completely with inline functions
-jest.mock("firebase/firestore", () => ({
-  collection: jest.fn(),
-  query: jest.fn(),
-  where: jest.fn(),
-  getDocs: jest.fn(),
 }));
 
-// Import component after all mocks are set up
-import PublicResume from "@/app/resume/[id]/page";
-import { collection, query, where, getDocs } from "firebase/firestore";
+jest.mock("@/components/resume/TemplateRenderer", () => ({
+  TemplateRenderer: () => null,
+}));
 
-describe("PublicResume", () => {
+jest.mock("@/hooks/useAuth", () => ({
+  useAuth: () => ({
+    user: {
+      uid: "test-user",
+      email: "test@example.com",
+      getIdToken: jest.fn().mockResolvedValue("test-token"),
+    },
+    loading: false,
+  }),
+}));
+
+describe("ResumeView", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // Set up default success mock
-    (getDocs as jest.Mock).mockResolvedValue({
-      empty: false,
-      docs: [
-        {
-          data: () => mockResumeData,
-        },
-      ],
-    });
-    mockParams.id = "test-resume-id";
+    (global.fetch as jest.Mock).mockClear();
   });
 
   it("should show loading state initially", () => {
-    render(<PublicResume />);
+    (useParams as jest.Mock).mockReturnValue({ id: "123" });
+    // Mock fetch to never resolve to test loading state
+    (global.fetch as jest.Mock).mockReturnValue(new Promise(() => {}));
 
+    render(<ResumeView />);
     expect(screen.getByText("Loading resume...")).toBeInTheDocument();
   });
 
-  it("should fetch resume data on mount", async () => {
-    render(<PublicResume />);
+  it("should show resume not found if API returns 404", async () => {
+    (useParams as jest.Mock).mockReturnValue({ id: "123" });
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      status: 404,
+    });
+
+    render(<ResumeView />);
 
     await waitFor(() => {
-      expect(collection).toHaveBeenCalledWith("mock-db", "resumeProfiles");
-      expect(where).toHaveBeenCalledWith("slug", "==", "test-resume-id");
-      expect(query).toHaveBeenCalled();
-      expect(getDocs).toHaveBeenCalled();
+      expect(screen.getByText(/Resume not found/i)).toBeInTheDocument();
     });
   });
 
-  it("should display resume title and header", async () => {
-    render(<PublicResume />);
+  it("should render resume data when found", async () => {
+    (useParams as jest.Mock).mockReturnValue({ id: "123" });
+    const mockResume = {
+      title: "My Resume",
+      numericId: 1001,
+      updatedAt: new Date().toISOString(),
+      summary: "My summary",
+      skills: ["React", "Node"],
+      personalInfo: {
+        name: "John Doe",
+        email: "john@example.com",
+      },
+    };
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: jest.fn().mockResolvedValue(mockResume),
+    });
+
+    const { container } = render(<ResumeView />);
 
     await waitFor(() => {
-      expect(screen.getByText("Software Engineer Resume")).toBeInTheDocument();
-      expect(screen.getByText("Professional Resume")).toBeInTheDocument();
+      // Verify fetch was called with the resume ID
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/resumes/123"),
+        expect.any(Object)
+      );
+      // Verify the component renders without error and shows the privacy toggle
+      expect(container.textContent).toContain("Private");
     });
   });
 
-  it("should handle resume not found", async () => {
-    (getDocs as jest.Mock).mockResolvedValueOnce({
-      empty: true,
-      docs: [],
-    });
+  it("should handle errors", async () => {
+    (useParams as jest.Mock).mockReturnValue({ id: "123" });
+    (global.fetch as jest.Mock).mockRejectedValue(new Error("Fetch error"));
 
-    render(<PublicResume />);
+    const { container } = render(<ResumeView />);
 
     await waitFor(() => {
-      expect(screen.getByText("Resume not found")).toBeInTheDocument();
-    });
-  });
-
-  it("should handle fetch error", async () => {
-    (getDocs as jest.Mock).mockRejectedValueOnce(new Error("Network error"));
-
-    render(<PublicResume />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Failed to load resume")).toBeInTheDocument();
+      // Component shows error message in the error display
+      const errorText = container.textContent;
+      expect(errorText).toContain("Fetch error");
     });
   });
 });
