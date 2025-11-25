@@ -5,7 +5,7 @@ This guide explains how to automate the deployment of SwitchCV using GitHub Acti
 ## 🚀 How it Works
 
 We use a **GitHub Actions Workflow** defined in `.github/workflows/deploy.yml`.
-Every time you push code to the `main` branch, this workflow automatically:
+Every time you push code to the `develop` branch, this workflow automatically:
 
 1.  Checks out your code.
 2.  Installs dependencies (`npm ci`).
@@ -82,12 +82,12 @@ _(Note: You can find your Service Account email in the Google Cloud Console IAM 
 
 ### Production Deployment
 
-Simply push or merge your changes to the `main` branch.
+Simply push or merge your changes to the `develop` branch.
 
 ```bash
-git checkout main
+git checkout develop
 git merge feature/new-feature
-git push origin main
+git push origin develop
 ```
 
 The "Deploy to Firebase Hosting on merge" action will start automatically. You can watch its progress in the **Actions** tab of your GitHub repository.
