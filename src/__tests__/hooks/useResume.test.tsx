@@ -19,6 +19,7 @@ jest.mock("firebase/firestore", () => ({
   collection: jest.fn(),
   query: jest.fn(),
   where: jest.fn(),
+  limit: jest.fn(),
   getDocs: jest.fn(),
 }));
 
@@ -38,7 +39,7 @@ describe("useResume", () => {
     expect(result.current.loading).toBe(false); // Hook sets loading to false when no user
     expect(result.current.error).toBeNull();
     expect(result.current.hasResume).toBe(false);
-    expect(result.current.resumeSlug).toBeNull();
+    expect(result.current.resumeId).toBeNull();
   });
 
   it("should fetch resume when user exists", async () => {
@@ -79,7 +80,7 @@ describe("useResume", () => {
     });
     expect(result.current.error).toBeNull();
     expect(result.current.hasResume).toBe(true);
-    expect(result.current.resumeSlug).toBe("test-slug");
+    expect(result.current.resumeId).toBe("resume-id");
   });
 
   it("should handle no resume found", async () => {
@@ -106,7 +107,7 @@ describe("useResume", () => {
 
     expect(result.current.resume).toBeNull();
     expect(result.current.hasResume).toBe(false);
-    expect(result.current.resumeSlug).toBeNull();
+    expect(result.current.resumeId).toBeNull();
   });
 
   it("should handle fetch error", async () => {

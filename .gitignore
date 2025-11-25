@@ -13,6 +13,7 @@
 
 # testing
 /coverage
+coverage-*/
 
 # next.js
 /.next/
@@ -32,7 +33,11 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
-.env*
+.env
+.env.local
+.env.local.backup
+.env*.local
+!.env.example
 
 # vercel
 .vercel
@@ -40,3 +45,17 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+node_modules_old/
+*.skip
+
+# firebase
+.firebase/
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+
+# functions
+functions/lib/
+
+# logs
+test-output.log

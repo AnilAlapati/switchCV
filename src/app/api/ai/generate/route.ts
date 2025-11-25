@@ -1,292 +1,281 @@
-// API Route for AI text generation
-// This runs server-side, avoiding CORS and keeping API keys secure
-
 import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "crypto";
+import { z } from "zod";
+import { generateText } from "@/lib/services/aiGenerationService";
+import admin, { adminDb } from "@/lib/firebase-admin";
+import {
+  getAuthenticatedUserId,
+  handleApiError,
+} from "@/lib/utils/api-helpers";
+import { logger } from "@/lib/logger";
 
-interface GenerateRequest {
-  prompt: string;
-  maxTokens?: number;
-  temperature?: number;
+/**
+ * Zod schema for AI generation request validation
+ */
+const GenerateRequestSchema = z.object({
+  prompt: z
+    .string()
+    .min(1, "Prompt is required")
+    .max(2000, "Prompt exceeds maximum length of 2000 characters"),
+  maxTokens: z
+    .number()
+    .int()
+    .min(1, "maxTokens must be at least 1")
+    .max(4000, "maxTokens cannot exceed 4000")
+    .optional()
+    .default(150),
+  temperature: z
+    .number()
+    .min(0, "Temperature must be between 0 and 2")
+    .max(2, "Temperature must be between 0 and 2")
+    .optional()
+    .default(0.9),
+});
+
+interface Entitlement {
+  plan: "basic" | "premium" | "enterprise" | string;
 }
 
-// Cache for available models (expires after 24 hours)
-let modelCache: {
-  models: string[];
-  timestamp: number;
-} | null = null;
-
-const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
-
-// Preferred model patterns (in order of preference)
-const MODEL_PREFERENCES = [
-  "gemini-2.5-flash-lite",
-  "gemini-2.0-flash-lite",
-  "gemini-flash-lite-latest",
-  "gemini-2.5-flash",
-  "gemini-2.0-flash",
-  "gemini-flash-latest",
-  "gemini-2.5-pro",
-  "gemini-pro-latest",
-];
-
-// Fetch and cache available Gemini models
-async function getAvailableGeminiModels(apiKey: string): Promise<string[]> {
-  // Return cached models if still valid
-  if (modelCache && Date.now() - modelCache.timestamp < CACHE_DURATION) {
-    return modelCache.models;
+export class RateLimitError extends Error {
+  constructor(public readonly retryAfterSeconds: number) {
+    super("Too many requests");
+    this.name = "RateLimitError";
   }
+}
+
+export class EntitlementError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "EntitlementError";
+  }
+}
+
+const RATE_LIMIT_WINDOW_MS = Number(
+  process.env.AI_RATE_LIMIT_WINDOW_MS || 60_000
+);
+
+const BASE_LIMIT = Math.max(
+  1,
+  Number(
+    process.env.RATE_LIMIT_AI_GENERATION ||
+      process.env.NEXT_PUBLIC_RATE_LIMIT_AI_GENERATION ||
+      10
+  )
+);
+const PLAN_MULTIPLIER: Record<string, number> = {
+  basic: 0.3,
+  premium: 1,
+  enterprise: 2,
+};
+
+export async function POST(request: NextRequest) {
+  const requestId = randomUUID();
 
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`
-    );
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch models: ${response.status}`);
+    const { userId, error: authError } = await getAuthenticatedUserId(request);
+    if (authError) {
+      return authError;
     }
 
-    const data = await response.json();
-    const models =
-      data.models
-        ?.filter((model: any) =>
-          model.supportedGenerationMethods?.includes("generateContent")
-        )
-        .map((model: any) => model.name.replace("models/", "")) || [];
+    // Parse and validate request body using Zod
+    const body = await request.json();
+    const validationResult = GenerateRequestSchema.safeParse(body);
 
-    // Cache the results
-    modelCache = {
-      models,
-      timestamp: Date.now(),
-    };
-
-    console.log(`📋 Cached ${models.length} available Gemini models`);
-    return models;
-  } catch (error) {
-    console.error("Failed to fetch Gemini models:", error);
-    // Return empty array, will use fallback
-    return [];
-  }
-}
-
-// Get the best available model based on preferences
-function selectBestModel(availableModels: string[]): string {
-  // Try each preference in order
-  for (const preferred of MODEL_PREFERENCES) {
-    const match = availableModels.find((model) =>
-      model.toLowerCase().includes(preferred.toLowerCase())
-    );
-    if (match) {
-      console.log(`✅ Selected model: ${match}`);
-      return match;
+    if (!validationResult.success) {
+      const errorMessage = validationResult.error.issues
+        .map((e: z.ZodIssue) => e.message)
+        .join(", ");
+      logger.warn(
+        { userId, errors: validationResult.error.issues, requestId },
+        "Invalid AI generate request"
+      );
+      return handleApiError(null, errorMessage, 400);
     }
-  }
 
-  // If no preference matched, use the first available model
-  if (availableModels.length > 0) {
-    console.log(`⚠️ Using fallback model: ${availableModels[0]}`);
-    return availableModels[0];
-  }
+    const { prompt, maxTokens, temperature } = validationResult.data;
 
-  // Last resort: try the current known model
-  return "gemini-2.0-flash-lite";
-}
+    const entitlement = await getEntitlement(userId!);
+    enforceEntitlement(entitlement);
 
-// Helper function for Gemini API
-async function generateWithGemini(
-  prompt: string,
-  maxTokens: number = 150,
-  temperature: number = 0.9
-): Promise<{ text: string; model: string }> {
-  const apiKey = process.env.GEMINI_API_KEY;
+    const rateLimit = await enforceRateLimit(userId!, entitlement.plan);
 
-  if (!apiKey) {
-    throw new Error("Gemini API key not configured");
-  }
+    const result = await generateText(prompt, maxTokens, temperature);
 
-  // Get available models and select the best one
-  const availableModels = await getAvailableGeminiModels(apiKey);
-  const modelName = selectBestModel(availableModels);
-
-  console.log(`🤖 Using Gemini model: ${modelName}`);
-
-  // Gemini API endpoint with auto-selected model
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: prompt }],
-          },
-        ],
-        generationConfig: {
-          temperature,
-          maxOutputTokens: maxTokens,
-        },
+    await Promise.all([
+      logUsage({
+        userId: userId!,
+        prompt,
+        model: result.model,
+        plan: entitlement.plan,
+        maxTokens,
+        temperature,
       }),
-    }
-  );
+      logAuditEvent({
+        userId: userId!,
+        prompt,
+        model: result.model,
+        status: "success",
+        requestId,
+      }),
+    ]);
 
-  if (!response.ok) {
-    const errorText = await response.text();
-
-    // If model not found, clear cache and retry once
-    if (response.status === 404 && modelCache) {
-      console.log("⚠️ Model not found, clearing cache and retrying...");
-      modelCache = null;
-
-      // Recursive retry with fresh model list
-      return generateWithGemini(prompt, maxTokens, temperature);
-    }
-
-    throw new Error(`Gemini API error (${response.status}): ${errorText}`);
+    const response = NextResponse.json(result, { status: 200 });
+    attachRateLimitHeaders(response, rateLimit);
+    logger.info(
+      { userId, model: result.model, plan: entitlement.plan, requestId },
+      "AI text generation succeeded"
+    );
+    return response;
+  } catch (error) {
+    return handleRouteError(error);
   }
+}
 
-  const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-  if (!text) {
-    throw new Error("No text generated from Gemini");
-  }
-
+async function getEntitlement(userId: string): Promise<Entitlement> {
+  const snapshot = await adminDb.collection("users").doc(userId).get();
+  const data = snapshot.data();
   return {
-    text: text.trim(),
-    model: modelName,
+    plan: (data?.subscriptionTier as string) || "basic",
   };
 }
 
-// Helper function for HuggingFace API
-async function generateWithHuggingFace(
-  prompt: string,
-  maxTokens: number = 150,
-  temperature: number = 0.9
-): Promise<string> {
-  const token = process.env.HUGGINGFACE_TOKEN;
-
-  if (!token) {
-    throw new Error("HuggingFace token not configured");
+function enforceEntitlement(entitlement: Entitlement): void {
+  if (entitlement.plan === "basic") {
+    throw new EntitlementError(
+      "AI text generation requires a premium or enterprise plan."
+    );
   }
-
-  // HuggingFace Inference API - using text-generation endpoint
-  const response = await fetch(
-    "https://api-inference.huggingface.co/models/google/flan-t5-base",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        inputs: prompt,
-        parameters: {
-          max_new_tokens: maxTokens,
-          temperature,
-        },
-      }),
-    }
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`HuggingFace API error (${response.status}): ${errorText}`);
-  }
-
-  const data = await response.json();
-
-  // Handle different response formats
-  if (Array.isArray(data)) {
-    const text = data[0]?.generated_text;
-    if (!text) {
-      throw new Error("No text generated from HuggingFace");
-    }
-    return text.trim();
-  }
-
-  if (data.error) {
-    // If model is loading, throw with helpful message
-    if (data.error.includes("loading")) {
-      throw new Error("Model is loading, please try again in a moment");
-    }
-    throw new Error(`HuggingFace error: ${data.error}`);
-  }
-
-  // Single object response
-  if (data.generated_text) {
-    return data.generated_text.trim();
-  }
-
-  throw new Error("Unexpected HuggingFace response format");
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const body: GenerateRequest = await request.json();
-    const { prompt, maxTokens = 150, temperature = 0.9 } = body;
+async function enforceRateLimit(userId: string, plan: string) {
+  const planLimit = Math.max(
+    1,
+    Math.round(BASE_LIMIT * (PLAN_MULTIPLIER[plan] ?? PLAN_MULTIPLIER.basic))
+  );
+  const windowStartThreshold = Date.now() - RATE_LIMIT_WINDOW_MS;
+  const docRef = adminDb
+    .collection("rateLimits")
+    .doc(`ai_generation_${userId}`);
 
-    if (!prompt) {
-      return NextResponse.json(
-        { error: "Prompt is required" },
-        { status: 400 }
+  const { remaining, resetTime } = await adminDb.runTransaction(async (tx) => {
+    const doc = await tx.get(docRef);
+    let count = 0;
+    let windowStart = Date.now();
+
+    if (doc.exists) {
+      const data = doc.data();
+      const storedWindowStart =
+        data?.windowStart instanceof admin.firestore.Timestamp
+          ? data.windowStart.toMillis()
+          : typeof data?.windowStart === "number"
+          ? data.windowStart
+          : windowStart;
+
+      if (storedWindowStart > windowStartThreshold) {
+        windowStart = storedWindowStart;
+        count = data?.count || 0;
+      } else {
+        windowStart = Date.now();
+        count = 0;
+      }
+    }
+
+    if (count >= planLimit) {
+      const retryAfterSeconds = Math.max(
+        1,
+        Math.ceil((windowStart + RATE_LIMIT_WINDOW_MS - Date.now()) / 1000)
       );
+      throw new RateLimitError(retryAfterSeconds);
     }
 
-    // Try Gemini first, then fallback to HuggingFace
-    const errors: Record<string, string> = {};
-
-    // Try Gemini
-    try {
-      console.log("🔄 Trying Gemini API...");
-      const result = await generateWithGemini(prompt, maxTokens, temperature);
-      console.log(`✅ Gemini API success with ${result.model}`);
-      return NextResponse.json({
-        text: result.text,
-        model: result.model,
-        provider: "google",
-      });
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : "Unknown error";
-      errors.gemini = errorMsg;
-      console.error("❌ Gemini failed:", errorMsg);
-    }
-
-    // Try HuggingFace as fallback
-    try {
-      console.log("🔄 Trying HuggingFace API...");
-      const text = await generateWithHuggingFace(
-        prompt,
-        maxTokens,
-        temperature
-      );
-      console.log("✅ HuggingFace API success");
-      return NextResponse.json({
-        text,
-        model: "FLAN-T5 Base",
-        provider: "huggingface",
-      });
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : "Unknown error";
-      errors.huggingface = errorMsg;
-      console.error("❌ HuggingFace failed:", errorMsg);
-    }
-
-    // Both failed
-    return NextResponse.json(
+    tx.set(
+      docRef,
       {
-        error: "All AI providers failed",
-        details: errors,
+        userId,
+        scope: "ai_generation",
+        plan,
+        count: count + 1,
+        windowStart: admin.firestore.Timestamp.fromMillis(windowStart),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        expiresAt: admin.firestore.Timestamp.fromMillis(
+          windowStart + RATE_LIMIT_WINDOW_MS * 2
+        ),
       },
-      { status: 503 }
+      { merge: true }
     );
-  } catch (error) {
-    console.error("API route error:", error);
-    return NextResponse.json(
-      {
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
+
+    return {
+      remaining: Math.max(0, planLimit - (count + 1)),
+      resetTime: windowStart + RATE_LIMIT_WINDOW_MS,
+    };
+  });
+
+  return { remaining, resetTime, limit: planLimit };
+}
+
+function attachRateLimitHeaders(
+  response: NextResponse,
+  data: { remaining: number; resetTime: number; limit: number }
+) {
+  response.headers.set("X-RateLimit-Limit", data.limit.toString());
+  response.headers.set("X-RateLimit-Remaining", data.remaining.toString());
+  response.headers.set(
+    "X-RateLimit-Reset",
+    Math.floor(data.resetTime / 1000).toString()
+  );
+}
+
+async function logUsage(params: {
+  userId: string;
+  prompt: string;
+  model: string;
+  plan: string;
+  maxTokens: number;
+  temperature: number;
+}) {
+  await adminDb.collection("aiUsageLogs").add({
+    userId: params.userId,
+    plan: params.plan,
+    scope: "ai_generation",
+    promptChars: params.prompt.length,
+    requestedTokens: params.maxTokens,
+    temperature: params.temperature,
+    model: params.model,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+}
+
+async function logAuditEvent(params: {
+  userId: string;
+  prompt: string;
+  model: string;
+  status: string;
+  requestId: string;
+}) {
+  await adminDb.collection("aiAuditLogs").add({
+    userId: params.userId,
+    prompt: params.prompt.substring(0, 500),
+    model: params.model,
+    status: params.status,
+    requestId: params.requestId,
+    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+  });
+}
+
+function handleRouteError(error: unknown) {
+  if (error instanceof RateLimitError) {
+    const response = handleApiError(
+      error,
+      "Too many requests. Please try again later.",
+      429
     );
+    response.headers.set("Retry-After", error.retryAfterSeconds.toString());
+    return response;
   }
+
+  if (error instanceof EntitlementError) {
+    return handleApiError(error, error.message, 403);
+  }
+
+  return handleApiError(error, "AI text generation failed");
 }

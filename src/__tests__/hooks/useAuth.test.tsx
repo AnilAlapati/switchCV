@@ -1,18 +1,28 @@
-// src/__tests__/hooks/useAuth.test.tsx
-import { renderHook, waitFor } from "@testing-library/react";
-import { ReactNode } from "react";
-import { useAuth, AuthProvider } from "@/hooks/useAuth";
+/* eslint-disable max-lines */
+import { renderHook, waitFor, act } from "@testing-library/react";
+import { useAuth } from "@/hooks/useAuth";
 import {
   User,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
+  signInWithPopup,
+  sendEmailVerification,
 } from "firebase/auth";
+import { createMockUser, TestWrapper } from "./useAuth.helpers";
 
-// Mock Firebase auth
+// Mock ConnectivityStatusProvider
+jest.mock("@/context/ConnectivityStatusProvider", () => ({
+  useConnectivityStatus: jest.fn(() => ({
+    firebase: { isReady: true },
+  })),
+}));
+
+// Mock Firebase auth/firestore exports
 jest.mock("@/lib/firebase", () => ({
   auth: {},
+  db: { __isMock: true },
 }));
 
 // Mock Firebase Auth
@@ -21,6 +31,11 @@ jest.mock("firebase/auth", () => ({
   signInWithEmailAndPassword: jest.fn(),
   createUserWithEmailAndPassword: jest.fn(),
   signOut: jest.fn(),
+  GoogleAuthProvider: jest.fn().mockImplementation(() => ({
+    setCustomParameters: jest.fn(),
+  })),
+  signInWithPopup: jest.fn(),
+  sendEmailVerification: jest.fn(),
 }));
 
 const mockOnAuthStateChanged = jest.mocked(onAuthStateChanged);
@@ -29,11 +44,8 @@ const mockCreateUserWithEmailAndPassword = jest.mocked(
   createUserWithEmailAndPassword
 );
 const mockSignOut = jest.mocked(signOut);
-
-// Test wrapper component
-const TestWrapper = ({ children }: { children: ReactNode }) => (
-  <AuthProvider>{children}</AuthProvider>
-);
+const mockSignInWithPopup = jest.mocked(signInWithPopup);
+const mockSendEmailVerification = jest.mocked(sendEmailVerification);
 
 describe("useAuth", () => {
   let mockUnsubscribe: jest.Mock;
@@ -52,7 +64,7 @@ describe("useAuth", () => {
     });
 
     it("should return auth context when used within AuthProvider", () => {
-      const mockUser = { uid: "test-uid", email: "test@example.com" };
+      const mockUser = createMockUser();
       mockOnAuthStateChanged.mockImplementation((auth, callback) => {
         (callback as (user: User | null) => void)(mockUser as User);
         return mockUnsubscribe;
@@ -67,6 +79,8 @@ describe("useAuth", () => {
       expect(typeof result.current.signIn).toBe("function");
       expect(typeof result.current.signUp).toBe("function");
       expect(typeof result.current.logout).toBe("function");
+      expect(typeof result.current.signInWithGoogle).toBe("function");
+      expect(typeof result.current.resendVerificationEmail).toBe("function");
     });
   });
 
@@ -83,7 +97,7 @@ describe("useAuth", () => {
     });
 
     it("should set user when authenticated", async () => {
-      const mockUser = { uid: "test-uid", email: "test@example.com" };
+      const mockUser = createMockUser();
       mockOnAuthStateChanged.mockImplementation((auth, callback) => {
         (callback as (user: User | null) => void)(mockUser as User);
         return mockUnsubscribe;
@@ -132,7 +146,7 @@ describe("useAuth", () => {
 
   describe("signIn", () => {
     it("should sign in successfully", async () => {
-      const mockUser = { uid: "test-uid", email: "test@example.com" };
+      const mockUser = createMockUser();
       mockOnAuthStateChanged.mockImplementation((auth, callback) => {
         (callback as (user: User | null) => void)(mockUser as User);
         return mockUnsubscribe;
@@ -145,7 +159,9 @@ describe("useAuth", () => {
         wrapper: TestWrapper,
       });
 
-      await result.current.signIn("test@example.com", "password123");
+      await act(async () => {
+        await result.current.signIn("test@example.com", "password123");
+      });
 
       expect(mockSignInWithEmailAndPassword).toHaveBeenCalledWith(
         {},
@@ -162,11 +178,13 @@ describe("useAuth", () => {
         wrapper: TestWrapper,
       });
 
-      await expect(
-        result.current.signIn("test@example.com", "wrongpassword")
-      ).rejects.toThrow(
-        "Invalid email or password. Please check your credentials or sign up first."
-      );
+      await act(async () => {
+        await expect(
+          result.current.signIn("test@example.com", "wrongpassword")
+        ).rejects.toThrow(
+          "Invalid email or password. Please check your credentials or sign up first."
+        );
+      });
     });
 
     it("should handle user not found error", async () => {
@@ -177,11 +195,13 @@ describe("useAuth", () => {
         wrapper: TestWrapper,
       });
 
-      await expect(
-        result.current.signIn("nonexistent@example.com", "password123")
-      ).rejects.toThrow(
-        "No account found with this email. Please sign up first."
-      );
+      await act(async () => {
+        await expect(
+          result.current.signIn("nonexistent@example.com", "password123")
+        ).rejects.toThrow(
+          "No account found with this email. Please sign up first."
+        );
+      });
     });
 
     it("should handle wrong password error", async () => {
@@ -192,9 +212,11 @@ describe("useAuth", () => {
         wrapper: TestWrapper,
       });
 
-      await expect(
-        result.current.signIn("test@example.com", "wrongpassword")
-      ).rejects.toThrow("Incorrect password. Please try again.");
+      await act(async () => {
+        await expect(
+          result.current.signIn("test@example.com", "wrongpassword")
+        ).rejects.toThrow("Incorrect password. Please try again.");
+      });
     });
 
     it("should handle too many requests error", async () => {
@@ -205,30 +227,34 @@ describe("useAuth", () => {
         wrapper: TestWrapper,
       });
 
-      await expect(
-        result.current.signIn("test@example.com", "password123")
-      ).rejects.toThrow(
-        "Too many failed login attempts. Please try again later."
-      );
+      await act(async () => {
+        await expect(
+          result.current.signIn("test@example.com", "password123")
+        ).rejects.toThrow(
+          "Too many failed login attempts. Please try again later."
+        );
+      });
     });
 
     it("should handle generic sign in error", async () => {
-      const mockError = { message: "Network error" };
+      const mockError = new Error("Network error");
       mockSignInWithEmailAndPassword.mockRejectedValue(mockError);
 
       const { result } = renderHook(() => useAuth(), {
         wrapper: TestWrapper,
       });
 
-      await expect(
-        result.current.signIn("test@example.com", "password123")
-      ).rejects.toThrow("Network error");
+      await act(async () => {
+        await expect(
+          result.current.signIn("test@example.com", "password123")
+        ).rejects.toThrow("Network error");
+      });
     });
   });
 
   describe("signUp", () => {
     it("should sign up successfully", async () => {
-      const mockUser = { uid: "test-uid", email: "test@example.com" };
+      const mockUser = createMockUser({ emailVerified: false });
       mockOnAuthStateChanged.mockImplementation((auth, callback) => {
         (callback as (user: User | null) => void)(mockUser as User);
         return mockUnsubscribe;
@@ -241,13 +267,20 @@ describe("useAuth", () => {
         wrapper: TestWrapper,
       });
 
-      await result.current.signUp("test@example.com", "password123");
+      await act(async () => {
+        await result.current.signUp(
+          "test@example.com",
+          "password123",
+          "testuser"
+        );
+      });
 
       expect(mockCreateUserWithEmailAndPassword).toHaveBeenCalledWith(
         {},
         "test@example.com",
         "password123"
       );
+      expect(mockSendEmailVerification).toHaveBeenCalled();
     });
 
     it("should handle email already in use error", async () => {
@@ -258,11 +291,17 @@ describe("useAuth", () => {
         wrapper: TestWrapper,
       });
 
-      await expect(
-        result.current.signUp("existing@example.com", "password123")
-      ).rejects.toThrow(
-        "This email is already registered. Please sign in instead."
-      );
+      await act(async () => {
+        await expect(
+          result.current.signUp(
+            "existing@example.com",
+            "password123",
+            "takenname"
+          )
+        ).rejects.toThrow(
+          "This email is already registered. Please sign in instead."
+        );
+      });
     });
 
     it("should handle weak password error", async () => {
@@ -273,9 +312,11 @@ describe("useAuth", () => {
         wrapper: TestWrapper,
       });
 
-      await expect(
-        result.current.signUp("test@example.com", "123")
-      ).rejects.toThrow("Password should be at least 6 characters.");
+      await act(async () => {
+        await expect(
+          result.current.signUp("test@example.com", "123", "short")
+        ).rejects.toThrow("Password should be at least 6 characters.");
+      });
     });
 
     it("should handle invalid email error", async () => {
@@ -286,22 +327,26 @@ describe("useAuth", () => {
         wrapper: TestWrapper,
       });
 
-      await expect(
-        result.current.signUp("invalid-email", "password123")
-      ).rejects.toThrow("Invalid email address.");
+      await act(async () => {
+        await expect(
+          result.current.signUp("invalid-email", "password123", "invalidemail")
+        ).rejects.toThrow("Invalid email address.");
+      });
     });
 
     it("should handle generic sign up error", async () => {
-      const mockError = { message: "Network error" };
+      const mockError = new Error("Network error");
       mockCreateUserWithEmailAndPassword.mockRejectedValue(mockError);
 
       const { result } = renderHook(() => useAuth(), {
         wrapper: TestWrapper,
       });
 
-      await expect(
-        result.current.signUp("test@example.com", "password123")
-      ).rejects.toThrow("Network error");
+      await act(async () => {
+        await expect(
+          result.current.signUp("test@example.com", "password123", "tester")
+        ).rejects.toThrow("Network error");
+      });
     });
   });
 
@@ -313,7 +358,9 @@ describe("useAuth", () => {
         wrapper: TestWrapper,
       });
 
-      await result.current.logout();
+      await act(async () => {
+        await result.current.logout();
+      });
 
       expect(mockSignOut).toHaveBeenCalledWith({});
     });
@@ -326,7 +373,41 @@ describe("useAuth", () => {
         wrapper: TestWrapper,
       });
 
-      await expect(result.current.logout()).rejects.toThrow("Logout failed");
+      await act(async () => {
+        await expect(result.current.logout()).rejects.toThrow("Logout failed");
+      });
+    });
+  });
+
+  describe("signInWithGoogle", () => {
+    it("should trigger Google popup flow", async () => {
+      const mockUser = createMockUser();
+      mockSignInWithPopup.mockResolvedValue({ user: mockUser } as any);
+
+      const { result } = renderHook(() => useAuth(), {
+        wrapper: TestWrapper,
+      });
+
+      await act(async () => {
+        await result.current.signInWithGoogle();
+      });
+
+      expect(mockSignInWithPopup).toHaveBeenCalledTimes(1);
+    });
+
+    it("should surface friendly message when popup closed", async () => {
+      const popupError = { code: "auth/popup-closed-by-user" };
+      mockSignInWithPopup.mockRejectedValue(popupError);
+
+      const { result } = renderHook(() => useAuth(), {
+        wrapper: TestWrapper,
+      });
+
+      await act(async () => {
+        await expect(result.current.signInWithGoogle()).rejects.toThrow(
+          "Google sign-in was closed before completion."
+        );
+      });
     });
   });
 });

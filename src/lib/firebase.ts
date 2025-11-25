@@ -1,26 +1,87 @@
-// src/lib/firebase.ts
-import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
-import { getFunctions } from "firebase/functions";
+import { initializeApp, type FirebaseApp } from "firebase/app";
+import { getAuth, type Auth } from "firebase/auth";
+import { getFirestore, type Firestore } from "firebase/firestore";
+import { getStorage, type FirebaseStorage } from "firebase/storage";
+import { getFunctions, type Functions } from "firebase/functions";
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "",
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "",
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "",
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "",
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "",
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "",
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+type FirebaseStatus = {
+  isConfigured: boolean;
+  isReady: boolean;
+  missingKeys: string[];
+  error?: string;
+};
 
-// Initialize Firebase services
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const storage = getStorage(app);
-export const functions = getFunctions(app);
+const missingKeys = Object.entries(firebaseConfig)
+  .filter(([, value]) => !value || value.trim() === "")
+  .map(([key]) => key);
 
+export const firebaseStatus: FirebaseStatus = {
+  isConfigured: missingKeys.length === 0,
+  isReady: false,
+  missingKeys,
+};
+
+let app: FirebaseApp | null = null;
+let auth: Auth | null = null;
+let db: Firestore | null = null;
+let storage: FirebaseStorage | null = null;
+let functions: Functions | null = null;
+
+const canInitialize = firebaseStatus.isConfigured;
+
+try {
+  if (canInitialize) {
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
+    storage = getStorage(app);
+    functions = getFunctions(app);
+    firebaseStatus.isReady = true;
+  } else {
+    firebaseStatus.error = `Missing Firebase config keys: ${firebaseStatus.missingKeys.join(
+      ", "
+    )}`;
+
+    if (process.env.NODE_ENV === "test") {
+      app = {} as FirebaseApp;
+      auth = { __isMock: true } as Auth;
+      db = { __isMock: true } as Firestore;
+      storage = { __isMock: true } as FirebaseStorage;
+      functions = { __isMock: true } as Functions;
+      firebaseStatus.isReady = true;
+    }
+  }
+} catch (error) {
+  firebaseStatus.error =
+    error instanceof Error ? error.message : "Unknown Firebase init error";
+  if (process.env.NODE_ENV === "test") {
+    app = {} as FirebaseApp;
+    auth = { __isMock: true } as Auth;
+    db = { __isMock: true } as Firestore;
+    storage = { __isMock: true } as FirebaseStorage;
+    functions = { __isMock: true } as Functions;
+    firebaseStatus.isReady = true;
+  }
+}
+
+const authClient = auth as Auth;
+const dbClient = db as Firestore;
+const storageClient = storage as FirebaseStorage;
+const functionsClient = functions as Functions;
+
+export {
+  authClient as auth,
+  dbClient as db,
+  storageClient as storage,
+  functionsClient as functions,
+};
 export default app;

@@ -109,7 +109,7 @@ describe("AI Models Configuration", () => {
     });
 
     it("should have valid provider values", () => {
-      const validProviders = ["huggingface", "openai", "anthropic"];
+      const validProviders = ["huggingface", "openai", "anthropic", "google"];
       AVAILABLE_AI_MODELS.forEach((model) => {
         expect(validProviders).toContain(model.provider);
       });

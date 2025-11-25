@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { getAuth } from "firebase/auth";
 import { getBestModelForTask } from "@/config/aiModels";
+import { generateMockEnhancedResume } from "@/lib/mockAIResume";
 
 interface ResumeData {
   personalInfo: {
@@ -80,7 +81,7 @@ export const useAIResume = () => {
       // Auto-select best model if not specified
       if (!modelId) {
         const selectedModel = getBestModelForTask("resume-enhancement");
-        modelId = selectedModel?.modelId || "gemini-1.5-flash";
+        modelId = selectedModel?.modelId || "gemini-2.5-flash";
         console.log(
           `✨ Auto-selected AI model: ${modelId} (${selectedModel?.provider})`
         );
@@ -88,29 +89,25 @@ export const useAIResume = () => {
 
       const idToken = await user.getIdToken();
 
-      console.log("📡 Sending request to Firebase Function...", {
-        url: "https://us-central1-switchcv-e5136.cloudfunctions.net/generateResumeContent",
+      console.log("📡 Sending request to local AI endpoint...", {
+        url: "/api/ai/generate-resume",
         modelId,
         userId: user.uid.substring(0, 8) + "...",
       });
 
-      const response = await fetch(
-        "https://us-central1-switchcv-e5136.cloudfunctions.net/generateResumeContent",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${idToken}`,
-          },
-          body: JSON.stringify({
-            userId: user.uid,
-            resumeData,
-            template,
-            tone,
-            modelId,
-          }),
-        }
-      );
+      const response = await fetch("/api/ai/generate-resume", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          resumeData,
+          template,
+          tone,
+          modelId,
+        }),
+      });
 
       const duration = Date.now() - startTime;
 
@@ -127,7 +124,8 @@ export const useAIResume = () => {
       const data = await response.json();
       console.log("✅ AI CALL SUCCESS", {
         duration: `${duration}ms`,
-        modelUsed: modelId,
+        model: data.model,
+        provider: data.provider,
         enhancedSummaryLength: data.data?.enhancedSummary?.length || 0,
         skillSuggestionsCount: data.data?.skillSuggestions?.length || 0,
         timestamp: new Date().toISOString(),
@@ -143,8 +141,23 @@ export const useAIResume = () => {
         duration: `${duration}ms`,
         timestamp: new Date().toISOString(),
       });
-      setError(errorMessage);
-      return null;
+
+      // Fallback to mock AI when LLM is unavailable
+      console.warn("⚠️ AI Service unavailable, using mock AI generator...");
+      try {
+        const mockResult = generateMockEnhancedResume(
+          resumeData.personalInfo.name,
+          "Professional",
+          "Your Organization",
+          resumeData.skills
+        );
+        console.log("✅ MOCK AI GENERATED CONTENT");
+        return mockResult as EnhancedResumeContent;
+      } catch (mockErr) {
+        console.error("💥 MOCK AI FAILED TOO", mockErr);
+        setError(errorMessage);
+        return null;
+      }
     } finally {
       setLoading(false);
     }

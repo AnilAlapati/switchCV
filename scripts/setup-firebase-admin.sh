@@ -1,0 +1,22 @@
+#!/bin/bash
+# Script to help set up Firebase Admin SDK credentials
+
+echo "Firebase Admin SDK Setup Helper"
+echo "================================"
+echo ""
+echo "To enable the Firebase Admin SDK for the user settings API, you need to:"
+echo ""
+echo "1. Go to: https://console.firebase.google.com/project/switchcv-e5136/settings/serviceaccounts/adminsdk"
+echo ""
+echo "2. Click 'Generate New Private Key' button"
+echo ""
+echo "3. A JSON file will be downloaded. Open it and copy the entire content"
+echo ""
+echo "4. In your .env.local file, add:"
+echo ""
+echo "   FIREBASE_SERVICE_ACCOUNT='{paste the entire JSON here}'"
+echo ""
+echo "5. Restart the dev server: npm run dev"
+echo ""
+echo "Note: The entire JSON should be on a single line in the .env.local file"
+echo ""

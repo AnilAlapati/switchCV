@@ -3,15 +3,17 @@
 // GET /api/ai/refresh-models
 
 import { NextResponse } from "next/server";
+import { handleApiError } from "@/lib/utils/api-helpers";
 
 export async function GET() {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      return NextResponse.json(
-        { error: "Gemini API key not configured" },
-        { status: 500 }
+      return handleApiError(
+        new Error("Gemini API key not configured"),
+        "Gemini API key not configured",
+        500
       );
     }
 
@@ -45,13 +47,6 @@ export async function GET() {
       message: "Model cache will be refreshed on next API call",
     });
   } catch (error) {
-    console.error("Failed to refresh models:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to fetch models",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to refresh models");
   }
 }

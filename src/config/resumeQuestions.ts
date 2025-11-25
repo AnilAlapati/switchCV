@@ -11,7 +11,8 @@ export interface Question {
     | "education"
     | "skills"
     | "projects"
-    | "summary";
+    | "summary"
+    | "preferences";
   followUp?: string[];
   validation?: {
     pattern?: string;
@@ -225,6 +226,24 @@ export const resumeQuestions: Question[] = [
     required: false,
     placeholder: "e.g., React, Node.js, MongoDB, AWS",
     category: "projects",
+  },
+
+  // Preferences
+  {
+    id: "preferences_template",
+    question: "Which resume template would you like to use?",
+    type: "select",
+    required: true,
+    options: ["modern", "classic", "technical", "creative"],
+    category: "preferences",
+  },
+  {
+    id: "preferences_tone",
+    question: "What tone should the resume have?",
+    type: "select",
+    required: true,
+    options: ["professional", "concise", "storytelling", "academic"],
+    category: "preferences",
   },
 ];
 
