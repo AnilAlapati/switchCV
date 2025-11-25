@@ -5,6 +5,7 @@
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import type { ResumeProfile } from "@/types";
+import { logger } from "@/lib/logger";
 
 export const fetchResumeBySlug = async (
   slug: string
@@ -24,7 +25,7 @@ export const fetchResumeBySlug = async (
       ...doc.data(),
     } as unknown as ResumeProfile;
   } catch (error) {
-    console.error("Error fetching resume:", error);
+    logger.error({ err: error, slug }, "Error fetching resume");
     return null;
   }
 };
@@ -45,6 +46,6 @@ export const trackResumeView = async (resumeId: string): Promise<void> => {
     // Track view would go here
     // For now, just silently tracking in Firestore
   } catch (error) {
-    console.error("Error tracking resume view:", error);
+    logger.error({ err: error, resumeId }, "Error tracking resume view");
   }
 };

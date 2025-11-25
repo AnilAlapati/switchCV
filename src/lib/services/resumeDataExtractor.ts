@@ -26,6 +26,21 @@ export interface ExtractionResult {
 }
 
 /**
+ * Extracted JSON data structure from AI responses
+ */
+interface ExtractedJSONData {
+  name?: string;
+  email?: string;
+  phone?: string;
+  location?: string;
+  summary?: string;
+  experience?: ExperienceEntry[];
+  education?: EducationEntry[];
+  skills?: string[];
+  isComplete?: boolean;
+}
+
+/**
  * Resume Data Extractor
  *
  * Parses conversation text and AI responses to extract structured resume data.
@@ -79,14 +94,14 @@ export class ResumeDataExtractor {
    * Extract data from JSON markers in AI response
    * Looks for patterns like: ```json {...} ``` or RESUME_DATA: {...}
    */
-  private static extractJSONData(text: string): any | null {
+  private static extractJSONData(text: string): ExtractedJSONData | null {
     try {
       // Look for JSON code blocks
       const jsonBlockRegex = /```json\s*([\s\S]*?)\s*```/;
       const jsonMatch = text.match(jsonBlockRegex);
 
       if (jsonMatch && jsonMatch[1]) {
-        return JSON.parse(jsonMatch[1].trim());
+        return JSON.parse(jsonMatch[1].trim()) as ExtractedJSONData;
       }
 
       // Look for RESUME_DATA marker
@@ -94,7 +109,7 @@ export class ResumeDataExtractor {
       const dataMatch = text.match(dataMarkerRegex);
 
       if (dataMatch && dataMatch[1]) {
-        return JSON.parse(dataMatch[1].trim());
+        return JSON.parse(dataMatch[1].trim()) as ExtractedJSONData;
       }
 
       // Look for any JSON object
@@ -102,7 +117,7 @@ export class ResumeDataExtractor {
       const objectMatch = text.match(jsonObjectRegex);
 
       if (objectMatch) {
-        const parsed = JSON.parse(objectMatch[0]);
+        const parsed = JSON.parse(objectMatch[0]) as ExtractedJSONData;
         // Validate it looks like resume data
         if (parsed.name || parsed.email || parsed.experience) {
           return parsed;
@@ -537,14 +552,14 @@ export class ResumeDataExtractor {
     existing: Partial<ResumeDataRequirements>,
     extracted: Partial<ResumeDataRequirements>
   ): Partial<ResumeDataRequirements> {
-    const merged: any = { ...existing };
+    const merged: Partial<ResumeDataRequirements> = { ...existing };
 
     // Merge simple fields (strings)
-    for (const key of ["name", "email", "phone", "location", "summary"]) {
-      if (extracted[key as keyof ResumeDataRequirements]) {
-        merged[key] = extracted[key as keyof ResumeDataRequirements];
-      }
-    }
+    if (extracted.name) merged.name = extracted.name;
+    if (extracted.email) merged.email = extracted.email;
+    if (extracted.phone) merged.phone = extracted.phone;
+    if (extracted.location) merged.location = extracted.location;
+    if (extracted.summary) merged.summary = extracted.summary;
 
     // Merge arrays (experience, education, skills)
     if (extracted.experience) {

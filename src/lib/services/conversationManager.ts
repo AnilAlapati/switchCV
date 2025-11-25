@@ -69,6 +69,31 @@ export interface ConversationProgress {
 }
 
 /**
+ * Resume creation format for final output
+ */
+export interface ResumeCreationFormat {
+  /** Resume title */
+  title: string;
+  /** Personal contact information */
+  personalInfo: {
+    name: string;
+    email: string;
+    phone: string;
+    location: string;
+  };
+  /** Professional summary */
+  summary: string;
+  /** Work experience entries */
+  experience: ExperienceEntry[];
+  /** Education background */
+  education: EducationEntry[];
+  /** Professional skills */
+  skills: string[];
+  /** Method of creation */
+  createdVia: "ai-conversation";
+}
+
+/**
  * Conversation Manager
  *
  * Orchestrates the conversational resume building flow by tracking
@@ -162,7 +187,16 @@ export class ConversationManager {
   /**
    * Check if a field is populated with valid data
    */
-  private isFieldPopulated(field: string, value: any): boolean {
+  private isFieldPopulated(
+    field: string,
+    value:
+      | string
+      | string[]
+      | ExperienceEntry[]
+      | EducationEntry[]
+      | null
+      | undefined
+  ): boolean {
     if (value === null || value === undefined) return false;
 
     if (typeof value === "string") {
@@ -171,10 +205,6 @@ export class ConversationManager {
 
     if (Array.isArray(value)) {
       return value.length > 0;
-    }
-
-    if (typeof value === "object") {
-      return Object.keys(value).length > 0;
     }
 
     return true;
@@ -287,7 +317,7 @@ export class ConversationManager {
   /**
    * Convert collected data to resume creation format
    */
-  toResumeFormat(): any {
+  toResumeFormat(): ResumeCreationFormat {
     return {
       title: `${this.collectedData.name}'s Resume` || "My Resume",
       personalInfo: {

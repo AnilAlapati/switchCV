@@ -1,6 +1,7 @@
 // src/lib/services/aiService.ts
 import { ResumeData, ConversationStage } from "@/hooks/useResumeDataCollection";
 import { getPromptForStage, FALLBACK_RESPONSES } from "@/lib/utils/aiPrompts";
+import { logger } from "@/lib/logger";
 
 interface AIGenerateResponse {
   text: string;
@@ -92,7 +93,7 @@ export const generateQuestionForStage = async (
       throw new Error("API request failed");
     }
   } catch (error) {
-    console.error("Error generating question:", error);
+    logger.error({ err: error, stage }, "Error generating question");
     return FALLBACK_RESPONSES[stage] || "Tell me more.";
   }
 };

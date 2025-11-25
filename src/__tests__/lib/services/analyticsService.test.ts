@@ -6,6 +6,7 @@ import {
   getRecentEvents,
 } from "@/lib/services/analyticsService";
 import { getDoc, setDoc, updateDoc, getDocs } from "firebase/firestore";
+import { logger } from "@/lib/logger";
 
 // Mock Firebase
 jest.mock("firebase/firestore", () => ({
@@ -23,6 +24,15 @@ jest.mock("firebase/firestore", () => ({
 
 jest.mock("@/lib/firebase", () => ({
   db: {},
+}));
+
+// Mock logger
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+  },
 }));
 
 describe("analyticsService", () => {
@@ -186,15 +196,12 @@ describe("analyticsService", () => {
         .mockResolvedValueOnce({ exists: () => true, data: () => ({}) })
         .mockRejectedValueOnce(new Error("DB Error"));
 
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation();
-
       await trackAnalyticsEvent(request);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "Failed to track session duration:",
-        expect.any(Error)
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ resumeId: mockResumeId }),
+        "Failed to track session duration"
       );
-      consoleSpy.mockRestore();
     });
 
     it("should update analytics for request event", async () => {
@@ -336,15 +343,13 @@ describe("analyticsService", () => {
 
     it("should return null on error", async () => {
       (getDoc as jest.Mock).mockRejectedValue(new Error("DB Error"));
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation();
 
       const result = await getRequestStatistics(mockResumeId);
       expect(result).toBeNull();
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "Error getting request statistics:",
-        expect.any(Error)
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ resumeId: mockResumeId }),
+        "Error getting request statistics"
       );
-      consoleSpy.mockRestore();
     });
   });
 

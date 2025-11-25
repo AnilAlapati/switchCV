@@ -1,36 +1,76 @@
 import { withRetry } from "@/lib/utils/retry";
 import { logger } from "@/lib/logger";
+import { AI_SERVICE } from "@/config/constants";
 
-// Cache for available models (expires after 24 hours)
+/**
+ * Gemini API model response structure
+ */
+interface GeminiModel {
+  name: string;
+  supportedGenerationMethods?: string[];
+}
+
+interface GeminiModelsResponse {
+  models?: GeminiModel[];
+}
+
+// Cache for available models (expires based on config)
 let modelCache: {
   models: string[];
   timestamp: number;
 } | null = null;
 let inflightModelFetch: Promise<string[]> | null = null;
 
-const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
-const FALLBACK_MODEL = "gemini-2.0-flash-lite";
-const MAX_REMOTE_MODEL_REFRESHES = 2;
+const {
+  MODEL_CACHE_DURATION_MS: CACHE_DURATION,
+  FALLBACK_MODEL,
+  MAX_MODEL_REFRESH_ATTEMPTS: MAX_REMOTE_MODEL_REFRESHES,
+  MODEL_PREFERENCES,
+} = AI_SERVICE;
 
-// Preferred model patterns (in order of preference)
-const MODEL_PREFERENCES = [
-  "gemini-2.5-flash-lite",
-  "gemini-2.0-flash-lite",
-  "gemini-flash-lite-latest",
-  "gemini-2.5-flash",
-  "gemini-2.0-flash",
-  "gemini-flash-latest",
-  "gemini-2.5-pro",
-  "gemini-pro-latest",
-];
+/**
+ * Check if the model cache is valid
+ */
+function isCacheValid(): boolean {
+  if (!modelCache) return false;
+  const cacheAge = Date.now() - modelCache.timestamp;
+  return cacheAge < CACHE_DURATION;
+}
+
+/**
+ * Invalidate the model cache (useful for testing or forced refresh)
+ */
+export function invalidateModelCache(): void {
+  modelCache = null;
+  inflightModelFetch = null;
+  logger.info("Model cache invalidated");
+}
+
+/**
+ * Get cache status for monitoring
+ */
+export function getCacheStatus(): {
+  isCached: boolean;
+  cacheAge: number | null;
+  modelsCount: number;
+} {
+  if (!modelCache) {
+    return { isCached: false, cacheAge: null, modelsCount: 0 };
+  }
+  return {
+    isCached: true,
+    cacheAge: Date.now() - modelCache.timestamp,
+    modelsCount: modelCache.models.length,
+  };
+}
 
 /**
  * Fetch and cache available Gemini models
  */
 async function getAvailableGeminiModels(apiKey: string): Promise<string[]> {
   // Return cached models if still valid
-  if (modelCache && Date.now() - modelCache.timestamp < CACHE_DURATION) {
-    return modelCache.models;
+  if (isCacheValid()) {
+    return modelCache!.models;
   }
 
   if (!inflightModelFetch) {
@@ -46,13 +86,14 @@ async function getAvailableGeminiModels(apiKey: string): Promise<string[]> {
           throw new Error(`Failed to fetch models: ${response.status}`);
         }
 
-        const data = await response.json();
+        const data: GeminiModelsResponse = await response.json();
         const models =
           data.models
-            ?.filter((model: any) =>
+            ?.filter((model: GeminiModel) =>
               model.supportedGenerationMethods?.includes("generateContent")
             )
-            .map((model: any) => model.name.replace("models/", "")) || [];
+            .map((model: GeminiModel) => model.name.replace("models/", "")) ||
+          [];
 
         modelCache = {
           models,

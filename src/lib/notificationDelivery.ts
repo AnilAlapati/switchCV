@@ -13,6 +13,7 @@ import {
   updateNotificationStatus,
   logNotification,
 } from "./notificationService";
+import { logger } from "@/lib/logger";
 
 const templateStore = new Map<string, NotificationTemplate>();
 const deliveryStore: Record<string, boolean> = {};
@@ -114,7 +115,10 @@ export async function sendEmail(
           "Email delivered"
         );
       } catch (e) {
-        console.error("Error updating email status", e);
+        logger.error(
+          { err: e, notificationId: notification.id },
+          "Error updating email status"
+        );
       }
     }, 1000);
 
@@ -161,7 +165,10 @@ export async function sendSMS(
           NotificationStatus.DELIVERED
         );
       } catch (e) {
-        console.error("Error updating SMS status", e);
+        logger.error(
+          { err: e, notificationId: notification.id },
+          "Error updating SMS status"
+        );
       }
     }, 1500);
 
@@ -207,7 +214,10 @@ export async function sendPush(
           NotificationStatus.DELIVERED
         );
       } catch (e) {
-        console.error("Error updating push status", e);
+        logger.error(
+          { err: e, notificationId: notification.id },
+          "Error updating push status"
+        );
       }
     }, 800);
 
@@ -259,7 +269,10 @@ export async function sendWebhook(
           "Webhook acknowledged"
         );
       } catch (e) {
-        console.error("Error updating webhook status", e);
+        logger.error(
+          { err: e, notificationId: notification.id },
+          "Error updating webhook status"
+        );
       }
     }, 1200);
 

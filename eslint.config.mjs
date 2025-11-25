@@ -18,7 +18,8 @@ const eslintConfig = [
           skipComments: true,
         },
       ],
-      "@typescript-eslint/no-explicit-any": "off",
+      // Enable as warning to catch new any usages while allowing existing ones
+      "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/no-unused-vars": "warn",
       "@typescript-eslint/no-non-null-asserted-optional-chain": "warn",
       "@typescript-eslint/no-require-imports": "warn",
@@ -26,7 +27,8 @@ const eslintConfig = [
       "@typescript-eslint/no-unsafe-function-type": "warn",
       "react/no-unescaped-entities": "off",
       "react-hooks/rules-of-hooks": "warn",
-      "react-hooks/exhaustive-deps": "off",
+      // Enable exhaustive-deps as warning to improve hook dependency tracking
+      "react-hooks/exhaustive-deps": "warn",
       "@next/next/no-html-link-for-pages": "warn",
     },
   },

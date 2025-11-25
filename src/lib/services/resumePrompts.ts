@@ -9,7 +9,33 @@
  * @module services/resumePrompts
  */
 
-import { getActiveConfig } from "./conversationConfig";
+import { getActiveConfig, ConversationConfig } from "./conversationConfig";
+
+/**
+ * Collected resume data during conversation
+ */
+export interface CollectedResumeData {
+  name?: string;
+  email?: string;
+  phone?: string;
+  location?: string;
+  summary?: string;
+  experience?: Array<{
+    title: string;
+    company: string;
+    duration: string;
+    description: string;
+    achievements?: string[];
+  }>;
+  education?: Array<{
+    degree: string;
+    institution: string;
+    year: string;
+    major?: string;
+  }>;
+  skills?: string[];
+  isComplete?: boolean;
+}
 
 /**
  * System prompt for conversational resume building
@@ -78,23 +104,30 @@ Let's start with the basics - what's your full name and email address?`;
 }
 
 /**
+ * Progress tracking for resume data collection
+ */
+export interface ResumeProgress {
+  hasName?: boolean;
+  hasEmail?: boolean;
+  hasExperience?: boolean;
+  hasEducation?: boolean;
+  hasSkills?: boolean;
+}
+
+/**
  * Build conversational prompt for AI
  */
 export function buildConversationalPrompt(
   userMessage: string,
   conversationHistory: Array<{ content: string; isUser: boolean }>,
-  currentProgress?: {
-    hasName?: boolean;
-    hasEmail?: boolean;
-    hasExperience?: boolean;
-    hasEducation?: boolean;
-    hasSkills?: boolean;
-  },
-  collectedData?: any,
-  config?: any,
+  currentProgress?: ResumeProgress,
+  collectedData?: CollectedResumeData,
+  config?: Partial<ConversationConfig>,
   forceCreate?: boolean
 ): string {
-  const activeConfig = config || getActiveConfig();
+  const activeConfig = config
+    ? { ...getActiveConfig(), ...config }
+    : getActiveConfig();
   const history = conversationHistory
     .slice(-activeConfig.contextWindowSize) // Use configurable context window
     .map((msg) => `${msg.isUser ? "User" : "Assistant"}: ${msg.content}`)
@@ -169,7 +202,9 @@ INSTRUCTION: Stop asking questions. Generate the "RESUME_COMPLETE" response with
 /**
  * Build prompt for final resume creation
  */
-export function buildResumeCreationPrompt(collectedData: any): string {
+export function buildResumeCreationPrompt(
+  collectedData: CollectedResumeData
+): string {
   return `Based on the following information, create a professional resume:
 
 ${JSON.stringify(collectedData, null, 2)}
@@ -210,7 +245,9 @@ export function isCompletionResponse(response: string): boolean {
 /**
  * Extract JSON from completion response
  */
-export function extractResumeJSON(response: string): any | null {
+export function extractResumeJSON(
+  response: string
+): CollectedResumeData | null {
   try {
     // Look for JSON code blocks
     const jsonBlockRegex = /```json\s*([\s\S]*?)\s*```/;

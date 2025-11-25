@@ -1,17 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
+import { z } from "zod";
 import { generateText } from "@/lib/services/aiGenerationService";
 import admin, { adminDb } from "@/lib/firebase-admin";
 import {
   getAuthenticatedUserId,
   handleApiError,
 } from "@/lib/utils/api-helpers";
+import { logger } from "@/lib/logger";
 
-interface GenerateRequest {
-  prompt: string;
-  maxTokens?: number;
-  temperature?: number;
-}
+/**
+ * Zod schema for AI generation request validation
+ */
+const GenerateRequestSchema = z.object({
+  prompt: z
+    .string()
+    .min(1, "Prompt is required")
+    .max(2000, "Prompt exceeds maximum length of 2000 characters"),
+  maxTokens: z
+    .number()
+    .int()
+    .min(1, "maxTokens must be at least 1")
+    .max(4000, "maxTokens cannot exceed 4000")
+    .optional()
+    .default(150),
+  temperature: z
+    .number()
+    .min(0, "Temperature must be between 0 and 2")
+    .max(2, "Temperature must be between 0 and 2")
+    .optional()
+    .default(0.9),
+});
+
+type GenerateRequest = z.infer<typeof GenerateRequestSchema>;
 
 interface Entitlement {
   plan: "basic" | "premium" | "enterprise" | string;
@@ -49,21 +70,6 @@ const PLAN_MULTIPLIER: Record<string, number> = {
   enterprise: 2,
 };
 
-const log = (
-  level: "info" | "warn" | "error",
-  message: string,
-  meta: Record<string, unknown> = {}
-) => {
-  const payload = { level, message, ...meta };
-  if (level === "error") {
-    console.error(payload);
-  } else if (level === "warn") {
-    console.warn(payload);
-  } else {
-    console.log(payload);
-  }
-};
-
 export async function POST(request: NextRequest) {
   const requestId = randomUUID();
 
@@ -73,24 +79,22 @@ export async function POST(request: NextRequest) {
       return authError;
     }
 
-    const body: GenerateRequest = await request.json();
-    const { prompt, maxTokens = 150, temperature = 0.9 } = body;
+    // Parse and validate request body using Zod
+    const body = await request.json();
+    const validationResult = GenerateRequestSchema.safeParse(body);
 
-    if (!prompt || typeof prompt !== "string") {
-      return handleApiError(
-        new Error("Prompt is required and must be a string"),
-        "Prompt is required and must be a string",
-        400
+    if (!validationResult.success) {
+      const errorMessage = validationResult.error.issues
+        .map((e: z.ZodIssue) => e.message)
+        .join(", ");
+      logger.warn(
+        { userId, errors: validationResult.error.issues, requestId },
+        "Invalid AI generate request"
       );
+      return handleApiError(null, errorMessage, 400);
     }
 
-    if (prompt.length > 2000) {
-      return handleApiError(
-        new Error("Prompt exceeds maximum length of 2000 characters"),
-        "Prompt exceeds maximum length of 2000 characters",
-        400
-      );
-    }
+    const { prompt, maxTokens, temperature } = validationResult.data;
 
     const entitlement = await getEntitlement(userId!);
     enforceEntitlement(entitlement);
@@ -119,12 +123,10 @@ export async function POST(request: NextRequest) {
 
     const response = NextResponse.json(result, { status: 200 });
     attachRateLimitHeaders(response, rateLimit);
-    log("info", "AI text generation succeeded", {
-      userId,
-      model: result.model,
-      plan: entitlement.plan,
-      requestId,
-    });
+    logger.info(
+      { userId, model: result.model, plan: entitlement.plan, requestId },
+      "AI text generation succeeded"
+    );
     return response;
   } catch (error) {
     return handleRouteError(error);

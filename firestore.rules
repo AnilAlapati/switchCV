@@ -36,8 +36,16 @@ service cloud.firestore {
       // Admins can read all requests (add role check if needed)
       allow read: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
       
-      // Recruiters can create requests
-      allow create: if request.auth != null;
+      // SECURITY FIX: Recruiters can create requests only with proper validation
+      // - Must be authenticated
+      // - Must have recruiter role
+      // - fromRecruiter.recruiterId must match the authenticated user
+      // - Required fields must be present
+      allow create: if request.auth != null 
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'recruiter'
+        && request.resource.data.fromRecruiter.recruiterId == request.auth.uid
+        && request.resource.data.toUserId is string
+        && request.resource.data.status == 'pending';
       
       // Only admins can update (to approve/deny)
       allow update: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';

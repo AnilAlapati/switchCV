@@ -13,7 +13,13 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { ProfileSearchResult } from "@/types/profileSearch";
-import { handleApiError } from "@/lib/utils/api-helpers";
+import {
+  handleApiError,
+  applyRateLimit,
+  attachRateLimitHeaders,
+  getClientIp,
+} from "@/lib/utils/api-helpers";
+import { RATE_LIMITS } from "@/config/constants";
 import {
   buildBaseConstraints,
   buildNormalizedFilters,
@@ -40,6 +46,16 @@ const MAX_PAGE_LIMIT = 50;
 const MAX_FETCH_ROUNDS = 5;
 
 export async function POST(request: NextRequest) {
+  // Apply rate limiting based on client IP
+  const clientIp = getClientIp(request);
+  const rateCheck = applyRateLimit(clientIp, {
+    limit: RATE_LIMITS.SEARCH_REQUESTS_PER_MINUTE,
+    windowMs: 60 * 1000,
+  });
+  if (!rateCheck.allowed) {
+    return rateCheck.response;
+  }
+
   try {
     const {
       query: searchQuery,
