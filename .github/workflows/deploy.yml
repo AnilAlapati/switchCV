@@ -20,6 +20,12 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+      - name: Install and Build Functions
+        run: |
+          cd functions
+          npm ci
+          npm run build
+
       - id: "auth"
         uses: "google-github-actions/auth@v2"
         with:
