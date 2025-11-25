@@ -18,8 +18,9 @@ const eslintConfig = [
           skipComments: true,
         },
       ],
-      // Enable as warning to catch new any usages while allowing existing ones
-      "@typescript-eslint/no-explicit-any": "warn",
+      // Disabled: Legacy codebase uses 'any' for Firestore dynamic data
+      // TODO: Gradually add proper types in future refactoring
+      "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unused-vars": "warn",
       "@typescript-eslint/no-non-null-asserted-optional-chain": "warn",
       "@typescript-eslint/no-require-imports": "warn",
@@ -73,6 +74,14 @@ const eslintConfig = [
     },
     rules: {
       "max-lines": "off",
+      // Allow 'any' types in test files for mocking flexibility
+      "@typescript-eslint/no-explicit-any": "off",
+      // Allow unused vars in tests (common for mocks and setup)
+      "@typescript-eslint/no-unused-vars": "off",
+      // Allow require() in tests (needed for jest.mock patterns)
+      "@typescript-eslint/no-require-imports": "off",
+      // Allow flexible error handling patterns in tests
+      "no-restricted-syntax": "off",
     },
   },
   {

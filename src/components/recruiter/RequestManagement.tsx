@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { RecruiterContactRequest } from "@/types/profileSearch";
 import { RequestStats } from "./RequestStats";
 import { RequestTabs } from "./RequestTabs";
@@ -29,11 +29,7 @@ export function RequestManagement({
     expired: 0,
   });
 
-  useEffect(() => {
-    loadRequests();
-  }, [recruiterId]);
-
-  const loadRequests = async () => {
+  const loadRequests = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(
@@ -52,7 +48,11 @@ export function RequestManagement({
     } finally {
       setLoading(false);
     }
-  };
+  }, [recruiterId]);
+
+  useEffect(() => {
+    loadRequests();
+  }, [loadRequests]);
 
   const filteredRequests = requests.filter((r) => r.status === activeTab);
 

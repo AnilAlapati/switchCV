@@ -1,4 +1,8 @@
-import { consumeQuota, QuotaExceededError } from "@/lib/services/quotaService";
+import {
+  consumeQuota,
+  QuotaExceededError,
+  refundQuota,
+} from "@/lib/services/quotaService";
 import { adminDb } from "@/lib/firebase-admin";
 
 // Mock firebase-admin
@@ -6,6 +10,7 @@ jest.mock("@/lib/firebase-admin", () => {
   const mockTransaction = {
     get: jest.fn(),
     set: jest.fn(),
+    update: jest.fn(),
   };
 
   const mockDoc = {
@@ -43,6 +48,7 @@ describe("quotaService", () => {
   const mockTransaction = {
     get: jest.fn(),
     set: jest.fn(),
+    update: jest.fn(),
   };
 
   beforeEach(() => {
@@ -166,6 +172,122 @@ describe("quotaService", () => {
       const setCall = mockTransaction.set.mock.calls[0];
       const data = setCall[1];
       expect(data.periodKey).toMatch(/^\d{4}-\d{2}$/); // YYYY-MM
+    });
+  });
+
+  describe("refundQuota", () => {
+    const baseRequest = {
+      subjectId: "user123",
+      scope: "ai_generation",
+      period: "daily" as const,
+    };
+
+    it("should successfully refund quota when count > 0", async () => {
+      const now = new Date();
+      const year = now.getUTCFullYear();
+      const month = now.getUTCMonth() + 1;
+      const day = now.getUTCDate();
+      const key = `${year}-${month.toString().padStart(2, "0")}-${day
+        .toString()
+        .padStart(2, "0")}`;
+
+      mockTransaction.get.mockResolvedValue({
+        exists: true,
+        data: () => ({
+          periodKey: key,
+          count: 3,
+        }),
+      });
+
+      const result = await refundQuota(baseRequest);
+
+      expect(result.refunded).toBe(true);
+      expect(result.currentCount).toBe(2);
+      expect(mockTransaction.update).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          count: 2,
+        })
+      );
+    });
+
+    it("should not refund when document does not exist", async () => {
+      mockTransaction.get.mockResolvedValue({
+        exists: false,
+        data: () => null,
+      });
+
+      const result = await refundQuota(baseRequest);
+
+      expect(result.refunded).toBe(false);
+      expect(result.currentCount).toBe(0);
+      expect(result.reason).toBe("No quota record found for this period");
+      expect(mockTransaction.update).not.toHaveBeenCalled();
+    });
+
+    it("should not refund when period key does not match", async () => {
+      mockTransaction.get.mockResolvedValue({
+        exists: true,
+        data: () => ({
+          periodKey: "2023-01-01", // Old date
+          count: 3,
+        }),
+      });
+
+      const result = await refundQuota(baseRequest);
+
+      expect(result.refunded).toBe(false);
+      expect(result.reason).toBe(
+        "Quota period has changed, refund not applicable"
+      );
+      expect(mockTransaction.update).not.toHaveBeenCalled();
+    });
+
+    it("should not refund when count is already 0", async () => {
+      const now = new Date();
+      const year = now.getUTCFullYear();
+      const month = now.getUTCMonth() + 1;
+      const day = now.getUTCDate();
+      const key = `${year}-${month.toString().padStart(2, "0")}-${day
+        .toString()
+        .padStart(2, "0")}`;
+
+      mockTransaction.get.mockResolvedValue({
+        exists: true,
+        data: () => ({
+          periodKey: key,
+          count: 0,
+        }),
+      });
+
+      const result = await refundQuota(baseRequest);
+
+      expect(result.refunded).toBe(false);
+      expect(result.currentCount).toBe(0);
+      expect(result.reason).toBe("No quota to refund");
+      expect(mockTransaction.update).not.toHaveBeenCalled();
+    });
+
+    it("should handle monthly period correctly", async () => {
+      const now = new Date();
+      const year = now.getUTCFullYear();
+      const month = now.getUTCMonth() + 1;
+      const key = `${year}-${month.toString().padStart(2, "0")}`;
+
+      const monthlyRequest = { ...baseRequest, period: "monthly" as const };
+
+      mockTransaction.get.mockResolvedValue({
+        exists: true,
+        data: () => ({
+          periodKey: key,
+          count: 5,
+        }),
+      });
+
+      const result = await refundQuota(monthlyRequest);
+
+      expect(result.refunded).toBe(true);
+      expect(result.currentCount).toBe(4);
     });
   });
 });

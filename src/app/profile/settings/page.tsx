@@ -49,18 +49,7 @@ export default function SettingsPage() {
     }
   }, [logout, router]);
 
-  useEffect(() => {
-    if (!authLoading && (!user || needsEmailVerification)) {
-      router.push("/auth?mode=verify-email");
-      return;
-    }
-
-    if (user && !needsEmailVerification) {
-      fetchSettings();
-    }
-  }, [user, needsEmailVerification, authLoading, router]);
-
-  const fetchSettings = async () => {
+  const fetchSettings = useCallback(async () => {
     try {
       if (!user) return;
 
@@ -82,7 +71,18 @@ export default function SettingsPage() {
     } catch (err) {
       console.error("Error fetching settings:", err);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (!authLoading && (!user || needsEmailVerification)) {
+      router.push("/auth?mode=verify-email");
+      return;
+    }
+
+    if (user && !needsEmailVerification) {
+      fetchSettings();
+    }
+  }, [user, needsEmailVerification, authLoading, router, fetchSettings]);
 
   const handleRecruiterToggle = async (checked: boolean) => {
     if (!user?.uid) {

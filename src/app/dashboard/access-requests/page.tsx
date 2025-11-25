@@ -38,12 +38,8 @@ export default function AccessRequestsPage() {
     }
   }, [logout, router]);
 
-  useEffect(() => {
+  const fetchRequests = useCallback(async () => {
     if (!user) return;
-    fetchRequests();
-  }, [user]);
-
-  const fetchRequests = async () => {
     setLoading(true);
     setError(null);
     try {
@@ -68,7 +64,12 @@ export default function AccessRequestsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    fetchRequests();
+  }, [user, fetchRequests]);
 
   const updateDurationState = (
     requestId: string,

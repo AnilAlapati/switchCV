@@ -16,7 +16,6 @@ import type { ProfileSearchResult } from "@/types/profileSearch";
 import {
   handleApiError,
   applyRateLimit,
-  attachRateLimitHeaders,
   getClientIp,
 } from "@/lib/utils/api-helpers";
 import { RATE_LIMITS } from "@/config/constants";
