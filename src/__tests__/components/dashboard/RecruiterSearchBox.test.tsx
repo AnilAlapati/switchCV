@@ -31,9 +31,7 @@ describe("RecruiterSearchBox", () => {
     render(<RecruiterSearchBox />);
 
     // Basic mode should show the basic search input
-    expect(
-      screen.getByPlaceholderText("e.g., 2")
-    ).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("e.g., 2")).toBeInTheDocument();
     // Premium mode fields should not be visible
     expect(
       screen.queryByPlaceholderText("e.g., React, Python, AWS")
@@ -54,9 +52,7 @@ describe("RecruiterSearchBox", () => {
       screen.getByPlaceholderText("City, region, or remote")
     ).toBeInTheDocument();
     // Basic mode input should not be visible
-    expect(
-      screen.queryByPlaceholderText("e.g., 2")
-    ).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("e.g., 2")).not.toBeInTheDocument();
   });
 
   it("switches back to basic mode when basic button is clicked", async () => {
@@ -71,9 +67,7 @@ describe("RecruiterSearchBox", () => {
     await userEvent.click(basicButton);
 
     // Basic mode input should be visible again
-    expect(
-      screen.getByPlaceholderText("e.g., 2")
-    ).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("e.g., 2")).toBeInTheDocument();
     // Premium mode fields should not be visible
     expect(
       screen.queryByPlaceholderText("e.g., React, Python, AWS")
@@ -126,9 +120,7 @@ describe("RecruiterSearchBox", () => {
 
     render(<RecruiterSearchBox />);
 
-    const userIdInput = screen.getByPlaceholderText(
-      "e.g., 2"
-    );
+    const userIdInput = screen.getByPlaceholderText("e.g., 2");
     await userEvent.type(userIdInput, "user-123");
 
     const submitButton = screen.getByText("Run Search");
@@ -256,9 +248,7 @@ describe("RecruiterSearchBox", () => {
 
     render(<RecruiterSearchBox />);
 
-    const userIdInput = screen.getByPlaceholderText(
-      "e.g., 2"
-    );
+    const userIdInput = screen.getByPlaceholderText("e.g., 2");
     await userEvent.type(userIdInput, "user-123");
 
     const submitButton = screen.getByText("Run Search");
@@ -281,9 +271,7 @@ describe("RecruiterSearchBox", () => {
 
     render(<RecruiterSearchBox />);
 
-    const userIdInput = screen.getByPlaceholderText(
-      "e.g., 2"
-    );
+    const userIdInput = screen.getByPlaceholderText("e.g., 2");
     await userEvent.type(userIdInput, "user-999");
 
     const submitButton = screen.getByText("Run Search");
@@ -326,9 +314,7 @@ describe("RecruiterSearchBox", () => {
 
     render(<RecruiterSearchBox />);
 
-    const userIdInput = screen.getByPlaceholderText(
-      "e.g., 2"
-    );
+    const userIdInput = screen.getByPlaceholderText("e.g., 2");
     await userEvent.type(userIdInput, "user-123");
 
     const submitButton = screen.getByText("Run Search");
@@ -362,9 +348,7 @@ describe("RecruiterSearchBox", () => {
 
     render(<RecruiterSearchBox />);
 
-    const userIdInput = screen.getByPlaceholderText(
-      "e.g., 2"
-    );
+    const userIdInput = screen.getByPlaceholderText("e.g., 2");
     await userEvent.type(userIdInput, "user-123");
 
     const submitButton = screen.getByText("Run Search");

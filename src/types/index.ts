@@ -88,8 +88,53 @@ export interface ResumeProfile {
     lastGeneratedAt: string;
   };
   slug: string;
-  published: boolean;
   lastUpdatedAt: string;
+}
+
+/**
+ * Draft Resume - stored in drafts collection
+ * Contains resume data that is being edited and not yet published
+ */
+export interface DraftResume {
+  /** Unique alphanumeric draft ID (e.g., "d7xK9mP2") */
+  draftId: string;
+  /** Owner's user ID */
+  userId: string;
+  /** Associated numeric resume ID (if previously published, null for new) */
+  resumeId: number | null;
+  /** Resume content */
+  profile: ResumeProfile;
+  /** Creation timestamp */
+  createdAt: string;
+  /** Last update timestamp */
+  updatedAt: string;
+}
+
+/**
+ * Published Resume - stored in resumes collection
+ * User-approved resume that is searchable by recruiters
+ */
+export interface PublishedResume {
+  /** Numeric resume ID (e.g., 12345678) */
+  resumeId: number;
+  /** Owner's user ID */
+  userId: string;
+  /** Resume content */
+  profile: ResumeProfile;
+  /** Vector embedding for AI search (768 dimensions) */
+  embedding?: number[];
+  /** Timestamp when embedding was last generated */
+  embeddingUpdatedAt?: string;
+  /** Search profile text used for embedding */
+  searchProfile?: string;
+  /** Publication timestamp */
+  publishedAt: string;
+  /** Last update timestamp */
+  updatedAt: string;
+  /** Whether resume is currently being edited (unpublished temporarily) */
+  isBeingEdited: boolean;
+  /** Associated draft ID if currently being edited */
+  editingDraftId?: string;
 }
 
 export interface User {

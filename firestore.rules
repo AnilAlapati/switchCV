@@ -226,6 +226,35 @@ service cloud.firestore {
       // they use the Firebase Admin SDK which bypasses these rules automatically
     }
 
+    // ==================== DRAFT RESUME COLLECTIONS ====================
+    
+    // Draft resumes - only the owner can access their drafts
+    match /drafts/{draftId} {
+      // Owner can read their own drafts
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      
+      // Owner can create drafts for themselves
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      
+      // Owner can update their own drafts
+      allow update: if request.auth != null && request.auth.uid == resource.data.userId;
+      
+      // Owner can delete their own drafts
+      allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+
+    // Draft ID mappings - server-only (used for ID uniqueness verification)
+    match /draftIdMapping/{draftId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // Search quota tracking - server-only
+    match /searchQuotas/{userId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
     // New Resumes Collection (Sequential IDs)
     match /resumes/{resumeId} {
       // Allow authenticated users to read their own resumes

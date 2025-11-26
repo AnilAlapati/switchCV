@@ -34,9 +34,7 @@ describe("RecruiterSearchForm", () => {
 
     expect(screen.getByText("Basic Lookup")).toBeInTheDocument();
     expect(screen.getByText("Premium Filters")).toBeInTheDocument();
-    expect(
-      screen.getByPlaceholderText("e.g., 2")
-    ).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("e.g., 2")).toBeInTheDocument();
     expect(screen.getByText("Run Search")).toBeInTheDocument();
   });
 

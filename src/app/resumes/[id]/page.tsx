@@ -73,10 +73,13 @@ export default function ResumeView() {
   const viewerAccess = (resume?.viewerAccess as Record<string, any>) ?? {};
   const viewerIsOwner = Boolean(viewerAccess?.isOwner);
   const isPublicPreview = viewerAccess?.scope === "public-preview";
+  const isBeingEdited = Boolean(resume?.isBeingEdited);
   const countdownBanner =
     viewerIsOwner && deletionNotice ? (
       <DeletionCountdownBanner notice={deletionNotice} />
     ) : null;
+  const editingBanner =
+    !viewerIsOwner && isBeingEdited ? <EditingInProgressBanner /> : null;
 
   useEffect(() => {
     if (!toast) return;
@@ -326,6 +329,7 @@ export default function ResumeView() {
       <div className="min-h-screen bg-gray-900 text-white p-8 font-sans relative">
         <ResumeToastOverlay toast={toast} onDismiss={() => setToast(null)} />
         {countdownBanner}
+        {editingBanner}
         {/* Privacy Toggle */}
         <PrivacyMenu
           isPublic={resume.isPublic}
@@ -364,6 +368,7 @@ export default function ResumeView() {
     <>
       <ResumeToastOverlay toast={toast} onDismiss={() => setToast(null)} />
       {countdownBanner}
+      {editingBanner}
       <LegacyResumeRenderer resume={resume} />
     </>
   );
@@ -400,6 +405,23 @@ function DeletionCountdownBanner({
           so you have time to upgrade.
         </p>
       )}
+    </div>
+  );
+}
+
+function EditingInProgressBanner() {
+  return (
+    <div
+      className="mb-4 rounded-lg border border-blue-400 bg-blue-500/10 px-4 py-3 text-sm leading-relaxed text-blue-100"
+      role="status"
+    >
+      <p className="font-semibold text-base">
+        📝 This resume is currently being edited
+      </p>
+      <p>
+        The owner is making updates to this resume. Some information may be
+        outdated until editing is complete.
+      </p>
     </div>
   );
 }

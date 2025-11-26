@@ -50,3 +50,8 @@ export {
   notifyAdminSuspiciousActivity,
   cleanupAuditLogs,
 } from "./emailFunctions";
+
+// ==================== AI SEARCH FUNCTIONS ====================
+export { indexResumeOnWrite, reindexResume } from "./indexResumeService";
+
+export { searchResumesAI, getSearchQuota } from "./searchResumeService";
