@@ -8,6 +8,7 @@ import {
 } from "./search-service";
 import { FieldValue } from "firebase-admin/firestore";
 import { recordRecruiterSearchEvent } from "@/lib/recruiterSearchHistory";
+import { getUserTier } from "@/lib/services/userService";
 
 interface SearchRequest {
   recruiterId: string;
@@ -25,18 +26,8 @@ export async function POST(request: NextRequest) {
       return handleApiError(null, "recruiterId is required", 400);
     }
 
-    // Get recruiter's subscription tier
-    const recruiterDoc = await adminDb
-      .collection("users")
-      .doc(recruiterId)
-      .get();
-
-    if (!recruiterDoc.exists) {
-      return handleApiError(null, "Recruiter not found", 404);
-    }
-
-    const recruiterData = recruiterDoc.data();
-    const subscriptionTier = recruiterData?.subscriptionTier || "basic";
+    // Get recruiter's subscription tier (respects dev mode overrides)
+    const subscriptionTier = await getUserTier(recruiterId);
 
     // Update recruiter metrics
     await adminDb
@@ -51,16 +42,13 @@ export async function POST(request: NextRequest) {
       )
       .catch((err) => console.error("Failed to update search metrics:", err));
 
-    // BASIC TIER: Search by user ID only, max 1 result
-    if (subscriptionTier === "basic") {
-      if (!userId) {
-        return handleApiError(
-          new Error("userId is required for basic search"),
-          "userId is required for basic search",
-          400
-        );
-      }
+    // Determine search type based on parameters provided
+    const hasUserId = userId && userId.trim();
+    const hasPremiumFilters =
+      (skills && skills.length > 0) || (location && location.trim());
 
+    // BASIC SEARCH: Search by user ID
+    if (hasUserId && !hasPremiumFilters) {
       try {
         // Build access status map first to check available resumes and avoid per-resume DB calls
         const accessStatusMap = await buildAccessStatusMap(recruiterId);
@@ -73,7 +61,7 @@ export async function POST(request: NextRequest) {
 
         await recordRecruiterSearchEvent({
           recruiterId,
-          tier: "basic",
+          tier: subscriptionTier,
           filters: { userId },
           resultUserIds: results.map((result) => result.userId).filter(Boolean),
           resultCount: results.length,
@@ -83,7 +71,7 @@ export async function POST(request: NextRequest) {
           notification:
             notification ||
             (results.length === 0 ? "No resume found" : undefined),
-          tier: "basic",
+          tier: subscriptionTier,
           maxResults: 1,
           count: results.length,
         });
@@ -92,13 +80,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // PREMIUM TIER: Search by skills and/or location, multiple results
-    if (subscriptionTier === "premium") {
-      if (!skills && !location) {
+    // PREMIUM SEARCH: Search by skills and/or location (requires premium or enterprise tier)
+    if (hasPremiumFilters) {
+      // Check if user has permission for premium search
+      if (subscriptionTier === "basic") {
         return handleApiError(
           null,
-          "Either skills or location is required for premium search",
-          400
+          "Premium or enterprise subscription required for skills/location search",
+          403
         );
       }
 
@@ -112,14 +101,14 @@ export async function POST(request: NextRequest) {
         );
         await recordRecruiterSearchEvent({
           recruiterId,
-          tier: "premium",
+          tier: subscriptionTier,
           filters: { skills, location },
           resultUserIds: results.map((result) => result.userId).filter(Boolean),
           resultCount: results.length,
         });
         return NextResponse.json({
           results,
-          tier: "premium",
+          tier: subscriptionTier,
           count: results.length,
           totalSearched: results.length,
         });
@@ -128,7 +117,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return handleApiError(null, "Invalid subscription tier", 400);
+    // No valid search parameters provided
+    return handleApiError(
+      null,
+      "Please provide either a userId or skills/location for search",
+      400
+    );
   } catch (error) {
     return handleApiError(error, "Failed to process request");
   }

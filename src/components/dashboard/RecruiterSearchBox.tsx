@@ -2,20 +2,18 @@
 
 import { useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useTier } from "@/hooks/useTier";
 import { RequestAccessDialog } from "@/components/RequestAccessDialog";
 import type { SearchResult } from "./RecruiterSearchForm";
 import { RecruiterSearchForm } from "./RecruiterSearchForm";
 import { RecruiterSearchResults } from "./RecruiterSearchResults";
-
-const PREMIUM_FILTERS_ENABLED =
-  process.env.NEXT_PUBLIC_ENABLE_PREMIUM_FILTERS === "true" ||
-  process.env.NODE_ENV === "test";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface RecruiterSearchBoxProps {}
 
 export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
   const { user } = useAuth();
+  const { isPremiumOrHigher, loading: tierLoading } = useTier();
   const [searchMode, setSearchMode] = useState<"basic" | "premium">("basic");
   const [userId, setUserId] = useState("");
   const [skills, setSkills] = useState<string[]>([]);
@@ -35,9 +33,20 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
     profileId: "",
   });
 
+  /**
+   * Premium filters are enabled when:
+   * 1. Explicitly enabled via env var, OR
+   * 2. Running tests, OR
+   * 3. User has premium or enterprise tier (includes dev mode override)
+   */
+  const premiumFiltersEnabled =
+    process.env.NEXT_PUBLIC_ENABLE_PREMIUM_FILTERS === "true" ||
+    process.env.NODE_ENV === "test" ||
+    isPremiumOrHigher;
+
   const effectiveSearchMode = useMemo<"basic" | "premium">(() => {
-    return PREMIUM_FILTERS_ENABLED ? searchMode : "basic";
-  }, [searchMode]);
+    return premiumFiltersEnabled ? searchMode : "basic";
+  }, [searchMode, premiumFiltersEnabled]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,6 +140,19 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
     setSkills(skills.filter((_, i) => i !== index));
   };
 
+  // Show loading state while tier is being determined
+  if (tierLoading) {
+    return (
+      <section className="space-y-6">
+        <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900/90 via-slate-900/80 to-slate-950/90 p-6 shadow-2xl shadow-cyan-500/10 backdrop-blur-sm ring-1 ring-white/5 lg:p-8">
+          <div className="flex items-center justify-center py-12">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-cyan-400 border-t-transparent" />
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="space-y-6">
       <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900/90 via-slate-900/80 to-slate-950/90 p-6 shadow-2xl shadow-cyan-500/10 backdrop-blur-sm ring-1 ring-white/5 lg:p-8">
@@ -187,7 +209,7 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
               <RecruiterSearchForm
                 searchMode={effectiveSearchMode}
                 setSearchMode={setSearchMode}
-                premiumFiltersEnabled={PREMIUM_FILTERS_ENABLED}
+                premiumFiltersEnabled={premiumFiltersEnabled}
                 userId={userId}
                 setUserId={setUserId}
                 skills={skills}

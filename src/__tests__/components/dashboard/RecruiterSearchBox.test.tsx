@@ -10,6 +10,20 @@ jest.mock("@/hooks/useAuth", () => ({
   }),
 }));
 
+// Mock useTier
+jest.mock("@/hooks/useTier", () => ({
+  useTier: () => ({
+    tier: "premium",
+    loading: false,
+    error: null,
+    isBasic: false,
+    isPremium: true,
+    isEnterprise: false,
+    isPremiumOrHigher: true,
+    refetch: jest.fn(),
+  }),
+}));
+
 // Mock fetch
 const mockFetch = jest.fn();
 global.fetch = mockFetch as any;

@@ -4,6 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:enterprise": "NEXT_PUBLIC_DEV_MODE=true NEXT_PUBLIC_DEV_TIER=enterprise next dev",
+    "dev:enterprise:recruiter": "NEXT_PUBLIC_DEV_MODE=true NEXT_PUBLIC_DEV_TIER=enterprise NEXT_PUBLIC_DEV_ROLE=recruiter next dev",
+    "dev:enterprise:jobseeker": "NEXT_PUBLIC_DEV_MODE=true NEXT_PUBLIC_DEV_TIER=enterprise NEXT_PUBLIC_DEV_ROLE=jobseeker next dev",
+    "dev:premium": "NEXT_PUBLIC_DEV_MODE=true NEXT_PUBLIC_DEV_TIER=premium next dev",
+    "dev:basic": "NEXT_PUBLIC_DEV_MODE=true NEXT_PUBLIC_DEV_TIER=basic next dev",
     "build": "npm run release && next build",
     "start": "next start",
     "lint": "eslint",

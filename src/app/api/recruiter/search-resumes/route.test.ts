@@ -29,14 +29,21 @@ jest.mock("@/lib/resumeIdMapping", () => ({
   getDocumentIdFromResumeId: jest.fn(),
 }));
 
+// Mock userService
+jest.mock("@/lib/services/userService", () => ({
+  getUserTier: jest.fn(),
+}));
+
 import { adminDb } from "@/lib/firebase-admin";
 import { getDocumentIdFromResumeId } from "@/lib/resumeIdMapping";
+import { getUserTier } from "@/lib/services/userService";
 
 const mockAdminDb = adminDb as jest.Mocked<typeof adminDb>;
 const mockGetDocumentIdFromResumeId =
   getDocumentIdFromResumeId as jest.MockedFunction<
     typeof getDocumentIdFromResumeId
   >;
+const mockGetUserTier = getUserTier as jest.MockedFunction<typeof getUserTier>;
 
 // Helper to create mock document snapshots
 const createMockDocSnapshot = (exists: boolean, data?: any) => ({
@@ -74,36 +81,14 @@ describe("POST /api/recruiter/search-resumes", () => {
       expect(data.error).toBe("recruiterId is required");
     });
 
-    it("should return 404 when recruiter is not found", async () => {
-      mockAdminDb.collection.mockReturnValue({
-        doc: jest.fn(() => ({
-          get: jest.fn().mockResolvedValue(createMockDocSnapshot(false)),
-        })),
-      } as any);
+    // Note: Recruiter existence is no longer checked - getUserTier returns 'basic' by default
 
-      const request = new NextRequest(
-        "http://localhost:3000/api/recruiter/search-resumes",
-        {
-          method: "POST",
-          body: JSON.stringify({ recruiterId: "recruiter-123" }),
-        }
-      );
-
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(404);
-      expect(data.error).toBe("Recruiter not found");
-    });
-
-    it("should return 400 when userId is missing for basic tier", async () => {
-      const recruiterDoc = createMockDocSnapshot(true, {
-        subscriptionTier: "basic",
-      });
+    it("should return 400 when no search parameters provided", async () => {
+      mockGetUserTier.mockResolvedValue("basic");
 
       mockAdminDb.collection.mockReturnValue({
         doc: jest.fn(() => ({
-          get: jest.fn().mockResolvedValue(recruiterDoc),
+          get: jest.fn().mockResolvedValue(createMockDocSnapshot(true, {})),
           set: jest.fn().mockResolvedValue(undefined),
         })),
       } as any);
@@ -120,13 +105,12 @@ describe("POST /api/recruiter/search-resumes", () => {
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.error).toBe("userId is required for basic search");
+      expect(data.error).toBe("Please provide either a userId or skills/location for search");
     });
 
     it("should search by resume ID mapping successfully", async () => {
-      const recruiterDoc = createMockDocSnapshot(true, {
-        subscriptionTier: "basic",
-      });
+      mockGetUserTier.mockResolvedValue("basic");
+
       const resumeDoc = createMockDocSnapshot(true, {
         title: "Software Engineer Resume",
         userId: "user-456",
@@ -143,23 +127,13 @@ describe("POST /api/recruiter/search-resumes", () => {
         userId: "user-456",
       });
 
-      let callCount = 0;
       mockAdminDb.collection.mockImplementation((collectionName: string) => {
-        callCount += 1; // Increment call count
         if (collectionName === "users") {
-          if (callCount === 1) {
-            return {
-              doc: jest.fn(() => ({
-                get: jest.fn().mockResolvedValue(recruiterDoc),
-              })),
-            } as any;
-          } else {
-            return {
-              doc: jest.fn(() => ({
-                get: jest.fn().mockResolvedValue(userDoc),
-              })),
-            } as any;
-          }
+          return {
+            doc: jest.fn(() => ({
+              get: jest.fn().mockResolvedValue(userDoc),
+            })),
+          } as any;
         } else if (collectionName === "resumes") {
           return {
             doc: jest.fn(() => ({
@@ -205,9 +179,8 @@ describe("POST /api/recruiter/search-resumes", () => {
     });
 
     it("should return empty results for unpublished resume", async () => {
-      const recruiterDoc = createMockDocSnapshot(true, {
-        subscriptionTier: "basic",
-      });
+      mockGetUserTier.mockResolvedValue("basic");
+
       const resumeDoc = createMockDocSnapshot(true, {
         title: "Software Engineer Resume",
         userId: "user-456",
@@ -224,7 +197,7 @@ describe("POST /api/recruiter/search-resumes", () => {
         if (collectionName === "users") {
           return {
             doc: jest.fn(() => ({
-              get: jest.fn().mockResolvedValue(recruiterDoc),
+              get: jest.fn().mockResolvedValue(createMockDocSnapshot(true, {})),
             })),
           } as any;
         } else if (collectionName === "resumes") {
@@ -263,9 +236,8 @@ describe("POST /api/recruiter/search-resumes", () => {
     });
 
     it("should search by direct document ID", async () => {
-      const recruiterDoc = createMockDocSnapshot(true, {
-        subscriptionTier: "basic",
-      });
+      mockGetUserTier.mockResolvedValue("basic");
+
       const resumeDoc = createMockDocSnapshot(true, {
         title: "Frontend Developer Resume",
         userId: "user-789",
@@ -279,23 +251,13 @@ describe("POST /api/recruiter/search-resumes", () => {
 
       mockGetDocumentIdFromResumeId.mockResolvedValue(null); // No mapping found
 
-      let callCount = 0;
       mockAdminDb.collection.mockImplementation((collectionName: string) => {
         if (collectionName === "users") {
-          if (callCount === 0) {
-            callCount++;
-            return {
-              doc: jest.fn(() => ({
-                get: jest.fn().mockResolvedValue(recruiterDoc),
-              })),
-            } as any;
-          } else {
-            return {
-              doc: jest.fn(() => ({
-                get: jest.fn().mockResolvedValue(userDoc),
-              })),
-            } as any;
-          }
+          return {
+            doc: jest.fn(() => ({
+              get: jest.fn().mockResolvedValue(userDoc),
+            })),
+          } as any;
         } else if (collectionName === "resumes") {
           return {
             doc: jest.fn(() => ({
@@ -332,9 +294,8 @@ describe("POST /api/recruiter/search-resumes", () => {
     });
 
     it("should search by user ID", async () => {
-      const recruiterDoc = createMockDocSnapshot(true, {
-        subscriptionTier: "basic",
-      });
+      mockGetUserTier.mockResolvedValue("basic");
+
       const userDoc = createMockDocSnapshot(true, {
         displayName: "Bob Johnson",
         email: "bob@example.com",
@@ -351,22 +312,13 @@ describe("POST /api/recruiter/search-resumes", () => {
       let callCount = 0;
       mockAdminDb.collection.mockImplementation((collectionName: string) => {
         if (collectionName === "users") {
-          if (callCount === 0) {
-            callCount++;
-            return {
-              doc: jest.fn(() => ({
-                get: jest.fn().mockResolvedValue(recruiterDoc),
-              })),
-            } as any;
-          } else {
-            return {
-              doc: jest.fn(() => ({
-                get: jest.fn().mockResolvedValue(userDoc),
-              })),
-            } as any;
-          }
+          return {
+            doc: jest.fn(() => ({
+              get: jest.fn().mockResolvedValue(userDoc),
+            })),
+          } as any;
         } else if (collectionName === "resumes") {
-          if (callCount === 1) {
+          if (callCount === 0) {
             callCount++;
             return {
               doc: jest.fn(() => ({
@@ -416,9 +368,7 @@ describe("POST /api/recruiter/search-resumes", () => {
     });
 
     it("should return empty results when no candidate found", async () => {
-      const recruiterDoc = createMockDocSnapshot(true, {
-        subscriptionTier: "basic",
-      });
+      mockGetUserTier.mockResolvedValue("basic");
 
       mockGetDocumentIdFromResumeId.mockResolvedValue(null);
 
@@ -426,7 +376,7 @@ describe("POST /api/recruiter/search-resumes", () => {
         if (collectionName === "users") {
           return {
             doc: jest.fn(() => ({
-              get: jest.fn().mockResolvedValue(recruiterDoc),
+              get: jest.fn().mockResolvedValue(createMockDocSnapshot(true, {})),
             })),
           } as any;
         } else if (collectionName === "resumes") {
@@ -475,14 +425,12 @@ describe("POST /api/recruiter/search-resumes", () => {
   });
 
   describe("Premium Tier", () => {
-    it("should return 400 when neither skills nor location provided", async () => {
-      const recruiterDoc = createMockDocSnapshot(true, {
-        subscriptionTier: "premium",
-      });
+    it("should return 400 when neither skills nor location provided for premium user", async () => {
+      mockGetUserTier.mockResolvedValue("premium");
 
       mockAdminDb.collection.mockReturnValue({
         doc: jest.fn(() => ({
-          get: jest.fn().mockResolvedValue(recruiterDoc),
+          get: jest.fn().mockResolvedValue(createMockDocSnapshot(true, {})),
           set: jest.fn().mockResolvedValue(undefined),
         })),
       } as any);
@@ -500,14 +448,13 @@ describe("POST /api/recruiter/search-resumes", () => {
 
       expect(response.status).toBe(400);
       expect(data.error).toBe(
-        "Either skills or location is required for premium search"
+        "Please provide either a userId or skills/location for search"
       );
     });
 
     it("should search by skills successfully", async () => {
-      const recruiterDoc = createMockDocSnapshot(true, {
-        subscriptionTier: "premium",
-      });
+      mockGetUserTier.mockResolvedValue("premium");
+
       const resumeDoc = createMockDocSnapshot(true, {
         title: "Full Stack Developer",
         userId: "user-111",
@@ -525,23 +472,13 @@ describe("POST /api/recruiter/search-resumes", () => {
         location: "San Francisco",
       });
 
-      let callCount = 0;
       mockAdminDb.collection.mockImplementation((collectionName: string) => {
         if (collectionName === "users") {
-          if (callCount === 0) {
-            callCount++;
-            return {
-              doc: jest.fn(() => ({
-                get: jest.fn().mockResolvedValue(recruiterDoc),
-              })),
-            } as any;
-          } else {
-            return {
-              doc: jest.fn(() => ({
-                get: jest.fn().mockResolvedValue(userDoc),
-              })),
-            } as any;
-          }
+          return {
+            doc: jest.fn(() => ({
+              get: jest.fn().mockResolvedValue(userDoc),
+            })),
+          } as any;
         } else if (collectionName === "resumes") {
           return {
             where: jest.fn(() => ({
@@ -585,15 +522,15 @@ describe("POST /api/recruiter/search-resumes", () => {
     });
 
     it("should search by location successfully", async () => {
-      const recruiterDoc = createMockDocSnapshot(true, {
-        subscriptionTier: "premium",
-      });
+      mockGetUserTier.mockResolvedValue("premium");
+
       const resumeDoc = createMockDocSnapshot(true, {
         title: "Backend Engineer",
         userId: "user-222",
         published: true,
         createdAt: "2024-02-05T10:00:00Z",
         skills: [{ name: "Python" }, { name: "Django" }],
+        location: "New York",
       });
       const userDoc = createMockDocSnapshot(true, {
         displayName: "Bob Wilson",
@@ -601,23 +538,13 @@ describe("POST /api/recruiter/search-resumes", () => {
         location: "New York",
       });
 
-      let callCount = 0;
       mockAdminDb.collection.mockImplementation((collectionName: string) => {
         if (collectionName === "users") {
-          if (callCount === 0) {
-            callCount++;
-            return {
-              doc: jest.fn(() => ({
-                get: jest.fn().mockResolvedValue(recruiterDoc),
-              })),
-            } as any;
-          } else {
-            return {
-              doc: jest.fn(() => ({
-                get: jest.fn().mockResolvedValue(userDoc),
-              })),
-            } as any;
-          }
+          return {
+            doc: jest.fn(() => ({
+              get: jest.fn().mockResolvedValue(userDoc),
+            })),
+          } as any;
         } else if (collectionName === "resumes") {
           return {
             where: jest.fn(() => ({
@@ -656,9 +583,7 @@ describe("POST /api/recruiter/search-resumes", () => {
     });
 
     it("should limit results to 50 for premium tier", async () => {
-      const recruiterDoc = createMockDocSnapshot(true, {
-        subscriptionTier: "premium",
-      });
+      mockGetUserTier.mockResolvedValue("premium");
 
       // Create 55 mock resume docs
       const resumeDocs = Array.from({ length: 55 }, (_, i) =>
@@ -679,25 +604,15 @@ describe("POST /api/recruiter/search-resumes", () => {
         })
       );
 
-      let callCount = 0;
       mockAdminDb.collection.mockImplementation((collectionName: string) => {
         if (collectionName === "users") {
-          if (callCount === 0) {
-            callCount++;
-            return {
-              doc: jest.fn(() => ({
-                get: jest.fn().mockResolvedValue(recruiterDoc),
-              })),
-            } as any;
-          } else {
-            return {
-              doc: jest.fn((id: string) => ({
-                get: jest
-                  .fn()
-                  .mockResolvedValue(userDocs[parseInt(id.split("-")[1])]),
-              })),
-            } as any;
-          }
+          return {
+            doc: jest.fn((id: string) => ({
+              get: jest
+                .fn()
+                .mockResolvedValue(userDocs[parseInt(id.split("-")[1]) || 0]),
+            })),
+          } as any;
         } else if (collectionName === "resumes") {
           return {
             where: jest.fn(() => ({
@@ -736,14 +651,12 @@ describe("POST /api/recruiter/search-resumes", () => {
     });
   });
 
-  it("should return 400 for invalid subscription tier", async () => {
-    const recruiterDoc = createMockDocSnapshot(true, {
-      subscriptionTier: "invalid",
-    });
+  it("should return 403 when basic tier tries premium search", async () => {
+    mockGetUserTier.mockResolvedValue("basic");
 
     mockAdminDb.collection.mockReturnValue({
       doc: jest.fn(() => ({
-        get: jest.fn().mockResolvedValue(recruiterDoc),
+        get: jest.fn().mockResolvedValue(createMockDocSnapshot(true, {})),
         set: jest.fn().mockResolvedValue(undefined),
       })),
     } as any);
@@ -751,15 +664,19 @@ describe("POST /api/recruiter/search-resumes", () => {
       "http://localhost:3000/api/recruiter/search-resumes",
       {
         method: "POST",
-        body: JSON.stringify({ recruiterId: "recruiter-123" }),
+        body: JSON.stringify({ 
+          recruiterId: "recruiter-123",
+          skills: ["React"],
+          location: "New York"
+        }),
       }
     );
 
     const response = await POST(request);
     const data = await response.json();
 
-    expect(response.status).toBe(400);
-    expect(data.error).toBe("Invalid subscription tier");
+    expect(response.status).toBe(403);
+    expect(data.error).toBe("Premium or enterprise subscription required for skills/location search");
   });
 
   it("should handle database errors", async () => {
