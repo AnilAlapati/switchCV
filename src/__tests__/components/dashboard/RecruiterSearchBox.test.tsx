@@ -2,10 +2,16 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { RecruiterSearchBox } from "@/components/dashboard/RecruiterSearchBox";
 
+const mockGetIdToken = jest.fn();
+
 // Mock useAuth
 jest.mock("@/hooks/useAuth", () => ({
   useAuth: () => ({
-    user: { uid: "recruiter-123", email: "recruiter@example.com" },
+    user: {
+      uid: "recruiter-123",
+      email: "recruiter@example.com",
+      getIdToken: mockGetIdToken,
+    },
     loading: false,
   }),
 }));
@@ -31,6 +37,7 @@ global.fetch = mockFetch as any;
 describe("RecruiterSearchBox", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetIdToken.mockResolvedValue("mock-token");
   });
 
   it("renders the search box with header and form", () => {
@@ -143,7 +150,10 @@ describe("RecruiterSearchBox", () => {
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith("/api/recruiter/search-resumes", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer mock-token",
+        },
         body: JSON.stringify({
           recruiterId: "recruiter-123",
           userId: "user-123",
@@ -151,6 +161,7 @@ describe("RecruiterSearchBox", () => {
       });
     });
 
+    expect(mockGetIdToken).toHaveBeenCalled();
     expect(screen.getByText("1 resume found")).toBeInTheDocument();
     expect(screen.getByText("Software Engineer Resume")).toBeInTheDocument();
   });
@@ -191,7 +202,10 @@ describe("RecruiterSearchBox", () => {
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith("/api/recruiter/search-resumes", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer mock-token",
+        },
         body: JSON.stringify({
           recruiterId: "recruiter-123",
           skills: ["React"],
@@ -241,7 +255,10 @@ describe("RecruiterSearchBox", () => {
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith("/api/recruiter/search-resumes", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer mock-token",
+        },
         body: JSON.stringify({
           recruiterId: "recruiter-123",
           location: "Austin",
