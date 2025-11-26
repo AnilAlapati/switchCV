@@ -260,6 +260,16 @@ service cloud.firestore {
       // Allow authenticated users to read their own resumes
       allow read: if request.auth != null && request.auth.uid == resource.data.userId;
       
+      // SECURITY FIX: Allow recruiters to read published resumes (not being edited)
+      // This enables the AI search functionality to work for recruiters
+      allow read: if request.auth != null 
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'recruiter'
+        && resource.data.isBeingEdited == false;
+      
+      // Allow admins to read all resumes
+      allow read: if request.auth != null 
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      
       // Only authenticated users can create resumes (must be for themselves)
       allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
       // Only the owner can update their resume

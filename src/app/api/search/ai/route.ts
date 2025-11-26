@@ -4,7 +4,9 @@ import { getApp } from "firebase/app";
 import {
   getAuthenticatedUserId,
   handleApiError,
+  attachRateLimitHeaders,
 } from "@/lib/utils/api-helpers";
+import { aiSearchRateLimiter } from "@/lib/utils/distributedRateLimit";
 
 // Initialize Firebase client (required for callable functions)
 import "@/lib/firebase";
@@ -33,13 +35,29 @@ interface SearchResponse {
 export async function POST(request: NextRequest) {
   try {
     // Verify authentication
-    const userId = await getAuthenticatedUserId(request);
+    const { userId, error: authError } = await getAuthenticatedUserId(request);
+    if (authError) {
+      return authError;
+    }
+
     if (!userId) {
       return handleApiError(
         new Error("Authentication required"),
         "Please sign in to use AI search",
         401
       );
+    }
+
+    // Apply distributed rate limiting (works across serverless instances)
+    const rateLimitResult = await aiSearchRateLimiter(userId);
+    if (!rateLimitResult.allowed) {
+      const response = handleApiError(
+        new Error("Rate limit exceeded"),
+        "Too many requests. Please wait before searching again.",
+        429
+      );
+      attachRateLimitHeaders(response, rateLimitResult);
+      return response;
     }
 
     // Parse request body

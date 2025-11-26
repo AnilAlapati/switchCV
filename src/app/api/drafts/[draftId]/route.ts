@@ -13,6 +13,7 @@ import {
   getAuthenticatedUserId,
   handleApiError,
 } from "@/lib/utils/api-helpers";
+import { DraftPatchRequestSchema } from "@/lib/schemas/draftSchema";
 
 export async function GET(
   request: NextRequest,
@@ -55,7 +56,24 @@ export async function PATCH(
     if (authError) return authError;
 
     const { draftId } = await params;
-    const updates = await request.json();
+
+    // Parse and validate request body using Zod schema
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return handleApiError(null, "Invalid JSON payload", 400);
+    }
+
+    const validationResult = DraftPatchRequestSchema.safeParse(body);
+    if (!validationResult.success) {
+      const errorMessages = validationResult.error.issues
+        .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
+        .join("; ");
+      return handleApiError(null, `Validation failed: ${errorMessages}`, 400);
+    }
+
+    const updates = validationResult.data;
 
     const draftRef = adminDb.collection(DRAFT_CONFIG.COLLECTION).doc(draftId);
     const draftDoc = await draftRef.get();
@@ -73,17 +91,24 @@ export async function PATCH(
 
     // Update the draft
     const now = new Date().toISOString();
+    const updatedProfile = {
+      ...(draftData?.profile || {}),
+      ...updates.profile,
+      lastUpdatedAt: now,
+    };
+
     await draftRef.update({
-      profile: {
-        ...(draftData?.profile || {}),
-        ...updates.profile,
-        lastUpdatedAt: now,
-      },
+      profile: updatedProfile,
       updatedAt: now,
     });
 
-    const updatedDoc = await draftRef.get();
-    return NextResponse.json(updatedDoc.data());
+    // Return the updated data without re-reading from Firestore
+    // This eliminates the double-read performance issue
+    return NextResponse.json({
+      ...draftData,
+      profile: updatedProfile,
+      updatedAt: now,
+    });
   } catch (error) {
     return handleApiError(error, "Failed to update draft");
   }

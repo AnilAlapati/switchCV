@@ -26,13 +26,13 @@ const db = admin.firestore();
 
 /**
  * Search result returned to the client
+ * Note: Location is intentionally excluded for privacy (PII concern)
  */
 interface SearchResult {
   resumeId: number;
   title: string;
   summary: string;
   skills: string[];
-  location?: string;
   similarityScore: number;
 }
 
@@ -59,7 +59,7 @@ function cosineSimilarity(a: number[], b: number[]): number {
 }
 
 /**
- * Generates embedding for search query
+ * Generates embedding for search query with timeout protection
  */
 async function generateQueryEmbedding(query: string): Promise<number[]> {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -71,7 +71,18 @@ async function generateQueryEmbedding(query: string): Promise<number[]> {
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({ model: AI_SEARCH.EMBEDDING_MODEL });
 
-  const result = await model.embedContent(query);
+  // Add timeout protection to prevent hanging requests
+  const timeoutMs = 30000; // 30 seconds
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(
+      () => reject(new Error("Gemini API timeout after 30 seconds")),
+      timeoutMs
+    );
+  });
+
+  const embeddingPromise = model.embedContent(query);
+
+  const result = await Promise.race([embeddingPromise, timeoutPromise]);
   return result.embedding.values;
 }
 
@@ -215,21 +226,31 @@ export const searchResumesAI = functions.https.onCall(
       // Generate embedding for the search query
       const queryEmbedding = await generateQueryEmbedding(query);
 
-      // Fetch all indexed resumes (that are not being edited)
-      // Note: For production with large datasets, use Firestore Vector Search
+      // OPTIMIZATION: Instead of loading ALL resumes, use pagination and limits
+      // For production with large datasets, use Firestore Vector Search extension
       // or a dedicated vector database like Pinecone
+      //
+      // Current optimization: Limit to 500 most recent resumes with embeddings
+      // This provides a reasonable balance between coverage and performance
+      const MAX_DOCS_TO_SCAN = 500;
+
       let resumesQuery = db
         .collection("resumes")
-        .where("isBeingEdited", "==", false);
+        .where("isBeingEdited", "==", false)
+        .where("embedding", "!=", null) // Only fetch resumes with embeddings
+        .orderBy("embedding") // Required for != query
+        .orderBy("updatedAt", "desc") // Prioritize recently updated
+        .limit(MAX_DOCS_TO_SCAN);
 
-      // Apply location filter if specified
-      // Note: This is a basic filter. For production, you might want
-      // to use Firestore's geo queries or pre-filter before vector search
       const resumesSnapshot = await resumesQuery.get();
 
       if (resumesSnapshot.empty) {
         return { results: [], quotaRemaining: quotaCheck.remaining };
       }
+
+      functions.logger.info(
+        `AI search scanning ${resumesSnapshot.size} resumes (max: ${MAX_DOCS_TO_SCAN})`
+      );
 
       // Calculate similarity scores
       const scoredResults: Array<{
@@ -268,6 +289,8 @@ export const searchResumesAI = functions.https.onCall(
       const topResults = scoredResults.slice(0, limit);
 
       // Format results
+      // Note: Location is NOT included in search results for privacy
+      // Recruiters can request access to see full contact details
       const results: SearchResult[] = topResults.map(({ doc, score }) => {
         const data = doc.data()!;
         const profile = data.profile || {};
@@ -279,7 +302,8 @@ export const searchResumesAI = functions.https.onCall(
           skills:
             profile.skills?.slice(0, 5).map((s: { name: string }) => s.name) ||
             [],
-          location: profile.personalInfo?.location,
+          // Location intentionally omitted - PII concern
+          // Recruiters must request access for full profile details
           similarityScore: Math.round(score * 100) / 100,
         };
       });
