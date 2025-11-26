@@ -22,6 +22,7 @@ import {
   DurationSelectionInput,
   normalizeDuration,
 } from "@/lib/accessDuration";
+import { logger } from "@/lib/logger";
 
 interface RequestAccessPayload {
   resumeId: string;
@@ -195,7 +196,7 @@ export async function POST(request: NextRequest) {
 
     const requestRef = await accessRequestsCollection.add(accessRequest);
 
-    console.log(`📨 Access request created: ${requestRef.id}`);
+    logger.info({ requestId: requestRef.id }, "Access request created");
 
     // Update job seeker metrics
     await adminDb

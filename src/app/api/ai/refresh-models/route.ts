@@ -2,11 +2,42 @@
 // Call this endpoint when you notice model issues
 // GET /api/ai/refresh-models
 
-import { NextResponse } from "next/server";
-import { handleApiError } from "@/lib/utils/api-helpers";
+import { NextRequest, NextResponse } from "next/server";
+import {
+  applyRateLimit,
+  attachRateLimitHeaders,
+  getAuthenticatedUserId,
+  getClientIp,
+  handleApiError,
+} from "@/lib/utils/api-helpers";
+import { getUserRole } from "@/lib/services/userService";
 
-export async function GET() {
+const ADMIN_REFRESH_LIMIT = {
+  limit: 5,
+  windowMs: 60 * 1000,
+};
+
+export async function GET(request: NextRequest) {
   try {
+    const { userId, error } = await getAuthenticatedUserId(request);
+    if (error || !userId) {
+      return error ?? handleApiError(null, "Unauthorized", 401);
+    }
+
+    const role = await getUserRole(userId);
+    if (role !== "admin") {
+      return handleApiError(null, "Forbidden: Admin access required", 403);
+    }
+
+    const clientIp = getClientIp(request);
+    const rateCheck = applyRateLimit(
+      `refresh-models:${clientIp}`,
+      ADMIN_REFRESH_LIMIT
+    );
+    if (!rateCheck.allowed) {
+      return rateCheck.response;
+    }
+
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
@@ -38,7 +69,7 @@ export async function GET() {
       m.methods?.includes("generateContent")
     );
 
-    return NextResponse.json({
+    const jsonResponse = NextResponse.json({
       success: true,
       timestamp: new Date().toISOString(),
       total: allModels.length,
@@ -46,6 +77,8 @@ export async function GET() {
       models: compatibleModels,
       message: "Model cache will be refreshed on next API call",
     });
+    attachRateLimitHeaders(jsonResponse, rateCheck.result);
+    return jsonResponse;
   } catch (error) {
     return handleApiError(error, "Failed to refresh models");
   }

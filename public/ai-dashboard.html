@@ -123,6 +123,7 @@
     <div class="header">
       <h1>🤖 AI Model Dashboard</h1>
       <p class="subtitle">Real-time monitoring of available Gemini models</p>
+      <p class="subtitle" id="token-status" style="margin-top:8px;color:#b91c1c;display:none;"></p>
     </div>
 
     <div id="loading" class="loading">
@@ -164,6 +165,48 @@
       'gemini-flash-latest'
     ];
 
+    const LOCAL_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0'];
+
+    function isLocalhost() {
+      return LOCAL_HOSTS.includes(window.location.hostname);
+    }
+
+    function ensureToken() {
+      let token = sessionStorage.getItem('aiDashboardToken');
+      if (!token) {
+        token = prompt('Enter admin Bearer token (Firebase ID token) to view models:');
+        if (token) {
+          sessionStorage.setItem('aiDashboardToken', token.trim());
+        }
+      }
+      return token?.trim();
+    }
+
+    function requireLocalhost() {
+      if (!isLocalhost()) {
+        document.getElementById('loading').innerHTML =
+          '<div style="color:#fff;">AI dashboard is only available from localhost for security reasons.</div>';
+        return false;
+      }
+      return true;
+    }
+
+    function updateTokenStatus(message, isError = false) {
+      const el = document.getElementById('token-status');
+      el.style.display = 'block';
+      el.style.color = isError ? '#b91c1c' : '#047857';
+      el.textContent = message;
+    }
+
+    function getAuthHeaders() {
+      const token = ensureToken();
+      if (!token) {
+        updateTokenStatus('Bearer token required to call admin-only API.', true);
+        return null;
+      }
+      return { Authorization: `Bearer ${token}` };
+    }
+
     function isPreferred(modelName) {
       return PREFERRED_MODELS.some(p => 
         modelName.toLowerCase().includes(p.toLowerCase())
@@ -181,11 +224,24 @@
     }
 
     async function loadModels() {
+      if (!requireLocalhost()) {
+        return;
+      }
+
+      const headers = getAuthHeaders();
+      if (!headers) {
+        document.getElementById('loading').innerHTML =
+          '<div style="color:#ef4444;">Authorization token missing.</div>';
+        return;
+      }
+
       try {
         document.getElementById('loading').style.display = 'block';
         document.getElementById('content').style.display = 'none';
 
-        const response = await fetch('/api/ai/refresh-models');
+        const response = await fetch('/api/ai/refresh-models', {
+          headers,
+        });
         const data = await response.json();
 
         if (data.success) {
@@ -220,10 +276,14 @@
 
           document.getElementById('loading').style.display = 'none';
           document.getElementById('content').style.display = 'block';
+          updateTokenStatus('Authenticated as admin. Rate limits apply.', false);
+        } else {
+          updateTokenStatus(data.error || 'Failed to refresh models', true);
         }
       } catch (error) {
         document.getElementById('loading').innerHTML = 
           `<div style="color: #ef4444;">Error loading models: ${error.message}</div>`;
+        updateTokenStatus('Failed to load models. Check token and try again.', true);
       }
     }
 

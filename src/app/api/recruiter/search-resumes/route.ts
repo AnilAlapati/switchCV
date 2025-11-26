@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
-import { handleApiError } from "@/lib/utils/api-helpers";
+import {
+  applyRateLimit,
+  attachRateLimitHeaders,
+  getAuthenticatedUserId,
+  getClientIp,
+  handleApiError,
+} from "@/lib/utils/api-helpers";
 import {
   buildAccessStatusMap,
   performBasicSearch,
@@ -8,7 +14,9 @@ import {
 } from "./search-service";
 import { FieldValue } from "firebase-admin/firestore";
 import { recordRecruiterSearchEvent } from "@/lib/recruiterSearchHistory";
-import { getUserTier } from "@/lib/services/userService";
+import { getUserRole, getUserTier } from "@/lib/services/userService";
+import { RATE_LIMITS } from "@/config/constants";
+import { logger } from "@/lib/logger";
 
 interface SearchRequest {
   recruiterId: string;
@@ -20,11 +28,36 @@ interface SearchRequest {
 export async function POST(request: NextRequest) {
   try {
     const body: SearchRequest = await request.json();
-    const { recruiterId, userId, skills, location } = body;
+    const { userId, skills, location } = body;
 
-    if (!recruiterId) {
-      return handleApiError(null, "recruiterId is required", 400);
+    const { userId: authenticatedUserId, error: authError } =
+      await getAuthenticatedUserId(request);
+    if (authError || !authenticatedUserId) {
+      return authError ?? handleApiError(null, "Unauthorized", 401);
     }
+
+    const requesterRole = await getUserRole(authenticatedUserId);
+    const isAdmin = requesterRole === "admin";
+    if (!isAdmin && requesterRole !== "recruiter") {
+      return handleApiError(null, "Recruiter access required", 403);
+    }
+
+    const requestedRecruiterId = body.recruiterId?.trim();
+    const recruiterId = requestedRecruiterId || authenticatedUserId;
+
+    if (!isAdmin && recruiterId !== authenticatedUserId) {
+      return handleApiError(null, "Forbidden: Recruiter mismatch", 403);
+    }
+
+    const rateIdentifier = `${authenticatedUserId}:${getClientIp(request)}`;
+    const rateCheck = applyRateLimit(rateIdentifier, {
+      limit: RATE_LIMITS.SEARCH_REQUESTS_PER_MINUTE,
+      windowMs: 60 * 1000,
+    });
+    if (!rateCheck.allowed) {
+      return rateCheck.response;
+    }
+    const rateLimitResult = rateCheck.result;
 
     // Get recruiter's subscription tier (respects dev mode overrides)
     const subscriptionTier = await getUserTier(recruiterId);
@@ -66,7 +99,7 @@ export async function POST(request: NextRequest) {
           resultUserIds: results.map((result) => result.userId).filter(Boolean),
           resultCount: results.length,
         });
-        return NextResponse.json({
+        const response = NextResponse.json({
           results,
           notification:
             notification ||
@@ -75,6 +108,8 @@ export async function POST(request: NextRequest) {
           maxResults: 1,
           count: results.length,
         });
+        attachRateLimitHeaders(response, rateLimitResult);
+        return response;
       } catch (error) {
         return handleApiError(error, "Search failed");
       }
@@ -106,24 +141,29 @@ export async function POST(request: NextRequest) {
           resultUserIds: results.map((result) => result.userId).filter(Boolean),
           resultCount: results.length,
         });
-        return NextResponse.json({
+        const response = NextResponse.json({
           results,
           tier: subscriptionTier,
           count: results.length,
           totalSearched: results.length,
         });
+        attachRateLimitHeaders(response, rateLimitResult);
+        return response;
       } catch (error) {
         return handleApiError(error, "Search failed");
       }
     }
 
     // No valid search parameters provided
-    return handleApiError(
+    const response = handleApiError(
       null,
       "Please provide either a userId or skills/location for search",
       400
     );
+    attachRateLimitHeaders(response, rateLimitResult);
+    return response;
   } catch (error) {
+    logger.error({ err: error }, "Recruiter search request failed");
     return handleApiError(error, "Failed to process request");
   }
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { z } from "zod";
 import { generateText } from "@/lib/services/aiGenerationService";
 import admin, { adminDb } from "@/lib/firebase-admin";
@@ -67,6 +67,13 @@ const PLAN_MULTIPLIER: Record<string, number> = {
   premium: 1,
   enterprise: 2,
 };
+
+const AUDIT_LOG_TTL_DAYS = Number(process.env.AI_AUDIT_LOG_TTL_DAYS || 30);
+const AUDIT_LOG_TTL_MS = AUDIT_LOG_TTL_DAYS * 24 * 60 * 60 * 1000;
+
+function hashPrompt(prompt: string): string {
+  return createHash("sha256").update(prompt).digest("hex");
+}
 
 export async function POST(request: NextRequest) {
   const requestId = randomUUID();
@@ -252,13 +259,20 @@ async function logAuditEvent(params: {
   status: string;
   requestId: string;
 }) {
+  const promptHash = hashPrompt(params.prompt);
+  const expiresAt = admin.firestore.Timestamp.fromMillis(
+    Date.now() + AUDIT_LOG_TTL_MS
+  );
+
   await adminDb.collection("aiAuditLogs").add({
     userId: params.userId,
-    prompt: params.prompt.substring(0, 500),
+    promptHash,
+    promptLength: params.prompt.length,
     model: params.model,
     status: params.status,
     requestId: params.requestId,
     timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    expiresAt,
   });
 }
 

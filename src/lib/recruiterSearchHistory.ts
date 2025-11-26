@@ -1,5 +1,6 @@
 import { adminDb } from "@/lib/firebase-admin";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
+import { logger } from "@/lib/logger";
 
 const DAY_IN_MS = 86_400_000;
 const DEFAULT_EVENT_LIMIT = 500;
@@ -128,7 +129,10 @@ export async function recordRecruiterSearchEvent(
       createdAt: FieldValue.serverTimestamp(),
     });
   } catch (error) {
-    console.error("[RecruiterSearchHistory] Failed to record search", error);
+    logger.error(
+      { err: error },
+      "[RecruiterSearchHistory] Failed to record search"
+    );
   }
 }
 
@@ -206,7 +210,10 @@ export async function getRecruiterSearchBreakdown(
       topLocationsLast7Days: buildTopList(locationCounts),
     };
   } catch (error) {
-    console.error("[RecruiterSearchHistory] Failed to build breakdown", error);
+    logger.error(
+      { err: error },
+      "[RecruiterSearchHistory] Failed to build breakdown"
+    );
     return { ...DEFAULT_SEARCH_BREAKDOWN };
   }
 }

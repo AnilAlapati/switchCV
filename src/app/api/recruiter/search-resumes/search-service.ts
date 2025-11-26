@@ -3,6 +3,7 @@ import { getDocumentIdFromResumeId } from "@/lib/resumeIdMapping";
 import { AccessStatusMap, getAccessStatus } from "./access-status";
 import { getDisplayName } from "./search-result";
 import type { SearchResultCard } from "./search-result";
+import { logger } from "@/lib/logger";
 
 export { buildAccessStatusMap } from "./access-status";
 export type { SearchResultCard } from "./search-result";
@@ -18,14 +19,18 @@ export async function performBasicSearch(
   const results: SearchResultCard[] = [];
 
   try {
-    console.log(`[Search] Searching for resume/user: ${userId}`);
+    logger.info({ userId }, "[Search] Searching for resume/user");
 
     // First, try to find by resume ID using the mapping
     const mapping = await getDocumentIdFromResumeId(userId);
 
     if (mapping) {
-      console.log(
-        `[Search] Found mapping for resume ID "${userId}" -> doc "${mapping.documentId}"`
+      logger.info(
+        {
+          resumeId: userId,
+          documentId: mapping.documentId,
+        },
+        "[Search] Found resume mapping"
       );
 
       const resumeSnapshot = await adminDb
@@ -73,7 +78,7 @@ export async function performBasicSearch(
       }
     }
 
-    console.log(`[Search] No mapping found, trying direct document lookup`);
+    logger.info("[Search] No mapping found, trying direct lookup");
 
     // Try to find by document ID directly
     const resumeSnapshot = await adminDb
@@ -120,7 +125,7 @@ export async function performBasicSearch(
       return { results };
     }
 
-    console.log(`[Search] Trying user ID lookup for "${userId}"`);
+    logger.info({ userId }, "[Search] Trying user ID lookup");
 
     const userSnapshot = await adminDb.collection("users").doc(userId).get();
 
@@ -166,7 +171,7 @@ export async function performBasicSearch(
 
     return { results };
   } catch (error) {
-    console.error("Basic search error:", error);
+    logger.error({ err: error }, "Basic search error");
     throw error;
   }
 }
@@ -292,7 +297,7 @@ export async function performPremiumSearch(
 
     return { results };
   } catch (error) {
-    console.error("Premium search error:", error);
+    logger.error({ err: error }, "Premium search error");
     throw error;
   }
 }
