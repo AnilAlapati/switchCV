@@ -12,6 +12,8 @@ import { DRAFT_CONFIG } from "@/config/constants";
 const mockGet = jest.fn();
 const mockSet = jest.fn();
 const mockDelete = jest.fn();
+const mockTransactionGet = jest.fn();
+const mockTransactionSet = jest.fn();
 const mockDocRef = {
   get: mockGet,
   set: mockSet,
@@ -19,6 +21,7 @@ const mockDocRef = {
 };
 const mockDoc = jest.fn(() => mockDocRef);
 const mockCollection = jest.fn(() => ({ doc: mockDoc }));
+const mockRunTransaction = jest.fn();
 
 // Mock Firebase Admin
 jest.mock("@/lib/firebase-admin", () => ({
@@ -30,6 +33,7 @@ jest.mock("@/lib/firebase-admin", () => ({
         delete: jest.fn(),
       })),
     })),
+    runTransaction: jest.fn(),
   },
 }));
 
@@ -44,15 +48,26 @@ import { adminDb } from "@/lib/firebase-admin";
 // Replace the mock implementation after import
 beforeAll(() => {
   (adminDb.collection as jest.Mock).mockImplementation(mockCollection);
+  (adminDb.runTransaction as jest.Mock).mockImplementation(mockRunTransaction);
 });
 
 describe("Draft ID Generator", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // Default: ID doesn't exist (no collision)
+    // Default: ID doesn't exist (no collision) - transaction reserves successfully
+    mockTransactionGet.mockResolvedValue({ exists: false });
     mockGet.mockResolvedValue({ exists: false });
     mockSet.mockResolvedValue(undefined);
     mockDelete.mockResolvedValue(undefined);
+
+    // Mock runTransaction to execute the callback and simulate atomic check-and-set
+    mockRunTransaction.mockImplementation(async (callback) => {
+      const transaction = {
+        get: mockTransactionGet,
+        set: mockTransactionSet,
+      };
+      return callback(transaction);
+    });
   });
 
   describe("generateUniqueDraftId", () => {
@@ -84,35 +99,38 @@ describe("Draft ID Generator", () => {
       expect(ids.size).toBe(count);
     });
 
-    it("should retry on collision", async () => {
-      // First call returns exists: true (collision), second returns false
-      mockGet
+    it("should retry on collision (when ID already exists)", async () => {
+      // First transaction returns exists: true (collision), second returns false
+      mockTransactionGet
         .mockResolvedValueOnce({ exists: true })
         .mockResolvedValueOnce({ exists: false });
 
       const id = await generateUniqueDraftId();
 
       expect(id).toHaveLength(DRAFT_CONFIG.ID_LENGTH);
-      expect(mockGet).toHaveBeenCalledTimes(2);
+      expect(mockRunTransaction).toHaveBeenCalledTimes(2);
     });
 
     it("should throw error after max retries", async () => {
-      // All calls return collision
-      mockGet.mockResolvedValue({ exists: true });
+      // All transaction calls return collision (exists: true)
+      mockTransactionGet.mockResolvedValue({ exists: true });
 
       await expect(generateUniqueDraftId()).rejects.toThrow(
         `Failed to generate unique draft ID after ${DRAFT_CONFIG.MAX_ID_RETRIES} attempts`
       );
 
-      expect(mockGet).toHaveBeenCalledTimes(DRAFT_CONFIG.MAX_ID_RETRIES);
+      expect(mockRunTransaction).toHaveBeenCalledTimes(
+        DRAFT_CONFIG.MAX_ID_RETRIES
+      );
     });
 
-    it("should check collision in draftIdMapping collection", async () => {
+    it("should use transaction to atomically check and reserve ID", async () => {
       await generateUniqueDraftId();
 
-      expect(adminDb.collection).toHaveBeenCalledWith(
-        DRAFT_CONFIG.ID_MAPPING_COLLECTION
-      );
+      // Should call runTransaction for atomic check-and-reserve
+      expect(adminDb.runTransaction).toHaveBeenCalled();
+      // Transaction should set the reservation
+      expect(mockTransactionSet).toHaveBeenCalled();
     });
   });
 

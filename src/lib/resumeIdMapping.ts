@@ -9,17 +9,31 @@ import { adminDb } from "@/lib/firebase-admin";
  * /resumeIdMapping/{resumeId} -> {documentId, userId, createdAt}
  */
 
+/**
+ * Gets the next sequential resume ID using atomic transaction.
+ * Uses Firestore transaction to prevent race conditions where
+ * multiple concurrent publishes could get the same ID.
+ *
+ * @returns The next available resume ID
+ */
 export async function getNextResumeId(): Promise<number> {
   const counterRef = adminDb.collection("system").doc("resumeIdCounter");
-  const counterDoc = await counterRef.get();
 
-  let nextId = 1;
-  if (counterDoc.exists) {
-    nextId = (counterDoc.data()?.nextId || 0) + 1;
-  }
+  // Use transaction to atomically read-increment-write
+  // This prevents race conditions in concurrent publish operations
+  const nextId = await adminDb.runTransaction(async (transaction) => {
+    const counterDoc = await transaction.get(counterRef);
 
-  // Increment counter
-  await counterRef.set({ nextId }, { merge: true });
+    let newId = 1;
+    if (counterDoc.exists) {
+      newId = (counterDoc.data()?.nextId || 0) + 1;
+    }
+
+    // Atomically update the counter
+    transaction.set(counterRef, { nextId: newId }, { merge: true });
+
+    return newId;
+  });
 
   return nextId;
 }

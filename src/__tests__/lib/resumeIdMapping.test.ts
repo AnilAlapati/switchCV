@@ -11,17 +11,21 @@ import { adminDb } from "@/lib/firebase-admin";
 jest.mock("@/lib/firebase-admin", () => ({
   adminDb: {
     collection: jest.fn(),
+    runTransaction: jest.fn(),
   },
 }));
 
 describe("resumeIdMapping", () => {
   const mockCollection = adminDb.collection as jest.Mock;
+  const mockRunTransaction = adminDb.runTransaction as jest.Mock;
   const mockDoc = jest.fn();
   const mockGet = jest.fn();
   const mockSet = jest.fn();
   const mockDelete = jest.fn();
   const mockWhere = jest.fn();
   const mockLimit = jest.fn();
+  const mockTransactionGet = jest.fn();
+  const mockTransactionSet = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -40,20 +44,29 @@ describe("resumeIdMapping", () => {
     mockLimit.mockReturnValue({
       get: mockGet,
     });
+
+    // Mock runTransaction to execute the callback with transaction mock
+    mockRunTransaction.mockImplementation(async (callback) => {
+      const transaction = {
+        get: mockTransactionGet,
+        set: mockTransactionSet,
+      };
+      return callback(transaction);
+    });
   });
 
   describe("getNextResumeId", () => {
     it("should return 1 if counter does not exist", async () => {
-      mockGet.mockResolvedValue({ exists: false });
+      mockTransactionGet.mockResolvedValue({ exists: false });
 
       const id = await getNextResumeId();
 
       expect(id).toBe(1);
-      expect(mockSet).toHaveBeenCalledWith({ nextId: 1 }, { merge: true });
+      expect(mockTransactionSet).toHaveBeenCalled();
     });
 
-    it("should increment existing counter", async () => {
-      mockGet.mockResolvedValue({
+    it("should increment existing counter atomically", async () => {
+      mockTransactionGet.mockResolvedValue({
         exists: true,
         data: () => ({ nextId: 5 }),
       });
@@ -61,7 +74,17 @@ describe("resumeIdMapping", () => {
       const id = await getNextResumeId();
 
       expect(id).toBe(6);
-      expect(mockSet).toHaveBeenCalledWith({ nextId: 6 }, { merge: true });
+      // Should use transaction for atomic update
+      expect(mockRunTransaction).toHaveBeenCalled();
+      expect(mockTransactionSet).toHaveBeenCalled();
+    });
+
+    it("should use Firestore transaction for atomicity", async () => {
+      mockTransactionGet.mockResolvedValue({ exists: false });
+
+      await getNextResumeId();
+
+      expect(adminDb.runTransaction).toHaveBeenCalled();
     });
   });
 

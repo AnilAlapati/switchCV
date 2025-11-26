@@ -131,8 +131,25 @@ export async function publishDraft(
     adminDb.collection(DRAFT_CONFIG.ID_MAPPING_COLLECTION).doc(draftId)
   );
 
-  // Execute atomically
-  await batch.commit();
+  // Execute atomically with error recovery
+  try {
+    await batch.commit();
+  } catch (error) {
+    // Log the error for debugging
+    logger.error(
+      { err: error, resumeId, draftId, userId },
+      "Batch commit failed during publish"
+    );
+
+    // Attempt to clean up partial state if possible
+    // Note: In production, consider using a saga pattern or two-phase commit
+    // for more robust error recovery
+    throw new Error(
+      `Failed to publish draft: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }. Please try again.`
+    );
+  }
 
   logger.info(
     { resumeId, draftId, userId, isNewResume },
@@ -232,7 +249,36 @@ export async function unpublishResume(
     updatedAt: now,
   });
 
-  await batch.commit();
+  // Execute atomically with error recovery
+  try {
+    await batch.commit();
+  } catch (error) {
+    // Log the error for debugging
+    logger.error(
+      { err: error, resumeId, draftId, userId },
+      "Batch commit failed during unpublish"
+    );
+
+    // Clean up the draft ID mapping if the batch failed
+    // This prevents orphaned ID reservations
+    try {
+      await adminDb
+        .collection(DRAFT_CONFIG.ID_MAPPING_COLLECTION)
+        .doc(draftId)
+        .delete();
+    } catch (cleanupError) {
+      logger.warn(
+        { err: cleanupError, draftId },
+        "Failed to clean up draft ID mapping after batch failure"
+      );
+    }
+
+    throw new Error(
+      `Failed to unpublish resume: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }. Please try again.`
+    );
+  }
 
   logger.info({ resumeId, draftId, userId }, "Resume unpublished for editing");
 

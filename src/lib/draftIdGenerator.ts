@@ -39,23 +39,9 @@ function generateRandomId(length: number): string {
 }
 
 /**
- * Checks if a draft ID already exists in Firestore.
- *
- * @param draftId - The draft ID to check
- * @returns True if the ID exists, false otherwise
- */
-async function draftIdExists(draftId: string): Promise<boolean> {
-  const mappingDoc = await adminDb
-    .collection(DRAFT_CONFIG.ID_MAPPING_COLLECTION)
-    .doc(draftId)
-    .get();
-
-  return mappingDoc.exists;
-}
-
-/**
- * Generates a unique alphanumeric draft ID.
- * Retries if collision is detected (unlikely but possible).
+ * Generates a unique alphanumeric draft ID using atomic transaction.
+ * Uses Firestore transaction to prevent race conditions between
+ * checking if ID exists and reserving it.
  *
  * @returns Unique draft ID (e.g., "d7xK9mP2")
  * @throws Error if unable to generate unique ID after max retries
@@ -64,10 +50,31 @@ export async function generateUniqueDraftId(): Promise<string> {
   for (let attempt = 0; attempt < DRAFT_CONFIG.MAX_ID_RETRIES; attempt++) {
     const candidateId = generateRandomId(DRAFT_CONFIG.ID_LENGTH);
 
-    // Check for collision
-    const exists = await draftIdExists(candidateId);
+    // Use transaction to atomically check-and-reserve
+    // This prevents race conditions where two requests could get the same ID
+    const reserved = await adminDb.runTransaction(async (transaction) => {
+      const mappingRef = adminDb
+        .collection(DRAFT_CONFIG.ID_MAPPING_COLLECTION)
+        .doc(candidateId);
+      const mappingDoc = await transaction.get(mappingRef);
 
-    if (!exists) {
+      if (mappingDoc.exists) {
+        // ID already taken, will retry with new ID
+        return false;
+      }
+
+      // Reserve the ID atomically within the transaction
+      // Note: We set a placeholder that will be updated by reserveDraftId
+      transaction.set(mappingRef, {
+        draftId: candidateId,
+        reserved: true,
+        reservedAt: new Date().toISOString(),
+      });
+
+      return true;
+    });
+
+    if (reserved) {
       return candidateId;
     }
 
@@ -83,8 +90,9 @@ export async function generateUniqueDraftId(): Promise<string> {
 }
 
 /**
- * Reserves a draft ID by creating a mapping document.
+ * Reserves a draft ID by updating the mapping document with full details.
  * Should be called immediately after generating the ID.
+ * The ID is already atomically reserved by generateUniqueDraftId.
  *
  * @param draftId - The draft ID to reserve
  * @param userId - The user ID who owns this draft
@@ -95,6 +103,7 @@ export async function reserveDraftId(
   userId: string,
   resumeId: number | null
 ): Promise<void> {
+  // Update the placeholder created by generateUniqueDraftId with full details
   await adminDb
     .collection(DRAFT_CONFIG.ID_MAPPING_COLLECTION)
     .doc(draftId)
@@ -124,9 +133,7 @@ export async function releaseDraftId(draftId: string): Promise<void> {
  * @param draftId - The draft ID to look up
  * @returns Mapping info or null if not found
  */
-export async function getDraftIdMapping(
-  draftId: string
-): Promise<{
+export async function getDraftIdMapping(draftId: string): Promise<{
   userId: string;
   resumeId: number | null;
   createdAt: string;

@@ -74,6 +74,15 @@
       ]
     },
     {
+      "collectionGroup": "resumes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isBeingEdited", "order": "ASCENDING" },
+        { "fieldPath": "embedding", "order": "ASCENDING" },
+        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "searchQuotas",
       "queryScope": "COLLECTION",
       "fields": [
