@@ -12,8 +12,9 @@ interface ResumeProfileWithId extends ResumeProfile {
   numericId?: number;
 }
 
-export const useResume = () => {
+export const useResume = (options: { enabled?: boolean } = {}) => {
   const { user } = useAuth();
+  const { enabled = true } = options;
   const [resume, setResume] = useState<ResumeProfileWithId | null>(null);
   const [resumes, setResumes] = useState<ResumeProfileWithId[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,7 +23,7 @@ export const useResume = () => {
 
   useEffect(() => {
     const fetchUserResume = async () => {
-      if (!user) {
+      if (!user || !enabled) {
         setResume(null);
         setResumes([]);
         setError(null);
@@ -99,7 +100,7 @@ export const useResume = () => {
     };
 
     fetchUserResume();
-  }, [user, refetchTrigger]);
+  }, [user, refetchTrigger, enabled]);
 
   const hasResume = () => {
     return resume !== null;

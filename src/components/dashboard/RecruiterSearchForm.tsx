@@ -120,7 +120,7 @@ export function RecruiterSearchForm({
                 </span>
               </div>
               <p className="text-xs leading-relaxed text-slate-400">
-                Quick candidate retrieval using resume or user ID
+                Quick candidate retrieval using resume ID or user ID
               </p>
             </div>
           </button>
@@ -176,7 +176,7 @@ export function RecruiterSearchForm({
           <div className="space-y-3">
             <label className="flex items-center gap-2 text-sm font-semibold text-slate-200">
               <span className="h-1 w-1 rounded-full bg-amber-400"></span>
-              Resume or User ID
+              Resume ID or User ID
             </label>
             <div className="relative">
               <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-slate-500">
@@ -198,7 +198,7 @@ export function RecruiterSearchForm({
                 type="text"
                 value={userId}
                 onChange={(e) => setUserId(e.target.value)}
-                placeholder="e.g., resume-447 or uid-9abc"
+                placeholder="e.g., 2"
                 disabled={loading}
                 className="w-full rounded-xl border border-white/10 bg-slate-900/60 py-3.5 pl-11 pr-4 text-white placeholder-slate-500 shadow-inner shadow-black/30 transition-all focus:border-amber-400/60 focus:bg-slate-900/80 focus:outline-none focus:ring-2 focus:ring-amber-400/20 disabled:opacity-50"
               />
@@ -215,7 +215,7 @@ export function RecruiterSearchForm({
                   clipRule="evenodd"
                 />
               </svg>
-              Returns the exact profile associated with this identifier
+              Enter the ID found in the resume URL (e.g., /resumes/2)
             </p>
           </div>
         ) : (

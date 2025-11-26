@@ -386,7 +386,7 @@ export function RecruiterSearchResults({
       <p className="text-lg font-semibold text-white">Ready when you are</p>
       <p className="text-sm text-slate-400">
         {searchMode === "basic"
-          ? "Enter a resume or user ID to pull a single candidate."
+          ? "Enter a resume ID or user ID to pull a single candidate."
           : "Add at least one skill or a location to preview premium matches."}
       </p>
     </section>

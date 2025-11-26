@@ -12,6 +12,7 @@ import {
   handleApiError,
 } from "@/lib/utils/api-helpers";
 import { createNotification } from "@/lib/notificationService";
+import { RECRUITER_CONTACT_LIMITS } from "@/lib/config";
 import {
   NotificationType,
   NotificationChannel,
@@ -79,6 +80,44 @@ export async function POST(request: NextRequest) {
         "Company name is required to request access. Please update your profile settings.",
         403
       );
+    }
+
+    // Check request limits
+    const rawTier = userData?.subscriptionTier;
+    const userTier =
+      rawTier && ["basic", "premium", "enterprise"].includes(rawTier)
+        ? (rawTier as keyof typeof RECRUITER_CONTACT_LIMITS)
+        : "basic";
+
+    const limitConfig = RECRUITER_CONTACT_LIMITS[userTier];
+
+    if (limitConfig.amount < 9999) {
+      let query = adminDb
+        .collectionGroup("accessRequests")
+        .where("fromUserId", "==", currentUserId);
+
+      if (limitConfig.interval === "month") {
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
+        query = query.where("timestamp", ">=", startOfMonth);
+      }
+
+      const requestsSnapshot = await query.get();
+
+      if (requestsSnapshot.size >= limitConfig.amount) {
+        const period =
+          limitConfig.interval === "month" ? "this month" : "total";
+        return handleApiError(
+          null,
+          `${
+            userTier.charAt(0).toUpperCase() + userTier.slice(1)
+          } plan recruiters are limited to ${
+            limitConfig.amount
+          } access requests ${period}. Please upgrade to request more.`,
+          403
+        );
+      }
     }
 
     const resumeRef = adminDb.collection("resumes").doc(resumeId);

@@ -5,6 +5,7 @@ import { POST } from "@/app/api/profiles/request-access/route";
 jest.mock("@/lib/firebase-admin", () => ({
   adminDb: {
     collection: jest.fn(),
+    collectionGroup: jest.fn(),
   },
 }));
 
@@ -79,6 +80,20 @@ describe("POST /api/profiles/request-access", () => {
       }),
       get: jest.fn(),
     };
+
+    const collectionGroupMock = adminDb.collectionGroup as jest.Mock;
+    collectionGroupMock.mockImplementation((collectionName) => {
+      if (collectionName === "accessRequests") {
+        return {
+          where: jest.fn().mockReturnThis(),
+          get: jest.fn().mockResolvedValue({ size: 0, docs: [] }),
+        };
+      }
+      return {
+        where: jest.fn().mockReturnThis(),
+        get: jest.fn().mockResolvedValue({ size: 0, docs: [] }),
+      };
+    });
 
     const collectionMock = adminDb.collection as jest.Mock;
     collectionMock.mockImplementation((collectionName) => {
@@ -176,6 +191,20 @@ describe("POST /api/profiles/request-access", () => {
       }),
       get: jest.fn(),
     };
+
+    const collectionGroupMock = adminDb.collectionGroup as jest.Mock;
+    collectionGroupMock.mockImplementation((collectionName) => {
+      if (collectionName === "accessRequests") {
+        return {
+          where: jest.fn().mockReturnThis(),
+          get: jest.fn().mockResolvedValue({ size: 0, docs: [] }),
+        };
+      }
+      return {
+        where: jest.fn().mockReturnThis(),
+        get: jest.fn().mockResolvedValue({ size: 0, docs: [] }),
+      };
+    });
 
     const collectionMock = adminDb.collection as jest.Mock;
     collectionMock.mockImplementation((collectionName) => {
@@ -361,6 +390,20 @@ describe("POST /api/profiles/request-access", () => {
     };
 
     const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+
+    const collectionGroupMock = adminDb.collectionGroup as jest.Mock;
+    collectionGroupMock.mockImplementation((collectionName) => {
+      if (collectionName === "accessRequests") {
+        return {
+          where: jest.fn().mockReturnThis(),
+          get: jest.fn().mockResolvedValue({ size: 0, docs: [] }),
+        };
+      }
+      return {
+        where: jest.fn().mockReturnThis(),
+        get: jest.fn().mockResolvedValue({ size: 0, docs: [] }),
+      };
+    });
 
     const collectionMock = adminDb.collection as jest.Mock;
     collectionMock.mockImplementation((collectionName) => {

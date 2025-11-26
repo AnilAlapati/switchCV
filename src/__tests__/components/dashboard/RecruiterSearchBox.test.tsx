@@ -32,7 +32,7 @@ describe("RecruiterSearchBox", () => {
 
     // Basic mode should show the basic search input
     expect(
-      screen.getByPlaceholderText("e.g., resume-447 or uid-9abc")
+      screen.getByPlaceholderText("e.g., 2")
     ).toBeInTheDocument();
     // Premium mode fields should not be visible
     expect(
@@ -55,7 +55,7 @@ describe("RecruiterSearchBox", () => {
     ).toBeInTheDocument();
     // Basic mode input should not be visible
     expect(
-      screen.queryByPlaceholderText("e.g., resume-447 or uid-9abc")
+      screen.queryByPlaceholderText("e.g., 2")
     ).not.toBeInTheDocument();
   });
 
@@ -72,7 +72,7 @@ describe("RecruiterSearchBox", () => {
 
     // Basic mode input should be visible again
     expect(
-      screen.getByPlaceholderText("e.g., resume-447 or uid-9abc")
+      screen.getByPlaceholderText("e.g., 2")
     ).toBeInTheDocument();
     // Premium mode fields should not be visible
     expect(
@@ -127,7 +127,7 @@ describe("RecruiterSearchBox", () => {
     render(<RecruiterSearchBox />);
 
     const userIdInput = screen.getByPlaceholderText(
-      "e.g., resume-447 or uid-9abc"
+      "e.g., 2"
     );
     await userEvent.type(userIdInput, "user-123");
 
@@ -257,7 +257,7 @@ describe("RecruiterSearchBox", () => {
     render(<RecruiterSearchBox />);
 
     const userIdInput = screen.getByPlaceholderText(
-      "e.g., resume-447 or uid-9abc"
+      "e.g., 2"
     );
     await userEvent.type(userIdInput, "user-123");
 
@@ -282,7 +282,7 @@ describe("RecruiterSearchBox", () => {
     render(<RecruiterSearchBox />);
 
     const userIdInput = screen.getByPlaceholderText(
-      "e.g., resume-447 or uid-9abc"
+      "e.g., 2"
     );
     await userEvent.type(userIdInput, "user-999");
 
@@ -327,7 +327,7 @@ describe("RecruiterSearchBox", () => {
     render(<RecruiterSearchBox />);
 
     const userIdInput = screen.getByPlaceholderText(
-      "e.g., resume-447 or uid-9abc"
+      "e.g., 2"
     );
     await userEvent.type(userIdInput, "user-123");
 
@@ -363,7 +363,7 @@ describe("RecruiterSearchBox", () => {
     render(<RecruiterSearchBox />);
 
     const userIdInput = screen.getByPlaceholderText(
-      "e.g., resume-447 or uid-9abc"
+      "e.g., 2"
     );
     await userEvent.type(userIdInput, "user-123");
 

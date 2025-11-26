@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Notification, NotificationStatus } from "@/lib/notifications.types";
+import { UI_CONFIG } from "@/config/constants";
 
 export function NotificationsMenu() {
   const { user } = useAuth();
@@ -43,8 +44,11 @@ export function NotificationsMenu() {
     };
 
     fetchNotifications();
-    // Poll every minute
-    const interval = setInterval(fetchNotifications, 60000);
+    // Poll interval configured in constants.ts to manage read costs
+    const interval = setInterval(
+      fetchNotifications,
+      UI_CONFIG.NOTIFICATION_POLLING_INTERVAL_MS
+    );
     return () => clearInterval(interval);
   }, [user]);
 

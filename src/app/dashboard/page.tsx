@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 // src/app/dashboard/page.tsx
 "use client";
 
@@ -20,6 +21,16 @@ import type { JobSeekerMetrics, RecruiterMetrics } from "@/types/dashboard";
 
 export default function Dashboard() {
   const { user, logout, loading, needsEmailVerification } = useAuth();
+  const router = useRouter();
+
+  const [userIsRecruiter, setUserIsRecruiter] = useState(false);
+  const [userRoleLoading, setUserRoleLoading] = useState(true);
+  const [jobMetrics, setJobMetrics] = useState<JobSeekerMetrics | null>(null);
+  const [recruiterMetrics, setRecruiterMetrics] =
+    useState<RecruiterMetrics | null>(null);
+  const [jobMetricsLoading, setJobMetricsLoading] = useState(true);
+  const [recruiterMetricsLoading, setRecruiterMetricsLoading] = useState(true);
+
   const {
     hasResume,
     resumeId,
@@ -27,15 +38,7 @@ export default function Dashboard() {
     resume,
     resumes,
     refetch: refreshResume,
-  } = useResume();
-  const router = useRouter();
-
-  const [userIsRecruiter, setUserIsRecruiter] = useState(false);
-  const [jobMetrics, setJobMetrics] = useState<JobSeekerMetrics | null>(null);
-  const [recruiterMetrics, setRecruiterMetrics] =
-    useState<RecruiterMetrics | null>(null);
-  const [jobMetricsLoading, setJobMetricsLoading] = useState(true);
-  const [recruiterMetricsLoading, setRecruiterMetricsLoading] = useState(true);
+  } = useResume({ enabled: !userRoleLoading && !userIsRecruiter });
 
   const recruiterSearchRef = useRef<HTMLDivElement>(null);
 
@@ -59,17 +62,20 @@ export default function Dashboard() {
     const fetchUserStatus = async () => {
       if (!user || needsEmailVerification) {
         setUserIsRecruiter(false);
+        setUserRoleLoading(false);
         return;
       }
 
       const userId = typeof user.uid === "string" ? user.uid : "";
       if (!userId || typeof user.getIdToken !== "function") {
         setUserIsRecruiter(false);
+        setUserRoleLoading(false);
         return;
       }
 
       if (typeof fetch !== "function") {
         setUserIsRecruiter(false);
+        setUserRoleLoading(false);
         return;
       }
 
@@ -86,6 +92,7 @@ export default function Dashboard() {
 
         if (!response || !response.ok) {
           setUserIsRecruiter(false);
+          setUserRoleLoading(false);
           return;
         }
 
@@ -94,6 +101,8 @@ export default function Dashboard() {
       } catch (error) {
         console.error("Failed to fetch user status:", error);
         setUserIsRecruiter(false);
+      } finally {
+        setUserRoleLoading(false);
       }
     };
 
@@ -105,7 +114,13 @@ export default function Dashboard() {
       const userId =
         typeof user?.uid === "string" && user.uid ? user.uid : null;
 
-      if (!user || !userId || needsEmailVerification) {
+      if (
+        !user ||
+        !userId ||
+        needsEmailVerification ||
+        userRoleLoading ||
+        userIsRecruiter
+      ) {
         setJobMetrics(null);
         setJobMetricsLoading(false);
         return;
@@ -147,7 +162,7 @@ export default function Dashboard() {
         }
       }
     },
-    [user, needsEmailVerification]
+    [user, needsEmailVerification, userRoleLoading, userIsRecruiter]
   );
 
   const fetchRecruiterMetrics = useCallback(
@@ -155,7 +170,13 @@ export default function Dashboard() {
       const userId =
         typeof user?.uid === "string" && user.uid ? user.uid : null;
 
-      if (!user || !userId || !userIsRecruiter || needsEmailVerification) {
+      if (
+        !user ||
+        !userId ||
+        !userIsRecruiter ||
+        needsEmailVerification ||
+        userRoleLoading
+      ) {
         setRecruiterMetrics(userIsRecruiter ? DEFAULT_RECRUITER_METRICS : null);
         setRecruiterMetricsLoading(false);
         return;
@@ -205,11 +226,11 @@ export default function Dashboard() {
         }
       }
     },
-    [user, userIsRecruiter, needsEmailVerification]
+    [user, userIsRecruiter, needsEmailVerification, userRoleLoading]
   );
 
   useEffect(() => {
-    if (!user || needsEmailVerification) {
+    if (!user || needsEmailVerification || userRoleLoading) {
       setJobMetrics(null);
       setJobMetricsLoading(false);
       return;
@@ -218,10 +239,10 @@ export default function Dashboard() {
     const controller = new AbortController();
     fetchJobMetrics(controller.signal);
     return () => controller.abort();
-  }, [user, needsEmailVerification, fetchJobMetrics]);
+  }, [user, needsEmailVerification, fetchJobMetrics, userRoleLoading]);
 
   useEffect(() => {
-    if (!userIsRecruiter) {
+    if (!userIsRecruiter || userRoleLoading) {
       setRecruiterMetrics(null);
       setRecruiterMetricsLoading(false);
       return;
@@ -230,7 +251,7 @@ export default function Dashboard() {
     const controller = new AbortController();
     fetchRecruiterMetrics(controller.signal);
     return () => controller.abort();
-  }, [userIsRecruiter, fetchRecruiterMetrics]);
+  }, [userIsRecruiter, fetchRecruiterMetrics, userRoleLoading]);
 
   const handleLaunchSearch = useCallback(() => {
     if (recruiterSearchRef.current) {
