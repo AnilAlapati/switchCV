@@ -1,4 +1,5 @@
 import { adminDb } from "@/lib/firebase-admin";
+import { logger } from "@/lib/logger";
 
 export type AccessStatus = "none" | "pending" | "approved" | "denied";
 export type AccessStatusMap = Map<string, AccessStatus>;
@@ -75,7 +76,7 @@ async function fetchAccessStatusFromDb(
 
     return "none";
   } catch (error) {
-    console.error("Error checking access status:", error);
+    logger.error({ err: error }, "Error checking access status");
     return "none";
   }
 }
@@ -183,7 +184,7 @@ export async function buildAccessStatusMap(
       }
     });
   } catch (error) {
-    console.error("Failed to build access status map:", error);
+    logger.error({ err: error }, "Failed to build access status map");
   }
 
   return statusMap;

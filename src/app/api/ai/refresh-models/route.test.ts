@@ -1,17 +1,37 @@
 import { GET } from "./route";
+import { NextRequest, NextResponse } from "next/server";
+
+const mockGetAuthenticatedUserId = jest.fn();
+const mockApplyRateLimit = jest.fn();
+const mockGetClientIp = jest.fn();
 
 // Mock api-helpers
-jest.mock("@/lib/utils/api-helpers", () => ({
-  handleApiError: jest.fn((error, message, status = 500) => {
-    return {
-      status,
-      json: async () => ({
-        error: message,
-        details: error instanceof Error ? error.message : String(error),
-      }),
-    };
-  }),
+jest.mock("@/lib/utils/api-helpers", () => {
+  const actual = jest.requireActual("@/lib/utils/api-helpers");
+  return {
+    ...actual,
+    handleApiError: jest.fn((error, message, status = 500) => {
+      return {
+        status,
+        headers: new Headers(),
+        json: async () => ({
+          error: message,
+          details: error instanceof Error ? error.message : String(error),
+        }),
+      } as any;
+    }),
+    getAuthenticatedUserId: (...args: any[]) =>
+      mockGetAuthenticatedUserId(...args),
+    applyRateLimit: (...args: any[]) => mockApplyRateLimit(...args),
+    getClientIp: (...args: any[]) => mockGetClientIp(...args),
+  };
+});
+
+jest.mock("@/lib/services/userService", () => ({
+  getUserRole: jest.fn(),
 }));
+
+import { getUserRole } from "@/lib/services/userService";
 
 // Mock fetch globally
 const mockFetch = jest.fn();
@@ -23,11 +43,20 @@ console.error = mockConsoleError;
 
 describe("GET /api/ai/refresh-models", () => {
   let originalEnv: NodeJS.ProcessEnv;
+  const createRequest = () =>
+    new NextRequest("http://localhost:3000/api/ai/refresh-models");
 
   beforeEach(() => {
     jest.clearAllMocks();
     originalEnv = process.env;
     process.env = { ...originalEnv };
+    mockGetAuthenticatedUserId.mockResolvedValue({ userId: "admin-123" });
+    (getUserRole as jest.Mock).mockResolvedValue("admin");
+    mockApplyRateLimit.mockReturnValue({
+      allowed: true,
+      result: { limit: 5, remaining: 4, resetIn: 1000 },
+    } as any);
+    mockGetClientIp.mockReturnValue("127.0.0.1");
   });
 
   afterEach(() => {
@@ -62,7 +91,7 @@ describe("GET /api/ai/refresh-models", () => {
       json: () => Promise.resolve(mockApiResponse),
     });
 
-    const response = await GET();
+    const response = await GET(createRequest());
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -92,7 +121,7 @@ describe("GET /api/ai/refresh-models", () => {
   it("should return 500 when GEMINI_API_KEY is not configured", async () => {
     delete process.env.GEMINI_API_KEY;
 
-    const response = await GET();
+    const response = await GET(createRequest());
     const data = await response.json();
 
     expect(response.status).toBe(500);
@@ -110,7 +139,7 @@ describe("GET /api/ai/refresh-models", () => {
       status: 403,
     });
 
-    const response = await GET();
+    const response = await GET(createRequest());
     const data = await response.json();
 
     expect(response.status).toBe(500);
@@ -129,7 +158,7 @@ describe("GET /api/ai/refresh-models", () => {
     const networkError = new Error("Network connection failed");
     mockFetch.mockRejectedValueOnce(networkError);
 
-    const response = await GET();
+    const response = await GET(createRequest());
     const data = await response.json();
 
     expect(response.status).toBe(500);
@@ -149,7 +178,7 @@ describe("GET /api/ai/refresh-models", () => {
       json: () => Promise.resolve({}), // Empty response
     });
 
-    const response = await GET();
+    const response = await GET(createRequest());
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -188,7 +217,7 @@ describe("GET /api/ai/refresh-models", () => {
       json: () => Promise.resolve(mockApiResponse),
     });
 
-    const response = await GET();
+    const response = await GET(createRequest());
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -225,7 +254,7 @@ describe("GET /api/ai/refresh-models", () => {
       json: () => Promise.resolve(mockApiResponse),
     });
 
-    const response = await GET();
+    const response = await GET(createRequest());
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -243,7 +272,7 @@ describe("GET /api/ai/refresh-models", () => {
       json: () => Promise.reject(new Error("Invalid JSON")),
     });
 
-    const response = await GET();
+    const response = await GET(createRequest());
     const data = await response.json();
 
     expect(response.status).toBe(500);
@@ -260,7 +289,7 @@ describe("GET /api/ai/refresh-models", () => {
 
     mockFetch.mockRejectedValueOnce("String error");
 
-    const response = await GET();
+    const response = await GET(createRequest());
     const data = await response.json();
 
     expect(response.status).toBe(500);
@@ -291,7 +320,7 @@ describe("GET /api/ai/refresh-models", () => {
     });
 
     const beforeCall = new Date();
-    const response = await GET();
+    const response = await GET(createRequest());
     const afterCall = new Date();
     const data = await response.json();
 
@@ -299,5 +328,44 @@ describe("GET /api/ai/refresh-models", () => {
     const timestamp = new Date(data.timestamp);
     expect(timestamp.getTime()).toBeGreaterThanOrEqual(beforeCall.getTime());
     expect(timestamp.getTime()).toBeLessThanOrEqual(afterCall.getTime());
+  });
+
+  it("should return 401 when authentication fails", async () => {
+    const unauthorized = NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401 }
+    );
+    mockGetAuthenticatedUserId.mockResolvedValueOnce({ error: unauthorized });
+
+    const response = await GET(createRequest());
+
+    expect(response.status).toBe(401);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("should return 403 for non-admin callers", async () => {
+    (getUserRole as jest.Mock).mockResolvedValueOnce("recruiter");
+
+    const response = await GET(createRequest());
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.error).toBe("Forbidden: Admin access required");
+  });
+
+  it("should enforce rate limiting", async () => {
+    const rateLimitedResponse = NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429 }
+    );
+    mockApplyRateLimit.mockReturnValueOnce({
+      allowed: false,
+      response: rateLimitedResponse,
+    });
+
+    const response = await GET(createRequest());
+
+    expect(response.status).toBe(429);
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 });

@@ -32,11 +32,28 @@ jest.mock("@/lib/resumeIdMapping", () => ({
 // Mock userService
 jest.mock("@/lib/services/userService", () => ({
   getUserTier: jest.fn(),
+  getUserRole: jest.fn(),
 }));
+
+jest.mock("@/lib/utils/api-helpers", () => {
+  const actual = jest.requireActual("@/lib/utils/api-helpers");
+  return {
+    ...actual,
+    getAuthenticatedUserId: jest.fn(),
+    applyRateLimit: jest.fn(),
+    getClientIp: jest.fn(),
+  };
+});
 
 import { adminDb } from "@/lib/firebase-admin";
 import { getDocumentIdFromResumeId } from "@/lib/resumeIdMapping";
-import { getUserTier } from "@/lib/services/userService";
+import { getUserTier, getUserRole } from "@/lib/services/userService";
+import {
+  applyRateLimit,
+  getAuthenticatedUserId,
+  getClientIp,
+} from "@/lib/utils/api-helpers";
+import { NextResponse } from "next/server";
 
 const mockAdminDb = adminDb as jest.Mocked<typeof adminDb>;
 const mockGetDocumentIdFromResumeId =
@@ -44,6 +61,13 @@ const mockGetDocumentIdFromResumeId =
     typeof getDocumentIdFromResumeId
   >;
 const mockGetUserTier = getUserTier as jest.MockedFunction<typeof getUserTier>;
+const mockGetUserRole = getUserRole as jest.MockedFunction<typeof getUserRole>;
+const mockGetAuthenticatedUserId =
+  getAuthenticatedUserId as jest.MockedFunction<typeof getAuthenticatedUserId>;
+const mockApplyRateLimit = applyRateLimit as jest.MockedFunction<
+  typeof applyRateLimit
+>;
+const mockGetClientIp = getClientIp as jest.MockedFunction<typeof getClientIp>;
 
 // Helper to create mock document snapshots
 const createMockDocSnapshot = (exists: boolean, data?: any) => ({
@@ -62,25 +86,18 @@ const createMockQuerySnapshot = (docs: any[]) => ({
 describe("POST /api/recruiter/search-resumes", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetAuthenticatedUserId.mockResolvedValue({
+      userId: "recruiter-123",
+    });
+    mockGetUserRole.mockResolvedValue("recruiter");
+    mockApplyRateLimit.mockReturnValue({
+      allowed: true,
+      result: { limit: 30, remaining: 29, resetIn: 1000 },
+    } as any);
+    mockGetClientIp.mockReturnValue("127.0.0.1");
   });
 
   describe("Basic Tier", () => {
-    it("should return 400 when recruiterId is missing", async () => {
-      const request = new NextRequest(
-        "http://localhost:3000/api/recruiter/search-resumes",
-        {
-          method: "POST",
-          body: JSON.stringify({}),
-        }
-      );
-
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(data.error).toBe("recruiterId is required");
-    });
-
     // Note: Recruiter existence is no longer checked - getUserTier returns 'basic' by default
 
     it("should return 400 when no search parameters provided", async () => {
@@ -105,7 +122,66 @@ describe("POST /api/recruiter/search-resumes", () => {
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.error).toBe("Please provide either a userId or skills/location for search");
+      expect(data.error).toBe(
+        "Please provide either a userId or skills/location for search"
+      );
+    });
+
+    it("should return 401 when authentication fails", async () => {
+      const unauthorizedResponse = NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+      mockGetAuthenticatedUserId.mockResolvedValueOnce({
+        error: unauthorizedResponse,
+      });
+
+      const request = new NextRequest(
+        "http://localhost:3000/api/recruiter/search-resumes",
+        {
+          method: "POST",
+          body: JSON.stringify({ recruiterId: "recruiter-123" }),
+        }
+      );
+
+      const response = await POST(request);
+
+      expect(response.status).toBe(401);
+      expect(mockGetUserTier).not.toHaveBeenCalled();
+    });
+
+    it("should return 403 when role is not recruiter", async () => {
+      mockGetUserRole.mockResolvedValueOnce("jobseeker");
+
+      const request = new NextRequest(
+        "http://localhost:3000/api/recruiter/search-resumes",
+        {
+          method: "POST",
+          body: JSON.stringify({ recruiterId: "recruiter-123", userId: "abc" }),
+        }
+      );
+
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(403);
+      expect(data.error).toBe("Recruiter access required");
+    });
+
+    it("should prevent recruiterId spoofing for non-admins", async () => {
+      const request = new NextRequest(
+        "http://localhost:3000/api/recruiter/search-resumes",
+        {
+          method: "POST",
+          body: JSON.stringify({ recruiterId: "evil", userId: "abc" }),
+        }
+      );
+
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(403);
+      expect(data.error).toBe("Forbidden: Recruiter mismatch");
     });
 
     it("should search by resume ID mapping successfully", async () => {
@@ -664,10 +740,10 @@ describe("POST /api/recruiter/search-resumes", () => {
       "http://localhost:3000/api/recruiter/search-resumes",
       {
         method: "POST",
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           recruiterId: "recruiter-123",
           skills: ["React"],
-          location: "New York"
+          location: "New York",
         }),
       }
     );
@@ -676,7 +752,9 @@ describe("POST /api/recruiter/search-resumes", () => {
     const data = await response.json();
 
     expect(response.status).toBe(403);
-    expect(data.error).toBe("Premium or enterprise subscription required for skills/location search");
+    expect(data.error).toBe(
+      "Premium or enterprise subscription required for skills/location search"
+    );
   });
 
   it("should handle database errors", async () => {

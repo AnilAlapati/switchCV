@@ -27,6 +27,7 @@ import {
   searchBySlug,
 } from "./search-query";
 import { mapProfileResult } from "./search-utils";
+import { logger } from "@/lib/logger";
 
 interface SearchRequest {
   query?: string;
@@ -162,10 +163,13 @@ export async function POST(request: NextRequest) {
     const nextCursor =
       exposeHasMore && lastReturnedDoc ? lastReturnedDoc.id : null;
 
-    console.log(
-      `🔍 Search (query: "${sanitizedQuery}", filters: ${JSON.stringify(
-        filters
-      )}) returned ${trimmedResults.length} results`
+    logger.info(
+      {
+        query: sanitizedQuery,
+        filters,
+        returned: trimmedResults.length,
+      },
+      "Profile search completed"
     );
 
     return NextResponse.json({
