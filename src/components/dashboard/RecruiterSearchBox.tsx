@@ -76,9 +76,13 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
     setSearchResults([]);
 
     try {
+      const token = await user.getIdToken();
       const response = await fetch("/api/recruiter/search-resumes", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           recruiterId: user.uid,
           ...(effectiveSearchMode === "basic" && { userId }),
