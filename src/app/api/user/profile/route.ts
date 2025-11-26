@@ -13,7 +13,10 @@ const userProfileSchema = z.object({
   displayName: z.string().optional(),
   isRecruiter: z.boolean().optional().default(false),
   companyName: z.string().optional(),
-  subscriptionTier: z.enum(["basic", "premium"]).optional().default("basic"),
+  subscriptionTier: z
+    .enum(["basic", "premium", "enterprise"])
+    .optional()
+    .default("basic"),
 });
 
 const updateProfileSchema = z.object({
@@ -21,7 +24,7 @@ const updateProfileSchema = z.object({
   displayName: z.string().optional(),
   isRecruiter: z.boolean().optional(),
   companyName: z.string().optional(),
-  subscriptionTier: z.enum(["basic", "premium"]).optional(),
+  subscriptionTier: z.enum(["basic", "premium", "enterprise"]).optional(),
 });
 
 interface UserProfile {
@@ -30,7 +33,7 @@ interface UserProfile {
   displayName?: string;
   isRecruiter: boolean;
   companyName?: string;
-  subscriptionTier: "basic" | "premium";
+  subscriptionTier: "basic" | "premium" | "enterprise";
   createdAt?: string;
   updatedAt: string;
 }

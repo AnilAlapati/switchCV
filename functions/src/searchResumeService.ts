@@ -22,6 +22,19 @@ const AI_SEARCH = {
   QUOTA_COLLECTION: "searchQuotas",
 } as const;
 
+/**
+ * Dev mode bypass for local emulator testing.
+ * Only active when BOTH conditions are true:
+ * 1. Running in Firebase emulator (FUNCTIONS_EMULATOR=true)
+ * 2. DEV_BYPASS_CHECKS is explicitly set to "true"
+ */
+const isDevBypassEnabled = (): boolean => {
+  return (
+    process.env.FUNCTIONS_EMULATOR === "true" &&
+    process.env.DEV_BYPASS_CHECKS === "true"
+  );
+};
+
 const db = admin.firestore();
 
 /**
@@ -192,34 +205,51 @@ export const searchResumesAI = functions.https.onCall(
     }
 
     const userId = context.auth.uid;
+    const devBypass = isDevBypassEnabled();
 
-    // Check user role (must be recruiter)
-    const userDoc = await db.collection("users").doc(userId).get();
-    const userRole = userDoc.data()?.role;
-
-    if (userRole !== "recruiter" && userRole !== "admin") {
-      throw new functions.https.HttpsError(
-        "permission-denied",
-        "Only recruiters can use AI search"
+    // Log dev bypass status
+    if (devBypass) {
+      functions.logger.info(
+        `[DEV BYPASS] Skipping role/tier/quota checks for user ${userId}`
       );
     }
 
-    // Check subscription tier and quota
-    const tier = await getUserTier(userId);
-    const quotaCheck = await checkAndDecrementQuota(userId, tier);
+    // Check user role (must be recruiter) - skip in dev bypass mode
+    if (!devBypass) {
+      const userDoc = await db.collection("users").doc(userId).get();
+      const userRole = userDoc.data()?.role;
 
-    if (!quotaCheck.allowed) {
-      throw new functions.https.HttpsError(
-        "resource-exhausted",
-        tier === "basic"
-          ? "AI Search requires Premium or Enterprise subscription"
-          : "Monthly search quota exceeded. Upgrade to Enterprise for unlimited searches."
-      );
+      if (userRole !== "recruiter" && userRole !== "admin") {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Only recruiters can use AI search"
+        );
+      }
+    }
+
+    // Check subscription tier and quota - skip in dev bypass mode
+    let tier: "basic" | "premium" | "enterprise" = "enterprise";
+    let quotaRemaining = 999999;
+
+    if (!devBypass) {
+      tier = await getUserTier(userId);
+      const quotaCheck = await checkAndDecrementQuota(userId, tier);
+
+      if (!quotaCheck.allowed) {
+        throw new functions.https.HttpsError(
+          "resource-exhausted",
+          tier === "basic"
+            ? "AI Search requires Premium or Enterprise subscription"
+            : "Monthly search quota exceeded. Upgrade to Enterprise for unlimited searches."
+        );
+      }
+      quotaRemaining = quotaCheck.remaining;
     }
 
     functions.logger.info(`AI search by ${userId}: "${query}"`, {
       tier,
-      remaining: quotaCheck.remaining,
+      remaining: quotaRemaining,
+      devBypass,
     });
 
     try {
@@ -245,7 +275,7 @@ export const searchResumesAI = functions.https.onCall(
       const resumesSnapshot = await resumesQuery.get();
 
       if (resumesSnapshot.empty) {
-        return { results: [], quotaRemaining: quotaCheck.remaining };
+        return { results: [], quotaRemaining };
       }
 
       functions.logger.info(
@@ -320,7 +350,7 @@ export const searchResumesAI = functions.https.onCall(
 
       return {
         results,
-        quotaRemaining: quotaCheck.remaining,
+        quotaRemaining,
         totalIndexedResumes: resumesSnapshot.size,
       };
     } catch (error) {

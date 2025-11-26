@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ConnectivityStatusProvider } from "@/context/ConnectivityStatusProvider";
 import { Footer } from "@/components/layout/Footer";
+import { DevModeBanner } from "@/components/dev/DevModeBanner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,6 +39,7 @@ export default function RootLayout({
               <div className="flex-1">{children}</div>
               <Footer />
             </div>
+            <DevModeBanner />
           </AuthProvider>
         </ConnectivityStatusProvider>
       </body>
