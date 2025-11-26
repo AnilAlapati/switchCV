@@ -135,10 +135,13 @@ export const RESUME_EXPIRY_WARNING_HOURS: Record<
   enterprise: null,
 };
 
-export const RECRUITER_CONTACT_LIMITS: Record<SubscriptionTier, number> = {
-  basic: 2,
-  premium: 9999,
-  enterprise: 9999,
+export const RECRUITER_CONTACT_LIMITS: Record<
+  SubscriptionTier,
+  { amount: number; interval: "lifetime" | "month" }
+> = {
+  basic: { amount: 2, interval: "lifetime" },
+  premium: { amount: 50, interval: "month" },
+  enterprise: { amount: 9999, interval: "month" },
 };
 
 export const RECRUITER_SEARCH_LIMITS: Record<SubscriptionTier, number> = {

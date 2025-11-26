@@ -62,9 +62,13 @@ export async function POST(request: NextRequest) {
       }
 
       try {
+        // Build access status map first to check available resumes and avoid per-resume DB calls
+        const accessStatusMap = await buildAccessStatusMap(recruiterId);
+
         const { results, notification } = await performBasicSearch(
           userId,
-          recruiterId
+          recruiterId,
+          accessStatusMap
         );
 
         await recordRecruiterSearchEvent({

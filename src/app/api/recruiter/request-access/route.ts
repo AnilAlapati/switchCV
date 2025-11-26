@@ -24,20 +24,20 @@ export async function POST(request: NextRequest) {
 
     // Check Quota
     const tier = await getUserTier(recruiterId!);
-    const limit = RECRUITER_CONTACT_LIMITS[tier];
+    const limitConfig = RECRUITER_CONTACT_LIMITS[tier];
 
     try {
       await consumeQuota({
         subjectId: recruiterId!,
         scope: "recruiter_contact",
-        limit: limit,
-        period: "monthly",
+        limit: limitConfig.amount,
+        period: limitConfig.interval === "month" ? "monthly" : "lifetime",
       });
     } catch (error) {
       if (error instanceof QuotaExceededError) {
         return handleApiError(
           error,
-          `You have reached your monthly limit of ${limit} contacts. Please upgrade to contact more candidates.`,
+          `You have reached your ${limitConfig.interval} limit of ${limitConfig.amount} contacts. Please upgrade to contact more candidates.`,
           403
         );
       }

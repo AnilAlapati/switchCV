@@ -104,3 +104,15 @@ export const APP_CONFIG = {
   /** App version prefix */
   VERSION_PREFIX: "AI",
 } as const;
+
+/**
+ * UI & Interaction Configuration
+ */
+export const UI_CONFIG = {
+  /**
+   * Notification polling interval in milliseconds.
+   * Set to a high value (1000 minutes) to reduce read costs during development.
+   * Normal production value might be 60000 (1 minute).
+   */
+  NOTIFICATION_POLLING_INTERVAL_MS: 60_000_000, // 1000 minutes
+} as const;

@@ -35,7 +35,7 @@ describe("RecruiterSearchForm", () => {
     expect(screen.getByText("Basic Lookup")).toBeInTheDocument();
     expect(screen.getByText("Premium Filters")).toBeInTheDocument();
     expect(
-      screen.getByPlaceholderText("e.g., resume-447 or uid-9abc")
+      screen.getByPlaceholderText("e.g., 2")
     ).toBeInTheDocument();
     expect(screen.getByText("Run Search")).toBeInTheDocument();
   });
@@ -109,7 +109,7 @@ describe("RecruiterSearchForm", () => {
   it("updates userId when basic search input changes", () => {
     render(<RecruiterSearchForm {...mockProps} />);
 
-    const input = screen.getByPlaceholderText("e.g., resume-447 or uid-9abc");
+    const input = screen.getByPlaceholderText("e.g., 2");
     fireEvent.change(input, { target: { value: "test-user-123" } });
 
     expect(mockProps.setUserId).toHaveBeenCalledWith("test-user-123");
@@ -217,7 +217,7 @@ describe("RecruiterSearchForm", () => {
   it("disables inputs when loading", () => {
     render(<RecruiterSearchForm {...mockProps} loading={true} />);
 
-    const input = screen.getByPlaceholderText("e.g., resume-447 or uid-9abc");
+    const input = screen.getByPlaceholderText("e.g., 2");
     expect(input).toBeDisabled();
   });
 
