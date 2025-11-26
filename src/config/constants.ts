@@ -116,3 +116,53 @@ export const UI_CONFIG = {
    */
   NOTIFICATION_POLLING_INTERVAL_MS: 60_000_000, // 1000 minutes
 } as const;
+
+/**
+ * Draft Resume Configuration
+ * Manages the draft → publish lifecycle for resumes
+ */
+export const DRAFT_CONFIG = {
+  /** Length of alphanumeric draft IDs (e.g., "d7xK9mP2") */
+  ID_LENGTH: 8,
+  /** Characters used for draft ID generation (alphanumeric, no ambiguous chars) */
+  ID_CHARSET: "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789",
+  /** Firestore collection for draft resumes */
+  COLLECTION: "drafts",
+  /** Firestore collection for draft ID mappings */
+  ID_MAPPING_COLLECTION: "draftIdMapping",
+  /** Maximum retry attempts for unique ID generation */
+  MAX_ID_RETRIES: 5,
+} as const;
+
+/**
+ * AI Search Configuration
+ * Semantic search powered by Gemini embeddings
+ */
+export const AI_SEARCH = {
+  /** Gemini embedding model for vector generation */
+  EMBEDDING_MODEL: "text-embedding-004",
+  /** Vector dimension for text-embedding-004 */
+  VECTOR_DIMENSION: 768,
+  /** Maximum results to return per search */
+  MAX_RESULTS: 10,
+  /** Minimum similarity score (0-1) to include in results */
+  MIN_SIMILARITY_SCORE: 0.5,
+  /** Monthly search quota for premium tier */
+  PREMIUM_MONTHLY_QUOTA: 50,
+  /** Monthly search quota for enterprise tier (effectively unlimited) */
+  ENTERPRISE_MONTHLY_QUOTA: 999999,
+  /** Firestore collection for search quota tracking */
+  QUOTA_COLLECTION: "searchQuotas",
+} as const;
+
+/**
+ * Resume Lifecycle States
+ */
+export const RESUME_STATES = {
+  /** Resume is being edited, not visible to recruiters */
+  DRAFT: "draft",
+  /** Resume is published and searchable */
+  PUBLISHED: "published",
+  /** Resume was unpublished for editing (shows "being edited" message) */
+  EDITING: "editing",
+} as const;

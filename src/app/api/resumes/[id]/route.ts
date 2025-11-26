@@ -124,6 +124,7 @@ export async function GET(
       resumeData?.isPublic ||
       resumeData?.visibility === "public" ||
       resumeData?.published === true;
+    const isBeingEdited = resumeData?.isBeingEdited ?? false;
 
     const ownerId = resumeData?.userId ?? null;
     const optionalUserId = await maybeGetAuthenticatedUserId(request);
@@ -140,6 +141,7 @@ export async function GET(
       console.log(`[ResumeAPI] User is owner.`);
       return NextResponse.json({
         ...resumeData,
+        isBeingEdited,
         viewerAccess: {
           scope: "owner",
           isOwner: true,
@@ -163,6 +165,7 @@ export async function GET(
       console.log(`[ResumeAPI] User is admin.`);
       return NextResponse.json({
         ...resumeData,
+        isBeingEdited,
         viewerAccess: {
           scope: "admin-view",
           isOwner: false,
@@ -193,6 +196,7 @@ export async function GET(
     if (hasGrantedAccess) {
       return NextResponse.json({
         ...resumeData,
+        isBeingEdited,
         viewerAccess: {
           scope: "full",
           isOwner: false,
@@ -206,11 +210,14 @@ export async function GET(
     if (isPublic && !forceFullAccessCheck) {
       console.log(`[ResumeAPI] Returning public snapshot.`);
       const sanitized = sanitizeResumeForPublicView(resumeData);
-      return NextResponse.json(sanitized, {
-        headers: {
-          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
-        },
-      });
+      return NextResponse.json(
+        { ...sanitized, isBeingEdited },
+        {
+          headers: {
+            "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+          },
+        }
+      );
     }
 
     if (!optionalUserId) {
