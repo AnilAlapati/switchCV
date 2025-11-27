@@ -32,6 +32,53 @@ export class SupportFeedbackError extends Error {
   }
 }
 
+// Rate limiting: track submissions per IP (in-memory for simplicity)
+// In production, you might want to use Redis or Firestore
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+const RATE_LIMIT_MAX_REQUESTS = 5; // Max 5 submissions per hour per IP
+
+/**
+ * Check if the IP has exceeded rate limits
+ * Returns true if rate limited, false otherwise
+ */
+export function checkRateLimit(ip: string | null | undefined): boolean {
+  if (!ip) return false; // Can't rate limit without IP
+
+  const now = Date.now();
+  const record = rateLimitMap.get(ip);
+
+  if (!record || now > record.resetTime) {
+    // New window or expired, start fresh
+    rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+    return false;
+  }
+
+  if (record.count >= RATE_LIMIT_MAX_REQUESTS) {
+    return true; // Rate limited
+  }
+
+  // Increment count
+  record.count++;
+  return false;
+}
+
+/**
+ * Get remaining submissions for an IP
+ */
+export function getRateLimitRemaining(ip: string | null | undefined): number {
+  if (!ip) return RATE_LIMIT_MAX_REQUESTS;
+
+  const now = Date.now();
+  const record = rateLimitMap.get(ip);
+
+  if (!record || now > record.resetTime) {
+    return RATE_LIMIT_MAX_REQUESTS;
+  }
+
+  return Math.max(0, RATE_LIMIT_MAX_REQUESTS - record.count);
+}
+
 const DEFAULT_CATEGORY: FeedbackCategory = DEFAULT_FEEDBACK_CATEGORY;
 const DEFAULT_URGENCY: FeedbackUrgency = DEFAULT_FEEDBACK_URGENCY;
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { APP_CONFIG } from "@/config/constants";
 import {
@@ -22,22 +22,45 @@ interface FormState {
 
 type SubmissionState = "idle" | "submitting" | "success" | "error";
 
+// Bot protection constants
+const MIN_FORM_TIME_MS = 3000; // Minimum 3 seconds to fill form (bots are instant)
+const SUBMISSION_COOLDOWN_MS = 30000; // 30 seconds between submissions
+
+const getInitialFormState = (): FormState => ({
+  name: "",
+  email: "",
+  category: "bug",
+  urgency: "normal",
+  message: "",
+  allowContact: true,
+  pageContext: "/contact",
+});
+
 export default function ContactPage() {
   const { user } = useAuth();
-  const [form, setForm] = useState<FormState>({
-    name: "",
-    email: "",
-    category: "bug",
-    urgency: "normal",
-    message: "",
-    allowContact: true,
-    pageContext: "/contact",
-  });
+  const [form, setForm] = useState<FormState>(getInitialFormState());
   const [status, setStatus] = useState<SubmissionState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [referenceId, setReferenceId] = useState<string | null>(null);
 
+  // Bot protection state
+  const [honeypot, setHoneypot] = useState(""); // Hidden field - bots will fill this
+  const formLoadTime = useRef<number>(Date.now());
+  const lastSubmissionTime = useRef<number>(0);
+
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      setForm((prev) => ({ ...prev, pageContext: window.location.href }));
+      // Reset form load time when component mounts
+      formLoadTime.current = Date.now();
+    }
+  }, []);
+
+  // Reset form to initial state
+  const resetForm = useCallback(() => {
+    setForm(getInitialFormState());
+    setHoneypot("");
+    formLoadTime.current = Date.now();
     if (typeof window !== "undefined") {
       setForm((prev) => ({ ...prev, pageContext: window.location.href }));
     }
@@ -57,6 +80,41 @@ export default function ContactPage() {
     event.preventDefault();
     if (isSubmitting) return;
 
+    // Bot protection checks
+    const now = Date.now();
+
+    // Check 1: Honeypot field should be empty (bots auto-fill hidden fields)
+    if (honeypot) {
+      // Silently reject - don't give feedback to bots
+      setStatus("success");
+      setReferenceId("FB-SUBMITTED");
+      return;
+    }
+
+    // Check 2: Form filled too quickly (< 3 seconds is suspicious)
+    const timeSinceLoad = now - formLoadTime.current;
+    if (timeSinceLoad < MIN_FORM_TIME_MS) {
+      setError(
+        "Please take a moment to review your message before submitting."
+      );
+      setStatus("error");
+      return;
+    }
+
+    // Check 3: Submission cooldown (prevent rapid resubmissions)
+    const timeSinceLastSubmit = now - lastSubmissionTime.current;
+    if (
+      lastSubmissionTime.current > 0 &&
+      timeSinceLastSubmit < SUBMISSION_COOLDOWN_MS
+    ) {
+      const waitSeconds = Math.ceil(
+        (SUBMISSION_COOLDOWN_MS - timeSinceLastSubmit) / 1000
+      );
+      setError(`Please wait ${waitSeconds} seconds before submitting again.`);
+      setStatus("error");
+      return;
+    }
+
     setStatus("submitting");
     setError(null);
     setReferenceId(null);
@@ -75,7 +133,11 @@ export default function ContactPage() {
       const response = await fetch("/api/contact/feedback", {
         method: "POST",
         headers,
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          // Include bot protection metadata for server-side validation
+          _formTime: timeSinceLoad,
+        }),
       });
 
       const data = await response.json();
@@ -83,8 +145,14 @@ export default function ContactPage() {
         throw new Error(data.error || "Failed to send feedback");
       }
 
+      // Record successful submission time
+      lastSubmissionTime.current = Date.now();
+
       setReferenceId(data.referenceId);
       setStatus("success");
+
+      // Clear the form after successful submission
+      resetForm();
     } catch (err) {
       const message =
         err instanceof Error
@@ -145,6 +213,23 @@ export default function ContactPage() {
               )}
 
               <form className="space-y-6" onSubmit={handleSubmit}>
+                {/* Honeypot field - hidden from real users, bots will fill it */}
+                <div
+                  className="absolute -left-[9999px] opacity-0"
+                  aria-hidden="true"
+                >
+                  <label htmlFor="website_url">Website</label>
+                  <input
+                    type="text"
+                    id="website_url"
+                    name="website_url"
+                    tabIndex={-1}
+                    autoComplete="off"
+                    value={honeypot}
+                    onChange={(e) => setHoneypot(e.target.value)}
+                  />
+                </div>
+
                 <ContactFormFields
                   form={form}
                   isSubmitting={isSubmitting}
