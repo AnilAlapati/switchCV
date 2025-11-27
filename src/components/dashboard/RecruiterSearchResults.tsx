@@ -1,13 +1,13 @@
 /* eslint-disable max-lines */
 import { type ReactNode } from "react";
-import { SearchResult } from "./RecruiterSearchForm";
+import { SearchResult, SearchModeType } from "./RecruiterSearchForm";
 
 interface RecruiterSearchResultsProps {
   results: SearchResult[];
   searched: boolean;
   error: string | null;
   notification: string | null;
-  searchMode: "basic" | "premium";
+  searchMode: SearchModeType;
   onViewResume: (resumeId: string) => void;
   onRequestAccess?: (resumeId: string, userName: string) => void;
 }

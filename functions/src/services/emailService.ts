@@ -12,19 +12,22 @@ export class EmailService {
 
   constructor() {
     // Initialize nodemailer transporter
-    // For production, use SendGrid, Mailgun, or similar
-    const gmailUser = process.env.GMAIL_USER || "noreply@switchcv.com";
-    const gmailPassword = process.env.GMAIL_APP_PASSWORD || "";
+    // Configured for Titan Email (or other SMTP providers via env vars)
+    const smtpHost = process.env.SMTP_HOST || "smtp.titan.email";
+    const smtpPort = parseInt(process.env.SMTP_PORT || "465");
+    const smtpUser = process.env.SMTP_USER || "support@switchcv.com";
+    const smtpPass = process.env.SMTP_PASS || "";
 
-    this.fromEmail = gmailUser;
+    this.fromEmail = smtpUser;
     this.fromName = "SwitchCV";
 
-    // Using Gmail SMTP (or configure with your email provider)
     this.transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpPort === 465, // true for 465, false for other ports
       auth: {
-        user: gmailUser,
-        pass: gmailPassword,
+        user: smtpUser,
+        pass: smtpPass,
       },
     });
   }

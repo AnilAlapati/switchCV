@@ -162,7 +162,7 @@ function deriveDeterministicInsights(jobDescription, resumeData) {
  */
 exports.generateJobMatchSuggestions = functions
     .runWith({
-    secrets: ["HUGGINGFACE_TOKEN", "GEMINI_API_KEY"],
+    secrets: ["HUGGINGFACE_TOKEN", "GEMINI_API_KEY", "GROQ_API_KEY", "OPENAI_API_KEY"],
     timeoutSeconds: 60,
     memory: "512MB",
 })

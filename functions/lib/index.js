@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getSearchQuota = exports.searchResumesAI = exports.reindexResume = exports.indexResumeOnWrite = exports.cleanupAuditLogs = exports.notifyAdminSuspiciousActivity = exports.sendProfileViewDigest = exports.onRecruiterRequestApproved = exports.onRecruiterRequestCreated = exports.onUserCreated = exports.cleanupExpiredResumes = exports.cleanupRecruiterSearchHistory = exports.cleanupAnalyticsEvents = exports.aggregateAnalyticsDaily = exports.generateJobMatchSuggestions = exports.generateResumeContent = exports.aggregateGlobalStats = void 0;
+exports.onUserRoleChanged = exports.getSearchQuota = exports.searchResumesAI = exports.reindexResume = exports.indexResumeOnWrite = exports.cleanupAuditLogs = exports.notifyAdminSuspiciousActivity = exports.sendProfileViewDigest = exports.onRecruiterRequestApproved = exports.onRecruiterRequestCreated = exports.onUserCreated = exports.cleanupExpiredResumes = exports.cleanupRecruiterSearchHistory = exports.cleanupAnalyticsEvents = exports.aggregateAnalyticsDaily = exports.generateJobMatchSuggestions = exports.generateResumeContent = exports.aggregateGlobalStats = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 require("./config/bootstrap");
 const resumeService_1 = require("./resumeService");
@@ -75,4 +75,7 @@ Object.defineProperty(exports, "reindexResume", { enumerable: true, get: functio
 var searchResumeService_1 = require("./searchResumeService");
 Object.defineProperty(exports, "searchResumesAI", { enumerable: true, get: function () { return searchResumeService_1.searchResumesAI; } });
 Object.defineProperty(exports, "getSearchQuota", { enumerable: true, get: function () { return searchResumeService_1.getSearchQuota; } });
+// ==================== AUTH FUNCTIONS ====================
+var authFunctions_1 = require("./authFunctions");
+Object.defineProperty(exports, "onUserRoleChanged", { enumerable: true, get: function () { return authFunctions_1.onUserRoleChanged; } });
 //# sourceMappingURL=index.js.map

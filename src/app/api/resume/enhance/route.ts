@@ -20,7 +20,8 @@ export async function POST(request: NextRequest) {
   try {
     // Rate Limiting
     const { userId } = await getAuthenticatedUserId(request);
-    const identifier = userId || request.ip || "anonymous";
+    const identifier =
+      userId || request.headers.get("x-forwarded-for") || "anonymous";
 
     const rateLimitResult = checkRateLimit(`${identifier}:resume:enhance`, {
       limit: 20,
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
       return handleApiError(
         new Error("Invalid resume data"),
         "Invalid resume data: " +
-          validationResult.error?.errors?.map((e) => e.message).join(", "),
+          validationResult.error?.issues?.map((e) => e.message).join(", "),
         400
       );
     }

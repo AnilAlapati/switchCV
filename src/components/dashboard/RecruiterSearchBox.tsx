@@ -2,11 +2,11 @@
 
 import { logger } from "@/lib/logger";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTier } from "@/hooks/useTier";
 import { RequestAccessDialog } from "@/components/RequestAccessDialog";
-import type { SearchResult } from "./RecruiterSearchForm";
+import type { SearchResult, SearchModeType } from "./RecruiterSearchForm";
 import { RecruiterSearchForm } from "./RecruiterSearchForm";
 import { RecruiterSearchResults } from "./RecruiterSearchResults";
 
@@ -16,7 +16,7 @@ interface RecruiterSearchBoxProps {}
 export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
   const { user } = useAuth();
   const { isPremiumOrHigher, loading: tierLoading } = useTier();
-  const [searchMode, setSearchMode] = useState<"basic" | "premium">("basic");
+  const [searchMode, setSearchMode] = useState<SearchModeType>("ai"); // Default to AI search
   const [userId, setUserId] = useState("");
   const [skills, setSkills] = useState<string[]>([]);
   const [location, setLocation] = useState("");
@@ -25,6 +25,16 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
   const [error, setError] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
+
+  // AI Search state
+  const [aiQuery, setAiQuery] = useState("");
+  const [aiSearching, setAiSearching] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiQuota, setAiQuota] = useState<{
+    remaining: number;
+    limit: number;
+  } | null>(null);
+
   const [requestDialog, setRequestDialog] = useState<{
     isOpen: boolean;
     profileName: string;
@@ -46,9 +56,118 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
     process.env.NODE_ENV === "test" ||
     isPremiumOrHigher;
 
-  const effectiveSearchMode = useMemo<"basic" | "premium">(() => {
-    return premiumFiltersEnabled ? searchMode : "basic";
-  }, [searchMode, premiumFiltersEnabled]);
+  /**
+   * AI Search is enabled for premium or enterprise users
+   */
+  const aiSearchEnabled = isPremiumOrHigher;
+
+  const effectiveSearchMode = useMemo<SearchModeType>(() => {
+    if (searchMode === "ai" && !aiSearchEnabled) return "basic";
+    if (searchMode === "premium" && !premiumFiltersEnabled) return "basic";
+    return searchMode;
+  }, [searchMode, premiumFiltersEnabled, aiSearchEnabled]);
+
+  /**
+   * Handle AI-powered semantic search
+   */
+  const handleAiSearch = useCallback(async () => {
+    if (!user) {
+      setAiError("Please sign in to use AI search");
+      return;
+    }
+
+    if (!aiQuery.trim() || aiQuery.length < 10) {
+      setAiError(
+        "Please enter a more detailed search query (at least 10 characters)"
+      );
+      return;
+    }
+
+    setAiSearching(true);
+    setAiError(null);
+    setSearchResults([]);
+    setSearched(false);
+
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch("/api/search/ai", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          query: aiQuery.trim(),
+          limit: 10,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+
+        if (response.status === 403) {
+          if (errorData.code === "QUOTA_EXCEEDED") {
+            setAiError(
+              `You've reached your monthly search limit. Upgrade to Enterprise for unlimited searches.`
+            );
+          } else if (errorData.code === "TIER_NOT_ALLOWED") {
+            setAiError(
+              "AI-powered search requires a Premium or Enterprise subscription."
+            );
+          } else {
+            setAiError(errorData.message || "Access denied");
+          }
+          return;
+        }
+
+        throw new Error(errorData.message || "Search failed");
+      }
+
+      const data = await response.json();
+
+      // Transform AI search results to match SearchResult interface
+      const transformedResults: SearchResult[] = (data.results || []).map(
+        (result: {
+          resumeId: number;
+          title: string;
+          summary: string;
+          skills: string[];
+          similarityScore: number;
+        }) => ({
+          resumeId: String(result.resumeId),
+          title: result.title || "Untitled",
+          userName: "", // AI search doesn't return user name for privacy
+          userId: "",
+          skills: result.skills || [],
+          location: "", // AI search doesn't return location for privacy
+          createdAt: new Date().toISOString(),
+          accessStatus: "none" as const,
+          similarityScore: result.similarityScore,
+          summary: result.summary,
+        })
+      );
+
+      setSearchResults(transformedResults);
+      setAiQuota({
+        remaining: data.quotaRemaining,
+        limit: data.quotaLimit || 50,
+      });
+      setSearched(true);
+
+      if (transformedResults.length === 0) {
+        setNotification(
+          "No matching profiles found. Try adjusting your search criteria."
+        );
+      }
+    } catch (err) {
+      logger.error({ err }, "AI search error");
+      setAiError(
+        err instanceof Error ? err.message : "Search failed. Please try again."
+      );
+    } finally {
+      setAiSearching(false);
+    }
+  }, [user, aiQuery]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -186,7 +305,7 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
                 <div className="flex items-center gap-2 rounded-full border border-white/10 bg-slate-950/60 px-4 py-2 backdrop-blur-sm">
                   <span
                     className={`h-2.5 w-2.5 rounded-full ${
-                      loading
+                      loading || aiSearching
                         ? "animate-pulse bg-amber-400 shadow-lg shadow-amber-400/50"
                         : searched
                         ? "bg-emerald-400 shadow-lg shadow-emerald-400/50"
@@ -194,8 +313,10 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
                     }`}
                   />
                   <span className="text-xs font-semibold text-slate-300">
-                    {loading
-                      ? "Searching"
+                    {loading || aiSearching
+                      ? aiSearching
+                        ? "AI Searching"
+                        : "Searching"
                       : searched
                       ? "Live Results"
                       : "Ready"}
@@ -216,6 +337,7 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
                 searchMode={effectiveSearchMode}
                 setSearchMode={setSearchMode}
                 premiumFiltersEnabled={premiumFiltersEnabled}
+                aiSearchEnabled={aiSearchEnabled}
                 userId={userId}
                 setUserId={setUserId}
                 skills={skills}
@@ -228,6 +350,13 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
                 searchResults={searchResults}
                 setSearchResults={setSearchResults}
                 setSearched={setSearched}
+                // AI Search props
+                aiQuery={aiQuery}
+                setAiQuery={setAiQuery}
+                onAiSearch={handleAiSearch}
+                aiSearching={aiSearching}
+                aiError={aiError}
+                aiQuota={aiQuota}
               />
             </div>
           </div>

@@ -1,5 +1,13 @@
 {
   "projects": {
     "default": "switchcv-e5136"
+  },
+  "targets": {},
+  "etags": {
+    "switchcv-e5136": {
+      "extensionInstances": {
+        "firestore-send-email": "cc8e390ec5ec14dd2b4c9e4ca1594a53044ae26df304a0ad67f75ca8638a5f73"
+      }
+    }
   }
 }
