@@ -4,6 +4,7 @@ import { logger } from "@/lib/logger";
 
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useTier } from "@/hooks/useTier";
 import { useRouter } from "next/navigation";
 import { CreateResumeHeader } from "@/components/create-resume/CreateResumeHeader";
 import { CreateResumeInputForm } from "@/components/create-resume/CreateResumeInputForm";
@@ -19,6 +20,7 @@ interface Message {
 
 export default function CreateResume() {
   const { user, loading, needsEmailVerification } = useAuth();
+  const { isPremiumOrHigher } = useTier();
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentInput, setCurrentInput] = useState("");
@@ -33,6 +35,17 @@ export default function CreateResume() {
   } | null>(null);
   const [sessionData, setSessionData] = useState<any>(null);
   const [progress, setProgress] = useState<number>(0);
+  const [availableModels, setAvailableModels] = useState<
+    Array<{
+      id: string;
+      name: string;
+      provider: string;
+      tier: string;
+      quality: number;
+      costPer1MTokens: number;
+    }>
+  >([]);
+  const [selectedModelId, setSelectedModelId] = useState<string | undefined>();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -71,6 +84,22 @@ export default function CreateResume() {
     checkAIStatus();
   }, []);
 
+  useEffect(() => {
+    const loadModels = async () => {
+      if (!isPremiumOrHigher) return;
+      try {
+        const response = await fetch("/api/ai/models");
+        if (!response.ok) return;
+        const data = await response.json();
+        setAvailableModels(data.models || []);
+      } catch (error) {
+        logger.error({ err: error }, "Failed to load AI models");
+      }
+    };
+
+    loadModels();
+  }, [isPremiumOrHigher]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentInput.trim() || !user) return;
@@ -100,6 +129,7 @@ export default function CreateResume() {
           message: currentInput,
           conversationHistory: messages,
           sessionData,
+          modelId: selectedModelId,
         }),
       });
 
@@ -175,6 +205,26 @@ export default function CreateResume() {
   return (
     <div className="relative min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900 text-white">
       <CreateResumeHeader aiConnectionStatus={aiConnectionStatus} />
+
+      {isPremiumOrHigher && availableModels.length > 0 && (
+        <div className="max-w-4xl mx-auto px-4 mt-4 flex justify-end">
+          <div className="flex items-center gap-2 text-sm text-gray-300">
+            <span className="text-gray-400">Model:</span>
+            <select
+              value={selectedModelId || ""}
+              onChange={(e) => setSelectedModelId(e.target.value || undefined)}
+              className="bg-gray-800 border border-gray-700 text-sm rounded-md px-3 py-1 text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            >
+              <option value="">Auto (recommended)</option>
+              {availableModels.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.name} · {model.provider} · ${model.costPer1MTokens}/1M
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
 
       {shouldShowProgress && (
         <div className="hidden lg:flex fixed top-28 right-10 z-20 justify-end pointer-events-none">

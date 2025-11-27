@@ -43,9 +43,15 @@ export async function GET(request: NextRequest) {
 
     const metrics = metricsDoc.exists ? metricsDoc.data() : {};
 
+    // Use stored total if available (cumulative interest), otherwise fall back to pending count
+    const displayContactRequests =
+      typeof metrics?.contactRequests === "number"
+        ? metrics.contactRequests
+        : contactRequests;
+
     return NextResponse.json({
       profileViews: metrics?.profileViews || 0,
-      contactRequests, // Always use computed value
+      contactRequests: displayContactRequests,
       downloads: metrics?.downloads || 0,
       quality: metrics?.quality || 0,
       lastUpdated: metrics?.lastUpdated || null,

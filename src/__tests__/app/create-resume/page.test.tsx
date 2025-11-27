@@ -3,9 +3,11 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import CreateResume from "@/app/create-resume/page";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
+import { useTier } from "@/hooks/useTier";
 
 // Mock hooks
 jest.mock("@/hooks/useAuth");
+jest.mock("@/hooks/useTier");
 jest.mock("next/navigation", () => ({
   useRouter: jest.fn(),
 }));
@@ -52,6 +54,10 @@ describe("CreateResume Page", () => {
     (useRouter as jest.Mock).mockReturnValue(mockRouter);
     (useAuth as jest.Mock).mockReturnValue({
       user: mockUser,
+      loading: false,
+    });
+    (useTier as jest.Mock).mockReturnValue({
+      isPremiumOrHigher: false,
       loading: false,
     });
     global.fetch = jest.fn().mockResolvedValue({

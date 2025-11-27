@@ -146,6 +146,8 @@ describe("ContactPage", () => {
 
   describe("form submission", () => {
     it("should submit form and show success message", async () => {
+      // Simulate real user timing to pass bot protection (>= 3s)
+      jest.useFakeTimers();
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -156,6 +158,9 @@ describe("ContactPage", () => {
       });
 
       render(<ContactPage />);
+
+      // Advance time to satisfy MIN_FORM_TIME_MS
+      jest.advanceTimersByTime(3100);
 
       const emailInput = screen.getByPlaceholderText(/you@company.com/i);
       const messageInput = screen.getByPlaceholderText(
@@ -173,6 +178,8 @@ describe("ContactPage", () => {
       });
       fireEvent.click(submitButton);
 
+      jest.useRealTimers();
+
       await waitFor(() => {
         expect(screen.getByText(/thanks for the signal/i)).toBeInTheDocument();
       });
@@ -181,12 +188,15 @@ describe("ContactPage", () => {
     });
 
     it("should show error message on failure", async () => {
+      jest.useFakeTimers();
       mockFetch.mockResolvedValueOnce({
         ok: false,
         json: async () => ({ error: "Email is required" }),
       });
 
       render(<ContactPage />);
+
+      jest.advanceTimersByTime(3100);
 
       const emailInput = screen.getByPlaceholderText(/you@company.com/i);
       const messageInput = screen.getByPlaceholderText(
@@ -204,6 +214,8 @@ describe("ContactPage", () => {
       });
       fireEvent.click(submitButton);
 
+      jest.useRealTimers();
+
       await waitFor(
         () => {
           expect(screen.getByText(/couldn't send that/i)).toBeInTheDocument();
@@ -215,6 +227,7 @@ describe("ContactPage", () => {
     });
 
     it("should show loading state during submission", async () => {
+      jest.useFakeTimers();
       mockFetch.mockImplementation(
         () =>
           new Promise((resolve) =>
@@ -235,6 +248,8 @@ describe("ContactPage", () => {
 
       render(<ContactPage />);
 
+      jest.advanceTimersByTime(3100);
+
       const emailInput = screen.getByPlaceholderText(/you@company.com/i);
       const messageInput = screen.getByPlaceholderText(
         /share as much context/i
@@ -251,10 +266,14 @@ describe("ContactPage", () => {
       });
       fireEvent.click(submitButton);
 
+      // Button text should switch to "Sending..." while submitting
       expect(screen.getByText(/sending.../i)).toBeInTheDocument();
+
+      jest.useRealTimers();
     });
 
     it("should disable inputs during submission", async () => {
+      jest.useFakeTimers();
       mockFetch.mockImplementation(
         () =>
           new Promise((resolve) =>
@@ -275,6 +294,8 @@ describe("ContactPage", () => {
 
       render(<ContactPage />);
 
+      jest.advanceTimersByTime(3100);
+
       const emailInput = screen.getByPlaceholderText(/you@company.com/i);
       const messageInput = screen.getByPlaceholderText(
         /share as much context/i
@@ -291,14 +312,19 @@ describe("ContactPage", () => {
       });
       fireEvent.click(submitButton);
 
+      // Inputs should be disabled during submission
       expect(emailInput).toBeDisabled();
       expect(messageInput).toBeDisabled();
+
+      jest.useRealTimers();
     });
 
     it("should handle network errors", async () => {
+      jest.useFakeTimers();
       mockFetch.mockRejectedValueOnce(new Error("Network error"));
-
       render(<ContactPage />);
+
+      jest.advanceTimersByTime(3100);
 
       const emailInput = screen.getByPlaceholderText(/you@company.com/i);
       const messageInput = screen.getByPlaceholderText(
@@ -319,6 +345,8 @@ describe("ContactPage", () => {
       await waitFor(() => {
         expect(screen.getByText(/couldn't send that/i)).toBeInTheDocument();
       });
+
+      jest.useRealTimers();
     });
   });
 
@@ -334,6 +362,7 @@ describe("ContactPage", () => {
 
   describe("authentication integration", () => {
     it("should not include auth header when user is not logged in", async () => {
+      jest.useFakeTimers();
       mockUseAuth.mockReturnValue({ user: null, loading: false });
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -345,6 +374,8 @@ describe("ContactPage", () => {
       });
 
       render(<ContactPage />);
+
+      jest.advanceTimersByTime(3100);
 
       fireEvent.change(screen.getByPlaceholderText(/you@company.com/i), {
         target: { value: "test@example.com" },
@@ -365,9 +396,12 @@ describe("ContactPage", () => {
           })
         );
       });
+
+      jest.useRealTimers();
     });
 
     it("should include auth header when user is logged in", async () => {
+      jest.useFakeTimers();
       mockUseAuth.mockReturnValue({ user: mockUser, loading: false });
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -379,6 +413,8 @@ describe("ContactPage", () => {
       });
 
       render(<ContactPage />);
+
+      jest.advanceTimersByTime(3100);
 
       fireEvent.change(screen.getByPlaceholderText(/you@company.com/i), {
         target: { value: "test@example.com" },
@@ -403,6 +439,8 @@ describe("ContactPage", () => {
           })
         );
       });
+
+      jest.useRealTimers();
     });
   });
 });

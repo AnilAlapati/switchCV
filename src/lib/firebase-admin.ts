@@ -4,7 +4,7 @@ import * as admin from "firebase-admin";
 /**
  * Firebase Admin Environment Configuration Error
  */
-class FirebaseAdminConfigError extends Error {
+export class FirebaseAdminConfigError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "FirebaseAdminConfigError";
@@ -14,7 +14,7 @@ class FirebaseAdminConfigError extends Error {
 /**
  * Validate required environment variables for Firebase Admin
  */
-function validateEnvironment(): void {
+export function validateEnvironment(): void {
   const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 
   if (!projectId) {
@@ -33,36 +33,43 @@ function validateEnvironment(): void {
   }
 }
 
-// Initialize Firebase Admin SDK
-if (!admin.apps.length) {
-  try {
-    // Validate environment before initialization
-    validateEnvironment();
+/**
+ * Initialize Firebase Admin SDK
+ */
+export function initializeFirebaseAdmin(): void {
+  if (!admin.apps.length) {
+    try {
+      // Validate environment before initialization
+      validateEnvironment();
 
-    // Try to get service account from environment variable first
-    // This is useful for development and certain deployment environments
-    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-      });
-    } else {
-      // Use Application Default Credentials (ADC)
-      // This works in:
-      // - Local development with gcloud auth
-      // - Google Cloud environment (Cloud Run, Cloud Functions, GCE, etc.)
-      admin.initializeApp({
-        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-      });
+      // Try to get service account from environment variable first
+      // This is useful for development and certain deployment environments
+      if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+        admin.initializeApp({
+          credential: admin.credential.cert(serviceAccount),
+          projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+        });
+      } else {
+        // Use Application Default Credentials (ADC)
+        // This works in:
+        // - Local development with gcloud auth
+        // - Google Cloud environment (Cloud Run, Cloud Functions, GCE, etc.)
+        admin.initializeApp({
+          projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+        });
+      }
+    } catch (error) {
+      // Using console.error here intentionally - logger may not be initialized yet
+      // This is a bootstrap error that must be visible
+      logger.error({ err: error }, "Failed to initialize Firebase Admin SDK:");
+      throw error;
     }
-  } catch (error) {
-    // Using console.error here intentionally - logger may not be initialized yet
-    // This is a bootstrap error that must be visible
-    logger.error({ err: error }, "Failed to initialize Firebase Admin SDK:");
-    throw error;
   }
 }
+
+// Initialize on module load
+initializeFirebaseAdmin();
 
 export const adminDb = admin.firestore();
 export const adminAuth = admin.auth();

@@ -1,6 +1,14 @@
 {
   "indexes": [
     {
+      "collectionGroup": "accessRequests",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "fromUserId", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "recruiterSearchHistory",
       "queryScope": "COLLECTION",
       "fields": [
@@ -64,23 +72,6 @@
       "fields": [
         { "fieldPath": "userId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "resumes",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "isBeingEdited", "order": "ASCENDING" },
-        { "fieldPath": "updatedAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "resumes",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "isBeingEdited", "order": "ASCENDING" },
-        { "fieldPath": "embedding", "order": "ASCENDING" },
-        { "fieldPath": "updatedAt", "order": "DESCENDING" }
       ]
     },
     {
