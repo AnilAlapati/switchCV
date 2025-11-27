@@ -10,8 +10,11 @@ export async function POST(request: NextRequest) {
   try {
     // 1. Authenticate
     const { userId, error: authError } = await getAuthenticatedUserId(request);
-    if (authError) {
-      return authError;
+    if (authError || !userId) {
+      return (
+        authError ||
+        handleApiError(new Error("Unauthorized"), "Unauthorized", 401)
+      );
     }
 
     // 2. Parse Body

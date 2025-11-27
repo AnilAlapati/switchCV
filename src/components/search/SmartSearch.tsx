@@ -7,6 +7,7 @@ import {
   SmartSearchResultCard,
   SmartSearchResult,
 } from "./SmartSearchResultCard";
+import { logger } from "@/lib/logger";
 
 interface SmartSearchResponse {
   results: SmartSearchResult[];
@@ -90,7 +91,7 @@ export function SmartSearch({ onResultSelect }: SmartSearchProps) {
         limit: data.quotaLimit,
       });
     } catch (err) {
-      console.error("Smart search error:", err);
+      logger.error({ err }, "Smart search error");
       setError(
         err instanceof Error ? err.message : "Search failed. Please try again."
       );

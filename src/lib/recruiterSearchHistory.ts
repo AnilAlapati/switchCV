@@ -13,7 +13,7 @@ interface SearchHistoryFilters {
 
 export interface RecruiterSearchEventPayload {
   recruiterId: string;
-  tier: "basic" | "premium";
+  tier: "basic" | "premium" | "enterprise";
   filters?: SearchHistoryFilters;
   resultUserIds?: string[];
   resultCount?: number;

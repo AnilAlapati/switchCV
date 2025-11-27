@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -163,7 +164,7 @@ export async function GET(request: NextRequest) {
       details: verification,
     });
   } catch (error) {
-    console.error("❌ Verify token error:", error);
+    logger.error({ err: error }, "❌ Verify token error:");
     return handleApiError(error, "Failed to verify token");
   }
 }
@@ -199,7 +200,7 @@ export async function POST(request: NextRequest) {
     const response = await GET(nextRequest);
     return response;
   } catch (error) {
-    console.error("❌ Verify token error:", error);
+    logger.error({ err: error }, "❌ Verify token error:");
     return handleApiError(error, "Failed to verify token");
   }
 }

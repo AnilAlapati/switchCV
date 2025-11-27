@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { useCallback } from "react";
 import { db, auth } from "@/lib/firebase";
 import { collection, addDoc, Timestamp } from "firebase/firestore";
@@ -49,7 +50,7 @@ export const useAuditLog = () => {
     try {
       const currentUser = auth.currentUser;
       if (!currentUser) {
-        console.warn("No authenticated user for audit log");
+        logger.warn("No authenticated user for audit log");
         return;
       }
 
@@ -67,9 +68,9 @@ export const useAuditLog = () => {
         url: typeof window !== "undefined" ? window.location.href : null,
       });
 
-      console.log(`[AUDIT] ${data.action} - ${data.resourceType}`);
+      logger.info(`[AUDIT] ${data.action} - ${data.resourceType}`);
     } catch (error) {
-      console.error("Failed to log audit action:", error);
+      logger.error({ err: error }, "Failed to log audit action:");
       // Don't throw - audit logging shouldn't break functionality
     }
   }, []);
@@ -165,7 +166,7 @@ export const useNotificationPreferences = () => {
           }
         );
       } catch (error) {
-        console.error("Failed to get notification preferences:", error);
+        logger.error({ err: error }, "Failed to get notification preferences:");
         return null;
       }
     }, [currentUser]);
@@ -185,7 +186,7 @@ export const useNotificationPreferences = () => {
 
         return true;
       } catch (error) {
-        console.error("Failed to update notification preferences:", error);
+        logger.error({ err: error }, "Failed to update notification preferences:");
         throw error;
       }
     },
@@ -227,7 +228,7 @@ export const usePersonalAuditLogs = () => {
           ...doc.data(),
         }));
       } catch (error) {
-        console.error("Failed to fetch audit logs:", error);
+        logger.error({ err: error }, "Failed to fetch audit logs:");
         return [];
       }
     },
@@ -249,7 +250,7 @@ export const usePersonalAuditLogs = () => {
 
       return result.data;
     } catch (error) {
-      console.error("Failed to export data:", error);
+      logger.error({ err: error }, "Failed to export data:");
       throw error;
     }
   }, [currentUser]);

@@ -29,7 +29,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
-import type { ResumeProfile } from "@/types";
+import type { ResumeProfile, Visibility } from "@/types";
 import { checkRateLimit, RateLimitResult } from "@/lib/utils/rateLimit";
 
 /**
@@ -44,6 +44,9 @@ export interface ResumeDocumentData extends Partial<ResumeProfile> {
   /** Firestore timestamps */
   createdAt?: FirebaseFirestore.Timestamp;
   updatedAt?: FirebaseFirestore.Timestamp;
+  /** Visibility settings */
+  isPublic?: boolean;
+  visibility?: Visibility;
 }
 import { logger } from "@/lib/logger";
 
@@ -58,7 +61,7 @@ import { logger } from "@/lib/logger";
  * ```typescript
  * const { userId, error } = await getAuthenticatedUserId(request);
  * if (error) return error; // Returns 401 response
- * console.log(`Authenticated user: ${userId}`);
+ * logger.info(`Authenticated user: ${userId}`);
  * ```
  */
 export async function getAuthenticatedUserId(

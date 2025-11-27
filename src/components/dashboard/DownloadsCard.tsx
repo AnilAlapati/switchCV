@@ -1,5 +1,7 @@
 "use client";
 
+import { logger } from "@/lib/logger";
+
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useOptionalDashboardMetricsContext } from "@/context/DashboardMetricsContext";
@@ -46,7 +48,7 @@ export function DownloadsCard({ hasResume }: DownloadsCardProps) {
           setMetrics({ downloads: data.downloads || 0 });
         }
       } catch (error) {
-        console.error("Failed to fetch downloads:", error);
+        logger.error({ err: error }, "Failed to fetch downloads:");
       } finally {
         setLoading(false);
       }

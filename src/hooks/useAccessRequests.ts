@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import { collection, query, onSnapshot, orderBy } from "firebase/firestore";
@@ -35,7 +36,7 @@ export function useAccessRequests() {
 
       return () => unsubscribe();
     } catch (err) {
-      console.error("Error setting up requests listener:", err);
+      logger.error({ err: err }, "Error setting up requests listener:");
       // Avoid synchronous state update in effect
       setTimeout(() => setLoading(false), 0);
     }
@@ -66,7 +67,7 @@ export function useAccessRequests() {
 
       return () => unsubscribe();
     } catch (err) {
-      console.error("Error setting up grants listener:", err);
+      logger.error({ err: err }, "Error setting up grants listener:");
     }
   }, [user, authLoading]);
 

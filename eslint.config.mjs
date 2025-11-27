@@ -27,10 +27,12 @@ const eslintConfig = [
       "@typescript-eslint/ban-types": "off",
       "@typescript-eslint/no-unsafe-function-type": "warn",
       "react/no-unescaped-entities": "off",
-      "react-hooks/rules-of-hooks": "warn",
-      // Enable exhaustive-deps as warning to improve hook dependency tracking
-      "react-hooks/exhaustive-deps": "warn",
+      "react-hooks/rules-of-hooks": "error",
+      // Strict enforcement of hook dependencies prevents bugs
+      "react-hooks/exhaustive-deps": "error",
       "@next/next/no-html-link-for-pages": "warn",
+      // Enforce structured logging - no console in production code
+      "no-console": "error",
     },
   },
   {
@@ -59,6 +61,13 @@ const eslintConfig = [
     },
   },
   {
+    // Logger file must use console - it's the wrapper
+    files: ["src/lib/logger.ts"],
+    rules: {
+      "no-console": "off",
+    },
+  },
+  {
     files: [
       "**/*.test.ts",
       "**/*.test.tsx",
@@ -82,6 +91,8 @@ const eslintConfig = [
       "@typescript-eslint/no-require-imports": "off",
       // Allow flexible error handling patterns in tests
       "no-restricted-syntax": "off",
+      // Allow console in tests for debugging
+      "no-console": "off",
     },
   },
   {

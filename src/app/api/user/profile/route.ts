@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import {
@@ -76,7 +77,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(userDoc.data());
   } catch (error) {
-    console.error("Error fetching user profile:", error);
+    logger.error({ err: error }, "Error fetching user profile:");
     return handleApiError(error, "Failed to fetch user profile");
   }
 }
@@ -103,8 +104,8 @@ export async function POST(request: NextRequest) {
     if (!validationResult.success) {
       return handleApiError(
         new Error("Validation failed"),
-        validationResult.error.errors
-          .map((e) => `${e.path.join(".")}: ${e.message}`)
+        (validationResult.error as any).errors
+          .map((e: any) => `${e.path.join(".")}: ${e.message}`)
           .join(", "),
         400
       );
@@ -151,7 +152,7 @@ export async function POST(request: NextRequest) {
       data: userProfileData,
     });
   } catch (error) {
-    console.error("Error creating user profile:", error);
+    logger.error({ err: error }, "Error creating user profile:");
     return handleApiError(error, "Failed to create user profile");
   }
 }
@@ -178,8 +179,8 @@ export async function PUT(request: NextRequest) {
     if (!validationResult.success) {
       return handleApiError(
         new Error("Validation failed"),
-        validationResult.error.errors
-          .map((e) => `${e.path.join(".")}: ${e.message}`)
+        (validationResult.error as any).errors
+          .map((e: any) => `${e.path.join(".")}: ${e.message}`)
           .join(", "),
         400
       );
@@ -215,7 +216,7 @@ export async function PUT(request: NextRequest) {
       data: updateData,
     });
   } catch (error) {
-    console.error("Error updating user profile:", error);
+    logger.error({ err: error }, "Error updating user profile:");
     return handleApiError(error, "Failed to update user profile");
   }
 }

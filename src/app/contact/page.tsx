@@ -145,10 +145,23 @@ export default function ContactPage() {
               )}
 
               <form className="space-y-6" onSubmit={handleSubmit}>
-                <ContactFormFields form={form} isSubmitting={isSubmitting} onFieldChange={(f: string, v: string | boolean) => handleChange(f as keyof FormState, v)} />
+                <ContactFormFields
+                  form={form}
+                  isSubmitting={isSubmitting}
+                  onFieldChange={(f: string, v: string | boolean) =>
+                    handleChange(f as keyof FormState, v)
+                  }
+                />
                 <div className="flex flex-col gap-4 text-sm text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-                  <p>Avg. weekday response time: <span className="text-white">&lt; 12 hrs</span></p>
-                  <button type="submit" disabled={isSubmitting} className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-500 px-6 py-3 text-base font-semibold text-slate-950 shadow-lg shadow-cyan-500/30 transition-transform hover:-translate-y-0.5 hover:shadow-cyan-500/50 disabled:cursor-not-allowed disabled:opacity-60">
+                  <p>
+                    Avg. weekday response time:{" "}
+                    <span className="text-white">&lt; 12 hrs</span>
+                  </p>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-500 px-6 py-3 text-base font-semibold text-slate-950 shadow-lg shadow-cyan-500/30 transition-transform hover:-translate-y-0.5 hover:shadow-cyan-500/50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
                     {isSubmitting ? "Sending..." : "Send feedback"}
                   </button>
                 </div>

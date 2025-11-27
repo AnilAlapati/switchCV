@@ -1,5 +1,7 @@
 "use client";
 
+import { logger } from "@/lib/logger";
+
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useResume } from "@/hooks/useResume";
@@ -45,7 +47,7 @@ export default function SettingsPage() {
       router.replace("/auth");
       router.refresh();
     } catch (error) {
-      console.error("Failed to log out", error);
+      logger.error({ err: error }, "Failed to log out");
     }
   }, [logout, router]);
 
@@ -69,7 +71,7 @@ export default function SettingsPage() {
       setSettings(data);
       setShowCompanyInput(data.isRecruiter);
     } catch (err) {
-      console.error("Error fetching settings:", err);
+      logger.error({ err: err }, "Error fetching settings:");
     }
   }, [user]);
 

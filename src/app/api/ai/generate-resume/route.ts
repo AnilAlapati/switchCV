@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { generateText } from "@/lib/services/aiGenerationService";
 import { handleApiError } from "@/lib/utils/api-helpers";
@@ -49,7 +50,9 @@ interface GenerateResumeResponse {
 
 export async function POST(
   request: NextRequest
-): Promise<NextResponse<GenerateResumeResponse>> {
+): Promise<
+  NextResponse<GenerateResumeResponse | { error: string; details?: string }>
+> {
   try {
     const body = (await request.json()) as GenerateResumeRequest;
     const { resumeData, tone = "professional" } = body;
@@ -65,21 +68,21 @@ export async function POST(
     // Create prompt for AI
     const prompt = createResumeEnhancementPrompt(resumeData, tone);
 
-    console.log("🤖 Starting AI resume enhancement...", {
+    logger.info({
       name: resumeData.personalInfo.name,
       tone,
       skillCount: (resumeData.skills || []).length,
       experienceCount: (resumeData.experience || []).length,
-    });
+    }, "🤖 Starting AI resume enhancement...");
 
     // Call AI service
     const { text, model, provider } = await generateText(prompt, 2000, 0.7);
 
-    console.log("✅ AI generation successful", {
+    logger.info({
       model,
       provider,
       responseLength: text.length,
-    });
+    }, "✅ AI generation successful");
 
     // Parse AI response
     const enhancedContent = parseAIResponse(text, resumeData);
@@ -164,7 +167,7 @@ function parseAIResponse(aiText: string, resumeData: any): any {
     // Try to extract JSON from the response
     const jsonMatch = aiText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      console.warn("⚠️ Could not find JSON in AI response, using defaults");
+      logger.warn("⚠️ Could not find JSON in AI response, using defaults");
       return generateFallbackEnhancement(resumeData);
     }
 
@@ -204,7 +207,7 @@ function parseAIResponse(aiText: string, resumeData: any): any {
       ],
     };
   } catch (error) {
-    console.error("❌ Error parsing AI response:", error);
+    logger.error({ err: error }, "❌ Error parsing AI response:");
     return generateFallbackEnhancement(resumeData);
   }
 }

@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 /**
  * AI Resume Response Validation Schemas
  *
@@ -103,7 +104,7 @@ export const AIContactSchema = z.object({
  * if (result.success) {
  *   const validResume: AIResumeResponse = result.data;
  * } else {
- *   console.error(result.error.issues);
+ *   logger.error(result.error.issues);
  * }
  * ```
  */

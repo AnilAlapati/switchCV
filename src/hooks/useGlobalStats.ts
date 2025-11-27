@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { useEffect, useState, useSyncExternalStore, useCallback } from "react";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
@@ -150,7 +151,7 @@ export function useGlobalStats() {
           applyStats(data as Record<string, unknown>);
         },
         (error) => {
-          console.error("Error fetching stats:", error);
+          logger.error({ err: error }, "Error fetching stats:");
           applyStats(null);
         }
       );
@@ -188,7 +189,7 @@ export function useGlobalStats() {
         if (cancelled) {
           return;
         }
-        console.error("Error fetching stats:", error);
+        logger.error({ err: error }, "Error fetching stats:");
         applyStats(null);
       }
     };

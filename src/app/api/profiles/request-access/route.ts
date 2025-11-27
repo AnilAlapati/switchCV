@@ -229,7 +229,7 @@ export async function POST(request: NextRequest) {
       NotificationPriority.HIGH
     );
 
-    console.log(`✉️ Notification sent to resume owner: ${resumeOwnerId}`);
+    logger.info(`✉️ Notification sent to resume owner: ${resumeOwnerId}`);
 
     return NextResponse.json({
       success: true,
@@ -252,7 +252,7 @@ async function fetchUserRequestDocs(
     return snapshot.docs as AccessRequestDoc[];
   } catch (error) {
     if (isFailedPreconditionError(error)) {
-      console.warn(
+      logger.warn(
         "[accessRequests] Missing Firestore index on fromUserId. Falling back to in-memory filter. Run `firebase deploy --only firestore:indexes` to restore optimal performance."
       );
       const fallbackSnapshot = await collectionRef.get();

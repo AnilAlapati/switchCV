@@ -64,10 +64,10 @@ try {
 
     if (process.env.NODE_ENV === "test") {
       app = {} as FirebaseApp;
-      auth = { __isMock: true } as Auth;
-      db = { __isMock: true } as Firestore;
-      storage = { __isMock: true } as FirebaseStorage;
-      functions = { __isMock: true } as Functions;
+      auth = { __isMock: true } as unknown as Auth;
+      db = { __isMock: true } as unknown as Firestore;
+      storage = { __isMock: true } as unknown as FirebaseStorage;
+      functions = { __isMock: true } as unknown as Functions;
       firebaseStatus.isReady = true;
     }
   }
@@ -76,10 +76,10 @@ try {
     error instanceof Error ? error.message : "Unknown Firebase init error";
   if (process.env.NODE_ENV === "test") {
     app = {} as FirebaseApp;
-    auth = { __isMock: true } as Auth;
-    db = { __isMock: true } as Firestore;
-    storage = { __isMock: true } as FirebaseStorage;
-    functions = { __isMock: true } as Functions;
+    auth = { __isMock: true } as unknown as Auth;
+    db = { __isMock: true } as unknown as Firestore;
+    storage = { __isMock: true } as unknown as FirebaseStorage;
+    functions = { __isMock: true } as unknown as Functions;
     firebaseStatus.isReady = true;
   }
 }

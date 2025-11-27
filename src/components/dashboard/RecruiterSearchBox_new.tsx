@@ -1,5 +1,7 @@
 "use client";
 
+import { logger } from "@/lib/logger";
+
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { RecruiterSearchForm, SearchResult } from "./RecruiterSearchForm";
@@ -71,7 +73,7 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
         setNotification("No resumes found matching your search");
       }
     } catch (err) {
-      console.error("Search error:", err);
+      logger.error({ err: err }, "Search error:");
       setError(err instanceof Error ? err.message : "Failed to search resumes");
     } finally {
       setLoading(false);
@@ -120,6 +122,7 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
       <RecruiterSearchForm
         searchMode={searchMode}
         setSearchMode={setSearchMode}
+        premiumFiltersEnabled={true}
         userId={userId}
         setUserId={setUserId}
         skills={skills}

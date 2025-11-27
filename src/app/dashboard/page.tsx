@@ -1,6 +1,8 @@
+"use client";
+
+import { logger } from "@/lib/logger";
 /* eslint-disable max-lines */
 // src/app/dashboard/page.tsx
-"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -48,7 +50,7 @@ export default function Dashboard() {
       router.replace("/auth");
       router.refresh();
     } catch (error) {
-      console.error("Failed to log out", error);
+      logger.error({ err: error }, "Failed to log out");
     }
   }, [logout, router]);
 
@@ -99,7 +101,7 @@ export default function Dashboard() {
         const data = await response.json();
         setUserIsRecruiter(Boolean(data?.isRecruiter));
       } catch (error) {
-        console.error("Failed to fetch user status:", error);
+        logger.error({ err: error }, "Failed to fetch user status:");
         setUserIsRecruiter(false);
       } finally {
         setUserRoleLoading(false);
@@ -152,7 +154,7 @@ export default function Dashboard() {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
         }
-        console.error("Failed to load job seeker metrics:", error);
+        logger.error({ err: error }, "Failed to load job seeker metrics:");
         if (!signal?.aborted) {
           setJobMetrics(DEFAULT_JOB_METRICS);
         }
@@ -198,10 +200,9 @@ export default function Dashboard() {
 
         if (!response || !response.ok) {
           const errorText = await response.text();
-          console.error(
-            "Recruiter metrics fetch failed:",
-            response.status,
-            errorText
+          logger.error(
+            { status: response.status, errorText },
+            "Recruiter metrics fetch failed:"
           );
           throw new Error(
             `Failed to fetch recruiter metrics: ${response.status} ${errorText}`
@@ -216,7 +217,7 @@ export default function Dashboard() {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
         }
-        console.error("Failed to load recruiter metrics:", error);
+        logger.error({ err: error }, "Failed to load recruiter metrics:");
         if (!signal?.aborted) {
           setRecruiterMetrics(DEFAULT_RECRUITER_METRICS);
         }

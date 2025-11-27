@@ -11,6 +11,10 @@ export interface Resume {
   education: Education[];
   certifications?: string[];
   languages?: string[];
+  contact: {
+    email: { value: string };
+    phone?: { value: string };
+  };
 }
 
 export interface Experience {

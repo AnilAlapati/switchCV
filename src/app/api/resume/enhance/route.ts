@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(enhancement, { status: 200 });
   } catch (error) {
-    logger.error("Error enhancing resume:", error);
+    logger.error({ err: error }, "Error enhancing resume:");
     return handleApiError(error, "Failed to enhance resume");
   }
 }

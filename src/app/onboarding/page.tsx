@@ -1,5 +1,7 @@
 "use client";
 
+import { logger } from "@/lib/logger";
+
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
@@ -83,7 +85,7 @@ export default function Onboarding() {
 
   const handleSubmit = async () => {
     // TODO: Save to Firestore
-    console.log("Saving profile:", profile);
+    logger.info({ data: profile }, "Saving profile:");
     router.push("/dashboard");
   };
 

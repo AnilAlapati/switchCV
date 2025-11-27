@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 /**
  * API Route: Migrate Resumes to Numeric IDs
  * POST /api/admin/migrate-numeric-ids
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
     let result;
 
     if (migrateAll) {
-      console.log("🔄 Migrating ALL resumes...");
+      logger.info("🔄 Migrating ALL resumes...");
       result = await migrateAllResumesToNumericIds();
       return NextResponse.json({
         success: true,
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
         migratedCount: result,
       });
     } else if (userId) {
-      console.log(`🔄 Migrating resumes for user: ${userId}`);
+      logger.info(`🔄 Migrating resumes for user: ${userId}`);
       result = await migrateUserResumesToNumericIds(userId);
       return NextResponse.json({
         success: true,

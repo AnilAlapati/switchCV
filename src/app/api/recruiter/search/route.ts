@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 // src/app/api/recruiter/search/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
@@ -108,7 +109,7 @@ export async function GET(request: NextRequest) {
             });
           }
         } catch (err) {
-          console.error("Error fetching user for resume:", err);
+          logger.error({ err: err }, "Error fetching user for resume:");
           // Continue with just resume data if user fetch fails
           results.push({
             resumeId: doc.id,

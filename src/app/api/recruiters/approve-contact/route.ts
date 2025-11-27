@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import {
   doc,
@@ -210,10 +211,10 @@ export async function POST(request: NextRequest) {
 
     await addDoc(collection(db, "auditLogs"), auditLog);
 
-    console.log(
+    logger.info(
       `✅ Contact request approved: ${payload.requestId} by admin ${payload.adminUserId}`
     );
-    console.log(
+    logger.info(
       `🔐 Secure token generated: ${tokenRef.id} (expires in ${duration})`
     );
 
@@ -229,7 +230,7 @@ export async function POST(request: NextRequest) {
       token: token.substring(0, 50) + "...", // Don't send full token
     });
   } catch (error) {
-    console.error("❌ Approve contact error:", error);
+    logger.error({ err: error }, "❌ Approve contact error:");
     return handleApiError(error, "Failed to approve contact request");
   }
 }

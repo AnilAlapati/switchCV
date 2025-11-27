@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { getRecruiterSearchBreakdown } from "@/lib/recruiterSearchHistory";
@@ -62,11 +63,11 @@ export async function GET(request: NextRequest) {
             accessRequests.approved++;
           }
         } catch (e) {
-          console.warn("Failed to parse expiresAt:", e);
+          logger.warn({ err: e }, "Failed to parse expiresAt:");
         }
       });
     } catch (error: any) {
-      console.warn(
+      logger.warn(
         "Failed to fetch access requests/grants (likely missing index):",
         error.message
       );

@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
         },
         { merge: true }
       )
-      .catch((err) => console.error("Failed to update search metrics:", err));
+      .catch((err) => logger.error({ err: err }, "Failed to update search metrics:"));
 
     // Determine search type based on parameters provided
     const hasUserId = userId && userId.trim();

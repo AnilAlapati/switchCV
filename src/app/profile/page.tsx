@@ -1,5 +1,7 @@
-// src/app/profile/page.tsx
 "use client";
+
+import { logger } from "@/lib/logger";
+// src/app/profile/page.tsx
 
 import { useState } from "react";
 import { ResumeProfile } from "@/types";
@@ -18,7 +20,7 @@ export default function ProfileEditor() {
 
   const handleSave = async () => {
     // TODO: Save to Firestore
-    console.log("Saving profile:", profile);
+    logger.info({ data: profile }, "Saving profile:");
   };
 
   return (

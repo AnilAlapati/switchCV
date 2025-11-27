@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 // src/app/api/user/settings/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(settings);
   } catch (error) {
-    console.error("Error fetching user settings:", error);
+    logger.error({ err: error }, "Error fetching user settings:");
     return handleApiError(error, "Failed to fetch settings");
   }
 }
@@ -120,7 +121,7 @@ export async function PUT(request: NextRequest) {
       message: "Settings updated successfully",
     });
   } catch (error) {
-    console.error("Error updating user settings:", error);
+    logger.error({ err: error }, "Error updating user settings:");
     return handleApiError(error, "Failed to update settings");
   }
 }

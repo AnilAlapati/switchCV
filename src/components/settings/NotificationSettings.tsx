@@ -1,5 +1,7 @@
 "use client";
 
+import { logger } from "@/lib/logger";
+
 import { useState, useEffect } from "react";
 import { useNotificationPreferences } from "@/hooks/useAuditLog";
 
@@ -81,7 +83,7 @@ export function NotificationSettings() {
           }
         );
       } catch (error) {
-        console.error("Failed to load preferences:", error);
+        logger.error({ err: error }, "Failed to load preferences:");
         setMessage("Failed to load notification preferences");
       } finally {
         setLoading(false);
@@ -108,7 +110,7 @@ export function NotificationSettings() {
       setMessage("✓ Settings saved successfully");
       setTimeout(() => setMessage(""), 3000);
     } catch (error) {
-      console.error("Failed to update preferences:", error);
+      logger.error({ err: error }, "Failed to update preferences:");
       setMessage("✗ Failed to save settings");
       setPreferences(preferences);
     } finally {

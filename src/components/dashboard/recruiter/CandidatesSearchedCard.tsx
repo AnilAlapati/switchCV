@@ -1,5 +1,7 @@
 "use client";
 
+import { logger } from "@/lib/logger";
+
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
@@ -73,7 +75,7 @@ export function CandidatesSearchedCard() {
           });
         }
       } catch (error) {
-        console.error("Failed to fetch search metrics:", error);
+        logger.error({ err: error }, "Failed to fetch search metrics:");
       } finally {
         setLoading(false);
       }

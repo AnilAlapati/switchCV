@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { getApp } from "firebase/app";
@@ -91,7 +92,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(result.data);
   } catch (error: any) {
-    console.error("[AI Search API] Error:", error);
+    logger.error({ err: error }, "[AI Search API] Error:");
 
     // Handle Firebase callable function errors
     if (error.code) {
