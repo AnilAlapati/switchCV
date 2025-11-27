@@ -83,7 +83,25 @@ async function trackRecruiterProfileView(userId: string) {
       },
       { merge: true }
     )
-    .catch((err) => logger.error({ err: err }, "Failed to track profile view:"));
+    .catch((err) =>
+      logger.error({ err: err }, "Failed to track profile view:")
+    );
+}
+
+async function trackJobSeekerProfileView(userId: string) {
+  return adminDb
+    .collection("jobSeekerMetrics")
+    .doc(userId)
+    .set(
+      {
+        profileViews: FieldValue.increment(1),
+        lastUpdated: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    )
+    .catch((err) =>
+      logger.error({ err: err }, "Failed to track job seeker profile view:")
+    );
 }
 
 export async function GET(
@@ -195,6 +213,9 @@ export async function GET(
 
     // 3. Return Full Access if granted
     if (hasGrantedAccess) {
+      if (ownerId) {
+        trackJobSeekerProfileView(ownerId);
+      }
       return NextResponse.json({
         ...resumeData,
         isBeingEdited,
@@ -210,6 +231,9 @@ export async function GET(
     // If public and NO grant, return snapshot
     if (isPublic && !forceFullAccessCheck) {
       logger.info(`[ResumeAPI] Returning public snapshot.`);
+      if (ownerId) {
+        trackJobSeekerProfileView(ownerId);
+      }
       const sanitized = sanitizeResumeForPublicView(resumeData);
       return NextResponse.json(
         { ...sanitized, isBeingEdited },

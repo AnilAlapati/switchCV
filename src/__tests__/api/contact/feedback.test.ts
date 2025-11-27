@@ -5,6 +5,7 @@
 // Mock the support feedback service - define class inline to avoid hoisting issues
 jest.mock("@/lib/services/supportFeedbackService", () => ({
   sendSupportFeedback: jest.fn(),
+  checkRateLimit: jest.fn().mockReturnValue(false),
   SupportFeedbackError: class SupportFeedbackError extends Error {
     statusCode: number;
     constructor(message: string, statusCode = 400) {
@@ -20,6 +21,14 @@ jest.mock("@/lib/utils/api-helpers", () => ({
   getClientIp: jest.fn(),
   handleApiError: jest.fn(),
   safeParseBody: jest.fn(),
+  maybeGetAuthenticatedUserId: jest.fn(),
+}));
+
+// Mock firebase-admin
+jest.mock("@/lib/firebase-admin", () => ({
+  adminAuth: {
+    getUser: jest.fn(),
+  },
 }));
 
 import { NextRequest, NextResponse } from "next/server";
@@ -32,6 +41,7 @@ import {
   getClientIp,
   handleApiError,
   safeParseBody,
+  maybeGetAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
 
 // Cast to mocked functions after import
@@ -45,6 +55,10 @@ const mockHandleApiError = handleApiError as jest.MockedFunction<
 const mockSafeParseBody = safeParseBody as jest.MockedFunction<
   typeof safeParseBody
 >;
+const mockMaybeGetAuthenticatedUserId =
+  maybeGetAuthenticatedUserId as jest.MockedFunction<
+    typeof maybeGetAuthenticatedUserId
+  >;
 
 function createRequest(body: unknown): NextRequest {
   return new NextRequest(
@@ -66,6 +80,7 @@ describe("POST /api/contact/feedback", () => {
 
     // Setup default mock implementations
     mockGetClientIp.mockReturnValue("127.0.0.1");
+    mockMaybeGetAuthenticatedUserId.mockResolvedValue(null);
     mockSafeParseBody.mockImplementation(async (request: Request) => {
       return request.json();
     });

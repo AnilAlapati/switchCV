@@ -30,6 +30,8 @@ export interface GenerateOptions {
   maxTokens?: number;
   temperature?: number;
   userTier: UserTier;
+  /** Optional explicit model selection (id from AI_MODELS) */
+  modelId?: string;
 }
 
 export interface GenerateResult {
@@ -38,6 +40,15 @@ export interface GenerateResult {
   provider: string;
   tier: string;
   estimatedCost: number;
+}
+
+export interface SelectableModel {
+  id: string;
+  name: string;
+  provider: AIModelConfig["provider"];
+  tier: AIModelConfig["tier"];
+  quality: number;
+  costPer1MTokens: number;
 }
 
 // ==================== MODEL REGISTRY ====================
@@ -352,6 +363,23 @@ export function getModelsForTier(userTier: UserTier): AIModelConfig[] {
 }
 
 /**
+ * Models a user can explicitly select for a tier.
+ * Already filtered by provider configuration and tier access.
+ */
+export function getSelectableModels(userTier: UserTier): SelectableModel[] {
+  return getModelsForTier(userTier)
+    .filter((model) => isProviderConfigured(model.provider))
+    .map((model) => ({
+      id: model.id,
+      name: model.name,
+      provider: model.provider,
+      tier: model.tier,
+      quality: model.quality,
+      costPer1MTokens: model.costPer1MTokens,
+    }));
+}
+
+/**
  * Check if a provider has a valid API key configured
  */
 function isProviderConfigured(provider: string): boolean {
@@ -402,12 +430,46 @@ async function callProvider(
 export async function generateTextWithTier(
   options: GenerateOptions
 ): Promise<GenerateResult> {
-  const { prompt, maxTokens = 2000, temperature = 0.7, userTier } = options;
+  const {
+    prompt,
+    maxTokens = 2000,
+    temperature = 0.7,
+    userTier,
+    modelId,
+  } = options;
+
+  // If a specific model is requested (premium/enterprise UX), validate and prefer it.
+  let preferredModel: AIModelConfig | undefined;
+  if (modelId) {
+    preferredModel = AI_MODELS.find((m) => m.id === modelId);
+
+    const allowedTiers = TIER_ACCESS[userTier];
+    const isAllowedTier = preferredModel
+      ? allowedTiers.includes(preferredModel.tier)
+      : false;
+
+    if (
+      !preferredModel ||
+      !isAllowedTier ||
+      !isProviderConfigured(preferredModel.provider)
+    ) {
+      logger.warn(
+        { modelId, userTier },
+        "Requested AI model is not allowed or not configured; falling back to automatic selection"
+      );
+      preferredModel = undefined;
+    }
+  }
 
   // Get models available for this tier
-  const availableModels = getModelsForTier(userTier).filter((model) =>
+  const tierModels = getModelsForTier(userTier).filter((model) =>
     isProviderConfigured(model.provider)
   );
+
+  // If we have a valid preferredModel, put it at the front of the list.
+  const availableModels: AIModelConfig[] = preferredModel
+    ? [preferredModel, ...tierModels.filter((m) => m.id !== preferredModel!.id)]
+    : tierModels;
 
   if (availableModels.length === 0) {
     throw new Error(
@@ -481,8 +543,9 @@ export function getCheapestModel(): AIModelConfig | undefined {
  * Get the best available model for enterprise tier
  */
 export function getBestModel(): AIModelConfig | undefined {
-  return AI_MODELS.filter((m) => isProviderConfigured(m.provider)).sort(
-    (a, b) => b.quality - a.quality
+  // Use the same ordering logic as enterprise tier
+  return getModelsForTier("enterprise").filter((m) =>
+    isProviderConfigured(m.provider)
   )[0];
 }
 

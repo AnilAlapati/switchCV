@@ -25,6 +25,7 @@ interface GenerateResumeRequest {
     timestamp: string;
   }>;
   sessionData?: any; // Optional stored session data
+  modelId?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: GenerateResumeRequest = await request.json();
-    const { message, conversationHistory, sessionData } = body;
+    const { message, conversationHistory, sessionData, modelId } = body;
 
     if (!message) {
       return handleApiError(
@@ -133,7 +134,7 @@ export async function POST(request: NextRequest) {
     );
 
     // Step 4: Generate AI response
-    const aiResponse = await generateText(prompt, 4000, 0.7); // Increased token limit for JSON generation
+    const aiResponse = await generateText(prompt, 4000, 0.7, modelId); // Increased token limit for JSON generation
     const responseText = aiResponse.text;
 
     // Step 5: Check if AI indicates completion or if we have enough data
