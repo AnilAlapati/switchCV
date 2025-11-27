@@ -70,6 +70,13 @@ const eslintConfig = [
     },
   },
   {
+    // AI service files are complex integrations that benefit from being in one file
+    files: ["src/lib/services/ai*.ts"],
+    rules: {
+      "max-lines": ["warn", { max: 600, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
     files: [
       "**/*.test.ts",
       "**/*.test.tsx",
