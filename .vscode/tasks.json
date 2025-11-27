@@ -1,0 +1,10 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "test-ai-tiers",
+			"type": "shell",
+			"command": "node scripts/test-ai-tiers.js"
+		}
+	]
+}

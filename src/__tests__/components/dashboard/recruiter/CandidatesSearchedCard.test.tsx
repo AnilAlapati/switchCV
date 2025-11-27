@@ -13,14 +13,33 @@ const mockFetch = jest.fn();
 global.fetch = mockFetch;
 const fetchSpy = jest.spyOn(global, "fetch");
 
+const createMockAuthContext = (user: any) => ({
+  user,
+  loading: false,
+  signIn: jest.fn(),
+  signUp: jest.fn(),
+  logout: jest.fn(),
+  needsEmailVerification: false,
+  verificationEmail: null,
+  connectivityIssue: null,
+  signInWithGoogle: jest.fn(),
+  resetPassword: jest.fn(),
+  updatePassword: jest.fn(),
+  updateEmail: jest.fn(),
+  deleteAccount: jest.fn(),
+  resendVerificationEmail: jest.fn(),
+  refreshUser: jest.fn(),
+});
+
+
 const buildMetricsResponse = (
   overrides: Partial<{
     totalSearches: number;
-    searchBreakdown: {
+    searchBreakdown: Partial<{
       searchesLast24h: number;
       searchesLast7Days: number;
       uniqueCandidatesLast7Days: number;
-    };
+    }>;
   }> = {}
 ) => ({
   totalSearches: overrides.totalSearches ?? 0,
@@ -70,13 +89,7 @@ describe("CandidatesSearchedCard", () => {
       ok: true,
       json: () => Promise.resolve(buildMetricsResponse()),
     } as Response);
-    mockUseAuth.mockReturnValue({
-      user: mockUser,
-      loading: false,
-      signIn: jest.fn(),
-      signUp: jest.fn(),
-      logout: jest.fn(),
-    });
+    mockUseAuth.mockReturnValue(createMockAuthContext(mockUser));
   });
 
   describe("Loading State", () => {
@@ -105,13 +118,7 @@ describe("CandidatesSearchedCard", () => {
     });
 
     it("does not fetch metrics when user is null", () => {
-      mockUseAuth.mockReturnValue({
-        user: null,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(null));
 
       render(<CandidatesSearchedCard />);
 

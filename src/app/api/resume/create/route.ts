@@ -4,7 +4,10 @@ import { generateNumericResumeId } from "@/lib/numericIdGenerator";
 import {
   getAuthenticatedUserId,
   handleApiError,
+  safeParseBody,
 } from "@/lib/utils/api-helpers";
+import { checkRateLimit } from "@/lib/utils/rateLimit";
+import { createResumeSchema } from "@/lib/validations/resume";
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,17 +20,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Parse Body
-    const body = await request.json();
+    // Rate Limiting
+    const rateLimitResult = checkRateLimit(`${userId}:resume:create`, {
+      limit: 10,
+      windowMs: 60 * 60 * 1000, // 1 hour
+    });
 
-    // Basic validation
-    if (!body) {
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. Max 10 resumes per hour." },
+        { status: 429 }
+      );
+    }
+
+    // 2. Parse Body
+    const body = await safeParseBody(request);
+
+    // Validation
+    const validationResult = createResumeSchema.safeParse(body);
+    if (!validationResult.success) {
       return handleApiError(
-        new Error("Resume data is required"),
-        "Resume data is required",
+        new Error("Invalid resume data"),
+        "Invalid resume data: " +
+          validationResult.error?.errors?.map((e) => e.message).join(", "),
         400
       );
     }
+    const validatedBody = validationResult.data;
 
     // 3. Generate ID
     const numericId = await generateNumericResumeId();
@@ -35,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     // 4. Prepare Resume Document
     const resumeData = {
-      ...body,
+      ...validatedBody,
       id: resumeId,
       userId,
       numericId,
@@ -59,7 +78,7 @@ export async function POST(request: NextRequest) {
       .doc(resumeId)
       .set({
         id: resumeId,
-        title: body.title || "Untitled Resume",
+        title: validatedBody.title || "Untitled Resume",
         createdAt: resumeData.createdAt,
         updatedAt: resumeData.updatedAt,
         numericId,

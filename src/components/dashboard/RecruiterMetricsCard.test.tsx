@@ -1,10 +1,21 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { RecruiterMetricsCard } from "./RecruiterMetricsCard";
 import { useAuth } from "@/hooks/useAuth";
+import { logger } from "@/lib/logger";
 
 // Mock the useAuth hook
 jest.mock("@/hooks/useAuth");
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
+
+// Mock logger
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    error: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    log: jest.fn(),
+  },
+}));
 
 // Mock fetch
 const mockFetch = jest.fn();
@@ -41,6 +52,16 @@ const createMockAuthContext = (user: any) => ({
   signIn: jest.fn(),
   signUp: jest.fn(),
   logout: jest.fn(),
+  needsEmailVerification: false,
+  verificationEmail: null,
+  connectivityIssue: null,
+  signInWithGoogle: jest.fn(),
+  resetPassword: jest.fn(),
+  updatePassword: jest.fn(),
+  updateEmail: jest.fn(),
+  deleteAccount: jest.fn(),
+  resendVerificationEmail: jest.fn(),
+  refreshUser: jest.fn(),
 });
 
 describe("RecruiterMetricsCard", () => {
@@ -164,8 +185,6 @@ describe("RecruiterMetricsCard", () => {
   });
 
   it("should handle fetch error gracefully", async () => {
-    const consoleSpy = jest.spyOn(console, "error").mockImplementation();
-
     mockUseAuth.mockReturnValue(createMockAuthContext(mockUser));
     mockFetch.mockRejectedValueOnce(new Error("Network error"));
 
@@ -173,16 +192,14 @@ describe("RecruiterMetricsCard", () => {
 
     // Wait for loading to complete
     await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "Failed to fetch recruiter metrics:",
-        expect.any(Error)
+      expect(logger.error).toHaveBeenCalledWith(
+        { err: expect.any(Error) },
+        "Failed to fetch recruiter metrics:"
       );
     });
 
     // Component should still render with default values
     expect(screen.getByText("Recruiter Activity")).toBeInTheDocument();
-
-    consoleSpy.mockRestore();
   });
 
   it("should handle non-ok response gracefully", async () => {

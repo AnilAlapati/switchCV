@@ -16,6 +16,10 @@ describe("useResumeComparison", () => {
   const mockResume1: Resume = {
     id: "resume-1",
     title: "Software Engineer Resume",
+    contact: {
+      email: { value: "test1@example.com" },
+      phone: { value: "123-456-7890" },
+    },
     summary: "Experience in React and Node.js",
     skills: ["React", "Node.js"],
     experience: [],
@@ -25,6 +29,10 @@ describe("useResumeComparison", () => {
   const mockResume2: Resume = {
     id: "resume-2",
     title: "Frontend Developer Resume",
+    contact: {
+      email: { value: "test2@example.com" },
+      phone: { value: "098-765-4321" },
+    },
     summary: "Experience in Vue and Angular",
     skills: ["Vue", "Angular"],
     experience: [],

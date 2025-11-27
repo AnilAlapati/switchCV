@@ -272,6 +272,106 @@ async function generateWithGemini(
 }
 
 /**
+ * Generate text using OpenAI API
+ */
+async function generateWithOpenAI(
+  prompt: string,
+  maxTokens: number = 150,
+  temperature: number = 0.9
+): Promise<{ text: string; model: string }> {
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  if (!apiKey) {
+    throw new Error("OpenAI API key not configured");
+  }
+
+  const model = "gpt-4o-mini"; // Fast and cheap
+
+  const response = await withRetry(() =>
+    fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: maxTokens,
+        temperature,
+      }),
+    })
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OpenAI API error (${response.status}): ${errorText}`);
+  }
+
+  const data = await response.json();
+  const text = data.choices?.[0]?.message?.content;
+
+  if (!text) {
+    throw new Error("No text generated from OpenAI");
+  }
+
+  return {
+    text: text.trim(),
+    model,
+  };
+}
+
+/**
+ * Generate text using Groq API (fast inference)
+ */
+async function generateWithGroq(
+  prompt: string,
+  maxTokens: number = 150,
+  temperature: number = 0.9
+): Promise<{ text: string; model: string }> {
+  const apiKey = process.env.GROQ_API_KEY;
+
+  if (!apiKey) {
+    throw new Error("Groq API key not configured");
+  }
+
+  const model = "llama-3.3-70b-versatile"; // Fast and free tier available
+
+  const response = await withRetry(() =>
+    fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: maxTokens,
+        temperature,
+      }),
+    })
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Groq API error (${response.status}): ${errorText}`);
+  }
+
+  const data = await response.json();
+  const text = data.choices?.[0]?.message?.content;
+
+  if (!text) {
+    throw new Error("No text generated from Groq");
+  }
+
+  return {
+    text: text.trim(),
+    model,
+  };
+}
+
+/**
  * Generate text using HuggingFace API
  */
 async function generateWithHuggingFace(
@@ -361,7 +461,39 @@ export async function generateText(
     logger.error({ err: error }, "Gemini failed");
   }
 
-  // Try HuggingFace as fallback
+  // Try OpenAI as second fallback
+  try {
+    logger.info("Trying OpenAI API...");
+    const result = await generateWithOpenAI(prompt, maxTokens, temperature);
+    logger.info({ model: result.model }, "OpenAI API success");
+    return {
+      text: result.text,
+      model: result.model,
+      provider: "openai",
+    };
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : "Unknown error";
+    errors.openai = errorMsg;
+    logger.error({ err: error }, "OpenAI failed");
+  }
+
+  // Try Groq as third fallback (fast & free)
+  try {
+    logger.info("Trying Groq API...");
+    const result = await generateWithGroq(prompt, maxTokens, temperature);
+    logger.info({ model: result.model }, "Groq API success");
+    return {
+      text: result.text,
+      model: result.model,
+      provider: "groq",
+    };
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : "Unknown error";
+    errors.groq = errorMsg;
+    logger.error({ err: error }, "Groq failed");
+  }
+
+  // Try HuggingFace as last fallback
   try {
     logger.info("Trying HuggingFace API...");
     const text = await generateWithHuggingFace(prompt, maxTokens, temperature);
@@ -377,6 +509,6 @@ export async function generateText(
     logger.error({ err: error }, "HuggingFace failed");
   }
 
-  // Both failed
+  // All providers failed
   throw new Error(`All AI providers failed: ${JSON.stringify(errors)}`);
 }

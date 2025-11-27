@@ -8,6 +8,24 @@ jest.mock("@/hooks/useAuth");
 
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 
+const createMockAuthContext = (user: any) => ({
+  user,
+  loading: false,
+  signIn: jest.fn(),
+  signUp: jest.fn(),
+  logout: jest.fn(),
+  needsEmailVerification: false,
+  verificationEmail: null,
+  connectivityIssue: null,
+  signInWithGoogle: jest.fn(),
+  resetPassword: jest.fn(),
+  updatePassword: jest.fn(),
+  updateEmail: jest.fn(),
+  deleteAccount: jest.fn(),
+  resendVerificationEmail: jest.fn(),
+  refreshUser: jest.fn(),
+});
+
 const mockUser = {
   uid: "test-user-id",
   email: "test@example.com",
@@ -20,13 +38,7 @@ describe("ProfileViewsCard", () => {
 
   describe("Loading State", () => {
     it("shows loading state when user is available", () => {
-      mockUseAuth.mockReturnValue({
-        user: mockUser,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(mockUser));
 
       render(<ProfileViewsCard />);
 
@@ -35,13 +47,7 @@ describe("ProfileViewsCard", () => {
     });
 
     it("shows not loading when no user", () => {
-      mockUseAuth.mockReturnValue({
-        user: null,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(null));
 
       render(<ProfileViewsCard />);
 
@@ -59,13 +65,7 @@ describe("ProfileViewsCard", () => {
         json: async () => ({ profileViews: 42 }),
       });
 
-      mockUseAuth.mockReturnValue({
-        user: mockUser,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(mockUser));
 
       render(<ProfileViewsCard />);
 
@@ -84,13 +84,7 @@ describe("ProfileViewsCard", () => {
         json: async () => ({ profileViews: 42 }),
       });
 
-      mockUseAuth.mockReturnValue({
-        user: mockUser,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(mockUser));
 
       render(<ProfileViewsCard />);
 
@@ -108,13 +102,7 @@ describe("ProfileViewsCard", () => {
         json: async () => ({ profileViews: 1 }),
       });
 
-      mockUseAuth.mockReturnValue({
-        user: mockUser,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(mockUser));
 
       render(<ProfileViewsCard />);
 
@@ -132,13 +120,7 @@ describe("ProfileViewsCard", () => {
         json: async () => ({ profileViews: 0 }),
       });
 
-      mockUseAuth.mockReturnValue({
-        user: mockUser,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(mockUser));
 
       render(<ProfileViewsCard />);
 
@@ -153,13 +135,7 @@ describe("ProfileViewsCard", () => {
       global.fetch = mockFetch;
       mockFetch.mockRejectedValueOnce(new Error("Network error"));
 
-      mockUseAuth.mockReturnValue({
-        user: mockUser,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(mockUser));
 
       render(<ProfileViewsCard />);
 
@@ -172,13 +148,7 @@ describe("ProfileViewsCard", () => {
 
   describe("UI Rendering", () => {
     it("renders card structure correctly", () => {
-      mockUseAuth.mockReturnValue({
-        user: null,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(null));
 
       render(<ProfileViewsCard />);
 
@@ -188,13 +158,7 @@ describe("ProfileViewsCard", () => {
     });
 
     it("renders eye icon", () => {
-      mockUseAuth.mockReturnValue({
-        user: null,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(null));
 
       render(<ProfileViewsCard />);
 

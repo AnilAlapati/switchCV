@@ -7,6 +7,16 @@ import {
   getIdPoolStats,
 } from "@/lib/resumeIdRecycler";
 import { adminDb } from "@/lib/firebase-admin";
+import { logger } from "@/lib/logger";
+
+// Mock logger
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
+}));
 
 // Mock firebase-admin
 jest.mock("@/lib/firebase-admin", () => ({
@@ -117,12 +127,10 @@ describe("Resume ID Recycler", () => {
 
     it("should handle errors gracefully", async () => {
       mockDocRef.get.mockRejectedValue(new Error("DB Error"));
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation();
 
       await addDeletedIdToPool(123);
 
-      expect(consoleSpy).toHaveBeenCalled();
-      consoleSpy.mockRestore();
+      expect(logger.error).toHaveBeenCalled();
     });
   });
 
@@ -177,13 +185,11 @@ describe("Resume ID Recycler", () => {
       (adminDb.runTransaction as jest.Mock).mockRejectedValue(
         new Error("Transaction failed")
       );
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation();
 
       const result = await getRecycledIdFromPool();
 
       expect(result).toBeNull();
-      expect(consoleSpy).toHaveBeenCalled();
-      consoleSpy.mockRestore();
+      expect(logger.error).toHaveBeenCalled();
     });
   });
 
@@ -210,13 +216,11 @@ describe("Resume ID Recycler", () => {
 
     it("should handle errors", async () => {
       mockDocRef.get.mockRejectedValue(new Error("DB Error"));
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation();
 
       const result = await getIdPoolStatus();
 
       expect(result).toBeNull();
-      expect(consoleSpy).toHaveBeenCalled();
-      consoleSpy.mockRestore();
+      expect(logger.error).toHaveBeenCalled();
     });
   });
 
@@ -270,7 +274,6 @@ describe("Resume ID Recycler", () => {
 
     it("should handle errors", async () => {
       mockDocRef.get.mockRejectedValue(new Error("DB Error"));
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation();
 
       const stats = await getIdPoolStats();
 
@@ -280,7 +283,7 @@ describe("Resume ID Recycler", () => {
         utilizationRate: 0,
         totalRecycled: 0,
       });
-      consoleSpy.mockRestore();
+      expect(logger.error).toHaveBeenCalled();
     });
   });
 });

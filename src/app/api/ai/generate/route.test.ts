@@ -10,6 +10,7 @@ import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 // Mock api-helpers
 jest.mock("@/lib/utils/api-helpers", () => ({
   getAuthenticatedUserId: jest.fn(),
+  safeParseBody: jest.fn(async (req) => req.json()),
   handleApiError: jest.fn((error, message, status = 500) => {
     return {
       status: status,

@@ -25,7 +25,7 @@ function MockActiveGrantCard({ grant }: { grant: AccessGrant }) {
   return (
     <div>
       <h3>Access Granted</h3>
-      <p>Duration: {grant.duration}</p>
+      <p>Duration: {grant.duration?.label || "Forever"}</p>
       <button>Revoke Access</button>
     </div>
   );
@@ -107,7 +107,15 @@ describe("ActiveGrantCard", () => {
     toUserId: "user456",
     grantedAt: new Date(),
     expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
-    duration: "1week",
+    duration: {
+      preset: "1_week",
+      value: 1,
+      unit: "week",
+      durationHours: 168,
+      durationMs: 604800000,
+      label: "1 Week",
+      isCustom: false,
+    },
   };
 
   test("renders access granted header", () => {
@@ -119,7 +127,7 @@ describe("ActiveGrantCard", () => {
   test("displays duration", () => {
     render(<MockActiveGrantCard grant={mockGrant} />);
 
-    expect(screen.getByText("Duration: 1week")).toBeInTheDocument();
+    expect(screen.getByText("Duration: 1 Week")).toBeInTheDocument();
   });
 
   test("shows revoke button", () => {
@@ -129,15 +137,15 @@ describe("ActiveGrantCard", () => {
   });
 
   test("handles forever duration grant", () => {
-    const foreverGrant = {
+    const foreverGrant: AccessGrant = {
       ...mockGrant,
-      duration: "forever" as const,
+      duration: undefined,
       expiresAt: null,
     };
 
     render(<MockActiveGrantCard grant={foreverGrant} />);
 
-    expect(screen.getByText("Duration: forever")).toBeInTheDocument();
+    expect(screen.getByText("Duration: Forever")).toBeInTheDocument();
   });
 });
 

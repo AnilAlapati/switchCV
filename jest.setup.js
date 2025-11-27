@@ -1,6 +1,14 @@
 import '@testing-library/jest-dom'
 import { TextEncoder, TextDecoder } from 'util'
 
+// Set up environment variables for testing
+process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = 'test-project-id';
+process.env.NEXT_PUBLIC_FIREBASE_API_KEY = 'test-api-key';
+process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = 'test-auth-domain';
+process.env.GEMINI_API_KEY = 'test-gemini-key';
+process.env.OPENAI_API_KEY = 'test-openai-key';
+process.env.GROQ_API_KEY = 'test-groq-key';
+
 // Handle "use client" directive in tests
 // The babel plugin handles this, but we add a fallback
 global.__dirname = __dirname;

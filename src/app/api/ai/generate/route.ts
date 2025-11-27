@@ -6,6 +6,7 @@ import admin, { adminDb } from "@/lib/firebase-admin";
 import {
   getAuthenticatedUserId,
   handleApiError,
+  safeParseBody,
 } from "@/lib/utils/api-helpers";
 import { logger } from "@/lib/logger";
 
@@ -85,7 +86,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse and validate request body using Zod
-    const body = await request.json();
+    const body = await safeParseBody(request);
     const validationResult = GenerateRequestSchema.safeParse(body);
 
     if (!validationResult.success) {

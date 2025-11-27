@@ -1,5 +1,15 @@
 import { NextRequest } from "next/server";
 import { POST } from "@/app/api/profiles/request-access/route";
+import { logger } from "@/lib/logger";
+
+// Mock logger
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
+}));
 
 // Mock Firebase Admin
 jest.mock("@/lib/firebase-admin", () => ({
@@ -458,10 +468,8 @@ describe("POST /api/profiles/request-access", () => {
     expect(data.success).toBe(true);
     expect(fallbackGetMock).toHaveBeenCalled();
     expect(addMock).toHaveBeenCalled();
-    expect(warnSpy).toHaveBeenCalledWith(
+    expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining("Missing Firestore index")
     );
-
-    warnSpy.mockRestore();
   });
 });

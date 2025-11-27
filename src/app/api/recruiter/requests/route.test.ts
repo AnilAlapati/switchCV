@@ -5,6 +5,14 @@ import {
   getAuthenticatedUserId,
   handleApiError,
 } from "@/lib/utils/api-helpers";
+import { logger } from "@/lib/logger";
+
+// Mock logger
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    warn: jest.fn(),
+  },
+}));
 
 // Mock dependencies
 jest.mock("@/lib/firebase-admin", () => ({
@@ -250,19 +258,15 @@ describe("GET /api/recruiter/requests", () => {
       return { doc: jest.fn() };
     });
 
-    const consoleSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
-
     const response = (await GET(mockRequest)) as any;
 
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining("Failed to serialize timestamp"),
-      expect.any(Error)
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: expect.any(Error) },
+      "Failed to serialize timestamp"
     );
 
     // Should still return the request with default timestamp (current date)
     expect(response.requests[0].id).toBe("req-3");
     expect(response.requests[0].timestamp).toBeNull();
-
-    consoleSpy.mockRestore();
   });
 });

@@ -190,7 +190,6 @@ describe("Types", () => {
           lastGeneratedAt: "2023-01-01T00:00:00Z",
         },
         slug: "test-slug",
-        published: true,
         lastUpdatedAt: "2023-01-01T00:00:00Z",
       };
 
@@ -205,7 +204,6 @@ describe("Types", () => {
       expect(resume.generatedText.draft).toBe("Draft text");
       expect(resume.generatedText.polished).toBe("Polished text");
       expect(resume.slug).toBe("test-slug");
-      expect(resume.published).toBe(true);
       expect(resume.lastUpdatedAt).toBe("2023-01-01T00:00:00Z");
     });
   });

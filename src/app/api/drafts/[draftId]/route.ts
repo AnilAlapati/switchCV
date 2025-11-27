@@ -12,8 +12,10 @@ import { DRAFT_CONFIG } from "@/config/constants";
 import {
   getAuthenticatedUserId,
   handleApiError,
+  safeParseBody,
 } from "@/lib/utils/api-helpers";
 import { DraftPatchRequestSchema } from "@/lib/schemas/draftSchema";
+import { checkRateLimit } from "@/lib/utils/rateLimit";
 
 export async function GET(
   request: NextRequest,
@@ -55,14 +57,28 @@ export async function PATCH(
     const { userId, error: authError } = await getAuthenticatedUserId(request);
     if (authError) return authError;
 
+    // Rate Limit
+    const rateLimitResult = checkRateLimit(`${userId}:draft:update`, {
+      limit: 60,
+      windowMs: 60 * 1000, // 1 minute
+    });
+
+    if (!rateLimitResult.allowed) {
+      return handleApiError(
+        null,
+        "Too many updates. Please wait a moment.",
+        429
+      );
+    }
+
     const { draftId } = await params;
 
     // Parse and validate request body using Zod schema
     let body: unknown;
     try {
-      body = await request.json();
-    } catch {
-      return handleApiError(null, "Invalid JSON payload", 400);
+      body = await safeParseBody(request);
+    } catch (e) {
+      return handleApiError(e, "Invalid JSON payload", 400);
     }
 
     const validationResult = DraftPatchRequestSchema.safeParse(body);

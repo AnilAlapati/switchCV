@@ -55,6 +55,8 @@ describe("aiGenerationService", () => {
     it("should fallback to HuggingFace when Gemini fails", async () => {
       process.env.GEMINI_API_KEY = "test-gemini-key";
       process.env.HUGGINGFACE_TOKEN = "test-hf-token";
+      process.env.OPENAI_API_KEY = "test-openai-key";
+      process.env.GROQ_API_KEY = "test-groq-key";
 
       // 1. Gemini Models fetch fails
       (global.fetch as jest.Mock).mockRejectedValueOnce(
@@ -66,7 +68,17 @@ describe("aiGenerationService", () => {
         new Error("Gemini Generation Error")
       );
 
-      // 3. HuggingFace success
+      // 3. OpenAI fetch fails
+      (global.fetch as jest.Mock).mockRejectedValueOnce(
+        new Error("OpenAI Error")
+      );
+
+      // 4. Groq fetch fails
+      (global.fetch as jest.Mock).mockRejectedValueOnce(
+        new Error("Groq Error")
+      );
+
+      // 5. HuggingFace success
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => [{ generated_text: "HF Generated text" }],
@@ -81,6 +93,8 @@ describe("aiGenerationService", () => {
     it("should throw error if all providers fail", async () => {
       process.env.GEMINI_API_KEY = "test-gemini-key";
       process.env.HUGGINGFACE_TOKEN = "test-hf-token";
+      process.env.OPENAI_API_KEY = "test-openai-key";
+      process.env.GROQ_API_KEY = "test-groq-key";
 
       // 1. Gemini Models fail
       (global.fetch as jest.Mock).mockRejectedValueOnce(
@@ -90,7 +104,15 @@ describe("aiGenerationService", () => {
       (global.fetch as jest.Mock).mockRejectedValueOnce(
         new Error("Gemini Generation Error")
       );
-      // 3. HuggingFace failure
+      // 3. OpenAI fail
+      (global.fetch as jest.Mock).mockRejectedValueOnce(
+        new Error("OpenAI Error")
+      );
+      // 4. Groq fail
+      (global.fetch as jest.Mock).mockRejectedValueOnce(
+        new Error("Groq Error")
+      );
+      // 5. HuggingFace failure
       (global.fetch as jest.Mock).mockRejectedValueOnce(new Error("HF Error"));
 
       await expect(generateText("prompt")).rejects.toThrow(
@@ -198,6 +220,8 @@ describe("aiGenerationService", () => {
     it("should handle HuggingFace array response", async () => {
       process.env.GEMINI_API_KEY = "test-gemini-key";
       process.env.HUGGINGFACE_TOKEN = "test-hf-token";
+      process.env.OPENAI_API_KEY = "test-openai-key";
+      process.env.GROQ_API_KEY = "test-groq-key";
 
       // 1. Gemini Models fail
       (global.fetch as jest.Mock).mockRejectedValueOnce(
@@ -207,8 +231,16 @@ describe("aiGenerationService", () => {
       (global.fetch as jest.Mock).mockRejectedValueOnce(
         new Error("Gemini Generation Error")
       );
+      // 3. OpenAI fail
+      (global.fetch as jest.Mock).mockRejectedValueOnce(
+        new Error("OpenAI Error")
+      );
+      // 4. Groq fail
+      (global.fetch as jest.Mock).mockRejectedValueOnce(
+        new Error("Groq Error")
+      );
 
-      // 3. HF returns array
+      // 5. HF returns array
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => [{ generated_text: "Array text" }],
@@ -221,6 +253,8 @@ describe("aiGenerationService", () => {
     it("should handle HuggingFace loading error", async () => {
       process.env.GEMINI_API_KEY = "test-gemini-key";
       process.env.HUGGINGFACE_TOKEN = "test-hf-token";
+      process.env.OPENAI_API_KEY = "test-openai-key";
+      process.env.GROQ_API_KEY = "test-groq-key";
 
       // 1. Gemini Models fail
       (global.fetch as jest.Mock).mockRejectedValueOnce(
@@ -230,8 +264,16 @@ describe("aiGenerationService", () => {
       (global.fetch as jest.Mock).mockRejectedValueOnce(
         new Error("Gemini Generation Error")
       );
+      // 3. OpenAI fail
+      (global.fetch as jest.Mock).mockRejectedValueOnce(
+        new Error("OpenAI Error")
+      );
+      // 4. Groq fail
+      (global.fetch as jest.Mock).mockRejectedValueOnce(
+        new Error("Groq Error")
+      );
 
-      // 3. HF returns loading error
+      // 5. HF returns loading error
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ error: "Model is loading" }),
@@ -249,6 +291,8 @@ describe("aiGenerationService", () => {
     it("should handle HuggingFace other error", async () => {
       process.env.GEMINI_API_KEY = "test-gemini-key";
       process.env.HUGGINGFACE_TOKEN = "test-hf-token";
+      process.env.OPENAI_API_KEY = "test-openai-key";
+      process.env.GROQ_API_KEY = "test-groq-key";
 
       // 1. Gemini Models fail
       (global.fetch as jest.Mock).mockRejectedValueOnce(
@@ -258,8 +302,16 @@ describe("aiGenerationService", () => {
       (global.fetch as jest.Mock).mockRejectedValueOnce(
         new Error("Gemini Generation Error")
       );
+      // 3. OpenAI fail
+      (global.fetch as jest.Mock).mockRejectedValueOnce(
+        new Error("OpenAI Error")
+      );
+      // 4. Groq fail
+      (global.fetch as jest.Mock).mockRejectedValueOnce(
+        new Error("Groq Error")
+      );
 
-      // 3. HF returns generic error
+      // 5. HF returns generic error
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ error: "Some other error" }),
@@ -277,6 +329,8 @@ describe("aiGenerationService", () => {
     it("should handle HuggingFace unexpected format", async () => {
       process.env.GEMINI_API_KEY = "test-gemini-key";
       process.env.HUGGINGFACE_TOKEN = "test-hf-token";
+      process.env.OPENAI_API_KEY = "test-openai-key";
+      process.env.GROQ_API_KEY = "test-groq-key";
 
       // 1. Gemini Models fail
       (global.fetch as jest.Mock).mockRejectedValueOnce(
@@ -286,8 +340,16 @@ describe("aiGenerationService", () => {
       (global.fetch as jest.Mock).mockRejectedValueOnce(
         new Error("Gemini Generation Error")
       );
+      // 3. OpenAI fail
+      (global.fetch as jest.Mock).mockRejectedValueOnce(
+        new Error("OpenAI Error")
+      );
+      // 4. Groq fail
+      (global.fetch as jest.Mock).mockRejectedValueOnce(
+        new Error("Groq Error")
+      );
 
-      // 3. HF returns unexpected json
+      // 5. HF returns unexpected json
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ foo: "bar" }),
