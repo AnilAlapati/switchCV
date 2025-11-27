@@ -17,6 +17,10 @@ import type {
   SupportFeedbackResult,
 } from "@/types/supportFeedback";
 import { adminDb } from "@/lib/firebase-admin";
+import {
+  buildFeedbackEmailHtml,
+  buildFeedbackEmailText,
+} from "./feedbackEmailTemplate";
 
 export class SupportFeedbackError extends Error {
   statusCode: number;
@@ -40,10 +44,6 @@ const SUPPORT_EMAIL_TO = () =>
   process.env.SUPPORT_FEEDBACK_TO || APP_CONFIG.SUPPORT_EMAIL;
 const DRY_RUN = () => process.env.SUPPORT_FEEDBACK_DRY_RUN === "true";
 
-/**
- * Collection name for Firebase Trigger Email extension
- * The extension watches this collection and sends emails automatically
- */
 const MAIL_COLLECTION = "mail";
 
 function sanitizeString(value?: string | null, max = 500): string | undefined {
@@ -83,15 +83,6 @@ function ensureUrgency(urgency?: FeedbackUrgency): FeedbackUrgency {
   throw new SupportFeedbackError("Unsupported urgency level");
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
 function ensureMessage(message?: string): string {
   const sanitized = sanitizeString(message, 2000);
   if (!sanitized) {
@@ -105,110 +96,22 @@ function ensureMessage(message?: string): string {
   return sanitized;
 }
 
-function buildHtmlBody(
-  payload: RequiredPayload,
-  referenceId: string,
-  meta?: SupportFeedbackMeta
-) {
-  const isAuthenticated = !!meta?.authenticatedUser;
-
-  const rows = [
-    ["Category", CATEGORY_LABELS[payload.category]],
-    ["Urgency", URGENCY_LABELS[payload.urgency]],
-    ["Name", payload.name || "Anonymous"],
-    ["Email", payload.email],
-    ["Allow Contact", payload.allowContact ? "Yes" : "No"],
-    ["Page Context", payload.pageContext || "Browser"],
-    ["Reference", referenceId],
-    ["Authenticated", isAuthenticated ? "✓ Yes" : "✗ No (anonymous)"],
-  ];
-
-  // Add authenticated user info if present
-  if (meta?.authenticatedUser) {
-    rows.push(
-      ["User ID", meta.authenticatedUser.uid],
-      ["Account Email", meta.authenticatedUser.email || "N/A"],
-      ["Display Name", meta.authenticatedUser.displayName || "N/A"]
-    );
-  }
-
-  const metadataRows = [
-    ["IP", meta?.ipAddress || "Unknown"],
-    ["User Agent", meta?.userAgent || "Unknown"],
-  ];
-
-  return `
-    <div style="font-family: Arial, sans-serif; line-height: 1.6;">
-      <h2 style="margin-bottom: 0.5rem;">New Feedback Received</h2>
-      <p style="margin-top: 0; color: #4b5563;">Reference ID: ${referenceId}</p>
-      <table style="width: 100%; border-collapse: collapse; margin-bottom: 1rem;">
-        <tbody>
-          ${rows
-            .map(
-              ([label, value]) => `
-                <tr>
-                  <td style="padding: 6px 8px; background: #f8fafc; width: 160px; font-weight: 600;">${escapeHtml(
-                    label
-                  )}</td>
-                  <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(
-                    value
-                  )}</td>
-                </tr>`
-            )
-            .join("")}
-        </tbody>
-      </table>
-      <h3 style="margin-bottom: 0.5rem;">Message</h3>
-      <p style="padding: 12px; background: #f1f5f9; border-radius: 8px; white-space: pre-line;">${escapeHtml(
-        payload.message
-      )}</p>
-      <h3 style="margin-top: 1.5rem; margin-bottom: 0.5rem;">Request Metadata</h3>
-      <table style="width: 100%; border-collapse: collapse;">
-        <tbody>
-          ${metadataRows
-            .map(
-              ([label, value]) => `
-                <tr>
-                  <td style="padding: 6px 8px; background: #f8fafc; width: 160px; font-weight: 600;">${escapeHtml(
-                    label
-                  )}</td>
-                  <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(
-                    value
-                  )}</td>
-                </tr>`
-            )
-            .join("")}
-        </tbody>
-      </table>
-    </div>
-  `;
-}
-
 function normalizePayload(payload: SupportFeedbackPayload): RequiredPayload {
-  const email = validateEmail(payload.email);
-  const name = sanitizeString(payload.name, 80);
-  const pageContext = sanitizeString(payload.pageContext, 120);
-  const category = ensureCategory(payload.category);
-  const urgency = ensureUrgency(payload.urgency);
-  const message = ensureMessage(payload.message);
-
   return {
     ...payload,
-    email,
-    name,
-    pageContext,
-    category,
-    urgency,
-    message,
+    email: validateEmail(payload.email),
+    name: sanitizeString(payload.name, 80),
+    pageContext: sanitizeString(payload.pageContext, 120),
+    category: ensureCategory(payload.category),
+    urgency: ensureUrgency(payload.urgency),
+    message: ensureMessage(payload.message),
     allowContact: Boolean(payload.allowContact),
   };
 }
 
 /**
  * Send feedback by writing to Firestore `mail` collection.
- * Firebase Trigger Email extension watches this collection and sends emails automatically.
- *
- * @see https://firebase.google.com/products/extensions/firebase-firestore-send-email
+ * Firebase Trigger Email extension watches this collection and sends emails.
  */
 export async function sendSupportFeedback(
   payload: SupportFeedbackPayload,
@@ -237,18 +140,9 @@ export async function sendSupportFeedback(
   }
 
   try {
-    const html = buildHtmlBody(normalized, referenceId, meta);
-    const text = `New feedback submitted\n\nReference: ${referenceId}\nCategory: ${
-      CATEGORY_LABELS[normalized.category]
-    }\nUrgency: ${URGENCY_LABELS[normalized.urgency]}\nAllow Contact: ${
-      normalized.allowContact ? "Yes" : "No"
-    }\nPage: ${normalized.pageContext || "Browser"}\n\nMessage:\n${
-      normalized.message
-    }\n\nMetadata:\nIP: ${meta?.ipAddress || "Unknown"}\nUser Agent: ${
-      meta?.userAgent || "Unknown"
-    }`;
+    const html = buildFeedbackEmailHtml(normalized, referenceId, meta);
+    const text = buildFeedbackEmailText(normalized, referenceId, meta);
 
-    // Write to Firestore `mail` collection - Firebase Trigger Email extension picks this up
     await adminDb
       .collection(MAIL_COLLECTION)
       .doc(referenceId)
@@ -262,7 +156,6 @@ export async function sendSupportFeedback(
           html,
           text,
         },
-        // Store feedback data for reference/analytics
         feedback: {
           category: normalized.category,
           urgency: normalized.urgency,
@@ -276,21 +169,15 @@ export async function sendSupportFeedback(
           ipAddress: meta?.ipAddress || null,
           userAgent: meta?.userAgent || null,
         },
-        // Authenticated user info (null if anonymous submission)
         authenticatedUser: meta?.authenticatedUser || null,
         createdAt: new Date(),
       });
 
     logger.info({ referenceId }, "[SupportFeedback] Queued for delivery");
 
-    return {
-      success: true,
-      referenceId,
-      deliveredTo: supportEmailTo,
-    };
+    return { success: true, referenceId, deliveredTo: supportEmailTo };
   } catch (error) {
     logger.error({ err: error }, "[SupportFeedback] Failed to queue feedback");
-
     throw new SupportFeedbackError(
       "We could not send your feedback right now. Please try again later.",
       502

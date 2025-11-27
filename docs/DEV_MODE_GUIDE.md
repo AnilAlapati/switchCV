@@ -184,6 +184,43 @@ npm run dev:enterprise:jobseeker
 
 ---
 
+## AI Search Providers & Scalability
+
+SwitchCV now supports pluggable AI search providers so we can toggle between the
+legacy in-function cosine similarity implementation and Firestore's native
+vector search without redeploying code.
+
+### Environment Variable
+
+```bash
+# Default: firestore-vector
+AI_SEARCH_PROVIDER=firestore-vector   # or: legacy
+```
+
+- `firestore-vector` (default): Uses Firestore's `findNearest` vector index for
+  low-latency, million-scale searches.
+- `legacy`: Falls back to scanning up to 500 recent resumes and computing the
+  cosine similarity inside the Cloud Function (kept for debugging/testing).
+
+> **Heads-up**: `firestore-vector` requires firebase-admin v12.7+ and a vector
+> index on `resumes.embedding` (can be created via `firestore.indexes.json` or
+> the Firebase Console). If the SDK or index is missing, the function
+> automatically logs an error and falls back to `legacy` when the env var is
+> switched.
+
+### Why this matters
+
+- **Instant scalability**: Firestore manages HNSW vector indexes, so we stay
+  performant even if traffic spikes suddenly.
+- **Operational safety**: If the project is using an older firebase-admin SDK
+  or vector indexes are unavailable, setting `AI_SEARCH_PROVIDER=legacy` keeps
+  search functional while we upgrade.
+- **Observability**: Each search logs which provider handled the request and how
+  many resumes were scanned, making it easy to verify readiness during load
+  tests.
+
+---
+
 ## Using the `useTier` Hook (Client Components)
 
 For client-side components that need to check the user's tier, use the `useTier` hook:

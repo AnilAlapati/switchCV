@@ -12,7 +12,9 @@ jest.mock("next/navigation", () => ({
 jest.mock("@/components/recruiter/SearchInterface", () => ({
   SearchInterface: ({ onSearch, results, isLoading, error }: any) => (
     <div data-testid="search-interface">
-      <button onClick={() => onSearch({ query: "test" })}>Search</button>
+      <button onClick={() => onSearch({ query: "test" })}>
+        Basic Search Button
+      </button>
       {isLoading && <div>Loading results...</div>}
       {error && <div>Error: {error}</div>}
       {results.map((r: any) => (
@@ -20,6 +22,11 @@ jest.mock("@/components/recruiter/SearchInterface", () => ({
       ))}
     </div>
   ),
+}));
+
+// Mock SmartSearch component (AI Search)
+jest.mock("@/components/search/SmartSearch", () => ({
+  SmartSearch: () => <div data-testid="smart-search">AI Search Component</div>,
 }));
 
 describe("RecruiterSearchPage", () => {
@@ -44,17 +51,30 @@ describe("RecruiterSearchPage", () => {
     expect(mockRouter.replace).toHaveBeenCalledWith("/auth?mode=verify-email");
   });
 
-  it("should render search interface when authenticated", () => {
+  it("should render AI search by default when authenticated", () => {
     (useAuth as jest.Mock).mockReturnValue({
       user: { uid: "123" },
       loading: false,
     });
     render(<RecruiterSearchPage />);
     expect(screen.getByText("Candidate Search")).toBeInTheDocument();
+    expect(screen.getByTestId("smart-search")).toBeInTheDocument();
+  });
+
+  it("should switch to basic search mode when button clicked", async () => {
+    (useAuth as jest.Mock).mockReturnValue({
+      user: { uid: "123" },
+      loading: false,
+    });
+    render(<RecruiterSearchPage />);
+
+    // Click Basic Search tab
+    fireEvent.click(screen.getByText("Basic Search"));
+
     expect(screen.getByTestId("search-interface")).toBeInTheDocument();
   });
 
-  it("should handle search successfully", async () => {
+  it("should handle basic search successfully", async () => {
     (useAuth as jest.Mock).mockReturnValue({
       user: { uid: "123" },
       loading: false,
@@ -66,7 +86,10 @@ describe("RecruiterSearchPage", () => {
 
     render(<RecruiterSearchPage />);
 
-    fireEvent.click(screen.getByText("Search"));
+    // Switch to basic search mode first
+    fireEvent.click(screen.getByText("Basic Search"));
+
+    fireEvent.click(screen.getByText("Basic Search Button"));
 
     expect(screen.getByText("Loading results...")).toBeInTheDocument();
 
@@ -75,7 +98,7 @@ describe("RecruiterSearchPage", () => {
     });
   });
 
-  it("should handle search error", async () => {
+  it("should handle basic search error", async () => {
     (useAuth as jest.Mock).mockReturnValue({
       user: { uid: "123" },
       loading: false,
@@ -84,7 +107,10 @@ describe("RecruiterSearchPage", () => {
 
     render(<RecruiterSearchPage />);
 
-    fireEvent.click(screen.getByText("Search"));
+    // Switch to basic search mode first
+    fireEvent.click(screen.getByText("Basic Search"));
+
+    fireEvent.click(screen.getByText("Basic Search Button"));
 
     await waitFor(() => {
       expect(screen.getByText("Error: Search failed")).toBeInTheDocument();

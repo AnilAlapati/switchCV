@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       return handleApiError(
         new Error("Invalid search parameters"),
         "Invalid search parameters: " +
-          validationResult.error.errors.map((e) => e.message).join(", "),
+          validationResult.error.issues.map((e) => e.message).join(", "),
         400
       );
     }

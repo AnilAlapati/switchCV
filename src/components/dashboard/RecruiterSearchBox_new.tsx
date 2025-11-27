@@ -4,7 +4,11 @@ import { logger } from "@/lib/logger";
 
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { RecruiterSearchForm, SearchResult } from "./RecruiterSearchForm";
+import {
+  RecruiterSearchForm,
+  SearchResult,
+  SearchModeType,
+} from "./RecruiterSearchForm";
 import { RecruiterSearchResults } from "./RecruiterSearchResults";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
@@ -12,7 +16,7 @@ interface RecruiterSearchBoxProps {}
 
 export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
   const { user } = useAuth();
-  const [searchMode, setSearchMode] = useState<"basic" | "premium">("basic");
+  const [searchMode, setSearchMode] = useState<SearchModeType>("basic");
   const [userId, setUserId] = useState("");
   const [skills, setSkills] = useState<string[]>([]);
   const [location, setLocation] = useState("");
@@ -123,6 +127,7 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
         searchMode={searchMode}
         setSearchMode={setSearchMode}
         premiumFiltersEnabled={true}
+        aiSearchEnabled={false}
         userId={userId}
         setUserId={setUserId}
         skills={skills}

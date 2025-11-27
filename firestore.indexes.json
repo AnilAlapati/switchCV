@@ -34,19 +34,20 @@
       ]
     },
     {
-      "collectionGroup": "views",
-      "queryScope": "COLLECTION_GROUP",
+      "collectionGroup": "resumes",
+      "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "userId", "order": "ASCENDING" },
-        { "fieldPath": "timestamp", "order": "DESCENDING" }
+        { "fieldPath": "isBeingEdited", "order": "ASCENDING" },
+        { "fieldPath": "updatedAt", "order": "DESCENDING" }
       ]
     },
     {
-      "collectionGroup": "accessRequests",
-      "queryScope": "COLLECTION_GROUP",
+      "collectionGroup": "resumes",
+      "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "fromUserId", "order": "ASCENDING" },
-        { "fieldPath": "timestamp", "order": "DESCENDING" }
+        { "fieldPath": "isBeingEdited", "order": "ASCENDING" },
+        { "fieldPath": "embedding", "order": "ASCENDING" },
+        { "fieldPath": "updatedAt", "order": "DESCENDING" }
       ]
     },
     {

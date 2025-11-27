@@ -10,6 +10,11 @@
 import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import {
+  getFallbackSearchProvider,
+  getSearchProvider,
+} from "./searchProviders";
+import type { SearchFilters } from "./searchProviders/types";
 
 // Constants (mirrored from frontend config)
 const AI_SEARCH = {
@@ -36,39 +41,19 @@ const isDevBypassEnabled = (): boolean => {
 };
 
 const db = admin.firestore();
+const primarySearchProvider = getSearchProvider(db);
+const fallbackSearchProvider = getFallbackSearchProvider();
 
 /**
  * Search result returned to the client
  * Note: Location is intentionally excluded for privacy (PII concern)
  */
-interface SearchResult {
+interface FormattedSearchResult {
   resumeId: number;
   title: string;
   summary: string;
   skills: string[];
   similarityScore: number;
-}
-
-/**
- * Calculates cosine similarity between two vectors
- */
-function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length) {
-    throw new Error("Vectors must have same dimension");
-  }
-
-  let dotProduct = 0;
-  let normA = 0;
-  let normB = 0;
-
-  for (let i = 0; i < a.length; i++) {
-    dotProduct += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-
-  const denominator = Math.sqrt(normA) * Math.sqrt(normB);
-  return denominator === 0 ? 0 : dotProduct / denominator;
 }
 
 /**
@@ -175,193 +160,162 @@ async function checkAndDecrementQuota(
 /**
  * Main search function - callable by authenticated recruiters
  */
-export const searchResumesAI = functions.https.onCall(
-  async (
-    data: {
-      query: string;
-      filters?: {
-        location?: string;
-        minExperience?: number;
-      };
-      limit?: number;
-    },
-    context
-  ) => {
-    // Verify authentication
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        "unauthenticated",
-        "Must be authenticated to search"
-      );
-    }
-
-    const { query, filters, limit = AI_SEARCH.MAX_RESULTS } = data;
-
-    if (!query || query.trim().length < 3) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "Query must be at least 3 characters"
-      );
-    }
-
-    const userId = context.auth.uid;
-    const devBypass = isDevBypassEnabled();
-
-    // Log dev bypass status
-    if (devBypass) {
-      functions.logger.info(
-        `[DEV BYPASS] Skipping role/tier/quota checks for user ${userId}`
-      );
-    }
-
-    // Check user role (must be recruiter) - skip in dev bypass mode
-    if (!devBypass) {
-      const userDoc = await db.collection("users").doc(userId).get();
-      const userRole = userDoc.data()?.role;
-
-      if (userRole !== "recruiter" && userRole !== "admin") {
+export const searchResumesAI = functions
+  .runWith({
+    secrets: ["GEMINI_API_KEY"],
+  })
+  .https.onCall(
+    async (
+      data: {
+        query: string;
+        filters?: SearchFilters;
+        limit?: number;
+      },
+      context
+    ) => {
+      // Verify authentication
+      if (!context.auth) {
         throw new functions.https.HttpsError(
-          "permission-denied",
-          "Only recruiters can use AI search"
+          "unauthenticated",
+          "Must be authenticated to search"
         );
       }
-    }
 
-    // Check subscription tier and quota - skip in dev bypass mode
-    let tier: "basic" | "premium" | "enterprise" = "enterprise";
-    let quotaRemaining = 999999;
+      const { query, filters, limit = AI_SEARCH.MAX_RESULTS } = data;
 
-    if (!devBypass) {
-      tier = await getUserTier(userId);
-      const quotaCheck = await checkAndDecrementQuota(userId, tier);
-
-      if (!quotaCheck.allowed) {
+      if (!query || query.trim().length < 3) {
         throw new functions.https.HttpsError(
-          "resource-exhausted",
-          tier === "basic"
-            ? "AI Search requires Premium or Enterprise subscription"
-            : "Monthly search quota exceeded. Upgrade to Enterprise for unlimited searches."
+          "invalid-argument",
+          "Query must be at least 3 characters"
         );
       }
-      quotaRemaining = quotaCheck.remaining;
-    }
 
-    functions.logger.info(`AI search by ${userId}: "${query}"`, {
-      tier,
-      remaining: quotaRemaining,
-      devBypass,
-    });
+      const userId = context.auth.uid;
+      const devBypass = isDevBypassEnabled();
 
-    try {
-      // Generate embedding for the search query
-      const queryEmbedding = await generateQueryEmbedding(query);
-
-      // OPTIMIZATION: Instead of loading ALL resumes, use pagination and limits
-      // For production with large datasets, use Firestore Vector Search extension
-      // or a dedicated vector database like Pinecone
-      //
-      // Current optimization: Limit to 500 most recent resumes with embeddings
-      // This provides a reasonable balance between coverage and performance
-      const MAX_DOCS_TO_SCAN = 500;
-
-      let resumesQuery = db
-        .collection("resumes")
-        .where("isBeingEdited", "==", false)
-        .where("embedding", "!=", null) // Only fetch resumes with embeddings
-        .orderBy("embedding") // Required for != query
-        .orderBy("updatedAt", "desc") // Prioritize recently updated
-        .limit(MAX_DOCS_TO_SCAN);
-
-      const resumesSnapshot = await resumesQuery.get();
-
-      if (resumesSnapshot.empty) {
-        return { results: [], quotaRemaining };
+      // Log dev bypass status
+      if (devBypass) {
+        functions.logger.info(
+          `[DEV BYPASS] Skipping role/tier/quota checks for user ${userId}`
+        );
       }
 
-      functions.logger.info(
-        `AI search scanning ${resumesSnapshot.size} resumes (max: ${MAX_DOCS_TO_SCAN})`
-      );
+      // Check user role (must be recruiter) - skip in dev bypass mode
+      if (!devBypass) {
+        const userDoc = await db.collection("users").doc(userId).get();
+        const userRole = userDoc.data()?.role;
 
-      // Calculate similarity scores
-      const scoredResults: Array<{
-        doc: FirebaseFirestore.DocumentSnapshot;
-        score: number;
-      }> = [];
-
-      for (const doc of resumesSnapshot.docs) {
-        const data = doc.data();
-        const embedding = data.embedding;
-
-        // Skip if no embedding
-        if (!embedding || !Array.isArray(embedding)) {
-          continue;
+        if (userRole !== "recruiter" && userRole !== "admin") {
+          throw new functions.https.HttpsError(
+            "permission-denied",
+            "Only recruiters can use AI search"
+          );
         }
+      }
 
-        // Apply location filter manually if specified
-        if (filters?.location) {
-          const resumeLocation =
-            data.profile?.personalInfo?.location?.toLowerCase() || "";
-          if (!resumeLocation.includes(filters.location.toLowerCase())) {
-            continue;
+      // Check subscription tier and quota - skip in dev bypass mode
+      let tier: "basic" | "premium" | "enterprise" = "enterprise";
+      let quotaRemaining = 999999;
+
+      if (!devBypass) {
+        tier = await getUserTier(userId);
+        const quotaCheck = await checkAndDecrementQuota(userId, tier);
+
+        if (!quotaCheck.allowed) {
+          throw new functions.https.HttpsError(
+            "resource-exhausted",
+            tier === "basic"
+              ? "AI Search requires Premium or Enterprise subscription"
+              : "Monthly search quota exceeded. Upgrade to Enterprise for unlimited searches."
+          );
+        }
+        quotaRemaining = quotaCheck.remaining;
+      }
+
+      functions.logger.info(`AI search by ${userId}: "${query}"`, {
+        tier,
+        remaining: quotaRemaining,
+        devBypass,
+      });
+
+      try {
+        const queryEmbedding = await generateQueryEmbedding(query);
+
+        let providerResult;
+        try {
+          providerResult = await primarySearchProvider.search(queryEmbedding, {
+            limit,
+            filters,
+          });
+        } catch (providerError) {
+          if (fallbackSearchProvider) {
+            functions.logger.error(
+              "Primary AI search provider failed. Falling back to legacy provider.",
+              providerError
+            );
+            providerResult = await fallbackSearchProvider.search(
+              queryEmbedding,
+              {
+                limit,
+                filters,
+              }
+            );
+          } else {
+            throw providerError;
           }
         }
 
-        // Calculate similarity
-        const score = cosineSimilarity(queryEmbedding, embedding);
+        console.log(
+          "[AI_SEARCH] Provider=",
+          providerResult.metadata.provider,
+          "scanned=",
+          providerResult.metadata.scannedCount,
+          "limit=",
+          limit
+        );
 
-        if (score >= AI_SEARCH.MIN_SIMILARITY_SCORE) {
-          scoredResults.push({ doc, score });
-        }
-      }
+        const results: FormattedSearchResult[] = providerResult.matches.map(
+          ({ doc, score }) => {
+            const data = doc.data()!;
+            const profile = data.profile || {};
 
-      // Sort by score descending and take top N
-      scoredResults.sort((a, b) => b.score - a.score);
-      const topResults = scoredResults.slice(0, limit);
+            return {
+              resumeId: data.resumeId,
+              title: profile.title || "Untitled",
+              summary: profile.summary?.substring(0, 200) || "",
+              skills:
+                profile.skills
+                  ?.slice(0, 5)
+                  .map((s: { name: string }) => s.name) || [],
+              similarityScore: Math.round(score * 100) / 100,
+            };
+          }
+        );
 
-      // Format results
-      // Note: Location is NOT included in search results for privacy
-      // Recruiters can request access to see full contact details
-      const results: SearchResult[] = topResults.map(({ doc, score }) => {
-        const data = doc.data()!;
-        const profile = data.profile || {};
+        // Log search for analytics
+        await db.collection("recruiterSearchHistory").add({
+          recruiterId: userId,
+          query,
+          filters: filters || {},
+          resultCount: results.length,
+          tier,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
 
         return {
-          resumeId: data.resumeId,
-          title: profile.title || "Untitled",
-          summary: profile.summary?.substring(0, 200) || "",
-          skills:
-            profile.skills?.slice(0, 5).map((s: { name: string }) => s.name) ||
-            [],
-          // Location intentionally omitted - PII concern
-          // Recruiters must request access for full profile details
-          similarityScore: Math.round(score * 100) / 100,
+          results,
+          quotaRemaining,
+          totalIndexedResumes: providerResult.metadata.scannedCount,
         };
-      });
-
-      // Log search for analytics
-      await db.collection("recruiterSearchHistory").add({
-        recruiterId: userId,
-        query,
-        filters: filters || {},
-        resultCount: results.length,
-        tier,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      return {
-        results,
-        quotaRemaining,
-        totalIndexedResumes: resumesSnapshot.size,
-      };
-    } catch (error) {
-      functions.logger.error("AI search failed:", error);
-      throw new functions.https.HttpsError(
-        "internal",
-        "Search failed. Please try again."
-      );
+      } catch (error) {
+        functions.logger.error("AI search failed:", error);
+        throw new functions.https.HttpsError(
+          "internal",
+          "Search failed. Please try again."
+        );
+      }
     }
-  }
-);
+  );
 
 /**
  * Get remaining search quota for user

@@ -44,18 +44,37 @@ describe("RecruiterSearchBox", () => {
     render(<RecruiterSearchBox />);
 
     expect(screen.getByText("Resume Search")).toBeInTheDocument();
+    expect(screen.getByText("AI Search")).toBeInTheDocument();
     expect(screen.getByText("Basic Lookup")).toBeInTheDocument();
     expect(screen.getByText("Premium Filters")).toBeInTheDocument();
   });
 
-  it("starts in basic search mode by default", () => {
+  it("starts in AI search mode by default", () => {
     render(<RecruiterSearchBox />);
 
-    // Basic mode should show the basic search input
-    expect(screen.getByPlaceholderText("e.g., 2")).toBeInTheDocument();
+    // AI mode should show the AI search textarea
+    expect(
+      screen.getByPlaceholderText(/Looking for a Java developer/i)
+    ).toBeInTheDocument();
+    // Basic mode input should not be visible
+    expect(screen.queryByPlaceholderText("e.g., 2")).not.toBeInTheDocument();
     // Premium mode fields should not be visible
     expect(
       screen.queryByPlaceholderText("e.g., React, Python, AWS")
+    ).not.toBeInTheDocument();
+  });
+
+  it("switches to basic mode when basic button is clicked", async () => {
+    render(<RecruiterSearchBox />);
+
+    const basicButton = screen.getByText("Basic Lookup");
+    await userEvent.click(basicButton);
+
+    // Basic mode should show the basic search input
+    expect(screen.getByPlaceholderText("e.g., 2")).toBeInTheDocument();
+    // AI mode textarea should not be visible
+    expect(
+      screen.queryByPlaceholderText(/Looking for a Java developer/i)
     ).not.toBeInTheDocument();
   });
 
@@ -72,31 +91,37 @@ describe("RecruiterSearchBox", () => {
     expect(
       screen.getByPlaceholderText("City, region, or remote")
     ).toBeInTheDocument();
+    // AI mode textarea should not be visible
+    expect(
+      screen.queryByPlaceholderText(/Looking for a Java developer/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it("switches back to AI mode when AI button is clicked", async () => {
+    render(<RecruiterSearchBox />);
+
+    // Switch to basic first
+    const basicButton = screen.getByText("Basic Lookup");
+    await userEvent.click(basicButton);
+
+    // Switch back to AI
+    const aiButton = screen.getByText("AI Search");
+    await userEvent.click(aiButton);
+
+    // AI mode textarea should be visible again
+    expect(
+      screen.getByPlaceholderText(/Looking for a Java developer/i)
+    ).toBeInTheDocument();
     // Basic mode input should not be visible
     expect(screen.queryByPlaceholderText("e.g., 2")).not.toBeInTheDocument();
   });
 
-  it("switches back to basic mode when basic button is clicked", async () => {
-    render(<RecruiterSearchBox />);
-
-    // Switch to premium first
-    const premiumButton = screen.getByText("Premium Filters");
-    await userEvent.click(premiumButton);
-
-    // Switch back to basic
-    const basicButton = screen.getByText("Basic Lookup");
-    await userEvent.click(basicButton);
-
-    // Basic mode input should be visible again
-    expect(screen.getByPlaceholderText("e.g., 2")).toBeInTheDocument();
-    // Premium mode fields should not be visible
-    expect(
-      screen.queryByPlaceholderText("e.g., React, Python, AWS")
-    ).not.toBeInTheDocument();
-  });
-
   it("shows error when basic search is submitted without userId", async () => {
     render(<RecruiterSearchBox />);
+
+    // Switch to basic mode first
+    const basicButton = screen.getByText("Basic Lookup");
+    await userEvent.click(basicButton);
 
     const submitButton = screen.getByText("Run Search");
     await userEvent.click(submitButton);
@@ -140,6 +165,10 @@ describe("RecruiterSearchBox", () => {
     mockFetch.mockResolvedValueOnce(mockResponse);
 
     render(<RecruiterSearchBox />);
+
+    // Switch to basic mode first
+    const basicButton = screen.getByText("Basic Lookup");
+    await userEvent.click(basicButton);
 
     const userIdInput = screen.getByPlaceholderText("e.g., 2");
     await userEvent.type(userIdInput, "user-123");
@@ -279,6 +308,10 @@ describe("RecruiterSearchBox", () => {
 
     render(<RecruiterSearchBox />);
 
+    // Switch to basic mode first
+    const basicButton = screen.getByText("Basic Lookup");
+    await userEvent.click(basicButton);
+
     const userIdInput = screen.getByPlaceholderText("e.g., 2");
     await userEvent.type(userIdInput, "user-123");
 
@@ -301,6 +334,10 @@ describe("RecruiterSearchBox", () => {
     mockFetch.mockResolvedValueOnce(mockResponse);
 
     render(<RecruiterSearchBox />);
+
+    // Switch to basic mode first
+    const basicButton = screen.getByText("Basic Lookup");
+    await userEvent.click(basicButton);
 
     const userIdInput = screen.getByPlaceholderText("e.g., 2");
     await userEvent.type(userIdInput, "user-999");
@@ -345,6 +382,10 @@ describe("RecruiterSearchBox", () => {
 
     render(<RecruiterSearchBox />);
 
+    // Switch to basic mode first
+    const basicButton = screen.getByText("Basic Lookup");
+    await userEvent.click(basicButton);
+
     const userIdInput = screen.getByPlaceholderText("e.g., 2");
     await userEvent.type(userIdInput, "user-123");
 
@@ -378,6 +419,10 @@ describe("RecruiterSearchBox", () => {
     );
 
     render(<RecruiterSearchBox />);
+
+    // Switch to basic mode first
+    const basicButton = screen.getByText("Basic Lookup");
+    await userEvent.click(basicButton);
 
     const userIdInput = screen.getByPlaceholderText("e.g., 2");
     await userEvent.type(userIdInput, "user-123");

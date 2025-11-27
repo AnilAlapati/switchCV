@@ -1,5 +1,37 @@
 # Release Notes
 
+## [AI.0.0.38] - 2025-11-27
+### Changed
+- Automated version increment.
+
+## [AI.0.0.37] - 2025-11-27
+### Changed
+- Automated version increment.
+
+## [AI.0.0.36] - 2025-11-27
+### Changed
+- Automated version increment.
+
+## [AI.0.0.35] - 2025-11-27
+### Changed
+- Automated version increment.
+
+## [AI.0.0.34] - 2025-11-27
+### Changed
+- Automated version increment.
+
+## [AI.0.0.33] - 2025-11-27
+### Changed
+- Automated version increment.
+
+## [AI.0.0.32] - 2025-11-27
+### Changed
+- Automated version increment.
+
+## [AI.0.0.31] - 2025-11-27
+### Changed
+- Automated version increment.
+
 ## [AI.0.0.30] - 2025-11-27
 ### Changed
 - Automated version increment.

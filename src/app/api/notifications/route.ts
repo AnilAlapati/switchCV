@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     const validationResult = notificationRequestSchema.safeParse(body);
     if (!validationResult.success) {
       const errorMessage =
-        validationResult.error?.errors?.map((e) => e.message).join(", ") ||
+        validationResult.error?.issues?.map((e) => e.message).join(", ") ||
         "Validation failed";
       return handleApiError(null, "Invalid request: " + errorMessage, 400);
     }

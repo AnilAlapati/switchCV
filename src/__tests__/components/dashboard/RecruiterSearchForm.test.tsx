@@ -3,13 +3,15 @@ import "@testing-library/jest-dom";
 import {
   RecruiterSearchForm,
   SearchResult,
+  SearchModeType,
 } from "@/components/dashboard/RecruiterSearchForm";
 
 // Mock the props
 const mockProps = {
-  searchMode: "basic" as const,
+  searchMode: "basic" as SearchModeType,
   setSearchMode: jest.fn(),
   premiumFiltersEnabled: true,
+  aiSearchEnabled: true,
   userId: "",
   setUserId: jest.fn(),
   skills: [] as string[],
@@ -22,6 +24,13 @@ const mockProps = {
   searchResults: [] as SearchResult[],
   setSearchResults: jest.fn(),
   setSearched: jest.fn(),
+  // AI search props
+  aiQuery: "",
+  setAiQuery: jest.fn(),
+  onAiSearch: jest.fn().mockResolvedValue(undefined),
+  aiSearching: false,
+  aiError: null,
+  aiQuota: null,
 };
 
 describe("RecruiterSearchForm", () => {
@@ -32,10 +41,20 @@ describe("RecruiterSearchForm", () => {
   it("renders basic search mode by default", () => {
     render(<RecruiterSearchForm {...mockProps} />);
 
+    expect(screen.getByText("AI Search")).toBeInTheDocument();
     expect(screen.getByText("Basic Lookup")).toBeInTheDocument();
     expect(screen.getByText("Premium Filters")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("e.g., 2")).toBeInTheDocument();
     expect(screen.getByText("Run Search")).toBeInTheDocument();
+  });
+
+  it("renders AI search mode when selected", () => {
+    render(<RecruiterSearchForm {...mockProps} searchMode="ai" />);
+
+    expect(
+      screen.getByPlaceholderText(/Looking for a Java developer/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText("Smart Search")).toBeInTheDocument();
   });
 
   it("renders premium search mode when selected", () => {
