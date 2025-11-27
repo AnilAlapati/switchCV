@@ -36,9 +36,11 @@ const eslintConfig = [
     },
   },
   {
-    files: ["**/*.cjs", "scripts/**/*.js", "scripts/**/*.cjs"],
+    // CLI scripts legitimately use console.log and require()
+    files: ["**/*.cjs", "scripts/**/*.js", "scripts/**/*.cjs", "public/**/*.js"],
     rules: {
       "@typescript-eslint/no-require-imports": "off",
+      "no-console": "off",
     },
   },
   {
