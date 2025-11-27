@@ -1,5 +1,13 @@
 import { renderHook, waitFor, act } from "@testing-library/react";
 import { getDoc } from "firebase/firestore";
+import { logger } from "@/lib/logger";
+
+// Mock logger
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    error: jest.fn(),
+  },
+}));
 
 // Mock dependencies
 jest.mock("@/lib/firebase", () => ({
@@ -97,7 +105,6 @@ describe("useGlobalStats", () => {
 
   it("should handle fetch error gracefully", async () => {
     (getDoc as jest.Mock).mockRejectedValue(new Error("Fetch failed"));
-    const consoleSpy = jest.spyOn(console, "error").mockImplementation();
 
     const { result } = renderHook(() => useGlobalStats());
 
@@ -114,10 +121,9 @@ describe("useGlobalStats", () => {
       });
     });
 
-    expect(consoleSpy).toHaveBeenCalledWith(
-      "Error fetching stats:",
-      expect.any(Error)
+    expect(logger.error).toHaveBeenCalledWith(
+      { err: expect.any(Error) },
+      "Error fetching stats:"
     );
-    consoleSpy.mockRestore();
   });
 });

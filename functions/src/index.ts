@@ -55,3 +55,6 @@ export {
 export { indexResumeOnWrite, reindexResume } from "./indexResumeService";
 
 export { searchResumesAI, getSearchQuota } from "./searchResumeService";
+
+// ==================== AUTH FUNCTIONS ====================
+export { onUserRoleChanged } from "./authFunctions";

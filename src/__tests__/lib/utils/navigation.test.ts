@@ -6,7 +6,7 @@ describe("navigation", () => {
     const reloadMock = jest.fn();
     jest.spyOn(windowUtils, "getWindow").mockReturnValue({
       location: { reload: reloadMock },
-    } as unknown as Window);
+    } as unknown as Window & typeof globalThis);
 
     reloadPage();
     expect(reloadMock).toHaveBeenCalled();

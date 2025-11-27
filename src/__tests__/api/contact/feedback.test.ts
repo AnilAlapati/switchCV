@@ -70,9 +70,11 @@ describe("POST /api/contact/feedback", () => {
       return request.json();
     });
     mockHandleApiError.mockImplementation(
-      (error: Error, message: string, status = 500) => {
+      (error: unknown, message?: string, status = 500) => {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         return NextResponse.json(
-          { error: message, details: error?.message },
+          { error: message || "Error", details: errorMessage },
           { status }
         );
       }

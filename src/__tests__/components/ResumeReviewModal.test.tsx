@@ -6,6 +6,10 @@ import { Resume } from "@/lib/resumeComparison.types";
 const mockResume: Resume = {
   id: "resume-123",
   title: "John Doe's Resume",
+  contact: {
+    email: { value: "john@example.com" },
+    phone: { value: "123-456-7890" },
+  },
   summary: "Experienced developer",
   skills: ["React", "TypeScript"],
   experience: [

@@ -1,17 +1,18 @@
 // src/__tests__/app/profile/page.test.tsx
 import { render, screen, fireEvent } from "@testing-library/react";
 import ProfileEditor from "@/app/profile/page";
+import { logger } from "@/lib/logger";
 
-// Mock console.log to avoid console output during tests
-const consoleSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+// Mock logger
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    info: jest.fn(),
+  },
+}));
 
 describe("ProfileEditor", () => {
   beforeEach(() => {
-    consoleSpy.mockClear();
-  });
-
-  afterAll(() => {
-    consoleSpy.mockRestore();
+    jest.clearAllMocks();
   });
 
   it("should render the profile editor page", () => {
@@ -87,12 +88,17 @@ describe("ProfileEditor", () => {
     const saveButton = screen.getByText("Save Changes");
     fireEvent.click(saveButton);
 
-    expect(consoleSpy).toHaveBeenCalledWith("Saving profile:", {
-      contact: {
-        email: { value: "", visibility: "public" },
-        phone: { value: "", visibility: "public" },
+    expect(logger.info).toHaveBeenCalledWith(
+      {
+        data: {
+          contact: {
+            email: { value: "", visibility: "public" },
+            phone: { value: "", visibility: "public" },
+          },
+        },
       },
-    });
+      "Saving profile:"
+    );
   });
 
   it("should update profile state when multiple fields are changed", () => {

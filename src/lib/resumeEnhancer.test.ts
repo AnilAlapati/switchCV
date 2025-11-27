@@ -7,59 +7,44 @@ import {
   generateResumeEnhancement,
   getFormattingRecommendations,
 } from "@/lib/resumeEnhancer";
-import type { ResumeProfile } from "@/lib/resumeGenerator";
+import type { Resume } from "@/lib/resumeComparison.types";
 
 // Mock resume for testing
-const mockResume: ResumeProfile = {
-  userId: "test-user",
+const mockResume: Resume = {
+  id: "test-resume",
   title: "Senior Software Engineer",
   summary:
     "Experienced software engineer with 10+ years of experience in full-stack development",
-  skills: [
-    { name: "JavaScript", level: "Expert", visibility: "public" },
-    { name: "TypeScript", level: "Expert", visibility: "public" },
-    { name: "React", level: "Advanced", visibility: "public" },
-    { name: "Node.js", level: "Advanced", visibility: "public" },
-    { name: "PostgreSQL", level: "Intermediate", visibility: "public" },
-  ],
+  skills: ["JavaScript", "TypeScript", "React", "Node.js", "PostgreSQL"],
   experience: [
     {
       company: "Tech Company",
       role: "Senior Engineer",
+      duration: "2020-Present",
       startDate: "2020-01-01",
       description:
         "Led development of microservices. Managed team of 5 engineers.",
-      visibility: "public",
     },
     {
       company: "Another Corp",
       role: "Software Engineer",
+      duration: "2018-2020",
       startDate: "2018-01-01",
       description: "Developed REST APIs and increased performance by 40%.",
-      visibility: "public",
     },
   ],
   education: [
     {
       institution: "State University",
-      degree: "BS Computer Science",
-      startDate: "2010-01-01",
-      visibility: "public",
+      degree: "BS",
+      field: "Computer Science",
+      year: 2010,
     },
   ],
   contact: {
-    email: { value: "test@example.com", visibility: "public" },
-    phone: { value: "555-1234", visibility: "private" },
+    email: { value: "test@example.com" },
+    phone: { value: "555-1234" },
   },
-  projects: [],
-  generatedText: {
-    draft: "Draft professional summary",
-    polished: "Polished professional summary",
-    lastGeneratedAt: new Date().toISOString(),
-  },
-  slug: "test-resume",
-  published: true,
-  lastUpdatedAt: new Date().toISOString(),
 };
 
 describe("resumeEnhancer", () => {
@@ -76,7 +61,7 @@ describe("resumeEnhancer", () => {
         ...mockResume,
         contact: {
           ...mockResume.contact,
-          email: { value: "", visibility: "public" as const },
+          email: { value: "" },
         },
       };
       const result = analyzeATS(resumeNoEmail);

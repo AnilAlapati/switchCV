@@ -8,6 +8,16 @@ import {
 import { auth, functions } from "@/lib/firebase";
 import { addDoc, getDoc, updateDoc, query, getDocs } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
+import { logger } from "@/lib/logger";
+
+// Mock logger
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+  },
+}));
 
 // Mock dependencies
 jest.mock("@/lib/firebase", () => ({
@@ -70,7 +80,6 @@ describe("useAuditLog", () => {
 
   it("should handle log action error gracefully", async () => {
     (addDoc as jest.Mock).mockRejectedValue(new Error("Log failed"));
-    const consoleSpy = jest.spyOn(console, "error").mockImplementation();
 
     const { result } = renderHook(() => useAuditLog());
 
@@ -81,8 +90,7 @@ describe("useAuditLog", () => {
       });
     });
 
-    expect(consoleSpy).toHaveBeenCalled();
-    consoleSpy.mockRestore();
+    expect(logger.error).toHaveBeenCalled();
   });
 
   it("should not log if no user", async () => {

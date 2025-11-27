@@ -33,15 +33,17 @@ jest.mock("@/lib/notificationService", () => ({
 describe("Notification Delivery", () => {
   const mockNotification: Notification = {
     id: "notif-123",
-    userId: "user-123",
-    type: NotificationType.SYSTEM_ALERT,
+    recipientId: "user-123",
+    type: NotificationType.APPLICATION_UPDATE,
     priority: NotificationPriority.HIGH,
-    title: "Test Notification",
-    message: "This is a test",
     channels: [NotificationChannel.IN_APP],
     status: NotificationStatus.PENDING,
     createdAt: new Date(),
-    read: false,
+    retryCount: 0,
+    payload: {
+      title: "Test Notification",
+      body: "This is a test",
+    },
   };
 
   beforeEach(() => {
@@ -58,12 +60,13 @@ describe("Notification Delivery", () => {
     it("should save and retrieve templates", () => {
       const template: NotificationTemplate = {
         id: "temp-1",
-        name: "Test Template",
-        titleTemplate: "Hello {{name}}",
-        bodyTemplate: "Welcome to {{app}}",
-        channels: [NotificationChannel.EMAIL],
-        type: NotificationType.SYSTEM_ALERT,
-        priority: NotificationPriority.NORMAL,
+        type: NotificationType.APPLICATION_UPDATE,
+        channel: NotificationChannel.EMAIL,
+        subject: "Hello {{name}}",
+        template: "Welcome to {{app}}",
+        variables: ["name", "app"],
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
 
       saveTemplate(template);

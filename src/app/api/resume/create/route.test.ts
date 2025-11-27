@@ -31,6 +31,9 @@ jest.mock("@/lib/utils/api-helpers", () => ({
       }),
     };
   }),
+  safeParseBody: jest.fn(async (req) => {
+    return await req.json();
+  }),
 }));
 
 describe("POST /api/resume/create", () => {

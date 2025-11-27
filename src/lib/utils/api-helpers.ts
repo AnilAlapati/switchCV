@@ -211,12 +211,14 @@ export async function verifyResumeOwnership(
 }
 
 /**
- * Safely parse JSON body from a request.
- * Returns the parsed body or throws a SyntaxError with a clear message.
+ * Safely parse JSON body from a request with size limit enforcement.
+ * Returns the parsed body or throws a SyntaxError/Error.
  *
  * @param request - The incoming Next.js request
+ * @param limitBytes - Maximum allowed body size in bytes (default: 1MB)
  * @returns Parsed JSON body
  * @throws SyntaxError if the body is not valid JSON
+ * @throws Error if body size exceeds limit
  *
  * @example
  * ```typescript
@@ -228,8 +230,14 @@ export async function verifyResumeOwnership(
  * ```
  */
 export async function safeParseBody<T = unknown>(
-  request: NextRequest
+  request: NextRequest,
+  limitBytes: number = 1024 * 1024 // 1MB default
 ): Promise<T> {
+  const contentLength = request.headers.get("content-length");
+  if (contentLength && parseInt(contentLength, 10) > limitBytes) {
+    throw new Error(`Request body too large. Limit is ${limitBytes} bytes.`);
+  }
+
   try {
     return await request.json();
   } catch (error) {

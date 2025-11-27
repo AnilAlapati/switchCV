@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import "@/lib/env"; // Validates environment variables on startup
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/hooks/useAuth";

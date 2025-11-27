@@ -31,199 +31,80 @@
 - ✅ Configured for Firebase, Google APIs, and Analytics
 - ✅ Frame-ancestors 'none' prevents clickjacking
 
+### 5. Input Validation & Rate Limiting (Critical Routes)
+
+- ✅ `api/notifications` - Added Zod validation & Rate Limiting
+- ✅ `api/resume/enhance` - Added Zod validation & Rate Limiting
+- ✅ `api/resume/create` - Verified Zod validation & Rate Limiting (Fixed crash)
+- ✅ `api/recruiter/search` - Verified Quota/Rate Limiting
+- ✅ `api/ai/generate` - Verified Zod validation & Rate Limiting
+- ✅ `api/seed/generate` - Verified Zod validation & Quota Management
+- ✅ `api/drafts/[draftId]` - Verified Zod validation & Rate Limiting
+- ✅ Fixed all associated tests to pass with new validation rules
+
+### 6. Console Cleanup
+
+- ✅ Verified `src/lib/resumeIdRecycler.ts` uses logger
+- ✅ Verified `src/lib/resumeMigration.ts` uses logger
+- ✅ Verified `src/components/search/SmartSearch.tsx` uses logger
+- ✅ Verified `src/lib/draftIdGenerator.ts` uses logger
+- ✅ Confirmed console usage is restricted to test files only
+
 ---
 
 ## 🔴 CRITICAL - Fix Before Production Deploy (2-3 days)
 
-### Priority 1: Replace Console Statements (4-6 hours)
+### Priority 4: Fix React Hook Dependencies (2-3 hours)
 
-**Files affected:** `src/lib/resumeIdRecycler.ts`, `src/lib/resumeMigration.ts`, `src/components/search/SmartSearch.tsx`
+- ✅ Verified `src/hooks/useTier.ts` has correct dependencies
+- ✅ Verified no `react-hooks/exhaustive-deps` errors in codebase
 
-**Action:**
+### Priority 5: Add Request/Response Size Limits (1 hour)
 
-```bash
-# Find all console usage
-npx eslint src/ --quiet
-
-# Fix each file:
-# - Replace console.log with logger.info
-# - Replace console.error with logger.error
-# - Replace console.warn with logger.warn
-```
-
-**Pattern:**
-
-```typescript
-// ❌ Before
-console.log(`Resume ID ${id} processed`);
-
-// ✅ After
-logger.info({ resumeId: id }, "Resume ID processed");
-```
-
-**Files to fix:**
-
-- `src/lib/resumeIdRecycler.ts` (10 console statements)
-- `src/lib/resumeMigration.ts` (8 console statements)
-- `src/components/search/SmartSearch.tsx` (1 console.error)
-- `src/lib/draftIdGenerator.ts` (1 console.warn)
-
----
-
-### Priority 2: Add Input Validation to API Routes (6-8 hours)
-
-**All routes in** `src/app/api/`
-
-**Action:** Create Zod schemas for each API route:
-
-```typescript
-// Example: src/app/api/resume/create/route.ts
-import { z } from "zod";
-
-const createResumeSchema = z.object({
-  title: z.string().min(1).max(200),
-  summary: z.string().max(5000).optional(),
-  skills: z
-    .array(
-      z.object({
-        name: z.string().max(100),
-        level: z.enum(["beginner", "intermediate", "expert"]),
-      })
-    )
-    .max(50),
-  // ... complete schema
-});
-
-export async function POST(request: NextRequest) {
-  const body = await request.json();
-  const validated = createResumeSchema.parse(body); // Throws if invalid
-  // ... use validated
-}
-```
-
-**Routes needing validation:**
-
-- `api/resume/create` - Resume data
-- `api/resume/enhance` - Text content
-- `api/recruiter/search-resumes` - Search query
-- `api/ai/generate` - Prompt text
-- `api/seed/generate` - Seed params
-- `api/drafts/[draftId]` - Draft updates
-- `api/notifications` - Notification actions
-
----
-
-### Priority 3: Implement Rate Limiting (4-6 hours)
-
-**Protect critical endpoints**
-
-You already have `src/lib/utils/rateLimit.ts` - enforce it:
-
-```typescript
-// src/app/api/resume/create/route.ts
-import { rateLimit } from "@/lib/utils/rateLimit";
-
-export async function POST(request: NextRequest) {
-  const { userId } = await getAuthenticatedUserId(request);
-
-  const limited = await rateLimit(userId, "resume:create", 10, 3600);
-  if (limited) {
-    return NextResponse.json(
-      { error: "Rate limit exceeded. Max 10 resumes per hour." },
-      { status: 429 }
-    );
-  }
-  // ... proceed
-}
-```
-
-**Apply to:**
-
-- `/api/resume/create` - 10/hour
-- `/api/ai/generate` - 20/hour
-- `/api/recruiter/search-resumes` - 50/hour
-- `/api/seed/generate` - 5/hour
+- ✅ Updated `safeParseBody` in `src/lib/utils/api-helpers.ts` to enforce 1MB limit
+- ✅ Applied `safeParseBody` to `api/resume/create`
+- ✅ Applied `safeParseBody` to `api/resume/enhance`
+- ✅ Applied `safeParseBody` to `api/ai/generate`
+- ✅ Applied `safeParseBody` to `api/drafts/[draftId]`
+- ✅ Verified `api/recruiter/search` is GET only (no body)
 
 ---
 
 ## 🟠 HIGH PRIORITY - Fix in Next Sprint (1-2 weeks)
 
-### Priority 4: Fix React Hook Dependencies (2-3 hours)
-
-**ESLint now errors on exhaustive-deps**
-
-Run: `npx eslint src/ --fix` to auto-fix what's possible
-
-**Manual fixes needed:**
-
-```typescript
-// src/hooks/useTier.ts - Add fetchTier to deps
-useEffect(() => {
-  if (!authLoading) {
-    fetchTier();
-  }
-}, [authLoading, fetchTier]); // ✅ Added fetchTier
-```
-
----
-
-### Priority 5: Add Request/Response Size Limits (1 hour)
-
-**Prevent memory exhaustion**
-
-```typescript
-// next.config.ts
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: "1mb",
-    },
-    responseLimit: "8mb",
-  },
-};
-```
-
----
-
 ### Priority 6: Improve Test Coverage (4-8 hours)
 
-**Critical services undertested:**
-
-- `src/lib/services/userService.ts` - **31% coverage** (need 80%+)
-- `src/lib/services/resumeService.ts` - **54% coverage** (need 80%+)
-- Lines 92-176, 221-285 in resumeService untested
-
-**Action:** Add integration tests for publish/unpublish flows
+- ✅ `src/lib/services/userService.ts` - **100% coverage** (was 31%)
+- ✅ `src/lib/services/resumeService.ts` - **88% coverage** (was 54%)
+- ✅ Added integration tests for publish/unpublish flows
+- ✅ Verified all tests pass
 
 ---
 
-### Priority 7: Add Error Tracking (2 hours)
+### Priority 7: Add Error Tracking (Deferred)
 
-**Integrate Sentry**
-
-```bash
-npm install @sentry/nextjs
-npx @sentry/wizard@latest -i nextjs
-```
-
-Configure `sentry.client.config.ts` and `sentry.server.config.ts`
+- ⏭️ **Skipped**: Decided to rely on Firebase/Vercel default logs for now to avoid extra costs/setup.
+- Can revisit if debugging becomes difficult in production.
 
 ---
 
 ### Priority 8: Optimize Firestore Security Rules (3-4 hours)
 
-**Current issue:** `get()` calls in rules are expensive
+- ✅ Created `onUserRoleChanged` Cloud Function to sync roles to Auth Custom Claims
+- ✅ Updated `firestore.rules` to use `request.auth.token.role` instead of expensive `get()` calls
+- ✅ Reduces Firestore reads and improves performance
 
-```javascript
-// ❌ Current (slow)
-allow read: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'recruiter'
+---
 
-// ✅ Better - validate server-side
-allow read: if request.auth != null
-  // Role checked in API routes with caching
-```
+### Priority 8b: Multi-Provider AI System (NEW)
 
-**Action:** Move role checks to server-side APIs with Redis caching
+- ✅ Created `src/lib/services/aiProviderService.ts` - Tiered AI model selection
+- ✅ **Basic users**: Cheapest models only (Groq Llama 3.1 8B = nearly FREE)
+- ✅ **Premium users**: Better models (Gemini Flash, GPT-4o-mini)
+- ✅ **Enterprise users**: Best models (GPT-4o, Gemini Pro, Claude)
+- ✅ Automatic fallback if primary provider fails
+- ✅ Added OpenAI and Groq API key support to `env.ts`
+- ✅ Tested: Groq ✅, Gemini ✅ working
 
 ---
 
@@ -329,7 +210,7 @@ Set up Lighthouse CI in GitHub Actions
 | Input Validation | ❌ Missing     | Critical gap               |
 | Rate Limiting    | ⚠️ Partial     | Not enforced on all routes |
 | Error Tracking   | ❌ Missing     | Need Sentry                |
-| Test Coverage    | ⚠️ 90% overall | Key services low           |
+| Test Coverage    | ✅ Improved    | Critical services >80%     |
 | Monitoring       | ❌ Missing     | No APM                     |
 
 ---

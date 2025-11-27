@@ -14,6 +14,25 @@ const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
+const createMockAuthContext = (user: any) => ({
+  user,
+  loading: false,
+  signIn: jest.fn(),
+  signUp: jest.fn(),
+  logout: jest.fn(),
+  needsEmailVerification: false,
+  verificationEmail: null,
+  connectivityIssue: null,
+  signInWithGoogle: jest.fn(),
+  resetPassword: jest.fn(),
+  updatePassword: jest.fn(),
+  updateEmail: jest.fn(),
+  deleteAccount: jest.fn(),
+  resendVerificationEmail: jest.fn(),
+  refreshUser: jest.fn(),
+});
+
+
 describe("LastUpdatedCard", () => {
   const mockUser = {
     uid: "test-user-id",
@@ -41,13 +60,7 @@ describe("LastUpdatedCard", () => {
 
   describe("Loading State", () => {
     it("shows loading state when user is available", () => {
-      mockUseAuth.mockReturnValue({
-        user: mockUser,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(mockUser));
 
       render(<LastUpdatedCard />);
 
@@ -56,13 +69,7 @@ describe("LastUpdatedCard", () => {
     });
 
     it("shows not loading when no user", () => {
-      mockUseAuth.mockReturnValue({
-        user: null,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(null));
 
       render(<LastUpdatedCard />);
 
@@ -77,13 +84,7 @@ describe("LastUpdatedCard", () => {
         lastUpdated: "2024-01-15T10:30:00Z",
       };
 
-      mockUseAuth.mockReturnValue({
-        user: mockUser,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(mockUser));
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -107,13 +108,7 @@ describe("LastUpdatedCard", () => {
         lastUpdated: recentDate,
       };
 
-      mockUseAuth.mockReturnValue({
-        user: mockUser,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(mockUser));
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -135,13 +130,7 @@ describe("LastUpdatedCard", () => {
         lastUpdated: null,
       };
 
-      mockUseAuth.mockReturnValue({
-        user: mockUser,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(mockUser));
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -159,13 +148,7 @@ describe("LastUpdatedCard", () => {
     });
 
     it("handles fetch error gracefully", async () => {
-      mockUseAuth.mockReturnValue({
-        user: mockUser,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(mockUser));
 
       mockFetch.mockRejectedValueOnce(new Error("Network error"));
 
@@ -220,13 +203,7 @@ describe("LastUpdatedCard", () => {
 
   describe("UI Rendering", () => {
     it("renders card structure correctly", async () => {
-      mockUseAuth.mockReturnValue({
-        user: null,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(null));
 
       render(<LastUpdatedCard />);
 
@@ -238,13 +215,7 @@ describe("LastUpdatedCard", () => {
     });
 
     it("renders clock icon", () => {
-      mockUseAuth.mockReturnValue({
-        user: null,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(null));
 
       render(<LastUpdatedCard />);
 

@@ -11,6 +11,10 @@ import { Resume } from "@/lib/resumeComparison.types";
 const mockResume1: Resume = {
   id: "resume-1",
   title: "Senior Software Engineer",
+  contact: {
+    email: { value: "test1@example.com" },
+    phone: { value: "123-456-7890" },
+  },
   summary: "Experienced full-stack developer with 8 years",
   skills: ["javascript", "react", "typescript", "node.js", "sql", "docker"],
   experience: [
@@ -35,6 +39,10 @@ const mockResume1: Resume = {
 const mockResume2: Resume = {
   id: "resume-2",
   title: "Senior Software Engineer",
+  contact: {
+    email: { value: "test2@example.com" },
+    phone: { value: "098-765-4321" },
+  },
   summary: "Full-stack developer passionate about solutions",
   skills: ["javascript", "react", "node.js", "python", "sql", "kubernetes"],
   experience: [
@@ -149,6 +157,10 @@ describe("Resume Comparison Engine", () => {
       const minimalResume: Resume = {
         id: "minimal",
         title: "Developer",
+        contact: {
+          email: { value: "min@example.com" },
+          phone: { value: "000-000-0000" },
+        },
         skills: ["java"],
         experience: [],
         education: [],

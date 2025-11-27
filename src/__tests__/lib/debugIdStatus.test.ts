@@ -1,5 +1,14 @@
 import { checkIdStatus, resetCounter } from "@/lib/debugIdStatus";
 import { getDoc, setDoc } from "firebase/firestore";
+import { logger } from "@/lib/logger";
+
+// Mock logger
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    info: jest.fn(),
+    error: jest.fn(),
+  },
+}));
 
 // Mock dependencies
 jest.mock("@/lib/firebase", () => ({
@@ -12,16 +21,8 @@ jest.mock("firebase/firestore", () => ({
 }));
 
 describe("debugIdStatus", () => {
-  const mockConsoleLog = jest.spyOn(console, "log").mockImplementation();
-  const mockConsoleError = jest.spyOn(console, "error").mockImplementation();
-
   beforeEach(() => {
     jest.clearAllMocks();
-  });
-
-  afterAll(() => {
-    mockConsoleLog.mockRestore();
-    mockConsoleError.mockRestore();
   });
 
   describe("checkIdStatus", () => {
@@ -45,16 +46,16 @@ describe("debugIdStatus", () => {
 
       await checkIdStatus();
 
-      expect(mockConsoleLog).toHaveBeenCalledWith(
+      expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining("ID Counter Status")
       );
-      expect(mockConsoleLog).toHaveBeenCalledWith(
+      expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining("Counter exists")
       );
-      expect(mockConsoleLog).toHaveBeenCalledWith(
+      expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining("Deleted IDs Pool Status")
       );
-      expect(mockConsoleLog).toHaveBeenCalledWith(
+      expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining("Pool exists")
       );
     });
@@ -66,10 +67,10 @@ describe("debugIdStatus", () => {
 
       await checkIdStatus();
 
-      expect(mockConsoleLog).toHaveBeenCalledWith(
+      expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining("Counter doesn't exist")
       );
-      expect(mockConsoleLog).toHaveBeenCalledWith(
+      expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining("Pool doesn't exist")
       );
     });
@@ -79,9 +80,9 @@ describe("debugIdStatus", () => {
 
       await checkIdStatus();
 
-      expect(mockConsoleError).toHaveBeenCalledWith(
-        expect.stringContaining("Error checking ID status"),
-        expect.any(Error)
+      expect(logger.error).toHaveBeenCalledWith(
+        { err: expect.any(Error) },
+        expect.stringContaining("Error checking ID status")
       );
     });
   });
@@ -96,7 +97,7 @@ describe("debugIdStatus", () => {
           currentId: 0,
         })
       );
-      expect(mockConsoleLog).toHaveBeenCalledWith(
+      expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining("Counter reset to 0")
       );
     });
@@ -106,9 +107,9 @@ describe("debugIdStatus", () => {
 
       await resetCounter();
 
-      expect(mockConsoleError).toHaveBeenCalledWith(
-        expect.stringContaining("Error resetting counter"),
-        expect.any(Error)
+      expect(logger.error).toHaveBeenCalledWith(
+        { err: expect.any(Error) },
+        expect.stringContaining("Error resetting counter")
       );
     });
   });

@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { GET } from "./route";
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 import { getUserTier } from "@/lib/services/userService";
@@ -154,12 +154,9 @@ describe("GET /api/recruiter/search", () => {
   });
 
   it("should require authentication", async () => {
-    const unauthorized = new Response(
-      JSON.stringify({ error: "Unauthorized" }),
-      {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      }
+    const unauthorized = NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401 }
     );
     mockGetAuthenticatedUserId.mockResolvedValueOnce({
       error: unauthorized,

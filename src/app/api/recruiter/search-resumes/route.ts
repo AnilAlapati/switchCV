@@ -17,18 +17,27 @@ import { recordRecruiterSearchEvent } from "@/lib/recruiterSearchHistory";
 import { getUserRole, getUserTier } from "@/lib/services/userService";
 import { RATE_LIMITS } from "@/config/constants";
 import { logger } from "@/lib/logger";
-
-interface SearchRequest {
-  recruiterId: string;
-  userId?: string;
-  skills?: string[];
-  location?: string;
-}
+import { searchResumesSchema } from "@/lib/validations/recruiter";
 
 export async function POST(request: NextRequest) {
   try {
-    const body: SearchRequest = await request.json();
-    const { userId, skills, location } = body;
+    const body = await request.json();
+
+    const validationResult = searchResumesSchema.safeParse(body);
+    if (!validationResult.success) {
+      return handleApiError(
+        new Error("Invalid search parameters"),
+        "Invalid search parameters: " +
+          validationResult.error.errors.map((e) => e.message).join(", "),
+        400
+      );
+    }
+    const {
+      userId,
+      skills,
+      location,
+      recruiterId: requestedRecruiterId,
+    } = validationResult.data;
 
     const { userId: authenticatedUserId, error: authError } =
       await getAuthenticatedUserId(request);
@@ -42,7 +51,6 @@ export async function POST(request: NextRequest) {
       return handleApiError(null, "Recruiter access required", 403);
     }
 
-    const requestedRecruiterId = body.recruiterId?.trim();
     const recruiterId = requestedRecruiterId || authenticatedUserId;
 
     if (!isAdmin && recruiterId !== authenticatedUserId) {
@@ -73,7 +81,9 @@ export async function POST(request: NextRequest) {
         },
         { merge: true }
       )
-      .catch((err) => logger.error({ err: err }, "Failed to update search metrics:"));
+      .catch((err) =>
+        logger.error({ err: err }, "Failed to update search metrics:")
+      );
 
     // Determine search type based on parameters provided
     const hasUserId = userId && userId.trim();
