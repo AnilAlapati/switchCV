@@ -1,4 +1,5 @@
-import { logger } from "@/lib/logger";
+"use client";
+
 /**
  * useResumeDelete Hook
  *
@@ -11,8 +12,6 @@ import { logger } from "@/lib/logger";
  * - Error handling
  * - Pool statistics feedback
  */
-
-"use client";
 
 import { useState } from "react";
 
