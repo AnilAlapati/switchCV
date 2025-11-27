@@ -28,9 +28,10 @@ export async function POST(request: NextRequest) {
     });
 
     if (!rateLimitResult.allowed) {
-      return NextResponse.json(
-        { error: "Rate limit exceeded. Max 20 enhancements per hour." },
-        { status: 429 }
+      return handleApiError(
+        null,
+        "Rate limit exceeded. Max 20 enhancements per hour.",
+        429
       );
     }
 
