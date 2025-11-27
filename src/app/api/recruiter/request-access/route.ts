@@ -1,6 +1,8 @@
+import { logger } from "@/lib/logger";
 // src/app/api/recruiter/request-access/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import {
   handleApiError,
   getAuthenticatedUserId,
@@ -99,10 +101,10 @@ export async function POST(request: NextRequest) {
     // Increment request count in user document
     try {
       await userRef.update({
-        requestCount: adminDb.firestore.FieldValue.increment(1),
+        requestCount: FieldValue.increment(1),
       });
     } catch (err) {
-      console.warn("Could not update request count:", err);
+      logger.warn({ err: err }, "Could not update request count:");
     }
 
     return NextResponse.json({

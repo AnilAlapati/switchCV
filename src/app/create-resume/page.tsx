@@ -1,5 +1,7 @@
 "use client";
 
+import { logger } from "@/lib/logger";
+
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
@@ -62,7 +64,7 @@ export default function CreateResume() {
           setAiConnectionStatus(data);
         }
       } catch (error) {
-        console.error("Failed to check AI status:", error);
+        logger.error({ err: error }, "Failed to check AI status:");
         setAiConnectionStatus({ connected: false });
       }
     };
@@ -137,7 +139,7 @@ export default function CreateResume() {
         setStage("input");
       }
     } catch (error) {
-      console.error("Error generating resume:", error);
+      logger.error({ err: error }, "Error generating resume:");
       setAiError(
         error instanceof Error ? error.message : "Unknown error occurred"
       );

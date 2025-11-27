@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import {
@@ -83,7 +84,7 @@ function serializeTimestamp(value: any): string | null {
       return new Date(value).toISOString();
     }
   } catch (error) {
-    console.warn("Failed to serialize timestamp", error);
+    logger.warn({ err: error }, "Failed to serialize timestamp");
   }
   return null;
 }

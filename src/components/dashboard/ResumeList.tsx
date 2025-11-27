@@ -2,7 +2,12 @@ import Link from "next/link";
 import { ResumeProfile } from "@/types";
 
 interface ResumeListProps {
-  resumes: (ResumeProfile & { id: string; numericId?: number })[];
+  resumes: (ResumeProfile & {
+    id: string;
+    numericId?: number;
+    published?: boolean;
+    isPublic?: boolean;
+  })[];
 }
 
 export function ResumeList({ resumes }: ResumeListProps) {
@@ -27,7 +32,7 @@ export function ResumeList({ resumes }: ResumeListProps) {
                   {resume.summary || "No summary provided"}
                 </p>
               </div>
-              {resume.published && (
+              {(resume.published || resume.isPublic) && (
                 <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2 py-1 text-xs font-medium text-emerald-400 ring-1 ring-inset ring-emerald-500/20">
                   Live
                 </span>

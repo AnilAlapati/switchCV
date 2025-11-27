@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import {
   collection,
@@ -188,7 +189,7 @@ export async function POST(request: NextRequest) {
       updatedAt: serverTimestamp(),
     });
 
-    console.log(
+    logger.info(
       `📨 Contact request created: ${requestRef.id} from ${payload.recruiterEmail} to ${payload.userId}`
     );
 
@@ -212,7 +213,7 @@ export async function POST(request: NextRequest) {
     // Store in admin notifications collection
     await addDoc(collection(db, "adminNotifications"), adminNotification);
 
-    console.log(`🔔 Admin notification created for request: ${requestRef.id}`);
+    logger.info(`🔔 Admin notification created for request: ${requestRef.id}`);
 
     return NextResponse.json({
       success: true,
@@ -222,7 +223,7 @@ export async function POST(request: NextRequest) {
         "Your request has been submitted for admin review. You will be notified when it is approved or denied.",
     });
   } catch (error) {
-    console.error("❌ Request contact error:", error);
+    logger.error({ err: error }, "❌ Request contact error:");
     return handleApiError(error, "Failed to create contact request");
   }
 }
@@ -279,7 +280,7 @@ export async function GET(request: NextRequest) {
       byStatus,
     });
   } catch (error) {
-    console.error("❌ Get requests error:", error);
+    logger.error({ err: error }, "❌ Get requests error:");
     return handleApiError(error, "Failed to fetch requests");
   }
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { logger } from "@/lib/logger";
+
 import { useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { MAX_CUSTOM_DAYS } from "@/lib/accessDuration";
@@ -102,7 +104,7 @@ export function RequestAccessDialog({
       onClose();
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
-      console.error("Request error:", errorMsg);
+      logger.error({ err: errorMsg }, "Request error:");
       setError(errorMsg);
     } finally {
       setLoading(false);

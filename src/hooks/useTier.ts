@@ -1,5 +1,6 @@
 "use client";
 
+import { logger } from "@/lib/logger";
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -81,7 +82,7 @@ export function useTier(): UseTierResult {
         setTier("basic");
       }
     } catch (err) {
-      console.error("Error fetching tier:", err);
+      logger.error({ err: err }, "Error fetching tier:");
       setError(err instanceof Error ? err.message : "Failed to fetch tier");
       setTier("basic"); // Default to basic on error
     } finally {

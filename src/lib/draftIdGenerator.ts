@@ -9,6 +9,7 @@
 
 import { adminDb } from "@/lib/firebase-admin";
 import { DRAFT_CONFIG } from "@/config/constants";
+import { logger } from "@/lib/logger";
 
 /**
  * Generates a random alphanumeric string of specified length.
@@ -79,8 +80,9 @@ export async function generateUniqueDraftId(): Promise<string> {
     }
 
     // Log collision for monitoring (rare event)
-    console.warn(
-      `Draft ID collision detected: ${candidateId}, attempt ${attempt + 1}`
+    logger.warn(
+      { candidateId, attempt: attempt + 1 },
+      "Draft ID collision detected"
     );
   }
 

@@ -1,5 +1,7 @@
-// src/hooks/useResume.tsx
 "use client";
+
+import { logger } from "@/lib/logger";
+// src/hooks/useResume.tsx
 
 import { useState, useEffect } from "react";
 import { collection, query, where, getDocs, limit } from "firebase/firestore";
@@ -55,7 +57,7 @@ export const useResume = (options: { enabled?: boolean } = {}) => {
             return dateB - dateA;
           });
 
-          console.log(`Loaded ${allResumes.length} resumes from 'resumes'`);
+          logger.info(`Loaded ${allResumes.length} resumes from 'resumes'`);
           setResumes(allResumes);
           setResume(allResumes[0]); // Set the most recent one as primary
         } else {
@@ -80,19 +82,19 @@ export const useResume = (options: { enabled?: boolean } = {}) => {
               return dateB - dateA;
             });
 
-            console.log(
+            logger.info(
               `Loaded ${allLegacyResumes.length} resumes from 'resumeProfiles'`
             );
             setResumes(allLegacyResumes);
             setResume(allLegacyResumes[0]);
           } else {
-            console.log("No resume found for user");
+            logger.info("No resume found for user");
             setResume(null);
             setResumes([]);
           }
         }
       } catch (err) {
-        console.error("Error fetching resume:", err);
+        logger.error({ err: err }, "Error fetching resume:");
         setError(err instanceof Error ? err.message : "Failed to fetch resume");
       } finally {
         setLoading(false);
@@ -109,11 +111,11 @@ export const useResume = (options: { enabled?: boolean } = {}) => {
   const getResumeId = () => {
     // Use numericId if available, otherwise fall back to Firestore document ID
     const id = resume?.numericId || resume?.id || null;
-    console.log("Resume ID resolved:", {
+    logger.info({
       numericId: resume?.numericId,
       docId: resume?.id,
       resolved: id,
-    });
+    }, "Resume ID resolved:");
     return id;
   };
 

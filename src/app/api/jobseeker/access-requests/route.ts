@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import {
@@ -19,8 +20,8 @@ export async function GET(request: NextRequest) {
 
     const requests: any[] = [];
 
-    console.log(`Fetching access requests for user: ${userId}`);
-    console.log(`Found ${resumesSnapshot.size} resumes.`);
+    logger.info(`Fetching access requests for user: ${userId}`);
+    logger.info(`Found ${resumesSnapshot.size} resumes.`);
 
     for (const resumeDoc of resumesSnapshot.docs) {
       const accessRequestsSnapshot = await resumeDoc.ref
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
         .orderBy("timestamp", "desc")
         .get();
 
-      console.log(
+      logger.info(
         `Resume ${resumeDoc.id}: Found ${accessRequestsSnapshot.size} total requests.`
       );
 
@@ -58,7 +59,10 @@ export async function GET(request: NextRequest) {
             expiresAtStr = new Date(data.expiresAt).toISOString();
           }
         } catch (e) {
-          console.warn(`Error parsing timestamp for request ${doc.id}`, e);
+          logger.warn(
+            { err: e },
+            `Error parsing timestamp for request ${doc.id}`
+          );
         }
 
         const rest = { ...data };
@@ -85,7 +89,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    console.log(`Total requests returning: ${requests.length}`);
+    logger.info(`Total requests returning: ${requests.length}`);
     return NextResponse.json({ requests });
   } catch (error) {
     return handleApiError(error, "Failed to fetch requests");

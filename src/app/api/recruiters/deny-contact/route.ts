@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import {
   doc,
@@ -104,10 +105,10 @@ export async function POST(request: NextRequest) {
 
     await addDoc(collection(db, "auditLogs"), auditLog);
 
-    console.log(
+    logger.info(
       `❌ Contact request denied: ${payload.requestId} by admin ${payload.adminUserId}`
     );
-    console.log(`Reason: ${payload.reason}`);
+    logger.info(`Reason: ${payload.reason}`);
 
     return NextResponse.json({
       success: true,
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest) {
       message: "Request denied. Recruiter has been notified.",
     });
   } catch (error) {
-    console.error("❌ Deny contact error:", error);
+    logger.error({ err: error }, "❌ Deny contact error:");
     return handleApiError(error, "Failed to deny contact request");
   }
 }

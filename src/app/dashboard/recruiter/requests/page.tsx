@@ -1,5 +1,7 @@
 "use client";
 
+import { logger } from "@/lib/logger";
+
 import { useCallback, useEffect, useMemo, useState, Suspense } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { DashboardBackground } from "@/components/dashboard/DashboardBackground";
@@ -45,7 +47,7 @@ function RecruiterRequestsContent() {
       router.replace("/auth");
       router.refresh();
     } catch (error) {
-      console.error("Failed to log out", error);
+      logger.error({ err: error }, "Failed to log out");
     }
   }, [logout, router]);
 
@@ -66,7 +68,7 @@ function RecruiterRequestsContent() {
         setError("Failed to load requests.");
       }
     } catch (error) {
-      console.error("Failed to fetch requests", error);
+      logger.error({ err: error }, "Failed to fetch requests");
       setError("An error occurred while loading requests.");
     } finally {
       setLoading(false);
@@ -115,7 +117,7 @@ function RecruiterRequestsContent() {
         alert(data.error || "Failed to delete request");
       }
     } catch (error) {
-      console.error("Error deleting request:", error);
+      logger.error({ err: error }, "Error deleting request:");
       alert("Error deleting request");
     } finally {
       setIsDeleting(false);

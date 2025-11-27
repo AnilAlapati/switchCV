@@ -14,6 +14,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { generateNumericResumeId } from "@/lib/numericIdGenerator";
+import { logger } from "@/lib/logger";
 import type { ResumeProfile } from "@/types";
 
 interface ResumeWithoutNumericId extends ResumeProfile {
@@ -46,10 +47,13 @@ export const findResumesWithoutNumericIds = async (): Promise<
         id: docSnap.id,
       })) as ResumeWithoutNumericId[];
 
-    console.log(`Found ${resumesWithoutId.length} resumes without numeric IDs`);
+    logger.info(
+      { count: resumesWithoutId.length },
+      "Found resumes without numeric IDs"
+    );
     return resumesWithoutId;
   } catch (error) {
-    console.error("Error finding resumes without numeric IDs:", error);
+    logger.error({ err: error }, "Error finding resumes without numeric IDs");
     throw error;
   }
 };
@@ -68,14 +72,12 @@ export const migrateResumeToNumericId = async (
       numericId,
     });
 
-    console.log(
-      `✅ Migrated resume ${resumeDocId} with numeric ID: ${numericId}`
-    );
+    logger.info({ resumeDocId, numericId }, "Migrated resume with numeric ID");
     return numericId;
   } catch (error) {
-    console.error(
-      `Error migrating resume ${resumeDocId} to numeric ID:`,
-      error
+    logger.error(
+      { err: error, resumeDocId },
+      "Error migrating resume to numeric ID"
     );
     throw error;
   }
@@ -89,12 +91,13 @@ export const migrateAllResumesToNumericIds = async (): Promise<number> => {
     const resumesWithoutIds = await findResumesWithoutNumericIds();
 
     if (resumesWithoutIds.length === 0) {
-      console.log("✅ All resumes already have numeric IDs");
+      logger.info("All resumes already have numeric IDs");
       return 0;
     }
 
-    console.log(
-      `🔄 Migrating ${resumesWithoutIds.length} resumes to numeric IDs...`
+    logger.info(
+      { count: resumesWithoutIds.length },
+      "Migrating resumes to numeric IDs"
     );
 
     let migratedCount = 0;
@@ -103,16 +106,20 @@ export const migrateAllResumesToNumericIds = async (): Promise<number> => {
         await migrateResumeToNumericId(resume.id);
         migratedCount++;
       } catch (error) {
-        console.error(`Failed to migrate resume ${resume.id}:`, error);
+        logger.error(
+          { err: error, resumeId: resume.id },
+          "Failed to migrate resume"
+        );
       }
     }
 
-    console.log(
-      `✅ Migration complete: ${migratedCount}/${resumesWithoutIds.length} resumes updated`
+    logger.info(
+      { migratedCount, total: resumesWithoutIds.length },
+      "Migration complete"
     );
     return migratedCount;
   } catch (error) {
-    console.error("Error in batch migration:", error);
+    logger.error({ err: error }, "Error in batch migration");
     throw error;
   }
 };
@@ -129,7 +136,7 @@ export const migrateUserResumesToNumericIds = async (
     const snapshot = await getDocs(q);
 
     if (snapshot.empty) {
-      console.log(`✅ No resumes found for user ${userId}`);
+      logger.info({ userId }, "No resumes found for user");
       return 0;
     }
 
@@ -140,12 +147,13 @@ export const migrateUserResumesToNumericIds = async (
     });
 
     if (resumesWithoutId.length === 0) {
-      console.log(`✅ All resumes for user ${userId} have numeric IDs`);
+      logger.info({ userId }, "All resumes for user have numeric IDs");
       return 0;
     }
 
-    console.log(
-      `🔄 Migrating ${resumesWithoutId.length} resume(s) for user ${userId}...`
+    logger.info(
+      { userId, count: resumesWithoutId.length },
+      "Migrating user resumes"
     );
 
     let migratedCount = 0;
@@ -154,16 +162,20 @@ export const migrateUserResumesToNumericIds = async (
         await migrateResumeToNumericId(docSnap.id);
         migratedCount++;
       } catch (error) {
-        console.error(`Failed to migrate resume ${docSnap.id}:`, error);
+        logger.error(
+          { err: error, resumeId: docSnap.id },
+          "Failed to migrate resume"
+        );
       }
     }
 
-    console.log(
-      `✅ User migration complete: ${migratedCount}/${resumesWithoutId.length} resumes updated`
+    logger.info(
+      { userId, migratedCount, total: resumesWithoutId.length },
+      "User migration complete"
     );
     return migratedCount;
   } catch (error) {
-    console.error(`Error migrating user ${userId} resumes:`, error);
+    logger.error({ err: error, userId }, "Error migrating user resumes");
     throw error;
   }
 };

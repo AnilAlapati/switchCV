@@ -303,7 +303,7 @@ export const generateResumeEnhancement = (
       },
     };
   } catch (error) {
-    logger.error("Error generating resume enhancement:", error);
+    logger.error({ err: error }, "Error generating resume enhancement:");
     throw new Error("Failed to analyze resume");
   }
 };

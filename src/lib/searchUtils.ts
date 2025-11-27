@@ -81,7 +81,7 @@ export const exportSearchResults = (
 
     throw new Error("Unsupported export format");
   } catch (error) {
-    logger.error("Error exporting search results:", error);
+    logger.error({ err: error }, "Error exporting search results:");
     throw new Error("Failed to export results");
   }
 };

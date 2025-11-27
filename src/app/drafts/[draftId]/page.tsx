@@ -1,5 +1,7 @@
 "use client";
 
+import { logger } from "@/lib/logger";
+
 /**
  * Draft Preview Page
  *
@@ -68,7 +70,7 @@ export default function DraftPreview() {
           await templateService.getTemplateById(templateId);
         setTemplate(fetchedTemplate);
       } catch (err: any) {
-        console.error("Error fetching draft:", err);
+        logger.error({ err: err }, "Error fetching draft:");
         setError(err.message || "Error loading draft");
       } finally {
         setLoading(false);
@@ -104,7 +106,7 @@ export default function DraftPreview() {
       // Redirect to the published resume
       router.push(`/resumes/${result.resumeId}`);
     } catch (err: any) {
-      console.error("Error publishing draft:", err);
+      logger.error({ err: err }, "Error publishing draft:");
       setPublishError(err.message || "Failed to publish. Please try again.");
     } finally {
       setPublishing(false);

@@ -1,5 +1,7 @@
 "use client";
 
+import { logger } from "@/lib/logger";
+
 import { useState, useEffect } from "react";
 import { usePersonalAuditLogs } from "@/hooks/useAuditLog";
 
@@ -15,7 +17,7 @@ export function AuditLogViewer() {
         const auditLogs = await getMyAuditLogs(50);
         setLogs(auditLogs);
       } catch (error) {
-        console.error("Failed to load audit logs:", error);
+        logger.error({ err: error }, "Failed to load audit logs:");
       } finally {
         setLoading(false);
       }
@@ -42,7 +44,7 @@ export function AuditLogViewer() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error) {
-      console.error("Failed to export data:", error);
+      logger.error({ err: error }, "Failed to export data:");
       alert("Failed to export your data. Please try again.");
     } finally {
       setExporting(false);

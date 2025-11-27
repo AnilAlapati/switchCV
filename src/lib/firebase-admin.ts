@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import * as admin from "firebase-admin";
 
 /**
@@ -58,7 +59,7 @@ if (!admin.apps.length) {
   } catch (error) {
     // Using console.error here intentionally - logger may not be initialized yet
     // This is a bootstrap error that must be visible
-    console.error("Failed to initialize Firebase Admin SDK:", error);
+    logger.error({ err: error }, "Failed to initialize Firebase Admin SDK:");
     throw error;
   }
 }

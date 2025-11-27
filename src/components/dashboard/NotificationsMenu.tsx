@@ -1,5 +1,7 @@
 "use client";
 
+import { logger } from "@/lib/logger";
+
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Notification, NotificationStatus } from "@/lib/notifications.types";
@@ -39,7 +41,7 @@ export function NotificationsMenu() {
           );
         }
       } catch (error) {
-        console.error("Failed to fetch notifications", error);
+        logger.error({ err: error }, "Failed to fetch notifications");
       }
     };
 
@@ -72,7 +74,7 @@ export function NotificationsMenu() {
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (error) {
-      console.error("Failed to mark as read", error);
+      logger.error({ err: error }, "Failed to mark as read");
     }
   };
 

@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import crypto from "crypto";
 
 /**
@@ -33,7 +34,7 @@ class TokenGenerator {
     this.secret =
       secret || process.env.TOKEN_SECRET || "development-secret-key";
     if (!process.env.TOKEN_SECRET && !secret) {
-      console.warn(
+      logger.warn(
         "⚠️  TOKEN_SECRET not configured. Using development secret. Set TOKEN_SECRET in .env.local for production."
       );
     }

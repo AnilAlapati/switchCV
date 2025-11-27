@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 // src/app/api/profiles/approve-access/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
@@ -93,7 +94,7 @@ export async function POST(request: NextRequest) {
       .collection("accessGrants")
       .add(accessGrant);
 
-    console.log(`✅ Access approved: ${grantRef.id} for duration: ${duration}`);
+    logger.info(`✅ Access approved: ${grantRef.id} for duration: ${duration}`);
 
     // 4. Send notification to requester
     const expiryText =
@@ -120,7 +121,7 @@ export async function POST(request: NextRequest) {
       .collection("messages")
       .add(notification);
 
-    console.log(`📬 Approval notification sent to: ${fromUserId}`);
+    logger.info(`📬 Approval notification sent to: ${fromUserId}`);
 
     return NextResponse.json({
       success: true,

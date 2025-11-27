@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { NextResponse } from "next/server";
 import { handleApiError } from "@/lib/utils/api-helpers";
 
@@ -48,7 +49,7 @@ async function getBestGeminiModel(apiKey: string): Promise<string> {
     // Use first available model if no preference matched
     return availableModels[0] || "gemini-2.5-flash";
   } catch (error) {
-    console.error("Failed to fetch Gemini models:", error);
+    logger.error({ err: error }, "Failed to fetch Gemini models:");
     return "gemini-2.5-flash"; // Fallback
   }
 }

@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 /**
  * Distributed Rate Limiting Utility
  *
@@ -115,7 +116,7 @@ export async function checkDistributedRateLimit(
   } catch (error) {
     // On transaction failure, allow the request but log the error
     // This prevents rate limiting from blocking requests during Firestore issues
-    console.error("Distributed rate limit check failed:", error);
+    logger.error({ err: error }, "Distributed rate limit check failed:");
     return {
       allowed: true,
       current: 0,
