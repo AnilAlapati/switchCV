@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import {
-  applyRateLimit,
   attachRateLimitHeaders,
   getAuthenticatedUserId,
   getClientIp,
@@ -18,6 +17,15 @@ import { getUserRole, getUserTier } from "@/lib/services/userService";
 import { RATE_LIMITS } from "@/config/constants";
 import { logger } from "@/lib/logger";
 import { searchResumesSchema } from "@/lib/validations/recruiter";
+import { createDistributedRateLimiter } from "@/lib/utils/distributedRateLimit";
+
+const recruiterSearchRateLimiter = createDistributedRateLimiter(
+  "recruiter-search",
+  {
+    limit: RATE_LIMITS.SEARCH_REQUESTS_PER_MINUTE,
+    windowMs: 60 * 1000,
+  }
+);
 
 export async function POST(request: NextRequest) {
   try {
@@ -58,14 +66,16 @@ export async function POST(request: NextRequest) {
     }
 
     const rateIdentifier = `${authenticatedUserId}:${getClientIp(request)}`;
-    const rateCheck = applyRateLimit(rateIdentifier, {
-      limit: RATE_LIMITS.SEARCH_REQUESTS_PER_MINUTE,
-      windowMs: 60 * 1000,
-    });
-    if (!rateCheck.allowed) {
-      return rateCheck.response;
+    const rateLimitResult = await recruiterSearchRateLimiter(rateIdentifier);
+    if (!rateLimitResult.allowed) {
+      const response = handleApiError(
+        new Error("Rate limit exceeded"),
+        "Too many requests. Please wait before searching again.",
+        429
+      );
+      attachRateLimitHeaders(response, rateLimitResult);
+      return response;
     }
-    const rateLimitResult = rateCheck.result;
 
     // Get recruiter's subscription tier (respects dev mode overrides)
     const subscriptionTier = await getUserTier(recruiterId);

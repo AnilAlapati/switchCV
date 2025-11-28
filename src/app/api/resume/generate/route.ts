@@ -1,6 +1,7 @@
 import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { generateText } from "@/lib/services/aiGenerationService";
+import { generateTextWithTier } from "@/lib/services/aiProviderService";
 import { ConversationManager } from "@/lib/services/conversationManager";
 import { ResumeDataExtractor } from "@/lib/services/resumeDataExtractor";
 import {
@@ -15,6 +16,8 @@ import {
   handleApiError,
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
+import { getUserTier } from "@/lib/services/userService";
+import type { SubscriptionTier } from "@/lib/config";
 
 interface GenerateResumeRequest {
   message: string;
@@ -45,6 +48,18 @@ export async function POST(request: NextRequest) {
 
     const body: GenerateResumeRequest = await request.json();
     const { message, conversationHistory, sessionData, modelId } = body;
+
+    let userTier: SubscriptionTier = "basic";
+    if (authenticatedUserId) {
+      try {
+        userTier = await getUserTier(authenticatedUserId);
+      } catch (tierError) {
+        logger.warn(
+          { err: tierError, userId: authenticatedUserId },
+          "Failed to load user tier, defaulting to basic"
+        );
+      }
+    }
 
     if (!message) {
       return handleApiError(
@@ -133,8 +148,27 @@ export async function POST(request: NextRequest) {
       userWantsToCreate // Pass forceCreate flag
     );
 
-    // Step 4: Generate AI response
-    const aiResponse = await generateText(prompt, 4000, 0.7, modelId); // Increased token limit for JSON generation
+    // Step 4: Generate AI response (tier-aware with graceful fallback)
+    type TieredResult = Awaited<ReturnType<typeof generateTextWithTier>>;
+    type LegacyResult = Awaited<ReturnType<typeof generateText>>;
+
+    let aiResponse: TieredResult | LegacyResult;
+
+    try {
+      aiResponse = await generateTextWithTier({
+        prompt,
+        maxTokens: 4000,
+        temperature: 0.7,
+        userTier,
+        modelId,
+      });
+    } catch (tieredError) {
+      logger.error(
+        { err: tieredError, userId, userTier, modelId },
+        "Tier-based AI provider selection failed, falling back to legacy generator"
+      );
+      aiResponse = await generateText(prompt, 4000, 0.7);
+    }
     const responseText = aiResponse.text;
 
     // Step 5: Check if AI indicates completion or if we have enough data
