@@ -66,13 +66,13 @@ export default defineConfig({
 
   // Configure projects for browsers
   projects: [
-    // Setup project for authentication
+    // Setup project for authentication (only if credentials are set)
     {
       name: "setup",
       testMatch: /.*\.setup\.ts/,
     },
 
-    // Chromium tests (main browser)
+    // Chromium tests requiring authentication
     {
       name: "chromium",
       use: {
@@ -81,9 +81,11 @@ export default defineConfig({
         storageState: ".auth/user.json",
       },
       dependencies: ["setup"],
+      // Only run if E2E credentials are configured
+      testIgnore: process.env.E2E_TEST_EMAIL ? [] : [/.*/],
     },
 
-    // Unauthenticated tests (no setup dependency)
+    // Unauthenticated tests (always run, no setup dependency)
     {
       name: "chromium-unauthenticated",
       use: { ...devices["Desktop Chrome"] },
