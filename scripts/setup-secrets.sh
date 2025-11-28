@@ -1,17 +1,27 @@
 #!/bin/bash
 
 # Setup Secrets Script
-# Usage: ./scripts/setup-secrets.sh
+# Usage: ./scripts/setup-secrets.sh [project-id]
+# Example: ./scripts/setup-secrets.sh switchcv-dev
 
 set -e # Exit on error
 
-echo "🔑 Setting up Secrets for switchcv-dev..."
+# Determine which project to use
+PROJECT_ID=${1:-"switchcv-dev"}
 
-# Read secrets from .env.local
+echo "🔑 Setting up Secrets for ${PROJECT_ID}..."
+
+# Determine which env file to use based on the current .env.local
+# (which was set by switch-env.sh)
 if [ -f .env.local ]; then
+    echo "📄 Reading secrets from .env.local"
     export $(grep -v '^#' .env.local | xargs)
+elif [ -f .env.dev ]; then
+    echo "📄 Reading secrets from .env.dev (fallback)"
+    export $(grep -v '^#' .env.dev | xargs)
 else
-    echo "❌ .env.local file not found!"
+    echo "❌ No .env.local or .env.dev file found!"
+    echo "   Please run 'npm run env:dev' first or create .env.local"
     exit 1
 fi
 
@@ -23,9 +33,9 @@ set_secret() {
     if [ -n "$value" ]; then
         echo "Setting $key..."
         # Pipe the value into the command to avoid interactive prompt
-        echo "$value" | firebase functions:secrets:set "$key" --project switchcv-dev
+        echo "$value" | firebase functions:secrets:set "$key" --project "$PROJECT_ID"
     else
-        echo "⚠️  Warning: $key not found in .env.local"
+        echo "⚠️  Warning: $key not found in env file"
     fi
 }
 
