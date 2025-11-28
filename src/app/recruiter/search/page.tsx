@@ -8,23 +8,33 @@ import {
 } from "@/components/recruiter/SearchInterface";
 import { SmartSearch } from "@/components/search/SmartSearch";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { useRouter } from "next/navigation";
 
 type SearchMode = "ai" | "basic";
 
 export default function RecruiterSearchPage() {
-  const { user, loading, needsEmailVerification } = useAuth();
+  const { user, loading: authLoading, needsEmailVerification } = useAuth();
+  const { role, loading: profileLoading } = useUserProfile();
   const router = useRouter();
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchMode, setSearchMode] = useState<SearchMode>("ai");
 
+  const loading = authLoading || profileLoading;
+
   useEffect(() => {
-    if (!loading && (!user || needsEmailVerification)) {
-      router.replace("/auth?mode=verify-email");
+    if (!loading) {
+      if (!user || needsEmailVerification) {
+        router.replace("/auth?mode=verify-email");
+      } else if (!role) {
+        router.replace("/select-role");
+      } else if (role !== "recruiter" && role !== "admin") {
+        router.replace("/dashboard");
+      }
     }
-  }, [loading, user, needsEmailVerification, router]);
+  }, [loading, user, needsEmailVerification, role, router]);
 
   if (loading) {
     return (

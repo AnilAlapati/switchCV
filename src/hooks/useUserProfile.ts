@@ -24,7 +24,7 @@ interface UserProfile {
 interface UseUserProfileResult {
   profile: UserProfile | null;
   tier: SubscriptionTier;
-  role: UserRole;
+  role: UserRole | undefined;
   loading: boolean;
   error: any;
   mutate: () => Promise<any>;
@@ -68,22 +68,22 @@ export function useUserProfile(): UseUserProfileResult {
     data?.subscriptionTier ||
     "basic";
 
-  const effectiveRole: UserRole =
-    (DEV_MODE_ENABLED && DEV_ROLE_OVERRIDE) || data?.role || "jobseeker";
+  const effectiveRole: UserRole | undefined =
+    (DEV_MODE_ENABLED && DEV_ROLE_OVERRIDE) || data?.role;
 
   // Construct effective profile
   const effectiveProfile: UserProfile | null = data
     ? {
         ...data,
         subscriptionTier: effectiveTier,
-        role: effectiveRole,
+        role: effectiveRole as UserRole,
       }
     : user
     ? {
         uid: user.uid,
         email: user.email || "",
         subscriptionTier: effectiveTier,
-        role: effectiveRole,
+        role: effectiveRole as UserRole,
       }
     : null;
 

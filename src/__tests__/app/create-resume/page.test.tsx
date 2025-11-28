@@ -4,10 +4,14 @@ import CreateResume from "@/app/create-resume/page";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { useTier } from "@/hooks/useTier";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 // Mock hooks
 jest.mock("@/hooks/useAuth");
 jest.mock("@/hooks/useTier");
+jest.mock("@/hooks/useUserProfile", () => ({
+  useUserProfile: jest.fn(() => ({ role: "jobseeker", loading: false })),
+}));
 jest.mock("next/navigation", () => ({
   useRouter: jest.fn(),
 }));
@@ -58,6 +62,10 @@ describe("CreateResume Page", () => {
     });
     (useTier as jest.Mock).mockReturnValue({
       isPremiumOrHigher: false,
+      loading: false,
+    });
+    (useUserProfile as jest.Mock).mockReturnValue({
+      role: "jobseeker",
       loading: false,
     });
     global.fetch = jest.fn().mockResolvedValue({
