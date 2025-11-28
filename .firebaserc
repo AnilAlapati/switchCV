@@ -1,12 +1,18 @@
 {
   "projects": {
-    "default": "switchcv-e5136"
+    "default": "switchcv-e5136",
+    "dev": "switchcv-dev"
   },
   "targets": {},
   "etags": {
     "switchcv-e5136": {
       "extensionInstances": {
         "firestore-send-email": "cc8e390ec5ec14dd2b4c9e4ca1594a53044ae26df304a0ad67f75ca8638a5f73"
+      }
+    },
+    "switchcv-dev": {
+      "extensionInstances": {
+        "firestore-send-email": "eef8bd03c1d306bbdc3091fbb10c7df93533184e76568d0dde10327d549e1856"
       }
     }
   }

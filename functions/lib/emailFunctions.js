@@ -50,12 +50,23 @@ exports.onUserCreated = functions.auth.user().onCreate(async (user) => {
             .doc(user.uid)
             .get();
         const userData = userDoc.data();
+        // Generate email verification link
+        let verificationLink = `${process.env.WEBSITE_URL}/verify-email`; // Fallback
+        if (user.email) {
+            try {
+                verificationLink = await admin.auth().generateEmailVerificationLink(user.email);
+            }
+            catch (e) {
+                console.error("Error generating verification link:", e);
+            }
+        }
         const result = await emailService_1.emailService.sendEmail({
             to: user.email || "",
             template: "welcomeEmail",
             data: {
                 firstName: (userData === null || userData === void 0 ? void 0 : userData.firstName) || user.displayName || "User",
                 onboardingUrl: `${process.env.WEBSITE_URL}/onboarding`,
+                verificationUrl: verificationLink,
             },
         });
         if (result.success) {

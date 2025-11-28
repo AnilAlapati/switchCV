@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
     scope: "profile-search",
   });
   if (!rateCheck.allowed) {
+    /* eslint-disable no-restricted-syntax */
     return NextResponse.json(
       {
         error: "Too many search requests",
@@ -56,6 +57,7 @@ export async function POST(request: NextRequest) {
         },
       }
     );
+    /* eslint-enable no-restricted-syntax */
   }
 
   try {

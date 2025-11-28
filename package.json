@@ -21,6 +21,10 @@
     "postinstall": "chmod +x scripts/*.sh 2>/dev/null || true",
     "precommit": "bash scripts/auto-maintain.sh",
     "cleanup": "bash scripts/auto-maintain.sh",
+    "setup:dev": "bash scripts/setup-dev-env.sh",
+    "deploy:cloud": "bash scripts/deploy-sync.sh",
+    "env:dev": "bash scripts/switch-env.sh dev",
+    "env:prod": "bash scripts/switch-env.sh prod",
     "health-check": "bash scripts/check-repo-health.sh",
     "release": "node scripts/increment-version.js"
   },
