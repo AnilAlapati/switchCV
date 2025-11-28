@@ -1,7 +1,5 @@
 import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
-import { getFunctions, httpsCallable } from "firebase/functions";
-import { getApp } from "firebase/app";
 import {
   getAuthenticatedUserId,
   handleApiError,
@@ -9,8 +7,7 @@ import {
 } from "@/lib/utils/api-helpers";
 import { aiSearchRateLimiter } from "@/lib/utils/distributedRateLimit";
 
-// Initialize Firebase client (required for callable functions)
-import "@/lib/firebase";
+const REGION = "us-central1";
 
 interface SearchRequest {
   query: string;
@@ -81,16 +78,74 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Call the Cloud Function
-    const functions = getFunctions(getApp(), "us-central1");
-    const searchResumesAI = httpsCallable<
-      { query: string; limit: number },
-      SearchResponse
-    >(functions, "searchResumesAI");
+    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    if (!projectId) {
+      throw new Error("NEXT_PUBLIC_FIREBASE_PROJECT_ID is not configured");
+    }
 
-    const result = await searchResumesAI({ query: query.trim(), limit });
+    const functionUrl = `https://${REGION}-${projectId}.cloudfunctions.net/searchResumesAI`;
+    const response = await fetch(functionUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: request.headers.get("authorization") || "",
+      },
+      body: JSON.stringify({ data: { query: query.trim(), limit } }),
+    });
 
-    return NextResponse.json(result.data);
+    const payload = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      const errorMessage =
+        payload?.error?.message || payload?.error || "Search failed";
+      const status = response.status;
+
+      if (status === 403) {
+        if (errorMessage.includes("QUOTA_EXCEEDED")) {
+          return handleApiError(new Error("Quota exceeded"), errorMessage, 403);
+        }
+        if (
+          errorMessage.includes("not allowed") ||
+          errorMessage.includes("tier")
+        ) {
+          return handleApiError(
+            new Error("Tier not allowed"),
+            errorMessage,
+            403
+          );
+        }
+        return handleApiError(
+          new Error("Permission denied"),
+          errorMessage,
+          403
+        );
+      }
+
+      if (status === 401) {
+        return handleApiError(
+          new Error("Authentication required"),
+          "Please sign in to use AI search",
+          401
+        );
+      }
+
+      if (status === 400) {
+        return handleApiError(new Error(errorMessage), errorMessage, 400);
+      }
+
+      return handleApiError(
+        new Error(errorMessage),
+        errorMessage,
+        status || 500
+      );
+    }
+
+    const resultData = payload?.result ?? payload?.data ?? payload;
+    if (!resultData) {
+      throw new Error("Invalid response from search function");
+    }
+
+    return NextResponse.json(resultData as SearchResponse);
   } catch (error: any) {
     logger.error({ err: error }, "[AI Search API] Error:");
 

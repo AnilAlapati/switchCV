@@ -199,7 +199,28 @@ export async function performPremiumSearch(
 
     const resumesSnapshot = await resumesQuery.get();
     const seenUserIds = new Set<string>();
+
+    const userIdsToFetch = new Set<string>();
+    for (const resumeDoc of resumesSnapshot.docs) {
+      const uid = resumeDoc.data()?.userId;
+      if (uid) {
+        userIdsToFetch.add(uid);
+      }
+    }
+
     const userCache = new Map<string, Record<string, any> | null>();
+    if (userIdsToFetch.size > 0) {
+      const userRefs = Array.from(userIdsToFetch).map((id) =>
+        adminDb.collection("users").doc(id)
+      );
+      const userSnapshots = await adminDb.getAll(...userRefs);
+      userSnapshots.forEach((snapshot) => {
+        userCache.set(
+          snapshot.id,
+          snapshot.exists ? (snapshot.data() as Record<string, any>) : null
+        );
+      });
+    }
 
     for (const resumeDoc of resumesSnapshot.docs) {
       if (results.length >= PREMIUM_RESULT_LIMIT) {
@@ -217,20 +238,7 @@ export async function performPremiumSearch(
         continue;
       }
 
-      let userData: Record<string, any> | null;
-      if (userCache.has(userId)) {
-        userData = userCache.get(userId) ?? null;
-      } else {
-        const userSnapshot = await adminDb
-          .collection("users")
-          .doc(userId)
-          .get();
-        const resolvedData = userSnapshot.exists
-          ? (userSnapshot.data() as Record<string, any>)
-          : null;
-        userCache.set(userId, resolvedData);
-        userData = resolvedData;
-      }
+      const userData = userCache.get(userId) ?? null;
 
       if (!userData) {
         continue;
