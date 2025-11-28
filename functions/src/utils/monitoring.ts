@@ -1,5 +1,6 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
+import { emailService } from "../services/emailService";
 
 /**
  * Performance metric types
@@ -253,9 +254,14 @@ export enum AlertSeverity {
 export class AlertManager {
   private static instance: AlertManager;
   private db: FirebaseFirestore.Firestore | null = null;
+  private alertEmailTo: string | null;
+  private alertEmailSubjectPrefix: string;
 
   private constructor() {
     // Lazy initialization to avoid circular dependencies
+    this.alertEmailTo = process.env.ALERT_EMAIL_TO || "support@switchcv.com";
+    this.alertEmailSubjectPrefix =
+      process.env.ALERT_EMAIL_SUBJECT_PREFIX || "[SWITCHCV EMERGENCY]";
   }
 
   private getDb(): FirebaseFirestore.Firestore {
@@ -297,6 +303,10 @@ export class AlertManager {
         .doc("alerts")
         .collection("active")
         .add(alert);
+
+      if (severity !== AlertSeverity.INFO) {
+        await this.sendSupportEmail(severity, title, message, metadata);
+      }
 
       // Log based on severity
       switch (severity) {
@@ -374,6 +384,52 @@ export class AlertManager {
           threshold,
         }
       );
+    }
+  }
+
+  /**
+   * Fan out alert emails to the support mailbox
+   */
+  private async sendSupportEmail(
+    severity: AlertSeverity,
+    title: string,
+    message: string,
+    metadata?: Record<string, any>
+  ): Promise<void> {
+    if (!this.alertEmailTo) {
+      return;
+    }
+
+    try {
+      const metadataSection = metadata
+        ? `<pre>${JSON.stringify(metadata, null, 2)}</pre>`
+        : "<p>No additional metadata.</p>";
+
+      await emailService.sendCustomEmail({
+        to: this.alertEmailTo,
+        subject: `${
+          this.alertEmailSubjectPrefix
+        } ${severity.toUpperCase()}: ${title}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px;">
+            <h2>${title}</h2>
+            <p><strong>Severity:</strong> ${severity.toUpperCase()}</p>
+            <p>${message}</p>
+            <h3>Metadata</h3>
+            ${metadataSection}
+            <p style="color:#6b7280;font-size:12px;">Sent automatically by SwitchCV Monitoring</p>
+          </div>
+        `,
+        text: `${title} - ${message}\nSeverity: ${severity}\nMetadata: ${JSON.stringify(
+          metadata || {}
+        )}`,
+      });
+    } catch (error) {
+      functions.logger.error("Failed to send alert email", {
+        error: error instanceof Error ? error.message : String(error),
+        severity,
+        title,
+      });
     }
   }
 }

@@ -163,6 +163,16 @@ firebase functions:log --tail
 - Rate limit violations
 - Configuration issues
 
+#### 1b. Verify Health Endpoint & GitHub Ping
+
+```bash
+curl -s https://switchcv.com/api/health | jq
+```
+
+- ✅ `status: "ok"` indicates Firestore, Gemini, and SMTP are reachable.
+- 🔁 If degraded, check `monitoring/alerts` and the `[SWITCHCV EMERGENCY]` inbox.
+- 🛠️ Confirm the **Production Health Ping** workflow (runs every 5 minutes) is green in GitHub Actions. Configure `HEALTHCHECK_URL` secret if testing staging.
+
 #### 2. Check Firestore
 
 Open Firebase Console → Firestore
@@ -213,6 +223,11 @@ firebase functions:log --limit 100 | grep "duration"
 ```
 
 **Look for:** Consistent execution times
+
+#### 4. Confirm Daily Digest
+
+- Ensure the **Monitoring Daily Digest** workflow ran at 09:00 UTC.
+- Verify the `[SWITCHCV DIGEST]` email arrived at `support@switchcv.com` with the latest alert + metric summary.
 
 ## Rollback Plan 🔄
 

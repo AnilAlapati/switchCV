@@ -21,6 +21,13 @@ export interface EmailResult {
   timestamp: Date;
 }
 
+export interface CustomEmailOptions {
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+}
+
 export interface BulkEmailOptions {
   recipients: string[];
   template: keyof typeof EmailTemplates;
