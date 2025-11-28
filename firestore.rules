@@ -149,7 +149,9 @@ service cloud.firestore {
 
     // Analytics - public read for profile views, write by system
     match /analytics/{slug} {
-      allow read: if request.auth != null; // Authenticated users only
+      // globalStats is public (marketing stats on homepage - no sensitive data)
+      // Other analytics documents require authentication
+      allow read: if slug == 'globalStats' || request.auth != null;
       allow write: if request.auth != null; // Authenticated users can write events
       
       // Analytics events subcollection

@@ -7,6 +7,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 jest.mock("@/hooks/useAuth");
 jest.mock("next/navigation");
 
+// Mock fetch for username availability check
+global.fetch = jest.fn();
+
 // Mock child components that might cause issues or aren't relevant to logic
 jest.mock("@/components/auth/AuthBackground", () => ({
   AuthBackground: () => <div data-testid="auth-background" />,
@@ -54,16 +57,33 @@ jest.mock("@/components/auth/EmailVerificationNotice", () => ({
   ),
 }));
 
+// Mock useDebounce to return value immediately (no delay)
+jest.mock("@/hooks/useDebounce", () => ({
+  useDebouncedValue: (value: string) => ({
+    debouncedValue: value,
+    isPending: false,
+  }),
+  useDebounce: (value: string) => value,
+}));
+
 describe("AuthPage", () => {
   const mockSignIn = jest.fn();
   const mockSignUp = jest.fn();
   const mockSignInWithGoogle = jest.fn();
   const mockResendVerificationEmail = jest.fn();
   const mockRefreshUser = jest.fn();
+  const mockCheckNeedsUsername = jest.fn();
   const mockPush = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Mock fetch for username availability check - return available by default
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ available: true, username: "testuser" }),
+    });
 
     (useRouter as jest.Mock).mockReturnValue({
       push: mockPush,
@@ -73,17 +93,26 @@ describe("AuthPage", () => {
       get: jest.fn(),
     });
 
+    mockSignInWithGoogle.mockResolvedValue({ needsUsername: false });
+    mockCheckNeedsUsername.mockResolvedValue(false);
+
     (useAuth as jest.Mock).mockReturnValue({
       user: null,
       loading: false,
       needsEmailVerification: false,
+      needsUsername: false,
       verificationEmail: null,
       signIn: mockSignIn,
       signUp: mockSignUp,
       signInWithGoogle: mockSignInWithGoogle,
       resendVerificationEmail: mockResendVerificationEmail,
       refreshUser: mockRefreshUser,
+      checkNeedsUsername: mockCheckNeedsUsername,
     });
+  });
+
+  afterEach(() => {
+    jest.resetAllMocks();
   });
 
   it("renders sign in form by default", () => {
@@ -138,6 +167,13 @@ describe("AuthPage", () => {
       target: { value: "password123" },
     });
 
+    // Wait for the username availability check to complete
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/user/username/check")
+      );
+    });
+
     fireEvent.click(screen.getByRole("button", { name: "Create Account" }));
 
     await waitFor(() => {
@@ -170,6 +206,7 @@ describe("AuthPage", () => {
   });
 
   it("handles google sign in", async () => {
+    mockSignInWithGoogle.mockResolvedValue({ needsUsername: false });
     render(<AuthPage />);
     fireEvent.click(screen.getByText("Continue with Google"));
 
@@ -179,15 +216,51 @@ describe("AuthPage", () => {
     });
   });
 
-  it("redirects to dashboard if already logged in", () => {
+  it("redirects to choose-username if Google user needs username", async () => {
+    mockSignInWithGoogle.mockResolvedValue({ needsUsername: true });
+    render(<AuthPage />);
+    fireEvent.click(screen.getByText("Continue with Google"));
+
+    await waitFor(() => {
+      expect(mockSignInWithGoogle).toHaveBeenCalled();
+      expect(mockPush).toHaveBeenCalledWith("/auth/choose-username");
+    });
+  });
+
+  it("redirects to dashboard if already logged in", async () => {
+    mockCheckNeedsUsername.mockResolvedValue(false);
+
     (useAuth as jest.Mock).mockReturnValue({
       user: { uid: "123" },
       loading: false,
       needsEmailVerification: false,
+      needsUsername: false,
+      checkNeedsUsername: mockCheckNeedsUsername,
     });
 
     render(<AuthPage />);
-    expect(mockPush).toHaveBeenCalledWith("/dashboard");
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith("/dashboard");
+    });
+  });
+
+  it("redirects to choose-username if existing user needs username", async () => {
+    mockCheckNeedsUsername.mockResolvedValue(true);
+
+    (useAuth as jest.Mock).mockReturnValue({
+      user: { uid: "123" },
+      loading: false,
+      needsEmailVerification: false,
+      needsUsername: false,
+      checkNeedsUsername: mockCheckNeedsUsername,
+    });
+
+    render(<AuthPage />);
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith("/auth/choose-username");
+    });
   });
 
   it("shows verification notice when needed", () => {
@@ -195,9 +268,11 @@ describe("AuthPage", () => {
       user: { uid: "123" },
       loading: false,
       needsEmailVerification: true,
+      needsUsername: false,
       verificationEmail: "test@example.com",
       resendVerificationEmail: mockResendVerificationEmail,
       refreshUser: mockRefreshUser,
+      checkNeedsUsername: mockCheckNeedsUsername,
     });
 
     render(<AuthPage />);

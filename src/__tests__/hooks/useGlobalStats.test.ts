@@ -1,4 +1,4 @@
-import { renderHook, waitFor, act } from "@testing-library/react";
+import { renderHook, waitFor } from "@testing-library/react";
 import { getDoc } from "firebase/firestore";
 import { logger } from "@/lib/logger";
 
@@ -12,7 +12,6 @@ jest.mock("@/lib/logger", () => ({
 // Mock dependencies
 jest.mock("@/lib/firebase", () => ({
   db: {},
-  auth: { __isMock: true }, // Mark as mock to skip real auth initialization
 }));
 
 jest.mock("firebase/firestore", () => ({
@@ -21,21 +20,12 @@ jest.mock("firebase/firestore", () => ({
   onSnapshot: undefined, // Force fallback to getDoc
 }));
 
-jest.mock("firebase/auth", () => ({
-  onAuthStateChanged: jest.fn(() => jest.fn()),
-}));
-
-// Import hook and test helpers after mocks are set up
-import {
-  useGlobalStats,
-  __resetAuthState,
-  __setAuthState,
-} from "../../hooks/useGlobalStats";
+// Import hook after mocks are set up
+import { useGlobalStats } from "../../hooks/useGlobalStats";
 
 describe("useGlobalStats", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    __resetAuthState();
   });
 
   it("should return default stats initially", () => {
@@ -52,7 +42,7 @@ describe("useGlobalStats", () => {
     });
   });
 
-  it("should fetch and update stats from firestore when authenticated", async () => {
+  it("should fetch and update stats from firestore (public access)", async () => {
     (getDoc as jest.Mock).mockResolvedValue({
       exists: () => true,
       data: () => ({
@@ -62,56 +52,37 @@ describe("useGlobalStats", () => {
     });
 
     const { result } = renderHook(() => useGlobalStats());
-
-    // Simulate user authentication
-    act(() => {
-      __setAuthState(true);
-    });
 
     await waitFor(() => {
       expect(result.current.stats.resumes).toBe("15000+");
       expect(result.current.stats.users).toBe("12000+");
     });
+
+    // getDoc should be called since globalStats is now public
+    expect(getDoc).toHaveBeenCalled();
   });
 
-  it("should return default stats when not authenticated", async () => {
+  it("should return default stats when document does not exist", async () => {
     (getDoc as jest.Mock).mockResolvedValue({
-      exists: () => true,
-      data: () => ({
-        resumeCount: 15000,
-        userCount: 12000,
-      }),
+      exists: () => false,
     });
 
     const { result } = renderHook(() => useGlobalStats());
 
-    // Simulate user NOT authenticated
-    act(() => {
-      __setAuthState(false);
-    });
-
     await waitFor(() => {
-      // Should stay at defaults because not authenticated
+      // Should stay at defaults because document doesn't exist
       expect(result.current.stats).toEqual({
         resumes: "12k+",
         users: "10k+",
         completion: "98%",
       });
     });
-
-    // getDoc should not have been called since user is not authenticated
-    expect(getDoc).not.toHaveBeenCalled();
   });
 
   it("should handle fetch error gracefully", async () => {
     (getDoc as jest.Mock).mockRejectedValue(new Error("Fetch failed"));
 
     const { result } = renderHook(() => useGlobalStats());
-
-    // Simulate user authentication
-    act(() => {
-      __setAuthState(true);
-    });
 
     await waitFor(() => {
       expect(result.current.stats).toEqual({

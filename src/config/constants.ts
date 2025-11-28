@@ -166,3 +166,119 @@ export const RESUME_STATES = {
   /** Resume was unpublished for editing (shows "being edited" message) */
   EDITING: "editing",
 } as const;
+
+/**
+ * Username Configuration
+ * Reserved usernames that cannot be claimed by users
+ */
+export const USERNAME_CONFIG = {
+  /** Minimum username length */
+  MIN_LENGTH: 3,
+  /** Maximum username length */
+  MAX_LENGTH: 30,
+  /** Debounce delay for availability check in ms */
+  CHECK_DEBOUNCE_MS: 400,
+  /** Rate limit for username availability checks per minute */
+  CHECK_RATE_LIMIT_PER_MINUTE: 10,
+} as const;
+
+/**
+ * Reserved Usernames
+ * These usernames cannot be claimed by users to prevent confusion,
+ * impersonation, and to reserve system/brand names.
+ */
+export const RESERVED_USERNAMES = [
+  // Brand & Company
+  "switchcv",
+  "switch-cv",
+  "switch_cv",
+  "switchcv-team",
+  "switchcv-official",
+  // System & Admin
+  "admin",
+  "administrator",
+  "root",
+  "system",
+  "moderator",
+  "mod",
+  "staff",
+  "team",
+  "official",
+  // Support & Help
+  "support",
+  "help",
+  "helpdesk",
+  "contact",
+  "feedback",
+  "info",
+  "service",
+  "customer-service",
+  // Security & Legal
+  "security",
+  "abuse",
+  "report",
+  "legal",
+  "privacy",
+  "terms",
+  "dmca",
+  "copyright",
+  // Technical & Infrastructure
+  "api",
+  "www",
+  "mail",
+  "email",
+  "ftp",
+  "cdn",
+  "static",
+  "assets",
+  "images",
+  "files",
+  "upload",
+  "download",
+  // Business & Billing
+  "billing",
+  "payments",
+  "invoice",
+  "sales",
+  "enterprise",
+  "business",
+  "careers",
+  "jobs",
+  "hire",
+  "hiring",
+  // Common Reserved
+  "test",
+  "demo",
+  "example",
+  "sample",
+  "null",
+  "undefined",
+  "anonymous",
+  "guest",
+  "user",
+  "users",
+  "account",
+  "profile",
+  "settings",
+  "dashboard",
+  "login",
+  "logout",
+  "signup",
+  "signin",
+  "register",
+  "password",
+  "reset",
+  "verify",
+  "confirm",
+  // Social Media Style
+  "everyone",
+  "all",
+  "here",
+  "channel",
+  "me",
+  "myself",
+  "you",
+] as const;
+
+/** Type for reserved usernames */
+export type ReservedUsername = (typeof RESERVED_USERNAMES)[number];

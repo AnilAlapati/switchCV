@@ -2,13 +2,18 @@
 
 import { logger } from "@/lib/logger";
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTier } from "@/hooks/useTier";
 import { RequestAccessDialog } from "@/components/RequestAccessDialog";
 import type { SearchResult, SearchModeType } from "./RecruiterSearchForm";
 import { RecruiterSearchForm } from "./RecruiterSearchForm";
 import { RecruiterSearchResults } from "./RecruiterSearchResults";
+import {
+  RecruiterSearchHeader,
+  RecruiterSearchLoadingState,
+} from "./RecruiterSearchHeader";
+import { useAiSearch } from "./useAiSearch";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface RecruiterSearchBoxProps {}
@@ -26,14 +31,14 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
   const [notification, setNotification] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
 
-  // AI Search state
-  const [aiQuery, setAiQuery] = useState("");
-  const [aiSearching, setAiSearching] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
-  const [aiQuota, setAiQuota] = useState<{
-    remaining: number;
-    limit: number;
-  } | null>(null);
+  // AI Search hook
+  const { aiQuery, setAiQuery, aiSearching, aiError, aiQuota, handleAiSearch } =
+    useAiSearch({
+      user,
+      setSearchResults,
+      setSearched,
+      setNotification,
+    });
 
   const [requestDialog, setRequestDialog] = useState<{
     isOpen: boolean;
@@ -66,108 +71,6 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
     if (searchMode === "premium" && !premiumFiltersEnabled) return "basic";
     return searchMode;
   }, [searchMode, premiumFiltersEnabled, aiSearchEnabled]);
-
-  /**
-   * Handle AI-powered semantic search
-   */
-  const handleAiSearch = useCallback(async () => {
-    if (!user) {
-      setAiError("Please sign in to use AI search");
-      return;
-    }
-
-    if (!aiQuery.trim() || aiQuery.length < 10) {
-      setAiError(
-        "Please enter a more detailed search query (at least 10 characters)"
-      );
-      return;
-    }
-
-    setAiSearching(true);
-    setAiError(null);
-    setSearchResults([]);
-    setSearched(false);
-
-    try {
-      const token = await user.getIdToken();
-      const response = await fetch("/api/search/ai", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          query: aiQuery.trim(),
-          limit: 10,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-
-        if (response.status === 403) {
-          if (errorData.code === "QUOTA_EXCEEDED") {
-            setAiError(
-              `You've reached your monthly search limit. Upgrade to Enterprise for unlimited searches.`
-            );
-          } else if (errorData.code === "TIER_NOT_ALLOWED") {
-            setAiError(
-              "AI-powered search requires a Premium or Enterprise subscription."
-            );
-          } else {
-            setAiError(errorData.message || "Access denied");
-          }
-          return;
-        }
-
-        throw new Error(errorData.message || "Search failed");
-      }
-
-      const data = await response.json();
-
-      // Transform AI search results to match SearchResult interface
-      const transformedResults: SearchResult[] = (data.results || []).map(
-        (result: {
-          resumeId: number;
-          title: string;
-          summary: string;
-          skills: string[];
-          similarityScore: number;
-        }) => ({
-          resumeId: String(result.resumeId),
-          title: result.title || "Untitled",
-          userName: "", // AI search doesn't return user name for privacy
-          userId: "",
-          skills: result.skills || [],
-          location: "", // AI search doesn't return location for privacy
-          createdAt: new Date().toISOString(),
-          accessStatus: "none" as const,
-          similarityScore: result.similarityScore,
-          summary: result.summary,
-        })
-      );
-
-      setSearchResults(transformedResults);
-      setAiQuota({
-        remaining: data.quotaRemaining,
-        limit: data.quotaLimit || 50,
-      });
-      setSearched(true);
-
-      if (transformedResults.length === 0) {
-        setNotification(
-          "No matching profiles found. Try adjusting your search criteria."
-        );
-      }
-    } catch (err) {
-      logger.error({ err }, "AI search error");
-      setAiError(
-        err instanceof Error ? err.message : "Search failed. Please try again."
-      );
-    } finally {
-      setAiSearching(false);
-    }
-  }, [user, aiQuery]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -267,69 +170,18 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
 
   // Show loading state while tier is being determined
   if (tierLoading) {
-    return (
-      <section className="space-y-6">
-        <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900/90 via-slate-900/80 to-slate-950/90 p-6 shadow-2xl shadow-cyan-500/10 backdrop-blur-sm ring-1 ring-white/5 lg:p-8">
-          <div className="flex items-center justify-center py-12">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-cyan-400 border-t-transparent" />
-          </div>
-        </div>
-      </section>
-    );
+    return <RecruiterSearchLoadingState />;
   }
 
   return (
     <section className="space-y-6">
       <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900/90 via-slate-900/80 to-slate-950/90 p-6 shadow-2xl shadow-cyan-500/10 backdrop-blur-sm ring-1 ring-white/5 lg:p-8">
         <div className="flex flex-col gap-6">
-          <header className="space-y-5">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="space-y-3">
-                <div className="inline-flex items-center gap-2.5 rounded-full border border-cyan-400/40 bg-gradient-to-r from-cyan-500/15 to-blue-500/15 px-4 py-1.5 backdrop-blur-sm">
-                  <span className="h-2 w-2 animate-pulse rounded-full bg-cyan-400 shadow-lg shadow-cyan-400/50" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-cyan-100">
-                    Recruiter Workspace
-                  </span>
-                </div>
-                <div>
-                  <h2 className="bg-gradient-to-r from-white via-slate-100 to-slate-300 bg-clip-text text-3xl font-black text-transparent lg:text-4xl">
-                    Resume Search
-                  </h2>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-400 lg:text-base">
-                    Discover talent instantly with advanced filters and
-                    real-time insights
-                  </p>
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2 rounded-full border border-white/10 bg-slate-950/60 px-4 py-2 backdrop-blur-sm">
-                  <span
-                    className={`h-2.5 w-2.5 rounded-full ${
-                      loading || aiSearching
-                        ? "animate-pulse bg-amber-400 shadow-lg shadow-amber-400/50"
-                        : searched
-                        ? "bg-emerald-400 shadow-lg shadow-emerald-400/50"
-                        : "bg-slate-500"
-                    }`}
-                  />
-                  <span className="text-xs font-semibold text-slate-300">
-                    {loading || aiSearching
-                      ? aiSearching
-                        ? "AI Searching"
-                        : "Searching"
-                      : searched
-                      ? "Live Results"
-                      : "Ready"}
-                  </span>
-                </div>
-                {searched && (
-                  <span className="hidden text-xs text-slate-500 lg:inline">
-                    Updated just now
-                  </span>
-                )}
-              </div>
-            </div>
-          </header>
+          <RecruiterSearchHeader
+            loading={loading}
+            aiSearching={aiSearching}
+            searched={searched}
+          />
 
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr),340px]">
             <div className="rounded-2xl border border-white/5 bg-slate-950/50 p-6 backdrop-blur-sm">
