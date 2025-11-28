@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * Global E2E Test Setup - Authentication
  *

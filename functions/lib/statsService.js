@@ -86,13 +86,21 @@ exports.aggregateGlobalStats = functions
             const statsDocRef = db
                 .collection(ANALYTICS_COLLECTION)
                 .doc(GLOBAL_STATS_DOC);
-            const [userCount, resumeCount] = await Promise.all([
+            const [userCount, resumeCount, jobSeekerCount, recruiterCount] = await Promise.all([
                 fetchCount(db.collection(USERS_COLLECTION), "userCount"),
                 fetchCount(db.collection(RESUME_COLLECTION).where("published", "==", true), "resumeCount"),
+                fetchCount(db
+                    .collection(USERS_COLLECTION)
+                    .where("role", "==", "jobseeker"), "jobSeekerCount"),
+                fetchCount(db
+                    .collection(USERS_COLLECTION)
+                    .where("role", "==", "recruiter"), "recruiterCount"),
             ]);
             const payload = {
                 userCount,
                 resumeCount,
+                jobSeekerCount,
+                recruiterCount,
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 lastRunEventId: context.eventId,
             };
@@ -106,6 +114,8 @@ exports.aggregateGlobalStats = functions
             functions.logger.info("Global stats aggregation completed", {
                 userCount,
                 resumeCount,
+                jobSeekerCount,
+                recruiterCount,
                 durationMs: Date.now() - start,
             });
         }

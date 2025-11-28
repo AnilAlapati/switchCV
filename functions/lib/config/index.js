@@ -84,11 +84,29 @@ class ConfigManager {
             analyticsPerMinute: parseInt(process.env.RATE_LIMIT_ANALYTICS || "100", 10),
         });
         // Security configuration
+        // SECURITY: Default CORS to specific production domains, not 'true' (all origins)
+        const defaultCorsOrigins = [
+            "https://switchcv.com",
+            "https://www.switchcv.com",
+            "https://app.switchcv.com",
+        ];
+        // In development/emulator, allow localhost
+        const isDev = process.env.FUNCTIONS_EMULATOR === "true" ||
+            process.env.NODE_ENV === "development";
+        const corsOrigin = process.env.CORS_ORIGIN
+            ? process.env.CORS_ORIGIN.split(",").map((o) => o.trim())
+            : isDev
+                ? [
+                    ...defaultCorsOrigins,
+                    "http://localhost:3000",
+                    "http://localhost:3001",
+                ]
+                : defaultCorsOrigins;
         this.config.set("security", {
             enableRateLimit: process.env.ENABLE_RATE_LIMIT !== "false",
             enableCors: process.env.ENABLE_CORS !== "false",
             enableHelmet: process.env.ENABLE_HELMET !== "false",
-            corsOrigin: process.env.CORS_ORIGIN || true,
+            corsOrigin,
         });
         // Database configuration
         this.config.set("database", {

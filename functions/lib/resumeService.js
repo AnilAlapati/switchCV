@@ -45,6 +45,7 @@ const generative_ai_1 = require("@google/generative-ai");
 const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
 const retryHandler_1 = require("./utils/retryHandler");
+const config_1 = require("./config");
 // Initialize AI clients
 const HUGGINGFACE_TOKEN = process.env.HUGGINGFACE_TOKEN;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -61,8 +62,9 @@ const aiRetryOptions = {
     backoffMultiplier: 2,
     retryableErrors: ["ECONNRESET", "ETIMEDOUT", "503", "429", "UNAVAILABLE"],
 };
-// CORS configuration
-const corsHandler = (0, cors_1.default)({ origin: true });
+// SECURITY: CORS configuration from config (specific origins, not 'true')
+const securityConfig = config_1.config.get("security");
+const corsHandler = (0, cors_1.default)({ origin: securityConfig.corsOrigin });
 // Helmet for security
 const helmetHandler = (0, helmet_1.default)({
     contentSecurityPolicy: false,
@@ -81,7 +83,12 @@ const ALLOWED_MODELS = [
  */
 exports.generateResumeContent = functions
     .runWith({
-    secrets: ["HUGGINGFACE_TOKEN", "GEMINI_API_KEY", "GROQ_API_KEY", "OPENAI_API_KEY"],
+    secrets: [
+        "HUGGINGFACE_TOKEN",
+        "GEMINI_API_KEY",
+        "GROQ_API_KEY",
+        "OPENAI_API_KEY",
+    ],
 })
     .https.onRequest(async (req, res) => {
     corsHandler(req, res, async () => {

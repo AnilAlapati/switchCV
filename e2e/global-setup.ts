@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * Global Setup for Playwright Tests
  *
@@ -32,7 +33,7 @@ async function globalSetup(config: FullConfig) {
         waitUntil: "domcontentloaded",
         timeout: 60000,
       });
-    } catch (error) {
+    } catch {
       // Some routes may redirect (e.g., protected routes), that's OK
       console.log(`  ⚠ ${route} (redirect or timeout - expected)`);
     }

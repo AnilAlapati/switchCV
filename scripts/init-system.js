@@ -19,12 +19,17 @@ const serviceAccountPath = path.join(
   "../firebase-service-account.json"
 );
 
+// Parse command line arguments for --project
+const args = process.argv.slice(2);
+const projectArgIndex = args.indexOf('--project');
+const projectOverride = projectArgIndex !== -1 ? args[projectArgIndex + 1] : null;
+
 let serviceAccount;
 let projectId;
 
 try {
   serviceAccount = require(serviceAccountPath);
-  projectId = serviceAccount.project_id;
+  projectId = projectOverride || serviceAccount.project_id;
   console.log("🔑 Found service account key file.");
   
   admin.initializeApp({
@@ -33,7 +38,7 @@ try {
   });
 } catch {
   console.log("⚠️ Service account key not found. Trying Application Default Credentials...");
-  projectId = "switchcv-e5136"; // Default project ID
+  projectId = projectOverride || "switchcv-e5136"; // Default project ID
   
   try {
     admin.initializeApp({
@@ -62,7 +67,7 @@ async function initializeSystem() {
     const counterRef = db.doc("system/resumeIdCounter");
     const counterSnap = await counterRef.get();
 
-    if (counterSnap.exists()) {
+    if (counterSnap.exists) {
       console.log("✅ System already initialized!");
       console.log(
         "📊 Current counter:",
@@ -95,7 +100,7 @@ async function initializeSystem() {
     const indexRef = db.doc("system/idIndex");
     const indexSnap = await indexRef.get();
 
-    if (!indexSnap.exists()) {
+    if (!indexSnap.exists) {
       await indexRef.set(
         {
           totalIds: 0,
