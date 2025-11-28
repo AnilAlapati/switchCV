@@ -103,3 +103,16 @@ npm run env:dev
 | **Deploy Backend** | `npm run deploy:cloud` |
 | **Force Dev Mode** | `npm run env:dev`      |
 | **Inspect Prod**   | `npm run env:prod`     |
+
+---
+
+## Monitoring & Alerts
+
+SwitchCV now includes 24/7 monitoring that notifies `support@switchcv.com` automatically:
+
+- **Emergency Alerts:** Any `AlertManager` entry in Firebase Functions also sends an email with subject prefix `[SWITCHCV EMERGENCY] …`. Check that inbox first whenever something feels off.
+- **Health Pings:** The GitHub workflow `Production Health Ping` runs every 5 minutes, calling `https://switchcv.com/api/health`. Configure the target host via the `HEALTHCHECK_URL` secret if you need a different environment. Workflow failures raise a GitHub notification + email.
+- **Health Endpoint:** `/api/health` now validates Firestore, Gemini, and SMTP connectivity. A `200 OK` means all dependencies responded; `503` indicates which service failed in the JSON payload.
+- **Daily Digest:** The `Monitoring Daily Digest` workflow (9:00 UTC) runs `scripts/monitoring/daily-digest.ts` and emails a 24‑hour summary of alerts/metrics to `support@switchcv.com`. Override recipients with the `DIGEST_EMAIL_TO` secret.
+
+> **Setup reminders:** Ensure repository secrets (`HEALTHCHECK_URL`, `SMTP_*`, `DIGEST_EMAIL_TO`, `GCP_WORKLOAD_IDENTITY_PROVIDER`, `GCP_SERVICE_ACCOUNT`) are populated in GitHub so the workflows can authenticate and send mail.
