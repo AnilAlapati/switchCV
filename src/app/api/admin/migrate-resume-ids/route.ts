@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { mapResumeId } from "@/lib/resumeIdMapping";
@@ -12,7 +13,7 @@ import { handleApiError } from "@/lib/utils/api-helpers";
 
 export async function POST() {
   try {
-    console.log("[Migration] Starting resume ID mapping migration...");
+    logger.info("[Migration] Starting resume ID mapping migration...");
 
     // Get all published resumes
     const resumesSnapshot = await adminDb
@@ -20,7 +21,7 @@ export async function POST() {
       .where("published", "==", true)
       .get();
 
-    console.log(`[Migration] Found ${resumesSnapshot.size} published resumes`);
+    logger.info(`[Migration] Found ${resumesSnapshot.size} published resumes`);
 
     // Get current counter
     const counterRef = adminDb.collection("system").doc("resumeIdCounter");
@@ -49,14 +50,17 @@ export async function POST() {
         migrated++;
         nextId++;
       } catch (error) {
-        console.error(`[Migration] Failed to migrate resume ${doc.id}:`, error);
+        logger.error(
+          { err: error },
+          `[Migration] Failed to migrate resume ${doc.id}`
+        );
       }
     }
 
     // Update counter
     await counterRef.set({ nextId }, { merge: true });
 
-    console.log(`[Migration] Successfully migrated ${migrated} resumes`);
+    logger.info(`[Migration] Successfully migrated ${migrated} resumes`);
 
     return NextResponse.json({
       message: "Migration completed",

@@ -1,5 +1,7 @@
 "use client";
 
+import { logger } from "@/lib/logger";
+
 /* eslint-disable max-lines */
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
@@ -73,10 +75,13 @@ export default function ResumeView() {
   const viewerAccess = (resume?.viewerAccess as Record<string, any>) ?? {};
   const viewerIsOwner = Boolean(viewerAccess?.isOwner);
   const isPublicPreview = viewerAccess?.scope === "public-preview";
+  const isBeingEdited = Boolean(resume?.isBeingEdited);
   const countdownBanner =
     viewerIsOwner && deletionNotice ? (
       <DeletionCountdownBanner notice={deletionNotice} />
     ) : null;
+  const editingBanner =
+    !viewerIsOwner && isBeingEdited ? <EditingInProgressBanner /> : null;
 
   useEffect(() => {
     if (!toast) return;
@@ -184,7 +189,7 @@ export default function ResumeView() {
         : "Resume is now private. Only you can view this resume.";
       setToast({ tone: "success", message: visibilityMessage });
     } catch (error) {
-      console.error("Error updating visibility:", error);
+      logger.error({ err: error }, "Error updating visibility:");
       setToast({
         tone: "error",
         message: "Failed to update visibility settings. Please try again.",
@@ -200,11 +205,11 @@ export default function ResumeView() {
 
       let handledAccess = false;
       try {
-        console.log("Fetching resume", id);
+        logger.info({ data: id }, "Fetching resume");
         if (user) {
-          console.log("User is authenticated, attaching token.");
+          logger.info("User is authenticated, attaching token.");
         } else {
-          console.log("User is NOT authenticated.");
+          logger.info("User is NOT authenticated.");
         }
         setAccessBlock(null);
         setError(null);
@@ -274,7 +279,7 @@ export default function ResumeView() {
         );
         setTemplate(fetchedTemplate);
       } catch (error: any) {
-        console.error("Error fetching resume:", error);
+        logger.error({ err: error }, "Error fetching resume:");
         if (!handledAccess) {
           setError(error.message || "Error loading resume");
         }
@@ -326,6 +331,7 @@ export default function ResumeView() {
       <div className="min-h-screen bg-gray-900 text-white p-8 font-sans relative">
         <ResumeToastOverlay toast={toast} onDismiss={() => setToast(null)} />
         {countdownBanner}
+        {editingBanner}
         {/* Privacy Toggle */}
         <PrivacyMenu
           isPublic={resume.isPublic}
@@ -364,6 +370,7 @@ export default function ResumeView() {
     <>
       <ResumeToastOverlay toast={toast} onDismiss={() => setToast(null)} />
       {countdownBanner}
+      {editingBanner}
       <LegacyResumeRenderer resume={resume} />
     </>
   );
@@ -400,6 +407,23 @@ function DeletionCountdownBanner({
           so you have time to upgrade.
         </p>
       )}
+    </div>
+  );
+}
+
+function EditingInProgressBanner() {
+  return (
+    <div
+      className="mb-4 rounded-lg border border-blue-400 bg-blue-500/10 px-4 py-3 text-sm leading-relaxed text-blue-100"
+      role="status"
+    >
+      <p className="font-semibold text-base">
+        📝 This resume is currently being edited
+      </p>
+      <p>
+        The owner is making updates to this resume. Some information may be
+        outdated until editing is complete.
+      </p>
     </div>
   );
 }

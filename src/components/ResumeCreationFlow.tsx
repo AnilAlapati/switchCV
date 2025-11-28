@@ -1,5 +1,7 @@
 "use client";
 
+import { logger } from "@/lib/logger";
+
 import React, { useState, useCallback } from "react";
 import { ResumeQAForm } from "./ResumeQAForm";
 import { ResumeGenerationLoader } from "./ResumeGenerationLoader";
@@ -96,7 +98,7 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
         const result = await generateResumeContent(
           resumeData,
           selectedTemplate,
-          selectedTone
+          selectedTone as "creative" | "professional" | "concise"
         );
 
         if (!result) {
@@ -121,12 +123,18 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
             description: exp.enhancedDescription,
           })),
           education: [],
+          contact: {
+            email: { value: resumeData.personalInfo.email },
+            phone: resumeData.personalInfo.phone
+              ? { value: resumeData.personalInfo.phone }
+              : undefined,
+          },
         };
 
         setGeneratedResume(resume);
         setPhase("review");
       } catch (error) {
-        console.error("Resume generation failed:", error);
+        logger.error({ err: error }, "Resume generation failed:");
         setGenerationMessage("Error generating resume. Please try again.");
         setTimeout(() => {
           setPhase("questions");
@@ -167,7 +175,7 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
         onComplete?.(data.resumeId);
       }, 1500);
     } catch (error) {
-      console.error("Resume save failed:", error);
+      logger.error({ err: error }, "Resume save failed:");
       alert(error instanceof Error ? error.message : "Failed to save resume.");
       setPhase("review");
     }
@@ -207,7 +215,7 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
         const result = await generateResumeContent(
           resumeData,
           preferences.template,
-          preferences.tone
+          preferences.tone as "creative" | "professional" | "concise"
         );
 
         if (!result) {
@@ -229,12 +237,13 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
             description: exp.enhancedDescription,
           })),
           education: [],
+          contact: generatedResume.contact,
         };
 
         setGeneratedResume(updatedResume);
         setPhase("review");
       } catch (error) {
-        console.error("Resume regeneration failed:", error);
+        logger.error({ err: error }, "Resume regeneration failed:");
         setPhase("review");
         alert("Failed to regenerate resume. Please try again.");
       }

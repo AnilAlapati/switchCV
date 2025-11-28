@@ -23,13 +23,14 @@ import { logger } from "@/lib/logger";
 export interface TrackingRequest {
   resumeId: string;
   userId?: string;
-  eventType: "view" | "request" | "approval" | "click" | "share";
+  eventType: "view" | "request" | "approval" | "click" | "share" | "download";
   metadata?: {
     viewedBy?: string;
     viewerName?: string;
     source?: "search" | "direct" | "link" | "recruiter" | "other";
     referrer?: string;
     sessionDuration?: number;
+    downloadFormat?: "pdf" | "docx" | "json";
   };
 }
 
@@ -154,6 +155,21 @@ async function updateAnalyticsMetrics(
       }
     }
 
+    // Track downloads - ADDED to fix missing downloads metric increment
+    if (eventType === "download") {
+      updates["downloads"] = increment(1);
+      updates["lastDownloadedAt"] = timestamp;
+      if (metadata?.downloadFormat) {
+        updates[`downloadsByFormat.${metadata.downloadFormat}`] = increment(1);
+      }
+    }
+
+    // Track shares
+    if (eventType === "share") {
+      updates["shares"] = increment(1);
+      updates["lastSharedAt"] = timestamp;
+    }
+
     // Update total interactions
     updates["totalInteractions"] = increment(1);
 
@@ -172,6 +188,8 @@ async function updateAnalyticsMetrics(
 
 /**
  * Track average session duration
+ * FIXED: Uses atomic increment for both totalTimeSpent and totalSessions
+ * to avoid race conditions. Average is calculated at read time.
  */
 async function trackSessionDuration(
   resumeId: string,
@@ -188,19 +206,17 @@ async function trackSessionDuration(
     const engagementSnap = await getDoc(engagementRef);
 
     if (!engagementSnap.exists()) {
+      // Create new document with initial values
       await setDoc(engagementRef, {
         resumeId,
-        avgSessionDuration: sessionDuration,
+        totalTimeSpent: sessionDuration,
         totalSessions: 1,
+        // avgSessionDuration calculated at read time: totalTimeSpent / totalSessions
       });
     } else {
-      const data = engagementSnap.data();
-      const avgDuration =
-        (data.avgSessionDuration * data.totalSessions + sessionDuration) /
-        (data.totalSessions + 1);
-
+      // Atomic increment of both values - no race condition possible
       await updateDoc(engagementRef, {
-        avgSessionDuration: avgDuration,
+        totalTimeSpent: increment(sessionDuration),
         totalSessions: increment(1),
       });
     }
@@ -214,6 +230,7 @@ async function trackSessionDuration(
 
 /**
  * Get engagement metrics for a resume
+ * FIXED: Calculates avgSessionDuration from totalTimeSpent and totalSessions
  */
 export async function getEngagementMetrics(
   resumeId: string
@@ -227,7 +244,23 @@ export async function getEngagementMetrics(
       "current"
     );
     const snap = await getDoc(engagementRef);
-    return snap.exists() ? (snap.data() as EngagementMetrics) : null;
+
+    if (!snap.exists()) {
+      return null;
+    }
+
+    const data = snap.data();
+    const totalSessions = data.totalSessions || 0;
+    const totalTimeSpent = data.totalTimeSpent || 0;
+
+    // Calculate average at read time - no race condition
+    const avgSessionDuration =
+      totalSessions > 0 ? totalTimeSpent / totalSessions : 0;
+
+    return {
+      ...data,
+      avgSessionDuration,
+    } as EngagementMetrics;
   } catch (error) {
     logger.error({ err: error, resumeId }, "Error getting engagement metrics");
     return null;

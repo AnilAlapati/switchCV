@@ -1,17 +1,18 @@
-import { useEffect, useState } from "react";
+import { logger } from "@/lib/logger";
+import { useEffect, useState, useCallback } from "react";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 interface GlobalStats {
   resumes: string;
-  users: string;
-  completion: string;
+  jobSeekers: string;
+  recruiters: string;
 }
 
 const DEFAULT_STATS: GlobalStats = {
-  resumes: "12k+",
-  users: "10k+",
-  completion: "98%",
+  resumes: "—",
+  jobSeekers: "—",
+  recruiters: "—",
 };
 
 function formatCount(value: unknown, fallback: string) {
@@ -28,54 +29,42 @@ function formatCount(value: unknown, fallback: string) {
   return fallback;
 }
 
-function formatCompletion(value: unknown, fallback: string) {
-  if (typeof value === "number") {
-    const normalized = value <= 1 ? value * 100 : value;
-    return `${Math.round(normalized)}%`;
-  }
-
-  if (typeof value === "string" && value.trim()) {
-    return value.endsWith("%") ? value : `${value}%`;
-  }
-
-  return fallback;
-}
-
 export function useGlobalStats() {
   const [stats, setStats] = useState<GlobalStats>(DEFAULT_STATS);
 
+  const applyStats = useCallback((data?: Record<string, unknown> | null) => {
+    setStats({
+      resumes: formatCount(
+        data?.resumeCount ?? data?.resumes ?? data?.totalResumes,
+        DEFAULT_STATS.resumes
+      ),
+      jobSeekers: formatCount(
+        data?.jobSeekerCount ?? data?.jobSeekers,
+        DEFAULT_STATS.jobSeekers
+      ),
+      recruiters: formatCount(
+        data?.recruiterCount ?? data?.recruiters,
+        DEFAULT_STATS.recruiters
+      ),
+    });
+  }, []);
+
   useEffect(() => {
+    // globalStats is public - fetch regardless of auth state
+    // (Firestore rules allow public read for analytics/globalStats)
+
     if (!db || (db as { __isMock?: boolean }).__isMock) {
       return;
     }
 
     const statsRef = doc(db, "analytics", "globalStats");
 
-    const applyStats = (data?: Record<string, unknown> | null) => {
-      setStats({
-        resumes: formatCount(
-          data?.resumeCount ?? data?.resumes ?? data?.totalResumes,
-          DEFAULT_STATS.resumes
-        ),
-        users: formatCount(
-          data?.activeUsers ?? data?.userCount ?? data?.users,
-          DEFAULT_STATS.users
-        ),
-        completion: formatCompletion(
-          data?.profileCompletionRate ??
-            data?.completionRate ??
-            data?.completion,
-          DEFAULT_STATS.completion
-        ),
-      });
-    };
-
     if (typeof onSnapshot === "function") {
       const unsubscribe = onSnapshot(
         statsRef,
         (snapshot) => {
           if (!snapshot.exists()) {
-            setStats(DEFAULT_STATS);
+            applyStats(null);
             return;
           }
 
@@ -83,8 +72,8 @@ export function useGlobalStats() {
           applyStats(data as Record<string, unknown>);
         },
         (error) => {
-          console.error("Error fetching stats:", error);
-          setStats(DEFAULT_STATS);
+          logger.error({ err: error }, "Error fetching stats:");
+          applyStats(null);
         }
       );
 
@@ -105,7 +94,7 @@ export function useGlobalStats() {
         }
 
         if (typeof snapshot?.exists !== "function" || !snapshot.exists()) {
-          setStats(DEFAULT_STATS);
+          applyStats(null);
           return;
         }
 
@@ -121,8 +110,8 @@ export function useGlobalStats() {
         if (cancelled) {
           return;
         }
-        console.error("Error fetching stats:", error);
-        setStats(DEFAULT_STATS);
+        logger.error({ err: error }, "Error fetching stats:");
+        applyStats(null);
       }
     };
 
@@ -131,7 +120,7 @@ export function useGlobalStats() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [applyStats]);
 
   return { stats };
 }

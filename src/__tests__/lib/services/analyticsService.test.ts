@@ -55,7 +55,11 @@ describe("analyticsService", () => {
       const mockAnalyticsData = {
         views: { count: 10 },
       };
-      const mockEngagementData = { avgSessionDuration: 120 };
+      const mockEngagementRawData = { totalSessions: 2, totalTimeSpent: 240 };
+      const mockEngagementResult = {
+        ...mockEngagementRawData,
+        avgSessionDuration: 120,
+      };
       const mockRequestData = { totalRequests: 5 };
 
       (getDoc as jest.Mock)
@@ -65,7 +69,7 @@ describe("analyticsService", () => {
         })
         .mockResolvedValueOnce({
           exists: () => true,
-          data: () => mockEngagementData,
+          data: () => mockEngagementRawData,
         })
         .mockResolvedValueOnce({
           exists: () => true,
@@ -76,7 +80,7 @@ describe("analyticsService", () => {
 
       expect(result).toEqual({
         analytics: mockAnalyticsData,
-        engagement: mockEngagementData,
+        engagement: mockEngagementResult,
         requests: mockRequestData,
         resumeId: mockResumeId,
       });
@@ -179,7 +183,7 @@ describe("analyticsService", () => {
       expect(setDoc).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
-          avgSessionDuration: 60,
+          totalTimeSpent: 60,
           totalSessions: 1,
         })
       );
@@ -293,14 +297,16 @@ describe("analyticsService", () => {
 
   describe("getEngagementMetrics", () => {
     it("should return metrics when they exist", async () => {
-      const mockData = { avgSessionDuration: 100 };
+      const mockData = { totalSessions: 2, totalTimeSpent: 200 };
+      const expectedResult = { ...mockData, avgSessionDuration: 100 };
+
       (getDoc as jest.Mock).mockResolvedValue({
         exists: () => true,
         data: () => mockData,
       });
 
       const result = await getEngagementMetrics(mockResumeId);
-      expect(result).toEqual(mockData);
+      expect(result).toEqual(expectedResult);
     });
 
     it("should return null when metrics do not exist", async () => {

@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { useState } from "react";
 import { getAuth } from "firebase/auth";
 import { getBestModelForTask } from "@/config/aiModels";
@@ -63,12 +64,15 @@ export const useAIResume = () => {
     setError(null);
 
     const startTime = Date.now();
-    console.log("🤖 AI CALL STARTING", {
-      timestamp: new Date().toISOString(),
-      requestedModel: modelId || "auto-select",
-      tone,
-      template,
-    });
+    logger.info(
+      {
+        timestamp: new Date().toISOString(),
+        requestedModel: modelId || "auto-select",
+        tone,
+        template,
+      },
+      "🤖 AI CALL STARTING"
+    );
 
     try {
       const auth = getAuth();
@@ -82,18 +86,21 @@ export const useAIResume = () => {
       if (!modelId) {
         const selectedModel = getBestModelForTask("resume-enhancement");
         modelId = selectedModel?.modelId || "gemini-2.5-flash";
-        console.log(
+        logger.info(
           `✨ Auto-selected AI model: ${modelId} (${selectedModel?.provider})`
         );
       }
 
       const idToken = await user.getIdToken();
 
-      console.log("📡 Sending request to local AI endpoint...", {
-        url: "/api/ai/generate-resume",
-        modelId,
-        userId: user.uid.substring(0, 8) + "...",
-      });
+      logger.info(
+        {
+          url: "/api/ai/generate-resume",
+          modelId,
+          userId: user.uid.substring(0, 8) + "...",
+        },
+        "📡 Sending request to local AI endpoint..."
+      );
 
       const response = await fetch("/api/ai/generate-resume", {
         method: "POST",
@@ -113,37 +120,46 @@ export const useAIResume = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error("❌ AI CALL FAILED", {
-          status: response.status,
-          error: errorData.error,
-          duration: `${duration}ms`,
-        });
+        logger.error(
+          {
+            status: response.status,
+            error: errorData.error,
+            duration: `${duration}ms`,
+          },
+          "❌ AI CALL FAILED"
+        );
         throw new Error(errorData.error || "Failed to generate resume content");
       }
 
       const data = await response.json();
-      console.log("✅ AI CALL SUCCESS", {
-        duration: `${duration}ms`,
-        model: data.model,
-        provider: data.provider,
-        enhancedSummaryLength: data.data?.enhancedSummary?.length || 0,
-        skillSuggestionsCount: data.data?.skillSuggestions?.length || 0,
-        timestamp: new Date().toISOString(),
-      });
+      logger.info(
+        {
+          duration: `${duration}ms`,
+          model: data.model,
+          provider: data.provider,
+          enhancedSummaryLength: data.data?.enhancedSummary?.length || 0,
+          skillSuggestionsCount: data.data?.skillSuggestions?.length || 0,
+          timestamp: new Date().toISOString(),
+        },
+        "✅ AI CALL SUCCESS"
+      );
 
       return data.data;
     } catch (err) {
       const duration = Date.now() - startTime;
       const errorMessage =
         err instanceof Error ? err.message : "An unknown error occurred";
-      console.error("💥 AI CALL ERROR", {
-        error: errorMessage,
-        duration: `${duration}ms`,
-        timestamp: new Date().toISOString(),
-      });
+      logger.error(
+        {
+          error: errorMessage,
+          duration: `${duration}ms`,
+          timestamp: new Date().toISOString(),
+        },
+        "💥 AI CALL ERROR"
+      );
 
       // Fallback to mock AI when LLM is unavailable
-      console.warn("⚠️ AI Service unavailable, using mock AI generator...");
+      logger.warn("⚠️ AI Service unavailable, using mock AI generator...");
       try {
         const mockResult = generateMockEnhancedResume(
           resumeData.personalInfo.name,
@@ -151,10 +167,10 @@ export const useAIResume = () => {
           "Your Organization",
           resumeData.skills
         );
-        console.log("✅ MOCK AI GENERATED CONTENT");
+        logger.info("✅ MOCK AI GENERATED CONTENT");
         return mockResult as EnhancedResumeContent;
       } catch (mockErr) {
-        console.error("💥 MOCK AI FAILED TOO", mockErr);
+        logger.error({ err: mockErr }, "💥 MOCK AI FAILED TOO");
         setError(errorMessage);
         return null;
       }

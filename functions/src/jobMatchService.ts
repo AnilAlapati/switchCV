@@ -58,8 +58,8 @@ const aiRetryOptions: RetryOptions = {
   retryableErrors: ["ECONNRESET", "ETIMEDOUT", "503", "429", "UNAVAILABLE"],
 };
 
-// CORS configuration
-const corsHandler = cors({ origin: securityConfig.corsOrigin ?? true });
+// SECURITY: CORS configuration from config (specific origins by default, not 'true')
+const corsHandler = cors({ origin: securityConfig.corsOrigin });
 
 // Helmet for security (can be toggled via config)
 const helmetHandler: RequestHandler = securityConfig.enableHelmet
@@ -201,7 +201,12 @@ function deriveDeterministicInsights(
  */
 export const generateJobMatchSuggestions = functions
   .runWith({
-    secrets: ["HUGGINGFACE_TOKEN", "GEMINI_API_KEY"],
+    secrets: [
+      "HUGGINGFACE_TOKEN",
+      "GEMINI_API_KEY",
+      "GROQ_API_KEY",
+      "OPENAI_API_KEY",
+    ],
     timeoutSeconds: 60,
     memory: "512MB",
   })

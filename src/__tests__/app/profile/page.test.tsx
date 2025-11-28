@@ -1,17 +1,35 @@
 // src/__tests__/app/profile/page.test.tsx
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import ProfileEditor from "@/app/profile/page";
+import { logger } from "@/lib/logger";
 
-// Mock console.log to avoid console output during tests
-const consoleSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+// Mock logger
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    info: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
+// Mock firebase/firestore
+jest.mock("firebase/firestore", () => ({
+  getFirestore: jest.fn(),
+  doc: jest.fn(),
+  setDoc: jest.fn().mockResolvedValue(undefined),
+  serverTimestamp: jest.fn(),
+}));
+
+// Mock useAuth
+jest.mock("@/hooks/useAuth", () => ({
+  useAuth: jest.fn(() => ({
+    user: { uid: "test-user", email: "test@example.com" },
+    loading: false,
+  })),
+}));
 
 describe("ProfileEditor", () => {
   beforeEach(() => {
-    consoleSpy.mockClear();
-  });
-
-  afterAll(() => {
-    consoleSpy.mockRestore();
+    jest.clearAllMocks();
   });
 
   it("should render the profile editor page", () => {
@@ -81,17 +99,17 @@ describe("ProfileEditor", () => {
     expect(phoneInput.value).toBe("+1234567890");
   });
 
-  it("should call console.log when save button is clicked", () => {
+  it("should call logger.info when save button is clicked", async () => {
     render(<ProfileEditor />);
 
     const saveButton = screen.getByText("Save Changes");
     fireEvent.click(saveButton);
 
-    expect(consoleSpy).toHaveBeenCalledWith("Saving profile:", {
-      contact: {
-        email: { value: "", visibility: "public" },
-        phone: { value: "", visibility: "public" },
-      },
+    await waitFor(() => {
+      expect(logger.info).toHaveBeenCalledWith(
+        { userId: "test-user" },
+        "Profile saved to Firestore"
+      );
     });
   });
 

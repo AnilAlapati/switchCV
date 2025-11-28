@@ -2,6 +2,14 @@ import { renderHook, act } from "@testing-library/react";
 import { useAccessRequests } from "../../hooks/useAccessRequests";
 import { useAuth } from "../../hooks/useAuth";
 import { collection, onSnapshot } from "firebase/firestore";
+import { logger } from "@/lib/logger";
+
+// Mock logger
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    error: jest.fn(),
+  },
+}));
 
 // Mock dependencies
 jest.mock("../../hooks/useAuth");
@@ -145,19 +153,15 @@ describe("useAccessRequests", () => {
   });
 
   it("should handle errors in requests listener", () => {
-    const consoleSpy = jest
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
     (collection as jest.Mock).mockImplementation(() => {
       throw new Error("Firestore error");
     });
 
     renderHook(() => useAccessRequests());
 
-    expect(consoleSpy).toHaveBeenCalledWith(
-      "Error setting up requests listener:",
-      expect.any(Error)
+    expect(logger.error).toHaveBeenCalledWith(
+      { err: expect.any(Error) },
+      "Error setting up requests listener:"
     );
-    consoleSpy.mockRestore();
   });
 });

@@ -1,5 +1,7 @@
 "use client";
 
+import { logger } from "@/lib/logger";
+
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useOptionalDashboardMetricsContext } from "@/context/DashboardMetricsContext";
@@ -47,7 +49,7 @@ export function ResumeQualityCard({ hasResume }: ResumeQualityCardProps) {
           setMetrics({ quality: data.quality || 0 });
         }
       } catch (error) {
-        console.error("Failed to fetch resume quality:", error);
+        logger.error({ err: error }, "Failed to fetch resume quality:");
       } finally {
         setLoading(false);
       }

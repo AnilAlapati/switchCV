@@ -1,0 +1,39 @@
+name: Monitoring Daily Digest
+
+on:
+  schedule:
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - run: npm ci
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Send monitoring digest
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID || 'switchcv-e5136' }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST || 'smtp.titan.email' }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT || '465' }}
+          SMTP_USER: ${{ secrets.SMTP_USER || 'support@switchcv.com' }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          DIGEST_EMAIL_TO: ${{ secrets.DIGEST_EMAIL_TO || 'support@switchcv.com' }}
+          DIGEST_SUBJECT_PREFIX: "[SWITCHCV DIGEST]"
+        run: npx tsx scripts/monitoring/daily-digest.ts

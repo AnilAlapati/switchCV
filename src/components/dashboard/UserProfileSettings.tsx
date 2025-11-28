@@ -1,5 +1,7 @@
 "use client";
 
+import { logger } from "@/lib/logger";
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -41,7 +43,7 @@ export function UserProfileSettings() {
           setShowCompanyInput(data.isRecruiter);
         }
       } catch (error) {
-        console.error("Failed to fetch profile:", error);
+        logger.error({ err: error }, "Failed to fetch profile:");
       } finally {
         setLoading(false);
       }
@@ -88,7 +90,7 @@ export function UserProfileSettings() {
         );
       }
     } catch (error) {
-      console.error("Error updating profile:", error);
+      logger.error({ err: error }, "Error updating profile:");
       setMessage({
         type: "error",
         text:
@@ -144,7 +146,7 @@ export function UserProfileSettings() {
         );
       }
     } catch (error) {
-      console.error("Error saving company name:", error);
+      logger.error({ err: error }, "Error saving company name:");
       setMessage({
         type: "error",
         text:

@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { generateNumericResumeId } from "@/lib/numericIdGenerator";
@@ -177,12 +178,15 @@ export async function POST(request: NextRequest) {
     // Commit all writes atomically
     await batch.commit();
 
-    console.log(`✅ Resume saved successfully`, {
-      userId,
-      numericId,
-      resumeTitle: resume.title,
-      isPublic,
-    });
+    logger.info(
+      {
+        userId,
+        numericId,
+        resumeTitle: resume.title,
+        isPublic,
+      },
+      `✅ Resume saved successfully`
+    );
 
     const response: CreateResumeResponse = {
       success: true,
@@ -196,7 +200,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(response);
   } catch (error) {
-    console.error("❌ Error creating resume:", error);
+    logger.error({ err: error }, "❌ Error creating resume:");
     return handleApiError(error, "Failed to create resume");
   }
 }

@@ -1,24 +1,59 @@
-// src/app/profile/page.tsx
 "use client";
 
+import { logger } from "@/lib/logger";
+// src/app/profile/page.tsx
+
 import { useState } from "react";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useAuth } from "@/hooks/useAuth";
 import { ResumeProfile } from "@/types";
 
 export default function ProfileEditor() {
+  const { user } = useAuth();
   const [profile, setProfile] = useState<Partial<ResumeProfile>>({
     contact: {
       email: { value: "", visibility: "public" },
       phone: { value: "", visibility: "public" },
     },
   });
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
   const updateProfile = (updates: Partial<ResumeProfile>) => {
     setProfile((prev) => ({ ...prev, ...updates }));
   };
 
   const handleSave = async () => {
-    // TODO: Save to Firestore
-    console.log("Saving profile:", profile);
+    if (!user) {
+      setSaveMessage("You must be logged in to save your profile.");
+      return;
+    }
+
+    setSaving(true);
+    setSaveMessage(null);
+
+    try {
+      // Save to Firestore
+      const profileRef = doc(db, "profiles", user.uid);
+      await setDoc(
+        profileRef,
+        {
+          ...profile,
+          userId: user.uid,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      logger.info({ userId: user.uid }, "Profile saved to Firestore");
+      setSaveMessage("Profile saved successfully!");
+    } catch (error) {
+      logger.error({ err: error, userId: user?.uid }, "Failed to save profile");
+      setSaveMessage("Failed to save profile. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -97,12 +132,24 @@ export default function ProfileEditor() {
             />
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-end items-center gap-4">
+            {saveMessage && (
+              <span
+                className={`text-sm ${
+                  saveMessage.includes("success")
+                    ? "text-green-600"
+                    : "text-red-600"
+                }`}
+              >
+                {saveMessage}
+              </span>
+            )}
             <button
               onClick={handleSave}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+              disabled={saving}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Save Changes
+              {saving ? "Saving..." : "Save Changes"}
             </button>
           </div>
         </div>

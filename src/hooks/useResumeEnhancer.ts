@@ -44,7 +44,7 @@ export const useResumeEnhancer = () => {
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Unknown error";
-        logger.error("Error enhancing resume:", error);
+        logger.error({ err: error }, "Error enhancing resume:");
         setState({ loading: false, error: message, enhancement: null });
         throw error;
       }

@@ -292,8 +292,8 @@ describe("Search Utils", () => {
         }).toThrow("Failed to export results");
 
         expect(mockLogger.error).toHaveBeenCalledWith(
-          "Error exporting search results:",
-          expect.any(Error)
+          { err: expect.any(Error) },
+          "Error exporting search results:"
         );
       });
 

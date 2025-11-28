@@ -1,5 +1,7 @@
 "use client";
 
+import { logger } from "@/lib/logger";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { DashboardBackground } from "@/components/dashboard/DashboardBackground";
@@ -34,7 +36,7 @@ export default function AccessRequestsPage() {
       router.replace("/auth");
       router.refresh();
     } catch (error) {
-      console.error("Failed to log out", error);
+      logger.error({ err: error }, "Failed to log out");
     }
   }, [logout, router]);
 
@@ -59,7 +61,7 @@ export default function AccessRequestsPage() {
         setError("Failed to load requests. Please try again later.");
       }
     } catch (error) {
-      console.error("Failed to fetch requests", error);
+      logger.error({ err: error }, "Failed to fetch requests");
       setError("An error occurred while loading requests.");
     } finally {
       setLoading(false);
@@ -125,7 +127,7 @@ export default function AccessRequestsPage() {
         await metricsContext.refreshJobSeekerMetrics();
       }
     } catch (error) {
-      console.error("Failed to respond", error);
+      logger.error({ err: error }, "Failed to respond");
     }
   };
 
@@ -170,7 +172,7 @@ export default function AccessRequestsPage() {
         await metricsContext.refreshJobSeekerMetrics();
       }
     } catch (error) {
-      console.error("Failed to approve", error);
+      logger.error({ err: error }, "Failed to approve");
     }
   };
 

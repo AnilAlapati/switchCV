@@ -1,13 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo } from "react";
 import { ResumeStatusCard } from "@/components/dashboard/ResumeStatusCard";
 import { ProfileViewsCard } from "@/components/dashboard/ProfileViewsCard";
 import { ContactRequestsCard } from "@/components/dashboard/ContactRequestsCard";
 import { ResumeQualityCard } from "@/components/dashboard/ResumeQualityCard";
 import { LastUpdatedCard } from "@/components/dashboard/LastUpdatedCard";
-import { DownloadsCard } from "@/components/dashboard/DownloadsCard";
+
 import { ActionPlanCard } from "@/components/dashboard/ActionPlanCard";
 import { OpportunityInsightsCard } from "@/components/dashboard/OpportunityInsightsCard";
 import { ResourceLinksCard } from "@/components/dashboard/ResourceLinksCard";
@@ -15,9 +14,6 @@ import { ResumeList } from "@/components/dashboard/ResumeList";
 import {
   buildJobSeekerActionPlan,
   buildJobSeekerInsights,
-  calculateReadinessScore,
-  formatLastUpdatedMessage,
-  readinessLabel,
 } from "@/lib/dashboard/jobSeekerInsights";
 import { getResumeUrl, ENABLE_SEEDING_AND_DEBUG_LISTS } from "@/lib/config";
 import type { JobSeekerMetrics } from "@/types/dashboard";
@@ -46,19 +42,6 @@ export function JobSeekerDashboard({
   const resumeIdString = resumeId ? String(resumeId) : null;
   const resumeUrl =
     hasResume && resumeIdString ? getResumeUrl(resumeIdString) : null;
-
-  const readinessScore = useMemo(
-    () => calculateReadinessScore(metrics, hasResume),
-    [metrics, hasResume]
-  );
-
-  const heroInsights = useMemo(
-    () => ({
-      lastUpdatedLabel: formatLastUpdatedMessage(metrics?.lastUpdated ?? null),
-      label: readinessLabel(readinessScore),
-    }),
-    [metrics?.lastUpdated, readinessScore]
-  );
 
   const actionItems = useMemo(
     () =>
@@ -135,91 +118,6 @@ export function JobSeekerDashboard({
 
   return (
     <div className="space-y-8">
-      <section className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg shadow-slate-950/50 lg:p-8">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-          <div className="flex-1 space-y-4">
-            <span className="inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-cyan-200">
-              Opportunity readiness
-            </span>
-            <div className="space-y-3">
-              <h2 className="text-2xl font-bold text-white sm:text-3xl">
-                Let's land your next role
-              </h2>
-              <p className="text-sm text-slate-200 sm:text-base">
-                Follow the action plan on the right, track how recruiters
-                engage, and keep your resume fresh.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              {hasResume && resumeIdString ? (
-                <Link
-                  href={`/resumes/${resumeIdString}/edit`}
-                  className="inline-flex items-center justify-center rounded-xl bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
-                >
-                  Improve resume
-                </Link>
-              ) : (
-                <Link
-                  href="/create-resume"
-                  className="inline-flex items-center justify-center rounded-xl bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
-                >
-                  Create resume
-                </Link>
-              )}
-              <Link
-                href="/profile"
-                className="inline-flex items-center justify-center rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-cyan-500/40"
-              >
-                Update profile
-              </Link>
-            </div>
-          </div>
-
-          <div className="w-full max-w-sm rounded-2xl border border-slate-800 bg-slate-950/80 p-5">
-            <div className="flex items-baseline justify-between text-xs text-slate-400">
-              <span>Readiness score</span>
-              <span>{heroInsights.lastUpdatedLabel}</span>
-            </div>
-            <div className="mt-3 flex items-center gap-4">
-              <div className="text-4xl font-bold text-white">
-                {readinessScore}
-              </div>
-              <div className="flex-1">
-                <div className="h-2 w-full rounded-full bg-slate-800">
-                  <div
-                    className="h-2 rounded-full bg-cyan-500 transition-all duration-500"
-                    style={{ width: `${Math.max(readinessScore, 4)}%` }}
-                  />
-                </div>
-                <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-cyan-200">
-                  {heroInsights.label}
-                </p>
-              </div>
-            </div>
-            <div className="mt-5 grid grid-cols-3 gap-3 text-center text-xs text-slate-300">
-              <div>
-                <span className="block text-lg font-semibold text-white">
-                  {metrics?.profileViews ?? 0}
-                </span>
-                Views
-              </div>
-              <div>
-                <span className="block text-lg font-semibold text-white">
-                  {metrics?.contactRequests ?? 0}
-                </span>
-                Requests
-              </div>
-              <div>
-                <span className="block text-lg font-semibold text-white">
-                  {metrics?.downloads ?? 0}
-                </span>
-                Downloads
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
         <div className="space-y-6">
           {ENABLE_SEEDING_AND_DEBUG_LISTS && resumes && resumes.length > 1 && (
@@ -239,7 +137,6 @@ export function JobSeekerDashboard({
             <ContactRequestsCard />
             <ResumeQualityCard hasResume={hasResume} />
             <LastUpdatedCard hasResume={hasResume} />
-            <DownloadsCard hasResume={hasResume} />
           </div>
         </div>
 

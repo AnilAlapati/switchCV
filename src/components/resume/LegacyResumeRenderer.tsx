@@ -35,12 +35,6 @@ export const LegacyResumeRenderer: React.FC<LegacyResumeRendererProps> = ({
             </div>
           </div>
           <div className="text-right">
-            <button
-              onClick={() => window.print()}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-full font-medium transition-colors shadow-md print:hidden"
-            >
-              Download PDF
-            </button>
             <p className="text-xs text-gray-400 mt-2 print:hidden">
               ID: <span>{resume.numericId}</span>
             </p>

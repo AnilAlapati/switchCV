@@ -1,5 +1,7 @@
 "use client";
 
+import { logger } from "@/lib/logger";
+
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
@@ -40,7 +42,7 @@ export function RecruiterProfileViewsCard() {
           setMetrics({ totalProfileViews: data.totalProfileViews || 0 });
         }
       } catch (error) {
-        console.error("Failed to fetch profile views:", error);
+        logger.error({ err: error }, "Failed to fetch profile views:");
       } finally {
         setLoading(false);
       }

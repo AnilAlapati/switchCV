@@ -132,7 +132,7 @@ describe("useAuth.helpers", () => {
     });
 
     describe("ensureUserProfile", () => {
-      it("creates profile if not exists", async () => {
+      it("creates profile if not exists and auto-generates username for email/password user", async () => {
         (getDoc as jest.Mock).mockResolvedValue({
           exists: () => false,
           data: () => ({}),
@@ -153,14 +153,42 @@ describe("useAuth.helpers", () => {
           email: "test@test.com",
           displayName: "Test User",
           photoURL: "url",
-          providerData: [],
+          providerData: [{ providerId: "password" }],
           emailVerified: true,
         } as unknown as User;
 
-        await helpers.ensureUserProfile(user);
+        const result = await helpers.ensureUserProfile(user);
 
+        expect(result).toEqual({ isNewUser: true, needsUsername: false });
         expect(setDoc).toHaveBeenCalled();
         expect(runTransaction).toHaveBeenCalled(); // for allocateUsername
+      });
+
+      it("creates profile with needsUsername flag for Google OAuth user", async () => {
+        (getDoc as jest.Mock).mockResolvedValue({
+          exists: () => false,
+          data: () => ({}),
+        });
+
+        const user = {
+          uid: "uid",
+          email: "test@gmail.com",
+          displayName: "Test User",
+          photoURL: "url",
+          providerData: [{ providerId: "google.com" }],
+          emailVerified: true,
+        } as unknown as User;
+
+        const result = await helpers.ensureUserProfile(user);
+
+        expect(result).toEqual({ isNewUser: true, needsUsername: true });
+        // Check that setDoc was called with profile data containing needsUsername: true
+        expect(setDoc).toHaveBeenCalled();
+        const setDocCall = (setDoc as jest.Mock).mock.calls[0];
+        expect(setDocCall[1]).toMatchObject({ needsUsername: true });
+        expect(setDocCall[2]).toEqual({ merge: true });
+        // Should NOT auto-generate username for Google users
+        expect(runTransaction).not.toHaveBeenCalled();
       });
 
       it("does nothing if profile exists with username", async () => {
@@ -169,9 +197,10 @@ describe("useAuth.helpers", () => {
           data: () => ({ username: "existing" }),
         });
 
-        const user = { uid: "uid" } as User;
-        await helpers.ensureUserProfile(user);
+        const user = { uid: "uid", providerData: [] } as unknown as User;
+        const result = await helpers.ensureUserProfile(user);
 
+        expect(result).toEqual({ isNewUser: false, needsUsername: false });
         expect(setDoc).not.toHaveBeenCalled();
         expect(runTransaction).not.toHaveBeenCalled();
       });
@@ -182,12 +211,10 @@ describe("useAuth.helpers", () => {
         (runTransaction as jest.Mock).mockImplementation(
           async (db, callback) => {
             const mockTransaction = {
-              get: jest
-                .fn()
-                .mockResolvedValue({
-                  exists: () => true,
-                  data: () => ({ uid: "uid" }),
-                }),
+              get: jest.fn().mockResolvedValue({
+                exists: () => true,
+                data: () => ({ uid: "uid" }),
+              }),
               delete: jest.fn(),
             };
             await callback(mockTransaction);

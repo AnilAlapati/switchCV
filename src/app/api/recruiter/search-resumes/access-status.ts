@@ -1,4 +1,5 @@
 import { adminDb } from "@/lib/firebase-admin";
+import { logger } from "@/lib/logger";
 
 export type AccessStatus = "none" | "pending" | "approved" | "denied";
 export type AccessStatusMap = Map<string, AccessStatus>;
@@ -52,6 +53,19 @@ async function fetchAccessStatusFromDb(
 
     if (!requests || requests.empty) return "none";
 
+    // Check for any approved request that is still valid
+    const hasValidApprovedRequest = requests.docs.some((doc) => {
+      const data = doc.data();
+      if (data.status !== "approved") return false;
+      if (!data.expiresAt) return true;
+      const expiresAt = data.expiresAt.toDate
+        ? data.expiresAt.toDate()
+        : new Date(data.expiresAt);
+      return expiresAt > now;
+    });
+
+    if (hasValidApprovedRequest) return "approved";
+
     const statuses = requests.docs.map((doc) => doc.data().status);
 
     // Note: We ignore "approved" in requests because if it was approved
@@ -62,7 +76,7 @@ async function fetchAccessStatusFromDb(
 
     return "none";
   } catch (error) {
-    console.error("Error checking access status:", error);
+    logger.error({ err: error }, "Error checking access status");
     return "none";
   }
 }
@@ -100,6 +114,8 @@ export async function buildAccessStatusMap(
       .where("fromUserId", "==", recruiterId)
       .get();
 
+    const now = new Date();
+
     requestsSnapshot.forEach((doc) => {
       const data = doc.data() || {};
       const rawStatus = (data.status as AccessStatus) || "none";
@@ -111,7 +127,24 @@ export async function buildAccessStatusMap(
 
       // We only care about pending or denied from requests
       // Approved requests are handled by grants
-      if (rawStatus === "approved") return;
+      if (rawStatus === "approved") {
+        let isValid = false;
+        if (!data.expiresAt) {
+          isValid = true;
+        } else {
+          const expiresAt = data.expiresAt.toDate
+            ? data.expiresAt.toDate()
+            : new Date(data.expiresAt);
+          if (expiresAt > now) {
+            isValid = true;
+          }
+        }
+
+        if (isValid) {
+          statusMap.set(resumeId, "approved");
+        }
+        return;
+      }
 
       const existing = statusMap.get(resumeId) || "none";
       // Only set if higher priority (e.g. pending > denied > none)
@@ -125,8 +158,6 @@ export async function buildAccessStatusMap(
       .collectionGroup("accessGrants")
       .where("toUserId", "==", recruiterId)
       .get();
-
-    const now = new Date();
 
     grantsSnapshot.forEach((doc) => {
       const data = doc.data();
@@ -153,7 +184,7 @@ export async function buildAccessStatusMap(
       }
     });
   } catch (error) {
-    console.error("Failed to build access status map:", error);
+    logger.error({ err: error }, "Failed to build access status map");
   }
 
   return statusMap;

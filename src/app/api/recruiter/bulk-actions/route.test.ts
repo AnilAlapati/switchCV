@@ -2,14 +2,85 @@
 
 import { NextRequest } from "next/server";
 import { POST, GET } from "./route";
-import { actions } from "./route";
+
+// Mock firebase-admin
+jest.mock("@/lib/firebase-admin", () => {
+  const mockData = new Map<string, any>();
+
+  const createMockTimestamp = (date = new Date()) => ({
+    toDate: () => date,
+    toMillis: () => date.getTime(),
+  });
+
+  const mockDocRef = (id: string) => ({
+    get: jest.fn().mockImplementation(async () => ({
+      exists: mockData.has(id),
+      data: () => mockData.get(id),
+      id,
+    })),
+    set: jest.fn().mockImplementation(async (data: any) => {
+      mockData.set(id, {
+        ...data,
+        createdAt: createMockTimestamp(),
+        updatedAt: createMockTimestamp(),
+      });
+    }),
+    update: jest.fn().mockImplementation(async (data: any) => {
+      const existing = mockData.get(id) || {};
+      const processedData = { ...data };
+      // Handle FieldValue.serverTimestamp()
+      if (processedData.startedAt)
+        processedData.startedAt = createMockTimestamp();
+      if (processedData.completedAt)
+        processedData.completedAt = createMockTimestamp();
+
+      mockData.set(id, {
+        ...existing,
+        ...processedData,
+        updatedAt: createMockTimestamp(),
+      });
+    }),
+    delete: jest.fn().mockImplementation(async () => {
+      mockData.delete(id);
+    }),
+  });
+
+  return {
+    adminDb: {
+      collection: jest.fn().mockImplementation(() => ({
+        doc: jest.fn().mockImplementation((id: string) => mockDocRef(id)),
+        orderBy: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        get: jest.fn().mockResolvedValue({
+          docs: Array.from(mockData.entries()).map(([id, data]) => ({
+            id,
+            data: () => data,
+            exists: true,
+          })),
+        }),
+      })),
+      _mockData: mockData, // Expose for test setup
+    },
+  };
+});
 
 // Mock the pipeline helper functions
 jest.mock("@/lib/recruiterPipelineHelpers", () => ({
   createBulkAction: jest.fn(),
 }));
 
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+  },
+}));
+
 import { createBulkAction } from "@/lib/recruiterPipelineHelpers";
+import { adminDb } from "@/lib/firebase-admin";
 
 const mockCreateBulkAction = createBulkAction as jest.MockedFunction<
   typeof createBulkAction
@@ -18,7 +89,8 @@ const mockCreateBulkAction = createBulkAction as jest.MockedFunction<
 describe("POST /api/recruiter/bulk-actions", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    actions.clear(); // Clear the in-memory storage before each test
+    // Clear mock storage
+    (adminDb as any)._mockData?.clear?.();
   });
 
   describe("create action", () => {
@@ -407,7 +479,7 @@ describe("POST /api/recruiter/bulk-actions", () => {
 describe("GET /api/recruiter/bulk-actions", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    actions.clear(); // Clear the in-memory storage before each test
+    (adminDb as any)._mockData?.clear?.(); // Clear the in-memory storage before each test
   });
 
   it("should return a specific bulk action by id", async () => {
@@ -512,7 +584,22 @@ describe("GET /api/recruiter/bulk-actions", () => {
   });
 
   it("should filter bulk actions by status", async () => {
-    // Create actions and execute one
+    // Setup mock return values
+    mockCreateBulkAction.mockReturnValueOnce({
+      id: "bulk-1",
+      actionType: "move-stage" as const,
+      candidateIds: ["c1"],
+      status: "pending" as const,
+    });
+
+    mockCreateBulkAction.mockReturnValueOnce({
+      id: "bulk-2",
+      actionType: "send-email" as const,
+      candidateIds: ["c2"],
+      status: "pending" as const,
+    });
+
+    // Create actions
     const createRequest1 = new NextRequest(
       "http://localhost:3000/api/recruiter/bulk-actions",
       {

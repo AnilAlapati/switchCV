@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 /* eslint-disable max-lines */
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
@@ -44,7 +45,7 @@ async function checkPrivateResumeAccess(
       .where("toUserId", "==", viewerId)
       .get();
 
-    console.log(
+    logger.info(
       `[ResumeAPI] Found ${grantsSnap.size} grants for user ${viewerId}.`
     );
 
@@ -65,7 +66,7 @@ async function checkPrivateResumeAccess(
       return "grant";
     }
   } catch (error) {
-    console.error("Error checking authenticated user access:", error);
+    logger.error({ err: error }, "Error checking authenticated user access:");
   }
 
   return null;
@@ -82,7 +83,25 @@ async function trackRecruiterProfileView(userId: string) {
       },
       { merge: true }
     )
-    .catch((err) => console.error("Failed to track profile view:", err));
+    .catch((err) =>
+      logger.error({ err: err }, "Failed to track profile view:")
+    );
+}
+
+async function trackJobSeekerProfileView(userId: string) {
+  return adminDb
+    .collection("jobSeekerMetrics")
+    .doc(userId)
+    .set(
+      {
+        profileViews: FieldValue.increment(1),
+        lastUpdated: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    )
+    .catch((err) =>
+      logger.error({ err: err }, "Failed to track job seeker profile view:")
+    );
 }
 
 export async function GET(
@@ -124,10 +143,11 @@ export async function GET(
       resumeData?.isPublic ||
       resumeData?.visibility === "public" ||
       resumeData?.published === true;
+    const isBeingEdited = resumeData?.isBeingEdited ?? false;
 
     const ownerId = resumeData?.userId ?? null;
     const optionalUserId = await maybeGetAuthenticatedUserId(request);
-    console.log(
+    logger.info(
       `[ResumeAPI] Fetching resume ${id}. AuthUser: ${optionalUserId}`
     );
 
@@ -137,9 +157,10 @@ export async function GET(
 
     // 1. Owner Access
     if (isOwner) {
-      console.log(`[ResumeAPI] User is owner.`);
+      logger.info(`[ResumeAPI] User is owner.`);
       return NextResponse.json({
         ...resumeData,
+        isBeingEdited,
         viewerAccess: {
           scope: "owner",
           isOwner: true,
@@ -160,9 +181,10 @@ export async function GET(
     }
 
     if (viewerData?.role === "admin") {
-      console.log(`[ResumeAPI] User is admin.`);
+      logger.info(`[ResumeAPI] User is admin.`);
       return NextResponse.json({
         ...resumeData,
+        isBeingEdited,
         viewerAccess: {
           scope: "admin-view",
           isOwner: false,
@@ -174,7 +196,7 @@ export async function GET(
     // 2. Check for explicit access grant (Recruiter)
     let hasGrantedAccess = false;
     if (optionalUserId) {
-      console.log(
+      logger.info(
         `[ResumeAPI] Checking private access for user ${optionalUserId} on resume ${id}`
       );
       const accessGrantType = await checkPrivateResumeAccess(
@@ -184,15 +206,19 @@ export async function GET(
 
       if (accessGrantType) {
         hasGrantedAccess = true;
-        console.log(`[ResumeAPI] Access granted via ${accessGrantType}.`);
+        logger.info(`[ResumeAPI] Access granted via ${accessGrantType}.`);
         await trackRecruiterProfileView(optionalUserId);
       }
     }
 
     // 3. Return Full Access if granted
     if (hasGrantedAccess) {
+      if (ownerId) {
+        trackJobSeekerProfileView(ownerId);
+      }
       return NextResponse.json({
         ...resumeData,
+        isBeingEdited,
         viewerAccess: {
           scope: "full",
           isOwner: false,
@@ -204,13 +230,19 @@ export async function GET(
     // 4. Public Snapshot Fallback
     // If public and NO grant, return snapshot
     if (isPublic && !forceFullAccessCheck) {
-      console.log(`[ResumeAPI] Returning public snapshot.`);
+      logger.info(`[ResumeAPI] Returning public snapshot.`);
+      if (ownerId) {
+        trackJobSeekerProfileView(ownerId);
+      }
       const sanitized = sanitizeResumeForPublicView(resumeData);
-      return NextResponse.json(sanitized, {
-        headers: {
-          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
-        },
-      });
+      return NextResponse.json(
+        { ...sanitized, isBeingEdited },
+        {
+          headers: {
+            "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+          },
+        }
+      );
     }
 
     if (!optionalUserId) {

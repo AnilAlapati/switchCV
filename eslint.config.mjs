@@ -27,16 +27,20 @@ const eslintConfig = [
       "@typescript-eslint/ban-types": "off",
       "@typescript-eslint/no-unsafe-function-type": "warn",
       "react/no-unescaped-entities": "off",
-      "react-hooks/rules-of-hooks": "warn",
-      // Enable exhaustive-deps as warning to improve hook dependency tracking
-      "react-hooks/exhaustive-deps": "warn",
+      "react-hooks/rules-of-hooks": "error",
+      // Strict enforcement of hook dependencies prevents bugs
+      "react-hooks/exhaustive-deps": "error",
       "@next/next/no-html-link-for-pages": "warn",
+      // Enforce structured logging - no console in production code
+      "no-console": "error",
     },
   },
   {
-    files: ["**/*.cjs", "scripts/**/*.js", "scripts/**/*.cjs"],
+    // CLI scripts legitimately use console.log and require()
+    files: ["**/*.cjs", "scripts/**/*.js", "scripts/**/*.cjs", "public/**/*.js"],
     rules: {
       "@typescript-eslint/no-require-imports": "off",
+      "no-console": "off",
     },
   },
   {
@@ -56,6 +60,20 @@ const eslintConfig = [
             "Consider using handleApiError from @/lib/utils/api-helpers for consistent error handling.",
         },
       ],
+    },
+  },
+  {
+    // Logger file must use console - it's the wrapper
+    files: ["src/lib/logger.ts"],
+    rules: {
+      "no-console": "off",
+    },
+  },
+  {
+    // AI service files are complex integrations that benefit from being in one file
+    files: ["src/lib/services/ai*.ts"],
+    rules: {
+      "max-lines": ["warn", { max: 600, skipBlankLines: true, skipComments: true }],
     },
   },
   {
@@ -82,6 +100,8 @@ const eslintConfig = [
       "@typescript-eslint/no-require-imports": "off",
       // Allow flexible error handling patterns in tests
       "no-restricted-syntax": "off",
+      // Allow console in tests for debugging
+      "no-console": "off",
     },
   },
   {

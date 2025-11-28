@@ -1,5 +1,7 @@
 "use client";
 
+import { logger } from "@/lib/logger";
+
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useOptionalDashboardMetricsContext } from "@/context/DashboardMetricsContext";
@@ -68,7 +70,7 @@ export function LastUpdatedCard({ hasResume }: LastUpdatedCardProps) {
           setMetrics({ lastUpdated: data.lastUpdated || null });
         }
       } catch (error) {
-        console.error("Failed to fetch last updated:", error);
+        logger.error({ err: error }, "Failed to fetch last updated:");
       } finally {
         setLoading(false);
       }

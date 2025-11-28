@@ -95,6 +95,18 @@ const setupCollections = (): MockSetup => {
     doc: jest.fn(() => allResumesDoc),
   };
 
+  collectionHandlers.jobSeekerMetrics = {
+    doc: jest.fn(() => ({
+      set: jest.fn().mockResolvedValue(undefined),
+    })),
+  };
+
+  collectionHandlers.recruiterMetrics = {
+    doc: jest.fn(() => ({
+      set: jest.fn().mockResolvedValue(undefined),
+    })),
+  };
+
   return { resumesDoc, resumeProfilesDoc, userResumeDoc, allResumesDoc };
 };
 

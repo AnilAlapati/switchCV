@@ -1,5 +1,7 @@
 "use client";
 
+import { logger } from "@/lib/logger";
+
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -42,7 +44,7 @@ export function RecruiterMetricsCard({
           setMetrics(data);
         }
       } catch (error) {
-        console.error("Failed to fetch recruiter metrics:", error);
+        logger.error({ err: error }, "Failed to fetch recruiter metrics:");
       } finally {
         setLoading(false);
       }

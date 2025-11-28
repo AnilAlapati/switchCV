@@ -1,18 +1,16 @@
-import {
-  render,
-  screen,
-  waitFor,
-  fireEvent,
-  act,
-} from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import Dashboard from "@/app/dashboard/page";
 import { useAuth } from "@/hooks/useAuth";
 import { useResume } from "@/hooks/useResume";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
 import { useRouter } from "next/navigation";
 
 // Mock hooks
 jest.mock("@/hooks/useAuth");
 jest.mock("@/hooks/useResume");
+jest.mock("@/hooks/useUserProfile");
+jest.mock("@/hooks/useDashboardMetrics");
 jest.mock("next/navigation");
 
 // Mock components
@@ -38,15 +36,14 @@ jest.mock("@/context/DashboardMetricsContext", () => ({
   ),
 }));
 
-// Mock fetch
-global.fetch = jest.fn();
-
 describe("Dashboard", () => {
   const mockLogout = jest.fn();
   const mockPush = jest.fn();
   const mockReplace = jest.fn();
   const mockRefresh = jest.fn();
   const mockRefetchResume = jest.fn();
+  const mockRefreshJobMetrics = jest.fn();
+  const mockRefreshRecruiterMetrics = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -77,9 +74,26 @@ describe("Dashboard", () => {
       refetch: mockRefetchResume,
     });
 
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: jest.fn().mockResolvedValue({}),
+    (useUserProfile as jest.Mock).mockReturnValue({
+      profile: { uid: "user123", role: "jobseeker" },
+      tier: "basic",
+      role: "jobseeker",
+      loading: false,
+      error: null,
+      mutate: jest.fn(),
+    });
+
+    (useDashboardMetrics as jest.Mock).mockReturnValue({
+      jobSeekerMetrics: {
+        totalResumes: 0,
+        totalApplications: 0,
+        interviewRate: 0,
+      },
+      recruiterMetrics: { totalJobs: 0, totalCandidates: 0, activeJobs: 0 },
+      loading: false,
+      error: null,
+      refreshJobSeekerMetrics: mockRefreshJobMetrics,
+      refreshRecruiterMetrics: mockRefreshRecruiterMetrics,
     });
   });
 
@@ -123,17 +137,9 @@ describe("Dashboard", () => {
   });
 
   it("renders recruiter dashboard if user is recruiter", async () => {
-    (global.fetch as jest.Mock).mockImplementation((url) => {
-      if (url.includes("/api/user/settings")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ isRecruiter: true }),
-        });
-      }
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({}),
-      });
+    (useUserProfile as jest.Mock).mockReturnValue({
+      role: "recruiter",
+      loading: false,
     });
 
     render(<Dashboard />);
@@ -154,47 +160,6 @@ describe("Dashboard", () => {
     await waitFor(() => {
       expect(mockLogout).toHaveBeenCalled();
       expect(mockReplace).toHaveBeenCalledWith("/auth");
-    });
-  });
-
-  it("fetches job metrics", async () => {
-    render(<Dashboard />);
-
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining("/api/jobseeker/metrics"),
-        expect.anything()
-      );
-    });
-  });
-
-  it("fetches recruiter metrics when user is recruiter", async () => {
-    (global.fetch as jest.Mock).mockImplementation((url) => {
-      if (url.includes("/api/user/settings")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ isRecruiter: true }),
-        });
-      }
-      if (url.includes("/api/recruiter/metrics")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({}),
-        });
-      }
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({}),
-      });
-    });
-
-    render(<Dashboard />);
-
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining("/api/recruiter/metrics"),
-        expect.anything()
-      );
     });
   });
 });

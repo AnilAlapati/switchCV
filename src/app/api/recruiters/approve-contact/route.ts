@@ -1,16 +1,13 @@
+import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
-import {
-  doc,
-  updateDoc,
-  getDoc,
-  addDoc,
-  collection,
-  serverTimestamp,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { adminDb } from "@/lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import { tokenGenerator } from "@/lib/tokenGenerator";
 import { RecruiterContactRequest } from "@/types/profileSearch";
-import { handleApiError } from "@/lib/utils/api-helpers";
+import {
+  handleApiError,
+  getAuthenticatedUserId,
+} from "@/lib/utils/api-helpers";
 
 interface ApproveContactPayload {
   requestId: string;
@@ -30,9 +27,16 @@ interface ApproveContactPayload {
  * 3. Stores token with expiration and revocation support
  * 4. Sends notifications to both recruiter and candidate
  * 5. Creates audit log entry
+ *
+ * SECURITY: Requires authentication. Only admins can approve requests.
  */
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Verify authentication
+    const { userId: authUserId, error: authError } =
+      await getAuthenticatedUserId(request);
+    if (authError) return authError;
+
     const payload = (await request.json()) as ApproveContactPayload;
 
     if (!payload.requestId || !payload.adminUserId) {
@@ -43,11 +47,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get the contact request
-    const requestRef = doc(db, "recruiterRequests", payload.requestId);
-    const requestDoc = await getDoc(requestRef);
+    // SECURITY: Verify the authenticated user IS the admin making the approval
+    if (authUserId !== payload.adminUserId) {
+      return handleApiError(
+        new Error("Forbidden: adminUserId must match authenticated user"),
+        "Forbidden: adminUserId must match authenticated user",
+        403
+      );
+    }
 
-    if (!requestDoc.exists()) {
+    // SECURITY: Verify the user has admin role
+    const adminDoc = await adminDb.collection("users").doc(authUserId).get();
+    const adminData = adminDoc.data();
+    if (!adminData || adminData.role !== "admin") {
+      return handleApiError(
+        new Error("Forbidden: Only admins can approve contact requests"),
+        "Forbidden: Only admins can approve contact requests",
+        403
+      );
+    }
+
+    // Get the contact request
+    const requestRef = adminDb
+      .collection("recruiterRequests")
+      .doc(payload.requestId);
+    const requestDoc = await requestRef.get();
+
+    if (!requestDoc.exists) {
       return handleApiError(
         new Error("Request not found"),
         "Request not found",
@@ -132,20 +158,20 @@ export async function POST(request: NextRequest) {
       ipAddressWhitelist: payload.ipAddress ? [payload.ipAddress] : undefined,
     };
 
-    const tokenRef = await addDoc(collection(db, "accessTokens"), {
+    const tokenRef = await adminDb.collection("accessTokens").add({
       ...tokenData,
-      issuedAt: serverTimestamp(),
-      expiresAt: serverTimestamp(),
+      issuedAt: FieldValue.serverTimestamp(),
+      expiresAt: FieldValue.serverTimestamp(),
     });
 
     // Update contact request status
-    await updateDoc(requestRef, {
+    await requestRef.update({
       status: "approved",
-      updatedAt: serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
       reviewedBy: payload.adminUserId,
-      reviewedAt: serverTimestamp(),
+      reviewedAt: FieldValue.serverTimestamp(),
       tokenId: tokenRef.id,
-      accessExpiresAt: serverTimestamp(),
+      accessExpiresAt: FieldValue.serverTimestamp(),
     } as any);
 
     // Create notification for recruiter
@@ -155,20 +181,19 @@ export async function POST(request: NextRequest) {
       requestId: payload.requestId,
       candidateId: contactRequest.toUserId,
       candidateEmail: contactRequest.toUserEmail,
-      approvedAt: serverTimestamp(),
-      expiresAt: serverTimestamp(),
+      approvedAt: FieldValue.serverTimestamp(),
+      expiresAt: FieldValue.serverTimestamp(),
       duration,
       message: `Your request to contact ${contactRequest.toUserEmail} has been approved. Access expires in ${duration}.`,
-      timestamp: serverTimestamp(),
+      timestamp: FieldValue.serverTimestamp(),
       read: false,
       actionUrl: `/recruiter/portal/requests/${payload.requestId}`,
       token: token.substring(0, 20) + "...", // Safe token preview
     };
 
-    await addDoc(
-      collection(db, "recruiterNotifications"),
-      recruiterNotification
-    );
+    await adminDb
+      .collection("recruiterNotifications")
+      .add(recruiterNotification);
 
     // Create notification for candidate (they're being contacted)
     const candidateNotification = {
@@ -181,15 +206,15 @@ export async function POST(request: NextRequest) {
       requestId: payload.requestId,
       contactedFields: contactRequest.requestedFields,
       purpose: contactRequest.purpose,
-      expiresAt: serverTimestamp(),
+      expiresAt: FieldValue.serverTimestamp(),
       duration,
       message: `Recruiter ${contactRequest.fromRecruiter.name} from ${contactRequest.fromRecruiter.companyName} has been granted access to view your contact information.`,
-      timestamp: serverTimestamp(),
+      timestamp: FieldValue.serverTimestamp(),
       read: false,
       actionUrl: `/dashboard/contact-requests/${payload.requestId}`,
     };
 
-    await addDoc(collection(db, "notifications"), candidateNotification);
+    await adminDb.collection("notifications").add(candidateNotification);
 
     // Create audit log
     const auditLog = {
@@ -203,17 +228,17 @@ export async function POST(request: NextRequest) {
       approvedFields: contactRequest.requestedFields,
       duration,
       expiresAt: new Date(tokenExpiry * 1000),
-      timestamp: serverTimestamp(),
+      timestamp: FieldValue.serverTimestamp(),
       ipAddress: payload.ipAddress,
       userAgent: payload.userAgent,
     };
 
-    await addDoc(collection(db, "auditLogs"), auditLog);
+    await adminDb.collection("auditLogs").add(auditLog);
 
-    console.log(
+    logger.info(
       `✅ Contact request approved: ${payload.requestId} by admin ${payload.adminUserId}`
     );
-    console.log(
+    logger.info(
       `🔐 Secure token generated: ${tokenRef.id} (expires in ${duration})`
     );
 
@@ -229,7 +254,7 @@ export async function POST(request: NextRequest) {
       token: token.substring(0, 50) + "...", // Don't send full token
     });
   } catch (error) {
-    console.error("❌ Approve contact error:", error);
+    logger.error({ err: error }, "❌ Approve contact error:");
     return handleApiError(error, "Failed to approve contact request");
   }
 }

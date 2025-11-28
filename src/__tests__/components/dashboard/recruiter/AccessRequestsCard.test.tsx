@@ -14,6 +14,25 @@ const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
+const createMockAuthContext = (user: any) => ({
+  user,
+  loading: false,
+  signIn: jest.fn(),
+  signUp: jest.fn(),
+  logout: jest.fn(),
+  needsEmailVerification: false,
+  verificationEmail: null,
+  connectivityIssue: null,
+  signInWithGoogle: jest.fn(),
+  resetPassword: jest.fn(),
+  updatePassword: jest.fn(),
+  updateEmail: jest.fn(),
+  deleteAccount: jest.fn(),
+  resendVerificationEmail: jest.fn(),
+  refreshUser: jest.fn(),
+});
+
+
 describe("AccessRequestsCard", () => {
   const mockUser = {
     uid: "test-user-id",
@@ -37,13 +56,7 @@ describe("AccessRequestsCard", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUseAuth.mockReturnValue({
-      user: mockUser,
-      loading: false,
-      signIn: jest.fn(),
-      signUp: jest.fn(),
-      logout: jest.fn(),
-    });
+    mockUseAuth.mockReturnValue(createMockAuthContext(mockUser));
   });
 
   describe("Loading State", () => {
@@ -79,13 +92,7 @@ describe("AccessRequestsCard", () => {
     });
 
     it("does not fetch metrics when user is null", () => {
-      mockUseAuth.mockReturnValue({
-        user: null,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(null));
 
       render(<AccessRequestsCard />);
 

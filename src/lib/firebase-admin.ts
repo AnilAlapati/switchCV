@@ -1,9 +1,10 @@
+/* eslint-disable no-console */
 import * as admin from "firebase-admin";
 
 /**
  * Firebase Admin Environment Configuration Error
  */
-class FirebaseAdminConfigError extends Error {
+export class FirebaseAdminConfigError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "FirebaseAdminConfigError";
@@ -13,55 +14,74 @@ class FirebaseAdminConfigError extends Error {
 /**
  * Validate required environment variables for Firebase Admin
  */
-function validateEnvironment(): void {
-  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+export function validateEnvironment(): void {
+  const projectId =
+    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT;
 
   if (!projectId) {
-    throw new FirebaseAdminConfigError(
-      "Missing required environment variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID. " +
-        "Please set this in your .env.local file or environment configuration."
-    );
-  }
+    // Log available env vars for debugging (excluding secrets)
+    const safeEnv = Object.keys(process.env).reduce((acc, key) => {
+      if (
+        !key.includes("KEY") &&
+        !key.includes("SECRET") &&
+        !key.includes("PASS")
+      ) {
+        acc[key] = process.env[key];
+      }
+      return acc;
+    }, {} as Record<string, string | undefined>);
 
-  // Validate project ID format (alphanumeric with hyphens)
-  if (!/^[a-z0-9-]+$/.test(projectId)) {
+    console.error("Missing Project ID. Available Env:", safeEnv);
+
     throw new FirebaseAdminConfigError(
-      `Invalid NEXT_PUBLIC_FIREBASE_PROJECT_ID format: "${projectId}". ` +
-        "Project ID should only contain lowercase letters, numbers, and hyphens."
+      "Missing required environment variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID or GCLOUD_PROJECT."
     );
   }
 }
 
-// Initialize Firebase Admin SDK
-if (!admin.apps.length) {
+/**
+ * Initialize Firebase Admin SDK
+ */
+export function initializeFirebaseAdmin(): void {
+  // Check if default app is already initialized
+  const defaultApp = admin.apps.find((app) => app?.name === "[DEFAULT]");
+  if (defaultApp) {
+    return;
+  }
+
   try {
     // Validate environment before initialization
     validateEnvironment();
 
+    const projectId =
+      process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT;
+
     // Try to get service account from environment variable first
-    // This is useful for development and certain deployment environments
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
       const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
-        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+        projectId,
       });
     } else {
       // Use Application Default Credentials (ADC)
-      // This works in:
-      // - Local development with gcloud auth
-      // - Google Cloud environment (Cloud Run, Cloud Functions, GCE, etc.)
       admin.initializeApp({
-        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+        projectId,
       });
     }
+    console.log(
+      "Firebase Admin Initialized successfully with Project ID:",
+      projectId
+    );
   } catch (error) {
-    // Using console.error here intentionally - logger may not be initialized yet
-    // This is a bootstrap error that must be visible
     console.error("Failed to initialize Firebase Admin SDK:", error);
+    // We must throw here because the app cannot function without admin
     throw error;
   }
 }
+
+// Initialize on module load
+initializeFirebaseAdmin();
 
 export const adminDb = admin.firestore();
 export const adminAuth = admin.auth();

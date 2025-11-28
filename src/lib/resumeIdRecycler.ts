@@ -20,6 +20,7 @@
 
 import { adminDb } from "@/lib/firebase-admin";
 import * as admin from "firebase-admin";
+import { logger } from "@/lib/logger";
 
 const ID_POOL_DOC = "system/deletedIdsPool";
 const MAX_POOL_SIZE = 10000; // Maximum number of recycled IDs to keep
@@ -40,16 +41,16 @@ export const initializeIdPool = async (): Promise<void> => {
     const poolSnap = await poolRef.get();
 
     if (!poolSnap.exists) {
-      console.log("♻️ Initializing deleted IDs pool...");
+      logger.info("Initializing deleted IDs pool");
       await poolRef.set({
         deletedIds: [],
         totalRecycled: 0,
         lastUpdatedAt: new Date().toISOString(),
       });
-      console.log("✅ Deleted IDs pool initialized");
+      logger.info("Deleted IDs pool initialized");
     }
   } catch (error) {
-    console.error("❌ Error initializing ID pool:", error);
+    logger.error({ err: error }, "Error initializing ID pool");
     throw new Error("Failed to initialize ID pool");
   }
 };
@@ -79,7 +80,7 @@ export const addDeletedIdToPool = async (numericId: number): Promise<void> => {
       lastUpdatedAt: new Date().toISOString(),
     });
 
-    console.log(`♻️ Resume ID ${numericId} added to recycling pool`);
+    logger.info({ numericId }, "Resume ID added to recycling pool");
 
     // Trim pool if it exceeds max size (keep only the most recent IDs)
     const updated = await poolRef.get();
@@ -93,14 +94,16 @@ export const addDeletedIdToPool = async (numericId: number): Promise<void> => {
         totalRecycled: (poolData.totalRecycled || 0) + 1,
         lastUpdatedAt: new Date().toISOString(),
       });
-      console.log(
-        `⚠️ ID pool trimmed to ${MAX_POOL_SIZE} IDs (discarded ${
-          poolData.deletedIds.length - MAX_POOL_SIZE
-        } oldest)`
+      logger.warn(
+        {
+          maxSize: MAX_POOL_SIZE,
+          discarded: poolData.deletedIds.length - MAX_POOL_SIZE,
+        },
+        "ID pool trimmed to max size"
       );
     }
   } catch (error) {
-    console.error("❌ Error adding deleted ID to pool:", error);
+    logger.error({ err: error }, "Error adding deleted ID to pool");
     // Don't throw - this is cleanup, shouldn't block resume deletion
   }
 };
@@ -145,13 +148,14 @@ export const getRecycledIdFromPool = async (): Promise<number | null> => {
         lastUpdatedAt: new Date().toISOString(),
       });
 
-      console.log(
-        `♻️ Reusing recycled ID: ${recycledId} (${newDeletedIds.length} IDs remaining in pool)`
+      logger.info(
+        { recycledId, remaining: newDeletedIds.length },
+        "Reusing recycled ID from pool"
       );
       return recycledId;
     });
   } catch (error) {
-    console.error("❌ Error getting recycled ID from pool:", error);
+    logger.error({ err: error }, "Error getting recycled ID from pool");
     return null; // Return null so caller generates new ID
   }
 };
@@ -172,7 +176,7 @@ export const getIdPoolStatus = async (): Promise<IdPoolDoc | null> => {
 
     return poolSnap.data() as IdPoolDoc;
   } catch (error) {
-    console.error("❌ Error getting ID pool status:", error);
+    logger.error({ err: error }, "Error getting ID pool status");
     return null;
   }
 };
@@ -190,9 +194,9 @@ export const clearIdPool = async (): Promise<void> => {
       totalRecycled: 0,
       lastUpdatedAt: new Date().toISOString(),
     });
-    console.log("🗑️ ID pool cleared (ADMIN ACTION)");
+    logger.warn("ID pool cleared (ADMIN ACTION)");
   } catch (error) {
-    console.error("❌ Error clearing ID pool:", error);
+    logger.error({ err: error }, "Error clearing ID pool");
     throw error;
   }
 };
@@ -228,7 +232,7 @@ export const getIdPoolStats = async (): Promise<{
       totalRecycled: poolData.totalRecycled || 0,
     };
   } catch (error) {
-    console.error("❌ Error getting pool stats:", error);
+    logger.error({ err: error }, "Error getting pool stats");
     return {
       poolSize: 0,
       maxSize: MAX_POOL_SIZE,

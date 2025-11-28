@@ -1,15 +1,16 @@
 import { renderHook } from "@testing-library/react";
 import { useAnalyticsTracking } from "../../hooks/useAnalyticsTracking";
+import { logger } from "@/lib/logger";
+
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    info: jest.fn(),
+  },
+}));
 
 describe("useAnalyticsTracking", () => {
-  let consoleLogSpy: jest.SpyInstance;
-
   beforeEach(() => {
-    consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    consoleLogSpy.mockRestore();
+    jest.clearAllMocks();
   });
 
   it("should track generic events", () => {
@@ -20,12 +21,12 @@ describe("useAnalyticsTracking", () => {
       properties: { foo: "bar" },
     });
 
-    expect(consoleLogSpy).toHaveBeenCalledWith(
-      "📊 Analytics Event:",
+    expect(logger.info).toHaveBeenCalledWith(
       expect.objectContaining({
         event: "test_event",
         properties: { foo: "bar" },
-      })
+      }),
+      "📊 Analytics Event:"
     );
   });
 
@@ -34,12 +35,12 @@ describe("useAnalyticsTracking", () => {
 
     result.current.track("category", "action", { foo: "bar" });
 
-    expect(consoleLogSpy).toHaveBeenCalledWith(
-      "📊 Analytics Event:",
+    expect(logger.info).toHaveBeenCalledWith(
       expect.objectContaining({
         event: "category_action",
         properties: { foo: "bar" },
-      })
+      }),
+      "📊 Analytics Event:"
     );
   });
 
@@ -48,8 +49,7 @@ describe("useAnalyticsTracking", () => {
 
     result.current.trackSearch("query", 10, { filter: "value" });
 
-    expect(consoleLogSpy).toHaveBeenCalledWith(
-      "📊 Analytics Event:",
+    expect(logger.info).toHaveBeenCalledWith(
       expect.objectContaining({
         event: "search_performed",
         properties: expect.objectContaining({
@@ -57,7 +57,8 @@ describe("useAnalyticsTracking", () => {
           resultCount: 10,
           filters: { filter: "value" },
         }),
-      })
+      }),
+      "📊 Analytics Event:"
     );
   });
 
@@ -66,15 +67,15 @@ describe("useAnalyticsTracking", () => {
 
     result.current.trackProfileView("user123", { name: "John" });
 
-    expect(consoleLogSpy).toHaveBeenCalledWith(
-      "📊 Analytics Event:",
+    expect(logger.info).toHaveBeenCalledWith(
       expect.objectContaining({
         event: "profile_viewed",
         properties: expect.objectContaining({
           userId: "user123",
           profileData: { name: "John" },
         }),
-      })
+      }),
+      "📊 Analytics Event:"
     );
   });
 
@@ -83,15 +84,15 @@ describe("useAnalyticsTracking", () => {
 
     result.current.trackAccessRequest("user123", "resume456");
 
-    expect(consoleLogSpy).toHaveBeenCalledWith(
-      "📊 Analytics Event:",
+    expect(logger.info).toHaveBeenCalledWith(
       expect.objectContaining({
         event: "access_requested",
         properties: expect.objectContaining({
           userId: "user123",
           resumeId: "resume456",
         }),
-      })
+      }),
+      "📊 Analytics Event:"
     );
   });
 });

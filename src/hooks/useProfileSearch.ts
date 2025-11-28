@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { useCallback, useState } from "react";
 import { ProfileSearchResult } from "@/types/profileSearch";
 import { useTrackAnalytics } from "@/hooks/useAnalyticsTracking";
@@ -59,7 +60,7 @@ export function useProfileSearch() {
         }
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : "Unknown error";
-        console.error("Search error:", errorMsg);
+        logger.error({ err: errorMsg }, "Search error:");
         setError(`Search failed: ${errorMsg}`);
         setResults([]);
       } finally {

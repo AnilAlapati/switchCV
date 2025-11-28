@@ -11,6 +11,7 @@ jest.mock("@/lib/firebase-admin", () => ({
         collection: jest.fn(),
       })),
     })),
+    collectionGroup: jest.fn(),
   },
 }));
 
@@ -58,7 +59,7 @@ describe("POST /api/profiles/request-access", () => {
 
     mockGetAuthenticatedUserId.mockResolvedValue({
       userId: currentUserId,
-      error: null,
+      error: undefined,
     });
 
     // Mock user data (recruiter)
@@ -87,6 +88,16 @@ describe("POST /api/profiles/request-access", () => {
     const grantsSnapshot = createMockQuerySnapshot([expiredGrantDoc]);
 
     const mockAdd = jest.fn().mockResolvedValue({ id: "new-request-id" });
+
+    mockAdminDb.collectionGroup.mockImplementation((collectionName: string) => {
+      if (collectionName === "accessRequests") {
+        return {
+          where: jest.fn().mockReturnThis(),
+          get: jest.fn().mockResolvedValue(createMockQuerySnapshot([])),
+        } as any;
+      }
+      return {} as any;
+    });
 
     mockAdminDb.collection.mockImplementation((collectionName: string) => {
       if (collectionName === "users") {
@@ -155,7 +166,7 @@ describe("POST /api/profiles/request-access", () => {
 
     mockGetAuthenticatedUserId.mockResolvedValue({
       userId: currentUserId,
-      error: null,
+      error: undefined,
     });
 
     const recruiterDoc = createMockDocSnapshot(true, {
@@ -177,6 +188,16 @@ describe("POST /api/profiles/request-access", () => {
 
     const pendingRequestsSnapshot = createMockQuerySnapshot([]);
     const grantsSnapshot = createMockQuerySnapshot([activeGrantDoc]);
+
+    mockAdminDb.collectionGroup.mockImplementation((collectionName: string) => {
+      if (collectionName === "accessRequests") {
+        return {
+          where: jest.fn().mockReturnThis(),
+          get: jest.fn().mockResolvedValue(createMockQuerySnapshot([])),
+        } as any;
+      }
+      return {} as any;
+    });
 
     mockAdminDb.collection.mockImplementation((collectionName: string) => {
       if (collectionName === "users") {

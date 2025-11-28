@@ -1,6 +1,8 @@
+import { logger } from "@/lib/logger";
 // src/app/api/recruiter/request-access/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import {
   handleApiError,
   getAuthenticatedUserId,
@@ -24,20 +26,20 @@ export async function POST(request: NextRequest) {
 
     // Check Quota
     const tier = await getUserTier(recruiterId!);
-    const limit = RECRUITER_CONTACT_LIMITS[tier];
+    const limitConfig = RECRUITER_CONTACT_LIMITS[tier];
 
     try {
       await consumeQuota({
         subjectId: recruiterId!,
         scope: "recruiter_contact",
-        limit: limit,
-        period: "monthly",
+        limit: limitConfig.amount,
+        period: limitConfig.interval === "month" ? "monthly" : "lifetime",
       });
     } catch (error) {
       if (error instanceof QuotaExceededError) {
         return handleApiError(
           error,
-          `You have reached your monthly limit of ${limit} contacts. Please upgrade to contact more candidates.`,
+          `You have reached your ${limitConfig.interval} limit of ${limitConfig.amount} contacts. Please upgrade to contact more candidates.`,
           403
         );
       }
@@ -99,10 +101,10 @@ export async function POST(request: NextRequest) {
     // Increment request count in user document
     try {
       await userRef.update({
-        requestCount: adminDb.firestore.FieldValue.increment(1),
+        requestCount: FieldValue.increment(1),
       });
     } catch (err) {
-      console.warn("Could not update request count:", err);
+      logger.warn({ err: err }, "Could not update request count:");
     }
 
     return NextResponse.json({

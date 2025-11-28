@@ -215,6 +215,6 @@ export function calculatePipelineMetrics(
     averageTimeToHire: calculateAverageTimeToHire(pipeline),
     hiredThisMonth: getHiredThisMonth(pipeline),
     activeInterviews: 0,
-    pendingFollowUps: getPendingFollowUps(pipeline),
+    pendingFollowUps: getPendingFollowUps(pipeline).length,
   };
 }

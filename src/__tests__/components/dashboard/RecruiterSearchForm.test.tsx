@@ -3,13 +3,15 @@ import "@testing-library/jest-dom";
 import {
   RecruiterSearchForm,
   SearchResult,
+  SearchModeType,
 } from "@/components/dashboard/RecruiterSearchForm";
 
 // Mock the props
 const mockProps = {
-  searchMode: "basic" as const,
+  searchMode: "basic" as SearchModeType,
   setSearchMode: jest.fn(),
   premiumFiltersEnabled: true,
+  aiSearchEnabled: true,
   userId: "",
   setUserId: jest.fn(),
   skills: [] as string[],
@@ -22,6 +24,13 @@ const mockProps = {
   searchResults: [] as SearchResult[],
   setSearchResults: jest.fn(),
   setSearched: jest.fn(),
+  // AI search props
+  aiQuery: "",
+  setAiQuery: jest.fn(),
+  onAiSearch: jest.fn().mockResolvedValue(undefined),
+  aiSearching: false,
+  aiError: null,
+  aiQuota: null,
 };
 
 describe("RecruiterSearchForm", () => {
@@ -32,12 +41,20 @@ describe("RecruiterSearchForm", () => {
   it("renders basic search mode by default", () => {
     render(<RecruiterSearchForm {...mockProps} />);
 
+    expect(screen.getByText("AI Search")).toBeInTheDocument();
     expect(screen.getByText("Basic Lookup")).toBeInTheDocument();
     expect(screen.getByText("Premium Filters")).toBeInTheDocument();
-    expect(
-      screen.getByPlaceholderText("e.g., resume-447 or uid-9abc")
-    ).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("e.g., 2")).toBeInTheDocument();
     expect(screen.getByText("Run Search")).toBeInTheDocument();
+  });
+
+  it("renders AI search mode when selected", () => {
+    render(<RecruiterSearchForm {...mockProps} searchMode="ai" />);
+
+    expect(
+      screen.getByPlaceholderText(/Looking for a Java developer/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText("Smart Search")).toBeInTheDocument();
   });
 
   it("renders premium search mode when selected", () => {
@@ -109,7 +126,7 @@ describe("RecruiterSearchForm", () => {
   it("updates userId when basic search input changes", () => {
     render(<RecruiterSearchForm {...mockProps} />);
 
-    const input = screen.getByPlaceholderText("e.g., resume-447 or uid-9abc");
+    const input = screen.getByPlaceholderText("e.g., 2");
     fireEvent.change(input, { target: { value: "test-user-123" } });
 
     expect(mockProps.setUserId).toHaveBeenCalledWith("test-user-123");
@@ -217,7 +234,7 @@ describe("RecruiterSearchForm", () => {
   it("disables inputs when loading", () => {
     render(<RecruiterSearchForm {...mockProps} loading={true} />);
 
-    const input = screen.getByPlaceholderText("e.g., resume-447 or uid-9abc");
+    const input = screen.getByPlaceholderText("e.g., 2");
     expect(input).toBeDisabled();
   });
 

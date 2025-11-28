@@ -12,19 +12,19 @@ import { useGlobalStats } from "@/hooks/useGlobalStats";
 
 const HERO_HIGHLIGHTS = [
   {
-    title: "Live engagement analytics",
+    title: "Resume view tracking",
     description:
-      "Understand open rates, time on page, and follow-ups for every secure link.",
+      "See how many times your resume has been viewed and track recruiter interest.",
   },
   {
-    title: "Precision privacy controls",
+    title: "Privacy-first sharing",
     description:
-      "Gate sections, watermark assets, and expire access by viewer in seconds.",
+      "Share secure links and control who can see your contact information.",
   },
   {
-    title: "AI refresh suggestions",
+    title: "AI-powered resume builder",
     description:
-      "Get tailored prompts to update bullets the moment performance dips.",
+      "Create professional resumes with AI that helps polish every bullet point.",
   },
 ];
 

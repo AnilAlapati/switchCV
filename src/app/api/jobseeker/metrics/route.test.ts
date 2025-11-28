@@ -139,6 +139,12 @@ describe("GET /api/jobseeker/metrics", () => {
   });
 
   it("should return 500 when database operation fails", async () => {
+    // Mock metrics doc to succeed (so we reach the query)
+    mockGet.mockResolvedValueOnce({
+      exists: true,
+      data: () => ({}), // No contactRequests, so it triggers the query
+    });
+
     // Mock resumes query to fail
     mockQueryGet.mockRejectedValueOnce(new Error("Database connection failed"));
 

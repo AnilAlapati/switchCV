@@ -20,13 +20,19 @@ const serviceAccountPath = path.join(
 
 // Try to load service account, otherwise fall back to Application Default Credentials
 let serviceAccount;
+
+// Parse command line arguments for --project
+const args = process.argv.slice(2);
+const projectArgIndex = args.indexOf('--project');
+const projectOverride = projectArgIndex !== -1 ? args[projectArgIndex + 1] : null;
+
 try {
   serviceAccount = require(serviceAccountPath);
   console.log("🔑 Found service account key file.");
   
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    projectId: serviceAccount.project_id,
+    projectId: projectOverride || serviceAccount.project_id,
   });
 } catch {
   console.log("⚠️ Service account key not found. Trying Application Default Credentials...");
@@ -34,7 +40,7 @@ try {
   // Fallback to ADC
   // You might need to set GOOGLE_CLOUD_PROJECT env var or pass projectId explicitly
   // We'll try to read it from .env.local if possible, or use a default
-  const PROJECT_ID = "switchcv-e5136"; 
+  const PROJECT_ID = projectOverride || "switchcv-e5136"; 
   
   try {
     admin.initializeApp({

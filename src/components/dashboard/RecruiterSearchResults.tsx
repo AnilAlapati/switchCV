@@ -1,13 +1,13 @@
 /* eslint-disable max-lines */
 import { type ReactNode } from "react";
-import { SearchResult } from "./RecruiterSearchForm";
+import { SearchResult, SearchModeType } from "./RecruiterSearchForm";
 
 interface RecruiterSearchResultsProps {
   results: SearchResult[];
   searched: boolean;
   error: string | null;
   notification: string | null;
-  searchMode: "basic" | "premium";
+  searchMode: SearchModeType;
   onViewResume: (resumeId: string) => void;
   onRequestAccess?: (resumeId: string, userName: string) => void;
 }
@@ -386,7 +386,7 @@ export function RecruiterSearchResults({
       <p className="text-lg font-semibold text-white">Ready when you are</p>
       <p className="text-sm text-slate-400">
         {searchMode === "basic"
-          ? "Enter a resume or user ID to pull a single candidate."
+          ? "Enter a resume ID or user ID to pull a single candidate."
           : "Add at least one skill or a location to preview premium matches."}
       </p>
     </section>

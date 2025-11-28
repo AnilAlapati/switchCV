@@ -1,5 +1,7 @@
 "use client";
 
+import { logger } from "@/lib/logger";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
@@ -51,7 +53,7 @@ export function AvailableResumesCard() {
           });
         }
       } catch (error) {
-        console.error("Failed to fetch metrics for available resumes:", error);
+        logger.error({ err: error }, "Failed to fetch metrics for available resumes:");
       } finally {
         setLoading(false);
       }

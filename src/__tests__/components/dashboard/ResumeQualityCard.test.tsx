@@ -14,6 +14,24 @@ const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
+const createMockAuthContext = (user: any) => ({
+  user,
+  loading: false,
+  signIn: jest.fn(),
+  signUp: jest.fn(),
+  logout: jest.fn(),
+  needsEmailVerification: false,
+  verificationEmail: null,
+  connectivityIssue: null,
+  signInWithGoogle: jest.fn(),
+  resetPassword: jest.fn(),
+  updatePassword: jest.fn(),
+  updateEmail: jest.fn(),
+  deleteAccount: jest.fn(),
+  resendVerificationEmail: jest.fn(),
+  refreshUser: jest.fn(),
+});
+
 describe("ResumeQualityCard", () => {
   const mockUser = {
     uid: "test-user-id",
@@ -41,13 +59,7 @@ describe("ResumeQualityCard", () => {
 
   describe("Loading State", () => {
     it("shows loading state when user is available", () => {
-      mockUseAuth.mockReturnValue({
-        user: mockUser,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(mockUser));
 
       render(<ResumeQualityCard />);
 
@@ -56,13 +68,7 @@ describe("ResumeQualityCard", () => {
     });
 
     it("shows not loading when no user", () => {
-      mockUseAuth.mockReturnValue({
-        user: null,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(null));
 
       render(<ResumeQualityCard />);
 
@@ -77,13 +83,7 @@ describe("ResumeQualityCard", () => {
         quality: 85,
       };
 
-      mockUseAuth.mockReturnValue({
-        user: mockUser,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(mockUser));
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -104,13 +104,7 @@ describe("ResumeQualityCard", () => {
         quality: 85,
       };
 
-      mockUseAuth.mockReturnValue({
-        user: mockUser,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(mockUser));
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -130,13 +124,7 @@ describe("ResumeQualityCard", () => {
         quality: 70,
       };
 
-      mockUseAuth.mockReturnValue({
-        user: mockUser,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(mockUser));
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -156,13 +144,7 @@ describe("ResumeQualityCard", () => {
         quality: 45,
       };
 
-      mockUseAuth.mockReturnValue({
-        user: mockUser,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(mockUser));
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -184,13 +166,7 @@ describe("ResumeQualityCard", () => {
         quality: 0,
       };
 
-      mockUseAuth.mockReturnValue({
-        user: mockUser,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(mockUser));
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -208,13 +184,7 @@ describe("ResumeQualityCard", () => {
     });
 
     it("handles fetch error gracefully", async () => {
-      mockUseAuth.mockReturnValue({
-        user: mockUser,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(mockUser));
 
       mockFetch.mockRejectedValueOnce(new Error("Network error"));
 
@@ -232,13 +202,7 @@ describe("ResumeQualityCard", () => {
         quality: 75,
       };
 
-      mockUseAuth.mockReturnValue({
-        user: mockUser,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(mockUser));
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -261,13 +225,7 @@ describe("ResumeQualityCard", () => {
         json: async () => ({ quality: 0 }),
       });
 
-      mockUseAuth.mockReturnValue({
-        user: mockUser,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(mockUser));
 
       render(<ResumeQualityCard />);
 
@@ -278,13 +236,7 @@ describe("ResumeQualityCard", () => {
 
   describe("UI Rendering", () => {
     it("renders card structure correctly", async () => {
-      mockUseAuth.mockReturnValue({
-        user: null,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(null));
 
       render(<ResumeQualityCard />);
 
@@ -296,13 +248,7 @@ describe("ResumeQualityCard", () => {
     });
 
     it("renders checkmark icon", () => {
-      mockUseAuth.mockReturnValue({
-        user: null,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(null));
 
       render(<ResumeQualityCard />);
 

@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { generateText } from "@/lib/services/aiGenerationService";
@@ -101,7 +102,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("Error in resume edit chat GET:", error);
+    logger.error({ err: error }, "Error in resume edit chat GET:");
     return handleApiError(error, "Internal server error");
   }
 }
@@ -195,7 +196,18 @@ export async function POST(
       });
     }
 
-    const mergedResume = mergeProfileIntoResume(resumeData, updatedProfile);
+    // Fix for missing visibility in skills from AI response
+    if (updatedProfile.skills && Array.isArray(updatedProfile.skills)) {
+      updatedProfile.skills = updatedProfile.skills.map((skill: any) => ({
+        ...skill,
+        visibility: skill.visibility ?? true,
+      }));
+    }
+
+    const mergedResume = mergeProfileIntoResume(
+      resumeData,
+      updatedProfile as any
+    );
     const normalizedUpdated = normalizeResumeForEditor(mergedResume);
     const sanitizedUpdate = sanitizeResumePayload(normalizedUpdated.resume);
     const timestamp = new Date().toISOString();
@@ -228,7 +240,10 @@ export async function POST(
           { merge: true }
         );
     } catch (subError) {
-      console.error("Failed to update user resume subcollection:", subError);
+      logger.error(
+        { err: subError },
+        "Failed to update user resume subcollection:"
+      );
     }
 
     try {
@@ -246,7 +261,7 @@ export async function POST(
           { merge: true }
         );
     } catch (globalError) {
-      console.error("Failed to update allResumes index:", globalError);
+      logger.error({ err: globalError }, "Failed to update allResumes index:");
     }
 
     const updatedResume = {
@@ -276,7 +291,7 @@ export async function POST(
       },
     });
   } catch (error) {
-    console.error("Error handling resume edit chat:", error);
+    logger.error({ err: error }, "Error handling resume edit chat:");
     return handleApiError(error, "Failed to process resume edit");
   }
 }

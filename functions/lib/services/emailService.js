@@ -12,17 +12,20 @@ const nodemailer_1 = __importDefault(require("nodemailer"));
 class EmailService {
     constructor() {
         // Initialize nodemailer transporter
-        // For production, use SendGrid, Mailgun, or similar
-        const gmailUser = process.env.GMAIL_USER || "noreply@switchcv.com";
-        const gmailPassword = process.env.GMAIL_APP_PASSWORD || "";
-        this.fromEmail = gmailUser;
+        // Configured for Titan Email (or other SMTP providers via env vars)
+        const smtpHost = process.env.SMTP_HOST || "smtp.titan.email";
+        const smtpPort = parseInt(process.env.SMTP_PORT || "465");
+        const smtpUser = process.env.SMTP_USER || "support@switchcv.com";
+        const smtpPass = process.env.SMTP_PASS || "";
+        this.fromEmail = smtpUser;
         this.fromName = "SwitchCV";
-        // Using Gmail SMTP (or configure with your email provider)
         this.transporter = nodemailer_1.default.createTransport({
-            service: "gmail",
+            host: smtpHost,
+            port: smtpPort,
+            secure: smtpPort === 465, // true for 465, false for other ports
             auth: {
-                user: gmailUser,
-                pass: gmailPassword,
+                user: smtpUser,
+                pass: smtpPass,
             },
         });
     }
@@ -156,14 +159,24 @@ class EmailService {
         `,
             },
             welcomeEmail: {
-                subject: "Welcome to SwitchCV - Get Started Today",
-                text: `Welcome to SwitchCV! Start creating your professional profile to connect with opportunities.`,
+                subject: "Welcome to SwitchCV - Verify your Email",
+                text: `Welcome to SwitchCV! Please verify your email address: {{verificationUrl}}`,
                 html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2>Welcome to SwitchCV!</h2>
             <p>Hi {{firstName}},</p>
             <p>Thank you for joining SwitchCV. We're excited to help you showcase your skills and connect with opportunities.</p>
-            <p><strong>Here's what you can do:</strong></p>
+            
+            <div style="background-color: #f3f4f6; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center;">
+              <p style="margin-top: 0;"><strong>Please verify your email address to get started:</strong></p>
+              <p>
+                <a href="{{verificationUrl}}" style="background-color: #10b981; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                  Verify Email
+                </a>
+              </p>
+            </div>
+
+            <p><strong>Here's what you can do next:</strong></p>
             <ul>
               <li>Create your professional profile</li>
               <li>Upload and manage your resumes</li>
@@ -171,8 +184,8 @@ class EmailService {
               <li>Control access to your information</li>
             </ul>
             <p>
-              <a href="{{onboardingUrl}}" style="background-color: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
-                Complete Your Profile
+              <a href="{{onboardingUrl}}" style="color: #3b82f6; text-decoration: none;">
+                Go to Dashboard
               </a>
             </p>
           </div>

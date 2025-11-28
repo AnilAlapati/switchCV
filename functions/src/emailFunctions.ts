@@ -17,12 +17,43 @@ export const onUserCreated = functions.auth.user().onCreate(async (user) => {
       .get();
     const userData = userDoc.data();
 
+    // Generate email verification link
+    let verificationLink = `${process.env.WEBSITE_URL}/auth?mode=verify-email`; // Fallback to auth page
+    if (user.email) {
+      try {
+        // Try to generate link with redirect to dashboard
+        const actionCodeSettings = {
+          url: `${process.env.WEBSITE_URL}/dashboard`,
+          handleCodeInApp: false,
+        };
+        verificationLink = await admin
+          .auth()
+          .generateEmailVerificationLink(user.email, actionCodeSettings);
+      } catch (e) {
+        console.warn(
+          "Error generating verification link with redirect, trying without redirect:",
+          e
+        );
+        try {
+          // Fallback: Try generating link without redirect (standard Firebase handler)
+          // This handles cases where the domain might not be authorized
+          verificationLink = await admin
+            .auth()
+            .generateEmailVerificationLink(user.email);
+        } catch (e2) {
+          console.error("Error generating verification link (fallback):", e2);
+          // verificationLink remains the manual fallback
+        }
+      }
+    }
+
     const result = await emailService.sendEmail({
       to: user.email || "",
       template: "welcomeEmail" as any,
       data: {
         firstName: userData?.firstName || user.displayName || "User",
         onboardingUrl: `${process.env.WEBSITE_URL}/onboarding`,
+        verificationUrl: verificationLink,
       },
     });
 

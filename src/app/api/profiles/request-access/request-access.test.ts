@@ -5,6 +5,7 @@
 jest.mock("@/lib/firebase-admin", () => ({
   adminDb: {
     collection: jest.fn(),
+    collectionGroup: jest.fn(),
   },
   adminAuth: {
     verifyIdToken: jest.fn(),
@@ -130,6 +131,21 @@ const setupFirestoreMocks = () => {
         return { doc: jest.fn() };
     }
   });
+
+  (mockAdminDb.collectionGroup as jest.Mock).mockImplementation(
+    (name: string) => {
+      if (name === "accessRequests") {
+        return {
+          where: jest.fn().mockReturnThis(),
+          get: jest.fn().mockResolvedValue(mockQuerySnapshot([])),
+        };
+      }
+      return {
+        where: jest.fn().mockReturnThis(),
+        get: jest.fn().mockResolvedValue(mockQuerySnapshot([])),
+      };
+    }
+  );
 };
 
 describe("POST /api/profiles/request-access", () => {

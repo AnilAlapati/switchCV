@@ -1,8 +1,11 @@
 "use client";
 
+import { logger } from "@/lib/logger";
+
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Notification, NotificationStatus } from "@/lib/notifications.types";
+import { UI_CONFIG } from "@/config/constants";
 
 export function NotificationsMenu() {
   const { user } = useAuth();
@@ -38,13 +41,16 @@ export function NotificationsMenu() {
           );
         }
       } catch (error) {
-        console.error("Failed to fetch notifications", error);
+        logger.error({ err: error }, "Failed to fetch notifications");
       }
     };
 
     fetchNotifications();
-    // Poll every minute
-    const interval = setInterval(fetchNotifications, 60000);
+    // Poll interval configured in constants.ts to manage read costs
+    const interval = setInterval(
+      fetchNotifications,
+      UI_CONFIG.NOTIFICATION_POLLING_INTERVAL_MS
+    );
     return () => clearInterval(interval);
   }, [user]);
 
@@ -68,7 +74,7 @@ export function NotificationsMenu() {
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (error) {
-      console.error("Failed to mark as read", error);
+      logger.error({ err: error }, "Failed to mark as read");
     }
   };
 

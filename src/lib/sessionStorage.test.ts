@@ -87,8 +87,8 @@ describe("Session Storage", () => {
       saveSessionData("user123", "question1", { q1: "answer1" });
 
       expect(mockLogger.error).toHaveBeenCalledWith(
-        "Failed to save session data:",
-        expect.any(Error)
+        { err: expect.any(Error) },
+        "Failed to save session data:"
       );
     });
   });
@@ -166,8 +166,8 @@ describe("Session Storage", () => {
 
       expect(result).toBeNull();
       expect(mockLogger.error).toHaveBeenCalledWith(
-        "Failed to load session data:",
-        expect.any(Error)
+        { err: expect.any(Error) },
+        "Failed to load session data:"
       );
     });
 
@@ -180,8 +180,8 @@ describe("Session Storage", () => {
 
       expect(result).toBeNull();
       expect(mockLogger.error).toHaveBeenCalledWith(
-        "Failed to load session data:",
-        expect.any(Error)
+        { err: expect.any(Error) },
+        "Failed to load session data:"
       );
     });
   });
@@ -203,8 +203,8 @@ describe("Session Storage", () => {
       clearSessionData();
 
       expect(mockLogger.error).toHaveBeenCalledWith(
-        "Failed to clear session data:",
-        expect.any(Error)
+        { err: expect.any(Error) },
+        "Failed to clear session data:"
       );
     });
   });

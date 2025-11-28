@@ -35,7 +35,6 @@ var __importStar = (this && this.__importStar) || (function () {
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.generateJobMatchSuggestions = void 0;
 exports.generateJobMatchingSuggestions = generateJobMatchingSuggestions;
@@ -77,8 +76,8 @@ const aiRetryOptions = {
     backoffMultiplier: 2,
     retryableErrors: ["ECONNRESET", "ETIMEDOUT", "503", "429", "UNAVAILABLE"],
 };
-// CORS configuration
-const corsHandler = (0, cors_1.default)({ origin: (_a = securityConfig.corsOrigin) !== null && _a !== void 0 ? _a : true });
+// SECURITY: CORS configuration from config (specific origins by default, not 'true')
+const corsHandler = (0, cors_1.default)({ origin: securityConfig.corsOrigin });
 // Helmet for security (can be toggled via config)
 const helmetHandler = securityConfig.enableHelmet
     ? (0, helmet_1.default)({ contentSecurityPolicy: false })
@@ -162,7 +161,12 @@ function deriveDeterministicInsights(jobDescription, resumeData) {
  */
 exports.generateJobMatchSuggestions = functions
     .runWith({
-    secrets: ["HUGGINGFACE_TOKEN", "GEMINI_API_KEY"],
+    secrets: [
+        "HUGGINGFACE_TOKEN",
+        "GEMINI_API_KEY",
+        "GROQ_API_KEY",
+        "OPENAI_API_KEY",
+    ],
     timeoutSeconds: 60,
     memory: "512MB",
 })

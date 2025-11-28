@@ -34,38 +34,65 @@ describe("Access Control Types", () => {
     });
   });
 
-  describe("AccessGrant type", () => {
+      describe("AccessGrant type", () => {
     test("should create valid access grant", () => {
       const grant: AccessGrant = {
         grantId: "456",
         toUserId: "user-a",
         grantedAt: new Date(),
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        duration: "1week",
+        duration: {
+            preset: "1_week",
+            value: 1,
+            unit: "week",
+            durationHours: 168,
+            durationMs: 604800000,
+            label: "1 Week",
+            isCustom: false
+        },
       };
 
       expect(grant.grantId).toBe("456");
-      expect(grant.duration).toBe("1week");
+      expect(grant.duration?.preset).toBe("1_week");
     });
 
     test("should support 1hour duration", () => {
-      const duration: AccessGrant["duration"] = "1hour";
-      expect(duration).toBe("1hour");
+      const duration: AccessGrant["duration"] = {
+          preset: "1_hour",
+          value: 1,
+          unit: "hour",
+          durationHours: 1,
+          durationMs: 3600000,
+          label: "1 Hour",
+          isCustom: false
+      };
+      expect(duration?.preset).toBe("1_hour");
     });
 
     test("should support 1day duration", () => {
-      const duration: AccessGrant["duration"] = "1day";
-      expect(duration).toBe("1day");
+      const duration: AccessGrant["duration"] = {
+          preset: "1_day",
+          value: 1,
+          unit: "day",
+          durationHours: 24,
+          durationMs: 86400000,
+          label: "1 Day",
+          isCustom: false
+      };
+      expect(duration?.preset).toBe("1_day");
     });
 
     test("should support 1week duration", () => {
-      const duration: AccessGrant["duration"] = "1week";
-      expect(duration).toBe("1week");
-    });
-
-    test("should support forever duration", () => {
-      const duration: AccessGrant["duration"] = "forever";
-      expect(duration).toBe("forever");
+      const duration: AccessGrant["duration"] = {
+          preset: "1_week",
+          value: 1,
+          unit: "week",
+          durationHours: 168,
+          durationMs: 604800000,
+          label: "1 Week",
+          isCustom: false
+      };
+      expect(duration?.preset).toBe("1_week");
     });
 
     test("should allow null expiry for forever", () => {
@@ -74,10 +101,11 @@ describe("Access Control Types", () => {
         toUserId: "user-a",
         grantedAt: new Date(),
         expiresAt: null,
-        duration: "forever",
+        duration: undefined,
       };
 
       expect(grant.expiresAt).toBeNull();
+      expect(grant.duration).toBeUndefined();
     });
   });
 

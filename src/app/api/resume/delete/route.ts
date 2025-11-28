@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { addDeletedIdToPool } from "@/lib/resumeIdRecycler";
@@ -95,9 +96,9 @@ export async function POST(request: NextRequest) {
     if (numericId) {
       try {
         await addDeletedIdToPool(numericId);
-        console.log(`♻️ Recycled ID: ${numericId}`);
+        logger.info(`♻️ Recycled ID: ${numericId}`);
       } catch (error) {
-        console.error("Failed to recycle ID:", error);
+        logger.error({ err: error }, "Failed to recycle ID:");
       }
     }
 

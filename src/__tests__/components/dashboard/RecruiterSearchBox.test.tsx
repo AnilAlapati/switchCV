@@ -2,11 +2,31 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { RecruiterSearchBox } from "@/components/dashboard/RecruiterSearchBox";
 
+const mockGetIdToken = jest.fn();
+
 // Mock useAuth
 jest.mock("@/hooks/useAuth", () => ({
   useAuth: () => ({
-    user: { uid: "recruiter-123", email: "recruiter@example.com" },
+    user: {
+      uid: "recruiter-123",
+      email: "recruiter@example.com",
+      getIdToken: mockGetIdToken,
+    },
     loading: false,
+  }),
+}));
+
+// Mock useTier
+jest.mock("@/hooks/useTier", () => ({
+  useTier: () => ({
+    tier: "premium",
+    loading: false,
+    error: null,
+    isBasic: false,
+    isPremium: true,
+    isEnterprise: false,
+    isPremiumOrHigher: true,
+    refetch: jest.fn(),
   }),
 }));
 
@@ -17,26 +37,44 @@ global.fetch = mockFetch as any;
 describe("RecruiterSearchBox", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetIdToken.mockResolvedValue("mock-token");
   });
 
   it("renders the search box with header and form", () => {
     render(<RecruiterSearchBox />);
 
     expect(screen.getByText("Resume Search")).toBeInTheDocument();
+    expect(screen.getByText("AI Search")).toBeInTheDocument();
     expect(screen.getByText("Basic Lookup")).toBeInTheDocument();
     expect(screen.getByText("Premium Filters")).toBeInTheDocument();
   });
 
-  it("starts in basic search mode by default", () => {
+  it("starts in AI search mode by default", () => {
     render(<RecruiterSearchBox />);
 
-    // Basic mode should show the basic search input
+    // AI mode should show the AI search textarea
     expect(
-      screen.getByPlaceholderText("e.g., resume-447 or uid-9abc")
+      screen.getByPlaceholderText(/Looking for a Java developer/i)
     ).toBeInTheDocument();
+    // Basic mode input should not be visible
+    expect(screen.queryByPlaceholderText("e.g., 2")).not.toBeInTheDocument();
     // Premium mode fields should not be visible
     expect(
       screen.queryByPlaceholderText("e.g., React, Python, AWS")
+    ).not.toBeInTheDocument();
+  });
+
+  it("switches to basic mode when basic button is clicked", async () => {
+    render(<RecruiterSearchBox />);
+
+    const basicButton = screen.getByText("Basic Lookup");
+    await userEvent.click(basicButton);
+
+    // Basic mode should show the basic search input
+    expect(screen.getByPlaceholderText("e.g., 2")).toBeInTheDocument();
+    // AI mode textarea should not be visible
+    expect(
+      screen.queryByPlaceholderText(/Looking for a Java developer/i)
     ).not.toBeInTheDocument();
   });
 
@@ -53,35 +91,37 @@ describe("RecruiterSearchBox", () => {
     expect(
       screen.getByPlaceholderText("City, region, or remote")
     ).toBeInTheDocument();
-    // Basic mode input should not be visible
+    // AI mode textarea should not be visible
     expect(
-      screen.queryByPlaceholderText("e.g., resume-447 or uid-9abc")
+      screen.queryByPlaceholderText(/Looking for a Java developer/i)
     ).not.toBeInTheDocument();
   });
 
-  it("switches back to basic mode when basic button is clicked", async () => {
+  it("switches back to AI mode when AI button is clicked", async () => {
     render(<RecruiterSearchBox />);
 
-    // Switch to premium first
-    const premiumButton = screen.getByText("Premium Filters");
-    await userEvent.click(premiumButton);
-
-    // Switch back to basic
+    // Switch to basic first
     const basicButton = screen.getByText("Basic Lookup");
     await userEvent.click(basicButton);
 
-    // Basic mode input should be visible again
+    // Switch back to AI
+    const aiButton = screen.getByText("AI Search");
+    await userEvent.click(aiButton);
+
+    // AI mode textarea should be visible again
     expect(
-      screen.getByPlaceholderText("e.g., resume-447 or uid-9abc")
+      screen.getByPlaceholderText(/Looking for a Java developer/i)
     ).toBeInTheDocument();
-    // Premium mode fields should not be visible
-    expect(
-      screen.queryByPlaceholderText("e.g., React, Python, AWS")
-    ).not.toBeInTheDocument();
+    // Basic mode input should not be visible
+    expect(screen.queryByPlaceholderText("e.g., 2")).not.toBeInTheDocument();
   });
 
   it("shows error when basic search is submitted without userId", async () => {
     render(<RecruiterSearchBox />);
+
+    // Switch to basic mode first
+    const basicButton = screen.getByText("Basic Lookup");
+    await userEvent.click(basicButton);
 
     const submitButton = screen.getByText("Run Search");
     await userEvent.click(submitButton);
@@ -126,9 +166,11 @@ describe("RecruiterSearchBox", () => {
 
     render(<RecruiterSearchBox />);
 
-    const userIdInput = screen.getByPlaceholderText(
-      "e.g., resume-447 or uid-9abc"
-    );
+    // Switch to basic mode first
+    const basicButton = screen.getByText("Basic Lookup");
+    await userEvent.click(basicButton);
+
+    const userIdInput = screen.getByPlaceholderText("e.g., 2");
     await userEvent.type(userIdInput, "user-123");
 
     const submitButton = screen.getByText("Run Search");
@@ -137,7 +179,10 @@ describe("RecruiterSearchBox", () => {
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith("/api/recruiter/search-resumes", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer mock-token",
+        },
         body: JSON.stringify({
           recruiterId: "recruiter-123",
           userId: "user-123",
@@ -145,6 +190,7 @@ describe("RecruiterSearchBox", () => {
       });
     });
 
+    expect(mockGetIdToken).toHaveBeenCalled();
     expect(screen.getByText("1 resume found")).toBeInTheDocument();
     expect(screen.getByText("Software Engineer Resume")).toBeInTheDocument();
   });
@@ -185,7 +231,10 @@ describe("RecruiterSearchBox", () => {
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith("/api/recruiter/search-resumes", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer mock-token",
+        },
         body: JSON.stringify({
           recruiterId: "recruiter-123",
           skills: ["React"],
@@ -235,7 +284,10 @@ describe("RecruiterSearchBox", () => {
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith("/api/recruiter/search-resumes", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer mock-token",
+        },
         body: JSON.stringify({
           recruiterId: "recruiter-123",
           location: "Austin",
@@ -256,9 +308,11 @@ describe("RecruiterSearchBox", () => {
 
     render(<RecruiterSearchBox />);
 
-    const userIdInput = screen.getByPlaceholderText(
-      "e.g., resume-447 or uid-9abc"
-    );
+    // Switch to basic mode first
+    const basicButton = screen.getByText("Basic Lookup");
+    await userEvent.click(basicButton);
+
+    const userIdInput = screen.getByPlaceholderText("e.g., 2");
     await userEvent.type(userIdInput, "user-123");
 
     const submitButton = screen.getByText("Run Search");
@@ -281,9 +335,11 @@ describe("RecruiterSearchBox", () => {
 
     render(<RecruiterSearchBox />);
 
-    const userIdInput = screen.getByPlaceholderText(
-      "e.g., resume-447 or uid-9abc"
-    );
+    // Switch to basic mode first
+    const basicButton = screen.getByText("Basic Lookup");
+    await userEvent.click(basicButton);
+
+    const userIdInput = screen.getByPlaceholderText("e.g., 2");
     await userEvent.type(userIdInput, "user-999");
 
     const submitButton = screen.getByText("Run Search");
@@ -326,9 +382,11 @@ describe("RecruiterSearchBox", () => {
 
     render(<RecruiterSearchBox />);
 
-    const userIdInput = screen.getByPlaceholderText(
-      "e.g., resume-447 or uid-9abc"
-    );
+    // Switch to basic mode first
+    const basicButton = screen.getByText("Basic Lookup");
+    await userEvent.click(basicButton);
+
+    const userIdInput = screen.getByPlaceholderText("e.g., 2");
     await userEvent.type(userIdInput, "user-123");
 
     const submitButton = screen.getByText("Run Search");
@@ -362,9 +420,11 @@ describe("RecruiterSearchBox", () => {
 
     render(<RecruiterSearchBox />);
 
-    const userIdInput = screen.getByPlaceholderText(
-      "e.g., resume-447 or uid-9abc"
-    );
+    // Switch to basic mode first
+    const basicButton = screen.getByText("Basic Lookup");
+    await userEvent.click(basicButton);
+
+    const userIdInput = screen.getByPlaceholderText("e.g., 2");
     await userEvent.type(userIdInput, "user-123");
 
     const submitButton = screen.getByText("Run Search");

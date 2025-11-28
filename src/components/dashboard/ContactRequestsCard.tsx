@@ -1,5 +1,7 @@
 "use client";
 
+import { logger } from "@/lib/logger";
+
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useOptionalDashboardMetricsContext } from "@/context/DashboardMetricsContext";
@@ -41,7 +43,7 @@ export function ContactRequestsCard() {
           setMetrics({ contactRequests: data.contactRequests || 0 });
         }
       } catch (error) {
-        console.error("Failed to fetch contact requests:", error);
+        logger.error({ err: error }, "Failed to fetch contact requests:");
       } finally {
         setLoading(false);
       }

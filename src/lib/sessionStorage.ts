@@ -27,7 +27,7 @@ export const saveSessionData = (
   try {
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionData));
   } catch (error) {
-    logger.error("Failed to save session data:", error);
+    logger.error({ err: error }, "Failed to save session data:");
   }
 };
 
@@ -53,7 +53,7 @@ export const loadSessionData = (userId: string): SessionData | null => {
 
     return sessionData;
   } catch (error) {
-    logger.error("Failed to load session data:", error);
+    logger.error({ err: error }, "Failed to load session data:");
     return null;
   }
 };
@@ -62,7 +62,7 @@ export const clearSessionData = (): void => {
   try {
     localStorage.removeItem(SESSION_STORAGE_KEY);
   } catch (error) {
-    logger.error("Failed to clear session data:", error);
+    logger.error({ err: error }, "Failed to clear session data:");
   }
 };
 
@@ -80,7 +80,7 @@ export const updateAnswer = (
 
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionData));
   } catch (error) {
-    logger.error("Failed to update answer:", error);
+    logger.error({ err: error }, "Failed to update answer:");
   }
 };
 
@@ -94,7 +94,7 @@ export const getAnswer = (
     const sessionData: SessionData = JSON.parse(stored);
     return sessionData.answers[questionId] || null;
   } catch (error) {
-    logger.error("Failed to get answer:", error);
+    logger.error({ err: error }, "Failed to get answer:");
     return null;
   }
 };

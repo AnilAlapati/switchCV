@@ -12,6 +12,7 @@ import {
   handleApiError,
 } from "@/lib/utils/api-helpers";
 import { createNotification } from "@/lib/notificationService";
+import { RECRUITER_CONTACT_LIMITS } from "@/lib/config";
 import {
   NotificationType,
   NotificationChannel,
@@ -21,6 +22,8 @@ import {
   DurationSelectionInput,
   normalizeDuration,
 } from "@/lib/accessDuration";
+import { logger } from "@/lib/logger";
+import { updateRecruiterAccessMetric } from "@/lib/services/metricsService";
 
 interface RequestAccessPayload {
   resumeId: string;
@@ -79,6 +82,44 @@ export async function POST(request: NextRequest) {
         "Company name is required to request access. Please update your profile settings.",
         403
       );
+    }
+
+    // Check request limits
+    const rawTier = userData?.subscriptionTier;
+    const userTier =
+      rawTier && ["basic", "premium", "enterprise"].includes(rawTier)
+        ? (rawTier as keyof typeof RECRUITER_CONTACT_LIMITS)
+        : "basic";
+
+    const limitConfig = RECRUITER_CONTACT_LIMITS[userTier];
+
+    if (limitConfig.amount < 9999) {
+      let query = adminDb
+        .collectionGroup("accessRequests")
+        .where("fromUserId", "==", currentUserId);
+
+      if (limitConfig.interval === "month") {
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
+        query = query.where("timestamp", ">=", startOfMonth);
+      }
+
+      const requestsSnapshot = await query.get();
+
+      if (requestsSnapshot.size >= limitConfig.amount) {
+        const period =
+          limitConfig.interval === "month" ? "this month" : "total";
+        return handleApiError(
+          null,
+          `${
+            userTier.charAt(0).toUpperCase() + userTier.slice(1)
+          } plan recruiters are limited to ${
+            limitConfig.amount
+          } access requests ${period}. Please upgrade to request more.`,
+          403
+        );
+      }
     }
 
     const resumeRef = adminDb.collection("resumes").doc(resumeId);
@@ -156,7 +197,10 @@ export async function POST(request: NextRequest) {
 
     const requestRef = await accessRequestsCollection.add(accessRequest);
 
-    console.log(`📨 Access request created: ${requestRef.id}`);
+    logger.info({ requestId: requestRef.id }, "Access request created");
+
+    // Update Recruiter Metrics
+    await updateRecruiterAccessMetric(currentUserId, "pending", 1);
 
     // Update job seeker metrics
     await adminDb
@@ -189,7 +233,7 @@ export async function POST(request: NextRequest) {
       NotificationPriority.HIGH
     );
 
-    console.log(`✉️ Notification sent to resume owner: ${resumeOwnerId}`);
+    logger.info(`✉️ Notification sent to resume owner: ${resumeOwnerId}`);
 
     return NextResponse.json({
       success: true,
@@ -212,7 +256,7 @@ async function fetchUserRequestDocs(
     return snapshot.docs as AccessRequestDoc[];
   } catch (error) {
     if (isFailedPreconditionError(error)) {
-      console.warn(
+      logger.warn(
         "[accessRequests] Missing Firestore index on fromUserId. Falling back to in-memory filter. Run `firebase deploy --only firestore:indexes` to restore optimal performance."
       );
       const fallbackSnapshot = await collectionRef.get();

@@ -1,10 +1,21 @@
 import { NextRequest } from "next/server";
 import { POST } from "@/app/api/profiles/request-access/route";
+import { logger } from "@/lib/logger";
+
+// Mock logger
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
+}));
 
 // Mock Firebase Admin
 jest.mock("@/lib/firebase-admin", () => ({
   adminDb: {
     collection: jest.fn(),
+    collectionGroup: jest.fn(),
   },
 }));
 
@@ -79,6 +90,20 @@ describe("POST /api/profiles/request-access", () => {
       }),
       get: jest.fn(),
     };
+
+    const collectionGroupMock = adminDb.collectionGroup as jest.Mock;
+    collectionGroupMock.mockImplementation((collectionName) => {
+      if (collectionName === "accessRequests") {
+        return {
+          where: jest.fn().mockReturnThis(),
+          get: jest.fn().mockResolvedValue({ size: 0, docs: [] }),
+        };
+      }
+      return {
+        where: jest.fn().mockReturnThis(),
+        get: jest.fn().mockResolvedValue({ size: 0, docs: [] }),
+      };
+    });
 
     const collectionMock = adminDb.collection as jest.Mock;
     collectionMock.mockImplementation((collectionName) => {
@@ -176,6 +201,20 @@ describe("POST /api/profiles/request-access", () => {
       }),
       get: jest.fn(),
     };
+
+    const collectionGroupMock = adminDb.collectionGroup as jest.Mock;
+    collectionGroupMock.mockImplementation((collectionName) => {
+      if (collectionName === "accessRequests") {
+        return {
+          where: jest.fn().mockReturnThis(),
+          get: jest.fn().mockResolvedValue({ size: 0, docs: [] }),
+        };
+      }
+      return {
+        where: jest.fn().mockReturnThis(),
+        get: jest.fn().mockResolvedValue({ size: 0, docs: [] }),
+      };
+    });
 
     const collectionMock = adminDb.collection as jest.Mock;
     collectionMock.mockImplementation((collectionName) => {
@@ -362,6 +401,20 @@ describe("POST /api/profiles/request-access", () => {
 
     const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
 
+    const collectionGroupMock = adminDb.collectionGroup as jest.Mock;
+    collectionGroupMock.mockImplementation((collectionName) => {
+      if (collectionName === "accessRequests") {
+        return {
+          where: jest.fn().mockReturnThis(),
+          get: jest.fn().mockResolvedValue({ size: 0, docs: [] }),
+        };
+      }
+      return {
+        where: jest.fn().mockReturnThis(),
+        get: jest.fn().mockResolvedValue({ size: 0, docs: [] }),
+      };
+    });
+
     const collectionMock = adminDb.collection as jest.Mock;
     collectionMock.mockImplementation((collectionName) => {
       if (collectionName === "users") {
@@ -415,10 +468,8 @@ describe("POST /api/profiles/request-access", () => {
     expect(data.success).toBe(true);
     expect(fallbackGetMock).toHaveBeenCalled();
     expect(addMock).toHaveBeenCalled();
-    expect(warnSpy).toHaveBeenCalledWith(
+    expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining("Missing Firestore index")
     );
-
-    warnSpy.mockRestore();
   });
 });

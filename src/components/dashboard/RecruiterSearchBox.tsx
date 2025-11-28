@@ -1,22 +1,27 @@
 "use client";
 
+import { logger } from "@/lib/logger";
+
 import { useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useTier } from "@/hooks/useTier";
 import { RequestAccessDialog } from "@/components/RequestAccessDialog";
-import type { SearchResult } from "./RecruiterSearchForm";
+import type { SearchResult, SearchModeType } from "./RecruiterSearchForm";
 import { RecruiterSearchForm } from "./RecruiterSearchForm";
 import { RecruiterSearchResults } from "./RecruiterSearchResults";
-
-const PREMIUM_FILTERS_ENABLED =
-  process.env.NEXT_PUBLIC_ENABLE_PREMIUM_FILTERS === "true" ||
-  process.env.NODE_ENV === "test";
+import {
+  RecruiterSearchHeader,
+  RecruiterSearchLoadingState,
+} from "./RecruiterSearchHeader";
+import { useAiSearch } from "./useAiSearch";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface RecruiterSearchBoxProps {}
 
 export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
   const { user } = useAuth();
-  const [searchMode, setSearchMode] = useState<"basic" | "premium">("basic");
+  const { isPremiumOrHigher, loading: tierLoading } = useTier();
+  const [searchMode, setSearchMode] = useState<SearchModeType>("ai"); // Default to AI search
   const [userId, setUserId] = useState("");
   const [skills, setSkills] = useState<string[]>([]);
   const [location, setLocation] = useState("");
@@ -25,6 +30,16 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
   const [error, setError] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
+
+  // AI Search hook
+  const { aiQuery, setAiQuery, aiSearching, aiError, aiQuota, handleAiSearch } =
+    useAiSearch({
+      user,
+      setSearchResults,
+      setSearched,
+      setNotification,
+    });
+
   const [requestDialog, setRequestDialog] = useState<{
     isOpen: boolean;
     profileName: string;
@@ -35,9 +50,27 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
     profileId: "",
   });
 
-  const effectiveSearchMode = useMemo<"basic" | "premium">(() => {
-    return PREMIUM_FILTERS_ENABLED ? searchMode : "basic";
-  }, [searchMode]);
+  /**
+   * Premium filters are enabled when:
+   * 1. Explicitly enabled via env var, OR
+   * 2. Running tests, OR
+   * 3. User has premium or enterprise tier (includes dev mode override)
+   */
+  const premiumFiltersEnabled =
+    process.env.NEXT_PUBLIC_ENABLE_PREMIUM_FILTERS === "true" ||
+    process.env.NODE_ENV === "test" ||
+    isPremiumOrHigher;
+
+  /**
+   * AI Search is enabled for premium or enterprise users
+   */
+  const aiSearchEnabled = isPremiumOrHigher;
+
+  const effectiveSearchMode = useMemo<SearchModeType>(() => {
+    if (searchMode === "ai" && !aiSearchEnabled) return "basic";
+    if (searchMode === "premium" && !premiumFiltersEnabled) return "basic";
+    return searchMode;
+  }, [searchMode, premiumFiltersEnabled, aiSearchEnabled]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,9 +100,13 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
     setSearchResults([]);
 
     try {
+      const token = await user.getIdToken();
       const response = await fetch("/api/recruiter/search-resumes", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           recruiterId: user.uid,
           ...(effectiveSearchMode === "basic" && { userId }),
@@ -94,7 +131,7 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
         setNotification("No resumes found matching your search");
       }
     } catch (err) {
-      console.error("Search error:", err);
+      logger.error({ err: err }, "Search error:");
       setError(err instanceof Error ? err.message : "Failed to search resumes");
     } finally {
       setLoading(false);
@@ -131,63 +168,28 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
     setSkills(skills.filter((_, i) => i !== index));
   };
 
+  // Show loading state while tier is being determined
+  if (tierLoading) {
+    return <RecruiterSearchLoadingState />;
+  }
+
   return (
     <section className="space-y-6">
       <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900/90 via-slate-900/80 to-slate-950/90 p-6 shadow-2xl shadow-cyan-500/10 backdrop-blur-sm ring-1 ring-white/5 lg:p-8">
         <div className="flex flex-col gap-6">
-          <header className="space-y-5">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="space-y-3">
-                <div className="inline-flex items-center gap-2.5 rounded-full border border-cyan-400/40 bg-gradient-to-r from-cyan-500/15 to-blue-500/15 px-4 py-1.5 backdrop-blur-sm">
-                  <span className="h-2 w-2 animate-pulse rounded-full bg-cyan-400 shadow-lg shadow-cyan-400/50" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-cyan-100">
-                    Recruiter Workspace
-                  </span>
-                </div>
-                <div>
-                  <h2 className="bg-gradient-to-r from-white via-slate-100 to-slate-300 bg-clip-text text-3xl font-black text-transparent lg:text-4xl">
-                    Resume Search
-                  </h2>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-400 lg:text-base">
-                    Discover talent instantly with advanced filters and
-                    real-time insights
-                  </p>
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2 rounded-full border border-white/10 bg-slate-950/60 px-4 py-2 backdrop-blur-sm">
-                  <span
-                    className={`h-2.5 w-2.5 rounded-full ${
-                      loading
-                        ? "animate-pulse bg-amber-400 shadow-lg shadow-amber-400/50"
-                        : searched
-                        ? "bg-emerald-400 shadow-lg shadow-emerald-400/50"
-                        : "bg-slate-500"
-                    }`}
-                  />
-                  <span className="text-xs font-semibold text-slate-300">
-                    {loading
-                      ? "Searching"
-                      : searched
-                      ? "Live Results"
-                      : "Ready"}
-                  </span>
-                </div>
-                {searched && (
-                  <span className="hidden text-xs text-slate-500 lg:inline">
-                    Updated just now
-                  </span>
-                )}
-              </div>
-            </div>
-          </header>
+          <RecruiterSearchHeader
+            loading={loading}
+            aiSearching={aiSearching}
+            searched={searched}
+          />
 
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr),340px]">
             <div className="rounded-2xl border border-white/5 bg-slate-950/50 p-6 backdrop-blur-sm">
               <RecruiterSearchForm
                 searchMode={effectiveSearchMode}
                 setSearchMode={setSearchMode}
-                premiumFiltersEnabled={PREMIUM_FILTERS_ENABLED}
+                premiumFiltersEnabled={premiumFiltersEnabled}
+                aiSearchEnabled={aiSearchEnabled}
                 userId={userId}
                 setUserId={setUserId}
                 skills={skills}
@@ -200,6 +202,13 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
                 searchResults={searchResults}
                 setSearchResults={setSearchResults}
                 setSearched={setSearched}
+                // AI Search props
+                aiQuery={aiQuery}
+                setAiQuery={setAiQuery}
+                onAiSearch={handleAiSearch}
+                aiSearching={aiSearching}
+                aiError={aiError}
+                aiQuota={aiQuota}
               />
             </div>
           </div>

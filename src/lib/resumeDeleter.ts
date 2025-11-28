@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 /**
  * Resume Deletion Service
  *
@@ -55,7 +56,7 @@ export const deleteResumeById = async (
 
     // Step 3: Delete the resume document
     await deleteDoc(resumeRef);
-    console.log(
+    logger.info(
       `🗑️ Resume deleted: ${resumeDocumentId} (numeric ID: ${numericId})`
     );
 
@@ -65,9 +66,9 @@ export const deleteResumeById = async (
         await addDeletedIdToPool(numericId);
       } catch (poolError) {
         // Log but don't fail the deletion if pool recycling fails
-        console.warn(
-          `⚠️ Could not recycle numeric ID ${numericId}:`,
-          poolError
+        logger.warn(
+          { err: poolError },
+          `⚠️ Could not recycle numeric ID ${numericId}:`
         );
       }
     }
@@ -78,7 +79,7 @@ export const deleteResumeById = async (
       numericId,
     };
   } catch (error) {
-    console.error("❌ Error deleting resume:", error);
+    logger.error({ err: error }, "❌ Error deleting resume:");
     return {
       success: false,
       message: `❌ Failed to delete resume: ${
@@ -133,7 +134,7 @@ export const deleteResumeByNumericId = async (
       return result;
     }
   } catch (error) {
-    console.error("❌ Error deleting resume by numeric ID:", error);
+    logger.error({ err: error }, "❌ Error deleting resume by numeric ID:");
     return {
       success: false,
       message: `❌ Failed to delete resume: ${
@@ -184,7 +185,7 @@ export const deleteResumeBySlug = async (
       return result;
     }
   } catch (error) {
-    console.error("❌ Error deleting resume by slug:", error);
+    logger.error({ err: error }, "❌ Error deleting resume by slug:");
     return {
       success: false,
       message: `❌ Failed to delete resume: ${

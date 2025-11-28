@@ -1,6 +1,6 @@
 import admin, { adminDb } from "@/lib/firebase-admin";
 
-export type QuotaPeriod = "daily" | "monthly";
+export type QuotaPeriod = "daily" | "monthly" | "lifetime";
 
 export interface QuotaRequest {
   subjectId: string;
@@ -36,6 +36,13 @@ const getPeriodMetadata = (period: QuotaPeriod, now: Date) => {
     return {
       key: `${year}-${pad(month + 1)}-${pad(day)}`,
       resetTime: Date.UTC(year, month, day + 1),
+    };
+  }
+
+  if (period === "lifetime") {
+    return {
+      key: "lifetime",
+      resetTime: 8640000000000000, // Max date
     };
   }
 

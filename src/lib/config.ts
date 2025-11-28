@@ -135,10 +135,13 @@ export const RESUME_EXPIRY_WARNING_HOURS: Record<
   enterprise: null,
 };
 
-export const RECRUITER_CONTACT_LIMITS: Record<SubscriptionTier, number> = {
-  basic: 2,
-  premium: 9999,
-  enterprise: 9999,
+export const RECRUITER_CONTACT_LIMITS: Record<
+  SubscriptionTier,
+  { amount: number; interval: "lifetime" | "month" }
+> = {
+  basic: { amount: 2, interval: "lifetime" },
+  premium: { amount: 50, interval: "month" },
+  enterprise: { amount: 9999, interval: "month" },
 };
 
 export const RECRUITER_SEARCH_LIMITS: Record<SubscriptionTier, number> = {
@@ -156,3 +159,71 @@ export const REGISTRATION_DISABLED =
   process.env.NEXT_PUBLIC_REGISTRATION_DISABLED === "true";
 
 export const LOGIN_DISABLED = process.env.NEXT_PUBLIC_LOGIN_DISABLED === "true";
+
+/**
+ * =============================================================================
+ * DEV MODE OVERRIDES
+ * =============================================================================
+ * These settings allow developers to bypass tier/role restrictions during local
+ * development. They are AUTOMATICALLY DISABLED in production builds.
+ *
+ * Usage in .env.local:
+ *   NEXT_PUBLIC_DEV_MODE=true
+ *   NEXT_PUBLIC_DEV_TIER=enterprise    # or: basic, premium
+ *   NEXT_PUBLIC_DEV_ROLE=recruiter     # or: jobseeker, admin
+ *
+ * Quick commands:
+ *   npm run dev:enterprise  # Full access (enterprise + recruiter)
+ *   npm run dev:basic       # Test limitations (basic + jobseeker)
+ *   npm run dev             # Use real Firestore values
+ */
+
+export type UserRole = "jobseeker" | "recruiter" | "admin";
+
+/**
+ * Dev mode is enabled when:
+ * 1. NODE_ENV is NOT production (build-time safety)
+ * 2. NEXT_PUBLIC_DEV_MODE is explicitly set to "true" (opt-in)
+ */
+export const DEV_MODE_ENABLED =
+  process.env.NODE_ENV !== "production" &&
+  process.env.NEXT_PUBLIC_DEV_MODE === "true";
+
+/**
+ * Override subscription tier for all users in dev mode.
+ * Returns undefined if not set or invalid, meaning use Firestore value.
+ */
+export const DEV_TIER_OVERRIDE: SubscriptionTier | undefined = (() => {
+  if (!DEV_MODE_ENABLED) return undefined;
+  const tier = process.env.NEXT_PUBLIC_DEV_TIER;
+  if (tier && ["basic", "premium", "enterprise"].includes(tier)) {
+    return tier as SubscriptionTier;
+  }
+  return undefined;
+})();
+
+/**
+ * Override user role for all users in dev mode.
+ * Returns undefined if not set or invalid, meaning use Firestore value.
+ */
+export const DEV_ROLE_OVERRIDE: UserRole | undefined = (() => {
+  if (!DEV_MODE_ENABLED) return undefined;
+  const role = process.env.NEXT_PUBLIC_DEV_ROLE;
+  if (role && ["jobseeker", "recruiter", "admin"].includes(role)) {
+    return role as UserRole;
+  }
+  return undefined;
+})();
+
+/**
+ * Get current dev mode status for display purposes
+ */
+export const getDevModeStatus = (): {
+  enabled: boolean;
+  tierOverride: SubscriptionTier | undefined;
+  roleOverride: UserRole | undefined;
+} => ({
+  enabled: DEV_MODE_ENABLED,
+  tierOverride: DEV_TIER_OVERRIDE,
+  roleOverride: DEV_ROLE_OVERRIDE,
+});

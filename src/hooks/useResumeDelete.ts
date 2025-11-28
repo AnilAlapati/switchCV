@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * useResumeDelete Hook
  *
@@ -10,8 +12,6 @@
  * - Error handling
  * - Pool statistics feedback
  */
-
-"use client";
 
 import { useState } from "react";
 
@@ -45,7 +45,7 @@ interface DeleteErrorState {
  *     value: 123456
  *   });
  *   if (result.success) {
- *     console.log('Resume deleted, ID recycled:', result.numericId);
+ *     logger.info('Resume deleted, ID recycled:', result.numericId);
  *   }
  * };
  */
@@ -137,7 +137,7 @@ export const useResumeDelete = () => {
  *   method="numeric-id"
  *   userId={currentUserId}
  *   onSuccess={(result) => {
- *     console.log('Resume deleted, ID recycled');
+ *     logger.info('Resume deleted, ID recycled');
  *     // refresh page or redirect
  *   }}
  * />

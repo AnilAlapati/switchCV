@@ -2,20 +2,22 @@
  * Recruiter Interviews API Route
  * POST /api/recruiter/interviews
  * Handles interview scheduling, status updates, and feedback
+ *
+ * FIXED: Now persists to Firestore instead of in-memory Map
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { adminDb } from "@/lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import {
   Interview,
   InterviewType,
   InterviewStatus,
   InterviewFeedback,
 } from "@/lib/recruiterDashboard.types";
-import {
-  scheduleInterview,
-  getUpcomingInterviews,
-} from "@/lib/recruiterPipeline";
+import { scheduleInterview } from "@/lib/recruiterPipeline";
 import { handleApiError } from "@/lib/utils/api-helpers";
+import { logger } from "@/lib/logger";
 
 interface ScheduleRequest {
   action: "schedule";
@@ -52,8 +54,24 @@ type InterviewRequest =
   | AddFeedbackRequest
   | GetUpcomingRequest;
 
-// In-memory interview storage (replace with database in production)
-export const interviews = new Map<string, Interview>();
+const INTERVIEWS_COLLECTION = "recruiterInterviews";
+
+/**
+ * Helper to convert Firestore doc to Interview object
+ */
+function docToInterview(
+  doc: FirebaseFirestore.DocumentSnapshot
+): Interview | null {
+  if (!doc.exists) return null;
+  const data = doc.data()!;
+  return {
+    ...data,
+    id: doc.id,
+    scheduledTime: data.scheduledTime?.toDate() || new Date(),
+    createdAt: data.createdAt?.toDate() || new Date(),
+    updatedAt: data.updatedAt?.toDate() || new Date(),
+  } as Interview;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -68,6 +86,8 @@ export async function POST(request: NextRequest) {
           scheduledTime,
           duration,
           interviewers,
+          location,
+          notes,
         } = body as ScheduleRequest;
 
         if (
@@ -93,7 +113,23 @@ export async function POST(request: NextRequest) {
           interviewers
         );
 
-        interviews.set(interview.id, interview);
+        // Save to Firestore
+        await adminDb
+          .collection(INTERVIEWS_COLLECTION)
+          .doc(interview.id)
+          .set({
+            ...interview,
+            scheduledTime: new Date(scheduledTime),
+            location: location || null,
+            notes: notes || null,
+            createdAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+
+        logger.info(
+          { interviewId: interview.id, candidateId },
+          "Interview scheduled"
+        );
 
         return NextResponse.json(
           {
@@ -107,18 +143,30 @@ export async function POST(request: NextRequest) {
 
       case "update-status": {
         const { interviewId, status } = body as UpdateStatusRequest;
-        const interview = interviews.get(interviewId);
 
-        if (!interview) {
+        const interviewRef = adminDb
+          .collection(INTERVIEWS_COLLECTION)
+          .doc(interviewId);
+        const interviewDoc = await interviewRef.get();
+
+        if (!interviewDoc.exists) {
           return handleApiError(null, "Interview not found", 404);
         }
 
-        const updated: Interview = {
-          ...interview,
+        // Update in Firestore
+        await interviewRef.update({
+          status,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+
+        const updated = {
+          ...interviewDoc.data(),
+          id: interviewId,
           status,
           updatedAt: new Date(),
         };
-        interviews.set(interviewId, updated);
+
+        logger.info({ interviewId, status }, "Interview status updated");
 
         return NextResponse.json(
           {
@@ -132,19 +180,32 @@ export async function POST(request: NextRequest) {
 
       case "add-feedback": {
         const { interviewId, feedback } = body as AddFeedbackRequest;
-        const interview = interviews.get(interviewId);
 
-        if (!interview) {
+        const interviewRef = adminDb
+          .collection(INTERVIEWS_COLLECTION)
+          .doc(interviewId);
+        const interviewDoc = await interviewRef.get();
+
+        if (!interviewDoc.exists) {
           return handleApiError(null, "Interview not found", 404);
         }
 
-        const updated: Interview = {
-          ...interview,
+        // Update in Firestore
+        await interviewRef.update({
+          feedback,
+          status: InterviewStatus.COMPLETED,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+
+        const updated = {
+          ...interviewDoc.data(),
+          id: interviewId,
           feedback,
           status: InterviewStatus.COMPLETED,
           updatedAt: new Date(),
         };
-        interviews.set(interviewId, updated);
+
+        logger.info({ interviewId }, "Interview feedback added");
 
         return NextResponse.json(
           {
@@ -158,8 +219,24 @@ export async function POST(request: NextRequest) {
 
       case "get-upcoming": {
         const { days } = body as GetUpcomingRequest;
-        const allInterviews = Array.from(interviews.values());
-        const upcoming = getUpcomingInterviews(allInterviews, days || 7);
+        const daysToQuery = days || 7;
+
+        // Query upcoming interviews
+        const now = new Date();
+        const futureDate = new Date();
+        futureDate.setDate(futureDate.getDate() + daysToQuery);
+
+        const snapshot = await adminDb
+          .collection(INTERVIEWS_COLLECTION)
+          .where("scheduledTime", ">=", now)
+          .where("scheduledTime", "<=", futureDate)
+          .where("status", "==", InterviewStatus.SCHEDULED)
+          .orderBy("scheduledTime", "asc")
+          .get();
+
+        const upcoming: Interview[] = snapshot.docs.map(
+          (doc) => docToInterview(doc)!
+        );
 
         return NextResponse.json(
           {
@@ -175,6 +252,7 @@ export async function POST(request: NextRequest) {
         return handleApiError(null, "Invalid action", 400);
     }
   } catch (error) {
+    logger.error({ err: error }, "Interviews API error");
     return handleApiError(error, "Internal server error");
   }
 }
@@ -185,23 +263,33 @@ export async function GET(request: NextRequest) {
     const candidateId = request.nextUrl.searchParams.get("candidateId");
 
     if (interviewId) {
-      const interview = interviews.get(interviewId);
-      if (!interview) {
+      const interviewDoc = await adminDb
+        .collection(INTERVIEWS_COLLECTION)
+        .doc(interviewId)
+        .get();
+
+      if (!interviewDoc.exists) {
         return handleApiError(null, "Interview not found", 404);
       }
 
       return NextResponse.json(
         {
           success: true,
-          interview,
+          interview: docToInterview(interviewDoc),
         },
         { status: 200 }
       );
     }
 
     if (candidateId) {
-      const candidateInterviews = Array.from(interviews.values()).filter(
-        (i) => i.candidateId === candidateId
+      const snapshot = await adminDb
+        .collection(INTERVIEWS_COLLECTION)
+        .where("candidateId", "==", candidateId)
+        .orderBy("scheduledTime", "desc")
+        .get();
+
+      const candidateInterviews: Interview[] = snapshot.docs.map(
+        (doc) => docToInterview(doc)!
       );
 
       return NextResponse.json(
@@ -214,8 +302,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Return all interviews
-    const allInterviews = Array.from(interviews.values());
+    // Return all interviews (with pagination limit)
+    const snapshot = await adminDb
+      .collection(INTERVIEWS_COLLECTION)
+      .orderBy("scheduledTime", "desc")
+      .limit(100)
+      .get();
+
+    const allInterviews: Interview[] = snapshot.docs.map(
+      (doc) => docToInterview(doc)!
+    );
+
     return NextResponse.json(
       {
         success: true,
@@ -225,6 +322,7 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
+    logger.error({ err: error }, "Interviews GET error");
     return handleApiError(error, "Internal server error");
   }
 }

@@ -1,17 +1,12 @@
+import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
-import {
-  collection,
-  doc,
-  addDoc,
-  serverTimestamp,
-  getDoc,
-  query,
-  where,
-  getDocs,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { adminDb } from "@/lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import { RecruiterContactRequest } from "@/types/profileSearch";
-import { handleApiError } from "@/lib/utils/api-helpers";
+import {
+  handleApiError,
+  getAuthenticatedUserId,
+} from "@/lib/utils/api-helpers";
 
 const FREE_RECRUITER_REQUEST_LIMIT = Number(
   process.env.RECRUITER_FREE_REQUEST_LIMIT ||
@@ -44,9 +39,16 @@ interface RequestContactPayload {
  *
  * Creates a RecruiterContactRequest that must be approved by admin
  * before the candidate receives notification
+ *
+ * SECURITY: Requires authentication. recruiterId is verified against auth token.
  */
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Verify authentication
+    const { userId: authUserId, error: authError } =
+      await getAuthenticatedUserId(request);
+    if (authError) return authError;
+
     const payload = (await request.json()) as RequestContactPayload;
 
     // Validation
@@ -60,6 +62,15 @@ export async function POST(request: NextRequest) {
         new Error("Missing required fields"),
         "Missing required fields",
         400
+      );
+    }
+
+    // SECURITY: Verify the authenticated user IS the recruiter making the request
+    if (authUserId !== payload.recruiterId) {
+      return handleApiError(
+        new Error("Forbidden: recruiterId must match authenticated user"),
+        "Forbidden: recruiterId must match authenticated user",
+        403
       );
     }
 
@@ -86,10 +97,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify resume exists
-    const resumeRef = doc(db, "resumeProfiles", payload.resumeId);
-    const resumeDoc = await getDoc(resumeRef);
+    const resumeDoc = await adminDb
+      .collection("resumeProfiles")
+      .doc(payload.resumeId)
+      .get();
 
-    if (!resumeDoc.exists()) {
+    if (!resumeDoc.exists) {
       return handleApiError(
         new Error("Resume not found"),
         "Resume not found",
@@ -100,7 +113,7 @@ export async function POST(request: NextRequest) {
     const resumeData = resumeDoc.data();
 
     // Verify recruiter and candidate match
-    if (resumeData.userId !== payload.userId) {
+    if (resumeData?.userId !== payload.userId) {
       return handleApiError(
         new Error("Resume does not belong to specified user"),
         "Resume does not belong to specified user",
@@ -109,15 +122,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Check for duplicate pending requests (same recruiter, same candidate, same resume)
-    const existingRequests = await getDocs(
-      query(
-        collection(db, "recruiterRequests"),
-        where("toUserId", "==", payload.userId),
-        where("resumeId", "==", payload.resumeId),
-        where("fromRecruiter.recruiterId", "==", payload.recruiterId),
-        where("status", "==", "pending")
-      )
-    );
+    const existingRequests = await adminDb
+      .collection("recruiterRequests")
+      .where("toUserId", "==", payload.userId)
+      .where("resumeId", "==", payload.resumeId)
+      .where("fromRecruiter.recruiterId", "==", payload.recruiterId)
+      .where("status", "==", "pending")
+      .get();
 
     if (!existingRequests.empty) {
       return handleApiError(
@@ -128,9 +139,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Enforce free plan limits (basic = no payment)
-    const recruiterRef = doc(db, "users", payload.recruiterId);
-    const recruiterDoc = await getDoc(recruiterRef);
-    if (!recruiterDoc.exists()) {
+    const recruiterDoc = await adminDb
+      .collection("users")
+      .doc(payload.recruiterId)
+      .get();
+    if (!recruiterDoc.exists) {
       return handleApiError(
         new Error("Recruiter profile not found"),
         "Recruiter profile not found",
@@ -143,13 +156,11 @@ export async function POST(request: NextRequest) {
       (recruiterData?.subscriptionTier as string | undefined) || "basic";
 
     if (subscriptionTier === "basic") {
-      const activeRequestSnapshot = await getDocs(
-        query(
-          collection(db, "recruiterRequests"),
-          where("fromRecruiter.recruiterId", "==", payload.recruiterId),
-          where("status", "in", FREE_PLAN_ACTIVE_STATUSES)
-        )
-      );
+      const activeRequestSnapshot = await adminDb
+        .collection("recruiterRequests")
+        .where("fromRecruiter.recruiterId", "==", payload.recruiterId)
+        .where("status", "in", FREE_PLAN_ACTIVE_STATUSES)
+        .get();
 
       if (activeRequestSnapshot.size >= FREE_RECRUITER_REQUEST_LIMIT) {
         return handleApiError(
@@ -181,14 +192,14 @@ export async function POST(request: NextRequest) {
       userAgent: payload.userAgent,
     };
 
-    // Save to Firestore
-    const requestRef = await addDoc(collection(db, "recruiterRequests"), {
+    // Save to Firestore using admin SDK
+    const requestRef = await adminDb.collection("recruiterRequests").add({
       ...contactRequest,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
 
-    console.log(
+    logger.info(
       `📨 Contact request created: ${requestRef.id} from ${payload.recruiterEmail} to ${payload.userId}`
     );
 
@@ -204,15 +215,15 @@ export async function POST(request: NextRequest) {
       requestId: requestRef.id,
       requestedFields: payload.requestedFields,
       purpose: payload.purpose,
-      timestamp: serverTimestamp(),
+      timestamp: FieldValue.serverTimestamp(),
       read: false,
       actionUrl: `/dashboard/recruiter-requests/${requestRef.id}`,
     };
 
     // Store in admin notifications collection
-    await addDoc(collection(db, "adminNotifications"), adminNotification);
+    await adminDb.collection("adminNotifications").add(adminNotification);
 
-    console.log(`🔔 Admin notification created for request: ${requestRef.id}`);
+    logger.info(`🔔 Admin notification created for request: ${requestRef.id}`);
 
     return NextResponse.json({
       success: true,
@@ -222,7 +233,7 @@ export async function POST(request: NextRequest) {
         "Your request has been submitted for admin review. You will be notified when it is approved or denied.",
     });
   } catch (error) {
-    console.error("❌ Request contact error:", error);
+    logger.error({ err: error }, "❌ Request contact error:");
     return handleApiError(error, "Failed to create contact request");
   }
 }
@@ -230,9 +241,16 @@ export async function POST(request: NextRequest) {
 /**
  * GET /api/recruiters/request-contact?recruiterId=XXX
  * Get recruiter's pending and approved contact requests
+ *
+ * SECURITY: Requires authentication. User can only view their own requests.
  */
 export async function GET(request: NextRequest) {
   try {
+    // SECURITY: Verify authentication
+    const { userId: authUserId, error: authError } =
+      await getAuthenticatedUserId(request);
+    if (authError) return authError;
+
     const searchParams = request.nextUrl.searchParams;
     const recruiterId = searchParams.get("recruiterId");
 
@@ -244,13 +262,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // SECURITY: Users can only view their own requests
+    if (authUserId !== recruiterId) {
+      return handleApiError(
+        new Error("Forbidden: Can only view your own requests"),
+        "Forbidden: Can only view your own requests",
+        403
+      );
+    }
+
     // Get all requests from this recruiter
-    const snapshot = await getDocs(
-      query(
-        collection(db, "recruiterRequests"),
-        where("fromRecruiter.recruiterId", "==", recruiterId)
-      )
-    );
+    const snapshot = await adminDb
+      .collection("recruiterRequests")
+      .where("fromRecruiter.recruiterId", "==", recruiterId)
+      .get();
 
     const requests = snapshot.docs.map((doc) => ({
       id: doc.id,
@@ -279,7 +304,7 @@ export async function GET(request: NextRequest) {
       byStatus,
     });
   } catch (error) {
-    console.error("❌ Get requests error:", error);
+    logger.error({ err: error }, "❌ Get requests error:");
     return handleApiError(error, "Failed to fetch requests");
   }
 }

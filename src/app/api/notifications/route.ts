@@ -24,12 +24,43 @@ import {
   sendMultiChannel,
   getDeliveryStatus,
 } from "@/lib/notificationDelivery";
-import { handleApiError } from "@/lib/utils/api-helpers";
+import {
+  handleApiError,
+  getAuthenticatedUserId,
+} from "@/lib/utils/api-helpers";
+import { checkRateLimit } from "@/lib/utils/rateLimit";
+import { notificationRequestSchema } from "@/lib/validations/notification";
 
 export async function POST(request: NextRequest) {
   try {
+    const { userId: authUserId, error: authError } =
+      await getAuthenticatedUserId(request);
+    if (authError || !authUserId)
+      return authError || handleApiError(null, "Unauthorized", 401);
+
+    // Rate Limit
+    const rateLimitResult = checkRateLimit(`${authUserId}:notifications`, {
+      limit: 100,
+      windowMs: 60 * 1000, // 1 minute
+    });
+
+    if (!rateLimitResult.allowed) {
+      return handleApiError(null, "Too many requests", 429);
+    }
+
     const body = await request.json();
-    const { action, userId, data } = body;
+    const validationResult = notificationRequestSchema.safeParse(body);
+    if (!validationResult.success) {
+      const errorMessage =
+        validationResult.error?.issues?.map((e) => e.message).join(", ") ||
+        "Validation failed";
+      return handleApiError(null, "Invalid request: " + errorMessage, 400);
+    }
+    const { action, userId, data } = validationResult.data;
+
+    if (userId !== authUserId) {
+      return handleApiError(null, "Forbidden", 403);
+    }
 
     switch (action) {
       case "send":
@@ -63,10 +94,19 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    const { userId: authUserId, error: authError } =
+      await getAuthenticatedUserId(request);
+    if (authError || !authUserId)
+      return authError || handleApiError(null, "Unauthorized", 401);
+
     const { searchParams } = new URL(request.url);
     const action = searchParams.get("action");
     const userId = searchParams.get("userId");
     const notificationId = searchParams.get("notificationId");
+
+    if (userId && userId !== authUserId) {
+      return handleApiError(null, "Forbidden", 403);
+    }
 
     switch (action) {
       case "get-notifications":

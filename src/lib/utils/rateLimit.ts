@@ -2,7 +2,22 @@
  * Rate Limiting Utility
  *
  * Provides in-memory rate limiting for API endpoints.
- * For production, consider using Redis or a distributed cache.
+ *
+ * IMPORTANT: This in-memory rate limiter does NOT work across serverless
+ * instances. Each instance maintains its own counter. For distributed
+ * rate limiting that works across instances, use:
+ *
+ * @see {@link ./distributedRateLimit.ts} - Firestore-backed rate limiting
+ *
+ * Use this in-memory version for:
+ * - Local development
+ * - Non-critical rate limiting
+ * - Quick protection against basic abuse
+ *
+ * Use distributed rate limiting for:
+ * - Production deployments
+ * - AI endpoints (high cost)
+ * - Any endpoint requiring strict rate limits
  *
  * @module lib/utils/rateLimit
  */

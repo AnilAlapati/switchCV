@@ -4,25 +4,135 @@
 
 import { POST } from "@/app/api/profiles/search/route";
 import { NextRequest } from "next/server";
-import { getDocs } from "firebase/firestore";
-import { createMockQuerySnapshot } from "@/__tests__/__support__/firebase";
 
-jest.mock("firebase/firestore", () => ({
-  collection: jest.fn(),
-  query: jest.fn(),
-  where: jest.fn(),
-  getDocs: jest.fn(),
-  limit: jest.fn(),
-  orderBy: jest.fn(),
+// Mock Firebase Admin SDK with chainable methods
+const mockGet = jest.fn();
+
+// Create a chainable mock object
+const createChainableMock = () => {
+  const chainable: Record<string, jest.Mock> = {};
+
+  const methods = ["where", "limit", "orderBy", "startAfter", "doc", "get"];
+
+  methods.forEach((method) => {
+    chainable[method] = jest.fn().mockImplementation(() => {
+      if (method === "get") {
+        return mockGet();
+      }
+      return chainable;
+    });
+  });
+
+  return chainable;
+};
+
+const mockCollection = jest
+  .fn()
+  .mockImplementation(() => createChainableMock());
+
+jest.mock("@/lib/firebase-admin", () => ({
+  adminDb: {
+    collection: (...args: unknown[]) => mockCollection(...args),
+  },
+  adminAuth: {
+    verifyIdToken: jest.fn().mockResolvedValue({ uid: "user-123" }),
+  },
 }));
 
-jest.mock("@/lib/firebase", () => ({
-  db: { name: "[DEFAULT]" },
+// Mock api-helpers to return authenticated user
+jest.mock("@/lib/utils/api-helpers", () => ({
+  handleApiError: jest.fn((error, message, status = 500) => {
+    const { NextResponse } = require("next/server");
+    return NextResponse.json(
+      { error: message, details: error?.message },
+      { status }
+    );
+  }),
+  getAuthenticatedUserId: jest.fn().mockResolvedValue({ userId: "user-123" }),
 }));
+
+// Mock distributed rate limiter
+jest.mock("@/lib/utils/distributedRateLimit", () => ({
+  checkDistributedRateLimit: jest.fn().mockResolvedValue({
+    allowed: true,
+    remaining: 29,
+    limit: 30,
+    resetIn: 60000,
+  }),
+}));
+
+// Mock logger
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+  },
+}));
+
+// Helper to create mock query snapshot
+const createMockQuerySnapshot = (docs: any[]) => ({
+  docs: docs.map((data, index) => ({
+    id: data.uid || `doc-${index}`,
+    data: () => data,
+    exists: true,
+  })),
+  empty: docs.length === 0,
+  size: docs.length,
+});
 
 describe("POST /api/profiles/search", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Reset mockGet to return empty by default
+    mockGet.mockResolvedValue(createMockQuerySnapshot([]));
+  });
+
+  it("should return 401 if not authenticated", async () => {
+    const { getAuthenticatedUserId } = require("@/lib/utils/api-helpers");
+    const { NextResponse } = require("next/server");
+    getAuthenticatedUserId.mockResolvedValueOnce({
+      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+    });
+
+    const payload = { query: "developer" };
+
+    const request = new NextRequest(
+      "http://localhost:3000/api/profiles/search",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const response = await POST(request);
+    expect(response.status).toBe(401);
+  });
+
+  it("should return 429 if rate limited", async () => {
+    const {
+      checkDistributedRateLimit,
+    } = require("@/lib/utils/distributedRateLimit");
+    checkDistributedRateLimit.mockResolvedValueOnce({
+      allowed: false,
+      remaining: 0,
+      limit: 30,
+      resetIn: 30000,
+    });
+
+    const payload = { query: "developer" };
+
+    const request = new NextRequest(
+      "http://localhost:3000/api/profiles/search",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const response = await POST(request);
+    expect(response.status).toBe(429);
   });
 
   it("should return 400 if no query or filters provided", async () => {
@@ -44,7 +154,7 @@ describe("POST /api/profiles/search", () => {
   });
 
   it("should search profiles by name query", async () => {
-    (getDocs as jest.Mock).mockResolvedValue(
+    mockGet.mockResolvedValue(
       createMockQuerySnapshot([
         {
           uid: "user-1",
@@ -86,7 +196,7 @@ describe("POST /api/profiles/search", () => {
   });
 
   it("should filter profiles by role", async () => {
-    (getDocs as jest.Mock).mockResolvedValue(
+    mockGet.mockResolvedValue(
       createMockQuerySnapshot([
         {
           uid: "user-1",
@@ -118,7 +228,7 @@ describe("POST /api/profiles/search", () => {
   });
 
   it("should filter profiles by location", async () => {
-    (getDocs as jest.Mock).mockResolvedValue(
+    mockGet.mockResolvedValue(
       createMockQuerySnapshot([
         {
           uid: "user-1",
@@ -150,7 +260,7 @@ describe("POST /api/profiles/search", () => {
   });
 
   it("should filter profiles by skills", async () => {
-    (getDocs as jest.Mock).mockResolvedValue(
+    mockGet.mockResolvedValue(
       createMockQuerySnapshot([
         {
           uid: "user-1",
@@ -182,12 +292,12 @@ describe("POST /api/profiles/search", () => {
   });
 
   it("should search by slug", async () => {
-    (getDocs as jest.Mock).mockResolvedValue(
+    mockGet.mockResolvedValue(
       createMockQuerySnapshot([
         {
           uid: "user-1",
           displayName: "John Developer",
-          slug: "john-developer",
+          profileSlug: "john-developer",
           publicProfile: { visible: true },
         },
       ])
@@ -218,7 +328,7 @@ describe("POST /api/profiles/search", () => {
       publicProfile: { visible: true },
     }));
 
-    (getDocs as jest.Mock).mockResolvedValue(createMockQuerySnapshot(mockDocs));
+    mockGet.mockResolvedValue(createMockQuerySnapshot(mockDocs));
 
     const payload = {
       query: "user",
@@ -242,7 +352,7 @@ describe("POST /api/profiles/search", () => {
   });
 
   it("should handle empty search results", async () => {
-    (getDocs as jest.Mock).mockResolvedValue(createMockQuerySnapshot([]));
+    mockGet.mockResolvedValue(createMockQuerySnapshot([]));
 
     const payload = {
       query: "nonexistent",
@@ -264,7 +374,7 @@ describe("POST /api/profiles/search", () => {
   });
 
   it("should handle database errors gracefully", async () => {
-    (getDocs as jest.Mock).mockRejectedValue(new Error("Database error"));
+    mockGet.mockRejectedValue(new Error("Database error"));
 
     const payload = {
       query: "developer",
@@ -286,7 +396,7 @@ describe("POST /api/profiles/search", () => {
   });
 
   it("should combine multiple filters", async () => {
-    (getDocs as jest.Mock).mockResolvedValue(
+    mockGet.mockResolvedValue(
       createMockQuerySnapshot([
         {
           uid: "user-1",

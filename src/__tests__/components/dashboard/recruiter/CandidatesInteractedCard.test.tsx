@@ -17,6 +17,25 @@ global.fetch = mockFetch;
 // Spy on the global fetch function
 const fetchSpy = jest.spyOn(global, "fetch");
 
+const createMockAuthContext = (user: any) => ({
+  user,
+  loading: false,
+  signIn: jest.fn(),
+  signUp: jest.fn(),
+  logout: jest.fn(),
+  needsEmailVerification: false,
+  verificationEmail: null,
+  connectivityIssue: null,
+  signInWithGoogle: jest.fn(),
+  resetPassword: jest.fn(),
+  updatePassword: jest.fn(),
+  updateEmail: jest.fn(),
+  deleteAccount: jest.fn(),
+  resendVerificationEmail: jest.fn(),
+  refreshUser: jest.fn(),
+});
+
+
 describe("CandidatesInteractedCard", () => {
   const mockUser = {
     uid: "test-user-id",
@@ -41,13 +60,7 @@ describe("CandidatesInteractedCard", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     fetchSpy.mockClear();
-    mockUseAuth.mockReturnValue({
-      user: mockUser,
-      loading: false,
-      signIn: jest.fn(),
-      signUp: jest.fn(),
-      logout: jest.fn(),
-    });
+    mockUseAuth.mockReturnValue(createMockAuthContext(mockUser));
   });
 
   describe("Loading State", () => {
@@ -85,13 +98,7 @@ describe("CandidatesInteractedCard", () => {
     });
 
     it("does not fetch metrics when user is null", () => {
-      mockUseAuth.mockReturnValue({
-        user: null,
-        loading: false,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        logout: jest.fn(),
-      });
+      mockUseAuth.mockReturnValue(createMockAuthContext(null));
 
       render(<CandidatesInteractedCard />);
 

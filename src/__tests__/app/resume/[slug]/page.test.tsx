@@ -77,7 +77,6 @@ describe("Resume Page [slug]", () => {
         versionId: "v1",
         title: "John Doe - Senior Developer",
         slug: "john-doe-senior",
-        published: true,
         lastUpdatedAt: new Date().toISOString(),
         generatedText: {
           draft: "Draft text",
@@ -97,7 +96,6 @@ describe("Resume Page [slug]", () => {
 
       expect(mockResume.title).toBe("John Doe - Senior Developer");
       expect(mockResume.slug).toBe("john-doe-senior");
-      expect(mockResume.published).toBe(true);
     });
 
     it("should have all resume sections", () => {
@@ -105,7 +103,6 @@ describe("Resume Page [slug]", () => {
         versionId: "v1",
         title: "Test Resume",
         slug: "test-resume",
-        published: true,
         lastUpdatedAt: new Date().toISOString(),
         generatedText: {
           draft: "Draft",
@@ -153,7 +150,6 @@ describe("Resume Page [slug]", () => {
         versionId: "v1",
         title: "Test Resume",
         slug: "test-resume",
-        published: true,
         lastUpdatedAt: new Date().toISOString(),
         generatedText: {
           draft: "Draft",
@@ -183,7 +179,6 @@ describe("Resume Page [slug]", () => {
         versionId: "v1",
         title: "Test Resume",
         slug: "test-resume",
-        published: true,
         lastUpdatedAt: new Date().toISOString(),
         generatedText: {
           draft: "Draft",
@@ -210,7 +205,6 @@ describe("Resume Page [slug]", () => {
         versionId: "v1",
         title: "Test Resume",
         slug: "test-resume",
-        published: true,
         lastUpdatedAt: new Date().toISOString(),
         generatedText: {
           draft: "Draft",
@@ -239,7 +233,6 @@ describe("Resume Page [slug]", () => {
         versionId: "v1",
         title: "Test Resume",
         slug: "test-resume",
-        published: true,
         lastUpdatedAt: new Date().toISOString(),
         generatedText: {
           draft: "Draft",
@@ -267,7 +260,6 @@ describe("Resume Page [slug]", () => {
         versionId: "v1",
         title: "Test Resume",
         slug: "test-resume",
-        published: true,
         lastUpdatedAt: new Date().toISOString(),
         generatedText: {
           draft: "Draft",
@@ -302,7 +294,6 @@ describe("Resume Page [slug]", () => {
         versionId: "v1",
         title: "Test Resume",
         slug: "test-resume",
-        published: true,
         lastUpdatedAt: new Date().toISOString(),
         generatedText: {
           draft: "Draft",
@@ -337,7 +328,6 @@ describe("Resume Page [slug]", () => {
         versionId: "v1",
         title: "Test Resume",
         slug: "test-resume",
-        published: true,
         lastUpdatedAt: new Date().toISOString(),
         generatedText: {
           draft: "Draft",
@@ -364,7 +354,6 @@ describe("Resume Page [slug]", () => {
         versionId: "v1",
         title: "Test Resume",
         slug: "test-resume",
-        published: true,
         lastUpdatedAt: new Date().toISOString(),
         generatedText: {
           draft: "Draft",
@@ -401,7 +390,6 @@ describe("Resume Page [slug]", () => {
         versionId: "v1",
         title: "Test Resume",
         slug: "test-resume",
-        published: true,
         lastUpdatedAt,
         generatedText: {
           draft: "Draft",
@@ -427,7 +415,6 @@ describe("Resume Page [slug]", () => {
         versionId: "v1",
         title: "Test Resume",
         slug: "test-resume",
-        published: true,
         lastUpdatedAt: "2024-01-20T15:45:00Z",
         generatedText: {
           draft: "Draft",
@@ -451,13 +438,12 @@ describe("Resume Page [slug]", () => {
     });
   });
 
-  describe("Resume Publication", () => {
-    it("should indicate published status", () => {
+  describe("Resume Profile Structure", () => {
+    it("should have required profile fields", () => {
       const mockResume: ResumeProfile = {
         versionId: "v1",
         title: "Published Resume",
         slug: "published-resume",
-        published: true,
         lastUpdatedAt: new Date().toISOString(),
         generatedText: {
           draft: "Draft",
@@ -475,15 +461,17 @@ describe("Resume Page [slug]", () => {
         projects: [],
       };
 
-      expect(mockResume.published).toBe(true);
+      // Note: Publication status is now determined by collection (drafts vs resumes)
+      // not by a boolean flag on the ResumeProfile
+      expect(mockResume.slug).toBe("published-resume");
+      expect(mockResume.versionId).toBe("v1");
     });
 
-    it("should handle draft resumes", () => {
+    it("should have required contact structure", () => {
       const mockResume: ResumeProfile = {
         versionId: "v1",
         title: "Draft Resume",
         slug: "draft-resume",
-        published: false,
         lastUpdatedAt: new Date().toISOString(),
         generatedText: {
           draft: "Draft",
@@ -501,7 +489,8 @@ describe("Resume Page [slug]", () => {
         projects: [],
       };
 
-      expect(mockResume.published).toBe(false);
+      expect(mockResume.contact.email.visibility).toBe("public");
+      expect(mockResume.contact.phone.visibility).toBe("public");
     });
   });
 });

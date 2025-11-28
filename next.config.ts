@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
+import packageJson from "./package.json";
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ["pino", "pino-pretty"],
+  env: {
+    NEXT_PUBLIC_APP_VERSION: packageJson.version,
+  },
   /* config options here */
   async headers() {
     return [
@@ -23,14 +28,26 @@ const nextConfig: NextConfig = {
             key: "X-XSS-Protection",
             value: "1; mode=block",
           },
+          {
+            key: "Content-Security-Policy",
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://www.googletagmanager.com",
+              "style-src 'self' 'unsafe-inline'",
+              "img-src 'self' data: https:",
+              "font-src 'self' data:",
+              "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net",
+              "frame-ancestors 'none'",
+            ].join("; "),
+          },
         ],
       },
     ];
   },
   typescript: {
-    // Allow build to proceed with TypeScript errors
-    // Legacy code has type issues that don't affect the AI resume generation feature
-    ignoreBuildErrors: true,
+    // Strict type checking enabled for production quality
+    // Run `npx tsc --noEmit` to see all type errors before building
+    ignoreBuildErrors: false,
   },
 };
 

@@ -2,7 +2,7 @@ const WORKFLOW_STEPS = [
   {
     title: "Tell us about you",
     description:
-      "Import LinkedIn or answer guided prompts tailored for modern roles.",
+      "Answer guided prompts or describe your experience in your own words.",
     accent: "from-cyan-500/20 to-transparent",
   },
   {
@@ -13,8 +13,7 @@ const WORKFLOW_STEPS = [
   },
   {
     title: "Share securely",
-    description:
-      "Publish a unique link with privacy rules and know exactly when it is viewed.",
+    description: "Publish a unique link and track when your resume is viewed.",
     accent: "from-rose-500/20 to-transparent",
   },
 ];
@@ -32,8 +31,8 @@ export function HomeWorkflow() {
           </h2>
         </div>
         <p className="text-slate-300 max-w-xl">
-          SwitchCV adapts to however you work—start from a blank canvas, import
-          an existing resume, or let AI interview you for the details.
+          SwitchCV adapts to however you work—start from a blank canvas or let
+          AI guide you through a conversation to build your resume.
         </p>
       </div>
       <div className="grid gap-6 md:grid-cols-3">

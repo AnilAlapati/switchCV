@@ -21,6 +21,13 @@ describe("recruiterInsights", () => {
         totalCandidatesInteracted: 30,
         accessRequests: { pending: 0, approved: 0, denied: 0 },
         lastActivityAt: null,
+        searchBreakdown: {
+          searchesLast24h: 0,
+          searchesLast7Days: 0,
+          uniqueCandidatesLast7Days: 0,
+          topSkillsLast7Days: [],
+          topLocationsLast7Days: [],
+        },
       };
       const score = calculatePipelineScore(metrics);
       // 35 + 30 + 25 - 0 + 20 = 110 -> clamped to 100
@@ -34,6 +41,13 @@ describe("recruiterInsights", () => {
         totalCandidatesInteracted: 30,
         accessRequests: { pending: 10, approved: 0, denied: 0 },
         lastActivityAt: null,
+        searchBreakdown: {
+          searchesLast24h: 0,
+          searchesLast7Days: 0,
+          uniqueCandidatesLast7Days: 0,
+          topSkillsLast7Days: [],
+          topLocationsLast7Days: [],
+        },
       };
       const score = calculatePipelineScore(metrics);
       // 35 + 30 + 25 - 20 + 20 = 90
@@ -101,6 +115,13 @@ describe("recruiterInsights", () => {
           totalCandidatesInteracted: 0,
           accessRequests: { pending: 5, approved: 0, denied: 0 },
           lastActivityAt: null,
+          searchBreakdown: {
+            searchesLast24h: 0,
+            searchesLast7Days: 0,
+            uniqueCandidatesLast7Days: 0,
+            topSkillsLast7Days: [],
+            topLocationsLast7Days: [],
+          },
         },
       });
       expect(plan.some((i) => i.id === "review-requests")).toBe(true);
@@ -114,6 +135,13 @@ describe("recruiterInsights", () => {
           totalCandidatesInteracted: 2,
           accessRequests: { pending: 0, approved: 0, denied: 0 },
           lastActivityAt: null,
+          searchBreakdown: {
+            searchesLast24h: 0,
+            searchesLast7Days: 0,
+            uniqueCandidatesLast7Days: 0,
+            topSkillsLast7Days: [],
+            topLocationsLast7Days: [],
+          },
         },
       });
       expect(plan.some((i) => i.id === "follow-up")).toBe(true);
@@ -145,6 +173,13 @@ describe("recruiterInsights", () => {
         totalCandidatesInteracted: 5,
         accessRequests: { pending: 2, approved: 0, denied: 0 },
         lastActivityAt: null,
+        searchBreakdown: {
+          searchesLast24h: 0,
+          searchesLast7Days: 0,
+          uniqueCandidatesLast7Days: 0,
+          topSkillsLast7Days: [],
+          topLocationsLast7Days: [],
+        },
       });
 
       expect(insights[0].tone).toBe("info"); // searches > 0

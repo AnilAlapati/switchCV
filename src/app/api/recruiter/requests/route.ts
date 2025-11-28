@@ -1,9 +1,14 @@
+import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import {
   getAuthenticatedUserId,
   handleApiError,
 } from "@/lib/utils/api-helpers";
+import {
+  decrementJobSeekerMetric,
+  updateRecruiterAccessMetric,
+} from "@/lib/services/metricsService";
 
 export async function GET(request: NextRequest) {
   try {
@@ -83,7 +88,7 @@ function serializeTimestamp(value: any): string | null {
       return new Date(value).toISOString();
     }
   } catch (error) {
-    console.warn("Failed to serialize timestamp", error);
+    logger.warn({ err: error }, "Failed to serialize timestamp");
   }
   return null;
 }
@@ -139,6 +144,19 @@ export async function DELETE(request: NextRequest) {
     }
 
     await requestRef.delete();
+
+    // Update Metrics
+    const status = data?.status;
+    const resumeDoc = await adminDb.collection("resumes").doc(resumeId).get();
+    const resumeOwnerId = resumeDoc.data()?.userId;
+
+    if (status === "pending" && resumeOwnerId) {
+      await decrementJobSeekerMetric(resumeOwnerId, "contactRequests");
+    }
+
+    if (status && ["pending", "approved", "denied"].includes(status)) {
+      await updateRecruiterAccessMetric(userId, status, -1);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

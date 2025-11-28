@@ -1,0 +1,48 @@
+name: Production Health Ping
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    env:
+      HEALTHCHECK_URL: ${{ secrets.HEALTHCHECK_URL != '' && secrets.HEALTHCHECK_URL || 'https://switchcv.com/api/health' }}
+    steps:
+      - name: Call health endpoint
+        id: ping
+        run: |
+          set -euo pipefail
+          echo "Pinging $HEALTHCHECK_URL"
+          RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 30 "$HEALTHCHECK_URL")
+          BODY=$(echo "$RESPONSE" | head -n -1)
+          STATUS_CODE=$(echo "$RESPONSE" | tail -n 1)
+          echo "body<<'BODY'" >> "$GITHUB_OUTPUT"
+          echo "$BODY" >> "$GITHUB_OUTPUT"
+          echo "BODY" >> "$GITHUB_OUTPUT"
+          echo "status_code=$STATUS_CODE" >> "$GITHUB_OUTPUT"
+          if [ "$STATUS_CODE" -ne 200 ]; then
+            echo "::error::Health endpoint returned HTTP $STATUS_CODE"
+            echo "$BODY" | jq '.' || echo "$BODY"
+            exit 1
+          fi
+          echo "Health endpoint OK"
+          echo "$BODY" | jq '.'
+
+      - name: Publish summary
+        run: |
+          cat <<'SUMMARY' >> "$GITHUB_STEP_SUMMARY"
+          ### /api/health result
+          - URL: ${HEALTHCHECK_URL}
+          - HTTP Status: ${{ steps.ping.outputs.status_code }}
+
+
+          ```json
+          ${{ steps.ping.outputs.body }}
+          ```
+          SUMMARY

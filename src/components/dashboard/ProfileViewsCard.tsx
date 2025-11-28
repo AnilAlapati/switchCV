@@ -1,5 +1,7 @@
 "use client";
 
+import { logger } from "@/lib/logger";
+
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useOptionalDashboardMetricsContext } from "@/context/DashboardMetricsContext";
@@ -37,7 +39,7 @@ export function ProfileViewsCard() {
           setMetrics({ profileViews: data.profileViews || 0 });
         }
       } catch (error) {
-        console.error("Failed to fetch profile views:", error);
+        logger.error({ err: error }, "Failed to fetch profile views:");
       } finally {
         setLoading(false);
       }

@@ -13,7 +13,14 @@ describe("buildConversationalPrompt", () => {
     };
     const collectedData = {
       name: "John Doe",
-      experience: [{ title: "Developer", company: "Tech Corp" }],
+      experience: [
+        {
+          title: "Developer",
+          company: "Tech Corp",
+          duration: "2020-2021",
+          description: "Worked on stuff",
+        },
+      ],
     };
 
     const prompt = buildConversationalPrompt(

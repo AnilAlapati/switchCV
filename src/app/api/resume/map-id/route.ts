@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { mapResumeId } from "@/lib/resumeIdMapping";
 import {
@@ -32,11 +33,11 @@ export async function POST(request: NextRequest) {
     // Create the mapping
     await mapResumeId(resumeId, documentId, userId!);
 
-    console.log("✅ Resume ID mapping created via API:", {
+    logger.info({
       resumeId,
       documentId,
       userId,
-    });
+    }, "✅ Resume ID mapping created via API:");
 
     return NextResponse.json(
       {
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("❌ Error creating resume ID mapping:", error);
+    logger.error({ err: error }, "❌ Error creating resume ID mapping:");
     return handleApiError(error, "Failed to create resume ID mapping");
   }
 }

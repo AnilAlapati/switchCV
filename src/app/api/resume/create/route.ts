@@ -4,27 +4,50 @@ import { generateNumericResumeId } from "@/lib/numericIdGenerator";
 import {
   getAuthenticatedUserId,
   handleApiError,
+  safeParseBody,
 } from "@/lib/utils/api-helpers";
+import { checkRateLimit } from "@/lib/utils/rateLimit";
+import { createResumeSchema } from "@/lib/validations/resume";
 
 export async function POST(request: NextRequest) {
   try {
     // 1. Authenticate
     const { userId, error: authError } = await getAuthenticatedUserId(request);
-    if (authError) {
-      return authError;
+    if (authError || !userId) {
+      return (
+        authError ||
+        handleApiError(new Error("Unauthorized"), "Unauthorized", 401)
+      );
+    }
+
+    // Rate Limiting
+    const rateLimitResult = checkRateLimit(`${userId}:resume:create`, {
+      limit: 10,
+      windowMs: 60 * 60 * 1000, // 1 hour
+    });
+
+    if (!rateLimitResult.allowed) {
+      return handleApiError(
+        null,
+        "Rate limit exceeded. Max 10 resumes per hour.",
+        429
+      );
     }
 
     // 2. Parse Body
-    const body = await request.json();
+    const body = await safeParseBody(request);
 
-    // Basic validation
-    if (!body) {
+    // Validation
+    const validationResult = createResumeSchema.safeParse(body);
+    if (!validationResult.success) {
       return handleApiError(
-        new Error("Resume data is required"),
-        "Resume data is required",
+        new Error("Invalid resume data"),
+        "Invalid resume data: " +
+          validationResult.error?.issues?.map((e) => e.message).join(", "),
         400
       );
     }
+    const validatedBody = validationResult.data;
 
     // 3. Generate ID
     const numericId = await generateNumericResumeId();
@@ -32,7 +55,7 @@ export async function POST(request: NextRequest) {
 
     // 4. Prepare Resume Document
     const resumeData = {
-      ...body,
+      ...validatedBody,
       id: resumeId,
       userId,
       numericId,
@@ -56,7 +79,7 @@ export async function POST(request: NextRequest) {
       .doc(resumeId)
       .set({
         id: resumeId,
-        title: body.title || "Untitled Resume",
+        title: validatedBody.title || "Untitled Resume",
         createdAt: resumeData.createdAt,
         updatedAt: resumeData.updatedAt,
         numericId,

@@ -1,5 +1,7 @@
 "use client";
 
+import { logger } from "@/lib/logger";
+
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import Link from "next/link";
@@ -54,7 +56,7 @@ export function ResumeStatusCard({
         reloadPage();
       }
     } catch (error) {
-      console.error("Error updating visibility:", error);
+      logger.error({ err: error }, "Error updating visibility:");
       alert("Failed to update visibility settings.");
     } finally {
       setIsUpdatingVisibility(false);
@@ -89,12 +91,12 @@ export function ResumeStatusCard({
         throw new Error(error.error || "Failed to delete resume");
       }
 
-      console.log(`🗑️ Resume deleted: ${resumeId}`);
+      logger.info(`🗑️ Resume deleted: ${resumeId}`);
 
       // Reload the page to reflect the changes
       reloadPage();
     } catch (error) {
-      console.error("Error deleting resume:", error);
+      logger.error({ err: error }, "Error deleting resume:");
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
       alert(`Error deleting resume: ${errorMessage}`);

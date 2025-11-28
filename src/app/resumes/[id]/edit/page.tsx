@@ -1,5 +1,7 @@
 "use client";
 
+import { logger } from "@/lib/logger";
+
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -124,7 +126,7 @@ function ManualResumeEditor({ resumeId }: { resumeId: string }) {
         setIsDirty(false);
         setFetchState("loaded");
       } catch (error) {
-        console.error("Failed to fetch resume:", error);
+        logger.error({ err: error }, "Failed to fetch resume:");
         setFetchState("error");
         setFetchError(
           error instanceof Error ? error.message : "Failed to load resume"
@@ -198,7 +200,7 @@ function ManualResumeEditor({ resumeId }: { resumeId: string }) {
       setIsDirty(false);
       setSaveState("success");
     } catch (error) {
-      console.error("Failed to save resume:", error);
+      logger.error({ err: error }, "Failed to save resume:");
       setSaveState("error");
       setSaveError(error instanceof Error ? error.message : "Failed to save");
     }

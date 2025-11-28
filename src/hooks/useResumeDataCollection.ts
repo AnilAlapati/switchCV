@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 // src/hooks/useResumeDataCollection.ts
 import { useState, useEffect } from "react";
 
@@ -44,7 +45,7 @@ const saveSession = (stage: ConversationStage, resumeData: ResumeData) => {
   try {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ stage, resumeData }));
   } catch {
-    console.warn("Failed to save conversation session");
+    logger.warn("Failed to save conversation session");
   }
 };
 

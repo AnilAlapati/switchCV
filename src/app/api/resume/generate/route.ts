@@ -1,5 +1,7 @@
+import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { generateText } from "@/lib/services/aiGenerationService";
+import { generateTextWithTier } from "@/lib/services/aiProviderService";
 import { ConversationManager } from "@/lib/services/conversationManager";
 import { ResumeDataExtractor } from "@/lib/services/resumeDataExtractor";
 import {
@@ -14,6 +16,8 @@ import {
   handleApiError,
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
+import { getUserTier } from "@/lib/services/userService";
+import type { SubscriptionTier } from "@/lib/config";
 
 interface GenerateResumeRequest {
   message: string;
@@ -24,6 +28,7 @@ interface GenerateResumeRequest {
     timestamp: string;
   }>;
   sessionData?: any; // Optional stored session data
+  modelId?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -36,13 +41,25 @@ export async function POST(request: NextRequest) {
 
     if (authenticatedUserId) {
       userId = authenticatedUserId;
-      console.log("✅ Authenticated user:", userId);
+      logger.info({ data: userId }, "✅ Authenticated user:");
     } else {
-      console.warn("⚠️ No valid token, proceeding as anonymous");
+      logger.warn("⚠️ No valid token, proceeding as anonymous");
     }
 
     const body: GenerateResumeRequest = await request.json();
-    const { message, conversationHistory, sessionData } = body;
+    const { message, conversationHistory, sessionData, modelId } = body;
+
+    let userTier: SubscriptionTier = "basic";
+    if (authenticatedUserId) {
+      try {
+        userTier = await getUserTier(authenticatedUserId);
+      } catch (tierError) {
+        logger.warn(
+          { err: tierError, userId: authenticatedUserId },
+          "Failed to load user tier, defaulting to basic"
+        );
+      }
+    }
 
     if (!message) {
       return handleApiError(
@@ -58,11 +75,14 @@ export async function POST(request: NextRequest) {
       { content: message, isUser: true },
     ]);
 
-    console.log("📊 Extraction Result:", {
-      confidence: extractionResult.confidence,
-      extractedFields: extractionResult.extractedFields,
-      isComplete: extractionResult.isComplete,
-    });
+    logger.info(
+      {
+        confidence: extractionResult.confidence,
+        extractedFields: extractionResult.extractedFields,
+        isComplete: extractionResult.isComplete,
+      },
+      "📊 Extraction Result:"
+    );
 
     // Step 2: Initialize conversation manager with extracted data
     const conversationManager = new ConversationManager(
@@ -73,11 +93,14 @@ export async function POST(request: NextRequest) {
     conversationManager.updateData(extractionResult.data);
     const progress = conversationManager.getProgress();
 
-    console.log("🎯 Progress:", {
-      completeness: `${progress.completenessPercentage}%`,
-      isReady: progress.isReadyToCreate,
-      missing: progress.missingFields,
-    });
+    logger.info(
+      {
+        completeness: `${progress.completenessPercentage}%`,
+        isReady: progress.isReadyToCreate,
+        missing: progress.missingFields,
+      },
+      "🎯 Progress:"
+    );
 
     // Step 3: Get active configuration
     let config = getActiveConfig();
@@ -97,7 +120,7 @@ export async function POST(request: NextRequest) {
           maxQuestionsInBetaMode: true,
           maxBetaQuestions: limit,
         };
-        console.log(`🎯 User set question limit to ${limit}`);
+        logger.info(`🎯 User set question limit to ${limit}`);
       }
     }
 
@@ -125,8 +148,27 @@ export async function POST(request: NextRequest) {
       userWantsToCreate // Pass forceCreate flag
     );
 
-    // Step 4: Generate AI response
-    const aiResponse = await generateText(prompt, 4000, 0.7); // Increased token limit for JSON generation
+    // Step 4: Generate AI response (tier-aware with graceful fallback)
+    type TieredResult = Awaited<ReturnType<typeof generateTextWithTier>>;
+    type LegacyResult = Awaited<ReturnType<typeof generateText>>;
+
+    let aiResponse: TieredResult | LegacyResult;
+
+    try {
+      aiResponse = await generateTextWithTier({
+        prompt,
+        maxTokens: 4000,
+        temperature: 0.7,
+        userTier,
+        modelId,
+      });
+    } catch (tieredError) {
+      logger.error(
+        { err: tieredError, userId, userTier, modelId },
+        "Tier-based AI provider selection failed, falling back to legacy generator"
+      );
+      aiResponse = await generateText(prompt, 4000, 0.7);
+    }
     const responseText = aiResponse.text;
 
     // Step 5: Check if AI indicates completion or if we have enough data
@@ -148,14 +190,17 @@ export async function POST(request: NextRequest) {
         (userWantsToCreate && progress.hasMinimumData);
     }
 
-    console.log("🤔 Decision:", {
-      aiIndicatesCompletion,
-      userWantsToCreate,
-      isReadyToCreate: progress.isReadyToCreate,
-      completenessPercentage: progress.completenessPercentage,
-      completionThreshold: config.completionThreshold,
-      shouldCreateResume,
-    });
+    logger.info(
+      {
+        aiIndicatesCompletion,
+        userWantsToCreate,
+        isReadyToCreate: progress.isReadyToCreate,
+        completenessPercentage: progress.completenessPercentage,
+        completionThreshold: config.completionThreshold,
+        shouldCreateResume,
+      },
+      "🤔 Decision:"
+    );
 
     // Step 6: Create resume if ready
     if (shouldCreateResume && progress.hasMinimumData) {
@@ -171,7 +216,7 @@ export async function POST(request: NextRequest) {
         // Validate we have minimum required data
         const validation = conversationManager.validate();
         if (!validation.valid) {
-          console.warn("⚠️ Validation failed:", validation.errors);
+          logger.warn({ errors: validation.errors }, "⚠️ Validation failed");
 
           // If validation fails but we have JSON, don't show raw JSON to user
           let safeResponse = responseText;
@@ -199,7 +244,7 @@ export async function POST(request: NextRequest) {
         const numericId = await generateNumericResumeId();
         const resumeId = numericId.toString();
 
-        console.log("✨ Creating resume with ID:", resumeId);
+        logger.info({ data: resumeId }, "✨ Creating resume with ID:");
 
         // Prepare resume document
         const resumeDocument = {
@@ -242,7 +287,7 @@ export async function POST(request: NextRequest) {
             numericId,
           });
 
-        console.log("✅ Resume created successfully:", resumeId);
+        logger.info({ data: resumeId }, "✅ Resume created successfully:");
 
         // Return success with resume ID
         return NextResponse.json({
@@ -256,7 +301,7 @@ export async function POST(request: NextRequest) {
           progress: 100,
         });
       } catch (createError) {
-        console.error("❌ Error creating resume:", createError);
+        logger.error({ err: createError }, "❌ Error creating resume:");
         // Fall back to continuing conversation
         return handleApiError(createError, "Resume creation failed");
       }
@@ -273,7 +318,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Error in resume generation:", error);
+    logger.error({ err: error }, "Error in resume generation:");
     return handleApiError(error, "Internal server error");
   }
 }

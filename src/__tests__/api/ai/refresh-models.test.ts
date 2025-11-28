@@ -1,14 +1,55 @@
+import { NextRequest } from "next/server";
 import { GET } from "@/app/api/ai/refresh-models/route";
+import {
+  applyRateLimit,
+  attachRateLimitHeaders,
+  getAuthenticatedUserId,
+  getClientIp,
+} from "@/lib/utils/api-helpers";
+import { getUserRole } from "@/lib/services/userService";
+
+jest.mock("@/lib/utils/api-helpers", () => {
+  const actual = jest.requireActual("@/lib/utils/api-helpers");
+  return {
+    ...actual,
+    getAuthenticatedUserId: jest.fn(),
+    getClientIp: jest.fn(),
+    applyRateLimit: jest.fn(),
+    attachRateLimitHeaders: jest.fn(),
+  };
+});
+
+jest.mock("@/lib/services/userService", () => ({
+  getUserRole: jest.fn(),
+}));
 
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
 process.env.GEMINI_API_KEY = "test-gemini-key";
 
+const createRequest = () =>
+  ({
+    headers: new Headers({
+      authorization: "Bearer test-token",
+      "x-forwarded-for": "203.0.113.10",
+    }),
+  } as unknown as NextRequest);
+
 describe("/api/ai/refresh-models route", () => {
   beforeEach(() => {
     mockFetch.mockClear();
     process.env.GEMINI_API_KEY = "test-gemini-key";
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "admin-user",
+    });
+    (getUserRole as jest.Mock).mockResolvedValue("admin");
+    (getClientIp as jest.Mock).mockReturnValue("203.0.113.10");
+    (applyRateLimit as jest.Mock).mockReturnValue({
+      allowed: true,
+      result: { limit: 5, remaining: 4, resetIn: 1000 },
+    });
+    (attachRateLimitHeaders as jest.Mock).mockImplementation(() => {});
   });
 
   it("should successfully refresh models list", async () => {
@@ -37,7 +78,7 @@ describe("/api/ai/refresh-models route", () => {
 
     mockFetch.mockResolvedValueOnce(mockResponse);
 
-    const response = await GET();
+    const response = await GET(createRequest());
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -68,7 +109,7 @@ describe("/api/ai/refresh-models route", () => {
 
     mockFetch.mockResolvedValueOnce(mockResponse);
 
-    const response = await GET();
+    const response = await GET(createRequest());
     const data = await response.json();
 
     expect(data.total).toBe(2);
@@ -92,7 +133,7 @@ describe("/api/ai/refresh-models route", () => {
 
     mockFetch.mockResolvedValueOnce(mockResponse);
 
-    const response = await GET();
+    const response = await GET(createRequest());
     const data = await response.json();
 
     expect(data.success).toBe(true);
@@ -110,7 +151,7 @@ describe("/api/ai/refresh-models route", () => {
 
     mockFetch.mockResolvedValueOnce(mockResponse);
 
-    const response = await GET();
+    const response = await GET(createRequest());
     const data = await response.json();
 
     expect(data.success).toBe(true);
@@ -128,7 +169,7 @@ describe("/api/ai/refresh-models route", () => {
 
     mockFetch.mockResolvedValueOnce(mockResponse);
 
-    const response = await GET();
+    const response = await GET(createRequest());
     const data = await response.json();
 
     expect(data.success).toBe(true);
@@ -138,7 +179,7 @@ describe("/api/ai/refresh-models route", () => {
   it("should return error when API key is not configured", async () => {
     delete process.env.GEMINI_API_KEY;
 
-    const response = await GET();
+    const response = await GET(createRequest());
     const data = await response.json();
 
     expect(response.status).toBe(500);
@@ -153,7 +194,7 @@ describe("/api/ai/refresh-models route", () => {
 
     mockFetch.mockResolvedValueOnce(mockResponse);
 
-    const response = await GET();
+    const response = await GET(createRequest());
     const data = await response.json();
 
     expect(response.status).toBe(500);
@@ -168,7 +209,7 @@ describe("/api/ai/refresh-models route", () => {
 
     mockFetch.mockResolvedValueOnce(mockResponse);
 
-    const response = await GET();
+    const response = await GET(createRequest());
     const data = await response.json();
 
     expect(response.status).toBe(500);
@@ -183,7 +224,7 @@ describe("/api/ai/refresh-models route", () => {
 
     mockFetch.mockResolvedValueOnce(mockResponse);
 
-    const response = await GET();
+    const response = await GET(createRequest());
     const data = await response.json();
 
     expect(response.status).toBe(500);
@@ -193,7 +234,7 @@ describe("/api/ai/refresh-models route", () => {
   it("should handle network errors", async () => {
     mockFetch.mockRejectedValueOnce(new Error("Network error"));
 
-    const response = await GET();
+    const response = await GET(createRequest());
     const data = await response.json();
 
     expect(response.status).toBe(500);
@@ -210,7 +251,7 @@ describe("/api/ai/refresh-models route", () => {
 
     mockFetch.mockResolvedValueOnce(mockResponse);
 
-    const response = await GET();
+    const response = await GET(createRequest());
     const data = await response.json();
 
     expect(data.timestamp).toBeDefined();
@@ -227,7 +268,7 @@ describe("/api/ai/refresh-models route", () => {
 
     mockFetch.mockResolvedValueOnce(mockResponse);
 
-    await GET();
+    await GET(createRequest());
 
     expect(mockFetch).toHaveBeenCalledWith(
       "https://generativelanguage.googleapis.com/v1/models?key=test-gemini-key"
@@ -255,7 +296,7 @@ describe("/api/ai/refresh-models route", () => {
 
     mockFetch.mockResolvedValueOnce(mockResponse);
 
-    const response = await GET();
+    const response = await GET(createRequest());
     const data = await response.json();
 
     expect(data.models[0].displayName).toBe("Gemini 2.5 Flash - Latest");
@@ -278,7 +319,7 @@ describe("/api/ai/refresh-models route", () => {
 
     mockFetch.mockResolvedValueOnce(mockResponse);
 
-    const response = await GET();
+    const response = await GET(createRequest());
     const data = await response.json();
 
     expect(data.models[0].methods).toContain("generateContent");
@@ -301,10 +342,10 @@ describe("/api/ai/refresh-models route", () => {
 
     mockFetch.mockResolvedValue(mockResponse);
 
-    const response1 = await GET();
+    const response1 = await GET(createRequest());
     const data1 = await response1.json();
 
-    const response2 = await GET();
+    const response2 = await GET(createRequest());
     const data2 = await response2.json();
 
     expect(data1.compatible).toBe(data2.compatible);

@@ -33,22 +33,22 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == resource.data.toUserId;
       // Recruiter can read their own requests
       allow read: if request.auth != null && request.auth.uid == resource.data.fromRecruiter.recruiterId;
-      // Admins can read all requests (add role check if needed)
-      allow read: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Admins can read all requests (Optimized: uses Custom Claims)
+      allow read: if request.auth != null && request.auth.token.role == 'admin';
       
       // SECURITY FIX: Recruiters can create requests only with proper validation
       // - Must be authenticated
-      // - Must have recruiter role
+      // - Must have recruiter role (Optimized: uses Custom Claims)
       // - fromRecruiter.recruiterId must match the authenticated user
       // - Required fields must be present
       allow create: if request.auth != null 
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'recruiter'
+        && request.auth.token.role == 'recruiter'
         && request.resource.data.fromRecruiter.recruiterId == request.auth.uid
         && request.resource.data.toUserId is string
         && request.resource.data.status == 'pending';
       
-      // Only admins can update (to approve/deny)
-      allow update: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Only admins can update (to approve/deny) (Optimized: uses Custom Claims)
+      allow update: if request.auth != null && request.auth.token.role == 'admin';
       
       // Prevent deletion
       allow delete: if false;
@@ -93,10 +93,10 @@ service cloud.firestore {
 
     // Admin notifications for request review
     match /adminNotifications/{notificationId} {
-      // Only admins can read
-      allow read: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-      // Admins can update (mark as read)
-      allow update: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Only admins can read (Optimized: uses Custom Claims)
+      allow read: if request.auth != null && request.auth.token.role == 'admin';
+      // Admins can update (mark as read) (Optimized: uses Custom Claims)
+      allow update: if request.auth != null && request.auth.token.role == 'admin';
       
       // Prevent creation/deletion by users
       allow create: if false;
@@ -105,8 +105,8 @@ service cloud.firestore {
 
     // Audit logs for compliance
     match /auditLogs/{logId} {
-      // Only admins can read audit logs
-      allow read: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Only admins can read audit logs (Optimized: uses Custom Claims)
+      allow read: if request.auth != null && request.auth.token.role == 'admin';
       
       // Users can read their own audit logs (for privacy/GDPR compliance)
       allow read: if request.auth != null && request.auth.uid == resource.data.userId;
@@ -119,8 +119,8 @@ service cloud.firestore {
 
     // Email logs for tracking and debugging
     match /emailLogs/{logId} {
-      // Only admins can read email logs
-      allow read: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Only admins can read email logs (Optimized: uses Custom Claims)
+      allow read: if request.auth != null && request.auth.token.role == 'admin';
       
       // Users can read their own email logs
       allow read: if request.auth != null && request.auth.uid == resource.data.userId;
@@ -133,8 +133,8 @@ service cloud.firestore {
 
     // Access token audit history
     match /accessTokenAudit/{auditId} {
-      // Only admins can read
-      allow read: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Only admins can read (Optimized: uses Custom Claims)
+      allow read: if request.auth != null && request.auth.token.role == 'admin';
       
       // Users can read audit history for their own tokens
       allow read: if request.auth != null && request.auth.uid == resource.data.userId;
@@ -149,7 +149,9 @@ service cloud.firestore {
 
     // Analytics - public read for profile views, write by system
     match /analytics/{slug} {
-      allow read: if request.auth != null; // Authenticated users only
+      // globalStats is public (marketing stats on homepage - no sensitive data)
+      // Other analytics documents require authentication
+      allow read: if slug == 'globalStats' || request.auth != null;
       allow write: if request.auth != null; // Authenticated users can write events
       
       // Analytics events subcollection
@@ -193,7 +195,10 @@ service cloud.firestore {
       // Access Requests subcollection (existing)
       match /accessRequests/{requestId} {
         allow read: if request.auth != null && request.auth.uid == get(/databases/$(database)/documents/resumeProfiles/$(profileId)).data.userId;
-        allow create: if request.auth != null;
+        allow create: if request.auth != null
+          && request.auth.token.role in ['recruiter', 'admin']
+          && request.resource.data.fromUserId == request.auth.uid
+          && request.resource.data.status == 'pending';
       }
 
       // Access Grants subcollection (existing)
@@ -226,10 +231,50 @@ service cloud.firestore {
       // they use the Firebase Admin SDK which bypasses these rules automatically
     }
 
+    // ==================== DRAFT RESUME COLLECTIONS ====================
+    
+    // Draft resumes - only the owner can access their drafts
+    match /drafts/{draftId} {
+      // Owner can read their own drafts
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      
+      // Owner can create drafts for themselves
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      
+      // Owner can update their own drafts
+      allow update: if request.auth != null && request.auth.uid == resource.data.userId;
+      
+      // Owner can delete their own drafts
+      allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+
+    // Draft ID mappings - server-only (used for ID uniqueness verification)
+    match /draftIdMapping/{draftId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // Search quota tracking - server-only
+    match /searchQuotas/{userId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
     // New Resumes Collection (Sequential IDs)
     match /resumes/{resumeId} {
       // Allow authenticated users to read their own resumes
       allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      
+      // SECURITY FIX: Allow recruiters to read published resumes (not being edited)
+      // This enables the AI search functionality to work for recruiters
+      // Optimized: uses Custom Claims
+      allow read: if request.auth != null 
+        && request.auth.token.role == 'recruiter'
+        && resource.data.isBeingEdited == false;
+      
+      // Allow admins to read all resumes (Optimized: uses Custom Claims)
+      allow read: if request.auth != null 
+        && request.auth.token.role == 'admin';
       
       // Only authenticated users can create resumes (must be for themselves)
       allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;

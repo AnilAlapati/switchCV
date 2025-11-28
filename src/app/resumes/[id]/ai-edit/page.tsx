@@ -1,5 +1,7 @@
 "use client";
 
+import { logger } from "@/lib/logger";
+
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
@@ -70,7 +72,7 @@ export default function ResumeAIEditPage() {
           setAiConnectionStatus(data);
         }
       } catch (error) {
-        console.error("Failed to check AI status:", error);
+        logger.error({ err: error }, "Failed to check AI status:");
         setAiConnectionStatus({ connected: false });
       }
     };
@@ -126,7 +128,7 @@ export default function ResumeAIEditPage() {
           setSessionData(null);
         }
       } catch (error) {
-        console.error("Error loading resume edit context:", error);
+        logger.error({ err: error }, "Error loading resume edit context:");
         setAiError(
           error instanceof Error
             ? error.message
@@ -216,7 +218,7 @@ export default function ResumeAIEditPage() {
         return;
       }
     } catch (error) {
-      console.error("Error during resume edit chat:", error);
+      logger.error({ err: error }, "Error during resume edit chat:");
       setAiError(error instanceof Error ? error.message : "Unknown error");
     } finally {
       setIsProcessing(false);

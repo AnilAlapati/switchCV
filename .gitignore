@@ -15,6 +15,11 @@
 /coverage
 coverage-*/
 
+# Playwright
+/playwright-report/
+/test-results/
+/e2e/.auth/
+
 # next.js
 /.next/
 /out/
@@ -37,7 +42,13 @@ yarn-error.log*
 .env.local
 .env.local.backup
 .env*.local
+.env.dev
+.env.production
+.env.local.prod-db
+functions/.env.dev
+functions/.env.default
 !.env.example
+!functions/.env.example
 
 # vercel
 .vercel
@@ -59,3 +70,4 @@ functions/lib/
 
 # logs
 test-output.log
+key.json

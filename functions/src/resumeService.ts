@@ -15,6 +15,8 @@ import {
   RetryOptions,
 } from "./utils/retryHandler";
 
+import { config } from "./config";
+
 // Initialize AI clients
 const HUGGINGFACE_TOKEN = process.env.HUGGINGFACE_TOKEN;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -35,8 +37,11 @@ const aiRetryOptions: RetryOptions = {
   retryableErrors: ["ECONNRESET", "ETIMEDOUT", "503", "429", "UNAVAILABLE"],
 };
 
-// CORS configuration
-const corsHandler = cors({ origin: true });
+// SECURITY: CORS configuration from config (specific origins, not 'true')
+const securityConfig = config.get<{ corsOrigin: string[] | boolean }>(
+  "security"
+);
+const corsHandler = cors({ origin: securityConfig.corsOrigin });
 
 // Helmet for security
 const helmetHandler = helmet({
@@ -58,7 +63,12 @@ const ALLOWED_MODELS = [
  */
 export const generateResumeContent = functions
   .runWith({
-    secrets: ["HUGGINGFACE_TOKEN", "GEMINI_API_KEY"],
+    secrets: [
+      "HUGGINGFACE_TOKEN",
+      "GEMINI_API_KEY",
+      "GROQ_API_KEY",
+      "OPENAI_API_KEY",
+    ],
   })
   .https.onRequest(async (req, res) => {
     corsHandler(req, res, async () => {

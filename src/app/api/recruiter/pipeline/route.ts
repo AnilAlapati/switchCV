@@ -2,25 +2,29 @@
  * Recruiter Pipeline API Route
  * POST /api/recruiter/pipeline
  * Handles pipeline operations: create, get, move candidates
+ *
+ * FIXED: Now persists to Firestore instead of in-memory Map
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { adminDb } from "@/lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import {
   RecruitmentPipeline,
   PipelineStage,
+  Candidate,
+  PipelineColumn,
 } from "@/lib/recruiterDashboard.types";
-import { createCandidate, getCandidatesByStage } from "@/lib/recruiterPipeline";
-import {
-  initializePipeline,
-  addCandidateToPipeline,
-  moveCandidateInPipeline,
-} from "@/lib/recruiterPipelineHelpers";
+import { createCandidate } from "@/lib/recruiterPipeline";
+import { generatePipelineId } from "@/lib/recruiterPipelineHelpers";
 import { handleApiError } from "@/lib/utils/api-helpers";
+import { logger } from "@/lib/logger";
 
 interface InitializeRequest {
   action: "initialize";
   jobId: string;
   jobTitle: string;
+  recruiterId: string;
 }
 
 interface AddCandidateRequest {
@@ -52,8 +56,69 @@ type PipelineRequest =
   | MoveCandidateRequest
   | GetStageRequest;
 
-// In-memory storage (replace with database in production)
-export const pipelines = new Map<string, RecruitmentPipeline>();
+const PIPELINES_COLLECTION = "recruiterPipelines";
+const CANDIDATES_SUBCOLLECTION = "candidates";
+
+/**
+ * Get pipeline from Firestore
+ */
+async function getPipeline(
+  pipelineId: string
+): Promise<RecruitmentPipeline | null> {
+  const pipelineDoc = await adminDb
+    .collection(PIPELINES_COLLECTION)
+    .doc(pipelineId)
+    .get();
+
+  if (!pipelineDoc.exists) {
+    return null;
+  }
+
+  const data = pipelineDoc.data();
+
+  // Fetch candidates from subcollection
+  const candidatesSnap = await adminDb
+    .collection(PIPELINES_COLLECTION)
+    .doc(pipelineId)
+    .collection(CANDIDATES_SUBCOLLECTION)
+    .get();
+
+  const candidates: Candidate[] = candidatesSnap.docs.map((doc) => {
+    const c = doc.data();
+    return {
+      ...c,
+      id: doc.id,
+      createdAt: c.createdAt?.toDate() || new Date(),
+      updatedAt: c.updatedAt?.toDate() || new Date(),
+      appliedDate: c.appliedDate?.toDate(),
+    } as Candidate;
+  });
+
+  // Build columns from candidates
+  const stages: PipelineStage[] = [
+    PipelineStage.LEAD,
+    PipelineStage.SCREENED,
+    PipelineStage.SHORTLISTED,
+    PipelineStage.INTERVIEWED,
+    PipelineStage.OFFERED,
+    PipelineStage.HIRED,
+  ];
+
+  const columns: PipelineColumn[] = stages.map((stage, index) => ({
+    stage,
+    candidates: candidates.filter((c) => c.stage === stage),
+    count: candidates.filter((c) => c.stage === stage).length,
+    stageOrder: index + 1,
+  }));
+
+  return {
+    id: pipelineDoc.id,
+    jobId: data?.jobId,
+    jobTitle: data?.jobTitle,
+    columns,
+    totalCandidates: candidates.length,
+  };
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -61,7 +126,7 @@ export async function POST(request: NextRequest) {
 
     switch (body.action) {
       case "initialize": {
-        const { jobId, jobTitle } = body as InitializeRequest;
+        const { jobId, jobTitle, recruiterId } = body as InitializeRequest;
         if (!jobId || !jobTitle) {
           return handleApiError(
             null,
@@ -69,8 +134,25 @@ export async function POST(request: NextRequest) {
             400
           );
         }
-        const pipeline = initializePipeline(jobId, jobTitle);
-        pipelines.set(pipeline.id, pipeline);
+
+        const pipelineId = generatePipelineId();
+
+        // Save to Firestore
+        await adminDb
+          .collection(PIPELINES_COLLECTION)
+          .doc(pipelineId)
+          .set({
+            jobId,
+            jobTitle,
+            recruiterId: recruiterId || null,
+            totalCandidates: 0,
+            createdAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+
+        const pipeline = await getPipeline(pipelineId);
+
+        logger.info({ pipelineId, jobId }, "Pipeline created in Firestore");
 
         return NextResponse.json(
           {
@@ -85,9 +167,14 @@ export async function POST(request: NextRequest) {
       case "add-candidate": {
         const { pipelineId, name, email, position, phone, resumeUrl } =
           body as AddCandidateRequest;
-        const pipeline = pipelines.get(pipelineId);
 
-        if (!pipeline) {
+        // Check pipeline exists
+        const pipelineDoc = await adminDb
+          .collection(PIPELINES_COLLECTION)
+          .doc(pipelineId)
+          .get();
+
+        if (!pipelineDoc.exists) {
           return handleApiError(null, "Pipeline not found", 404);
         }
 
@@ -98,14 +185,40 @@ export async function POST(request: NextRequest) {
           phone,
           resumeUrl
         );
-        const updated = addCandidateToPipeline(pipeline, candidate);
-        pipelines.set(pipelineId, updated);
+
+        // Save candidate to subcollection
+        await adminDb
+          .collection(PIPELINES_COLLECTION)
+          .doc(pipelineId)
+          .collection(CANDIDATES_SUBCOLLECTION)
+          .doc(candidate.id)
+          .set({
+            ...candidate,
+            createdAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+
+        // Increment total count
+        await adminDb
+          .collection(PIPELINES_COLLECTION)
+          .doc(pipelineId)
+          .update({
+            totalCandidates: FieldValue.increment(1),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+
+        const pipeline = await getPipeline(pipelineId);
+
+        logger.info(
+          { pipelineId, candidateId: candidate.id },
+          "Candidate added to pipeline"
+        );
 
         return NextResponse.json(
           {
             success: true,
             candidate,
-            totalCandidates: updated.totalCandidates,
+            totalCandidates: pipeline?.totalCandidates || 1,
             message: "Candidate added successfully",
           },
           { status: 201 }
@@ -115,27 +228,51 @@ export async function POST(request: NextRequest) {
       case "move-candidate": {
         const { pipelineId, candidateId, newStage } =
           body as MoveCandidateRequest;
-        const pipeline = pipelines.get(pipelineId);
 
-        if (!pipeline) {
+        // Check pipeline exists
+        const pipelineDocCheck = await adminDb
+          .collection(PIPELINES_COLLECTION)
+          .doc(pipelineId)
+          .get();
+
+        if (!pipelineDocCheck.exists) {
           return handleApiError(null, "Pipeline not found", 404);
         }
 
-        const candidate = pipeline.columns
-          .flatMap((col) => col.candidates)
-          .find((c) => c.id === candidateId);
+        const candidateRef = adminDb
+          .collection(PIPELINES_COLLECTION)
+          .doc(pipelineId)
+          .collection(CANDIDATES_SUBCOLLECTION)
+          .doc(candidateId);
 
-        if (!candidate) {
+        const candidateDoc = await candidateRef.get();
+
+        if (!candidateDoc.exists) {
           return handleApiError(null, "Candidate not found", 404);
         }
 
-        const updated = moveCandidateInPipeline(pipeline, candidate, newStage);
-        pipelines.set(pipelineId, updated);
+        // Update candidate stage
+        await candidateRef.update({
+          stage: newStage,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+
+        // Update pipeline timestamp
+        await adminDb.collection(PIPELINES_COLLECTION).doc(pipelineId).update({
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+
+        const candidateData = candidateDoc.data();
+
+        logger.info(
+          { pipelineId, candidateId, newStage },
+          "Candidate moved to new stage"
+        );
 
         return NextResponse.json(
           {
             success: true,
-            candidate: { ...candidate, stage: newStage },
+            candidate: { ...candidateData, id: candidateId, stage: newStage },
             message: "Candidate moved successfully",
           },
           { status: 200 }
@@ -144,13 +281,15 @@ export async function POST(request: NextRequest) {
 
       case "get-stage": {
         const { pipelineId, stage } = body as GetStageRequest;
-        const pipeline = pipelines.get(pipelineId);
+
+        const pipeline = await getPipeline(pipelineId);
 
         if (!pipeline) {
           return handleApiError(null, "Pipeline not found", 404);
         }
 
-        const candidates = getCandidatesByStage(pipeline, stage);
+        const column = pipeline.columns.find((col) => col.stage === stage);
+        const candidates = column?.candidates || [];
 
         return NextResponse.json(
           {
@@ -167,6 +306,7 @@ export async function POST(request: NextRequest) {
         return handleApiError(null, "Invalid action", 400);
     }
   } catch (error) {
+    logger.error({ err: error }, "Pipeline API error");
     return handleApiError(error, "Internal server error");
   }
 }

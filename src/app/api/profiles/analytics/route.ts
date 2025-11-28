@@ -8,11 +8,17 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { adminDb } from "@/lib/firebase-admin";
+import { logger } from "@/lib/logger";
 import {
   getAnalytics,
   trackAnalyticsEvent,
   TrackingRequest,
 } from "@/lib/services/analyticsService";
+import {
+  incrementJobSeekerMetric,
+  incrementRecruiterMetric,
+} from "@/lib/services/metricsService";
 import { handleApiError } from "@/lib/utils/api-helpers";
 
 /**
@@ -48,6 +54,40 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await trackAnalyticsEvent(trackingRequest);
+
+    // Update Aggregated Metrics (Fire & Forget / Parallel)
+    // We await them to ensure execution in serverless environment
+    try {
+      const resumeSnap = await adminDb
+        .collection("resumes")
+        .doc(trackingRequest.resumeId)
+        .get();
+      const resumeData = resumeSnap.data();
+
+      if (resumeData?.userId) {
+        const ownerId = resumeData.userId;
+
+        // Update Job Seeker Metrics (Owner)
+        if (trackingRequest.eventType === "view") {
+          await incrementJobSeekerMetric(ownerId, "profileViews");
+        } else if (trackingRequest.eventType === "download") {
+          await incrementJobSeekerMetric(ownerId, "downloads");
+        }
+        // Note: 'request' events are handled in /api/profiles/request-access to avoid double counting
+      }
+
+      // Update Recruiter Metrics (Viewer)
+      if (trackingRequest.userId && trackingRequest.eventType === "view") {
+        await incrementRecruiterMetric(
+          trackingRequest.userId,
+          "profilesViewed"
+        );
+      }
+    } catch (metricError) {
+      // Don't fail the request if metric update fails, just log it
+      logger.error({ err: metricError }, "Failed to update aggregated metrics");
+    }
+
     return NextResponse.json(result);
   } catch (error) {
     return handleApiError(error, "Failed to track analytics");

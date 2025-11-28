@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import {
@@ -7,21 +8,22 @@ import {
 import { z } from "zod";
 
 // Define validation schemas
+// SECURITY: subscriptionTier and isRecruiter are NOT accepted from clients
+// These must be set server-side via admin operations or payment webhooks
 const userProfileSchema = z.object({
   uid: z.string().min(1, "UID is required"),
   email: z.string().email("Invalid email address"),
   displayName: z.string().optional(),
-  isRecruiter: z.boolean().optional().default(false),
   companyName: z.string().optional(),
-  subscriptionTier: z.enum(["basic", "premium"]).optional().default("basic"),
+  // isRecruiter and subscriptionTier intentionally omitted - server-controlled
 });
 
+// SECURITY: Update schema excludes tier/role fields - only admin can change these
 const updateProfileSchema = z.object({
   uid: z.string().min(1, "UID is required"),
   displayName: z.string().optional(),
-  isRecruiter: z.boolean().optional(),
   companyName: z.string().optional(),
-  subscriptionTier: z.enum(["basic", "premium"]).optional(),
+  // isRecruiter and subscriptionTier intentionally omitted - server-controlled
 });
 
 interface UserProfile {
@@ -30,7 +32,7 @@ interface UserProfile {
   displayName?: string;
   isRecruiter: boolean;
   companyName?: string;
-  subscriptionTier: "basic" | "premium";
+  subscriptionTier: "basic" | "premium" | "enterprise";
   createdAt?: string;
   updatedAt: string;
 }
@@ -73,7 +75,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(userDoc.data());
   } catch (error) {
-    console.error("Error fetching user profile:", error);
+    logger.error({ err: error }, "Error fetching user profile:");
     return handleApiError(error, "Failed to fetch user profile");
   }
 }
@@ -100,21 +102,14 @@ export async function POST(request: NextRequest) {
     if (!validationResult.success) {
       return handleApiError(
         new Error("Validation failed"),
-        validationResult.error.errors
-          .map((e) => `${e.path.join(".")}: ${e.message}`)
+        (validationResult.error as any).errors
+          .map((e: any) => `${e.path.join(".")}: ${e.message}`)
           .join(", "),
         400
       );
     }
 
-    const {
-      uid,
-      email,
-      displayName,
-      isRecruiter,
-      companyName,
-      subscriptionTier,
-    } = validationResult.data;
+    const { uid, email, displayName, companyName } = validationResult.data;
 
     // Users can only create profiles for themselves
     if (userId !== uid) {
@@ -126,13 +121,15 @@ export async function POST(request: NextRequest) {
     }
 
     const now = new Date().toISOString();
+    // SECURITY: isRecruiter and subscriptionTier are server-controlled
+    // New users always start as basic jobseekers
     const userProfileData: UserProfile = {
       uid,
       email,
       displayName: displayName || "",
-      isRecruiter: isRecruiter,
+      isRecruiter: false, // Server-controlled: set via admin or recruiter verification
       companyName: companyName || "",
-      subscriptionTier: subscriptionTier,
+      subscriptionTier: "basic", // Server-controlled: set via payment webhooks
       createdAt: now,
       updatedAt: now,
     };
@@ -148,7 +145,7 @@ export async function POST(request: NextRequest) {
       data: userProfileData,
     });
   } catch (error) {
-    console.error("Error creating user profile:", error);
+    logger.error({ err: error }, "Error creating user profile:");
     return handleApiError(error, "Failed to create user profile");
   }
 }
@@ -175,15 +172,14 @@ export async function PUT(request: NextRequest) {
     if (!validationResult.success) {
       return handleApiError(
         new Error("Validation failed"),
-        validationResult.error.errors
-          .map((e) => `${e.path.join(".")}: ${e.message}`)
+        (validationResult.error as any).errors
+          .map((e: any) => `${e.path.join(".")}: ${e.message}`)
           .join(", "),
         400
       );
     }
 
-    const { uid, displayName, isRecruiter, companyName, subscriptionTier } =
-      validationResult.data;
+    const { uid, displayName, companyName } = validationResult.data;
 
     // Users can only update their own profile
     if (userId !== uid) {
@@ -194,15 +190,16 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    // SECURITY: Users can only update display name and company name
+    // isRecruiter and subscriptionTier are server-controlled
     const updateData: Partial<UserProfile> = {
       updatedAt: new Date().toISOString(),
     };
 
     if (displayName !== undefined) updateData.displayName = displayName;
-    if (isRecruiter !== undefined) updateData.isRecruiter = isRecruiter;
     if (companyName !== undefined) updateData.companyName = companyName;
-    if (subscriptionTier !== undefined)
-      updateData.subscriptionTier = subscriptionTier;
+    // NOTE: isRecruiter and subscriptionTier intentionally not updated from client
+    // Use /api/admin/update-user-tier or payment webhooks for these fields
 
     await adminDb.collection("users").doc(uid).set(updateData, { merge: true });
 
@@ -212,7 +209,7 @@ export async function PUT(request: NextRequest) {
       data: updateData,
     });
   } catch (error) {
-    console.error("Error updating user profile:", error);
+    logger.error({ err: error }, "Error updating user profile:");
     return handleApiError(error, "Failed to update user profile");
   }
 }

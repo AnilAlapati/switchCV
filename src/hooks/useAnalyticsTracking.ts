@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 /**
  * Hook for tracking analytics events
  */
@@ -12,11 +13,11 @@ interface AnalyticsEvent {
 
 export const useAnalyticsTracking = () => {
   const trackEvent = useCallback((event: AnalyticsEvent) => {
-    console.log("📊 Analytics Event:", {
+    logger.info({
       event: event.eventName,
       properties: event.properties,
       timestamp: event.timestamp || new Date(),
-    });
+    }, "📊 Analytics Event:");
     // In production, this would send to analytics service
   }, []);
 
