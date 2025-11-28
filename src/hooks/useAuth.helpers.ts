@@ -108,39 +108,88 @@ export function createAuthProfileHelpers(db: Firestore | null | undefined) {
   const ensureUserProfile = async (
     firebaseUser: User,
     options?: { username?: string; autoGenerate?: boolean }
-  ) => {
+  ): Promise<{ isNewUser: boolean; needsUsername: boolean }> => {
     if (firestoreUnavailable || !db) {
-      return;
+      return { isNewUser: false, needsUsername: false };
     }
 
     const profileRef = doc(db, "users", firebaseUser.uid);
     const profileSnapshot = await getDoc(profileRef);
-
-    if (!profileSnapshot.exists()) {
-      await setDoc(
-        profileRef,
-        {
-          email: firebaseUser.email || "",
-          displayName: firebaseUser.displayName || "",
-          photoURL: firebaseUser.photoURL || "",
-          authProvider: firebaseUser.providerData[0]?.providerId || "password",
-          emailVerified: firebaseUser.emailVerified,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
-    }
-
+    const isNewUser = !profileSnapshot.exists();
     const existingData = profileSnapshot.data() || {};
-    if (!existingData.username) {
-      const targetUsername =
-        options?.username ||
-        firebaseUser.displayName ||
-        firebaseUser.email?.split("@")[0] ||
-        "switcher";
-      await allocateUsernameForUser(firebaseUser.uid, targetUsername);
+
+    // Check if user is signing in via Google (OAuth)
+    const isGoogleAuth = firebaseUser.providerData.some(
+      (provider) => provider.providerId === "google.com"
+    );
+
+    if (isNewUser) {
+      // For Google OAuth users: create profile with needsUsername flag
+      // For email/password users: username was already reserved during signup
+      const profileData: Record<string, unknown> = {
+        email: firebaseUser.email || "",
+        displayName: firebaseUser.displayName || "",
+        photoURL: firebaseUser.photoURL || "",
+        authProvider: firebaseUser.providerData[0]?.providerId || "password",
+        emailVerified: firebaseUser.emailVerified,
+        role: "jobseeker", // Default role for new users
+        subscriptionTier: "basic", // Default subscription tier
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+
+      // For Google users, set needsUsername flag instead of auto-assigning
+      if (isGoogleAuth && !options?.username) {
+        profileData.needsUsername = true;
+      }
+
+      await setDoc(profileRef, profileData, { merge: true });
+
+      // If username was provided (e.g., from choose-username page) or autoGenerate is true
+      if (options?.username) {
+        await allocateUsernameForUser(firebaseUser.uid, options.username);
+        // Clear the needsUsername flag after successful username assignment
+        await setDoc(
+          profileRef,
+          { needsUsername: false, updatedAt: serverTimestamp() },
+          { merge: true }
+        );
+        return { isNewUser: true, needsUsername: false };
+      }
+
+      // For email/password users without explicit username, auto-generate
+      if (!isGoogleAuth && options?.autoGenerate !== false) {
+        const targetUsername =
+          firebaseUser.displayName ||
+          firebaseUser.email?.split("@")[0] ||
+          "switcher";
+        await allocateUsernameForUser(firebaseUser.uid, targetUsername);
+        return { isNewUser: true, needsUsername: false };
+      }
+
+      // Google user needs to choose username
+      return {
+        isNewUser: true,
+        needsUsername: isGoogleAuth && !options?.username,
+      };
     }
+
+    // Existing user - check if they still need a username
+    if (existingData.needsUsername || !existingData.username) {
+      // If username was provided, assign it now
+      if (options?.username) {
+        await allocateUsernameForUser(firebaseUser.uid, options.username);
+        await setDoc(
+          profileRef,
+          { needsUsername: false, updatedAt: serverTimestamp() },
+          { merge: true }
+        );
+        return { isNewUser: false, needsUsername: false };
+      }
+      return { isNewUser: false, needsUsername: true };
+    }
+
+    return { isNewUser: false, needsUsername: false };
   };
 
   const releaseUsernameReservation = async (

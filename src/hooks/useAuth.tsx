@@ -7,6 +7,7 @@ import {
   useContext,
   createContext,
   ReactNode,
+  useCallback,
 } from "react";
 import {
   User,
@@ -19,16 +20,20 @@ import {
   sendEmailVerification,
 } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
-import { serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, serverTimestamp } from "firebase/firestore";
 import {
   createAuthProfileHelpers,
   isPasswordProvider,
   sanitizeUsername,
   USERNAME_REGEX,
-  type UsernameReservationError,
 } from "./useAuth.helpers";
 import { useConnectivityStatus } from "@/context/ConnectivityStatusProvider";
-import { getSanitizedMessage, reportError } from "@/lib/errorReporter";
+import { reportError } from "@/lib/errorReporter";
+import {
+  getSignInErrorMessage,
+  getSignUpErrorMessage,
+  getGoogleSignInErrorMessage,
+} from "./useAuth.errors";
 
 const googleProvider =
   typeof window !== "undefined" ? new GoogleAuthProvider() : null;
@@ -51,14 +56,17 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   needsEmailVerification: boolean;
+  needsUsername: boolean;
   verificationEmail: string | null;
   connectivityIssue: string | null;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, username: string) => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: () => Promise<{ needsUsername: boolean }>;
   resendVerificationEmail: () => Promise<void>;
   refreshUser: () => Promise<void>;
   logout: () => Promise<void>;
+  setUsername: (username: string) => Promise<void>;
+  checkNeedsUsername: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -78,6 +86,7 @@ interface AuthProviderProps {
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [needsUsername, setNeedsUsername] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState<string | null>(
     null
   );
@@ -156,17 +165,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         severity: "warning",
         meta: { code: authError.code },
       });
-      throw new Error(
-        authError.code === "auth/invalid-credential"
-          ? "Invalid email or password. Please check your credentials or sign up first."
-          : authError.code === "auth/user-not-found"
-          ? "No account found with this email. Please sign up first."
-          : authError.code === "auth/wrong-password"
-          ? "Incorrect password. Please try again."
-          : authError.code === "auth/too-many-requests"
-          ? "Too many failed login attempts. Please try again later."
-          : getSanitizedMessage(authError, "Failed to sign in")
-      );
+      throw new Error(getSignInErrorMessage(authError));
     }
   };
 
@@ -224,17 +223,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         severity: "warning",
         meta: { code: authError.code },
       });
-      throw new Error(
-        authError.code === "auth/email-already-in-use"
-          ? "This email is already registered. Please sign in instead."
-          : authError.code === "auth/weak-password"
-          ? "Password should be at least 6 characters."
-          : authError.code === "auth/invalid-email"
-          ? "Invalid email address."
-          : (authError as UsernameReservationError).code === "username-taken"
-          ? "This username is already taken. Please choose another."
-          : getSanitizedMessage(authError, "Failed to create account")
-      );
+      throw new Error(getSignUpErrorMessage(authError));
     }
   };
 
@@ -243,7 +232,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     await signOut(auth);
   };
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (): Promise<{ needsUsername: boolean }> => {
     ensureAuthAvailable();
     if (!googleProvider) {
       throw new Error("Google Sign-In is not available in this environment.");
@@ -252,7 +241,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       const credential = await signInWithPopup(auth, googleProvider);
       setVerificationEmail(credential.user.email ?? null);
-      await ensureUserProfile(credential.user);
+      const result = await ensureUserProfile(credential.user);
+      setNeedsUsername(result.needsUsername);
+      return { needsUsername: result.needsUsername };
     } catch (error) {
       const authError = error as { code?: string; message?: string };
       reportError(error, {
@@ -260,13 +251,57 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         severity: "warning",
         meta: { code: authError.code },
       });
-      throw new Error(
-        authError.code === "auth/popup-closed-by-user"
-          ? "Google sign-in was closed before completion."
-          : getSanitizedMessage(authError, "Failed to sign in with Google")
-      );
+      throw new Error(getGoogleSignInErrorMessage(authError));
     }
   };
+
+  /**
+   * Set username for a user who signed in via Google OAuth.
+   * This completes the username selection process.
+   */
+  const setUsername = useCallback(
+    async (username: string): Promise<void> => {
+      if (!user) {
+        throw new Error("No user is signed in.");
+      }
+
+      const normalized = sanitizeUsername(username);
+      if (!normalized || !USERNAME_REGEX.test(normalized)) {
+        throw new Error(
+          "Please choose a username between 3-30 characters using lowercase letters, numbers, hyphens, or underscores."
+        );
+      }
+
+      // Use ensureUserProfile with the username option to complete the flow
+      await ensureUserProfile(user, { username: normalized });
+      setNeedsUsername(false);
+    },
+    [user, ensureUserProfile]
+  );
+
+  /**
+   * Check if the current user needs to set a username.
+   * Called on app load to handle users who abandoned the username selection flow.
+   */
+  const checkNeedsUsername = useCallback(async (): Promise<boolean> => {
+    if (!user || !db) {
+      return false;
+    }
+
+    try {
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      const data = userDoc.data();
+      const needs = data?.needsUsername === true || !data?.username;
+      setNeedsUsername(needs);
+      return needs;
+    } catch (error) {
+      reportError(error, {
+        source: "useAuth.checkNeedsUsername",
+        severity: "warning",
+      });
+      return false;
+    }
+  }, [user]);
 
   const resendVerificationEmail = async () => {
     await sendVerification();
@@ -292,6 +327,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     user,
     loading,
     needsEmailVerification,
+    needsUsername,
     verificationEmail,
     connectivityIssue,
     signIn,
@@ -300,6 +336,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     resendVerificationEmail,
     refreshUser,
     logout,
+    setUsername,
+    checkNeedsUsername,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
