@@ -5,14 +5,14 @@ import { db } from "@/lib/firebase";
 
 interface GlobalStats {
   resumes: string;
-  users: string;
-  completion: string;
+  jobSeekers: string;
+  recruiters: string;
 }
 
 const DEFAULT_STATS: GlobalStats = {
-  resumes: "12k+",
-  users: "10k+",
-  completion: "98%",
+  resumes: "—",
+  jobSeekers: "—",
+  recruiters: "—",
 };
 
 function formatCount(value: unknown, fallback: string) {
@@ -29,19 +29,6 @@ function formatCount(value: unknown, fallback: string) {
   return fallback;
 }
 
-function formatCompletion(value: unknown, fallback: string) {
-  if (typeof value === "number") {
-    const normalized = value <= 1 ? value * 100 : value;
-    return `${Math.round(normalized)}%`;
-  }
-
-  if (typeof value === "string" && value.trim()) {
-    return value.endsWith("%") ? value : `${value}%`;
-  }
-
-  return fallback;
-}
-
 export function useGlobalStats() {
   const [stats, setStats] = useState<GlobalStats>(DEFAULT_STATS);
 
@@ -51,13 +38,13 @@ export function useGlobalStats() {
         data?.resumeCount ?? data?.resumes ?? data?.totalResumes,
         DEFAULT_STATS.resumes
       ),
-      users: formatCount(
-        data?.activeUsers ?? data?.userCount ?? data?.users,
-        DEFAULT_STATS.users
+      jobSeekers: formatCount(
+        data?.jobSeekerCount ?? data?.jobSeekers,
+        DEFAULT_STATS.jobSeekers
       ),
-      completion: formatCompletion(
-        data?.profileCompletionRate ?? data?.completionRate ?? data?.completion,
-        DEFAULT_STATS.completion
+      recruiters: formatCount(
+        data?.recruiterCount ?? data?.recruiters,
+        DEFAULT_STATS.recruiters
       ),
     });
   }, []);

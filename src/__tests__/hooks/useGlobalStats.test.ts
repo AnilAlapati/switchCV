@@ -36,9 +36,9 @@ describe("useGlobalStats", () => {
     const { result } = renderHook(() => useGlobalStats());
 
     expect(result.current.stats).toEqual({
-      resumes: "12k+",
-      users: "10k+",
-      completion: "98%",
+      resumes: "—",
+      jobSeekers: "—",
+      recruiters: "—",
     });
   });
 
@@ -47,7 +47,8 @@ describe("useGlobalStats", () => {
       exists: () => true,
       data: () => ({
         resumeCount: 15000,
-        userCount: 12000,
+        jobSeekerCount: 12000,
+        recruiterCount: 500,
       }),
     });
 
@@ -55,7 +56,8 @@ describe("useGlobalStats", () => {
 
     await waitFor(() => {
       expect(result.current.stats.resumes).toBe("15000+");
-      expect(result.current.stats.users).toBe("12000+");
+      expect(result.current.stats.jobSeekers).toBe("12000+");
+      expect(result.current.stats.recruiters).toBe("500+");
     });
 
     // getDoc should be called since globalStats is now public
@@ -72,9 +74,9 @@ describe("useGlobalStats", () => {
     await waitFor(() => {
       // Should stay at defaults because document doesn't exist
       expect(result.current.stats).toEqual({
-        resumes: "12k+",
-        users: "10k+",
-        completion: "98%",
+        resumes: "—",
+        jobSeekers: "—",
+        recruiters: "—",
       });
     });
   });
@@ -86,9 +88,9 @@ describe("useGlobalStats", () => {
 
     await waitFor(() => {
       expect(result.current.stats).toEqual({
-        resumes: "12k+",
-        users: "10k+",
-        completion: "98%",
+        resumes: "—",
+        jobSeekers: "—",
+        recruiters: "—",
       });
     });
 

@@ -10,8 +10,8 @@ export function HomeFooterCta() {
         Launch your next opportunity with a resume you control end-to-end.
       </h3>
       <p className="text-slate-200 mt-3 max-w-2xl mx-auto">
-        Join thousands of operators, designers, and engineers who keep their
-        resume current, polished, and private with SwitchCV.
+        Create a professional resume with AI assistance and take control of your
+        job search with privacy features and view tracking.
       </p>
       <div className="flex flex-col sm:flex-row justify-center gap-4 mt-8">
         <Link

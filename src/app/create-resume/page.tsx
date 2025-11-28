@@ -5,6 +5,7 @@ import { logger } from "@/lib/logger";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTier } from "@/hooks/useTier";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { useRouter } from "next/navigation";
 import { CreateResumeHeader } from "@/components/create-resume/CreateResumeHeader";
 import { CreateResumeInputForm } from "@/components/create-resume/CreateResumeInputForm";
@@ -19,7 +20,8 @@ interface Message {
 }
 
 export default function CreateResume() {
-  const { user, loading, needsEmailVerification } = useAuth();
+  const { user, loading: authLoading, needsEmailVerification } = useAuth();
+  const { role, loading: profileLoading } = useUserProfile();
   const { isPremiumOrHigher } = useTier();
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -48,6 +50,8 @@ export default function CreateResume() {
   const [selectedModelId, setSelectedModelId] = useState<string | undefined>();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const loading = authLoading || profileLoading;
+
   const scrollToBottom = () => {
     // Guard against environments (like some test runners) where
     // `scrollIntoView` may not be implemented on the DOM node.
@@ -62,10 +66,16 @@ export default function CreateResume() {
   }, [messages]);
 
   useEffect(() => {
-    if (!loading && (!user || needsEmailVerification)) {
-      router.push("/auth?mode=verify-email");
+    if (!loading) {
+      if (!user || needsEmailVerification) {
+        router.push("/auth?mode=verify-email");
+      } else if (!role) {
+        router.push("/select-role");
+      } else if (role !== "jobseeker") {
+        router.push("/dashboard");
+      }
     }
-  }, [user, loading, needsEmailVerification, router]);
+  }, [user, loading, needsEmailVerification, role, router]);
 
   useEffect(() => {
     // Check AI connection status

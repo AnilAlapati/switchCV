@@ -52,7 +52,7 @@ describe("Home", () => {
     render(<Home />);
 
     expect(
-      screen.getByText(/Tell your career story with privacy-first controls/i)
+      screen.getByText(/Tell your career story with AI assistance/i)
     ).toBeInTheDocument();
   });
 
@@ -78,8 +78,8 @@ describe("Home", () => {
     render(<Home />);
 
     expect(screen.getByText("Privacy Controls")).toBeInTheDocument();
-    expect(screen.getByText("AI Resume Polish")).toBeInTheDocument();
-    expect(screen.getByText("Smart Sharing")).toBeInTheDocument();
-    expect(screen.getByText("Collaboration Ready")).toBeInTheDocument();
+    expect(screen.getByText("AI Resume Builder")).toBeInTheDocument();
+    expect(screen.getByText("View Tracking")).toBeInTheDocument();
+    expect(screen.getByText("AI-Powered Search")).toBeInTheDocument();
   });
 });

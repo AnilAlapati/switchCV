@@ -1,21 +1,21 @@
 const TESTIMONIALS = [
   {
     quote:
-      "SwitchCV helped me turn a messy Google Doc into a resume that actually tells my story.",
-    author: "Avery K.",
-    role: "Sr. Product Designer",
+      "Finally, a resume builder that doesn't feel like filling out a tax form. The AI actually gets it.",
+    author: "Beta Tester #1",
+    role: "🧪 Early Adopter",
   },
   {
     quote:
-      "Sharing a private link with recruiters means I can update details even after I hit send.",
-    author: "Jordan P.",
-    role: "Staff Engineer",
+      "I've been looking for something like this. Simple, clean, and the AI suggestions are surprisingly good.",
+    author: "Beta Tester #2",
+    role: "🚀 First 100 Club",
   },
   {
     quote:
-      "The AI critiques feel like a career coach in the loop—concise, actionable, and spot on.",
-    author: "Mina L.",
-    role: "Growth PM",
+      "Built my resume in one coffee break. Now I'm just waiting for you all to catch up.",
+    author: "Beta Tester #3",
+    role: "☕ Launch Day Crew",
   },
 ];
 
@@ -24,10 +24,10 @@ export function HomeTestimonials() {
     <section aria-labelledby="voices-heading" className="space-y-8">
       <div className="text-center space-y-2">
         <p className="text-sm uppercase tracking-[0.3em] text-rose-300">
-          Voices from the community
+          From our beta testers
         </p>
         <h2 id="voices-heading" className="text-3xl font-bold">
-          Crafted with real candidates in mind.
+          Be among the first to try it.
         </h2>
       </div>
       <div className="grid gap-6 lg:grid-cols-3">
@@ -37,7 +37,7 @@ export function HomeTestimonials() {
             className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-2xl shadow-xl shadow-black/30"
           >
             <p className="text-slate-200 text-lg leading-relaxed">
-              “{testimonial.quote}”
+              &ldquo;{testimonial.quote}&rdquo;
             </p>
             <footer className="mt-6">
               <p className="text-white font-semibold">{testimonial.author}</p>

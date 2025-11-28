@@ -2,8 +2,8 @@ import Link from "next/link";
 
 interface HeroStats {
   resumes: string;
-  users: string;
-  completion: string;
+  jobSeekers: string;
+  recruiters: string;
 }
 
 interface HeroHighlight {
@@ -20,7 +20,7 @@ const CREATION_STEPS = [
   {
     title: "Tell us about you",
     description:
-      "Import LinkedIn or answer guided prompts tailored for modern roles.",
+      "Answer guided prompts or describe your experience in your own words.",
     accent: "from-cyan-500/20 to-transparent",
   },
   {
@@ -31,8 +31,7 @@ const CREATION_STEPS = [
   },
   {
     title: "Share securely",
-    description:
-      "Publish a unique link with privacy rules and know exactly when it is viewed.",
+    description: "Publish a unique link and track when your resume is viewed.",
     accent: "from-rose-500/20 to-transparent",
   },
 ];
@@ -64,16 +63,15 @@ export function HomeHero({ stats, highlights }: HomeHeroProps) {
         </div>
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/10 shadow-lg shadow-cyan-500/20 text-sm font-medium text-slate-200">
           <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse"></span>
-          Live metrics sync across every share link
+          AI-powered resume creation with view tracking
         </div>
         <h1 className="text-4xl sm:text-5xl xl:text-6xl font-bold leading-tight bg-gradient-to-r from-cyan-300 via-purple-300 to-pink-300 bg-clip-text text-transparent">
           Ship a living resume with real-time engagement signals.
         </h1>
         <p className="text-lg text-slate-300 max-w-2xl">
-          Tell your career story with privacy-first controls. SwitchCV turns
-          static PDFs into a data-aware experience. Stream share analytics,
-          tighten access controls, and let AI keep every bullet recruiter-ready
-          the moment someone opens your link.
+          Tell your career story with AI assistance. SwitchCV helps you create
+          professional resumes through guided conversations, track who views
+          your resume, and control access to your contact information.
         </p>
 
         <div className="grid sm:grid-cols-2 gap-4 pt-2">
@@ -106,12 +104,9 @@ export function HomeHero({ stats, highlights }: HomeHeroProps) {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 pt-6">
-          <HomeHeroStat label="Resumes published" value={stats.resumes} />
-          <HomeHeroStat label="Active Users" value={stats.users} />
-          <HomeHeroStat
-            label="Profile completion rate"
-            value={stats.completion}
-          />
+          <HomeHeroStat label="Resumes" value={stats.resumes} />
+          <HomeHeroStat label="Job Seekers" value={stats.jobSeekers} />
+          <HomeHeroStat label="Recruiters" value={stats.recruiters} />
         </div>
       </div>
 

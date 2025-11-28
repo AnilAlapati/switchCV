@@ -63,6 +63,19 @@ export default function Dashboard() {
     }
   }, [user, authLoading, needsEmailVerification, router]);
 
+  // Redirect to role selection if user hasn't selected a role yet
+  useEffect(() => {
+    if (
+      !authLoading &&
+      !profileLoading &&
+      user &&
+      !needsEmailVerification &&
+      !role
+    ) {
+      router.push("/select-role");
+    }
+  }, [authLoading, profileLoading, user, needsEmailVerification, role, router]);
+
   const handleLaunchSearch = useCallback(() => {
     if (recruiterSearchRef.current) {
       recruiterSearchRef.current.scrollIntoView({
@@ -107,6 +120,20 @@ export default function Dashboard() {
 
   if (!user || needsEmailVerification) {
     return null;
+  }
+
+  // Show loading while redirecting to role selection
+  if (!role) {
+    return (
+      <DashboardBackground>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-center">
+            <div className="mx-auto mb-4 h-16 w-16 animate-spin rounded-full border-4 border-cyan-500/30 border-t-cyan-400"></div>
+            <p className="text-lg text-slate-300">Setting up your account…</p>
+          </div>
+        </div>
+      </DashboardBackground>
+    );
   }
 
   return (
