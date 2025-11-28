@@ -1,14 +1,34 @@
+#!/usr/bin/env node
+/**
+ * Test email extension by sending a test email
+ * 
+ * Usage:
+ * node scripts/test-email-extension.js                              # Uses default project, default recipient
+ * node scripts/test-email-extension.js --project switchcv-dev       # Uses dev project
+ * node scripts/test-email-extension.js --email test@example.com     # Custom recipient
+ * node scripts/test-email-extension.js --project switchcv-dev --email test@example.com
+ */
+
 const admin = require('firebase-admin');
+
+// Parse command line arguments
+const args = process.argv.slice(2);
+const projectArgIndex = args.indexOf('--project');
+const emailArgIndex = args.indexOf('--email');
+
+const projectId = projectArgIndex !== -1 ? args[projectArgIndex + 1] : 'switchcv-e5136';
+const recipient = emailArgIndex !== -1 ? args[emailArgIndex + 1] : 'support@switchcv.com';
+
+console.log(`📍 Using project: ${projectId}`);
 
 // Initialize Firebase Admin with application default credentials
 admin.initializeApp({
-  projectId: 'switchcv-e5136'
+  projectId
 });
 
 const db = admin.firestore();
 
 async function sendTestEmail() {
-  const recipient = process.argv[2] || 'support@switchcv.com';
   
   console.log('Sending test email via Firebase Extension...');
   console.log('Recipient:', recipient);

@@ -1,12 +1,22 @@
 #!/usr/bin/env node
 /**
  * Set default role for users without a role
- * Run from functions dir: node ../scripts/fix-user-roles.js
+ * 
+ * Usage:
+ * node scripts/fix-user-roles.js                    # Uses default project (switchcv-e5136)
+ * node scripts/fix-user-roles.js --project switchcv-dev  # Uses dev project
  */
 
 const admin = require("firebase-admin");
 
-admin.initializeApp({ projectId: "switchcv-e5136" });
+// Parse command line arguments for --project
+const args = process.argv.slice(2);
+const projectArgIndex = args.indexOf('--project');
+const projectId = projectArgIndex !== -1 ? args[projectArgIndex + 1] : "switchcv-e5136";
+
+console.log(`📍 Using project: ${projectId}`);
+
+admin.initializeApp({ projectId });
 const db = admin.firestore();
 
 async function fixRolesAndUpdateStats() {

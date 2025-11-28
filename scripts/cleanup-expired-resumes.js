@@ -13,6 +13,11 @@
 const admin = require("firebase-admin");
 const path = require("path");
 
+// Parse command line arguments for --project
+const args = process.argv.slice(2);
+const projectArgIndex = args.indexOf('--project');
+const projectOverride = projectArgIndex !== -1 ? args[projectArgIndex + 1] : null;
+
 // Initialize Firebase Admin SDK
 const serviceAccountPath = path.join(
   __dirname,
@@ -26,8 +31,9 @@ try {
   // Try to load service account
   try {
     serviceAccount = require(serviceAccountPath);
-    projectId = serviceAccount.project_id;
+    projectId = projectOverride || serviceAccount.project_id;
     console.log("🔑 Found service account key file.");
+    console.log(`📍 Using project: ${projectId}`);
     
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
@@ -36,7 +42,8 @@ try {
   } catch {
     // Fallback to ADC
     console.log("⚠️ Service account key not found. Trying Application Default Credentials...");
-    projectId = "switchcv-e5136"; // Default project ID
+    projectId = projectOverride || "switchcv-e5136"; // Default project ID
+    console.log(`📍 Using project: ${projectId}`);
     
     admin.initializeApp({
       credential: admin.credential.applicationDefault(),

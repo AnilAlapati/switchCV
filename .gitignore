@@ -42,7 +42,13 @@ yarn-error.log*
 .env.local
 .env.local.backup
 .env*.local
+.env.dev
+.env.production
+.env.local.prod-db
+functions/.env.dev
+functions/.env.default
 !.env.example
+!functions/.env.example
 
 # vercel
 .vercel

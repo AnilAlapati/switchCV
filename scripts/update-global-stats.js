@@ -1,15 +1,25 @@
 #!/usr/bin/env node
 /**
  * Manual script to update global stats in Firestore
- * Run from project root: node scripts/update-global-stats.js
+ * 
+ * Usage:
+ * node scripts/update-global-stats.js                    # Uses default project (switchcv-e5136)
+ * node scripts/update-global-stats.js --project switchcv-dev  # Uses dev project
  */
 
 const admin = require("firebase-admin");
 
+// Parse command line arguments for --project
+const args = process.argv.slice(2);
+const projectArgIndex = args.indexOf('--project');
+const projectId = projectArgIndex !== -1 ? args[projectArgIndex + 1] : "switchcv-e5136";
+
+console.log(`📍 Using project: ${projectId}`);
+
 // Initialize Firebase Admin with project ID
 if (!admin.apps.length) {
   admin.initializeApp({
-    projectId: "switchcv-e5136",
+    projectId,
   });
 }
 
