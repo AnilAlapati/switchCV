@@ -2,9 +2,13 @@
  * Recruiter Candidates API Route
  * POST /api/recruiter/candidates
  * Handles candidate CRUD operations and queries
+ *
+ * FIXED: Now persists to Firestore instead of in-memory Map
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { adminDb } from "@/lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import {
   Candidate,
   CandidatePriority,
@@ -16,6 +20,7 @@ import {
   addCandidateNote,
 } from "@/lib/recruiterPipeline";
 import { handleApiError } from "@/lib/utils/api-helpers";
+import { logger } from "@/lib/logger";
 
 interface CreateRequest {
   action: "create";
@@ -44,9 +49,8 @@ interface AddNoteRequest {
 
 type CandidateRequest = CreateRequest | UpdatePriorityRequest | AddNoteRequest;
 
-// In-memory candidate storage (replace with database in production)
-export const candidates = new Map<string, Candidate>();
-export const notes = new Map<string, CandidateNote[]>();
+const CANDIDATES_COLLECTION = "recruiterCandidates";
+const NOTES_SUBCOLLECTION = "notes";
 
 export async function POST(request: NextRequest) {
   try {
@@ -73,7 +77,18 @@ export async function POST(request: NextRequest) {
           resumeUrl,
           source
         );
-        candidates.set(candidate.id, candidate);
+
+        // Save to Firestore
+        await adminDb
+          .collection(CANDIDATES_COLLECTION)
+          .doc(candidate.id)
+          .set({
+            ...candidate,
+            createdAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+
+        logger.info({ candidateId: candidate.id }, "Candidate created");
 
         return NextResponse.json(
           {
@@ -87,19 +102,31 @@ export async function POST(request: NextRequest) {
 
       case "update-priority": {
         const { candidateId, priority } = body as UpdatePriorityRequest;
-        const candidate = candidates.get(candidateId);
 
-        if (!candidate) {
+        const candidateRef = adminDb
+          .collection(CANDIDATES_COLLECTION)
+          .doc(candidateId);
+        const candidateDoc = await candidateRef.get();
+
+        if (!candidateDoc.exists) {
           return handleApiError(null, "Candidate not found", 404);
         }
 
-        const updated = updateCandidatePriority(candidate, priority);
-        candidates.set(candidateId, updated);
+        const candidateData = candidateDoc.data() as Candidate;
+        const updated = updateCandidatePriority(candidateData, priority);
+
+        // Update in Firestore
+        await candidateRef.update({
+          priority,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+
+        logger.info({ candidateId, priority }, "Candidate priority updated");
 
         return NextResponse.json(
           {
             success: true,
-            candidate: updated,
+            candidate: { ...updated, id: candidateId },
             message: "Candidate priority updated",
           },
           { status: 200 }
@@ -118,8 +145,13 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        const candidate = candidates.get(candidateId);
-        if (!candidate) {
+        // Check candidate exists
+        const candidateDoc = await adminDb
+          .collection(CANDIDATES_COLLECTION)
+          .doc(candidateId)
+          .get();
+
+        if (!candidateDoc.exists) {
           return handleApiError(null, "Candidate not found", 404);
         }
 
@@ -131,15 +163,37 @@ export async function POST(request: NextRequest) {
           isPrivate
         );
 
-        const candidateNotes = notes.get(candidateId) || [];
-        candidateNotes.push(note);
-        notes.set(candidateId, candidateNotes);
+        // Save note to subcollection
+        await adminDb
+          .collection(CANDIDATES_COLLECTION)
+          .doc(candidateId)
+          .collection(NOTES_SUBCOLLECTION)
+          .doc(note.id)
+          .set({
+            ...note,
+            createdAt: FieldValue.serverTimestamp(),
+          });
+
+        // Get total notes count
+        const notesSnap = await adminDb
+          .collection(CANDIDATES_COLLECTION)
+          .doc(candidateId)
+          .collection(NOTES_SUBCOLLECTION)
+          .count()
+          .get();
+
+        const totalNotes = notesSnap.data().count;
+
+        logger.info(
+          { candidateId, noteId: note.id },
+          "Note added to candidate"
+        );
 
         return NextResponse.json(
           {
             success: true,
             note,
-            totalNotes: candidateNotes.length,
+            totalNotes,
             message: "Note added successfully",
           },
           { status: 201 }
@@ -150,6 +204,7 @@ export async function POST(request: NextRequest) {
         return handleApiError(null, "Invalid action", 400);
     }
   } catch (error) {
+    logger.error({ err: error }, "Candidates API error");
     return handleApiError(error, "Internal server error");
   }
 }
@@ -159,16 +214,38 @@ export async function GET(request: NextRequest) {
     const candidateId = request.nextUrl.searchParams.get("id");
 
     if (candidateId) {
-      const candidate = candidates.get(candidateId);
-      if (!candidate) {
+      const candidateDoc = await adminDb
+        .collection(CANDIDATES_COLLECTION)
+        .doc(candidateId)
+        .get();
+
+      if (!candidateDoc.exists) {
         return handleApiError(null, "Candidate not found", 404);
       }
 
-      const candidateNotes = notes.get(candidateId) || [];
+      const candidateData = candidateDoc.data();
+
+      // Fetch notes from subcollection
+      const notesSnap = await adminDb
+        .collection(CANDIDATES_COLLECTION)
+        .doc(candidateId)
+        .collection(NOTES_SUBCOLLECTION)
+        .orderBy("createdAt", "desc")
+        .get();
+
+      const candidateNotes: CandidateNote[] = notesSnap.docs.map((doc) => {
+        const n = doc.data();
+        return {
+          ...n,
+          id: doc.id,
+          createdAt: n.createdAt?.toDate() || new Date(),
+        } as CandidateNote;
+      });
+
       return NextResponse.json(
         {
           success: true,
-          candidate,
+          candidate: { ...candidateData, id: candidateId },
           notes: candidateNotes,
         },
         { status: 200 }
@@ -176,7 +253,22 @@ export async function GET(request: NextRequest) {
     }
 
     // Return all candidates
-    const allCandidates = Array.from(candidates.values());
+    const candidatesSnap = await adminDb
+      .collection(CANDIDATES_COLLECTION)
+      .orderBy("createdAt", "desc")
+      .limit(100)
+      .get();
+
+    const allCandidates: Candidate[] = candidatesSnap.docs.map((doc) => {
+      const c = doc.data();
+      return {
+        ...c,
+        id: doc.id,
+        createdAt: c.createdAt?.toDate() || new Date(),
+        updatedAt: c.updatedAt?.toDate() || new Date(),
+      } as Candidate;
+    });
+
     return NextResponse.json(
       {
         success: true,
@@ -186,6 +278,7 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
+    logger.error({ err: error }, "Candidates GET error");
     return handleApiError(error, "Internal server error");
   }
 }

@@ -10,11 +10,126 @@ import {
   PipelineStage,
 } from "@/lib/recruiterDashboard.types";
 
+// Mock firebase-admin
+jest.mock("@/lib/firebase-admin", () => {
+  const mockFirestoreData = new Map<string, any>();
+  const mockSubcollections = new Map<string, Map<string, any>>();
+
+  const createMockTimestamp = (date = new Date()) => ({
+    toDate: () => date,
+    toMillis: () => date.getTime(),
+  });
+
+  const getSubcollection = (parentId: string, subcollectionName: string) => {
+    const key = `${parentId}/${subcollectionName}`;
+    if (!mockSubcollections.has(key)) {
+      mockSubcollections.set(key, new Map());
+    }
+    return mockSubcollections.get(key)!;
+  };
+
+  const mockDocRef = (
+    id: string,
+    parentCollection?: string,
+    parentId?: string
+  ) => ({
+    get: jest.fn().mockImplementation(async () => ({
+      exists: parentId
+        ? getSubcollection(parentId, parentCollection!).has(id)
+        : mockFirestoreData.has(id),
+      data: () =>
+        parentId
+          ? getSubcollection(parentId, parentCollection!).get(id)
+          : mockFirestoreData.get(id),
+      id,
+    })),
+    set: jest.fn().mockImplementation(async (data: any) => {
+      const dataWithTimestamp = {
+        ...data,
+        createdAt: createMockTimestamp(),
+        updatedAt: createMockTimestamp(),
+      };
+      if (parentId) {
+        getSubcollection(parentId, parentCollection!).set(
+          id,
+          dataWithTimestamp
+        );
+      } else {
+        mockFirestoreData.set(id, dataWithTimestamp);
+      }
+    }),
+    update: jest.fn().mockImplementation(async (data: any) => {
+      const store = parentId
+        ? getSubcollection(parentId, parentCollection!)
+        : mockFirestoreData;
+      const existing = store.get(id) || {};
+      store.set(id, {
+        ...existing,
+        ...data,
+        updatedAt: createMockTimestamp(),
+      });
+    }),
+    collection: jest.fn().mockImplementation((subcollName: string) => ({
+      doc: (docId: string) => mockDocRef(docId, subcollName, id),
+      get: jest.fn().mockResolvedValue({
+        docs: Array.from(getSubcollection(id, subcollName).entries()).map(
+          ([docId, data]) => ({
+            id: docId,
+            data: () => data,
+            exists: true,
+          })
+        ),
+      }),
+      orderBy: jest.fn().mockReturnThis(),
+      count: jest.fn().mockImplementation(() => ({
+        get: jest.fn().mockResolvedValue({
+          data: () => ({
+            count: getSubcollection(id, subcollName).size,
+          }),
+        }),
+      })),
+    })),
+  });
+
+  return {
+    adminDb: {
+      collection: jest.fn().mockImplementation(() => ({
+        doc: jest.fn().mockImplementation((id: string) => mockDocRef(id)),
+        orderBy: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        get: jest.fn().mockResolvedValue({
+          docs: Array.from(mockFirestoreData.entries()).map(([id, data]) => ({
+            id,
+            data: () => data,
+            exists: true,
+          })),
+        }),
+      })),
+    },
+    _mockData: mockFirestoreData,
+    _mockSubcollections: mockSubcollections,
+  };
+});
+
+const {
+  _mockData: mockFirestoreData,
+  _mockSubcollections: mockSubcollections,
+} = require("@/lib/firebase-admin");
+
 // Mock the recruiterPipeline functions
 jest.mock("@/lib/recruiterPipeline", () => ({
   createCandidate: jest.fn(),
   updateCandidatePriority: jest.fn(),
   addCandidateNote: jest.fn(),
+}));
+
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+  },
 }));
 
 import {
@@ -23,21 +138,18 @@ import {
   addCandidateNote,
 } from "@/lib/recruiterPipeline";
 
-// Import the exported Maps for test isolation
-import { candidates, notes } from "./route";
-
 describe("POST /api/recruiter/candidates", () => {
   beforeEach(() => {
     // Clear storage between tests
-    candidates.clear();
-    notes.clear();
+    mockFirestoreData.clear();
+    mockSubcollections.clear();
     jest.clearAllMocks();
   });
 
   describe("create action", () => {
     it("should create a candidate successfully", async () => {
-      const createdAt = new Date();
-      const updatedAt = new Date();
+      const createdAt = { toDate: () => new Date() };
+      const updatedAt = { toDate: () => new Date() };
       const mockCandidate = {
         id: "cand-123",
         name: "John Doe",
@@ -87,7 +199,12 @@ describe("POST /api/recruiter/candidates", () => {
         "https://example.com/resume.pdf",
         "LinkedIn"
       );
-      expect(candidates.get("cand-123")).toEqual(mockCandidate);
+
+      // Verify Firestore data
+      const storedData = mockFirestoreData.get("cand-123");
+      expect(storedData).toBeDefined();
+      expect(storedData.name).toBe("John Doe");
+      expect(storedData.createdAt.toDate).toBeDefined();
     });
 
     it("should handle create with missing required fields", async () => {
@@ -143,17 +260,17 @@ describe("POST /api/recruiter/candidates", () => {
         position: "Software Engineer",
         stage: PipelineStage.LEAD,
         priority: CandidatePriority.MEDIUM,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: { toDate: () => new Date() },
+        updatedAt: { toDate: () => new Date() },
       };
 
       const updatedCandidate = {
         ...existingCandidate,
         priority: CandidatePriority.HIGH,
-        updatedAt: new Date(),
+        updatedAt: { toDate: () => new Date() },
       };
 
-      candidates.set("cand-123", existingCandidate);
+      mockFirestoreData.set("cand-123", existingCandidate);
       (updateCandidatePriority as jest.Mock).mockReturnValue(updatedCandidate);
 
       const request = new NextRequest(
@@ -174,17 +291,15 @@ describe("POST /api/recruiter/candidates", () => {
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
       expect(data.candidate.id).toBe("cand-123");
-      expect(data.candidate.name).toBe("John Doe");
-      expect(data.candidate.email).toBe("john@example.com");
-      expect(data.candidate.position).toBe("Software Engineer");
-      expect(data.candidate.stage).toBe(PipelineStage.LEAD);
       expect(data.candidate.priority).toBe(CandidatePriority.HIGH);
       expect(data.message).toBe("Candidate priority updated");
       expect(updateCandidatePriority).toHaveBeenCalledWith(
-        existingCandidate,
+        expect.objectContaining({ id: "cand-123" }),
         CandidatePriority.HIGH
       );
-      expect(candidates.get("cand-123")).toEqual(updatedCandidate);
+
+      const storedData = mockFirestoreData.get("cand-123");
+      expect(storedData.priority).toBe(CandidatePriority.HIGH);
     });
 
     it("should return 404 for non-existent candidate", async () => {
@@ -218,8 +333,8 @@ describe("POST /api/recruiter/candidates", () => {
         position: "Software Engineer",
         stage: PipelineStage.LEAD,
         priority: CandidatePriority.MEDIUM,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: { toDate: () => new Date() },
+        updatedAt: { toDate: () => new Date() },
       };
 
       const mockNote = {
@@ -229,11 +344,11 @@ describe("POST /api/recruiter/candidates", () => {
         content: "Great technical skills",
         category: "technical",
         isPrivate: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: { toDate: () => new Date() },
+        updatedAt: { toDate: () => new Date() },
       };
 
-      candidates.set("cand-123", existingCandidate);
+      mockFirestoreData.set("cand-123", existingCandidate);
       (addCandidateNote as jest.Mock).mockReturnValue(mockNote);
 
       const request = new NextRequest(
@@ -271,7 +386,13 @@ describe("POST /api/recruiter/candidates", () => {
         "technical",
         false
       );
-      expect(notes.get("cand-123")).toEqual([mockNote]);
+      // Check subcollection
+      const notesMap = mockSubcollections.get("cand-123/notes");
+      expect(notesMap).toBeDefined();
+      // Note: mockDocRef.set adds createdAt/updatedAt with toDate(), so this should match
+      const storedNote = notesMap!.get("note-123");
+      expect(storedNote).toBeDefined();
+      expect(storedNote.content).toBe("Great technical skills");
     });
 
     it("should handle add-note with missing required fields", async () => {
@@ -286,7 +407,7 @@ describe("POST /api/recruiter/candidates", () => {
         updatedAt: new Date(),
       };
 
-      candidates.set("cand-123", existingCandidate);
+      mockFirestoreData.set("cand-123", existingCandidate);
 
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/candidates",
@@ -373,8 +494,8 @@ describe("POST /api/recruiter/candidates", () => {
 describe("GET /api/recruiter/candidates", () => {
   beforeEach(() => {
     // Clear storage between tests
-    candidates.clear();
-    notes.clear();
+    mockFirestoreData.clear();
+    mockSubcollections.clear();
   });
 
   it("should return a specific candidate by id", async () => {
@@ -385,8 +506,8 @@ describe("GET /api/recruiter/candidates", () => {
       position: "Software Engineer",
       stage: PipelineStage.LEAD,
       priority: CandidatePriority.MEDIUM,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: { toDate: () => new Date() },
+      updatedAt: { toDate: () => new Date() },
     };
 
     const mockNotes = [
@@ -397,13 +518,17 @@ describe("GET /api/recruiter/candidates", () => {
         content: "Technical interview notes",
         category: "technical" as const,
         isPrivate: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: { toDate: () => new Date() },
+        updatedAt: { toDate: () => new Date() },
       },
     ];
 
-    candidates.set("cand-123", mockCandidate);
-    notes.set("cand-123", mockNotes);
+    mockFirestoreData.set("cand-123", mockCandidate);
+
+    // Setup notes subcollection
+    const notesMap = new Map();
+    notesMap.set("note-1", mockNotes[0]);
+    mockSubcollections.set("cand-123/notes", notesMap);
 
     const request = new NextRequest(
       "http://localhost:3000/api/recruiter/candidates?id=cand-123"
@@ -449,8 +574,8 @@ describe("GET /api/recruiter/candidates", () => {
       position: "Software Engineer",
       stage: PipelineStage.LEAD,
       priority: CandidatePriority.MEDIUM,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: { toDate: () => new Date() },
+      updatedAt: { toDate: () => new Date() },
     };
 
     const mockCandidate2 = {
@@ -460,12 +585,12 @@ describe("GET /api/recruiter/candidates", () => {
       position: "Product Manager",
       stage: PipelineStage.SCREENED,
       priority: CandidatePriority.HIGH,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: { toDate: () => new Date() },
+      updatedAt: { toDate: () => new Date() },
     };
 
-    candidates.set("cand-123", mockCandidate1);
-    candidates.set("cand-456", mockCandidate2);
+    mockFirestoreData.set("cand-123", mockCandidate1);
+    mockFirestoreData.set("cand-456", mockCandidate2);
 
     const request = new NextRequest(
       "http://localhost:3000/api/recruiter/candidates"

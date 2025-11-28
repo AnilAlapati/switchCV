@@ -14,6 +14,39 @@ jest.mock("@/lib/analytics.types", () => ({
   // Mock types as needed
 }));
 
+// Mock firebase-admin
+const mockGet = jest.fn();
+const mockSet = jest.fn();
+const mockLimit = jest.fn();
+const mockOrderBy = jest.fn();
+
+const mockCollectionObj = {
+  doc: jest.fn(),
+  orderBy: jest.fn(),
+  limit: jest.fn(),
+  get: mockGet,
+};
+
+const mockDocObj = {
+  get: mockGet,
+  set: mockSet,
+  collection: jest.fn(),
+  exists: true,
+  data: jest.fn(() => ({})),
+};
+
+// Circular references
+mockCollectionObj.doc.mockReturnValue(mockDocObj);
+mockCollectionObj.orderBy.mockReturnValue(mockCollectionObj);
+mockCollectionObj.limit.mockReturnValue(mockCollectionObj);
+mockDocObj.collection.mockReturnValue(mockCollectionObj);
+
+jest.mock("@/lib/firebase-admin", () => ({
+  adminDb: {
+    collection: jest.fn(() => mockCollectionObj),
+  },
+}));
+
 import { AnalyticsService } from "@/lib/analytics.service";
 
 describe("GET /api/analytics/dashboard", () => {
@@ -21,6 +54,23 @@ describe("GET /api/analytics/dashboard", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Reset mock implementations
+    mockGet.mockResolvedValue({
+      exists: true,
+      data: () => ({
+        resumeId: "test-resume",
+        userId: "test-user",
+        viewCount: 15,
+        uniqueViewCount: 8,
+        attractivenessScore: 75,
+        lastViewedAt: { toDate: () => new Date() },
+        createdAt: { toDate: () => new Date() },
+        updatedAt: { toDate: () => new Date() },
+      }),
+      docs: [], // For collection queries
+    });
+
     originalEnv = process.env;
     process.env = { ...originalEnv };
 
@@ -131,6 +181,21 @@ describe("GET /api/analytics/dashboard", () => {
     it("should handle special characters and long IDs in resumeId and userId", async () => {
       const specialResumeId = "resume-123_special@test.com";
       const specialUserId = "user-456_special@test.com";
+
+      mockGet.mockResolvedValueOnce({
+        exists: true,
+        data: () => ({
+          resumeId: specialResumeId,
+          userId: specialUserId,
+          viewCount: 15,
+          uniqueViewCount: 8,
+          attractivenessScore: 75,
+          lastViewedAt: { toDate: () => new Date() },
+          createdAt: { toDate: () => new Date() },
+          updatedAt: { toDate: () => new Date() },
+        }),
+        docs: [],
+      });
 
       const request = new NextRequest(
         `http://localhost:3000/api/analytics/dashboard?resumeId=${encodeURIComponent(

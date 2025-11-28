@@ -1,7 +1,5 @@
 /* eslint-disable max-lines */
-import { Dispatch, SetStateAction, useRef, useState } from "react";
-import { useAuth } from "@/hooks/useAuth";
-import { logger } from "@/lib/logger";
+import { Dispatch, SetStateAction, useRef } from "react";
 
 export interface SearchResult {
   resumeId: string;

@@ -16,6 +16,10 @@ import {
   NormalizedDuration,
   normalizeDuration,
 } from "@/lib/accessDuration";
+import {
+  decrementJobSeekerMetric,
+  updateRecruiterAccessMetric,
+} from "@/lib/services/metricsService";
 
 interface RespondAccessPayload {
   requestId: string;
@@ -56,6 +60,7 @@ export async function POST(request: NextRequest) {
     }
 
     const requestData = requestDoc.data();
+    const recruiterId = requestData?.fromUserId;
 
     const status = action === "approve" ? "approved" : "denied";
 
@@ -119,6 +124,20 @@ export async function POST(request: NextRequest) {
       expiresAt: expiresAtTimestamp,
       processedBy: userId,
     });
+
+    // Decrement pending requests count for the owner
+    await decrementJobSeekerMetric(userId, "contactRequests");
+
+    // Update Recruiter Metrics
+    if (recruiterId) {
+      if (status === "approved") {
+        await updateRecruiterAccessMetric(recruiterId, "pending", -1);
+        await updateRecruiterAccessMetric(recruiterId, "approved", 1);
+      } else {
+        await updateRecruiterAccessMetric(recruiterId, "pending", -1);
+        await updateRecruiterAccessMetric(recruiterId, "denied", 1);
+      }
+    }
 
     if (status === "approved" && normalizedGrant) {
       await adminDb

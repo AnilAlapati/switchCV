@@ -441,8 +441,7 @@ async function generateWithHuggingFace(
 export async function generateText(
   prompt: string,
   maxTokens: number = 150,
-  temperature: number = 0.9,
-  _modelId?: string // reserved for future integration with tiered provider service
+  temperature: number = 0.9
 ): Promise<{ text: string; model: string; provider: string }> {
   const errors: Record<string, string> = {};
 

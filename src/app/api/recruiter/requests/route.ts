@@ -5,6 +5,10 @@ import {
   getAuthenticatedUserId,
   handleApiError,
 } from "@/lib/utils/api-helpers";
+import {
+  decrementJobSeekerMetric,
+  updateRecruiterAccessMetric,
+} from "@/lib/services/metricsService";
 
 export async function GET(request: NextRequest) {
   try {
@@ -140,6 +144,19 @@ export async function DELETE(request: NextRequest) {
     }
 
     await requestRef.delete();
+
+    // Update Metrics
+    const status = data?.status;
+    const resumeDoc = await adminDb.collection("resumes").doc(resumeId).get();
+    const resumeOwnerId = resumeDoc.data()?.userId;
+
+    if (status === "pending" && resumeOwnerId) {
+      await decrementJobSeekerMetric(resumeOwnerId, "contactRequests");
+    }
+
+    if (status && ["pending", "approved", "denied"].includes(status)) {
+      await updateRecruiterAccessMetric(userId, status, -1);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

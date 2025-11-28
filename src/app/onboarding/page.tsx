@@ -3,6 +3,8 @@
 import { logger } from "@/lib/logger";
 
 import { useEffect, useState } from "react";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { useProfileForm } from "@/hooks/useProfileForm";
@@ -84,9 +86,46 @@ export default function Onboarding() {
   };
 
   const handleSubmit = async () => {
-    // TODO: Save to Firestore
-    logger.info({ data: profile }, "Saving profile:");
-    router.push("/dashboard");
+    if (!user) {
+      logger.error("No user found during onboarding submission");
+      return;
+    }
+
+    try {
+      // Save profile to Firestore
+      const profileRef = doc(db, "profiles", user.uid);
+      await setDoc(profileRef, {
+        ...profile,
+        userId: user.uid,
+        onboardingCompleted: true,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+
+      // Mark user as onboarded
+      const userRef = doc(db, "users", user.uid);
+      await setDoc(
+        userRef,
+        {
+          onboardingCompleted: true,
+          onboardedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      logger.info(
+        { userId: user.uid },
+        "Profile saved to Firestore during onboarding"
+      );
+      router.push("/dashboard");
+    } catch (error) {
+      logger.error(
+        { err: error, userId: user?.uid },
+        "Failed to save profile during onboarding"
+      );
+      // Still navigate but log error - could add error UI here
+      router.push("/dashboard");
+    }
   };
 
   const renderStep = () => {

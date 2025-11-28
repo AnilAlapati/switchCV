@@ -256,7 +256,7 @@ export interface AnalyticsEvent {
   eventId: string;
   resumeId: string;
   userId: string;
-  eventType: "view" | "request" | "approval" | "click" | "share";
+  eventType: "view" | "request" | "approval" | "click" | "share" | "download";
   timestamp: string;
   metadata?: Record<string, any>;
 }
