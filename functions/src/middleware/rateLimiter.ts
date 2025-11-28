@@ -107,11 +107,12 @@ export class FirestoreRateLimiter {
         error: error instanceof Error ? error.message : String(error),
       });
 
-      // On error, allow request but log it
+      // SECURITY: On error, DENY request (fail-closed) to prevent abuse during outages
       return {
-        allowed: true,
-        remaining: this.config.maxRequests,
+        allowed: false,
+        remaining: 0,
         resetTime: now + this.config.windowMs,
+        retryAfter: 60, // Ask client to retry in 60 seconds
       };
     }
   }
@@ -212,8 +213,13 @@ export function createRateLimitMiddleware(config: RateLimitConfig) {
       functions.logger.error("Rate limit middleware error", {
         error: error instanceof Error ? error.message : String(error),
       });
-      // On error, allow request to proceed
-      next();
+      // SECURITY: On error, deny request (fail-closed) to prevent abuse
+      res.status(503).json({
+        error: "Service temporarily unavailable",
+        message: "Rate limiting system error. Please try again later.",
+        retryAfter: 60,
+      });
+      return;
     }
   };
 }

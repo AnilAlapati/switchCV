@@ -114,15 +114,19 @@ export async function checkDistributedRateLimit(
 
     return result;
   } catch (error) {
-    // On transaction failure, allow the request but log the error
-    // This prevents rate limiting from blocking requests during Firestore issues
-    logger.error({ err: error }, "Distributed rate limit check failed:");
+    // SECURITY: On transaction failure, DENY the request (fail-closed)
+    // This prevents abuse during Firestore outages
+    // Log the error for monitoring but don't expose internal details
+    logger.error(
+      { err: error },
+      "Distributed rate limit check failed - denying request (fail-closed):"
+    );
     return {
-      allowed: true,
-      current: 0,
+      allowed: false,
+      current: limit, // Assume at limit
       limit,
       resetIn: windowMs,
-      remaining: limit,
+      remaining: 0,
     };
   }
 }

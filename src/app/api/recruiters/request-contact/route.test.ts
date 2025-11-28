@@ -1,66 +1,143 @@
 import { NextRequest } from "next/server";
-import { POST } from "./route";
-import {
-  collection,
-  doc,
-  addDoc,
-  getDoc,
-  getDocs,
-  query,
-  where,
-  serverTimestamp,
-} from "firebase/firestore";
+import { POST, GET } from "./route";
 
-// Mock Firebase
-jest.mock("firebase/firestore", () => ({
-  collection: jest.fn(),
-  doc: jest.fn(),
-  addDoc: jest.fn(),
-  getDoc: jest.fn(),
-  getDocs: jest.fn(),
-  query: jest.fn(),
-  where: jest.fn(),
-  serverTimestamp: jest.fn(() => new Date()),
+// Mock Firebase Admin
+const mockGet = jest.fn();
+const mockAdd = jest.fn();
+const mockWhere = jest.fn();
+const mockCollection = jest.fn();
+const mockDoc = jest.fn();
+
+// Create a chainable mock for adminDb
+jest.mock("@/lib/firebase-admin", () => ({
+  adminDb: {
+    collection: (name: string) => {
+      mockCollection(name);
+      return {
+        doc: (id: string) => {
+          mockDoc(id);
+          return {
+            get: mockGet,
+          };
+        },
+        add: mockAdd,
+        where: (...args: unknown[]) => {
+          mockWhere(...args);
+          return {
+            where: (...args2: unknown[]) => {
+              mockWhere(...args2);
+              return {
+                get: mockGet,
+                where: (...args3: unknown[]) => {
+                  mockWhere(...args3);
+                  return {
+                    get: mockGet,
+                    where: (...args4: unknown[]) => {
+                      mockWhere(...args4);
+                      return {
+                        get: mockGet,
+                      };
+                    },
+                  };
+                },
+              };
+            },
+            get: mockGet,
+          };
+        },
+      };
+    },
+  },
+  adminAuth: {
+    verifyIdToken: jest.fn().mockResolvedValue({ uid: "recruiter-123" }),
+  },
 }));
 
-// Mock Firebase config
-jest.mock("@/lib/firebase", () => ({
-  db: {},
+// Mock api-helpers to return authenticated user
+jest.mock("@/lib/utils/api-helpers", () => ({
+  handleApiError: jest.fn((error, message, status = 500) => {
+    const { NextResponse } = require("next/server");
+    return NextResponse.json(
+      { error: message, details: error?.message },
+      { status }
+    );
+  }),
+  getAuthenticatedUserId: jest
+    .fn()
+    .mockResolvedValue({ userId: "recruiter-123" }),
+}));
+
+// Mock logger
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+  },
 }));
 
 describe("POST /api/recruiters/request-contact", () => {
-  let mockAddDoc: jest.MockedFunction<typeof addDoc>;
-  let mockGetDoc: jest.MockedFunction<typeof getDoc>;
-  let mockGetDocs: jest.MockedFunction<typeof getDocs>;
-  let mockCollection: jest.MockedFunction<typeof collection>;
-  let mockDoc: jest.MockedFunction<typeof doc>;
-  let mockQuery: jest.MockedFunction<typeof query>;
-  let mockWhere: jest.MockedFunction<typeof where>;
-
   beforeEach(() => {
     jest.clearAllMocks();
-
-    mockAddDoc = addDoc as jest.MockedFunction<typeof addDoc>;
-    mockGetDoc = getDoc as jest.MockedFunction<typeof getDoc>;
-    mockGetDocs = getDocs as jest.MockedFunction<typeof getDocs>;
-    mockCollection = collection as jest.MockedFunction<typeof collection>;
-    mockDoc = doc as jest.MockedFunction<typeof doc>;
-    mockQuery = query as jest.MockedFunction<typeof query>;
-    mockWhere = where as jest.MockedFunction<typeof where>;
-
-    // Mock collection and doc
-    mockCollection.mockReturnValue({} as any);
-    mockDoc.mockReturnValue({} as any);
-    mockQuery.mockReturnValue({} as any);
-    mockWhere.mockReturnValue({} as any);
-
-    // Mock serverTimestamp
-    (serverTimestamp as jest.Mock).mockReturnValue(new Date());
   });
 
-  it("should return 400 for validation errors", async () => {
-    // Test missing required fields
-    const request1 = new NextRequest(
+  it("should return 401 when not authenticated", async () => {
+    // Override the mock to return auth error
+    const { getAuthenticatedUserId } = require("@/lib/utils/api-helpers");
+    const { NextResponse } = require("next/server");
+    getAuthenticatedUserId.mockResolvedValueOnce({
+      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+    });
+
+    const request = new NextRequest(
+      "http://localhost/api/recruiters/request-contact",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          recruiterId: "recruiter-123",
+          userId: "user-123",
+          resumeId: "resume-123",
+          requestedFields: ["email"],
+        }),
+      }
+    );
+
+    const response = await POST(request);
+    expect(response.status).toBe(401);
+  });
+
+  it("should return 403 when recruiterId does not match authenticated user", async () => {
+    const request = new NextRequest(
+      "http://localhost/api/recruiters/request-contact",
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer valid-token",
+        },
+        body: JSON.stringify({
+          recruiterId: "different-user", // Different from authenticated user
+          userId: "user-123",
+          resumeId: "resume-123",
+          requestedFields: ["email"],
+          recruiterName: "Test Recruiter",
+          recruiterEmail: "recruiter@test.com",
+          companyName: "Test Co",
+          purpose: "Hiring",
+          proposedDuration: "1day",
+        }),
+      }
+    );
+
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(data.error).toContain("recruiterId must match authenticated user");
+  });
+
+  it("should return 400 for missing required fields", async () => {
+    const request = new NextRequest(
       "http://localhost/api/recruiters/request-contact",
       {
         method: "POST",
@@ -71,14 +148,15 @@ describe("POST /api/recruiters/request-contact", () => {
       }
     );
 
-    const response1 = await POST(request1);
-    const data1 = await response1.json();
+    const response = await POST(request);
+    const data = await response.json();
 
-    expect(response1.status).toBe(400);
-    expect(data1.error).toBe("Missing required fields");
+    expect(response.status).toBe(400);
+    expect(data.error).toBe("Missing required fields");
+  });
 
-    // Test invalid requested fields
-    const request2 = new NextRequest(
+  it("should return 400 for invalid requested fields", async () => {
+    const request = new NextRequest(
       "http://localhost/api/recruiters/request-contact",
       {
         method: "POST",
@@ -93,18 +171,18 @@ describe("POST /api/recruiters/request-contact", () => {
       }
     );
 
-    const response2 = await POST(request2);
-    const data2 = await response2.json();
+    const response = await POST(request);
+    const data = await response.json();
 
-    expect(response2.status).toBe(400);
-    expect(data2.error).toBe("Invalid fields requested: invalidField");
+    expect(response.status).toBe(400);
+    expect(data.error).toBe("Invalid fields requested: invalidField");
   });
 
   it("should return 404 when resume does not exist", async () => {
     // Mock resume not found
-    mockGetDoc.mockResolvedValue({
-      exists: () => false,
-    } as any);
+    mockGet.mockResolvedValueOnce({
+      exists: false,
+    });
 
     const request = new NextRequest(
       "http://localhost/api/recruiters/request-contact",
@@ -126,18 +204,17 @@ describe("POST /api/recruiters/request-contact", () => {
 
     expect(response.status).toBe(404);
     expect(data.error).toBe("Resume not found");
-    // expect(data.resumeId).toBe("resume-123");
   });
 
   it("should return 400 when resume does not belong to specified user", async () => {
     // Mock resume exists but belongs to different user
-    mockGetDoc.mockResolvedValue({
-      exists: () => true,
+    mockGet.mockResolvedValueOnce({
+      exists: true,
       data: () => ({
         userId: "different-user-123", // Different from payload.userId
         title: "Test Resume",
       }),
-    } as any);
+    });
 
     const request = new NextRequest(
       "http://localhost/api/recruiters/request-contact",
@@ -163,19 +240,19 @@ describe("POST /api/recruiters/request-contact", () => {
 
   it("should return 409 when duplicate pending request exists", async () => {
     // Mock resume exists
-    mockGetDoc.mockResolvedValue({
-      exists: () => true,
-      data: () => ({
-        userId: "user-123",
-        title: "Test Resume",
-      }),
-    } as any);
-
-    // Mock existing pending request
-    mockGetDocs.mockResolvedValue({
-      empty: false,
-      docs: [{ id: "existing-request-123" }],
-    } as any);
+    mockGet
+      .mockResolvedValueOnce({
+        exists: true,
+        data: () => ({
+          userId: "user-123",
+          title: "Test Resume",
+        }),
+      })
+      // Mock existing pending request found
+      .mockResolvedValueOnce({
+        empty: false,
+        docs: [{ id: "existing-request-123" }],
+      });
 
     const request = new NextRequest(
       "http://localhost/api/recruiters/request-contact",
@@ -199,26 +276,25 @@ describe("POST /api/recruiters/request-contact", () => {
     expect(data.error).toBe(
       "You already have a pending request for this candidate"
     );
-    // expect(data.existingRequestId).toBe("existing-request-123");
   });
 
   it("should successfully create contact request", async () => {
     // Mock resume exists
-    mockGetDoc
+    mockGet
       .mockResolvedValueOnce({
-        exists: () => true,
+        exists: true,
         data: () => ({ userId: "user-123", title: "Test Resume" }),
-      } as any)
+      })
+      // Mock no existing pending requests
+      .mockResolvedValueOnce({ empty: true, docs: [] })
+      // Mock recruiter profile exists with premium tier
       .mockResolvedValueOnce({
-        exists: () => true,
+        exists: true,
         data: () => ({ subscriptionTier: "premium" }),
-      } as any);
+      });
 
-    // Mock no existing requests
-    mockGetDocs.mockResolvedValue({ empty: true, docs: [] } as any);
-
-    // Mock successful addDoc
-    mockAddDoc.mockResolvedValue({ id: "request-123" } as any);
+    // Mock successful add
+    mockAdd.mockResolvedValue({ id: "request-123" });
 
     const request = new NextRequest(
       "http://localhost/api/recruiters/request-contact",
@@ -244,29 +320,29 @@ describe("POST /api/recruiters/request-contact", () => {
     expect(response.status).toBe(200);
     expect(data.success).toBe(true);
     expect(data.requestId).toBe("request-123");
-    expect(mockAddDoc).toHaveBeenCalledTimes(2); // request + notification
+    expect(mockAdd).toHaveBeenCalledTimes(2); // request + notification
   });
 
   it("should block basic recruiters who exceed free request limit", async () => {
     // Mock resume exists
-    mockGetDoc
+    mockGet
       .mockResolvedValueOnce({
-        exists: () => true,
+        exists: true,
         data: () => ({ userId: "user-123", title: "Test Resume" }),
-      } as any)
+      })
+      // Mock no existing pending requests (duplicate check passes)
+      .mockResolvedValueOnce({ empty: true, docs: [] })
+      // Mock recruiter profile exists with basic tier
       .mockResolvedValueOnce({
-        exists: () => true,
+        exists: true,
         data: () => ({ subscriptionTier: "basic" }),
-      } as any);
-
-    // First getDocs -> duplicate check, second -> free plan active requests
-    mockGetDocs
-      .mockResolvedValueOnce({ empty: true, docs: [] } as any)
+      })
+      // Mock active requests count (exceeds limit)
       .mockResolvedValueOnce({
         empty: false,
         size: 2,
         docs: [{ id: "req-1" }, { id: "req-2" }],
-      } as any);
+      });
 
     const request = new NextRequest(
       "http://localhost/api/recruiters/request-contact",
@@ -291,12 +367,12 @@ describe("POST /api/recruiters/request-contact", () => {
 
     expect(response.status).toBe(403);
     expect(data.error).toContain("Free recruiters can request up to");
-    expect(mockAddDoc).not.toHaveBeenCalled();
+    expect(mockAdd).not.toHaveBeenCalled();
   });
 
   it("should handle database errors gracefully", async () => {
     // Mock database error
-    mockGetDoc.mockRejectedValue(new Error("Database connection failed"));
+    mockGet.mockRejectedValueOnce(new Error("Database connection failed"));
 
     const request = new NextRequest(
       "http://localhost/api/recruiters/request-contact",
@@ -319,5 +395,115 @@ describe("POST /api/recruiters/request-contact", () => {
     expect(response.status).toBe(500);
     expect(data.error).toBe("Failed to create contact request");
     expect(data.details).toBe("Database connection failed");
+  });
+
+  it("should return 400 when recruiter tries to request their own contact info", async () => {
+    const request = new NextRequest(
+      "http://localhost/api/recruiters/request-contact",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          recruiterId: "recruiter-123",
+          userId: "recruiter-123", // Same as recruiterId
+          resumeId: "resume-123",
+          requestedFields: ["email"],
+          purpose: "Hiring",
+          proposedDuration: "1day",
+        }),
+      }
+    );
+
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(data.error).toBe("Recruiters cannot request their own contact info");
+  });
+});
+
+describe("GET /api/recruiters/request-contact", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("should return 401 when not authenticated", async () => {
+    const { getAuthenticatedUserId } = require("@/lib/utils/api-helpers");
+    const { NextResponse } = require("next/server");
+    getAuthenticatedUserId.mockResolvedValueOnce({
+      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+    });
+
+    const request = new NextRequest(
+      "http://localhost/api/recruiters/request-contact?recruiterId=recruiter-123",
+      { method: "GET" }
+    );
+
+    const response = await GET(request);
+    expect(response.status).toBe(401);
+  });
+
+  it("should return 400 when recruiterId is missing", async () => {
+    const request = new NextRequest(
+      "http://localhost/api/recruiters/request-contact",
+      { method: "GET" }
+    );
+
+    const response = await GET(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(data.error).toBe("recruiterId is required");
+  });
+
+  it("should return 403 when trying to view another user's requests", async () => {
+    const request = new NextRequest(
+      "http://localhost/api/recruiters/request-contact?recruiterId=different-user",
+      { method: "GET" }
+    );
+
+    const response = await GET(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(data.error).toContain("Can only view your own requests");
+  });
+
+  it("should successfully return recruiter's requests", async () => {
+    // Mock requests snapshot
+    mockGet.mockResolvedValueOnce({
+      docs: [
+        {
+          id: "req-1",
+          data: () => ({
+            status: "pending",
+            toUserId: "user-1",
+            resumeId: "resume-1",
+          }),
+        },
+        {
+          id: "req-2",
+          data: () => ({
+            status: "approved",
+            toUserId: "user-2",
+            resumeId: "resume-2",
+          }),
+        },
+      ],
+    });
+
+    const request = new NextRequest(
+      "http://localhost/api/recruiters/request-contact?recruiterId=recruiter-123",
+      { method: "GET" }
+    );
+
+    const response = await GET(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.success).toBe(true);
+    expect(data.recruiterId).toBe("recruiter-123");
+    expect(data.requests).toHaveLength(2);
+    expect(data.summary.pending).toBe(1);
+    expect(data.summary.approved).toBe(1);
   });
 });

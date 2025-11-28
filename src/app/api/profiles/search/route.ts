@@ -1,31 +1,13 @@
 // src/app/api/profiles/search/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import {
-  collection,
-  DocumentSnapshot,
-  getDocs,
-  limit,
-  orderBy,
-  query,
-  startAfter,
-  QueryConstraint,
-  QueryDocumentSnapshot,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { adminDb } from "@/lib/firebase-admin";
 import type { ProfileSearchResult } from "@/types/profileSearch";
 import {
   handleApiError,
-  applyRateLimit,
-  getClientIp,
+  getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
-import { RATE_LIMITS } from "@/config/constants";
-import {
-  buildBaseConstraints,
-  buildNormalizedFilters,
-  getCursorSnapshot,
-  matchesAllFilters,
-  searchBySlug,
-} from "./search-query";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
+import { buildNormalizedFilters, matchesAllFilters } from "./search-query";
 import { mapProfileResult } from "./search-utils";
 import { logger } from "@/lib/logger";
 
@@ -44,16 +26,36 @@ interface SearchRequest {
 
 const MAX_PAGE_LIMIT = 50;
 const MAX_FETCH_ROUNDS = 5;
+const SEARCH_RATE_LIMIT = 30; // 30 searches per minute per user
 
 export async function POST(request: NextRequest) {
-  // Apply rate limiting based on client IP
-  const clientIp = getClientIp(request);
-  const rateCheck = applyRateLimit(clientIp, {
-    limit: RATE_LIMITS.SEARCH_REQUESTS_PER_MINUTE,
+  // SECURITY: Require authentication for profile search
+  const { userId, error: authError } = await getAuthenticatedUserId(request);
+  if (authError) return authError;
+
+  // SECURITY: Apply distributed rate limiting (works across serverless instances)
+  const rateCheck = await checkDistributedRateLimit(userId!, {
+    limit: SEARCH_RATE_LIMIT,
     windowMs: 60 * 1000,
+    scope: "profile-search",
   });
   if (!rateCheck.allowed) {
-    return rateCheck.response;
+    return NextResponse.json(
+      {
+        error: "Too many search requests",
+        retryAfter: Math.ceil(rateCheck.resetIn / 1000),
+      },
+      {
+        status: 429,
+        headers: {
+          "X-RateLimit-Limit": rateCheck.limit.toString(),
+          "X-RateLimit-Remaining": rateCheck.remaining.toString(),
+          "X-RateLimit-Reset": Math.ceil(
+            Date.now() / 1000 + rateCheck.resetIn / 1000
+          ).toString(),
+        },
+      }
+    );
   }
 
   try {
@@ -86,7 +88,18 @@ export async function POST(request: NextRequest) {
     }
 
     if (normalizedFilters.slug) {
-      const slugResults = await searchBySlug(normalizedFilters);
+      // Slug search using admin SDK
+      const slugSnapshot = await adminDb
+        .collection("users")
+        .where("publicProfile.visible", "==", true)
+        .where("profileSlug", "==", normalizedFilters.slug)
+        .limit(1)
+        .get();
+
+      const slugResults: ProfileSearchResult[] = slugSnapshot.docs.map(
+        (docSnap) => mapProfileResult(docSnap.id, docSnap.data())
+      );
+
       return NextResponse.json({
         results: slugResults,
         count: slugResults.length,
@@ -98,12 +111,52 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const usersRef = collection(db, "users");
-    const baseConstraints = buildBaseConstraints(normalizedFilters);
-    const cursorSnapshot = await getCursorSnapshot(cursor);
-    let startAfterDocSnapshot: DocumentSnapshot | null = cursorSnapshot;
+    // Build the base query using admin SDK
+    let baseQuery = adminDb
+      .collection("users")
+      .where("publicProfile.visible", "==", true);
+
+    if (normalizedFilters.role) {
+      baseQuery = baseQuery.where(
+        "publicProfile.role",
+        "==",
+        normalizedFilters.role
+      );
+    }
+
+    if (normalizedFilters.location) {
+      baseQuery = baseQuery.where(
+        "publicProfile.location",
+        "==",
+        normalizedFilters.location
+      );
+    }
+
+    if (normalizedFilters.skills.length === 1) {
+      baseQuery = baseQuery.where(
+        "publicProfile.skills",
+        "array-contains",
+        normalizedFilters.skills[0]
+      );
+    } else if (normalizedFilters.skills.length > 1) {
+      baseQuery = baseQuery.where(
+        "publicProfile.skills",
+        "array-contains-any",
+        normalizedFilters.skills.slice(0, 10)
+      );
+    }
+
+    // Get cursor document if provided
+    let startAfterDoc: FirebaseFirestore.DocumentSnapshot | null = null;
+    if (cursor) {
+      const cursorDoc = await adminDb.collection("users").doc(cursor).get();
+      if (cursorDoc.exists) {
+        startAfterDoc = cursorDoc;
+      }
+    }
+
     let hasMore = false;
-    let lastReturnedDoc: QueryDocumentSnapshot | null = null;
+    let lastReturnedDocId: string | null = null;
     const results: ProfileSearchResult[] = [];
     let fetchRounds = 0;
 
@@ -111,18 +164,13 @@ export async function POST(request: NextRequest) {
       results.length < desiredResultCount &&
       fetchRounds < MAX_FETCH_ROUNDS
     ) {
-      const constraints: QueryConstraint[] = [
-        ...baseConstraints,
-        orderBy("displayName"),
-      ];
+      let paginatedQuery = baseQuery.orderBy("displayName").limit(chunkSize);
 
-      if (startAfterDocSnapshot) {
-        constraints.push(startAfter(startAfterDocSnapshot));
+      if (startAfterDoc) {
+        paginatedQuery = paginatedQuery.startAfter(startAfterDoc);
       }
 
-      constraints.push(limit(chunkSize));
-
-      const snapshot = await getDocs(query(usersRef, ...constraints));
+      const snapshot = await paginatedQuery.get();
       fetchRounds += 1;
 
       if (snapshot.empty) {
@@ -130,7 +178,7 @@ export async function POST(request: NextRequest) {
         break;
       }
 
-      startAfterDocSnapshot = snapshot.docs[snapshot.docs.length - 1];
+      startAfterDoc = snapshot.docs[snapshot.docs.length - 1];
       hasMore = snapshot.size === chunkSize;
 
       for (const docSnap of snapshot.docs) {
@@ -141,7 +189,7 @@ export async function POST(request: NextRequest) {
 
         const result = mapProfileResult(docSnap.id, userData);
         results.push(result);
-        lastReturnedDoc = docSnap;
+        lastReturnedDocId = docSnap.id;
 
         if (results.length === desiredResultCount) {
           break;
@@ -161,7 +209,7 @@ export async function POST(request: NextRequest) {
     const trimmedResults = effectiveResults.slice(0, normalizedLimit);
     const exposeHasMore = trimmedResults.length === normalizedLimit && hasMore;
     const nextCursor =
-      exposeHasMore && lastReturnedDoc ? lastReturnedDoc.id : null;
+      exposeHasMore && lastReturnedDocId ? lastReturnedDocId : null;
 
     logger.info(
       {

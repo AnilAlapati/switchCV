@@ -5,58 +5,92 @@
 import { NextRequest } from "next/server";
 import { POST } from "./route";
 
-// Mock Firebase
-jest.mock("firebase/firestore", () => ({
-  doc: jest.fn(),
-  updateDoc: jest.fn(),
-  getDoc: jest.fn(),
-  addDoc: jest.fn(),
-  collection: jest.fn(),
-  serverTimestamp: jest.fn(),
-}));
+// Mock Firebase Admin SDK
+const mockGet = jest.fn();
+const mockAdd = jest.fn();
+const mockUpdate = jest.fn();
+const mockCollection = jest.fn();
+const mockDoc = jest.fn();
 
-jest.mock("@/lib/firebase", () => ({
-  db: {},
-}));
-
-jest.mock("@/lib/tokenGenerator", () => ({
-  tokenGenerator: {
-    generateToken: jest.fn(),
+jest.mock("@/lib/firebase-admin", () => ({
+  adminDb: {
+    collection: (name: string) => {
+      mockCollection(name);
+      return {
+        doc: (id: string) => {
+          mockDoc(id);
+          return {
+            get: mockGet,
+            update: mockUpdate,
+          };
+        },
+        add: mockAdd,
+      };
+    },
+  },
+  adminAuth: {
+    verifyIdToken: jest.fn().mockResolvedValue({ uid: "admin-123" }),
   },
 }));
 
-import {
-  doc,
-  updateDoc,
-  getDoc,
-  addDoc,
-  collection,
-  serverTimestamp,
-} from "firebase/firestore";
-import { tokenGenerator } from "@/lib/tokenGenerator";
+// Mock api-helpers to return authenticated admin user
+jest.mock("@/lib/utils/api-helpers", () => ({
+  handleApiError: jest.fn((error, message, status = 500) => {
+    const { NextResponse } = require("next/server");
+    return NextResponse.json(
+      { error: message, details: error?.message },
+      { status }
+    );
+  }),
+  getAuthenticatedUserId: jest.fn().mockResolvedValue({ userId: "admin-123" }),
+}));
 
-const mockDoc = doc as jest.MockedFunction<typeof doc>;
-const mockUpdateDoc = updateDoc as jest.MockedFunction<typeof updateDoc>;
-const mockGetDoc = getDoc as jest.MockedFunction<typeof getDoc>;
-const mockAddDoc = addDoc as jest.MockedFunction<typeof addDoc>;
-const mockCollection = collection as jest.MockedFunction<typeof collection>;
-const mockServerTimestamp = serverTimestamp as jest.MockedFunction<
-  typeof serverTimestamp
->;
-const mockGenerateToken =
-  tokenGenerator.generateToken as jest.MockedFunction<any>;
+// Mock tokenGenerator
+jest.mock("@/lib/tokenGenerator", () => ({
+  tokenGenerator: {
+    generateToken: jest.fn().mockReturnValue({
+      token: "mock-jwt-token-12345",
+      tokenHash: "mock-hash-12345",
+      expiresAt: Math.floor(Date.now() / 1000) + 86400,
+    }),
+  },
+}));
+
+// Mock logger
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+  },
+}));
 
 describe("POST /api/recruiters/approve-contact", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockCollection.mockReturnValue({} as any);
-    mockDoc.mockReturnValue({} as any);
-    mockServerTimestamp.mockReturnValue({} as any);
-    mockGenerateToken.mockReturnValue({
-      token: "mock-jwt-token-12345",
-      tokenHash: "mock-hash-12345",
-      expiresAt: Math.floor(Date.now() / 1000) + 86400,
+  });
+
+  it("should return 401 when not authenticated", async () => {
+    const { getAuthenticatedUserId } = require("@/lib/utils/api-helpers");
+    const { NextResponse } = require("next/server");
+    getAuthenticatedUserId.mockResolvedValueOnce({
+      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
     });
+
+    const request = new NextRequest(
+      "http://localhost:3000/api/recruiters/approve-contact",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          requestId: "request-123",
+          adminUserId: "admin-123",
+        }),
+      }
+    );
+
+    const response = await POST(request);
+    expect(response.status).toBe(401);
   });
 
   it("should return 400 when requestId is missing", async () => {
@@ -75,11 +109,62 @@ describe("POST /api/recruiters/approve-contact", () => {
     expect(data.error).toBe("Missing required fields");
   });
 
+  it("should return 403 when adminUserId does not match authenticated user", async () => {
+    const request = new NextRequest(
+      "http://localhost:3000/api/recruiters/approve-contact",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          requestId: "request-123",
+          adminUserId: "different-admin", // Different from authenticated user
+        }),
+      }
+    );
+
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(data.error).toContain("adminUserId must match authenticated user");
+  });
+
+  it("should return 403 when user is not an admin", async () => {
+    // Mock user doc that is NOT an admin
+    mockGet.mockResolvedValueOnce({
+      exists: true,
+      data: () => ({ role: "recruiter" }), // Not admin
+    });
+
+    const request = new NextRequest(
+      "http://localhost:3000/api/recruiters/approve-contact",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          requestId: "request-123",
+          adminUserId: "admin-123",
+        }),
+      }
+    );
+
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(data.error).toContain("Only admins can approve");
+  });
+
   it("should return 404 when request does not exist", async () => {
-    mockGetDoc.mockResolvedValue({
-      exists: jest.fn(() => false),
-      data: jest.fn(() => null),
-    } as any);
+    // Mock admin user exists with admin role
+    mockGet
+      .mockResolvedValueOnce({
+        exists: true,
+        data: () => ({ role: "admin" }),
+      })
+      // Mock request not found
+      .mockResolvedValueOnce({
+        exists: false,
+        data: () => null,
+      });
 
     const request = new NextRequest(
       "http://localhost:3000/api/recruiters/approve-contact",
@@ -100,25 +185,30 @@ describe("POST /api/recruiters/approve-contact", () => {
   });
 
   it("should return 400 when request is already approved", async () => {
-    const mockRequestDoc = {
-      exists: jest.fn(() => true),
-      data: jest.fn(() => ({
-        id: "request-123",
-        status: "approved",
-        fromRecruiter: {
-          recruiterId: "recruiter-123",
-          name: "John Doe",
-          email: "john@example.com",
-          companyName: "Tech Corp",
-        },
-        toUserId: "user-456",
-        toUserEmail: "user@example.com",
-        requestedFields: ["email", "phone"],
-        proposedDuration: "1day",
-      })),
-    };
-
-    mockGetDoc.mockResolvedValue(mockRequestDoc as any);
+    // Mock admin user exists with admin role
+    mockGet
+      .mockResolvedValueOnce({
+        exists: true,
+        data: () => ({ role: "admin" }),
+      })
+      // Mock request already approved
+      .mockResolvedValueOnce({
+        exists: true,
+        data: () => ({
+          id: "request-123",
+          status: "approved",
+          fromRecruiter: {
+            recruiterId: "recruiter-123",
+            name: "John Doe",
+            email: "john@example.com",
+            companyName: "Tech Corp",
+          },
+          toUserId: "user-456",
+          toUserEmail: "user@example.com",
+          requestedFields: ["email", "phone"],
+          proposedDuration: "1day",
+        }),
+      });
 
     const request = new NextRequest(
       "http://localhost:3000/api/recruiters/approve-contact",
@@ -139,27 +229,34 @@ describe("POST /api/recruiters/approve-contact", () => {
   });
 
   it("should successfully approve contact request", async () => {
-    const mockRequestDoc = {
-      exists: jest.fn(() => true),
-      data: jest.fn(() => ({
-        id: "request-123",
-        status: "pending",
-        fromRecruiter: {
-          recruiterId: "recruiter-123",
-          name: "John Doe",
-          email: "john@example.com",
-          companyName: "Tech Corp",
-        },
-        toUserId: "user-456",
-        toUserEmail: "user@example.com",
-        requestedFields: ["email", "phone"],
-        proposedDuration: "1day",
-        purpose: "Hiring for senior developer position",
-      })),
-    };
+    // Mock admin user exists with admin role
+    mockGet
+      .mockResolvedValueOnce({
+        exists: true,
+        data: () => ({ role: "admin" }),
+      })
+      // Mock pending request
+      .mockResolvedValueOnce({
+        exists: true,
+        data: () => ({
+          id: "request-123",
+          status: "pending",
+          fromRecruiter: {
+            recruiterId: "recruiter-123",
+            name: "John Doe",
+            email: "john@example.com",
+            companyName: "Tech Corp",
+          },
+          toUserId: "user-456",
+          toUserEmail: "user@example.com",
+          requestedFields: ["email", "phone"],
+          proposedDuration: "1day",
+          purpose: "Hiring for senior developer position",
+        }),
+      });
 
-    mockGetDoc.mockResolvedValue(mockRequestDoc as any);
-    mockAddDoc.mockResolvedValue({ id: "token-123" } as any);
+    mockAdd.mockResolvedValue({ id: "token-123" });
+    mockUpdate.mockResolvedValue(undefined);
 
     const request = new NextRequest(
       "http://localhost:3000/api/recruiters/approve-contact",
@@ -179,33 +276,11 @@ describe("POST /api/recruiters/approve-contact", () => {
     expect(data.success).toBe(true);
     expect(data.tokenId).toBe("token-123");
     expect(data.duration).toBe("1day");
-    expect(mockGenerateToken).toHaveBeenCalled();
-    expect(mockAddDoc).toHaveBeenCalledTimes(4);
-    expect(mockUpdateDoc).toHaveBeenCalledTimes(1);
+    expect(mockAdd).toHaveBeenCalledTimes(4); // token + recruiter notification + candidate notification + audit log
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
   });
 
   it("should handle different durations correctly", async () => {
-    const mockRequestDoc = {
-      exists: jest.fn(() => true),
-      data: jest.fn(() => ({
-        id: "request-123",
-        status: "pending",
-        fromRecruiter: {
-          recruiterId: "recruiter-123",
-          name: "John Doe",
-          email: "john@example.com",
-          companyName: "Tech Corp",
-        },
-        toUserId: "user-456",
-        toUserEmail: "user@example.com",
-        requestedFields: ["email", "phone"],
-        proposedDuration: "1day",
-      })),
-    };
-
-    mockGetDoc.mockResolvedValue(mockRequestDoc as any);
-    mockAddDoc.mockResolvedValue({ id: "token-123" } as any);
-
     const testCases = [
       { duration: "1hour", expectedSeconds: 3600 },
       { duration: "1day", expectedSeconds: 86400 },
@@ -214,6 +289,36 @@ describe("POST /api/recruiters/approve-contact", () => {
     ];
 
     for (const { duration, expectedSeconds } of testCases) {
+      jest.clearAllMocks();
+
+      // Mock admin user exists with admin role
+      mockGet
+        .mockResolvedValueOnce({
+          exists: true,
+          data: () => ({ role: "admin" }),
+        })
+        // Mock pending request
+        .mockResolvedValueOnce({
+          exists: true,
+          data: () => ({
+            id: "request-123",
+            status: "pending",
+            fromRecruiter: {
+              recruiterId: "recruiter-123",
+              name: "John Doe",
+              email: "john@example.com",
+              companyName: "Tech Corp",
+            },
+            toUserId: "user-456",
+            toUserEmail: "user@example.com",
+            requestedFields: ["email", "phone"],
+            proposedDuration: "1day",
+          }),
+        });
+
+      mockAdd.mockResolvedValue({ id: "token-123" });
+      mockUpdate.mockResolvedValue(undefined);
+
       const request = new NextRequest(
         "http://localhost:3000/api/recruiters/approve-contact",
         {
@@ -236,7 +341,14 @@ describe("POST /api/recruiters/approve-contact", () => {
   });
 
   it("should handle database errors gracefully", async () => {
-    mockGetDoc.mockRejectedValue(new Error("Database connection failed"));
+    // Mock admin user exists with admin role
+    mockGet
+      .mockResolvedValueOnce({
+        exists: true,
+        data: () => ({ role: "admin" }),
+      })
+      // Mock database error
+      .mockRejectedValueOnce(new Error("Database connection failed"));
 
     const request = new NextRequest(
       "http://localhost:3000/api/recruiters/approve-contact",

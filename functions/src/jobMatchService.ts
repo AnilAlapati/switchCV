@@ -58,8 +58,8 @@ const aiRetryOptions: RetryOptions = {
   retryableErrors: ["ECONNRESET", "ETIMEDOUT", "503", "429", "UNAVAILABLE"],
 };
 
-// CORS configuration
-const corsHandler = cors({ origin: securityConfig.corsOrigin ?? true });
+// SECURITY: CORS configuration from config (specific origins by default, not 'true')
+const corsHandler = cors({ origin: securityConfig.corsOrigin });
 
 // Helmet for security (can be toggled via config)
 const helmetHandler: RequestHandler = securityConfig.enableHelmet

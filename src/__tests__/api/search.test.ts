@@ -6,18 +6,103 @@
 import { POST } from "@/app/api/profiles/search/route";
 import { NextRequest } from "next/server";
 
-// Mock Firebase
-jest.mock("@/lib/firebase", () => ({
-  db: {},
+// Mock Firebase Admin SDK
+const mockGet = jest.fn();
+const mockLimit = jest.fn();
+const mockOrderBy = jest.fn();
+const mockStartAfter = jest.fn();
+const mockWhere = jest.fn();
+const mockCollection = jest.fn();
+const mockDoc = jest.fn();
+
+jest.mock("@/lib/firebase-admin", () => ({
+  adminDb: {
+    collection: (name: string) => {
+      mockCollection(name);
+      return {
+        doc: (id: string) => {
+          mockDoc(id);
+          return {
+            get: mockGet,
+          };
+        },
+        where: (...args: unknown[]) => {
+          mockWhere(...args);
+          return {
+            where: (...args2: unknown[]) => {
+              mockWhere(...args2);
+              return {
+                limit: (n: number) => {
+                  mockLimit(n);
+                  return {
+                    get: mockGet,
+                  };
+                },
+                orderBy: (...orderArgs: unknown[]) => {
+                  mockOrderBy(...orderArgs);
+                  return {
+                    limit: (n: number) => {
+                      mockLimit(n);
+                      return {
+                        get: mockGet,
+                        startAfter: (doc: unknown) => {
+                          mockStartAfter(doc);
+                          return {
+                            get: mockGet,
+                          };
+                        },
+                      };
+                    },
+                  };
+                },
+              };
+            },
+            limit: (n: number) => {
+              mockLimit(n);
+              return {
+                get: mockGet,
+              };
+            },
+          };
+        },
+      };
+    },
+  },
+  adminAuth: {
+    verifyIdToken: jest.fn().mockResolvedValue({ uid: "user-123" }),
+  },
 }));
 
-jest.mock("firebase/firestore", () => ({
-  collection: jest.fn(),
-  query: jest.fn(),
-  where: jest.fn(),
-  orderBy: jest.fn(),
-  limit: jest.fn(),
-  getDocs: jest.fn(),
+// Mock api-helpers to return authenticated user
+jest.mock("@/lib/utils/api-helpers", () => ({
+  handleApiError: jest.fn((error, message, status = 500) => {
+    const { NextResponse } = require("next/server");
+    return NextResponse.json(
+      { error: message, details: error?.message },
+      { status }
+    );
+  }),
+  getAuthenticatedUserId: jest.fn().mockResolvedValue({ userId: "user-123" }),
+}));
+
+// Mock distributed rate limiter
+jest.mock("@/lib/utils/distributedRateLimit", () => ({
+  checkDistributedRateLimit: jest.fn().mockResolvedValue({
+    allowed: true,
+    remaining: 29,
+    limit: 30,
+    resetIn: 60000,
+  }),
+}));
+
+// Mock logger
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+  },
 }));
 
 describe("Profile Search API", () => {
@@ -26,6 +111,27 @@ describe("Profile Search API", () => {
   });
 
   describe("POST /api/profiles/search", () => {
+    it("should return 401 if not authenticated", async () => {
+      const { getAuthenticatedUserId } = require("@/lib/utils/api-helpers");
+      const { NextResponse } = require("next/server");
+      getAuthenticatedUserId.mockResolvedValueOnce({
+        error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+      });
+
+      const req = new NextRequest(
+        new URL("http://localhost/api/profiles/search"),
+        {
+          method: "POST",
+          body: JSON.stringify({
+            query: "developer",
+          }),
+        }
+      );
+
+      const response = await POST(req);
+      expect(response.status).toBe(401);
+    });
+
     it("should return error if no query or filters provided", async () => {
       const req = new NextRequest(
         new URL("http://localhost/api/profiles/search"),
