@@ -7,6 +7,91 @@ import {
   CandidatePriority,
 } from "@/lib/recruiterDashboard.types";
 
+// Mock firebase-admin
+jest.mock("@/lib/firebase-admin", () => {
+  const mockFirestoreData = new Map<string, any>();
+  const mockSubcollections = new Map<string, Map<string, any>>();
+
+  const createMockTimestamp = (date = new Date()) => ({
+    toDate: () => date,
+    toMillis: () => date.getTime(),
+  });
+
+  const getSubcollection = (parentId: string, subcollectionName: string) => {
+    const key = `${parentId}/${subcollectionName}`;
+    if (!mockSubcollections.has(key)) {
+      mockSubcollections.set(key, new Map());
+    }
+    return mockSubcollections.get(key)!;
+  };
+
+  const mockDocRef = (
+    id: string,
+    parentCollection?: string,
+    parentId?: string
+  ) => ({
+    get: jest.fn().mockImplementation(async () => ({
+      exists: parentId
+        ? getSubcollection(parentId, parentCollection!).has(id)
+        : mockFirestoreData.has(id),
+      data: () =>
+        parentId
+          ? getSubcollection(parentId, parentCollection!).get(id)
+          : mockFirestoreData.get(id),
+      id,
+    })),
+    set: jest.fn().mockImplementation(async (data: any) => {
+      const dataWithTimestamp = {
+        ...data,
+        createdAt: createMockTimestamp(),
+        updatedAt: createMockTimestamp(),
+      };
+      if (parentId) {
+        getSubcollection(parentId, parentCollection!).set(
+          id,
+          dataWithTimestamp
+        );
+      } else {
+        mockFirestoreData.set(id, dataWithTimestamp);
+      }
+    }),
+    update: jest.fn().mockImplementation(async (data: any) => {
+      const store = parentId
+        ? getSubcollection(parentId, parentCollection!)
+        : mockFirestoreData;
+      const existing = store.get(id) || {};
+      store.set(id, { ...existing, ...data, updatedAt: createMockTimestamp() });
+    }),
+    collection: jest.fn().mockImplementation((subcollName: string) => ({
+      doc: (docId: string) => mockDocRef(docId, subcollName, id),
+      get: jest.fn().mockResolvedValue({
+        docs: Array.from(getSubcollection(id, subcollName).entries()).map(
+          ([docId, data]) => ({
+            id: docId,
+            data: () => data,
+            exists: true,
+          })
+        ),
+      }),
+    })),
+  });
+
+  return {
+    adminDb: {
+      collection: jest.fn().mockImplementation(() => ({
+        doc: jest.fn().mockImplementation((id: string) => mockDocRef(id)),
+      })),
+    },
+    _mockData: mockFirestoreData,
+    _mockSubcollections: mockSubcollections,
+  };
+});
+
+const {
+  _mockData: mockFirestoreData,
+  _mockSubcollections: mockSubcollections,
+} = require("@/lib/firebase-admin");
+
 // Mock api-helpers
 jest.mock("@/lib/utils/api-helpers", () => ({
   handleApiError: jest.fn((error, message, status = 500) => {
@@ -17,43 +102,26 @@ jest.mock("@/lib/utils/api-helpers", () => ({
   }),
 }));
 
-// Mock the pipeline helper functions
+jest.mock("@/lib/recruiterPipelineHelpers", () => ({
+  generatePipelineId: jest.fn(() => "pipeline-123"),
+}));
+
 jest.mock("@/lib/recruiterPipeline", () => ({
   createCandidate: jest.fn(),
   getCandidatesByStage: jest.fn(),
 }));
 
-jest.mock("@/lib/recruiterPipelineHelpers", () => ({
-  initializePipeline: jest.fn(),
-  addCandidateToPipeline: jest.fn(),
-  moveCandidateInPipeline: jest.fn(),
-}));
-
-import { createCandidate, getCandidatesByStage } from "@/lib/recruiterPipeline";
-import {
-  initializePipeline,
-  addCandidateToPipeline,
-  moveCandidateInPipeline,
-} from "@/lib/recruiterPipelineHelpers";
+import { createCandidate } from "@/lib/recruiterPipeline";
+import { generatePipelineId } from "@/lib/recruiterPipelineHelpers";
 
 const mockCreateCandidate = createCandidate as jest.MockedFunction<
   typeof createCandidate
 >;
-const mockGetCandidatesByStage = getCandidatesByStage as jest.MockedFunction<
-  typeof getCandidatesByStage
->;
-const mockInitializePipeline = initializePipeline as jest.MockedFunction<
-  typeof initializePipeline
->;
-const mockAddCandidateToPipeline =
-  addCandidateToPipeline as jest.MockedFunction<typeof addCandidateToPipeline>;
-const mockMoveCandidateInPipeline =
-  moveCandidateInPipeline as jest.MockedFunction<
-    typeof moveCandidateInPipeline
-  >;
 
 describe("POST /api/recruiter/pipeline", () => {
   beforeEach(() => {
+    mockFirestoreData.clear();
+    mockSubcollections.clear();
     jest.clearAllMocks();
   });
 
@@ -63,11 +131,16 @@ describe("POST /api/recruiter/pipeline", () => {
         id: "pipeline-123",
         jobId: "job-123",
         jobTitle: "Software Engineer",
-        columns: [],
+        columns: [
+          { stage: "lead", candidates: [], count: 0, stageOrder: 1 },
+          { stage: "screened", candidates: [], count: 0, stageOrder: 2 },
+          { stage: "shortlisted", candidates: [], count: 0, stageOrder: 3 },
+          { stage: "interviewed", candidates: [], count: 0, stageOrder: 4 },
+          { stage: "offered", candidates: [], count: 0, stageOrder: 5 },
+          { stage: "hired", candidates: [], count: 0, stageOrder: 6 },
+        ],
         totalCandidates: 0,
       };
-
-      mockInitializePipeline.mockReturnValue(mockPipeline);
 
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/pipeline",
@@ -85,15 +158,11 @@ describe("POST /api/recruiter/pipeline", () => {
       const data = await response.json();
 
       expect(response.status).toBe(201);
-      expect(data).toEqual({
-        success: true,
-        pipeline: mockPipeline,
-        message: "Pipeline initialized successfully",
-      });
-      expect(mockInitializePipeline).toHaveBeenCalledWith(
-        "job-123",
-        "Software Engineer"
-      );
+      expect(data.success).toBe(true);
+      expect(data.pipeline.id).toBe("pipeline-123");
+      expect(data.pipeline.jobId).toBe("job-123");
+      expect(data.message).toBe("Pipeline initialized successfully");
+      expect(mockFirestoreData.get("pipeline-123")).toBeDefined();
     });
 
     it("should handle initialize with missing jobId", async () => {
@@ -131,39 +200,14 @@ describe("POST /api/recruiter/pipeline", () => {
         updatedAt: new Date(),
       };
 
-      const mockUpdatedPipeline = {
-        id: "pipeline-123",
-        jobId: "job-123",
-        jobTitle: "Software Engineer",
-        columns: [],
-        totalCandidates: 1,
-      };
-
       mockCreateCandidate.mockReturnValue(mockCandidate);
-      mockAddCandidateToPipeline.mockReturnValue(mockUpdatedPipeline);
 
-      // Mock the in-memory storage by setting up the pipeline first
-      const initRequest = new NextRequest(
-        "http://localhost:3000/api/recruiter/pipeline",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            action: "initialize",
-            jobId: "job-123",
-            jobTitle: "Software Engineer",
-          }),
-        }
-      );
-
-      mockInitializePipeline.mockReturnValue({
-        id: "pipeline-123",
+      // Setup existing pipeline
+      mockFirestoreData.set("pipeline-123", {
         jobId: "job-123",
         jobTitle: "Software Engineer",
-        columns: [],
         totalCandidates: 0,
       });
-
-      await POST(initRequest);
 
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/pipeline",
@@ -185,24 +229,14 @@ describe("POST /api/recruiter/pipeline", () => {
       const data = await response.json();
 
       expect(response.status).toBe(201);
-      expect(data).toEqual({
-        success: true,
-        candidate: {
-          ...mockCandidate,
-          createdAt: mockCandidate.createdAt.toISOString(),
-          updatedAt: mockCandidate.updatedAt.toISOString(),
-        },
-        totalCandidates: 1,
-        message: "Candidate added successfully",
-      });
-      expect(mockCreateCandidate).toHaveBeenCalledWith(
-        "John Doe",
-        "john@example.com",
-        "Developer",
-        "+1234567890",
-        "https://example.com/resume.pdf"
-      );
-      expect(mockAddCandidateToPipeline).toHaveBeenCalled();
+      expect(data.success).toBe(true);
+      expect(data.candidate.id).toBe("candidate-123");
+      expect(data.totalCandidates).toBe(1);
+
+      // Verify subcollection
+      const candidatesMap = mockSubcollections.get("pipeline-123/candidates");
+      expect(candidatesMap).toBeDefined();
+      expect(candidatesMap!.get("candidate-123")).toBeDefined();
     });
 
     it("should return 404 for non-existent pipeline", async () => {
@@ -241,52 +275,16 @@ describe("POST /api/recruiter/pipeline", () => {
         updatedAt: new Date(),
       };
 
-      const mockUpdatedPipeline = {
-        id: "pipeline-123",
+      // Setup pipeline and candidate
+      mockFirestoreData.set("pipeline-123", {
         jobId: "job-123",
         jobTitle: "Software Engineer",
-        columns: [
-          {
-            stage: PipelineStage.SCREENED,
-            candidates: [{ ...mockCandidate, stage: PipelineStage.SCREENED }],
-            count: 1,
-            stageOrder: 1,
-          },
-        ],
-        totalCandidates: 1,
-      };
-
-      mockMoveCandidateInPipeline.mockReturnValue(mockUpdatedPipeline);
-
-      // Initialize pipeline first
-      const initRequest = new NextRequest(
-        "http://localhost:3000/api/recruiter/pipeline",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            action: "initialize",
-            jobId: "job-123",
-            jobTitle: "Software Engineer",
-          }),
-        }
-      );
-
-      mockInitializePipeline.mockReturnValue({
-        id: "pipeline-123",
-        jobId: "job-123",
-        jobTitle: "Software Engineer",
-        columns: [
-          {
-            stage: PipelineStage.LEAD,
-            candidates: [mockCandidate],
-            count: 1,
-            stageOrder: 0,
-          },
-        ],
         totalCandidates: 1,
       });
 
-      await POST(initRequest);
+      const candidatesMap = new Map();
+      candidatesMap.set("candidate-123", mockCandidate);
+      mockSubcollections.set("pipeline-123/candidates", candidatesMap);
 
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/pipeline",
@@ -305,17 +303,11 @@ describe("POST /api/recruiter/pipeline", () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data).toEqual({
-        success: true,
-        candidate: {
-          ...mockCandidate,
-          stage: "screened",
-          createdAt: mockCandidate.createdAt.toISOString(),
-          updatedAt: mockCandidate.updatedAt.toISOString(),
-        },
-        message: "Candidate moved successfully",
-      });
-      expect(mockMoveCandidateInPipeline).toHaveBeenCalled();
+      expect(data.success).toBe(true);
+      expect(data.candidate.stage).toBe("screened");
+
+      // Verify update in store
+      expect(candidatesMap.get("candidate-123").stage).toBe("screened");
     });
 
     it("should return 404 for non-existent pipeline", async () => {
@@ -340,28 +332,12 @@ describe("POST /api/recruiter/pipeline", () => {
     });
 
     it("should return 404 for non-existent candidate", async () => {
-      // Initialize pipeline first
-      const initRequest = new NextRequest(
-        "http://localhost:3000/api/recruiter/pipeline",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            action: "initialize",
-            jobId: "job-123",
-            jobTitle: "Software Engineer",
-          }),
-        }
-      );
-
-      mockInitializePipeline.mockReturnValue({
-        id: "pipeline-123",
+      // Setup pipeline
+      mockFirestoreData.set("pipeline-123", {
         jobId: "job-123",
         jobTitle: "Software Engineer",
-        columns: [],
         totalCandidates: 0,
       });
-
-      await POST(initRequest);
 
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/pipeline",
@@ -386,43 +362,27 @@ describe("POST /api/recruiter/pipeline", () => {
 
   describe("get-stage action", () => {
     it("should return candidates for a specific stage", async () => {
-      const mockCandidates = [
-        {
-          id: "candidate-123",
-          name: "John Doe",
-          email: "john@example.com",
-          position: "Developer",
-          stage: PipelineStage.SCREENED,
-          priority: CandidatePriority.MEDIUM,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ];
+      const mockCandidate = {
+        id: "candidate-123",
+        name: "John Doe",
+        email: "john@example.com",
+        position: "Developer",
+        stage: PipelineStage.SCREENED,
+        priority: CandidatePriority.MEDIUM,
+        createdAt: { toDate: () => new Date() },
+        updatedAt: { toDate: () => new Date() },
+      };
 
-      mockGetCandidatesByStage.mockReturnValue(mockCandidates);
-
-      // Initialize pipeline first
-      const initRequest = new NextRequest(
-        "http://localhost:3000/api/recruiter/pipeline",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            action: "initialize",
-            jobId: "job-123",
-            jobTitle: "Software Engineer",
-          }),
-        }
-      );
-
-      mockInitializePipeline.mockReturnValue({
-        id: "pipeline-123",
+      // Setup pipeline and candidate
+      mockFirestoreData.set("pipeline-123", {
         jobId: "job-123",
         jobTitle: "Software Engineer",
-        columns: [],
-        totalCandidates: 0,
+        totalCandidates: 1,
       });
 
-      await POST(initRequest);
+      const candidatesMap = new Map();
+      candidatesMap.set("candidate-123", mockCandidate);
+      mockSubcollections.set("pipeline-123/candidates", candidatesMap);
 
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/pipeline",
@@ -440,17 +400,10 @@ describe("POST /api/recruiter/pipeline", () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data).toEqual({
-        success: true,
-        stage: "screened",
-        candidates: mockCandidates.map((candidate) => ({
-          ...candidate,
-          createdAt: candidate.createdAt.toISOString(),
-          updatedAt: candidate.updatedAt.toISOString(),
-        })),
-        count: 1,
-      });
-      expect(mockGetCandidatesByStage).toHaveBeenCalled();
+      expect(data.success).toBe(true);
+      expect(data.stage).toBe("screened");
+      expect(data.candidates).toHaveLength(1);
+      expect(data.candidates[0].id).toBe("candidate-123");
     });
 
     it("should return 404 for non-existent pipeline", async () => {

@@ -1,6 +1,8 @@
 // Analytics API Endpoint - Dashboard and metrics
+// FIXED: Now uses real Firestore data instead of mock random data
 
 import { NextRequest, NextResponse } from "next/server";
+import { adminDb } from "@/lib/firebase-admin";
 import type {
   ResumeAnalytics,
   ViewEvent,
@@ -9,6 +11,7 @@ import type {
   IndustryBenchmark,
 } from "@/lib/analytics.types";
 import { AnalyticsService } from "@/lib/analytics.service";
+import { logger } from "@/lib/logger";
 
 /**
  * Request body interface
@@ -19,94 +22,163 @@ interface DashboardRequest {
 }
 
 /**
- * Mock database for demonstration
+ * Get real analytics data from Firestore
  */
-const mockAnalyticsDb = new Map<string, ResumeAnalytics>();
-const mockViewEventsDb = new Map<string, ViewEvent[]>();
-const mockHeatmapsDb = new Map<string, SectionHeatmap[]>();
-const mockRecruitersDb = new Map<string, RecruiterEngagement[]>();
+async function getAnalyticsFromFirestore(
+  resumeId: string,
+  userId: string
+): Promise<ResumeAnalytics | null> {
+  const analyticsRef = adminDb.collection("analytics").doc(resumeId);
+  const doc = await analyticsRef.get();
 
-/**
- * Initialize mock data
- */
-function initializeMockData(resumeId: string, userId: string): void {
-  if (!mockAnalyticsDb.has(resumeId)) {
-    mockAnalyticsDb.set(resumeId, {
+  if (!doc.exists) {
+    // Create initial analytics record
+    const initialAnalytics: ResumeAnalytics = {
       resumeId,
       userId,
-      viewCount: Math.floor(Math.random() * 150) + 10,
-      uniqueViewCount: Math.floor(Math.random() * 80) + 5,
-      downloadCount: Math.floor(Math.random() * 30) + 2,
-      shareCount: Math.floor(Math.random() * 15),
-      attractivenessScore: Math.floor(Math.random() * 35) + 50,
-      lastViewedAt: new Date(
-        Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000
-      ),
-      createdAt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
+      viewCount: 0,
+      uniqueViewCount: 0,
+      downloadCount: 0,
+      shareCount: 0,
+      attractivenessScore: 0,
+      lastViewedAt: null as unknown as Date,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    await analyticsRef.set({
+      ...initialAnalytics,
+      createdAt: new Date(),
       updatedAt: new Date(),
     });
 
-    // Generate view events
-    const viewEvents: ViewEvent[] = [];
-    const sectionNames = [
-      "summary",
-      "experience",
-      "skills",
-      "education",
-      "projects",
-    ];
-
-    for (let i = 0; i < 50; i++) {
-      viewEvents.push({
-        id: `view-${i}`,
-        resumeId,
-        viewerId: `recruiter-${Math.floor(Math.random() * 20)}`,
-        viewedAt: new Date(
-          Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000
-        ),
-        duration: Math.floor(Math.random() * 300) + 30,
-        sourceType: ["direct", "search", "shared", "recommendation"][
-          Math.floor(Math.random() * 4)
-        ] as any,
-        metadata: {
-          section:
-            sectionNames[Math.floor(Math.random() * sectionNames.length)],
-          clicks: Math.floor(Math.random() * 5),
-        },
-      });
-    }
-
-    mockViewEventsDb.set(resumeId, viewEvents);
-
-    // Generate heatmaps
-    const heatmaps = AnalyticsService.generateHeatmap(
-      viewEvents,
-      resumeId,
-      sectionNames
-    );
-    mockHeatmapsDb.set(resumeId, heatmaps);
-
-    // Generate recruiter engagement
-    const recruiters: RecruiterEngagement[] = [];
-    for (let i = 0; i < 15; i++) {
-      const interactions = Math.floor(Math.random() * 10) + 1;
-      recruiters.push({
-        resumeId,
-        recruiterId: `recruiter-${i}`,
-        viewCount: Math.floor(Math.random() * 10) + 1,
-        interactionCount: interactions,
-        lastInteractedAt: new Date(
-          Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000
-        ),
-        engagementLevel: ["low", "medium", "high", "very-high"][
-          Math.floor(Math.random() * 4)
-        ] as any,
-        score: Math.floor(Math.random() * 40) + 40,
-      });
-    }
-
-    mockRecruitersDb.set(resumeId, recruiters);
+    return initialAnalytics;
   }
+
+  const data = doc.data()!;
+  return {
+    resumeId,
+    userId: data.userId,
+    viewCount: data.viewCount || 0,
+    uniqueViewCount: data.uniqueViewCount || 0,
+    downloadCount: data.downloadCount || 0,
+    shareCount: data.shareCount || 0,
+    attractivenessScore: data.attractivenessScore || 0,
+    lastViewedAt: data.lastViewedAt?.toDate() || null,
+    createdAt: data.createdAt?.toDate() || new Date(),
+    updatedAt: data.updatedAt?.toDate() || new Date(),
+  } as ResumeAnalytics;
+}
+
+/**
+ * Get view events from Firestore
+ */
+async function getViewEvents(resumeId: string): Promise<ViewEvent[]> {
+  const eventsSnap = await adminDb
+    .collection("analytics")
+    .doc(resumeId)
+    .collection("viewEvents")
+    .orderBy("viewedAt", "desc")
+    .limit(100)
+    .get();
+
+  return eventsSnap.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      resumeId,
+      viewerId: data.viewerId,
+      viewedAt: data.viewedAt?.toDate() || new Date(),
+      duration: data.duration || 0,
+      sourceType: data.sourceType || "direct",
+      metadata: data.metadata || {},
+    } as ViewEvent;
+  });
+}
+
+/**
+ * Get heatmap data from Firestore
+ */
+async function getHeatmaps(resumeId: string): Promise<SectionHeatmap[]> {
+  const heatmapSnap = await adminDb
+    .collection("analytics")
+    .doc(resumeId)
+    .collection("heatmaps")
+    .get();
+
+  return heatmapSnap.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      resumeId,
+      sectionName: data.sectionName || doc.id,
+      viewCount: data.viewCount || 0,
+      avgTimeSpent: data.avgTimeSpent || data.avgDuration || 0,
+      clickCount: data.clickCount || 0,
+      engagementScore: data.engagementScore || data.heatScore || 0,
+    } as SectionHeatmap;
+  });
+}
+
+/**
+ * Get recruiter engagement from Firestore
+ */
+async function getRecruiterEngagement(
+  resumeId: string
+): Promise<RecruiterEngagement[]> {
+  const recruitersSnap = await adminDb
+    .collection("analytics")
+    .doc(resumeId)
+    .collection("recruiterEngagement")
+    .orderBy("lastInteractedAt", "desc")
+    .limit(50)
+    .get();
+
+  return recruitersSnap.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      resumeId,
+      recruiterId: data.recruiterId,
+      viewCount: data.viewCount || 0,
+      interactionCount: data.interactionCount || 0,
+      lastInteractedAt: data.lastInteractedAt?.toDate() || new Date(),
+      engagementLevel: data.engagementLevel || "low",
+      score: data.score || 0,
+    } as RecruiterEngagement;
+  });
+}
+
+/**
+ * Get or compute industry benchmark
+ */
+async function getIndustryBenchmark(
+  industry: string
+): Promise<IndustryBenchmark> {
+  const benchmarkRef = adminDb
+    .collection("benchmarks")
+    .doc(industry.toLowerCase());
+  const doc = await benchmarkRef.get();
+
+  if (doc.exists) {
+    const data = doc.data()!;
+    return {
+      industry: data.industry,
+      avgAttractivenessScore: data.avgAttractivenessScore || 50,
+      avgViewCount: data.avgViewCount || 30,
+      avgDownloadCount: data.avgDownloadCount || 5,
+      topSkills: data.topSkills || [],
+      benchmarkDate: data.benchmarkDate?.toDate() || new Date(),
+    };
+  }
+
+  // Return default benchmark if not found
+  return {
+    industry: industry || "General",
+    avgAttractivenessScore: 50,
+    avgViewCount: 30,
+    avgDownloadCount: 5,
+    topSkills: [],
+    benchmarkDate: new Date(),
+  };
 }
 
 /**
@@ -124,13 +196,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Initialize mock data if needed
-    initializeMockData(resumeId, userId);
-
-    // Retrieve data
-    const analytics = mockAnalyticsDb.get(resumeId);
-    const heatmaps = mockHeatmapsDb.get(resumeId) || [];
-    const recruiters = mockRecruitersDb.get(resumeId) || [];
+    // Get real data from Firestore
+    const [analytics, viewEvents, heatmaps, recruiters] = await Promise.all([
+      getAnalyticsFromFirestore(resumeId, userId),
+      getViewEvents(resumeId),
+      getHeatmaps(resumeId),
+      getRecruiterEngagement(resumeId),
+    ]);
 
     if (!analytics) {
       return NextResponse.json(
@@ -139,23 +211,30 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Create benchmark (mock)
-    const benchmark: IndustryBenchmark = {
-      industry: "Technology",
-      avgAttractivenessScore: 62,
-      avgViewCount: 45,
-      avgDownloadCount: 12,
-      topSkills: ["TypeScript", "React", "Node.js", "AWS", "MongoDB"],
-      benchmarkDate: new Date(),
-    };
+    // Get benchmark data
+    const benchmark = await getIndustryBenchmark("Technology");
+
+    // If no heatmaps exist, generate from view events
+    const finalHeatmaps =
+      heatmaps.length > 0
+        ? heatmaps
+        : AnalyticsService.generateHeatmap(viewEvents, resumeId, [
+            "summary",
+            "experience",
+            "skills",
+            "education",
+            "projects",
+          ]);
 
     // Aggregate to dashboard
     const dashboard = AnalyticsService.aggregateToDashboard(
       analytics,
-      heatmaps,
+      finalHeatmaps,
       recruiters,
       benchmark
     );
+
+    logger.info({ resumeId, userId }, "Analytics dashboard retrieved");
 
     return NextResponse.json({
       success: true,
@@ -164,6 +243,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
+    logger.error({ err: error }, "Analytics dashboard error");
     return NextResponse.json({ success: false, message }, { status: 500 });
   }
 }
@@ -183,9 +263,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    initializeMockData(resumeId, userId);
-
-    const analytics = mockAnalyticsDb.get(resumeId);
+    const analytics = await getAnalyticsFromFirestore(resumeId, userId);
 
     return NextResponse.json({
       success: true,
@@ -194,6 +272,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
+    logger.error({ err: error }, "Analytics GET error");
     return NextResponse.json({ success: false, message }, { status: 500 });
   }
 }

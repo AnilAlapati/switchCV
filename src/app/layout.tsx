@@ -6,6 +6,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { ConnectivityStatusProvider } from "@/context/ConnectivityStatusProvider";
 import { Footer } from "@/components/layout/Footer";
 import { DevModeBanner } from "@/components/dev/DevModeBanner";
+import { SWRProvider } from "@/components/providers/SWRProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,11 +37,13 @@ export default function RootLayout({
       >
         <ConnectivityStatusProvider>
           <AuthProvider>
-            <div className="flex min-h-screen flex-col">
-              <div className="flex-1">{children}</div>
-              <Footer />
-            </div>
-            <DevModeBanner />
+            <SWRProvider>
+              <div className="flex min-h-screen flex-col">
+                <div className="flex-1">{children}</div>
+                <Footer />
+              </div>
+              <DevModeBanner />
+            </SWRProvider>
           </AuthProvider>
         </ConnectivityStatusProvider>
       </body>

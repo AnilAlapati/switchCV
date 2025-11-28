@@ -23,6 +23,7 @@ import {
   normalizeDuration,
 } from "@/lib/accessDuration";
 import { logger } from "@/lib/logger";
+import { updateRecruiterAccessMetric } from "@/lib/services/metricsService";
 
 interface RequestAccessPayload {
   resumeId: string;
@@ -197,6 +198,9 @@ export async function POST(request: NextRequest) {
     const requestRef = await accessRequestsCollection.add(accessRequest);
 
     logger.info({ requestId: requestRef.id }, "Access request created");
+
+    // Update Recruiter Metrics
+    await updateRecruiterAccessMetric(currentUserId, "pending", 1);
 
     // Update job seeker metrics
     await adminDb

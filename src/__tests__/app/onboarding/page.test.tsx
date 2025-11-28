@@ -15,9 +15,17 @@ jest.mock("@/hooks/useAuth", () => ({
 }));
 
 // Mock Next.js router
-const mockRouter = { push: jest.fn() };
+const mockRouter = { push: jest.fn(), replace: jest.fn() };
 jest.mock("next/navigation", () => ({
   useRouter: () => mockRouter,
+}));
+
+// Mock firebase/firestore
+jest.mock("firebase/firestore", () => ({
+  getFirestore: jest.fn(),
+  doc: jest.fn(),
+  setDoc: jest.fn().mockResolvedValue(undefined),
+  serverTimestamp: jest.fn(),
 }));
 
 describe("Onboarding", () => {
@@ -246,7 +254,7 @@ describe("Onboarding", () => {
     expect(screen.getByText(/Step 7 of 7/)).toBeInTheDocument();
   });
 
-  it("should submit and navigate to dashboard", () => {
+  it("should submit and navigate to dashboard", async () => {
     render(<Onboarding />);
 
     // Navigate to final step
@@ -263,6 +271,8 @@ describe("Onboarding", () => {
 
     fireEvent.click(submitButton);
 
-    expect(mockRouter.push).toHaveBeenCalledWith("/dashboard");
+    await waitFor(() => {
+      expect(mockRouter.push).toHaveBeenCalledWith("/dashboard");
+    });
   });
 });
