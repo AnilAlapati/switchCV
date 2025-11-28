@@ -8,24 +8,22 @@ import {
 import { z } from "zod";
 
 // Define validation schemas
+// SECURITY: subscriptionTier and isRecruiter are NOT accepted from clients
+// These must be set server-side via admin operations or payment webhooks
 const userProfileSchema = z.object({
   uid: z.string().min(1, "UID is required"),
   email: z.string().email("Invalid email address"),
   displayName: z.string().optional(),
-  isRecruiter: z.boolean().optional().default(false),
   companyName: z.string().optional(),
-  subscriptionTier: z
-    .enum(["basic", "premium", "enterprise"])
-    .optional()
-    .default("basic"),
+  // isRecruiter and subscriptionTier intentionally omitted - server-controlled
 });
 
+// SECURITY: Update schema excludes tier/role fields - only admin can change these
 const updateProfileSchema = z.object({
   uid: z.string().min(1, "UID is required"),
   displayName: z.string().optional(),
-  isRecruiter: z.boolean().optional(),
   companyName: z.string().optional(),
-  subscriptionTier: z.enum(["basic", "premium", "enterprise"]).optional(),
+  // isRecruiter and subscriptionTier intentionally omitted - server-controlled
 });
 
 interface UserProfile {
@@ -111,14 +109,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const {
-      uid,
-      email,
-      displayName,
-      isRecruiter,
-      companyName,
-      subscriptionTier,
-    } = validationResult.data;
+    const { uid, email, displayName, companyName } = validationResult.data;
 
     // Users can only create profiles for themselves
     if (userId !== uid) {
@@ -130,13 +121,15 @@ export async function POST(request: NextRequest) {
     }
 
     const now = new Date().toISOString();
+    // SECURITY: isRecruiter and subscriptionTier are server-controlled
+    // New users always start as basic jobseekers
     const userProfileData: UserProfile = {
       uid,
       email,
       displayName: displayName || "",
-      isRecruiter: isRecruiter,
+      isRecruiter: false, // Server-controlled: set via admin or recruiter verification
       companyName: companyName || "",
-      subscriptionTier: subscriptionTier,
+      subscriptionTier: "basic", // Server-controlled: set via payment webhooks
       createdAt: now,
       updatedAt: now,
     };
@@ -186,8 +179,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const { uid, displayName, isRecruiter, companyName, subscriptionTier } =
-      validationResult.data;
+    const { uid, displayName, companyName } = validationResult.data;
 
     // Users can only update their own profile
     if (userId !== uid) {
@@ -198,15 +190,16 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    // SECURITY: Users can only update display name and company name
+    // isRecruiter and subscriptionTier are server-controlled
     const updateData: Partial<UserProfile> = {
       updatedAt: new Date().toISOString(),
     };
 
     if (displayName !== undefined) updateData.displayName = displayName;
-    if (isRecruiter !== undefined) updateData.isRecruiter = isRecruiter;
     if (companyName !== undefined) updateData.companyName = companyName;
-    if (subscriptionTier !== undefined)
-      updateData.subscriptionTier = subscriptionTier;
+    // NOTE: isRecruiter and subscriptionTier intentionally not updated from client
+    // Use /api/admin/update-user-tier or payment webhooks for these fields
 
     await adminDb.collection("users").doc(uid).set(updateData, { merge: true });
 
