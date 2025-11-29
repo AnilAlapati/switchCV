@@ -271,8 +271,7 @@ describe("POST /api/resume/delete", () => {
     expect(data.error).toBe("Unauthorized");
   });
 
-  it("should delete from nested collection if numericId exists", async () => {
-    // Mock finding resume in 'resumes' collection
+  it("should delete from the primary collection and recycle numeric IDs", async () => {
     mockGet.mockResolvedValueOnce({
       exists: true,
       data: () => ({ userId: mockUserId, numericId: Number(mockResumeId) }),
@@ -282,21 +281,17 @@ describe("POST /api/resume/delete", () => {
       { resumeId: mockResumeId },
       `Bearer ${mockToken}`
     );
-    await POST(req);
+    const res = await POST(req);
+    const payload = await res.json();
 
-    // Verify nested delete
-    // db.collection("resumes").doc(userId).collection("resumes").doc(String(numericId)).delete()
-    // My mock structure:
-    // collection("resumes") -> doc(userId) -> collection("resumes") -> doc(numericId) -> delete()
-
-    // Check if the chain was called
-    // The first call to collection("resumes") is for the main delete check
-    // The second call is for the nested delete
-
-    // Since I'm using the same mock objects, I can check if they were called with specific args
+    expect(res.status).toBe(200);
+    expect(payload.success).toBe(true);
     expect(mockCollection).toHaveBeenCalledWith("resumes");
-    expect(mockDoc).toHaveBeenCalledWith(mockUserId);
     expect(mockDoc).toHaveBeenCalledWith(mockResumeId);
+    expect(mockDelete).toHaveBeenCalled();
+    expect(recyclerModule.addDeletedIdToPool).toHaveBeenCalledWith(
+      Number(mockResumeId)
+    );
   });
 
   it("should handle error when recycling ID", async () => {

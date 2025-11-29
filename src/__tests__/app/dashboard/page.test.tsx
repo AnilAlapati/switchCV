@@ -5,6 +5,7 @@ import { useResume } from "@/hooks/useResume";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
 import { useRouter } from "next/navigation";
+import { getVerificationRoute } from "@/lib/config";
 
 // Mock hooks
 jest.mock("@/hooks/useAuth");
@@ -37,6 +38,7 @@ jest.mock("@/context/DashboardMetricsContext", () => ({
 }));
 
 describe("Dashboard", () => {
+  const VERIFICATION_ROUTE = getVerificationRoute();
   const mockLogout = jest.fn();
   const mockPush = jest.fn();
   const mockReplace = jest.fn();
@@ -113,7 +115,7 @@ describe("Dashboard", () => {
     });
 
     render(<Dashboard />);
-    expect(mockPush).toHaveBeenCalledWith("/auth?mode=verify-email");
+    expect(mockPush).toHaveBeenCalledWith(VERIFICATION_ROUTE);
   });
 
   it("redirects to auth if email verification needed", () => {
@@ -124,7 +126,7 @@ describe("Dashboard", () => {
     });
 
     render(<Dashboard />);
-    expect(mockPush).toHaveBeenCalledWith("/auth?mode=verify-email");
+    expect(mockPush).toHaveBeenCalledWith(VERIFICATION_ROUTE);
   });
 
   it("renders job seeker dashboard by default", async () => {

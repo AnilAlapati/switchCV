@@ -221,48 +221,7 @@ export async function POST(
       { merge: true }
     );
 
-    try {
-      await adminDb
-        .collection("users")
-        .doc(ownerId)
-        .collection("resumes")
-        .doc(id)
-        .set(
-          {
-            ...sanitizedUpdate,
-            updatedAt: timestamp,
-            lastUpdatedAt: timestamp,
-            userId: ownerId,
-            numericId: resumeData.numericId,
-            isPublic: resumeData.isPublic,
-            visibility: resumeData.visibility,
-          },
-          { merge: true }
-        );
-    } catch (subError) {
-      logger.error(
-        { err: subError },
-        "Failed to update user resume subcollection:"
-      );
-    }
-
-    try {
-      await adminDb
-        .collection("allResumes")
-        .doc(id)
-        .set(
-          {
-            title: sanitizedUpdate.title ?? resumeData.title,
-            updatedAt: timestamp,
-            userId: ownerId,
-            numericId: resumeData.numericId,
-            isPublic: resumeData.isPublic,
-          },
-          { merge: true }
-        );
-    } catch (globalError) {
-      logger.error({ err: globalError }, "Failed to update allResumes index:");
-    }
+    // Fan-out Cloud Function keeps user + global indexes in sync.
 
     const updatedResume = {
       ...resumeData,

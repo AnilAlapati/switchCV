@@ -35,6 +35,7 @@ import {
   getSignUpErrorMessage,
   getGoogleSignInErrorMessage,
 } from "./useAuth.errors";
+import { getVerificationUrl } from "@/lib/config";
 
 const googleProvider =
   typeof window !== "undefined" ? new GoogleAuthProvider() : null;
@@ -50,12 +51,12 @@ const getActionCodeSettings = () => {
   const origin = window.location.origin;
   const isLocalhost = /^(http:\/\/)?(localhost|127\.0\.0\.1)/.test(origin);
 
-  if (isLocalhost) {
+  if (isLocalhost && !process.env.NEXT_PUBLIC_AUTH_VERIFICATION_URL) {
     return undefined;
   }
 
   return {
-    url: `${origin}/auth?mode=verify-email`,
+    url: getVerificationUrl(origin),
     handleCodeInApp: true,
   };
 };

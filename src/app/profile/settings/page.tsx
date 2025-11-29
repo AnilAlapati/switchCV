@@ -11,6 +11,9 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { AccountInformation } from "@/components/settings/AccountInformation";
 import { ProfileDetails } from "@/components/settings/ProfileDetails";
 import { Notification } from "@/components/settings/Notification";
+import { getVerificationRoute } from "@/lib/config";
+
+const VERIFICATION_ROUTE = getVerificationRoute();
 
 interface UserSettings {
   isRecruiter: boolean;
@@ -77,7 +80,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (!authLoading && (!user || needsEmailVerification)) {
-      router.push("/auth?mode=verify-email");
+      router.push(VERIFICATION_ROUTE);
       return;
     }
 

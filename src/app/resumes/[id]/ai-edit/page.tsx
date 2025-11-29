@@ -11,6 +11,9 @@ import { ResumeEditChatStatus } from "@/components/resume/ResumeEditChatStatus";
 import Link from "next/link";
 import { ResumeEditMessageList } from "@/components/resume/ResumeEditMessageList";
 import { ResumeSnapshotCard } from "@/components/resume/ResumeSnapshotCard";
+import { getVerificationRoute } from "@/lib/config";
+
+const VERIFICATION_ROUTE = getVerificationRoute();
 
 interface Message {
   id: string;
@@ -53,7 +56,7 @@ export default function ResumeAIEditPage() {
 
   useEffect(() => {
     if (!loading && (!user || needsEmailVerification)) {
-      router.push("/auth?mode=verify-email");
+      router.push(VERIFICATION_ROUTE);
     }
   }, [loading, user, needsEmailVerification, router]);
 

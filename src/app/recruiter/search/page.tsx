@@ -10,8 +10,11 @@ import { SmartSearch } from "@/components/search/SmartSearch";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useRouter } from "next/navigation";
+import { getVerificationRoute } from "@/lib/config";
 
 type SearchMode = "ai" | "basic";
+
+const VERIFICATION_ROUTE = getVerificationRoute();
 
 export default function RecruiterSearchPage() {
   const { user, loading: authLoading, needsEmailVerification } = useAuth();
@@ -27,7 +30,7 @@ export default function RecruiterSearchPage() {
   useEffect(() => {
     if (!loading) {
       if (!user || needsEmailVerification) {
-        router.replace("/auth?mode=verify-email");
+        router.replace(VERIFICATION_ROUTE);
       } else if (!role) {
         router.replace("/select-role");
       } else if (role !== "recruiter" && role !== "admin") {

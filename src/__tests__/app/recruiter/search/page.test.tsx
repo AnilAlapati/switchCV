@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import RecruiterSearchPage from "@/app/recruiter/search/page";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
+import { getVerificationRoute } from "@/lib/config";
 
 jest.mock("@/hooks/useAuth");
 jest.mock("next/navigation", () => ({
@@ -31,6 +32,7 @@ jest.mock("@/components/search/SmartSearch", () => ({
 
 describe("RecruiterSearchPage", () => {
   const mockRouter = { replace: jest.fn() };
+  const VERIFICATION_ROUTE = getVerificationRoute();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -48,7 +50,7 @@ describe("RecruiterSearchPage", () => {
     (useAuth as jest.Mock).mockReturnValue({ user: null, loading: false });
     render(<RecruiterSearchPage />);
     expect(screen.getByText("Redirecting to sign in…")).toBeInTheDocument();
-    expect(mockRouter.replace).toHaveBeenCalledWith("/auth?mode=verify-email");
+    expect(mockRouter.replace).toHaveBeenCalledWith(VERIFICATION_ROUTE);
   });
 
   it("should render AI search by default when authenticated", () => {

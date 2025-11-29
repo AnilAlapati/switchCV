@@ -6,26 +6,31 @@ import {
   deleteResumeIdMapping,
 } from "@/lib/resumeIdMapping";
 import { adminDb } from "@/lib/firebase-admin";
+import { generateNumericResumeId } from "@/lib/numericIdGenerator";
 
 // Mock firebase-admin
 jest.mock("@/lib/firebase-admin", () => ({
   adminDb: {
     collection: jest.fn(),
-    runTransaction: jest.fn(),
   },
+}));
+
+jest.mock("@/lib/numericIdGenerator", () => ({
+  generateNumericResumeId: jest.fn(),
 }));
 
 describe("resumeIdMapping", () => {
   const mockCollection = adminDb.collection as jest.Mock;
-  const mockRunTransaction = adminDb.runTransaction as jest.Mock;
+  const mockGenerateNumericResumeId =
+    generateNumericResumeId as jest.MockedFunction<
+      typeof generateNumericResumeId
+    >;
   const mockDoc = jest.fn();
   const mockGet = jest.fn();
   const mockSet = jest.fn();
   const mockDelete = jest.fn();
   const mockWhere = jest.fn();
   const mockLimit = jest.fn();
-  const mockTransactionGet = jest.fn();
-  const mockTransactionSet = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -44,47 +49,23 @@ describe("resumeIdMapping", () => {
     mockLimit.mockReturnValue({
       get: mockGet,
     });
-
-    // Mock runTransaction to execute the callback with transaction mock
-    mockRunTransaction.mockImplementation(async (callback) => {
-      const transaction = {
-        get: mockTransactionGet,
-        set: mockTransactionSet,
-      };
-      return callback(transaction);
-    });
+    mockGenerateNumericResumeId.mockReset();
   });
 
   describe("getNextResumeId", () => {
-    it("should return 1 if counter does not exist", async () => {
-      mockTransactionGet.mockResolvedValue({ exists: false });
+    it("delegates to the numeric ID generator", async () => {
+      mockGenerateNumericResumeId.mockResolvedValue(4321);
 
       const id = await getNextResumeId();
 
-      expect(id).toBe(1);
-      expect(mockTransactionSet).toHaveBeenCalled();
+      expect(id).toBe(4321);
+      expect(mockGenerateNumericResumeId).toHaveBeenCalledTimes(1);
     });
 
-    it("should increment existing counter atomically", async () => {
-      mockTransactionGet.mockResolvedValue({
-        exists: true,
-        data: () => ({ nextId: 5 }),
-      });
+    it("propagates generator failures", async () => {
+      mockGenerateNumericResumeId.mockRejectedValue(new Error("boom"));
 
-      const id = await getNextResumeId();
-
-      expect(id).toBe(6);
-      // Should use transaction for atomic update
-      expect(mockRunTransaction).toHaveBeenCalled();
-      expect(mockTransactionSet).toHaveBeenCalled();
-    });
-
-    it("should use Firestore transaction for atomicity", async () => {
-      mockTransactionGet.mockResolvedValue({ exists: false });
-
-      await getNextResumeId();
-
-      expect(adminDb.runTransaction).toHaveBeenCalled();
+      await expect(getNextResumeId()).rejects.toThrow("boom");
     });
   });
 

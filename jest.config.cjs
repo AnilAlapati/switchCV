@@ -6,6 +6,7 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': path.resolve(__dirname, 'src/$1'),
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
+    'server-only': path.resolve(__dirname, 'test/mocks/server-only.ts'),
   },
   collectCoverageFrom: ['src/**/*.{js,jsx,ts,tsx}', '!src/**/*.d.ts'],
   testMatch: [

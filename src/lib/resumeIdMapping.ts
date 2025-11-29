@@ -1,11 +1,11 @@
 import { adminDb } from "@/lib/firebase-admin";
+import { generateNumericResumeId } from "@/lib/numericIdGenerator";
 
 /**
  * Resume ID Mapping System
  * Maps user-friendly resume IDs (1, 2, 3...) to Firestore document IDs
  *
  * Structure in Firestore:
- * /system/resumeIdCounter (tracks next sequential ID)
  * /resumeIdMapping/{resumeId} -> {documentId, userId, createdAt}
  */
 
@@ -17,25 +17,7 @@ import { adminDb } from "@/lib/firebase-admin";
  * @returns The next available resume ID
  */
 export async function getNextResumeId(): Promise<number> {
-  const counterRef = adminDb.collection("system").doc("resumeIdCounter");
-
-  // Use transaction to atomically read-increment-write
-  // This prevents race conditions in concurrent publish operations
-  const nextId = await adminDb.runTransaction(async (transaction) => {
-    const counterDoc = await transaction.get(counterRef);
-
-    let newId = 1;
-    if (counterDoc.exists) {
-      newId = (counterDoc.data()?.nextId || 0) + 1;
-    }
-
-    // Atomically update the counter
-    transaction.set(counterRef, { nextId: newId }, { merge: true });
-
-    return newId;
-  });
-
-  return nextId;
+  return generateNumericResumeId();
 }
 
 export async function mapResumeId(

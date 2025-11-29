@@ -11,6 +11,9 @@ import { CreateResumeHeader } from "@/components/create-resume/CreateResumeHeade
 import { CreateResumeInputForm } from "@/components/create-resume/CreateResumeInputForm";
 import { AILoadingState } from "@/components/create-resume/AILoadingState";
 import { ResumeProgress } from "@/components/create-resume/ResumeProgress";
+import { getVerificationRoute } from "@/lib/config";
+
+const VERIFICATION_ROUTE = getVerificationRoute();
 
 interface Message {
   id: string;
@@ -68,7 +71,7 @@ export default function CreateResume() {
   useEffect(() => {
     if (!loading) {
       if (!user || needsEmailVerification) {
-        router.push("/auth?mode=verify-email");
+        router.push(VERIFICATION_ROUTE);
       } else if (!role) {
         router.push("/select-role");
       } else if (role !== "jobseeker") {

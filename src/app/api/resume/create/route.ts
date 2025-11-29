@@ -66,24 +66,10 @@ export async function POST(request: NextRequest) {
       status: "draft",
     };
 
-    // 5. Save to Firestore
-    // Using the numeric ID as the document ID for clean URLs
+    // 5. Save to Firestore.
+    // Derived indexes (user + global) are handled by the fan-out Cloud Function
+    // listening to the `resumes/{id}` collection.
     await adminDb.collection("resumes").doc(resumeId).set(resumeData);
-
-    // 6. Update User Profile with a reference
-    // This helps in listing user's resumes without querying the main collection
-    await adminDb
-      .collection("users")
-      .doc(userId)
-      .collection("userResumes")
-      .doc(resumeId)
-      .set({
-        id: resumeId,
-        title: validatedBody.title || "Untitled Resume",
-        createdAt: resumeData.createdAt,
-        updatedAt: resumeData.updatedAt,
-        numericId,
-      });
 
     return NextResponse.json({
       success: true,
