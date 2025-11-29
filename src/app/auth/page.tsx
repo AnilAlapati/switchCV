@@ -228,6 +228,7 @@ function AuthContent() {
           return;
         }
         await signUp(email, password, username);
+        setIsSignUp(false);
       } else {
         await signIn(email, password);
       }
