@@ -1,5 +1,5 @@
 import * as admin from "firebase-admin";
-import * as functions from "firebase-functions";
+import * as functions from "firebase-functions/v1";
 import { config } from ".";
 import { performanceMonitor } from "../utils/monitoring";
 
@@ -12,7 +12,7 @@ export function bootstrap(): void {
 
   // Load Firebase Config into process.env (for Gen 1 functions compatibility)
   try {
-    const firebaseConfig = functions.config();
+    const firebaseConfig = (functions.config as any)();
     if (firebaseConfig.smtp) {
       process.env.SMTP_HOST = firebaseConfig.smtp.host || process.env.SMTP_HOST;
       process.env.SMTP_PORT = firebaseConfig.smtp.port || process.env.SMTP_PORT;

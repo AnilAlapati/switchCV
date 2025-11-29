@@ -30,6 +30,34 @@ class EmailService {
         });
     }
     /**
+     * Send a custom email without using the templating system
+     */
+    async sendCustomEmail(options) {
+        try {
+            const mailOptions = {
+                from: `${this.fromName} <${this.fromEmail}>`,
+                to: options.to,
+                subject: options.subject,
+                html: options.html,
+                text: options.text || options.html.replace(/<[^>]+>/g, ""),
+            };
+            const info = await this.transporter.sendMail(mailOptions);
+            return {
+                success: true,
+                messageId: info.messageId,
+                timestamp: new Date(),
+            };
+        }
+        catch (error) {
+            console.error("Custom email sending failed:", error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : "Unknown error",
+                timestamp: new Date(),
+            };
+        }
+    }
+    /**
      * Send email with template
      */
     async sendEmail(options) {

@@ -51,13 +51,31 @@ exports.onUserCreated = functions.auth.user().onCreate(async (user) => {
             .get();
         const userData = userDoc.data();
         // Generate email verification link
-        let verificationLink = `${process.env.WEBSITE_URL}/verify-email`; // Fallback
+        let verificationLink = `${process.env.WEBSITE_URL}/auth?mode=verify-email`; // Fallback to auth page
         if (user.email) {
             try {
-                verificationLink = await admin.auth().generateEmailVerificationLink(user.email);
+                // Try to generate link with redirect to dashboard
+                const actionCodeSettings = {
+                    url: `${process.env.WEBSITE_URL}/dashboard`,
+                    handleCodeInApp: false,
+                };
+                verificationLink = await admin
+                    .auth()
+                    .generateEmailVerificationLink(user.email, actionCodeSettings);
             }
             catch (e) {
-                console.error("Error generating verification link:", e);
+                console.warn("Error generating verification link with redirect, trying without redirect:", e);
+                try {
+                    // Fallback: Try generating link without redirect (standard Firebase handler)
+                    // This handles cases where the domain might not be authorized
+                    verificationLink = await admin
+                        .auth()
+                        .generateEmailVerificationLink(user.email);
+                }
+                catch (e2) {
+                    console.error("Error generating verification link (fallback):", e2);
+                    // verificationLink remains the manual fallback
+                }
             }
         }
         const result = await emailService_1.emailService.sendEmail({
@@ -223,38 +241,67 @@ exports.sendProfileViewDigest = functions.pubsub
     try {
         const oneWeekAgo = new Date();
         oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-        const usersSnapshot = await admin.firestore().collection("users").get();
-        for (const userDoc of usersSnapshot.docs) {
-            const userId = userDoc.id;
-            const userEmail = userDoc.data().email;
-            // Get view count for the user's profiles
-            const viewsSnapshot = await admin
+        const BATCH_SIZE = 100;
+        let lastDoc = null;
+        let processedCount = 0;
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+            let query = admin
                 .firestore()
-                .collectionGroup("views")
-                .where("userId", "==", userId)
-                .where("timestamp", ">=", oneWeekAgo)
-                .get();
-            if (viewsSnapshot.size > 0) {
-                const result = await emailService_1.emailService.sendEmail({
-                    to: userEmail,
-                    template: "profileViewed",
-                    data: {
-                        viewCount: viewsSnapshot.size,
-                        dashboardUrl: `${process.env.WEBSITE_URL}/dashboard/analytics`,
-                    },
-                });
-                if (result.success) {
-                    await auditLogger_1.auditLogger.log({
-                        userId,
-                        userEmail,
-                        action: auditLogger_1.AuditAction.EMAIL_SENT,
-                        resourceType: auditLogger_1.ResourceType.EMAIL,
-                        resourceId: userId,
-                        details: "Weekly profile view digest sent",
-                        status: "success",
-                    });
-                }
+                .collection("users")
+                .orderBy(admin.firestore.FieldPath.documentId())
+                .limit(BATCH_SIZE);
+            if (lastDoc) {
+                query = query.startAfter(lastDoc);
             }
+            const usersSnapshot = await query.get();
+            if (usersSnapshot.empty) {
+                break;
+            }
+            // Process batch in parallel with concurrency limit
+            const promises = usersSnapshot.docs.map(async (userDoc) => {
+                const userId = userDoc.id;
+                const userEmail = userDoc.data().email;
+                if (!userEmail)
+                    return;
+                // Get view count for the user's profiles
+                const viewsSnapshot = await admin
+                    .firestore()
+                    .collectionGroup("views")
+                    .where("userId", "==", userId)
+                    .where("timestamp", ">=", oneWeekAgo)
+                    .count()
+                    .get();
+                const viewCount = viewsSnapshot.data().count;
+                if (viewCount > 0) {
+                    const result = await emailService_1.emailService.sendEmail({
+                        to: userEmail,
+                        template: "profileViewed",
+                        data: {
+                            viewCount,
+                            dashboardUrl: `${process.env.WEBSITE_URL}/dashboard/analytics`,
+                        },
+                    });
+                    if (result.success) {
+                        await auditLogger_1.auditLogger.log({
+                            userId,
+                            userEmail,
+                            action: auditLogger_1.AuditAction.EMAIL_SENT,
+                            resourceType: auditLogger_1.ResourceType.EMAIL,
+                            resourceId: userId,
+                            details: "Weekly profile view digest sent",
+                            status: "success",
+                        });
+                    }
+                }
+            });
+            await Promise.all(promises);
+            processedCount += usersSnapshot.size;
+            lastDoc = usersSnapshot.docs[usersSnapshot.docs.length - 1];
+            // Safety check for execution time (Cloud Functions timeout)
+            // If we're running close to timeout (e.g. 60s default), we should probably stop or use Cloud Tasks
+            // For now, we just log progress
+            console.log(`Processed ${processedCount} users for digest`);
         }
         console.log("Weekly profile view digest sent");
     }

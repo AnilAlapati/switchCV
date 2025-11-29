@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onUserRoleChanged = exports.getSearchQuota = exports.searchResumesAI = exports.reindexResume = exports.indexResumeOnWrite = exports.cleanupAuditLogs = exports.notifyAdminSuspiciousActivity = exports.sendProfileViewDigest = exports.onRecruiterRequestApproved = exports.onRecruiterRequestCreated = exports.onUserCreated = exports.cleanupExpiredResumes = exports.cleanupRecruiterSearchHistory = exports.cleanupAnalyticsEvents = exports.aggregateAnalyticsDaily = exports.generateJobMatchSuggestions = exports.generateResumeContent = exports.aggregateGlobalStats = void 0;
+exports.onUserRoleChanged = exports.getSearchQuota = exports.searchResumesAI = exports.reindexResume = exports.indexResumeOnWrite = exports.cleanupAuditLogs = exports.notifyAdminSuspiciousActivity = exports.sendProfileViewDigest = exports.onRecruiterRequestApproved = exports.onRecruiterRequestCreated = exports.onUserCreated = exports.cleanupRateLimits = exports.cleanupExpiredResumes = exports.cleanupRecruiterSearchHistory = exports.cleanupAnalyticsEvents = exports.aggregateAnalyticsDaily = exports.generateJobMatchSuggestions = exports.generateResumeContent = exports.aggregateGlobalStats = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 require("./config/bootstrap");
 const resumeService_1 = require("./resumeService");
@@ -60,6 +60,8 @@ if (!GEMINI_API_KEY) {
         feature: "gemini",
     });
 }
+var rateLimitCleanupService_1 = require("./rateLimitCleanupService");
+Object.defineProperty(exports, "cleanupRateLimits", { enumerable: true, get: function () { return rateLimitCleanupService_1.cleanupRateLimits; } });
 // ==================== EMAIL AND AUDIT FUNCTIONS ====================
 var emailFunctions_1 = require("./emailFunctions");
 Object.defineProperty(exports, "onUserCreated", { enumerable: true, get: function () { return emailFunctions_1.onUserCreated; } });
