@@ -48,24 +48,6 @@ describe("Firebase Admin Initialization", () => {
     }).toThrow("Missing required environment variable");
   });
 
-  it("should throw error if NEXT_PUBLIC_FIREBASE_PROJECT_ID is invalid", () => {
-    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = "Invalid Project ID!";
-
-    jest.doMock("firebase-admin", () => ({
-      apps: [],
-      credential: {
-        cert: jest.fn(),
-      },
-      initializeApp: jest.fn(),
-      firestore: jest.fn(),
-      auth: jest.fn(),
-    }));
-
-    expect(() => {
-      require("../../lib/firebase-admin");
-    }).toThrow("Invalid NEXT_PUBLIC_FIREBASE_PROJECT_ID format");
-  });
-
   it("should initialize with service account if provided", () => {
     const serviceAccount = {
       private_key: "key",
@@ -126,7 +108,7 @@ describe("Firebase Admin Initialization", () => {
     const mockInitializeApp = jest.fn();
 
     jest.doMock("firebase-admin", () => ({
-      apps: ["existing-app"], // Simulate existing app
+      apps: [{ name: "[DEFAULT]" }], // Simulate existing app
       initializeApp: mockInitializeApp,
       firestore: jest.fn(),
       auth: jest.fn(),

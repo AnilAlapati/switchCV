@@ -29,19 +29,23 @@
     "release": "node scripts/increment-version.js"
   },
   "dependencies": {
+    "@sentry/nextjs": "^10.27.0",
     "firebase": "^12.5.0",
     "firebase-admin": "^13.6.0",
     "firebase-tools": "^14.24.1",
+    "k6": "^0.0.0",
     "next": "16.0.1",
     "nodemailer": "^7.0.11",
     "pino": "^10.1.0",
     "pino-pretty": "^13.1.2",
+    "posthog-js": "^1.298.1",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "swr": "^2.3.6",
     "zod": "^4.1.13"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.0",
     "@playwright/test": "^1.57.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",

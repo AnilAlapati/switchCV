@@ -13,7 +13,9 @@ test.describe("Full Signup and Resume Creation Flow", () => {
   });
 
   // Skipped due to insufficient permissions in key.json to verify user email via Admin SDK
-  test.skip("should allow a user to sign up, verify email, select role, and create a resume", async ({ page }) => {
+  test.skip("should allow a user to sign up, verify email, select role, and create a resume", async ({
+    page,
+  }) => {
     // 1. Navigate to Auth Page
     await page.goto("/auth");
     await expect(page.locator("text=Welcome Back")).toBeVisible();
@@ -28,7 +30,9 @@ test.describe("Full Signup and Resume Creation Flow", () => {
     await page.fill('input[name="username"]', username);
 
     // Wait for username availability check
-    await expect(page.locator("text=Username is available")).toBeVisible({ timeout: 10000 });
+    await expect(page.locator("text=Username is available")).toBeVisible({
+      timeout: 10000,
+    });
 
     // 4. Submit
     await page.click('button[type="submit"]:has-text("Create Account")');
@@ -67,15 +71,21 @@ test.describe("Full Signup and Resume Creation Flow", () => {
     // Assuming there's a textarea for "paste resume" or similar
     const textArea = page.locator("textarea").first();
     await expect(textArea).toBeVisible();
-    await textArea.fill("I am a software engineer with experience in React and Node.js.");
+    await textArea.fill(
+      "I am a software engineer with experience in React and Node.js."
+    );
 
     // 13. Submit/Generate
-    const generateButton = page.locator("button:has-text('Generate'), button:has-text('Next')").first();
+    const generateButton = page
+      .locator("button:has-text('Generate'), button:has-text('Next')")
+      .first();
     await generateButton.click();
 
     // 14. Verify Result (e.g., redirected to view resume or success message)
     // This depends on the exact flow, but we expect *some* change or success
     // For now, just checking we don't crash is a good start, or check for "Generating"
-    await expect(page.locator("text=Generating").or(page.locator("text=Success"))).toBeVisible({ timeout: 10000 });
+    await expect(
+      page.locator("text=Generating").or(page.locator("text=Success"))
+    ).toBeVisible({ timeout: 10000 });
   });
 });

@@ -100,6 +100,9 @@ async function verifyIdTokenCached(
   const now = Date.now();
 
   if (cached && cached.expiresAt > now) {
+    // LRU: Move to end (mark as recently used)
+    tokenCache.delete(cacheKey);
+    tokenCache.set(cacheKey, cached);
     return cached.decoded;
   }
 
@@ -109,7 +112,14 @@ async function verifyIdTokenCached(
     decoded.exp ? decoded.exp * 1000 : now + TOKEN_CACHE_TTL_MS
   );
 
+  // Remove if exists to update position
+  if (tokenCache.has(cacheKey)) {
+    tokenCache.delete(cacheKey);
+  }
+
   tokenCache.set(cacheKey, { decoded, expiresAt });
+
+  // Evict oldest if over limit
   if (tokenCache.size > MAX_CACHE_ENTRIES) {
     const oldestKey = tokenCache.keys().next().value;
     if (oldestKey) {

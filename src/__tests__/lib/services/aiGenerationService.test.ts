@@ -1,6 +1,10 @@
 // Mock global fetch
 global.fetch = jest.fn();
 
+jest.mock("@/lib/utils/retry", () => ({
+  withRetry: jest.fn((fn) => fn()),
+}));
+
 describe("aiGenerationService", () => {
   const originalEnv = process.env;
   let generateText: any;

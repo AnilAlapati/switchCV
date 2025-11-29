@@ -256,42 +256,79 @@ export const sendProfileViewDigest = functions.pubsub
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
-      const usersSnapshot = await admin.firestore().collection("users").get();
+      const BATCH_SIZE = 100;
+      let lastDoc: admin.firestore.QueryDocumentSnapshot | null = null;
+      let processedCount = 0;
 
-      for (const userDoc of usersSnapshot.docs) {
-        const userId = userDoc.id;
-        const userEmail = userDoc.data().email;
-
-        // Get view count for the user's profiles
-        const viewsSnapshot = await admin
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        let query = admin
           .firestore()
-          .collectionGroup("views")
-          .where("userId", "==", userId)
-          .where("timestamp", ">=", oneWeekAgo)
-          .get();
+          .collection("users")
+          .orderBy(admin.firestore.FieldPath.documentId())
+          .limit(BATCH_SIZE);
 
-        if (viewsSnapshot.size > 0) {
-          const result = await emailService.sendEmail({
-            to: userEmail,
-            template: "profileViewed" as any,
-            data: {
-              viewCount: viewsSnapshot.size,
-              dashboardUrl: `${process.env.WEBSITE_URL}/dashboard/analytics`,
-            },
-          });
-
-          if (result.success) {
-            await auditLogger.log({
-              userId,
-              userEmail,
-              action: AuditAction.EMAIL_SENT,
-              resourceType: ResourceType.EMAIL,
-              resourceId: userId,
-              details: "Weekly profile view digest sent",
-              status: "success",
-            });
-          }
+        if (lastDoc) {
+          query = query.startAfter(lastDoc);
         }
+
+        const usersSnapshot = await query.get();
+
+        if (usersSnapshot.empty) {
+          break;
+        }
+
+        // Process batch in parallel with concurrency limit
+        const promises = usersSnapshot.docs.map(async (userDoc) => {
+          const userId = userDoc.id;
+          const userEmail = userDoc.data().email;
+
+          if (!userEmail) return;
+
+          // Get view count for the user's profiles
+          const viewsSnapshot = await admin
+            .firestore()
+            .collectionGroup("views")
+            .where("userId", "==", userId)
+            .where("timestamp", ">=", oneWeekAgo)
+            .count()
+            .get();
+
+          const viewCount = viewsSnapshot.data().count;
+
+          if (viewCount > 0) {
+            const result = await emailService.sendEmail({
+              to: userEmail,
+              template: "profileViewed" as any,
+              data: {
+                viewCount,
+                dashboardUrl: `${process.env.WEBSITE_URL}/dashboard/analytics`,
+              },
+            });
+
+            if (result.success) {
+              await auditLogger.log({
+                userId,
+                userEmail,
+                action: AuditAction.EMAIL_SENT,
+                resourceType: ResourceType.EMAIL,
+                resourceId: userId,
+                details: "Weekly profile view digest sent",
+                status: "success",
+              });
+            }
+          }
+        });
+
+        await Promise.all(promises);
+
+        processedCount += usersSnapshot.size;
+        lastDoc = usersSnapshot.docs[usersSnapshot.docs.length - 1];
+
+        // Safety check for execution time (Cloud Functions timeout)
+        // If we're running close to timeout (e.g. 60s default), we should probably stop or use Cloud Tasks
+        // For now, we just log progress
+        console.log(`Processed ${processedCount} users for digest`);
       }
 
       console.log("Weekly profile view digest sent");

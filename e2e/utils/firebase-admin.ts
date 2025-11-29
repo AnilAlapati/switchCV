@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
-import * as admin from 'firebase-admin';
-import * as fs from 'fs';
-import * as path from 'path';
+import * as admin from "firebase-admin";
+import * as fs from "fs";
+import * as path from "path";
 
 // Initialize Firebase Admin if not already initialized
 export function initFirebaseAdmin() {
@@ -9,22 +9,22 @@ export function initFirebaseAdmin() {
     return admin.app();
   }
 
-  const keyPath = path.join(process.cwd(), 'key.json');
-  
+  const keyPath = path.join(process.cwd(), "key.json");
+
   if (!fs.existsSync(keyPath)) {
-    console.warn('key.json not found. Admin operations will fail.');
+    console.warn("key.json not found. Admin operations will fail.");
     return null;
   }
 
   try {
-    const serviceAccount = JSON.parse(fs.readFileSync(keyPath, 'utf8'));
-    
+    const serviceAccount = JSON.parse(fs.readFileSync(keyPath, "utf8"));
+
     return admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
-      projectId: 'switchcv-dev' // Assuming this from logs, or get from serviceAccount
+      projectId: "switchcv-dev", // Assuming this from logs, or get from serviceAccount
     });
   } catch (error) {
-    console.error('Failed to initialize Firebase Admin:', error);
+    console.error("Failed to initialize Firebase Admin:", error);
     return null;
   }
 }
@@ -36,7 +36,7 @@ export async function verifyUserEmail(email: string) {
   try {
     const user = await app.auth().getUserByEmail(email);
     await app.auth().updateUser(user.uid, {
-      emailVerified: true
+      emailVerified: true,
     });
     return true;
   } catch (error) {

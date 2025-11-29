@@ -20,7 +20,9 @@ jest.mock("@/lib/firebase-admin", () => ({
         })),
       })),
       get: jest.fn(),
+      add: jest.fn(),
     })),
+    getAll: jest.fn(),
   },
 }));
 
@@ -44,6 +46,17 @@ jest.mock("@/lib/utils/api-helpers", () => {
     getClientIp: jest.fn(),
   };
 });
+
+jest.mock("@/lib/utils/distributedRateLimit", () => ({
+  createDistributedRateLimiter: jest.fn(() =>
+    jest.fn().mockResolvedValue({
+      allowed: true,
+      limit: 30,
+      remaining: 29,
+      resetIn: 1000,
+    })
+  ),
+}));
 
 import { adminDb } from "@/lib/firebase-admin";
 import { getDocumentIdFromResumeId } from "@/lib/resumeIdMapping";
@@ -70,10 +83,14 @@ const mockApplyRateLimit = applyRateLimit as jest.MockedFunction<
 const mockGetClientIp = getClientIp as jest.MockedFunction<typeof getClientIp>;
 
 // Helper to create mock document snapshots
-const createMockDocSnapshot = (exists: boolean, data?: any) => ({
+const createMockDocSnapshot = (
+  exists: boolean,
+  data?: any,
+  id: string = "mock-doc-id"
+) => ({
   exists,
   data: () => data,
-  id: exists ? "mock-doc-id" : "",
+  id: exists ? id : "",
 });
 
 const createMockQuerySnapshot = (docs: any[]) => ({
@@ -222,6 +239,21 @@ describe("POST /api/recruiter/search-resumes", () => {
               set: jest.fn().mockResolvedValue(undefined),
             })),
           } as any;
+        } else if (collectionName === "recruiterAccess") {
+          return {
+            where: jest.fn(() => ({
+              get: jest.fn().mockResolvedValue({
+                docs: [],
+                empty: true,
+                size: 0,
+                forEach: jest.fn(),
+              }),
+            })),
+          } as any;
+        } else if (collectionName === "recruiterSearchHistory") {
+          return {
+            add: jest.fn().mockResolvedValue(undefined),
+          } as any;
         }
         return {} as any;
       });
@@ -288,6 +320,21 @@ describe("POST /api/recruiter/search-resumes", () => {
               set: jest.fn().mockResolvedValue(undefined),
             })),
           } as any;
+        } else if (collectionName === "recruiterAccess") {
+          return {
+            where: jest.fn(() => ({
+              get: jest.fn().mockResolvedValue({
+                docs: [],
+                empty: true,
+                size: 0,
+                forEach: jest.fn(),
+              }),
+            })),
+          } as any;
+        } else if (collectionName === "recruiterSearchHistory") {
+          return {
+            add: jest.fn().mockResolvedValue(undefined),
+          } as any;
         }
         return {} as any;
       });
@@ -345,6 +392,21 @@ describe("POST /api/recruiter/search-resumes", () => {
             doc: jest.fn(() => ({
               set: jest.fn().mockResolvedValue(undefined),
             })),
+          } as any;
+        } else if (collectionName === "recruiterAccess") {
+          return {
+            where: jest.fn(() => ({
+              get: jest.fn().mockResolvedValue({
+                docs: [],
+                empty: true,
+                size: 0,
+                forEach: jest.fn(),
+              }),
+            })),
+          } as any;
+        } else if (collectionName === "recruiterSearchHistory") {
+          return {
+            add: jest.fn().mockResolvedValue(undefined),
           } as any;
         }
         return {} as any;
@@ -420,6 +482,21 @@ describe("POST /api/recruiter/search-resumes", () => {
               set: jest.fn().mockResolvedValue(undefined),
             })),
           } as any;
+        } else if (collectionName === "recruiterAccess") {
+          return {
+            where: jest.fn(() => ({
+              get: jest.fn().mockResolvedValue({
+                docs: [],
+                empty: true,
+                size: 0,
+                forEach: jest.fn(),
+              }),
+            })),
+          } as any;
+        } else if (collectionName === "recruiterSearchHistory") {
+          return {
+            add: jest.fn().mockResolvedValue(undefined),
+          } as any;
         }
         return {} as any;
       });
@@ -473,6 +550,21 @@ describe("POST /api/recruiter/search-resumes", () => {
             doc: jest.fn(() => ({
               set: jest.fn().mockResolvedValue(undefined),
             })),
+          } as any;
+        } else if (collectionName === "recruiterAccess") {
+          return {
+            where: jest.fn(() => ({
+              get: jest.fn().mockResolvedValue({
+                docs: [],
+                empty: true,
+                size: 0,
+                forEach: jest.fn(),
+              }),
+            })),
+          } as any;
+        } else if (collectionName === "recruiterSearchHistory") {
+          return {
+            add: jest.fn().mockResolvedValue(undefined),
           } as any;
         }
         return {} as any;
@@ -542,11 +634,17 @@ describe("POST /api/recruiter/search-resumes", () => {
           { name: "TypeScript" },
         ],
       });
-      const userDoc = createMockDocSnapshot(true, {
-        displayName: "Alice Developer",
-        email: "alice@example.com",
-        location: "San Francisco",
-      });
+      const userDoc = createMockDocSnapshot(
+        true,
+        {
+          displayName: "Alice Developer",
+          email: "alice@example.com",
+          location: "San Francisco",
+        },
+        "user-111"
+      );
+
+      mockAdminDb.getAll.mockResolvedValue([userDoc]);
 
       mockAdminDb.collection.mockImplementation((collectionName: string) => {
         if (collectionName === "users") {
@@ -568,6 +666,21 @@ describe("POST /api/recruiter/search-resumes", () => {
             doc: jest.fn(() => ({
               set: jest.fn().mockResolvedValue(undefined),
             })),
+          } as any;
+        } else if (collectionName === "recruiterAccess") {
+          return {
+            where: jest.fn(() => ({
+              get: jest.fn().mockResolvedValue({
+                docs: [],
+                empty: true,
+                size: 0,
+                forEach: jest.fn(),
+              }),
+            })),
+          } as any;
+        } else if (collectionName === "recruiterSearchHistory") {
+          return {
+            add: jest.fn().mockResolvedValue(undefined),
           } as any;
         }
         return {} as any;
@@ -608,11 +721,17 @@ describe("POST /api/recruiter/search-resumes", () => {
         skills: [{ name: "Python" }, { name: "Django" }],
         location: "New York",
       });
-      const userDoc = createMockDocSnapshot(true, {
-        displayName: "Bob Wilson",
-        email: "bob@example.com",
-        location: "New York",
-      });
+      const userDoc = createMockDocSnapshot(
+        true,
+        {
+          displayName: "Bob Wilson",
+          email: "bob@example.com",
+          location: "New York",
+        },
+        "user-222"
+      );
+
+      mockAdminDb.getAll.mockResolvedValue([userDoc]);
 
       mockAdminDb.collection.mockImplementation((collectionName: string) => {
         if (collectionName === "users") {
@@ -634,6 +753,21 @@ describe("POST /api/recruiter/search-resumes", () => {
             doc: jest.fn(() => ({
               set: jest.fn().mockResolvedValue(undefined),
             })),
+          } as any;
+        } else if (collectionName === "recruiterAccess") {
+          return {
+            where: jest.fn(() => ({
+              get: jest.fn().mockResolvedValue({
+                docs: [],
+                empty: true,
+                size: 0,
+                forEach: jest.fn(),
+              }),
+            })),
+          } as any;
+        } else if (collectionName === "recruiterSearchHistory") {
+          return {
+            add: jest.fn().mockResolvedValue(undefined),
           } as any;
         }
         return {} as any;
@@ -673,12 +807,18 @@ describe("POST /api/recruiter/search-resumes", () => {
       );
 
       const userDocs = Array.from({ length: 55 }, (_, i) =>
-        createMockDocSnapshot(true, {
-          displayName: `User ${i}`,
-          email: `user${i}@example.com`,
-          location: "Test City",
-        })
+        createMockDocSnapshot(
+          true,
+          {
+            displayName: `User ${i}`,
+            email: `user${i}@example.com`,
+            location: "Test City",
+          },
+          `user-${i}`
+        )
       );
+
+      mockAdminDb.getAll.mockResolvedValue(userDocs);
 
       mockAdminDb.collection.mockImplementation((collectionName: string) => {
         if (collectionName === "users") {
@@ -702,6 +842,21 @@ describe("POST /api/recruiter/search-resumes", () => {
             doc: jest.fn(() => ({
               set: jest.fn().mockResolvedValue(undefined),
             })),
+          } as any;
+        } else if (collectionName === "recruiterAccess") {
+          return {
+            where: jest.fn(() => ({
+              get: jest.fn().mockResolvedValue({
+                docs: [],
+                empty: true,
+                size: 0,
+                forEach: jest.fn(),
+              }),
+            })),
+          } as any;
+        } else if (collectionName === "recruiterSearchHistory") {
+          return {
+            add: jest.fn().mockResolvedValue(undefined),
           } as any;
         }
         return {} as any;
