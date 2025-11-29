@@ -94,6 +94,11 @@ export function createAuthProfileHelpers(db: Firestore | null | undefined) {
 
     const usernameRef = doc(db, "usernames", normalized);
     const profileRef = doc(db, "users", uid);
+    const identitySafeProfile = {
+      ...profileData,
+      email: typeof profileData?.email === "string" ? profileData.email : "",
+      uid,
+    };
 
     // Retry logic with exponential backoff to handle Firebase Auth-to-Firestore
     // propagation delay. After creating a user, there can be a 0-2 second delay
@@ -125,7 +130,7 @@ export function createAuthProfileHelpers(db: Firestore | null | undefined) {
               username: normalized,
               emailVerified: false,
               updatedAt: serverTimestamp(),
-              ...profileData,
+              ...identitySafeProfile,
             },
             { merge: true }
           );
@@ -204,6 +209,7 @@ export function createAuthProfileHelpers(db: Firestore | null | undefined) {
       // For Google OAuth users: create profile with needsUsername flag
       // For email/password users: username was already reserved during signup
       const profileData: Record<string, unknown> = {
+        uid: firebaseUser.uid,
         email: firebaseUser.email || "",
         displayName: firebaseUser.displayName || "",
         photoURL: firebaseUser.photoURL || "",
