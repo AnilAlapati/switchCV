@@ -184,6 +184,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       credential = await createUserWithEmailAndPassword(auth, email, password);
       setVerificationEmail(credential.user.email ?? email);
 
+      // Wait for the auth token to be ready before writing to Firestore
+      // This prevents "Missing or insufficient permissions" errors
+      await credential.user.getIdToken(true);
+
       reservedUsername = await reserveUsername(
         credential.user.uid,
         normalized,
@@ -199,7 +203,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         await sendVerification(credential.user);
       }
     } catch (error) {
-      if (credential?.user) {
+      // Only rollback if the error is NOT a permission error that might resolve
+      // (permission errors are now retried in reserveUsername with backoff)
+      const firestoreError = error as { code?: string; message?: string };
+      const isPermissionError =
+        firestoreError.code === "permission-denied" ||
+        (error instanceof Error &&
+          error.message.includes("Missing or insufficient permissions"));
+
+      // If it's a permission error after all retries, the user exists but profile doesn't
+      // Don't delete the user - they can try to complete signup later or use password reset
+      if (!isPermissionError && credential?.user) {
         try {
           await credential.user.delete();
         } catch (deleteError) {
@@ -312,7 +326,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       return;
     }
     try {
+      // Reload user data from Firebase Auth server
       await auth.currentUser.reload();
+      // Force refresh the ID token to get updated emailVerified status
+      await auth.currentUser.getIdToken(true);
       setUser(auth.currentUser ? ({ ...auth.currentUser } as User) : null);
       setVerificationEmail(auth.currentUser?.email ?? null);
     } catch (error) {

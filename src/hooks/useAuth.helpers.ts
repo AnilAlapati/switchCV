@@ -48,32 +48,59 @@ export function createAuthProfileHelpers(db: Firestore | null | undefined) {
     const usernameRef = doc(db, "usernames", normalized);
     const profileRef = doc(db, "users", uid);
 
-    await runTransaction(db, async (transaction) => {
-      const usernameSnapshot = await transaction.get(usernameRef);
-      if (usernameSnapshot.exists()) {
-        const err: UsernameReservationError = new Error(
-          "This username is already taken."
+    // Retry logic with exponential backoff to handle Firebase Auth-to-Firestore
+    // propagation delay. After creating a user, there can be a 0-2 second delay
+    // before Firestore security rules can validate the auth token.
+    const maxRetries = 3;
+    const baseDelayMs = 1000;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const usernameSnapshot = await getDoc(usernameRef);
+        if (usernameSnapshot.exists()) {
+          const err: UsernameReservationError = new Error(
+            "This username is already taken."
+          );
+          err.code = "username-taken";
+          throw err;
+        }
+
+        await setDoc(usernameRef, {
+          uid,
+          createdAt: serverTimestamp(),
+        });
+
+        await setDoc(
+          profileRef,
+          {
+            username: normalized,
+            emailVerified: false,
+            updatedAt: serverTimestamp(),
+            ...profileData,
+          },
+          { merge: true }
         );
-        err.code = "username-taken";
-        throw err;
+
+        // Success - break out of retry loop
+        break;
+      } catch (error) {
+        const firestoreError = error as { code?: string };
+        const isPermissionError =
+          firestoreError.code === "permission-denied" ||
+          (error instanceof Error &&
+            error.message.includes("Missing or insufficient permissions"));
+
+        // If it's a permission error and we have retries left, wait and retry
+        if (isPermissionError && attempt < maxRetries - 1) {
+          const delayMs = baseDelayMs * Math.pow(2, attempt); // Exponential backoff
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+          continue;
+        }
+
+        // For non-permission errors or final attempt, throw
+        throw error;
       }
-
-      transaction.set(usernameRef, {
-        uid,
-        createdAt: serverTimestamp(),
-      });
-
-      transaction.set(
-        profileRef,
-        {
-          username: normalized,
-          emailVerified: false,
-          updatedAt: serverTimestamp(),
-          ...profileData,
-        },
-        { merge: true }
-      );
-    });
+    }
 
     return normalized;
   };
@@ -112,6 +139,10 @@ export function createAuthProfileHelpers(db: Firestore | null | undefined) {
     if (firestoreUnavailable || !db) {
       return { isNewUser: false, needsUsername: false };
     }
+
+    // Ensure we have a fresh token before writing to Firestore
+    // This prevents "Missing or insufficient permissions" errors due to race conditions
+    await firebaseUser.getIdToken(true);
 
     const profileRef = doc(db, "users", firebaseUser.uid);
     const profileSnapshot = await getDoc(profileRef);

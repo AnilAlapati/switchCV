@@ -4,6 +4,8 @@
 import { useState, useEffect, Suspense, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter, useSearchParams } from "next/navigation";
+import { applyActionCode } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 import { AuthBackground } from "@/components/auth/AuthBackground";
 import { AuthBrand } from "@/components/auth/AuthBrand";
 import { AuthFormInputs } from "@/components/auth/AuthFormInputs";
@@ -37,6 +39,8 @@ function AuthContent() {
   const [refreshing, setRefreshing] = useState(false);
   const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>("idle");
   const [usernameSuggestion, setUsernameSuggestion] = useState("");
+  const [verificationSuccess, setVerificationSuccess] = useState(false);
+  const [verificationProcessing, setVerificationProcessing] = useState(false);
 
   // Debounce username for availability check
   const { debouncedValue: debouncedUsername, isPending: isCheckingUsername } =
@@ -117,6 +121,60 @@ function AuthContent() {
       setIsSignUp(true);
     }
   }, [searchParams]);
+
+  // Handle email verification link (oobCode from Firebase)
+  useEffect(() => {
+    const handleEmailVerification = async () => {
+      const mode = searchParams.get("mode");
+      const oobCode = searchParams.get("oobCode");
+
+      // Check for both "verifyEmail" (Firebase default) and "verify-email" (our custom)
+      if (
+        (mode === "verifyEmail" || mode === "verify-email") &&
+        oobCode &&
+        auth
+      ) {
+        setVerificationProcessing(true);
+        setError("");
+
+        try {
+          // Apply the action code to verify the email
+          await applyActionCode(auth, oobCode);
+
+          // Reload the current user to get updated emailVerified status
+          if (auth.currentUser) {
+            await auth.currentUser.reload();
+            await auth.currentUser.getIdToken(true);
+          }
+
+          setVerificationSuccess(true);
+          setError("");
+
+          // Refresh the user state in our auth context
+          await refreshUser();
+        } catch (err) {
+          const error = err as { code?: string; message?: string };
+          if (error.code === "auth/expired-action-code") {
+            setError(
+              "This verification link has expired. Please request a new one."
+            );
+          } else if (error.code === "auth/invalid-action-code") {
+            setError(
+              "This verification link is invalid or has already been used. Please request a new one."
+            );
+          } else {
+            setError(
+              error.message || "Failed to verify email. Please try again."
+            );
+          }
+        } finally {
+          setVerificationProcessing(false);
+        }
+      }
+    };
+
+    handleEmailVerification();
+  }, [searchParams, refreshUser]);
 
   useEffect(() => {
     if (!authLoading && user && !needsEmailVerification) {
@@ -246,7 +304,27 @@ function AuthContent() {
           <AuthBrand />
 
           <div className="backdrop-blur-xl bg-white/10 rounded-3xl border border-white/20 shadow-2xl shadow-black/50 p-8">
-            {needsEmailVerification && (
+            {verificationProcessing && (
+              <div className="mb-6 rounded-2xl border border-blue-400/40 bg-blue-400/10 p-4 text-center">
+                <div className="flex items-center justify-center">
+                  <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mr-2"></div>
+                  <p className="text-sm text-blue-100">
+                    Verifying your email...
+                  </p>
+                </div>
+              </div>
+            )}
+            {verificationSuccess && !verificationProcessing && (
+              <div className="mb-6 rounded-2xl border border-green-400/40 bg-green-400/10 p-4 text-center">
+                <p className="text-sm text-green-100 font-semibold">
+                  ✓ Email verified successfully!
+                </p>
+                <p className="text-xs text-green-200/80 mt-1">
+                  You can now sign in to your account.
+                </p>
+              </div>
+            )}
+            {needsEmailVerification && !isSignUp && !verificationSuccess && (
               <EmailVerificationNotice
                 email={verificationEmail}
                 onResend={handleResend}
