@@ -16,6 +16,7 @@ interface RateLimitEntry {
   windowStart: number;
   identifier: string;
   scope: string;
+  expiresAt?: Date; // For cleanup
 }
 
 export interface DistributedRateLimitResult {
@@ -84,6 +85,7 @@ export async function checkDistributedRateLimit(
           windowStart: now,
           identifier,
           scope,
+          expiresAt: new Date(now + windowMs * 2), // Keep for 2x window for safety
         };
         transaction.set(rateLimitRef, newEntry);
 
@@ -101,7 +103,10 @@ export async function checkDistributedRateLimit(
       const allowed = newCount <= limit;
       const resetIn = Math.max(0, data.windowStart + windowMs - now);
 
-      transaction.update(rateLimitRef, { count: newCount });
+      transaction.update(rateLimitRef, {
+        count: newCount,
+        expiresAt: new Date(data.windowStart + windowMs * 2), // Ensure expiry is set
+      });
 
       return {
         allowed,

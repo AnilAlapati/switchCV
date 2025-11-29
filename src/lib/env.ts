@@ -41,8 +41,6 @@ const envSchema = z.object({
   NEXT_PUBLIC_DEV_TIER: z.enum(["basic", "premium", "enterprise"]).optional(),
   NEXT_PUBLIC_DEV_ROLE: z.enum(["jobseeker", "recruiter", "admin"]).optional(),
   NEXT_PUBLIC_ENABLE_SEEDING_DEBUG: z.enum(["true", "false"]).optional(),
-  NEXT_PUBLIC_REGISTRATION_DISABLED: z.enum(["true", "false"]).optional(),
-  NEXT_PUBLIC_LOGIN_DISABLED: z.enum(["true", "false"]).optional(),
   NEXT_PUBLIC_USE_FIRESTORE_NOTIFICATIONS: z.enum(["true", "false"]).optional(),
 
   // Seeding Limits (Server-side)
