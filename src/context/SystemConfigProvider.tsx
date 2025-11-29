@@ -17,7 +17,6 @@ import {
 } from "@/lib/system-config";
 
 const CONFIG_CACHE_KEY = "switchcv:system-config";
-const CONFIG_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const POLL_INTERVAL_MS = 60 * 1000; // Re-fetch every minute for freshness
 
 type SystemConfigContextValue = {
@@ -33,51 +32,65 @@ const SystemConfigContext = createContext<SystemConfigContextValue | null>(
 type CachedConfigPayload = {
   data: SystemConfig;
   expiresAt: number;
+  ttlMs: number;
 };
 
-const readCachedConfig = (): SystemConfig | null => {
+const getCacheStorage = () => {
   if (typeof window === "undefined") {
     return null;
   }
 
   try {
-    const raw = window.sessionStorage.getItem(CONFIG_CACHE_KEY);
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+};
+
+const getCacheTtlMs = (config?: SystemConfig): number =>
+  config?.cache?.ttlMs ?? defaultSystemConfig.cache.ttlMs;
+
+const readCachedConfig = (): SystemConfig | null => {
+  const storage = getCacheStorage();
+  if (!storage) {
+    return null;
+  }
+
+  try {
+    const raw = storage.getItem(CONFIG_CACHE_KEY);
     if (!raw) {
       return null;
     }
 
     const cached = JSON.parse(raw) as CachedConfigPayload;
     if (cached.expiresAt <= Date.now()) {
-      window.sessionStorage.removeItem(CONFIG_CACHE_KEY);
+      storage.removeItem(CONFIG_CACHE_KEY);
       return null;
     }
 
-    return cached.data;
-  } catch (
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _error
-  ) {
+    return mergeWithDefaultConfig(cached.data);
+  } catch {
     return null;
   }
 };
 
 const writeCachedConfig = (config: SystemConfig): void => {
-  if (typeof window === "undefined") {
+  const storage = getCacheStorage();
+  if (!storage) {
     return;
   }
 
   try {
+    const ttlMs = getCacheTtlMs(config);
     const payload: CachedConfigPayload = {
       data: config,
-      expiresAt: Date.now() + CONFIG_CACHE_TTL_MS,
+      ttlMs,
+      expiresAt: Date.now() + ttlMs,
     };
 
-    window.sessionStorage.setItem(CONFIG_CACHE_KEY, JSON.stringify(payload));
-  } catch (
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _error
-  ) {
-    // Swallow caching errors to avoid breaking rendering.
+    storage.setItem(CONFIG_CACHE_KEY, JSON.stringify(payload));
+  } catch {
+    // Ignore cache write failures (e.g., storage quota exceeded)
   }
 };
 
@@ -118,6 +131,7 @@ export const SystemConfigProvider = ({
   const [loading, setLoading] = useState<boolean>(true);
 
   const refresh = useCallback(async (): Promise<SystemConfig> => {
+    setLoading(true);
     const nextConfig = await fetchRemoteConfig();
     setConfig(nextConfig);
     writeCachedConfig(nextConfig);
@@ -151,6 +165,35 @@ export const SystemConfigProvider = ({
       }
     };
   }, [refresh]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== CONFIG_CACHE_KEY || !event.newValue) {
+        return;
+      }
+
+      try {
+        const cached = JSON.parse(event.newValue) as CachedConfigPayload;
+        if (cached.expiresAt <= Date.now()) {
+          return;
+        }
+        const next = mergeWithDefaultConfig(cached.data);
+        setConfig(next);
+        setLoading(false);
+      } catch {
+        // ignore malformed payloads
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, []);
 
   const value = useMemo<SystemConfigContextValue>(
     () => ({

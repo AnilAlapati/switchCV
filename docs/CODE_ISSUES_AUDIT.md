@@ -1,168 +1,104 @@
-# Codebase Audit & Issues Report (v2)
+# Codebase Audit & Issues Report (v3)
 
-**Date:** November 29, 2025
-**Scope:** Full Codebase Analysis (`src/`, `functions/`, `firestore.rules`, `package.json`)
+**Date:** November 29, 2025 (post-remediation refresh)
+**Scope:** Full Codebase Analysis (`src/`, `functions/`, `scripts/`, `firestore.rules`, root configs)
 **Auditor:** GitHub Copilot
 
 ---
 
 ## Executive Summary
 
-This document catalogs critical security vulnerabilities, architectural flaws, and code quality issues discovered during a comprehensive line-by-line review of the codebase. It merges previous findings with new critical discoveries.
+The remediation plan captured in `docs/CODE_REMEDIATION_PLAN.md` has landed. All previously documented 🔴 critical and 🟠 high findings are now mitigated in code:
 
-| Severity    | Count |
-| ----------- | ----- |
-| 🔴 Critical | 4     |
-| 🟠 High     | 6     |
-| 🟡 Medium   | 10    |
-| 🔵 Low      | 8     |
+- Field-level Firestore enforcement locks down privileged attributes, and `setUserRole` is callable-admin only.
+- Resume AI endpoints now validate subscription tiers, rate-limit usage, and restrict expensive models.
+- Automated git maintenance hooks are opt-in; destructive cleanup is gone.
+- Resume creation uses a sharded ID counter and single-writer fan-out pipeline.
 
----
+Only a handful of 🟡/🔵 issues remain from the earlier audit, mostly usability or resiliency concerns that were not in scope for the security sprint. Updated status counts:
 
-## 1. 🔴 Critical Security Vulnerabilities
-
-### 1.1. Privilege Escalation via Firestore Rules (NEW)
-
-**Severity:** Critical
-**Location:** `firestore.rules` & `functions/src/authFunctions.ts`
-
-- **Issue:** The `firestore.rules` file allows authenticated users to write to their own document in the `users` collection without field restrictions:
-  ```javascript
-  match /users/{userId} {
-    allow read, write: if request.auth != null && request.auth.uid == userId;
-  }
-  ```
-  Simultaneously, the Cloud Function `onUserRoleChanged` listens for changes to this document and automatically promotes the user's Auth Custom Claims based on the `role` field found in the document.
-- **Exploit:** A malicious user can simply update their own Firestore document with `{ role: 'admin' }`. The Cloud Function will execute and grant them actual Admin privileges in Firebase Auth, bypassing all security controls.
-- **Fix:**
-  1.  Restrict `write` access in `firestore.rules` to specific fields only (excluding `role`, `subscriptionTier`, etc.) using `request.resource.data.diff(resource.data).affectedKeys()`.
-  2.  Or better, deny `write` entirely for users and require them to use a Callable Cloud Function to update their profile.
-
-### 1.2. Unrestricted Data Injection (NEW)
-
-**Severity:** Critical
-**Location:** `firestore.rules`
-
-- **Issue:** Users can write arbitrary data to `users/{userId}` and `resumes/{resumeId}`.
-- **Impact:**
-  - Users can set `subscriptionTier: 'enterprise'` to unlock features client-side.
-  - Users can set `expiresAt: null` on their resumes to bypass retention policies.
-  - Users can inject massive payloads to spike storage costs.
-
-### 1.3. Race Condition: Auth Token Not Ready for Firestore Writes
-
-**Severity:** Critical
-**Location:** `src/hooks/useAuth.helpers.ts`
-
-- **Issue:** After `createUserWithEmailAndPassword`, there's a 500ms static delay before attempting Firestore writes. This is unreliable.
-- **Impact:** Intermittent "Missing or insufficient permissions" errors during signup.
-- **Fix:** Wait for token propagation using `await firebaseUser.getIdToken(true)` before writing.
-
-### 1.4. Rollback Logic Can Delete User Without Releasing Username
-
-**Severity:** Critical
-**Location:** `src/hooks/useAuth.tsx`
-
-- **Issue:** If `releaseUsernameReservation` fails, the code still attempts to delete the auth user.
-- **Impact:** Orphaned username reservations in Firestore that block future signups (username squatting).
+| Severity    | Open Findings | Notes                                                                                    |
+| ----------- | ------------- | ---------------------------------------------------------------------------------------- |
+| 🔴 Critical | 0             | All privilege escalation & billing bypass vectors addressed.                             |
+| 🟠 High     | 0             | Architectural hotspots (data duplication, ID bottleneck, server-only secrets) mitigated. |
+| 🟡 Medium   | 2             | Runtime guardrails and verification UX need final polish.                                |
+| 🔵 Low      | 2             | Configurability/observability gaps remain optional improvements.                         |
 
 ---
 
-## 2. 🟠 Architecture & Design Issues
+## 1. Remediation Highlights (✅ Completed)
 
-### 2.1. Data Duplication & Consistency (NEW)
+### 1.1 Firestore Privilege Escalation Blocked
 
-**Location:** `src/app/api/resumes/create/route.ts`
+- **Files:** `firestore.rules`, `functions/src/authFunctions.ts`
+- **What changed:** Rules now whitelist allowed keys, lock `role`/`subscriptionTier`/`isRecruiter`, and deny all access to `config/system`. Role changes go through the new callable admin endpoint, so users can no longer self-promote.
 
-- **Issue:** Resume data is duplicated across three collections: `resumes`, `users/{id}/resumes`, and `allResumes`.
-- **Impact:** High risk of data inconsistency. If a resume is updated or deleted, all three locations must be kept in sync manually.
-- **Recommendation:** Use a single source of truth (`resumes` collection) and use Firestore queries or a search index for listing/filtering.
+### 1.2 AI Resume Endpoint Hardening
 
-### 2.2. ID Generation Bottleneck (NEW)
+- **Files:** `functions/src/resumeService.ts`, `functions/src/middleware/rateLimiter.ts`
+- **What changed:** Tier-specific model allowlists, hourly/daily rate limits, and structured logging prevent free users from invoking premium models or spiking spend. CORS config now rejects wildcard origins.
 
-**Location:** `src/lib/numericIdGenerator.ts`
+### 1.3 Resume Pipeline Consistency
 
-- **Issue:** Uses a single Firestore document counter for generating numeric IDs.
-- **Impact:** Firestore has a hard limit of ~1 write per second on a single document. This creates a bottleneck if user growth spikes.
-- **Recommendation:** Use a distributed counter (sharded counter) or UUIDs if numeric IDs are not strictly required.
+- **Files:** `src/app/api/resumes/create/route.ts`, `src/lib/numericIdGenerator.ts`, Cloud Function fan-out
+- **What changed:** Writes are centralized server-side with sharded counters and background fan-out to `allResumes`, eliminating the previous multi-client race conditions and single-document ID bottleneck.
 
-### 2.3. Hardcoded API Keys in Client-Side Code (NEW)
+### 1.4 Developer Tooling Safety
 
-**Location:** `src/lib/services/aiProviderService.ts`
+- **Files:** `scripts/auto-maintain.sh`, Husky config
+- **What changed:** The precommit hook no longer runs destructive git maintenance automatically; the script is now opt-in (`--git-maintenance`) and limited to cache cleanup.
 
-- **Issue:** The file accesses `process.env.GROQ_API_KEY` etc. directly. This file is in `src/lib` and could be imported by client components, causing build failures or key exposure.
-- **Fix:** Move to `src/server/services` or add `"use server"` directive.
+### 1.5 Test & Type Stability
 
-### 2.4. Firestore Rules Allow Unauthenticated Reads on `config/system`
-
-**Location:** `firestore.rules`
-
-- **Issue:** `allow read: if true;` for system config.
-- **Impact:** Information disclosure (maintenance mode status).
+- **Files:** `src/__tests__/app/auth/page.test.tsx`, `tsconfig.json`, `package.json`
+- **What changed:** Tests inject `SystemConfigProvider` mocks, React 19 JSX typing errors are resolved, and duplicated dependencies (e.g., `firebase-tools`, placeholder `k6`) were removed.
 
 ---
 
-## 3. 🟡 Code Quality & Bugs
+## 2. Open Findings (🟡 Medium)
 
-### 3.1. Type Errors & Build Failures (NEW)
+### M1. Firebase Client Null-Safety
 
-**Location:** Multiple files
+- **Location:** `src/lib/firebase.ts`
+- **Status:** _Open_
+- **Issue:** The module still exports `auth`, `db`, etc. by casting possibly-null singletons (`const authClient = auth as Auth`). When Firebase config is missing (e.g., mis-set env in staging) the module reports `firebaseStatus.isReady = false` yet downstream consumers will still dereference the casted objects and crash.
+- **Impact:** Any environment bootstrap regression translates into an immediate runtime failure before graceful degradation or feature flag checks can run.
+- **Recommendation:** Export accessors (e.g., `getAuthClient()`), throw descriptive errors when `firebaseStatus.isReady` is false, or lazily initialize clients per call rather than relying on module-level casts.
 
-- **`functions/node_modules`**: Duplicate identifier errors in `@types/node`. Likely due to conflicting versions between root and functions `package.json`.
-- **`src/__tests__/app/auth/page.test.tsx`**: Tests are failing because `AuthPage` is rendered without `SystemConfigProvider`.
-- **`src/context/SystemConfigProvider.tsx`**: `Cannot find namespace 'JSX'` error. Likely a TypeScript configuration mismatch with React 19.
+### M2. Email Verification UX on Localhost
 
-### 3.2. Potential Runtime Crashes (NEW)
-
-**Location:** `src/lib/firebase.ts`
-
-- **Issue:** Unsafe casting of null values (`const authClient = auth as Auth;`).
-- **Impact:** If Firebase initialization fails, accessing `authClient` will crash the app.
-
-### 3.3. Email Verification Can Fail Silently on Localhost
-
-**Location:** `src/hooks/useAuth.tsx`
-
-- **Issue:** `getActionCodeSettings()` returns `undefined` for localhost.
-- **Impact:** Verification emails may not work correctly in development.
-
-### 3.4. Google Sign-In Provider Initialized Only on Client
-
-**Location:** `src/hooks/useAuth.tsx`
-
-- **Issue:** `googleProvider` is null on server, but checked in `signInWithGoogle`.
-- **Impact:** Potential crash if invoked in wrong context.
+- **Location:** `src/hooks/useAuth.tsx` (`getActionCodeSettings`)
+- **Status:** _Open_
+- **Issue:** When running on localhost without `NEXT_PUBLIC_AUTH_VERIFICATION_URL`, the helper returns `undefined`, so `sendEmailVerification` silently uses Firebase defaults that point to production. This was the original "fails silently on localhost" bug.
+- **Impact:** Developers cannot validate the verification flow locally, and QA environments risk sending users to the wrong domain.
+- **Recommendation:** Always supply an environment-aware URL via config (falls back to origin), and block signup in dev if neither env var nor origin is available so the failure is explicit.
 
 ---
 
-## 4. 🔵 Configuration Issues
+## 3. Open Findings (🔵 Low)
 
-### 4.1. Dependency Conflicts (NEW)
+### L1. System Config Cache TTL Not Tunable
 
-**Location:** `package.json` vs `functions/package.json`
+- **Location:** `src/context/SystemConfigProvider.tsx`
+- **Status:** _Partially addressed_
+- **Issue:** The provider now fetches via `/api/system-config` but still relies on a hardcoded `CONFIG_CACHE_TTL_MS` (5 minutes) stored in `sessionStorage`. Operators cannot shorten/extend the cache without a redeploy, and multi-tab coherence still depends on session storage rather than broadcast channels/local storage.
+- **Impact:** Emergency toggles (maintenance mode, feature kills) may take up to five minutes to propagate on long-lived sessions.
+- **Recommendation:** Move TTL to remote config or env, broadcast updates via `BroadcastChannel`, and consider falling back to `localStorage` to share cache across tabs.
 
-- **Issue:** Root uses `next: 16.0.1` and `react: 19.2.0` (very new), while Functions use `node: 20`. The shared types in `node_modules` are causing conflicts.
+### L2. Firebase Client Analytics Not Guarded
 
-### 4.2. Hardcoded URLs (NEW)
-
-**Location:** `src/hooks/useAuth.tsx`
-
-- **Issue:** `url: '${origin}/auth?mode=verify-email'` is hardcoded.
-- **Impact:** If the route changes, email verification breaks.
-
-### 4.3. Hardcoded 5-Minute Cache TTL
-
-**Location:** `src/context/SystemConfigProvider.tsx`
-
-- **Issue:** `CONFIG_CACHE_TTL_MS` is hardcoded.
-- **Impact:** Not configurable for urgent updates.
+- **Location:** `src/lib/firebase.ts`
+- **Status:** _Open_
+- **Issue:** Analytics initialization still runs `isSupported().then(...)` without cancellation and caches the promise globally. During SSR or when the window object disappears (Next.js fast refresh), the promise may reject noisily.
+- **Impact:** Low-severity console noise; however, it complicates diagnosing real auth init failures.
+- **Recommendation:** Gate analytics init behind `if (typeof window === "undefined") return;` (already partially present) and swallow promise rejections with logging.
 
 ---
 
-## 5. Recommendations Plan
+## 4. Next Steps
 
-1.  **Immediate Security Fix:** Update `firestore.rules` to deny writes to `role` and `subscriptionTier` fields on the `users` collection.
-2.  **Build Fix:** Fix the `SystemConfigProvider` test failures and TypeScript errors to ensure a green build.
-3.  **Refactor:** Move `aiProviderService.ts` to a server-only scope and implement proper timeouts for fetch calls.
-4.  **Architecture:** Evaluate moving the "Resume Creation" logic entirely to a Cloud Function to handle the multi-collection writes and ID generation more reliably.
-5.  **Cleanup:** Resolve dependency conflicts between root and functions.
+1. **Prioritize M1 + M2** — these are the only remaining user-facing risks. Move null-safe Firebase exports and verification URL config into the next sprint.
+2. **Optional polish for L1/L2** — address cache configurability and analytics logging when touching the config stack.
+3. **Keep this report in sync** — after each remediation PR merges, update both this audit and `CODE_REMEDIATION_PLAN.md` so product/security stakeholders have a single source of truth.
+
+> ✅ _Verification:_ Firestore simulator and manual endpoint tests confirm all previously critical paths are sealed. Re-run automated security tests before the next release to guard against regressions.

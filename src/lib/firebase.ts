@@ -4,6 +4,7 @@ import { getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { getFunctions, type Functions } from "firebase/functions";
 import { getAnalytics, type Analytics, isSupported } from "firebase/analytics";
+import { logger } from "@/lib/logger";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "",
@@ -38,6 +39,32 @@ let storage: FirebaseStorage | null = null;
 let functions: Functions | null = null;
 let analytics: Analytics | null = null;
 
+type FirebaseClientName = "auth" | "db" | "storage" | "functions";
+
+const firebaseClientError = (name: FirebaseClientName): string =>
+  firebaseStatus.error ||
+  `Firebase ${name} client is not initialized. Check environment configuration.`;
+
+const createUnavailableClient = <T extends object>(
+  name: FirebaseClientName
+): T =>
+  new Proxy(
+    {},
+    {
+      get() {
+        throw new Error(firebaseClientError(name));
+      },
+      apply() {
+        throw new Error(firebaseClientError(name));
+      },
+    }
+  ) as T;
+
+const resolveClient = <T extends object>(
+  client: T | null,
+  name: FirebaseClientName
+): T => client ?? createUnavailableClient<T>(name);
+
 const canInitialize = firebaseStatus.isConfigured;
 
 try {
@@ -49,11 +76,20 @@ try {
     functions = getFunctions(app);
 
     if (typeof window !== "undefined") {
-      isSupported().then((supported) => {
-        if (supported && app) {
-          analytics = getAnalytics(app);
-        }
-      });
+      isSupported()
+        .then((supported) => {
+          if (supported && app) {
+            analytics = getAnalytics(app);
+          }
+        })
+        .catch((error) => {
+          if (process.env.NODE_ENV !== "production") {
+            logger.warn(
+              { err: error },
+              "Skipping Firebase Analytics initialization"
+            );
+          }
+        });
     }
 
     firebaseStatus.isReady = true;
@@ -88,12 +124,16 @@ const authClient = auth as Auth;
 const dbClient = db as Firestore;
 const storageClient = storage as FirebaseStorage;
 const functionsClient = functions as Functions;
+const safeAuthClient = resolveClient(authClient ?? null, "auth");
+const safeDbClient = resolveClient(dbClient ?? null, "db");
+const safeStorageClient = resolveClient(storageClient ?? null, "storage");
+const safeFunctionsClient = resolveClient(functionsClient ?? null, "functions");
 
 export {
-  authClient as auth,
-  dbClient as db,
-  storageClient as storage,
-  functionsClient as functions,
+  safeAuthClient as auth,
+  safeDbClient as db,
+  safeStorageClient as storage,
+  safeFunctionsClient as functions,
   analytics,
 };
 export default app;
