@@ -41,6 +41,8 @@ export {
   cleanupExpiredResumes,
 };
 
+export { cleanupRateLimits } from "./rateLimitCleanupService";
+
 // ==================== EMAIL AND AUDIT FUNCTIONS ====================
 export {
   onUserCreated,
