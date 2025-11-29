@@ -14,6 +14,9 @@ import { useResume } from "@/hooks/useResume";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
 import { DashboardMetricsProvider } from "@/context/DashboardMetricsContext";
+import { getVerificationRoute } from "@/lib/config";
+
+const VERIFICATION_ROUTE = getVerificationRoute();
 
 export default function Dashboard() {
   const {
@@ -59,7 +62,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!authLoading && (!user || needsEmailVerification)) {
-      router.push("/auth?mode=verify-email");
+      router.push(VERIFICATION_ROUTE);
     }
   }, [user, authLoading, needsEmailVerification, router]);
 

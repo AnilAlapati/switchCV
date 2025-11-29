@@ -24,6 +24,7 @@
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
+    "@types/node": "^20.12.12",
     "@types/nodemailer": "^6.4.6",
     "firebase-functions-test": "^3.1.0",
     "typescript": "^5.3.0"

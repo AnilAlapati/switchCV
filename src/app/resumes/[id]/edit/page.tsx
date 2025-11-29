@@ -17,6 +17,9 @@ import {
   ResumeEditWizard,
   type SaveState,
 } from "@/components/resume/ResumeEditWizard";
+import { getVerificationRoute } from "@/lib/config";
+
+const VERIFICATION_ROUTE = getVerificationRoute();
 
 const STEPS = [
   "Basic Info",
@@ -95,7 +98,7 @@ function ManualResumeEditor({ resumeId }: { resumeId: string }) {
 
   useEffect(() => {
     if (!authLoading && (!user || needsEmailVerification)) {
-      router.replace("/auth?mode=verify-email");
+      router.replace(VERIFICATION_ROUTE);
     }
   }, [authLoading, needsEmailVerification, router, user]);
 

@@ -16,6 +16,10 @@ export const ID_GENERATION = {
   MAX_NUMERIC_ID: 99_999_999,
   /** Firestore document path for ID counter */
   COUNTER_DOC_PATH: "system/resumeIdCounter",
+  /** Firestore sub-collection that stores sharded counters */
+  SHARD_COLLECTION_PATH: "system/resumeIdCounter/shards",
+  /** Number of counter shards to spread write load across */
+  SHARD_COUNT: 16,
   /** Maximum retry attempts for ID generation */
   MAX_RETRIES: 3,
 } as const;

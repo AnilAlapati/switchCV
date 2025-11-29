@@ -6,8 +6,9 @@
  * Usage:
  * node scripts/init-system.js
  * 
- * This script initializes the system/resumeIdCounter document in Firestore
- * Required for the numeric ID generation system to work
+ * This script initializes the sharded numeric ID counter. It creates the
+ * system/resumeIdCounter metadata document along with a shards subcollection
+ * so the distributed ID generator can fan out write load safely.
  */
 
 const admin = require("firebase-admin");
@@ -57,44 +58,69 @@ try {
 }
 
 const db = admin.firestore();
+const SHARD_COUNT = 16;
+const COUNTER_DOC_PATH = "system/resumeIdCounter";
+const SHARDS_COLLECTION_PATH = `${COUNTER_DOC_PATH}/shards`;
+
+const initialShardPayload = (shardId, startValue = 0) => ({
+  shardId,
+  nextId: startValue + shardId + 1,
+  lastIssued: startValue,
+  createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+});
 
 async function initializeSystem() {
   try {
     console.log("🔧 Initializing System Collection...");
     console.log("📍 Project:", projectId);
 
-    // Check if resumeIdCounter already exists
-    const counterRef = db.doc("system/resumeIdCounter");
+    const counterRef = db.doc(COUNTER_DOC_PATH);
     const counterSnap = await counterRef.get();
 
     if (counterSnap.exists) {
-      console.log("✅ System already initialized!");
-      console.log(
-        "📊 Current counter:",
-        counterSnap.data().currentId
-      );
-      console.log(
-        "📌 Next resume ID will be:",
-        counterSnap.data().currentId + 1
-      );
+      console.log("✅ System metadata already exists!");
+      const data = counterSnap.data();
+      console.log("   Created:", data?.createdAt || "n/a");
+      console.log("   Last Reset:", data?.lastResetAt || "n/a");
     } else {
-      // Initialize the counter
       await counterRef.set(
         {
-          currentId: 0,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
           lastResetAt: admin.firestore.FieldValue.serverTimestamp(),
           description:
-            "Global counter for numeric resume IDs. Do not modify directly.",
+            "Global sharded counter for numeric resume IDs. Do not modify directly.",
         },
         { merge: false }
       );
 
-      console.log("✅ System initialized successfully!");
-      console.log("📍 Location: system/resumeIdCounter");
-      console.log("📊 Initial counter: 0");
-      console.log("📌 Next resume ID will be: 1");
+      console.log("✅ Created system metadata at", COUNTER_DOC_PATH);
     }
+
+    const shardsCollection = db.collection(SHARDS_COLLECTION_PATH);
+    console.log(`⚙️  Ensuring ${SHARD_COUNT} counter shards exist...`);
+
+    await Promise.all(
+      Array.from({ length: SHARD_COUNT }).map(async (_, shardId) => {
+        const shardRef = shardsCollection.doc(String(shardId));
+        const shardSnap = await shardRef.get();
+
+        if (!shardSnap.exists) {
+          await shardRef.set(initialShardPayload(shardId));
+        }
+      })
+    );
+
+    const shardsSnapshot = await shardsCollection.get();
+    const shardStats = shardsSnapshot.docs.map((doc) => doc.data());
+    const highestIssued = shardStats.length
+      ? Math.max(...shardStats.map((doc) => doc.lastIssued || 0))
+      : 0;
+
+    console.log("📦 Shard overview:");
+    console.log("   Total shards:", shardStats.length);
+    console.log("   Highest issued ID:", highestIssued);
+    console.log("   Sample shard:", shardStats[0] || "n/a");
 
     // Also create an index collection for tracking
     const indexRef = db.doc("system/idIndex");
@@ -116,7 +142,11 @@ async function initializeSystem() {
     }
 
     console.log("\n✨ System initialization complete!");
-    console.log("🚀 Ready to generate resume IDs (1, 2, 3, ...)");
+    console.log(
+      "🚀 Ready to generate resume IDs across",
+      SHARD_COUNT,
+      "shards"
+    );
     console.log(
       "\n💡 To check status later, visit: http://localhost:3000/api/admin/init-system"
     );

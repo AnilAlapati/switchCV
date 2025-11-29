@@ -10,29 +10,85 @@
  */
 
 (async function() {
-  // Import Firebase functions
-  const { doc, getDoc, setDoc, updateDoc } = window.firebase.firestore;
+  const {
+    doc,
+    getDoc,
+    getDocs,
+    setDoc,
+    updateDoc,
+    collection,
+    writeBatch,
+  } = window.firebase.firestore;
   const { db } = await import("@/lib/firebase");
+
+  const COUNTER_DOC = "system/resumeIdCounter";
+  const SHARDS_COLLECTION = `${COUNTER_DOC}/shards`;
+  const POOL_DOC = "system/deletedIdsPool";
+  const SHARD_COUNT = 16;
+
+  const shardStatePayload = (shardId, startValue = 0) => ({
+    shardId,
+    nextId: startValue + shardId + 1,
+    lastIssued: startValue,
+    updatedAt: new Date().toISOString(),
+  });
+
+  async function getShardStats() {
+    const snap = await getDocs(collection(db, SHARDS_COLLECTION));
+    if (snap.empty) {
+      return [];
+    }
+    return snap.docs.map((shardDoc) => shardDoc.data());
+  }
+
+  async function resetShards(startValue = 0) {
+    const batch = writeBatch(db);
+    for (let shardId = 0; shardId < SHARD_COUNT; shardId += 1) {
+      const shardRef = doc(db, `${SHARDS_COLLECTION}/${shardId}`);
+      batch.set(shardRef, shardStatePayload(shardId, startValue), {
+        merge: true,
+      });
+    }
+    await batch.commit();
+  }
 
   window.switchCVIdManager = {
     async checkStatus() {
       console.log("\n📊 === Resume ID System Status ===\n");
 
       try {
-        // Check counter
-        const counterSnap = await getDoc(doc(db, "system/resumeIdCounter"));
+        const counterSnap = await getDoc(doc(db, COUNTER_DOC));
         if (counterSnap.exists()) {
           const data = counterSnap.data();
-          console.log("✅ Counter Document:");
-          console.log(`   Current ID: ${data.currentId}`);
-          console.log(`   Created: ${data.createdAt}`);
-          console.log(`   Last Reset: ${data.lastResetAt}`);
+          console.log("✅ Counter Metadata:");
+          console.log(`   Created: ${data.createdAt || "n/a"}`);
+          console.log(`   Last Reset: ${data.lastResetAt || "n/a"}`);
+          console.log(`   Description: ${data.description || "(none)"}`);
         } else {
           console.log("❌ Counter doesn't exist");
         }
 
-        // Check pool
-        const poolSnap = await getDoc(doc(db, "system/deletedIdsPool"));
+        const shards = await getShardStats();
+        console.log("\n📦 Shards:");
+        if (shards.length === 0) {
+          console.log("   No shards found. Run resetCounter().");
+        } else {
+          const highestIssued = Math.max(
+            ...shards.map((shard) => shard.lastIssued || 0)
+          );
+          console.log(`   Total shards: ${shards.length}`);
+          console.log(`   Highest issued ID: ${highestIssued}`);
+          console.log(
+            "   Sample shards:",
+            shards.slice(0, 3).map((shard) => ({
+              shardId: shard.shardId,
+              nextId: shard.nextId,
+              lastIssued: shard.lastIssued,
+            }))
+          );
+        }
+
+        const poolSnap = await getDoc(doc(db, POOL_DOC));
         console.log("\n♻️  Recycled IDs Pool:");
         if (poolSnap.exists()) {
           const poolData = poolSnap.data();
@@ -62,13 +118,17 @@
     async resetCounter() {
       console.log("⚠️  Resetting counter to 0...");
       try {
-        await setDoc(doc(db, "system/resumeIdCounter"), {
-          currentId: 0,
-          lastResetAt: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-        });
+        await setDoc(
+          doc(db, COUNTER_DOC),
+          {
+            lastResetAt: new Date().toISOString(),
+            resetTo: 0,
+          },
+          { merge: true }
+        );
+        await resetShards(0);
         console.log("✅ Counter reset successfully!");
-        console.log("Next resume will get ID: 1\n");
+        console.log("Shards ready for allocation\n");
       } catch (error) {
         console.error("❌ Error resetting counter:", error);
       }
@@ -77,9 +137,9 @@
     async clearPool() {
       console.log("♻️  Clearing ID pool...");
       try {
-        const poolSnap = await getDoc(doc(db, "system/deletedIdsPool"));
+        const poolSnap = await getDoc(doc(db, POOL_DOC));
         if (poolSnap.exists()) {
-          await updateDoc(doc(db, "system/deletedIdsPool"), {
+          await updateDoc(doc(db, POOL_DOC), {
             deletedIds: [],
             lastUpdatedAt: new Date().toISOString(),
           });
@@ -95,17 +155,11 @@
     async fullReset() {
       console.log("🔄 Performing full ID system reset...\n");
       try {
-        // Reset counter
-        console.log("   Resetting counter...");
-        await setDoc(doc(db, "system/resumeIdCounter"), {
-          currentId: 0,
-          lastResetAt: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-        });
+        console.log("   Resetting counter and shards...");
+        await this.resetCounter();
 
-        // Clear pool
         console.log("   Clearing pool...");
-        await updateDoc(doc(db, "system/deletedIdsPool"), {
+        await updateDoc(doc(db, POOL_DOC), {
           deletedIds: [],
           lastUpdatedAt: new Date().toISOString(),
         });
@@ -127,8 +181,8 @@ switchCVIdManager.checkStatus()
   → Shows current counter value and recycled IDs pool size
 
 switchCVIdManager.resetCounter()
-  → Resets the counter to 0
-  → Next resume will get ID: 1
+  → Resets sharded counter metadata to 0
+  → Reinitializes all shard documents
 
 switchCVIdManager.clearPool()
   → Clears the recycled IDs pool

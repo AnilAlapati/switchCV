@@ -53,6 +53,36 @@ export const getEmailBaseUrl = (): string => {
   );
 };
 
+const trimTrailingSlash = (value: string): string =>
+  value.endsWith("/") ? value.slice(0, -1) : value;
+
+const joinBaseAndPath = (base: string, path: string): string => {
+  try {
+    return new URL(path, base).toString();
+  } catch {
+    const normalizedBase = trimTrailingSlash(base || "");
+    if (path.startsWith("/")) {
+      return `${normalizedBase}${path}`;
+    }
+    return `${normalizedBase}/${path}`;
+  }
+};
+
+const DEFAULT_VERIFICATION_PATH = "/auth?mode=verify-email";
+
+export const getVerificationRoute = (): string =>
+  process.env.NEXT_PUBLIC_AUTH_VERIFICATION_PATH || DEFAULT_VERIFICATION_PATH;
+
+export const getVerificationUrl = (origin?: string): string => {
+  const explicit = process.env.NEXT_PUBLIC_AUTH_VERIFICATION_URL;
+  if (explicit) {
+    return explicit;
+  }
+
+  const baseUrl = origin || getEmailBaseUrl();
+  return joinBaseAndPath(baseUrl, getVerificationRoute());
+};
+
 /**
  * Feature Flags
  *

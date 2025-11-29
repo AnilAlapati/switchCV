@@ -317,11 +317,7 @@ export async function PUT(
       return verification.error;
     }
 
-    const {
-      userId: requestUserId,
-      docRef,
-      resumeData: existingData,
-    } = verification;
+    const { userId: requestUserId, docRef } = verification;
 
     // Check Editing Permissions
     const tier = await getUserTier(requestUserId!);
@@ -349,12 +345,7 @@ export async function PUT(
     const sanitizedResume = sanitizeResumePayload(resumePayload);
     const timestamp = new Date().toISOString();
 
-    // Use a batch write for atomicity and performance
-    const batch = adminDb.batch();
-
-    // 1. Update main resume document
-    batch.set(
-      docRef,
+    await docRef.set(
       {
         ...sanitizedResume,
         updatedAt: timestamp,
@@ -362,44 +353,6 @@ export async function PUT(
       },
       { merge: true }
     );
-
-    // 2. Update user's subcollection
-    const userResumeRef = adminDb
-      .collection("users")
-      .doc(requestUserId)
-      .collection("resumes")
-      .doc(id);
-
-    batch.set(
-      userResumeRef,
-      {
-        ...sanitizedResume,
-        updatedAt: timestamp,
-        lastUpdatedAt: timestamp,
-        userId: requestUserId,
-        numericId: existingData?.numericId,
-        isPublic: existingData?.isPublic,
-        visibility: existingData?.visibility,
-      },
-      { merge: true }
-    );
-
-    // 3. Update global search index
-    const globalResumeRef = adminDb.collection("allResumes").doc(id);
-    batch.set(
-      globalResumeRef,
-      {
-        title: sanitizedResume.title ?? existingData?.title,
-        updatedAt: timestamp,
-        userId: requestUserId,
-        numericId: existingData?.numericId,
-        isPublic: existingData?.isPublic,
-      },
-      { merge: true }
-    );
-
-    // Commit all changes atomically
-    await batch.commit();
 
     const refreshedSnap = await docRef.get();
     const refreshedData = refreshedSnap.data() ?? {};

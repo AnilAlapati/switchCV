@@ -55,6 +55,7 @@ export {
 
 // ==================== AI SEARCH FUNCTIONS ====================
 export { indexResumeOnWrite, reindexResume } from "./indexResumeService";
+export { fanOutResumeDocuments } from "./resumeFanoutService";
 
 export { searchResumesAI, getSearchQuota } from "./searchResumeService";
 

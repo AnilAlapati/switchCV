@@ -3,6 +3,30 @@ import * as functions from "firebase-functions/v1";
 import { emailService } from "./services/emailService";
 import { auditLogger, AuditAction, ResourceType } from "./services/auditLogger";
 
+const defaultVerificationPath =
+  process.env.VERIFICATION_PATH ||
+  process.env.NEXT_PUBLIC_AUTH_VERIFICATION_PATH ||
+  "/auth?mode=verify-email";
+
+const normalizeBase = (value: string): string =>
+  value.endsWith("/") ? value.slice(0, -1) : value;
+
+const buildVerificationLink = (): string => {
+  const explicitLink =
+    process.env.AUTH_VERIFICATION_URL || process.env.EMAIL_VERIFICATION_URL;
+  if (explicitLink) {
+    return explicitLink;
+  }
+
+  const baseUrl = normalizeBase(
+    process.env.WEBSITE_URL || "https://switchcv.com"
+  );
+  const path = defaultVerificationPath.startsWith("/")
+    ? defaultVerificationPath
+    : `/${defaultVerificationPath}`;
+  return `${baseUrl}${path}`;
+};
+
 // ==================== EMAIL FUNCTIONS ====================
 
 /**
@@ -18,7 +42,7 @@ export const onUserCreated = functions.auth.user().onCreate(async (user) => {
     const userData = userDoc.data();
 
     // Generate email verification link
-    let verificationLink = `${process.env.WEBSITE_URL}/auth?mode=verify-email`; // Fallback to auth page
+    let verificationLink = buildVerificationLink();
     if (user.email) {
       try {
         // Try to generate link with redirect to dashboard

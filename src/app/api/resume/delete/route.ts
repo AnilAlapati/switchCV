@@ -22,6 +22,8 @@ export async function POST(request: NextRequest) {
 
     let numericId: number | null = null;
     let deleted = false;
+    let deletedFromPrimary = false;
+    let legacyOwnerId: string | null = null;
 
     // 1. Try deleting from 'resumes' collection (new system)
     // resumeId might be the numeric ID string
@@ -42,6 +44,7 @@ export async function POST(request: NextRequest) {
         data?.numericId || (Number(resumeId) ? Number(resumeId) : null);
       await resumeRef.delete();
       deleted = true;
+      deletedFromPrimary = true;
     } else {
       // 2. Try deleting from 'resumeProfiles' (legacy)
       // If resumeId is numeric, we need to query
@@ -69,23 +72,46 @@ export async function POST(request: NextRequest) {
             return handleApiError(null, "Unauthorized", 403);
           }
           if (!numericId) numericId = data?.numericId;
+          legacyOwnerId = data?.userId ?? null;
           await legacyRef.delete();
           deleted = true;
         }
       }
     }
 
-    // Also delete from 'allResumes' if it exists
-    if (numericId) {
-      await adminDb.collection("allResumes").doc(String(numericId)).delete();
+    // Primary deletes trigger Cloud Function fan-out cleanup. Only run manual
+    // cleanup when removing legacy documents that do not emit events.
+    if (!deletedFromPrimary && numericId) {
+      const cleanupTasks: Promise<unknown>[] = [
+        adminDb
+          .collection("allResumes")
+          .doc(String(numericId))
+          .delete()
+          .catch(() => undefined),
+      ];
 
-      // Also delete from nested collection if it exists (based on create route)
-      await adminDb
-        .collection("resumes")
-        .doc(userId)
-        .collection("resumes")
-        .doc(String(numericId))
-        .delete();
+      if (legacyOwnerId) {
+        cleanupTasks.push(
+          adminDb
+            .collection("users")
+            .doc(legacyOwnerId)
+            .collection("resumes")
+            .doc(String(numericId))
+            .delete()
+            .catch(() => undefined)
+        );
+        cleanupTasks.push(
+          adminDb
+            .collection("users")
+            .doc(legacyOwnerId)
+            .collection("userResumes")
+            .doc(String(numericId))
+            .delete()
+            .catch(() => undefined)
+        );
+      }
+
+      await Promise.allSettled(cleanupTasks);
     }
 
     if (!deleted && !numericId) {

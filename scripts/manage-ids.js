@@ -26,7 +26,16 @@ const app = initializeApp({
 const db = getFirestore(app);
 
 const ID_COUNTER_DOC = "system/resumeIdCounter";
+const ID_SHARDS_COLLECTION = `${ID_COUNTER_DOC}/shards`;
 const ID_POOL_DOC = "system/deletedIdsPool";
+const SHARD_COUNT = 16;
+
+const shardStatePayload = (shardId, startValue = 0) => ({
+  shardId,
+  nextId: startValue + shardId + 1,
+  lastIssued: startValue,
+  updatedAt: new Date().toISOString(),
+});
 
 async function checkStatus() {
   console.log("\n📊 === Checking ID System Status ===\n");
@@ -37,12 +46,33 @@ async function checkStatus() {
 
     if (counterSnap.exists) {
       const data = counterSnap.data();
-      console.log("✅ Counter Document:");
-      console.log(`   Current ID: ${data.currentId}`);
-      console.log(`   Created: ${data.createdAt}`);
-      console.log(`   Last Reset: ${data.lastResetAt}`);
+      console.log("✅ Counter Metadata:");
+      console.log(`   Created: ${data.createdAt || "n/a"}`);
+      console.log(`   Last Reset: ${data.lastResetAt || "n/a"}`);
+      console.log(`   Description: ${data.description || "(none)"}`);
     } else {
       console.log("❌ Counter document doesn't exist");
+    }
+
+    const shardSnap = await db.collection(ID_SHARDS_COLLECTION).get();
+    console.log("\n📦 Shard Details:");
+    if (shardSnap.empty) {
+      console.log("   No shards found. Run reset or init script.");
+    } else {
+      const shardData = shardSnap.docs.map((doc) => doc.data());
+      const highestIssued = Math.max(
+        ...shardData.map((shard) => shard.lastIssued || 0)
+      );
+      console.log(`   Total shards: ${shardData.length}`);
+      console.log(`   Highest issued ID: ${highestIssued}`);
+      console.log(
+        "   Sample shard:",
+        shardData.slice(0, 3).map((shard) => ({
+          shardId: shard.shardId,
+          lastIssued: shard.lastIssued,
+          nextId: shard.nextId,
+        }))
+      );
     }
 
     const poolRef = db.doc(ID_POOL_DOC);
@@ -72,14 +102,22 @@ async function resetIds() {
   console.log("\n⚠️  === Resetting ID System ===\n");
 
   try {
-    // Reset counter
-    console.log("Resetting counter to 0...");
-    await db.doc(ID_COUNTER_DOC).set({
-      currentId: 0,
-      lastResetAt: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-    });
-    console.log("✅ Counter reset");
+    console.log("Resetting metadata and shards to 0...");
+    await db.doc(ID_COUNTER_DOC).set(
+      {
+        lastResetAt: new Date().toISOString(),
+        resetTo: 0,
+      },
+      { merge: true }
+    );
+
+    const batch = db.batch();
+    for (let shardId = 0; shardId < SHARD_COUNT; shardId += 1) {
+      const shardRef = db.collection(ID_SHARDS_COLLECTION).doc(String(shardId));
+      batch.set(shardRef, shardStatePayload(shardId), { merge: true });
+    }
+    await batch.commit();
+    console.log("✅ Shards reset");
 
     // Clear pool
     console.log("Clearing ID pool...");
@@ -135,9 +173,7 @@ switch (command) {
     break;
   default:
     console.log("Unknown command:", command);
-    console.log(
-      "Available commands: check, reset, clear-pool"
-    );
+    console.log("Available commands: check, reset, clear-pool");
 }
 
 process.exit(0);

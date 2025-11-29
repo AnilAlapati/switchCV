@@ -52,8 +52,6 @@ const { adminAuth } = jest.requireMock("@/lib/firebase-admin") as {
 interface MockSetup {
   resumesDoc: ReturnType<typeof createDoc>;
   resumeProfilesDoc: ReturnType<typeof createDoc>;
-  userResumeDoc: { set: jest.Mock };
-  allResumesDoc: { set: jest.Mock };
 }
 
 const setupCollections = (): MockSetup => {
@@ -67,32 +65,12 @@ const setupCollections = (): MockSetup => {
 
   const resumeProfilesDoc = createDoc({}, false);
 
-  const userResumeDoc = {
-    set: jest.fn(),
-  };
-
-  const allResumesDoc = {
-    set: jest.fn(),
-  };
-
   collectionHandlers.resumes = {
     doc: jest.fn(() => resumesDoc),
   };
 
   collectionHandlers.resumeProfiles = {
     doc: jest.fn(() => resumeProfilesDoc),
-  };
-
-  collectionHandlers.users = {
-    doc: jest.fn(() => ({
-      collection: jest.fn(() => ({
-        doc: jest.fn(() => userResumeDoc),
-      })),
-    })),
-  };
-
-  collectionHandlers.allResumes = {
-    doc: jest.fn(() => allResumesDoc),
   };
 
   collectionHandlers.jobSeekerMetrics = {
@@ -107,7 +85,7 @@ const setupCollections = (): MockSetup => {
     })),
   };
 
-  return { resumesDoc, resumeProfilesDoc, userResumeDoc, allResumesDoc };
+  return { resumesDoc, resumeProfilesDoc };
 };
 
 const buildRequest = (body: Record<string, unknown>, headers?: HeadersInit) =>
@@ -197,25 +175,6 @@ describe("PUT /api/resumes/[id]", () => {
       expect.objectContaining({
         title: "Updated Title",
         summary: "New summary",
-      }),
-      { merge: true }
-    );
-
-    expect(mocks.userResumeDoc.set).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: "Updated Title",
-        summary: "New summary",
-        userId: "user-123",
-        numericId: 42,
-      }),
-      { merge: true }
-    );
-
-    expect(mocks.allResumesDoc.set).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: "Updated Title",
-        numericId: 42,
-        userId: "user-123",
       }),
       { merge: true }
     );

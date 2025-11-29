@@ -32,7 +32,12 @@ describe("useAuth.helpers", () => {
     transactions: ReturnType<typeof createMockTransaction>[]
   ) => {
     (runTransaction as jest.Mock).mockImplementation(
-      async (_db, updateFunction: (tx: ReturnType<typeof createMockTransaction>) => Promise<void>) => {
+      async (
+        _db,
+        updateFunction: (
+          tx: ReturnType<typeof createMockTransaction>
+        ) => Promise<void>
+      ) => {
         const tx =
           transactions.shift() ??
           createMockTransaction({ usernameExists: false });
