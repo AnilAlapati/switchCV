@@ -46,7 +46,14 @@ const getActionCodeSettings = () => {
   if (typeof window === "undefined") {
     return undefined;
   }
+
   const origin = window.location.origin;
+  const isLocalhost = /^(http:\/\/)?(localhost|127\.0\.0\.1)/.test(origin);
+
+  if (isLocalhost) {
+    return undefined;
+  }
+
   return {
     url: `${origin}/auth?mode=verify-email`,
     handleCodeInApp: true,
@@ -207,14 +214,30 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       // Only rollback if the error is NOT a permission error that might resolve
       // (permission errors are now retried in reserveUsername with backoff)
       const firestoreError = error as { code?: string; message?: string };
+      const errorMessage =
+        error instanceof Error ? error.message.toLowerCase() : "";
       const isPermissionError =
         firestoreError.code === "permission-denied" ||
-        (error instanceof Error &&
-          error.message.includes("Missing or insufficient permissions"));
+        errorMessage.includes("missing or insufficient permissions") ||
+        errorMessage.includes("permission denied");
 
       // If it's a permission error after all retries, the user exists but profile doesn't
       // Don't delete the user - they can try to complete signup later or use password reset
       if (!isPermissionError && credential?.user) {
+        if (reservedUsername) {
+          try {
+            await releaseUsernameReservation(
+              credential.user.uid,
+              reservedUsername
+            );
+          } catch (releaseError) {
+            reportError(releaseError, {
+              source: "useAuth.signUp.rollback",
+              severity: "warning",
+            });
+          }
+        }
+
         try {
           await credential.user.delete();
         } catch (deleteError) {
@@ -222,13 +245,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             source: "useAuth.signUp.rollback",
             severity: "warning",
           });
-        }
-
-        if (reservedUsername) {
-          await releaseUsernameReservation(
-            credential.user.uid,
-            reservedUsername
-          );
         }
       }
 

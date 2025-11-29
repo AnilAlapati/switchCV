@@ -9,54 +9,16 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import type { JSX } from "react";
 import {
-  doc,
-  getDoc,
-  onSnapshot,
-  type DocumentReference,
-} from "firebase/firestore";
-import { db, firebaseStatus } from "@/lib/firebase";
+  defaultSystemConfig,
+  mergeWithDefaultConfig,
+  type SystemConfig,
+} from "@/lib/system-config";
 
 const CONFIG_CACHE_KEY = "switchcv:system-config";
 const CONFIG_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-
-export type MaintenanceConfig = {
-  isActive: boolean;
-  message: string;
-  blocking: boolean;
-};
-
-export type AuthConfig = {
-  registrationClosed: boolean;
-  loginDisabled: boolean;
-};
-
-export type FeaturesConfig = {
-  enableAnalytics: boolean;
-  enableMockData: boolean;
-};
-
-export type SystemConfig = {
-  maintenance: MaintenanceConfig;
-  auth: AuthConfig;
-  features: FeaturesConfig;
-};
-
-const defaultConfig: SystemConfig = {
-  maintenance: {
-    isActive: false,
-    message: "",
-    blocking: false,
-  },
-  auth: {
-    registrationClosed: false,
-    loginDisabled: false,
-  },
-  features: {
-    enableAnalytics: true,
-    enableMockData: false,
-  },
-};
+const POLL_INTERVAL_MS = 60 * 1000; // Re-fetch every minute for freshness
 
 type SystemConfigContextValue = {
   config: SystemConfig;
@@ -67,8 +29,6 @@ type SystemConfigContextValue = {
 const SystemConfigContext = createContext<SystemConfigContextValue | null>(
   null
 );
-
-const getConfigDocRef = (): DocumentReference => doc(db, "config", "system");
 
 type CachedConfigPayload = {
   data: SystemConfig;
@@ -121,38 +81,28 @@ const writeCachedConfig = (config: SystemConfig): void => {
   }
 };
 
-const mergeWithDefaults = (partial?: Partial<SystemConfig>): SystemConfig => ({
-  maintenance: {
-    ...defaultConfig.maintenance,
-    ...(partial?.maintenance ?? {}),
-  },
-  auth: {
-    ...defaultConfig.auth,
-    ...(partial?.auth ?? {}),
-  },
-  features: {
-    ...defaultConfig.features,
-    ...(partial?.features ?? {}),
-  },
-});
-
 const fetchRemoteConfig = async (): Promise<SystemConfig> => {
-  if (!firebaseStatus.isReady) {
-    return defaultConfig;
-  }
-
   try {
-    const snapshot = await getDoc(getConfigDocRef());
-    if (!snapshot.exists()) {
-      return defaultConfig;
+    const response = await fetch("/api/system-config", {
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch system config: ${response.status}`);
     }
 
-    return mergeWithDefaults(snapshot.data() as Partial<SystemConfig>);
+    const payload = (await response.json()) as {
+      config?: Partial<SystemConfig>;
+    };
+    return mergeWithDefaultConfig(payload.config);
   } catch (
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _error
   ) {
-    return defaultConfig;
+    return defaultSystemConfig;
   }
 };
 
@@ -163,9 +113,9 @@ export const SystemConfigProvider = ({
 }): JSX.Element => {
   const [config, setConfig] = useState<SystemConfig>(() => {
     const cached = readCachedConfig();
-    return cached ?? defaultConfig;
+    return cached ?? defaultSystemConfig;
   });
-  const [loading, setLoading] = useState<boolean>(firebaseStatus.isReady);
+  const [loading, setLoading] = useState<boolean>(true);
 
   const refresh = useCallback(async (): Promise<SystemConfig> => {
     const nextConfig = await fetchRemoteConfig();
@@ -176,11 +126,7 @@ export const SystemConfigProvider = ({
   }, []);
 
   useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
-
-    if (!firebaseStatus.isReady) {
-      return () => undefined;
-    }
+    let interval: ReturnType<typeof setInterval> | undefined;
 
     const bootstrap = async () => {
       const cached = readCachedConfig();
@@ -192,28 +138,17 @@ export const SystemConfigProvider = ({
       const remote = await refresh();
       setConfig(remote);
 
-      unsubscribe = onSnapshot(getConfigDocRef(), (snapshot) => {
-        if (!snapshot.exists()) {
-          return;
-        }
-
-        const latest = mergeWithDefaults(
-          snapshot.data() as Partial<SystemConfig>
-        );
-        setConfig((prev) => {
-          if (JSON.stringify(prev) === JSON.stringify(latest)) {
-            return prev;
-          }
-          writeCachedConfig(latest);
-          return latest;
-        });
-      });
+      interval = setInterval(() => {
+        void refresh();
+      }, POLL_INTERVAL_MS);
     };
 
     void bootstrap();
 
     return () => {
-      unsubscribe?.();
+      if (interval) {
+        clearInterval(interval);
+      }
     };
   }, [refresh]);
 

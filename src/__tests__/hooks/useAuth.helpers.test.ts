@@ -16,6 +16,31 @@ jest.mock("firebase/firestore", () => ({
 }));
 
 describe("useAuth.helpers", () => {
+  const createMockTransaction = (options?: { usernameExists?: boolean }) => {
+    const { usernameExists = false } = options ?? {};
+    return {
+      get: jest.fn().mockResolvedValue({
+        exists: () => usernameExists,
+        data: () => ({ uid: "uid" }),
+      }),
+      set: jest.fn(),
+      delete: jest.fn(),
+    };
+  };
+
+  const mockRunTransactionSequence = (
+    transactions: ReturnType<typeof createMockTransaction>[]
+  ) => {
+    (runTransaction as jest.Mock).mockImplementation(
+      async (_db, updateFunction: (tx: ReturnType<typeof createMockTransaction>) => Promise<void>) => {
+        const tx =
+          transactions.shift() ??
+          createMockTransaction({ usernameExists: false });
+        return updateFunction(tx);
+      }
+    );
+  };
+
   describe("sanitizeUsername", () => {
     it("sanitizes username correctly", () => {
       expect(sanitizeUsername("  Test User  ")).toBe("testuser");
@@ -51,6 +76,11 @@ describe("useAuth.helpers", () => {
 
     beforeEach(() => {
       jest.clearAllMocks();
+      (getDoc as jest.Mock).mockResolvedValue({
+        exists: () => false,
+        data: () => ({}),
+      });
+      mockRunTransactionSequence([createMockTransaction()]);
     });
 
     describe("reserveUsername", () => {
@@ -61,71 +91,51 @@ describe("useAuth.helpers", () => {
       });
 
       it("reserves username successfully", async () => {
-        // Mock getDoc to return non-existent username
-        (getDoc as jest.Mock).mockResolvedValue({
-          exists: () => false,
-        });
-        // Mock setDoc to succeed
-        (setDoc as jest.Mock).mockResolvedValue(undefined);
+        const tx = createMockTransaction({ usernameExists: false });
+        mockRunTransactionSequence([tx]);
 
         const result = await helpers.reserveUsername("uid", "valid-user");
         expect(result).toBe("valid-user");
         expect(getDoc).toHaveBeenCalled();
-        expect(setDoc).toHaveBeenCalled();
+        expect(tx.set).toHaveBeenCalledTimes(2); // username + profile docs
       });
 
       it("throws error if username taken", async () => {
-        // Mock getDoc to return existing username
-        (getDoc as jest.Mock).mockResolvedValue({
-          exists: () => true,
-        });
+        const tx = createMockTransaction({ usernameExists: true });
+        mockRunTransactionSequence([tx]);
 
         await expect(
           helpers.reserveUsername("uid", "taken-user")
         ).rejects.toThrow("This username is already taken");
+        expect(tx.set).not.toHaveBeenCalled();
       });
     });
 
     describe("allocateUsernameForUser", () => {
       it("allocates base username if available", async () => {
-        // Mock getDoc to return non-existent username
-        (getDoc as jest.Mock).mockResolvedValue({
-          exists: () => false,
-        });
-        // Mock setDoc to succeed
-        (setDoc as jest.Mock).mockResolvedValue(undefined);
+        const tx = createMockTransaction({ usernameExists: false });
+        mockRunTransactionSequence([tx]);
 
         await helpers.allocateUsernameForUser("uid", "baseuser");
         expect(getDoc).toHaveBeenCalled();
-        expect(setDoc).toHaveBeenCalled();
+        expect(tx.set).toHaveBeenCalled();
       });
 
       it("retries with suffix if taken", async () => {
-        let callCount = 0;
-        // Mock getDoc to return existing on first call, non-existent on second
-        (getDoc as jest.Mock).mockImplementation(() => {
-          callCount++;
-          return Promise.resolve({
-            exists: () => callCount === 1, // First call: taken, second: available
-          });
-        });
-        // Mock setDoc to succeed
-        (setDoc as jest.Mock).mockResolvedValue(undefined);
+        const firstTx = createMockTransaction({ usernameExists: true });
+        const secondTx = createMockTransaction({ usernameExists: false });
+        mockRunTransactionSequence([firstTx, secondTx]);
 
         await helpers.allocateUsernameForUser("uid", "baseuser");
-        expect(getDoc).toHaveBeenCalledTimes(2);
+        expect(firstTx.set).not.toHaveBeenCalled();
+        expect(secondTx.set).toHaveBeenCalled();
       });
     });
 
     describe("ensureUserProfile", () => {
       it("creates profile if not exists and auto-generates username for email/password user", async () => {
-        // Mock getDoc for profile check (not exists) and username check (not exists)
-        (getDoc as jest.Mock).mockResolvedValue({
-          exists: () => false,
-          data: () => ({}),
-        });
-        // Mock setDoc to succeed
-        (setDoc as jest.Mock).mockResolvedValue(undefined);
+        const tx = createMockTransaction({ usernameExists: false });
+        mockRunTransactionSequence([tx]);
 
         const user = {
           uid: "uid",
@@ -141,8 +151,7 @@ describe("useAuth.helpers", () => {
 
         expect(result).toEqual({ isNewUser: true, needsUsername: false });
         expect(setDoc).toHaveBeenCalled();
-        // allocateUsernameForUser now uses getDoc/setDoc instead of runTransaction
-        expect(getDoc).toHaveBeenCalled();
+        expect(tx.set).toHaveBeenCalled();
       });
 
       it("creates profile with needsUsername flag for Google OAuth user", async () => {
@@ -194,21 +203,19 @@ describe("useAuth.helpers", () => {
 
     describe("releaseUsernameReservation", () => {
       it("deletes username and profile", async () => {
-        (runTransaction as jest.Mock).mockImplementation(
-          async (db, callback) => {
-            const mockTransaction = {
-              get: jest.fn().mockResolvedValue({
-                exists: () => true,
-                data: () => ({ uid: "uid" }),
-              }),
-              delete: jest.fn(),
-            };
-            await callback(mockTransaction);
-          }
-        );
+        const tx = {
+          get: jest.fn().mockResolvedValue({
+            exists: () => true,
+            data: () => ({ uid: "uid" }),
+          }),
+          delete: jest.fn(),
+          set: jest.fn(),
+        };
+        mockRunTransactionSequence([tx]);
 
         await helpers.releaseUsernameReservation("uid", "username");
         expect(runTransaction).toHaveBeenCalled();
+        expect(tx.delete).toHaveBeenCalled();
       });
     });
   });

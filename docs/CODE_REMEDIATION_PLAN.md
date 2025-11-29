@@ -1,0 +1,89 @@
+# SwitchCV Code Issues Master Plan
+
+**Date:** 29 Nov 2025  
+**Author:** GitHub Copilot (GPT-5.1-Codex)  
+**Scope:** `src`, `functions`, `scripts`, `firestore.rules`, root config files, and deployment docs.
+
+This document compiles every code-level and configuration risk found during the latest repo audit. Each issue references the concrete file(s) involved, the impact, and the recommended remediation. A prioritized TODO backlog is provided at the end so work can be tracked to completion.
+
+---
+
+## 1. Issue Catalogue
+
+Legend: `C` = Critical, `H` = High, `M` = Medium, `L` = Low.
+
+### 1.1 Critical
+
+| ID  | Title                                          | Evidence                                                                                                                           | Impact                                                                                                                                        | Recommended Fix                                                                                                                            |
+| --- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| C1  | Privilege escalation via self-edited user docs | `firestore.rules` grants `allow write` on `users/{userId}`; `functions/src/authFunctions.ts` mirrors `role` into custom claims     | Any authenticated user can promote themselves to `admin` or `recruiter` by writing `{ role: 'admin' }`, gaining unrestricted Firestore access | Deny direct writes to privileged fields in rules (whitelist allowed keys) and require a callable Admin function for role changes           |
+| C2  | Unbounded mutation of billing/security fields  | Same `users/{userId}` rule plus `resumes`, `drafts` rules allow arbitrary writes                                                   | Users can set `subscriptionTier: 'enterprise'`, disable expirations, or store oversized payloads, bypassing billing controls                  | Define schema-level field constraints in security rules using `request.resource.data.keys()` and reject writes with disallowed keys/values |
+| C3  | Tier & quota bypass on AI resume endpoint      | `functions/src/resumeService.ts` accepts any `modelId` from `ALLOWED_MODELS` once the caller has a valid token—no tier/usage check | Free/basic accounts can call expensive `gemini-1.5-pro` or spam the endpoint, incurring uncapped API spend                                    | Inject plan checks (e.g., Firestore tier lookup + rate limiter) before invoking AI providers; enforce per-tier model allowlists and quotas |
+| C4  | Automated git corruption in maintenance hook   | `scripts/auto-maintain.sh` (invoked via `npm run precommit`) runs `git fsck`, deletes missing objects, and refetches               | Legitimate local commits can be deleted automatically; developer machines become desynced silently                                            | Remove destructive git cleanup logic from the script or gate it behind explicit opt-in flags                                               |
+
+### 1.2 High
+
+| ID  | Title                                                       | Evidence                                                                                                      | Impact                                                                                                    | Recommended Fix                                                                                                                                            |
+| --- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| H1  | Signup race condition + brittle delay                       | `src/hooks/useAuth.helpers.ts` waits a fixed 500 ms before Firestore writes, still prone to permission errors | Intermittent "Missing or insufficient permissions" during signup; user objects left half-created          | Replace static delay with `await firebaseUser.getIdToken(true)` (already partly done) **and** poll until `request.auth` is honored or surface retry UI     |
+| H2  | Username release vs. user deletion ordering                 | `src/hooks/useAuth.tsx` deletes the Auth user even if `releaseUsernameReservation` fails                      | Blocks username reuse and leaves orphan reservations whenever rollback partially fails                    | Reverse the order: release username first, check success, only then delete from Auth or mark cleanup for cron                                              |
+| H3  | Resume data triplicated without transactions across clients | `src/app/api/resumes/create/route.ts` writes to `resumes`, `users/{id}/resumes`, and `allResumes`             | Partial failures leave collections inconsistent (search listings vs. actual data) and complicate deletion | Collapse into single source of truth + derived views built via Cloud Functions, or guarantee multi-collection consistency through server-side transactions |
+| H4  | Single-doc numeric ID counter bottleneck                    | `src/lib/numericIdGenerator.ts` increments one document per resume                                            | Firestore limits update throughput of a single document to ~1 write/s; resume creation stalls under load  | Implement sharded counters (e.g., 10–20 docs) or switch to ULIDs/UUIDv7 generated client-side                                                              |
+| H5  | Public exposure of operational flags                        | `firestore.rules` allows `read` on `config/system` to anyone                                                  | Attackers can monitor maintenance toggles and derive deployment cadence; raises social-engineering risk   | Require authentication and optionally restrict to admins; cache via API route instead of client Firestore reads                                            |
+| H6  | Model selection not validated on client                     | `src/lib/services/aiProviderService.ts` reads env keys in shared lib; client imports could leak               | Next.js may bundle env references into client chunks, leading to build errors or accidental key exposure  | Move provider logic under `src/server/` with "use server" boundary and provide typed facade for client components                                          |
+
+### 1.3 Medium
+
+| ID  | Title                                                        | Evidence                                                                                          | Impact                                                                                              | Recommended Fix                                                                                              |
+| --- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| M1  | Duplicate `firebase-tools` and `k6@0.0.0` regular dependency | `package.json` lists dev tooling inside `dependencies`; `k6` version placeholder breaks install   | Production bundle grows unnecessarily; `npm install` fails in CI when registry rejects fake version | Move tooling to `devDependencies`, pin valid `k6` version or remove unused package                           |
+| M2  | Jest tests coupled to providers                              | `src/__tests__/app/auth/page.test.tsx` imports `AuthPage` without `SystemConfigProvider` context  | Tests fail locally and in CI, hiding regressions elsewhere                                          | Provide provider wrapper/test utils or mock hooks so tests run headless                                      |
+| M3  | `SystemConfigProvider` TTL hardcoded & sessionStorage only   | `src/context/SystemConfigProvider.tsx` caches for 5 min regardless of severity                    | Emergency maintenance toggles can take minutes to propagate to users                                | Make TTL configurable (env or Firestore field) and support `localStorage` fallback for multi-tab consistency |
+| M4  | `scripts/auto-maintain.sh` assumes GNU utilities             | Script uses `df`, `awk`, emojis; run via `bash` on macOS                                          | Non-Linux shells may mis-parse or choke CI; emoji output breaks log parsing                         | Detect OS, fall back to POSIX commands, gate emoji output                                                    |
+| M5  | Cloud Function CORS config accepts boolean `true`            | `functions/src/resumeService.ts` obtains `corsOrigin` from config but allows `true` (per comment) | A misconfigured value opens endpoint to every origin, circumventing CSRF protections                | Validate config at startup and default to explicit allowlist                                                 |
+| M6  | Hardcoded verification link structure                        | `src/hooks/useAuth.tsx` builds `${origin}/auth?mode=verify-email`                                 | Route rename silently breaks email verification; no staging/prod distinction                        | Move URL template to config + include tenant aware deep links                                                |
+
+### 1.4 Low / Observability
+
+- **L1 – Missing provider health metrics:** `functions/src/utils/retryHandler.ts` logs to console only; no structured metrics for breaker state.
+- **L2 – No automated dependency audit:** `scripts/check-repo-health.sh` doesn’t run `npm audit` or `npm outdated`; security fixes rely on manual review.
+- **L3 – Firestore index drift risk:** `firestore.indexes.json` not referenced in deploy docs; new composite indexes aren’t enforced by CI.
+
+---
+
+## 2. Actionable TODO Backlog
+
+| #   | Severity | Task                                                                                                                        | Owners              | Definition of Done                                                                                                                        | Status                                                                  |
+| --- | -------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| 1   | 🔴       | Rewrite `firestore.rules` for `users`, `resumes`, `config/system` to enforce field-level validation & restrict public reads | Platform + Security | Rules deployed, simulator tests proving writes to `role`/`subscriptionTier` are rejected, `config/system` readable only via service token | ✅ Complete – hardened rules + `/api/system-config` proxy (Nov 29 2025) |
+| 2   | 🔴       | Adjust `functions/src/authFunctions.ts` to ignore client-provided roles; add admin-only callable `setUserRole`              | Backend             | Role claim updates require authenticated admin token; unit tests cover promotion/demotion                                                 | ✅ Complete – callable + claim guard (Nov 29 2025)                      |
+| 3   | 🔴       | Add tier + quota enforcement to `generateResumeContent` Cloud Function (plan lookup + limiter)                              | AI Orchestration    | Requests from basic tiers rejected when selecting premium models; logging shows tier + cost attribution                                   | ✅ Complete – plan + rate limits enforced (Nov 29 2025)                 |
+| 4   | 🔴       | Remove destructive git operations from `scripts/auto-maintain.sh` and stop running automatically on `precommit`             | DevEx               | Script becomes opt-in (manual flag) and passes shellcheck; Husky hook updated                                                             | ✅ Complete – safe script & hook removed (Nov 29 2025)                  |
+| 5   | 🟠       | Replace static delay in `reserveUsername` with deterministic token propagation check; expose retry UI in signup flow        | Frontend Auth       | Signup flow shows actionable message on transient failures; telemetry indicates drop in permission errors                                 | ✅ Complete – deterministic polling + retries (Nov 29 2025)             |
+| 6   | 🟠       | Refactor resume creation pipeline to single source of truth + pub/sub derived writes                                        | Backend Resume      | Cloud Function or server action writes once; background worker populates `allResumes`; integration tests green                            | ⏳ Pending                                                              |
+| 7   | 🟠       | Implement sharded counters or switch to ULIDs for resume IDs                                                                | Platform            | Load test proves >100 RPS resume creation without contention                                                                              | ⏳ Pending                                                              |
+| 8   | 🟠       | Move `aiProviderService` and env usage into server-only module; provide typed client facade                                 | Frontend Infra      | Next.js bundle analyzer shows no secret env strings in client chunks                                                                      | ⏳ Pending                                                              |
+| 9   | 🟠       | Lock down `config/system` reads via authenticated API route + server caching                                                | Platform            | Clients fetch configs via `/api/system-config`; Firestore rules deny anonymous reads                                                      | ✅ Complete – provider now uses API route (Nov 29 2025)                 |
+| 10  | 🟡       | Clean up dependencies (`k6`, `firebase-tools`, align @types/node versions)                                                  | Tooling             | `npm install` succeeds on fresh clone; `npm ls --all` clean                                                                               | ⏳ Pending                                                              |
+| 11  | 🟡       | Stabilize `SystemConfigProvider` cache strategy (configurable TTL + multi-tab sync)                                         | Frontend Infra      | Maintenance flag flips propagate <10s in manual test                                                                                      | ✅ Complete – API-backed polling (Nov 29 2025)                          |
+| 12  | 🟡       | Harden verification email URLs via config + deep-link builder                                                               | Frontend Auth       | Emails show environment-aware URLs verified by Playwright test                                                                            | ⏳ Pending                                                              |
+| 13  | 🟡       | Guard Cloud Function CORS config against wildcard values                                                                    | Backend Infra       | Unit test ensures boolean `true` not accepted; default allowlist applied                                                                  | ⏳ Pending                                                              |
+| 14  | 🔵       | Add provider health metrics + structured logging for circuit breakers                                                       | Observability       | Logs shipped to preferred stack with breaker open/close events                                                                            | ⏳ Pending                                                              |
+| 15  | 🔵       | Introduce CI step to verify `firestore.indexes.json` + run security audits                                                  | DevEx               | GitHub Action fails when indexes drift or `npm audit` finds critical vulns                                                                | ⏳ Pending                                                              |
+
+### Suggested Execution Order
+
+1. Address Firestore rule gaps (Tasks 1–2) to stop privilege escalation.
+2. Lock cost exposure (Task 3) before running additional marketing campaigns.
+3. Remove dangerous developer tooling (Task 4) to keep local environments stable.
+4. Parallelize medium tasks per squad once the platform is safe.
+
+---
+
+## 3. Tracking & Next Steps
+
+- Mirror these tasks into Jira or Linear with the same IDs (`C1`, `H3`, etc.) for traceability.
+- Require security review sign-off before closing any 🔴/🟠 ticket.
+- Keep this document updated after each remediation sprint; include links to merged PRs in the TODO table when available.
+
+> 📌 **Reminder:** Do not deploy new AI features or onboarding funnels until Critical tasks are verified in staging with automated tests.

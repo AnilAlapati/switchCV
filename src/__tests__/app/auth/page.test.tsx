@@ -6,6 +6,16 @@ import { useRouter, useSearchParams } from "next/navigation";
 // Mock hooks
 jest.mock("@/hooks/useAuth");
 jest.mock("next/navigation");
+jest.mock("@/context/SystemConfigProvider", () => {
+  const { defaultSystemConfig } = jest.requireActual("@/lib/system-config");
+  return {
+    useSystemConfig: () => ({
+      config: defaultSystemConfig,
+      loading: false,
+      refresh: jest.fn(),
+    }),
+  };
+});
 
 // Mock fetch for username availability check
 global.fetch = jest.fn();

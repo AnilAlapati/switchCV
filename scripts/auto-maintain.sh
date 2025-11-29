@@ -1,51 +1,65 @@
 #!/bin/bash
-# Automatic Maintenance Script - Runs in background
-# This prevents issues before they happen
+# Lightweight workspace maintenance utility.
 
-set -e
+set -euo pipefail
 
-echo "🔧 Running automatic maintenance..."
+print_usage() {
+    cat <<'EOF'
+Usage: ./scripts/auto-maintain.sh [--git-maintenance]
 
-# 1. Auto-clean npm cache if disk > 90%
+Runs safe cache clean-up steps. Pass --git-maintenance to opt in to non-destructive git gc.
+EOF
+}
+
+RUN_GIT_MAINTENANCE=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --git-maintenance)
+            RUN_GIT_MAINTENANCE=true
+            shift
+            ;;
+        -h|--help)
+            print_usage
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1" >&2
+            print_usage
+            exit 1
+            ;;
+    esac
+done
+
+echo "🔧 Running workspace maintenance..."
+
 DISK_USAGE=$(df . | tail -1 | awk '{print substr($5, 1, length($5)-1)}')
 if [ "$DISK_USAGE" -ge 90 ]; then
-    echo "  • Cleaning npm cache..."
+    echo "  • Disk usage at ${DISK_USAGE}%. Cleaning npm cache..."
     npm cache clean --force 2>/dev/null || true
 fi
 
-# 2. Clean Next.js build cache
 if [ -d ".next/cache" ]; then
-    echo "  • Cleaning Next.js cache..."
+    echo "  • Removing Next.js cache"
     rm -rf .next/cache
 fi
 
-# 3. Clean node_modules cache
 if [ -d "node_modules/.cache" ]; then
-    echo "  • Cleaning node_modules cache..."
+    echo "  • Removing node_modules cache"
     rm -rf node_modules/.cache
 fi
 
-# 4. Remove git lock files
-if ls .git/*.lock 2>/dev/null; then
-    echo "  • Removing stale git locks..."
+if compgen -G ".git/*.lock" > /dev/null; then
+    echo "  • Clearing stale git lock files"
     rm -f .git/*.lock
 fi
 
-# 5. Optimize git repository
-echo "  • Optimizing git repository..."
-git gc --auto --quiet 2>/dev/null || true
-
-# 6. Check for corrupted objects
-if ! git fsck --quick --quiet 2>/dev/null; then
-    echo "  ⚠️  Git corruption detected. Running recovery..."
-    git fsck --full 2>&1 | grep "missing" | awk '{print $3}' | while read obj; do
-        rm -f ".git/objects/${obj:0:2}/${obj:2}" 2>/dev/null || true
-    done
-    git fetch --all 2>/dev/null || true
+if $RUN_GIT_MAINTENANCE; then
+    echo "  • Running git gc --auto (opt-in)"
+    git gc --auto --quiet 2>/dev/null || true
+else
+    echo "  • Skipping git maintenance (use --git-maintenance to opt in)"
 fi
 
-echo "✅ Maintenance complete"
-
-# Show current status
-DISK_USAGE=$(df . | tail -1 | awk '{print $5}')
-echo "📊 Disk usage: $DISK_USAGE"
+FINAL_USAGE=$(df . | tail -1 | awk '{print $5}')
+echo "✅ Maintenance complete (disk usage: $FINAL_USAGE)"

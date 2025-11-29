@@ -1,9 +1,106 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users can read and write their own user document
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function userRoleIsProtected() {
+      return !('role' in request.resource.data)
+        || (resource == null && request.resource.data.role == 'jobseeker')
+        || (resource != null && request.resource.data.role == resource.data.role);
+    }
+
+    function userTierIsProtected() {
+      return !('subscriptionTier' in request.resource.data)
+        || (resource == null && request.resource.data.subscriptionTier == 'basic')
+        || (resource != null && request.resource.data.subscriptionTier == resource.data.subscriptionTier);
+    }
+
+    function recruiterFlagProtected() {
+      return !('isRecruiter' in request.resource.data)
+        || (resource == null && request.resource.data.isRecruiter == false)
+        || (resource != null && request.resource.data.isRecruiter == resource.data.isRecruiter);
+    }
+
+    function userDocHasOnlyAllowedFields() {
+      return request.resource.data.keys().hasOnly([
+        'uid',
+        'email',
+        'displayName',
+        'photoURL',
+        'username',
+        'needsUsername',
+        'emailVerified',
+        'authProvider',
+        'companyName',
+        'role',
+        'subscriptionTier',
+        'isRecruiter',
+        'createdAt',
+        'updatedAt',
+        'settingsUpdatedAt',
+        'profileCompletedAt',
+        'preferences',
+        'metrics',
+        'resumeQuota',
+        'resumeUsage',
+        'connectivityIssue',
+        'lastLoginAt',
+        'notificationPreferences',
+        'maintenanceBypass',
+        'tierOverride',
+        'subscription',
+        'subscriptionStatus',
+        'subscriptionExpiresAt',
+        'stripeCustomerId',
+        'billingStatus',
+        'roleUpdatedAt',
+        'roleUpdatedBy',
+        'plan',
+        'planId',
+        'planMetadata',
+        'planExpiresAt',
+        'planRenewalDate',
+        'planOverride',
+        'planTier',
+        'aiUsage',
+        'quota',
+        'quotaOverrides',
+        'featureFlags',
+        'policyAcceptances',
+        'privacySettings',
+        'profile'
+      ]);
+    }
+
+    function userDocHasRequiredIdentity(userId) {
+      return request.resource.data.uid == userId && request.resource.data.email is string;
+    }
+
+    // Users can read their own user document. Writes are limited to safe fields only.
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if isOwner(userId);
+
+      allow create: if isOwner(userId)
+        && userDocHasOnlyAllowedFields()
+        && userDocHasRequiredIdentity(userId)
+        && userRoleIsProtected()
+        && userTierIsProtected()
+        && recruiterFlagProtected();
+
+      allow update: if isOwner(userId)
+        && userDocHasOnlyAllowedFields()
+        && userDocHasRequiredIdentity(userId)
+        && userRoleIsProtected()
+        && userTierIsProtected()
+        && recruiterFlagProtected();
+
+      allow delete: if isOwner(userId);
     }
 
     // Users can read and write their own profiles
@@ -215,6 +312,11 @@ service cloud.firestore {
 
     // ==================== SYSTEM COLLECTIONS ====================
     
+    // System configuration is restricted to server/API usage only
+    match /config/system {
+      allow read, write: if false;
+    }
+
     // System configuration and ID generator
     // These are backend/server-only operations
     // Backend (Cloud Functions, authenticated server endpoints) can read/write
@@ -276,12 +378,10 @@ service cloud.firestore {
       allow read: if request.auth != null 
         && request.auth.token.role == 'admin';
       
-      // Only authenticated users can create resumes (must be for themselves)
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
-      // Only the owner can update their resume
-      allow update: if request.auth != null && request.auth.uid == resource.data.userId;
-      // Only the owner can delete their resume
-      allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
+      // Resume writes are performed server-side via Admin SDK
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     // Global Resumes Collection (for search/listing)

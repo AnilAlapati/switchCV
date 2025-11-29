@@ -1,7 +1,7 @@
 /* eslint-disable max-lines */
 "use client";
 
-import { useState, useEffect, Suspense, useCallback } from "react";
+import { useState, useEffect, Suspense, useCallback, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter, useSearchParams } from "next/navigation";
 import { applyActionCode } from "firebase/auth";
@@ -46,6 +46,7 @@ function AuthContent() {
   const [usernameSuggestion, setUsernameSuggestion] = useState("");
   const [verificationSuccess, setVerificationSuccess] = useState(false);
   const [verificationProcessing, setVerificationProcessing] = useState(false);
+  const verificationAttempted = useRef(false);
 
   // Debounce username for availability check
   const { debouncedValue: debouncedUsername, isPending: isCheckingUsername } =
@@ -137,8 +138,10 @@ function AuthContent() {
       if (
         (mode === "verifyEmail" || mode === "verify-email") &&
         oobCode &&
-        auth
+        auth &&
+        !verificationAttempted.current
       ) {
+        verificationAttempted.current = true;
         setVerificationProcessing(true);
         setError("");
 
