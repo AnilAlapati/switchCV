@@ -24,10 +24,11 @@ All critical and high-severity issues identified by the AI reviews have been res
 
 ## 🟡 Medium Priority — Next 2 Weeks
 
-| #   | Task                                | Source   | Notes                                                             |
-| --- | ----------------------------------- | -------- | ----------------------------------------------------------------- |
-| 1   | Add E2E tests with Playwright       | Opus 4.5 | Critical user journeys: signup, resume creation, recruiter search |
-| 3   | Add payment/subscription flow tests | Opus 4.5 | Business critical before monetization launch                      |
+| #   | Task                                | Source        | Notes                                                             |
+| --- | ----------------------------------- | ------------- | ----------------------------------------------------------------- |
+| 1   | Add E2E tests with Playwright       | Opus 4.5      | Critical user journeys: signup, resume creation, recruiter search |
+| 3   | Add payment/subscription flow tests | Opus 4.5      | Business critical before monetization launch                      |
+| 4   | Build admin panel for system config | Nov 29 Review | GUI to toggle maintenance flags/messages without Firebase Console |
 
 ---
 
@@ -46,10 +47,11 @@ All critical and high-severity issues identified by the AI reviews have been res
 
 ## 🟡 Medium Priority — Next 2 Weeks
 
-| #   | Task                                | Source   | Notes                                                             |
-| --- | ----------------------------------- | -------- | ----------------------------------------------------------------- |
-| 1   | Add E2E tests with Playwright       | Opus 4.5 | Critical user journeys: signup, resume creation, recruiter search |
-| 3   | Add payment/subscription flow tests | Opus 4.5 | Business critical before monetization launch                      |
+| #   | Task                                | Source        | Notes                                                             |
+| --- | ----------------------------------- | ------------- | ----------------------------------------------------------------- |
+| 1   | Add E2E tests with Playwright       | Opus 4.5      | Critical user journeys: signup, resume creation, recruiter search |
+| 3   | Add payment/subscription flow tests | Opus 4.5      | Business critical before monetization launch                      |
+| 4   | Build admin panel for system config | Nov 29 Review | GUI to toggle maintenance flags/messages without Firebase Console |
 
 ---
 
@@ -106,4 +108,5 @@ Three AI models reviewed the codebase on Nov 28:
 - All security fixes have corresponding test updates
 - Dev mode bypass remains safe (compile-time `NODE_ENV` check)
 - Vector search provider toggle (`AI_SEARCH_PROVIDER`) working correctly
+- Auth maintenance flags now live in Firestore (`config/system`); deprecated env vars `NEXT_PUBLIC_REGISTRATION_DISABLED` and `NEXT_PUBLIC_LOGIN_DISABLED` have been removed
 - Custom claims sync via `onUserRoleChanged` Cloud Function verified

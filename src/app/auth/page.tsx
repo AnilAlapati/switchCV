@@ -11,9 +11,9 @@ import { AuthBrand } from "@/components/auth/AuthBrand";
 import { AuthFormInputs } from "@/components/auth/AuthFormInputs";
 import { EmailVerificationNotice } from "@/components/auth/EmailVerificationNotice";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
-import { REGISTRATION_DISABLED, LOGIN_DISABLED } from "@/lib/config";
 import { useDebouncedValue } from "@/hooks/useDebounce";
 import { USERNAME_CONFIG } from "@/config/constants";
+import { useSystemConfig } from "@/context/SystemConfigProvider";
 import type { UsernameCheckResponse } from "@/app/api/user/username/check/route";
 
 type UsernameStatus =
@@ -26,6 +26,11 @@ type UsernameStatus =
 
 function AuthContent() {
   const searchParams = useSearchParams();
+  const {
+    config: {
+      auth: { registrationClosed, loginDisabled },
+    },
+  } = useSystemConfig();
 
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
@@ -340,16 +345,16 @@ function AuthContent() {
               </h2>
               <p className="text-slate-400 text-sm">
                 {isSignUp
-                  ? REGISTRATION_DISABLED
+                  ? registrationClosed
                     ? "Registration is currently closed for maintenance"
                     : "Create your account to get started"
-                  : LOGIN_DISABLED
+                  : loginDisabled
                   ? "Login is currently disabled for maintenance"
                   : "Sign in to access your dashboard"}
               </p>
             </div>
 
-            {isSignUp && REGISTRATION_DISABLED ? (
+            {isSignUp && registrationClosed ? (
               <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-xl p-6 text-center">
                 <p className="text-yellow-200 mb-4">
                   We are currently performing system upgrades. New account
@@ -363,13 +368,13 @@ function AuthContent() {
                   Return to Sign In
                 </button>
               </div>
-            ) : !isSignUp && LOGIN_DISABLED ? (
+            ) : !isSignUp && loginDisabled ? (
               <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-xl p-6 text-center">
                 <p className="text-yellow-200 mb-4">
                   We are currently performing system upgrades. Login is
                   temporarily disabled.
                 </p>
-                {!REGISTRATION_DISABLED && (
+                {!registrationClosed && (
                   <button
                     type="button"
                     onClick={() => setIsSignUp(true)}
@@ -421,7 +426,7 @@ function AuthContent() {
                   )}
                 </button>
 
-                {(!REGISTRATION_DISABLED || !LOGIN_DISABLED) && (
+                {(!registrationClosed || !loginDisabled) && (
                   <div className="text-center">
                     <button
                       type="button"
@@ -437,8 +442,8 @@ function AuthContent() {
               </form>
             )}
 
-            {((!isSignUp && !LOGIN_DISABLED) ||
-              (isSignUp && !REGISTRATION_DISABLED)) && (
+            {((!isSignUp && !loginDisabled) ||
+              (isSignUp && !registrationClosed)) && (
               <div className="mt-6">
                 <div className="flex items-center gap-3 mb-4">
                   <span className="flex-1 h-px bg-white/20"></span>

@@ -4,7 +4,10 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ConnectivityStatusProvider } from "@/context/ConnectivityStatusProvider";
+import { SystemConfigProvider } from "@/context/SystemConfigProvider";
+import { BlockingGuard } from "@/components/layout/BlockingGuard";
 import { Footer } from "@/components/layout/Footer";
+import { MaintenanceBanner } from "@/components/layout/MaintenanceBanner";
 import { DevModeBanner } from "@/components/dev/DevModeBanner";
 import { SWRProvider } from "@/components/providers/SWRProvider";
 
@@ -36,15 +39,20 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ConnectivityStatusProvider>
-          <AuthProvider>
-            <SWRProvider>
-              <div className="flex min-h-screen flex-col">
-                <div className="flex-1">{children}</div>
-                <Footer />
-              </div>
-              <DevModeBanner />
-            </SWRProvider>
-          </AuthProvider>
+          <SystemConfigProvider>
+            <BlockingGuard>
+              <AuthProvider>
+                <SWRProvider>
+                  <MaintenanceBanner />
+                  <div className="flex min-h-screen flex-col">
+                    <div className="flex-1">{children}</div>
+                    <Footer />
+                  </div>
+                  <DevModeBanner />
+                </SWRProvider>
+              </AuthProvider>
+            </BlockingGuard>
+          </SystemConfigProvider>
         </ConnectivityStatusProvider>
       </body>
     </html>
