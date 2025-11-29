@@ -37,7 +37,7 @@ const eslintConfig = [
   },
   {
     // CLI scripts legitimately use console.log and require()
-    files: ["**/*.cjs", "scripts/**/*.js", "scripts/**/*.cjs", "public/**/*.js"],
+    files: ["**/*.cjs", "scripts/**/*.js", "scripts/**/*.cjs", "scripts/**/*.ts", "public/**/*.js"],
     rules: {
       "@typescript-eslint/no-require-imports": "off",
       "no-console": "off",
@@ -115,6 +115,7 @@ const eslintConfig = [
       "functions/**",
       "coverage/**",
       ".firebase/**",
+      "playwright-report/**",
     ],
   },
 ];

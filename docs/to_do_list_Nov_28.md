@@ -4,30 +4,52 @@
 
 All critical and high-severity issues identified by the AI reviews have been resolved.
 
-| #   | Issue                                 | Severity    | Fix Applied                                                             | Files Changed                                                                                          |
-| --- | ------------------------------------- | ----------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| 1   | Self-service tier/role escalation     | 🔴 Critical | Reject client-supplied `subscriptionTier` and `role` in profile updates | `src/app/api/user/profile/route.ts`                                                                    |
-| 2   | Unauthenticated recruiter endpoints   | 🔴 Critical | Added `getAuthenticatedUserId()` + role checks                          | `src/app/api/recruiters/request-contact/route.ts`, `approve-contact/route.ts`, `deny-contact/route.ts` |
-| 3   | Anonymous profile search + client SDK | 🔴 High     | Require auth + switched to `adminDb`                                    | `src/app/api/profiles/search/route.ts`                                                                 |
-| 4   | In-memory rate limiting bypassed      | 🔴 High     | New Firestore-backed distributed rate limiter                           | `src/lib/utils/distributedRateLimit.ts`                                                                |
-| 5   | CORS allows all origins               | 🔴 Critical | Restricted to production domains                                        | `functions/src/middleware/corsHandler.ts`                                                              |
-| 6   | Email template injection              | 🔴 Critical | Added HTML escaping with `html-escaper`                                 | `functions/src/emailFunctions.ts`                                                                      |
-| 7   | CSP with unsafe-inline/eval           | 🟡 Medium   | Removed unsafe directives in production                                 | `next.config.ts`                                                                                       |
+| #   | Issue                                      | Severity     | Fix Applied                                                             | Files Changed                                                                                          |
+| --- | ------------------------------------------ | ------------ | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| 1   | Self-service tier/role escalation          | 🔴 Critical  | Reject client-supplied `subscriptionTier` and `role` in profile updates | `src/app/api/user/profile/route.ts`                                                                    |
+| 2   | Unauthenticated recruiter endpoints        | 🔴 Critical  | Added `getAuthenticatedUserId()` + role checks                          | `src/app/api/recruiters/request-contact/route.ts`, `approve-contact/route.ts`, `deny-contact/route.ts` |
+| 3   | Anonymous profile search + client SDK      | 🔴 High      | Require auth + switched to `adminDb`                                    | `src/app/api/profiles/search/route.ts`                                                                 |
+| 4   | In-memory rate limiting bypassed           | 🔴 High      | New Firestore-backed distributed rate limiter                           | `src/lib/utils/distributedRateLimit.ts`                                                                |
+| 5   | CORS allows all origins                    | 🔴 Critical  | Restricted to production domains                                        | `functions/src/middleware/corsHandler.ts`                                                              |
+| 6   | Email template injection                   | 🔴 Critical  | Added HTML escaping with `html-escaper`                                 | `functions/src/emailFunctions.ts`                                                                      |
+| 8   | Fix unbounded query in `emailFunctions.ts` | GPT-5.1/Opus | Use pagination for batch processing                                     | `functions/src/emailFunctions.ts`                                                                      |
+| 9   | Add Firestore security rules tests         | Opus 4.5     | Added unit tests with `@firebase/rules-unit-testing`                    | `src/__tests__/firestore.rules.test.ts`                                                                |
+| 10  | Token cache uses LRU eviction              | Opus 4.5     | Implemented LRU eviction policy in `jobMatchService.ts`                 | `functions/src/jobMatchService.ts`                                                                     |
+| 11  | Set up CI/CD pipeline                      | Opus 4.5     | Updated `.github/workflows/ci.yml` to run tests with Firestore Emulator | `.github/workflows/ci.yml`                                                                             |
+| 12  | Move quota limits to Remote Config         | Gemini       | Moved hardcoded quotas in `searchResumeService.ts` to `config/index.ts` | `functions/src/searchResumeService.ts`, `functions/src/config/index.ts`                                |
 
-**Test Status:** ✅ All 2,486 tests passing
+**Test Status:** ✅ All 2,497 tests passing (11 new rules tests)
 
 ---
 
 ## 🟡 Medium Priority — Next 2 Weeks
 
-| #   | Task                                     | Source       | Notes                                                             |
-| --- | ---------------------------------------- | ------------ | ----------------------------------------------------------------- |
-| 1   | Add E2E tests with Playwright            | Opus 4.5     | Critical user journeys: signup, resume creation, recruiter search |
-| 2   | Add Firestore security rules tests       | Opus 4.5     | Use `@firebase/rules-unit-testing`                                |
-| 3   | Add payment/subscription flow tests      | Opus 4.5     | Business critical before monetization launch                      |
-| 4   | Fix unbounded query in `statsService.ts` | GPT-5.1/Opus | Use pagination or Cloud Tasks for batch processing                |
-| 5   | Set up CI/CD pipeline                    | Opus 4.5     | Add `.github/workflows/` for automated testing/deployment         |
-| 6   | Token cache uses LRU eviction            | Opus 4.5     | Current implementation only removes one entry at a time           |
+| #   | Task                                | Source   | Notes                                                             |
+| --- | ----------------------------------- | -------- | ----------------------------------------------------------------- |
+| 1   | Add E2E tests with Playwright       | Opus 4.5 | Critical user journeys: signup, resume creation, recruiter search |
+| 3   | Add payment/subscription flow tests | Opus 4.5 | Business critical before monetization launch                      |
+
+---
+
+## 🟢 Low Priority — Next Month
+
+| #   | Task                                | Source   | Notes                                                           |
+| --- | ----------------------------------- | -------- | --------------------------------------------------------------- |
+| 1   | API documentation (OpenAPI/Swagger) | Opus 4.5 | Document all API endpoints                                      |
+| 2   | Database schema documentation       | Opus 4.5 | Document Firestore collections and fields                       |
+| 3   | Optimize premium recruiter search   | GPT-5.1  | Move from linear scan to Firestore composite queries or Algolia |
+| 5   | Add Sentry for error tracking       | Opus 4.5 | Production monitoring                                           |
+
+**Test Status:** ✅ All 2,497 tests passing (11 new rules tests)
+
+---
+
+## 🟡 Medium Priority — Next 2 Weeks
+
+| #   | Task                                | Source   | Notes                                                             |
+| --- | ----------------------------------- | -------- | ----------------------------------------------------------------- |
+| 1   | Add E2E tests with Playwright       | Opus 4.5 | Critical user journeys: signup, resume creation, recruiter search |
+| 3   | Add payment/subscription flow tests | Opus 4.5 | Business critical before monetization launch                      |
 
 ---
 

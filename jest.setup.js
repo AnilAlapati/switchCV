@@ -136,7 +136,7 @@ jest.mock('@/lib/firebase-admin', () => ({
   adminDb: {
     collection: jest.fn(() => ({
       doc: jest.fn(() => ({
-        get: jest.fn().mockResolvedValue({ exists: false }),
+        get: jest.fn().mockResolvedValue({ exists: false, data: jest.fn(() => ({})) }),
         set: jest.fn().mockResolvedValue({}),
         update: jest.fn().mockResolvedValue({}),
         delete: jest.fn().mockResolvedValue({}),

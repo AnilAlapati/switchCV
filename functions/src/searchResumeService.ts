@@ -15,16 +15,19 @@ import {
   getSearchProvider,
 } from "./searchProviders";
 import type { SearchFilters } from "./searchProviders/types";
+import { config } from "./config";
 
-// Constants (mirrored from frontend config)
+// Constants (loaded from config)
+const searchConfig = config.get("search");
+
 const AI_SEARCH = {
-  EMBEDDING_MODEL: "text-embedding-004",
-  VECTOR_DIMENSION: 768,
-  MAX_RESULTS: 10,
-  MIN_SIMILARITY_SCORE: 0.5,
-  PREMIUM_MONTHLY_QUOTA: 50,
-  ENTERPRISE_MONTHLY_QUOTA: 999999,
-  QUOTA_COLLECTION: "searchQuotas",
+  EMBEDDING_MODEL: searchConfig.embeddingModel,
+  VECTOR_DIMENSION: searchConfig.vectorDimension,
+  MAX_RESULTS: searchConfig.maxResults,
+  MIN_SIMILARITY_SCORE: searchConfig.minSimilarityScore,
+  PREMIUM_MONTHLY_QUOTA: searchConfig.premiumMonthlyQuota,
+  ENTERPRISE_MONTHLY_QUOTA: searchConfig.enterpriseMonthlyQuota,
+  QUOTA_COLLECTION: searchConfig.quotaCollection,
 } as const;
 
 /**
