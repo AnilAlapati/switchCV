@@ -61,31 +61,24 @@ describe("useAuth.helpers", () => {
       });
 
       it("reserves username successfully", async () => {
-        (runTransaction as jest.Mock).mockImplementation(
-          async (db, callback) => {
-            const mockTransaction = {
-              get: jest.fn().mockResolvedValue({ exists: () => false }),
-              set: jest.fn(),
-            };
-            await callback(mockTransaction);
-          }
-        );
+        // Mock getDoc to return non-existent username
+        (getDoc as jest.Mock).mockResolvedValue({
+          exists: () => false,
+        });
+        // Mock setDoc to succeed
+        (setDoc as jest.Mock).mockResolvedValue(undefined);
 
         const result = await helpers.reserveUsername("uid", "valid-user");
         expect(result).toBe("valid-user");
-        expect(runTransaction).toHaveBeenCalled();
+        expect(getDoc).toHaveBeenCalled();
+        expect(setDoc).toHaveBeenCalled();
       });
 
       it("throws error if username taken", async () => {
-        (runTransaction as jest.Mock).mockImplementation(
-          async (db, callback) => {
-            const mockTransaction = {
-              get: jest.fn().mockResolvedValue({ exists: () => true }),
-              set: jest.fn(),
-            };
-            await callback(mockTransaction);
-          }
-        );
+        // Mock getDoc to return existing username
+        (getDoc as jest.Mock).mockResolvedValue({
+          exists: () => true,
+        });
 
         await expect(
           helpers.reserveUsername("uid", "taken-user")
@@ -95,58 +88,44 @@ describe("useAuth.helpers", () => {
 
     describe("allocateUsernameForUser", () => {
       it("allocates base username if available", async () => {
-        // Mock reserveUsername success on first try
-        // Since reserveUsername is internal, we have to mock runTransaction to succeed
-        (runTransaction as jest.Mock).mockImplementation(
-          async (db, callback) => {
-            const mockTransaction = {
-              get: jest.fn().mockResolvedValue({ exists: () => false }),
-              set: jest.fn(),
-            };
-            await callback(mockTransaction);
-          }
-        );
+        // Mock getDoc to return non-existent username
+        (getDoc as jest.Mock).mockResolvedValue({
+          exists: () => false,
+        });
+        // Mock setDoc to succeed
+        (setDoc as jest.Mock).mockResolvedValue(undefined);
 
         await helpers.allocateUsernameForUser("uid", "baseuser");
-        expect(runTransaction).toHaveBeenCalledTimes(1);
+        expect(getDoc).toHaveBeenCalled();
+        expect(setDoc).toHaveBeenCalled();
       });
 
       it("retries with suffix if taken", async () => {
         let callCount = 0;
-        (runTransaction as jest.Mock).mockImplementation(
-          async (db, callback) => {
-            callCount++;
-            const mockTransaction = {
-              get: jest
-                .fn()
-                .mockResolvedValue({ exists: () => callCount === 1 }), // First call exists (taken), second call doesn't
-              set: jest.fn(),
-            };
-            await callback(mockTransaction);
-          }
-        );
+        // Mock getDoc to return existing on first call, non-existent on second
+        (getDoc as jest.Mock).mockImplementation(() => {
+          callCount++;
+          return Promise.resolve({
+            exists: () => callCount === 1, // First call: taken, second: available
+          });
+        });
+        // Mock setDoc to succeed
+        (setDoc as jest.Mock).mockResolvedValue(undefined);
 
         await helpers.allocateUsernameForUser("uid", "baseuser");
-        expect(runTransaction).toHaveBeenCalledTimes(2);
+        expect(getDoc).toHaveBeenCalledTimes(2);
       });
     });
 
     describe("ensureUserProfile", () => {
       it("creates profile if not exists and auto-generates username for email/password user", async () => {
+        // Mock getDoc for profile check (not exists) and username check (not exists)
         (getDoc as jest.Mock).mockResolvedValue({
           exists: () => false,
           data: () => ({}),
         });
-        // Mock allocateUsernameForUser success (via runTransaction)
-        (runTransaction as jest.Mock).mockImplementation(
-          async (db, callback) => {
-            const mockTransaction = {
-              get: jest.fn().mockResolvedValue({ exists: () => false }),
-              set: jest.fn(),
-            };
-            await callback(mockTransaction);
-          }
-        );
+        // Mock setDoc to succeed
+        (setDoc as jest.Mock).mockResolvedValue(undefined);
 
         const user = {
           uid: "uid",
@@ -155,13 +134,15 @@ describe("useAuth.helpers", () => {
           photoURL: "url",
           providerData: [{ providerId: "password" }],
           emailVerified: true,
+          getIdToken: jest.fn().mockResolvedValue("token"),
         } as unknown as User;
 
         const result = await helpers.ensureUserProfile(user);
 
         expect(result).toEqual({ isNewUser: true, needsUsername: false });
         expect(setDoc).toHaveBeenCalled();
-        expect(runTransaction).toHaveBeenCalled(); // for allocateUsername
+        // allocateUsernameForUser now uses getDoc/setDoc instead of runTransaction
+        expect(getDoc).toHaveBeenCalled();
       });
 
       it("creates profile with needsUsername flag for Google OAuth user", async () => {
@@ -177,6 +158,7 @@ describe("useAuth.helpers", () => {
           photoURL: "url",
           providerData: [{ providerId: "google.com" }],
           emailVerified: true,
+          getIdToken: jest.fn().mockResolvedValue("token"),
         } as unknown as User;
 
         const result = await helpers.ensureUserProfile(user);
@@ -197,7 +179,11 @@ describe("useAuth.helpers", () => {
           data: () => ({ username: "existing" }),
         });
 
-        const user = { uid: "uid", providerData: [] } as unknown as User;
+        const user = {
+          uid: "uid",
+          providerData: [],
+          getIdToken: jest.fn().mockResolvedValue("token"),
+        } as unknown as User;
         const result = await helpers.ensureUserProfile(user);
 
         expect(result).toEqual({ isNewUser: false, needsUsername: false });
