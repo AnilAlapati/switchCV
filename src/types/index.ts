@@ -258,7 +258,7 @@ export interface AnalyticsEvent {
   userId: string;
   eventType: "view" | "request" | "approval" | "click" | "share" | "download";
   timestamp: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface AuditLog {

@@ -59,7 +59,7 @@ export interface Notification {
   actionUrl?: string;
   action?: {
     type: "approve" | "view" | "request_again";
-    data?: Record<string, any>;
+    data?: Record<string, unknown>;
   };
 }
 
@@ -243,7 +243,7 @@ export interface RecruiterAccessAuditLog {
   failureReason?: string;
 
   // Metadata
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 /**
