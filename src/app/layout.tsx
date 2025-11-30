@@ -10,6 +10,7 @@ import { Footer } from "@/components/layout/Footer";
 import { MaintenanceBanner } from "@/components/layout/MaintenanceBanner";
 import { DevModeBanner } from "@/components/dev/DevModeBanner";
 import { SWRProvider } from "@/components/providers/SWRProvider";
+import { Toaster } from "sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,6 +44,12 @@ export default function RootLayout({
             <BlockingGuard>
               <AuthProvider>
                 <SWRProvider>
+                  <Toaster
+                    position="top-right"
+                    richColors
+                    closeButton
+                    theme="dark"
+                  />
                   <MaintenanceBanner />
                   <div className="flex min-h-screen flex-col">
                     <div className="flex-1">{children}</div>

@@ -47,9 +47,9 @@ export async function checkIdStatus() {
         ...shardData.map((shard) => shard.lastIssued || 0)
       );
       logger.info("📦 Shard Overview:");
-      logger.info("   Total shards:", shardData.length);
-      logger.info("   Highest issued ID:", highestIssued);
-      logger.info("   Sample shard:", shardData[0]);
+      logger.info({ totalShards: shardData.length }, "   Total shards:");
+      logger.info({ highestIssued }, "   Highest issued ID:");
+      logger.info({ sampleShard: shardData[0] }, "   Sample shard:");
     } else {
       logger.info("⚠️  No shard documents found");
     }

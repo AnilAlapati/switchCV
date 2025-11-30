@@ -112,8 +112,8 @@ const fetchRemoteConfig = async (): Promise<SystemConfig> => {
     };
     return mergeWithDefaultConfig(payload.config);
   } catch (
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _error
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _error
   ) {
     return defaultSystemConfig;
   }
@@ -123,7 +123,7 @@ export const SystemConfigProvider = ({
   children,
 }: {
   children: ReactNode;
-}): JSX.Element => {
+}): React.JSX.Element => {
   const [config, setConfig] = useState<SystemConfig>(() => {
     const cached = readCachedConfig();
     return cached ?? defaultSystemConfig;

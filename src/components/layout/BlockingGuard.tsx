@@ -9,7 +9,7 @@ export const BlockingGuard = ({
   children,
 }: {
   children: ReactNode;
-}): JSX.Element => {
+}): React.JSX.Element => {
   const { config } = useSystemConfig();
   const { maintenance } = config;
 

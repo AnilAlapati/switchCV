@@ -18,9 +18,9 @@ const eslintConfig = [
           skipComments: true,
         },
       ],
-      // Disabled: Legacy codebase uses 'any' for Firestore dynamic data
-      // TODO: Gradually add proper types in future refactoring
-      "@typescript-eslint/no-explicit-any": "off",
+      // Gradually enforcing type safety - warn on 'any' usage
+      // TODO: Upgrade to "error" after refactoring legacy Firestore code
+      "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/no-unused-vars": "warn",
       "@typescript-eslint/no-non-null-asserted-optional-chain": "warn",
       "@typescript-eslint/no-require-imports": "warn",

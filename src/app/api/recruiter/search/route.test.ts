@@ -216,18 +216,8 @@ describe("GET /api/recruiter/search", () => {
     });
 
     setupAdminDbCollections({
-      resumes: [],
+      resumes: [resumeDoc],
       users: [userDoc],
-    });
-
-    mockCollection.mockImplementationOnce((collectionName: string) => {
-      if (collectionName === "resumes") {
-        return createCollectionMock([resumeDoc]);
-      }
-      if (collectionName === "users") {
-        return createCollectionMock([userDoc]);
-      }
-      throw new Error("Unexpected collection");
     });
 
     const request = new NextRequest(
