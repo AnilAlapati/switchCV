@@ -28,10 +28,10 @@ const baseLogger = pino({
 type LoggerWithLog = typeof baseLogger & { log: typeof baseLogger.info };
 
 const mirrorToConsole = (
-  consoleMethod: (...args: any[]) => void,
-  pinoMethod: (...args: any[]) => void
+  consoleMethod: (...args: unknown[]) => void,
+  pinoMethod: (...args: unknown[]) => void
 ) => {
-  return (...args: any[]) => {
+  return (...args: unknown[]) => {
     pinoMethod(...args);
     if (shouldMirrorConsole) {
       consoleMethod(...args);

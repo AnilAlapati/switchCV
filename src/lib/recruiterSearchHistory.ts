@@ -88,8 +88,8 @@ function parseTimestamp(value?: Timestamp | Date | string | null) {
     const parsed = Date.parse(value);
     return Number.isNaN(parsed) ? null : parsed;
   }
-  if (typeof (value as any).toDate === "function") {
-    const date = (value as any).toDate();
+  if (typeof (value as { toDate?: () => unknown }).toDate === "function") {
+    const date = (value as { toDate: () => unknown }).toDate();
     return date instanceof Date ? date.getTime() : null;
   }
   return null;

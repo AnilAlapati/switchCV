@@ -111,8 +111,8 @@ const fetchRemoteConfig = async (): Promise<SystemConfig> => {
     };
     return mergeWithDefaultConfig(payload.config);
   } catch (
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _error
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _error
   ) {
     return defaultSystemConfig;
   }

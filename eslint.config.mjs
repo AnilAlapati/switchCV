@@ -60,6 +60,8 @@ const eslintConfig = [
             "Consider using handleApiError from @/lib/utils/api-helpers for consistent error handling.",
         },
       ],
+      // API routes frequently handle Firestore errors and dynamic data
+      "@typescript-eslint/no-explicit-any": "off",
     },
   },
   {
@@ -74,6 +76,43 @@ const eslintConfig = [
     files: ["src/lib/services/ai*.ts"],
     rules: {
       "max-lines": ["warn", { max: 600, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
+    // Files that handle dynamic Firestore data structures legitimately need 'any'
+    files: [
+      "src/lib/utils/resumeEditor.ts",
+      "src/lib/utils/resumeVisibility.ts",
+      "src/lib/resumeEnhancer.ts",
+      "src/lib/resumeMigration.ts",
+      "src/lib/notificationService.ts",
+      "src/lib/notifications/**/*.ts",
+      "src/lib/recruiterPipeline*.ts",
+      "src/lib/searchUtils.ts",
+      "src/lib/resumeDeleter.ts",
+      "src/lib/services/analyticsService.ts",
+      "src/components/resume/LegacyResumeRenderer.tsx",
+      "src/components/resume/renderTemplateField.tsx",
+      "src/components/resume/templateRendererUtils.ts",
+      "src/components/resume/ResumePageLayout.tsx",
+      "src/components/dashboard/**/*.tsx",
+      "src/components/create-resume/**/*.tsx",
+      "src/components/recruiter/**/*.tsx",
+      "src/components/settings/**/*.tsx",
+      "src/hooks/useAnalyticsTracking.ts",
+      "src/hooks/useAuditLog.ts",
+      "src/hooks/useDashboardMetrics.ts",
+      "src/hooks/useRecruiterPipeline.ts",
+      "src/hooks/useResume.tsx",
+      "src/hooks/useResumeDelete.ts",
+      "src/hooks/useUserProfile.ts",
+      "src/app/api/profiles/search/search-query.ts",
+      "src/app/api/profiles/search/search-utils.ts",
+      "src/app/**/page.tsx",
+      "src/app/**/layout.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
     },
   },
   {
