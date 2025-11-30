@@ -16,7 +16,12 @@ import {
 } from "@/lib/system-config";
 
 const CONFIG_CACHE_KEY = "switchcv:system-config";
-const POLL_INTERVAL_MS = 60 * 1000; // Re-fetch every minute for freshness
+
+// Environment-aware polling: Dev = 1 hour, Prod = 1 minute
+const POLL_INTERVAL_MS =
+  process.env.NODE_ENV === "development"
+    ? 60 * 60 * 1000 // 1 hour for dev (24 calls/day)
+    : 60 * 1000; // 1 minute for prod (1,440 calls/day)
 
 type SystemConfigContextValue = {
   config: SystemConfig;

@@ -237,15 +237,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         } catch (verificationError) {
           // Don't fail signup if verification email fails (rate limiting, etc.)
           // User can resend from the verification banner
+          // Only log to console (no reportError) to avoid UI noise for non-critical errors
           const verifyErr = verificationError as { code?: string };
-          reportError(verificationError, {
-            source: "useAuth.signUp.sendVerification",
-            severity: "warning",
-            meta: { code: verifyErr.code },
-          });
           logger.warn(
-            { err: verificationError, source: "useAuth.signUp" },
-            "Verification email failed but signup succeeded - user can resend later"
+            {
+              err: verificationError,
+              code: verifyErr.code,
+              source: "useAuth.signUp.sendVerification",
+            },
+            "Verification email send failed but signup succeeded - user can resend from banner"
           );
         }
       }

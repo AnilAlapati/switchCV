@@ -24,7 +24,30 @@ function normalizeError(error: unknown): NormalizedError {
       code: (error as { code?: string }).code,
     };
   }
-  return { message: typeof error === "string" ? error : "Unknown error" };
+
+  if (typeof error === "string") {
+    return { message: error };
+  }
+
+  // Handle objects (including empty objects {})
+  if (error && typeof error === "object") {
+    const errorObj = error as {
+      message?: string;
+      code?: string;
+      stack?: string;
+    };
+    if (errorObj.message) {
+      return {
+        message: errorObj.message,
+        code: errorObj.code,
+        stack: errorObj.stack,
+      };
+    }
+    // Empty object or object without message
+    return { message: "Unknown error (no error details provided)" };
+  }
+
+  return { message: "Unknown error" };
 }
 
 function redact(message: string): string {
