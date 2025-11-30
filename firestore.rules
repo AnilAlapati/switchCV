@@ -10,9 +10,16 @@ service cloud.firestore {
     }
 
     function userRoleIsProtected() {
+      // Allow if role is not being set
       return !('role' in request.resource.data)
-        || (resource == null && request.resource.data.role == 'jobseeker')
-        || (resource != null && request.resource.data.role == resource.data.role);
+        // Allow if document doesn't exist (create) and role is valid
+        || (resource == null && request.resource.data.role in ['jobseeker', 'recruiter'])
+        // Allow if document exists but has no role yet (first role selection)
+        || (resource != null && !('role' in resource.data) && request.resource.data.role in ['jobseeker', 'recruiter'])
+        // Allow if document exists with role but roleSelectedAt is not set (user hasn't selected role yet - default was set)
+        || (resource != null && 'role' in resource.data && !('roleSelectedAt' in resource.data) && request.resource.data.role in ['jobseeker', 'recruiter'])
+        // Allow if role matches existing role (no change)
+        || (resource != null && 'role' in resource.data && request.resource.data.role == resource.data.role);
     }
 
     function userTierIsProtected() {
@@ -61,6 +68,7 @@ service cloud.firestore {
         'billingStatus',
         'roleUpdatedAt',
         'roleUpdatedBy',
+        'roleSelectedAt',
         'plan',
         'planId',
         'planMetadata',
@@ -82,6 +90,11 @@ service cloud.firestore {
       return request.resource.data.uid == userId && request.resource.data.email is string;
     }
 
+    // For updates with merge, verify existing document has correct identity
+    function existingDocHasCorrectIdentity(userId) {
+      return resource.data.uid == userId;
+    }
+
     // Users can read their own user document. Writes are limited to safe fields only.
     match /users/{userId} {
       allow read: if isOwner(userId);
@@ -95,7 +108,7 @@ service cloud.firestore {
 
       allow update: if isOwner(userId)
         && userDocHasOnlyAllowedFields()
-        && userDocHasRequiredIdentity(userId)
+        && existingDocHasCorrectIdentity(userId)
         && userRoleIsProtected()
         && userTierIsProtected()
         && recruiterFlagProtected();

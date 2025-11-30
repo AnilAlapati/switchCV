@@ -1,15 +1,7 @@
 import { logger } from "@/lib/logger";
 // src/app/api/recruiter/search/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/firebase";
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  orderBy,
-  limit as firestoreLimit,
-} from "firebase/firestore";
+import { adminDb } from "@/lib/firebase-admin";
 import type { SearchResult } from "@/components/dashboard/RecruiterSearchForm";
 import {
   handleApiError,
@@ -18,6 +10,88 @@ import {
 import { getUserTier } from "@/lib/services/userService";
 import { RECRUITER_SEARCH_LIMITS } from "@/lib/config";
 import { consumeQuota, QuotaExceededError } from "@/lib/services/quotaService";
+import { getUserRole } from "@/lib/services/userService";
+
+type AllowedRole = "recruiter" | "admin";
+
+const MAX_RESULTS = 20;
+
+const toIsoString = (value: unknown): string => {
+  if (typeof value === "string" && value) {
+    return value;
+  }
+  if (
+    value &&
+    typeof value === "object" &&
+    "toDate" in value &&
+    typeof (value as { toDate: () => Date }).toDate === "function"
+  ) {
+    return (value as { toDate: () => Date }).toDate().toISOString();
+  }
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  return new Date().toISOString();
+};
+
+async function fetchUserDoc(userId: string) {
+  if (!userId) return null;
+
+  const directDoc = await adminDb.collection("users").doc(userId).get();
+  if (directDoc.exists) {
+    return directDoc;
+  }
+
+  const fallbackSnapshot = await adminDb
+    .collection("users")
+    .where("uid", "==", userId)
+    .limit(1)
+    .get();
+
+  return fallbackSnapshot.docs[0] ?? null;
+}
+
+function normalizeSkills(rawSkills: any): string[] {
+  if (!Array.isArray(rawSkills)) return [];
+  return rawSkills
+    .map((skill: any) => {
+      if (typeof skill === "string") return skill;
+      if (skill?.name) return String(skill.name);
+      return "";
+    })
+    .filter(Boolean)
+    .slice(0, 10);
+}
+
+function buildResult(
+  resumeId: string,
+  resumeData: FirebaseFirestore.DocumentData,
+  userData: FirebaseFirestore.DocumentData | null
+): SearchResult {
+  const title = resumeData.title || "Untitled Resume";
+  const skills = normalizeSkills(resumeData.skills);
+  const createdAt = toIsoString(resumeData.createdAt);
+  const userName = userData?.displayName || userData?.email || "Unknown User";
+  const userId = resumeData.userId || userData?.uid;
+
+  return {
+    resumeId,
+    title,
+    userName,
+    userId,
+    createdAt,
+    skills,
+  } as SearchResult;
+}
+
+async function enforceRecruiterRole(userId: string): Promise<AllowedRole> {
+  const role = await getUserRole(userId);
+  if (role === "recruiter" || role === "admin") {
+    return role;
+  }
+
+  throw new Error("forbidden-role");
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -37,6 +111,16 @@ export async function GET(request: NextRequest) {
     const { userId: recruiterId, error: authError } =
       await getAuthenticatedUserId(request);
     if (authError) return authError;
+
+    try {
+      await enforceRecruiterRole(recruiterId!);
+    } catch {
+      return handleApiError(
+        new Error("Forbidden"),
+        "Recruiter access only",
+        403
+      );
+    }
 
     const tier = await getUserTier(recruiterId!);
     const limit = RECRUITER_SEARCH_LIMITS[tier];
@@ -64,15 +148,12 @@ export async function GET(request: NextRequest) {
 
     // Search in resumes collection
     try {
-      const resumesRef = collection(db, "resumes");
-      const resumesQuery = query(
-        resumesRef,
-        where("published", "==", true),
-        orderBy("createdAt", "desc"),
-        firestoreLimit(50)
-      );
-
-      const resumesSnapshot = await getDocs(resumesQuery);
+      const resumesSnapshot = await adminDb
+        .collection("resumes")
+        .where("published", "==", true)
+        .orderBy("createdAt", "desc")
+        .limit(50)
+        .get();
 
       for (const doc of resumesSnapshot.docs) {
         const resumeData = doc.data();
@@ -94,42 +175,21 @@ export async function GET(request: NextRequest) {
 
         // Fetch user info
         try {
-          const userDoc = await getDocs(
-            query(collection(db, "users"), where("uid", "==", userId))
-          );
-          if (!userDoc.empty) {
-            const userData = userDoc.docs[0].data();
-            results.push({
-              resumeId: doc.id,
-              title,
-              userName: userData.displayName || userData.email || "Anonymous",
-              userId,
-              createdAt: resumeData.createdAt || new Date().toISOString(),
-              skills: skills.slice(0, 10),
-            });
-          }
+          const userDoc = await fetchUserDoc(userId);
+          const userData = userDoc?.data?.() ?? null;
+          results.push(buildResult(doc.id, resumeData, userData));
         } catch (err) {
           logger.error({ err: err }, "Error fetching user for resume:");
-          // Continue with just resume data if user fetch fails
-          results.push({
-            resumeId: doc.id,
-            title,
-            userName: "Unknown User",
-            userId,
-            createdAt: resumeData.createdAt || new Date().toISOString(),
-            skills: skills.slice(0, 10),
-          });
+          results.push(buildResult(doc.id, resumeData, null));
         }
       }
 
       // Also search in users by name/email if no resumes found
       if (results.length === 0) {
-        const usersRef = collection(db, "users");
-        const usersQuery = query(
-          usersRef,
-          where("publicProfile.visible", "==", true)
-        );
-        const usersSnapshot = await getDocs(usersQuery);
+        const usersSnapshot = await adminDb
+          .collection("users")
+          .where("publicProfile.visible", "==", true)
+          .get();
 
         for (const doc of usersSnapshot.docs) {
           const userData = doc.data();
@@ -141,12 +201,11 @@ export async function GET(request: NextRequest) {
             email.toLowerCase().includes(searchLower)
           ) {
             // Get user's resumes
-            const userResumesQuery = query(
-              collection(db, "resumes"),
-              where("userId", "==", doc.id),
-              where("published", "==", true)
-            );
-            const userResumesSnapshot = await getDocs(userResumesQuery);
+            const userResumesSnapshot = await adminDb
+              .collection("resumes")
+              .where("userId", "==", doc.id)
+              .where("published", "==", true)
+              .get();
 
             for (const resumeDoc of userResumesSnapshot.docs) {
               const resumeData = resumeDoc.data();
@@ -169,7 +228,7 @@ export async function GET(request: NextRequest) {
       );
 
       return NextResponse.json({
-        results: uniqueResults.slice(0, 20),
+        results: uniqueResults.slice(0, MAX_RESULTS),
         count: uniqueResults.length,
         query: searchQuery,
       });

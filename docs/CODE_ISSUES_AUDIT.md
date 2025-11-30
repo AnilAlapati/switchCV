@@ -1,6 +1,6 @@
-# Codebase Audit & Issues Report (v3)
+# Codebase Audit & Issues Report (v4)
 
-**Date:** November 29, 2025 (post-remediation refresh)
+**Date:** November 30, 2025 (post-regression sweep)
 **Scope:** Full Codebase Analysis (`src/`, `functions/`, `scripts/`, `firestore.rules`, root configs)
 **Auditor:** GitHub Copilot
 
@@ -8,97 +8,102 @@
 
 ## Executive Summary
 
-The remediation plan captured in `docs/CODE_REMEDIATION_PLAN.md` has landed. All previously documented 🔴 critical and 🟠 high findings are now mitigated in code:
+The remediation program from v3 is still holding, but the latest pass uncovered three high-severity regressions: multiple Next.js API routes pulled in the browser-only Firebase SDK, so production handlers either crash (`ReferenceError: self is not defined`) or attempt Firestore reads/writes as anonymous clients. In addition, recruiter-access workflows still lack role enforcement, and support feedback throttling is limited to a single server instance. These gaps were all introduced after the previous audit and require server-side fixes. Updated status counts:
 
-- Field-level Firestore enforcement locks down privileged attributes, and `setUserRole` is callable-admin only.
-- Resume AI endpoints now validate subscription tiers, rate-limit usage, and restrict expensive models.
-- Automated git maintenance hooks are opt-in; destructive cleanup is gone.
-- Resume creation uses a sharded ID counter and single-writer fan-out pipeline.
-
-Only a handful of 🟡/🔵 issues remain from the earlier audit, mostly usability or resiliency concerns that were not in scope for the security sprint. Updated status counts:
-
-| Severity    | Open Findings | Notes                                                                                    |
-| ----------- | ------------- | ---------------------------------------------------------------------------------------- |
-| 🔴 Critical | 0             | All privilege escalation & billing bypass vectors addressed.                             |
-| 🟠 High     | 0             | Architectural hotspots (data duplication, ID bottleneck, server-only secrets) mitigated. |
-| 🟡 Medium   | 2             | Runtime guardrails and verification UX need final polish.                                |
-| 🔵 Low      | 2             | Configurability/observability gaps remain optional improvements.                         |
+| Severity    | Open Findings | Notes                                                                                                           |
+| ----------- | ------------- | --------------------------------------------------------------------------------------------------------------- |
+| 🔴 Critical | 0             | No active privilege-escalation vectors detected.                                                                |
+| 🟠 High     | 3             | Server API routes rely on the browser Firebase SDK, so Firestore requests fail and security rules are bypassed. |
+| 🟡 Medium   | 5             | Access-control validation, local-only throttling, and legacy null-safety fixes remain outstanding.              |
+| 🔵 Low      | 2             | Config refresh/analytics guardrails are still pending but low risk.                                             |
 
 ---
 
-## 1. Remediation Highlights (✅ Completed)
+## 1. Remediation Highlights (✅ Completed Previously)
 
-### 1.1 Firestore Privilege Escalation Blocked
-
-- **Files:** `firestore.rules`, `functions/src/authFunctions.ts`
-- **What changed:** Rules now whitelist allowed keys, lock `role`/`subscriptionTier`/`isRecruiter`, and deny all access to `config/system`. Role changes go through the new callable admin endpoint, so users can no longer self-promote.
-
-### 1.2 AI Resume Endpoint Hardening
-
-- **Files:** `functions/src/resumeService.ts`, `functions/src/middleware/rateLimiter.ts`
-- **What changed:** Tier-specific model allowlists, hourly/daily rate limits, and structured logging prevent free users from invoking premium models or spiking spend. CORS config now rejects wildcard origins.
-
-### 1.3 Resume Pipeline Consistency
-
-- **Files:** `src/app/api/resumes/create/route.ts`, `src/lib/numericIdGenerator.ts`, Cloud Function fan-out
-- **What changed:** Writes are centralized server-side with sharded counters and background fan-out to `allResumes`, eliminating the previous multi-client race conditions and single-document ID bottleneck.
-
-### 1.4 Developer Tooling Safety
-
-- **Files:** `scripts/auto-maintain.sh`, Husky config
-- **What changed:** The precommit hook no longer runs destructive git maintenance automatically; the script is now opt-in (`--git-maintenance`) and limited to cache cleanup.
-
-### 1.5 Test & Type Stability
-
-- **Files:** `src/__tests__/app/auth/page.test.tsx`, `tsconfig.json`, `package.json`
-- **What changed:** Tests inject `SystemConfigProvider` mocks, React 19 JSX typing errors are resolved, and duplicated dependencies (e.g., `firebase-tools`, placeholder `k6`) were removed.
+- Firestore privilege escalation paths remain sealed (`firestore.rules`, `functions/src/authFunctions.ts`).
+- AI resume endpoints continue to enforce tier allowlists and distributed rate limits (`functions/src/resumeService.ts`).
+- Resume creation writes through the sharded counter and fan-out flow (`src/app/api/resumes/create/route.ts`).
+- Destructive git maintenance remains opt-in via `scripts/auto-maintain.sh`.
 
 ---
 
-## 2. Open Findings (🟡 Medium)
+## 2. High Findings (🚨 New)
 
-### M1. Firebase Client Null-Safety
+### H1. Server recruiter search still uses the browser Firebase SDK
 
-- **Location:** `src/lib/firebase.ts`
+- **Files:** `src/app/api/recruiter/search/route.ts`, `src/lib/firebase.ts`, `firestore.rules`
+- **Issue:** The handler imports `db` from `@/lib/firebase` plus `collection/getDocs` from `firebase/firestore`. When this module loads on the Node runtime, `firebase.ts` eagerly calls `getAuth(app)` which dereferences `self/window`, producing `ReferenceError: self is not defined`. Even if the import succeeds, Firestore calls run without an ID token, while `firestore.rules` restrict `/resumes` reads to authenticated owners/recruiters. Production requests therefore fail with `Missing or insufficient permissions`, so recruiters cannot search.
+- **Impact:** Resume search for recruiters is effectively down in server environments, and logs fill with 500 errors. The route also leaks public Firebase config into the serverless bundle, increasing cold-start size.
+- **Recommendation:** Stop importing the web SDK in server code. Replace all `db` usage with the already-initialized `adminDb`, fetch user docs by `adminDb.collection("users").doc(userId)`, and keep rate limiting/quota enforcement as-is. This also needs a follow-up role check (see M1).
+
+### H2. `/api/recruiters/verify-token` cannot read or update tokens
+
+- **Files:** `src/app/api/recruiters/verify-token/route.ts`, `firestore.rules`
+- **Issue:** The route pulls `doc/getDoc/updateDoc` from `firebase/firestore` and uses `db` from `@/lib/firebase`. Firestore security rules lock `/accessTokens` so only authenticated recruiters/candidates can read their documents. Because the server route runs without a Firebase user session, all `getDoc` and `updateDoc` calls reject with `Missing or insufficient permissions`, so looking up a token by `tokenId` or incrementing `usageCount` never works.
+- **Impact:** Token verification silently falls back to signature-only mode, usage metrics & `lastUsedAt` timestamps never update, and revoked tokens remain indistinguishable from active ones because the backing document is unreachable.
+- **Recommendation:** Use `adminDb.collection("accessTokens")` (and `adminDb.collection("accessTokenAudit")`) for all reads/writes, keeping Firestore security rules as a defense-in-depth for client access only. This also removes the browser SDK from the server bundle.
+
+### H3. Analytics API still writes through the browser SDK
+
+- **Files:** `src/app/api/profiles/analytics/route.ts`, `src/lib/services/analyticsService.ts`, `firestore.rules`
+- **Issue:** Both `getAnalytics` and `trackAnalyticsEvent` call `collection/doc/setDoc` from `firebase/firestore` via `db` from `@/lib/firebase`. The surrounding Next.js route is server-only, so importing the service initializes the browser SDK (same `self` crash risk as above). When requests make it through, Firestore sees `request.auth == null`, yet the rules for `/analytics` require authentication for all reads/writes. Every analytics read/write therefore fails in production.
+- **Impact:** Dashboard metrics, engagement tracking, and download counters all stay at zero, while the API responds with 500/403 errors. No telemetry reaches `analytics/*`, defeating downstream dashboards and billing heuristics.
+- **Recommendation:** Port `analyticsService` to the Admin SDK (`adminDb`), or proxy it through an internal service that uses service-account credentials. Avoid importing `@/lib/firebase` from any server route.
+
+---
+
+## 3. Medium Findings (🟡)
+
+### M1. Access-request endpoints never verify recruiter role (new)
+
+- **Files:** `src/app/api/recruiter/request-access/route.ts`, `src/app/api/profiles/request-access/route.ts`
+- **Issue:** After authentication these handlers immediately call `adminDb` but never confirm that the caller’s `role` (or custom claim) is `recruiter`. The only gating is a non-empty `companyName`. Because admin privileges bypass Firestore rules, any authenticated jobseeker can craft recruiter access requests, spam candidates, and generate admin notifications.
+- **Recommendation:** Retrieve `role` via `getUserRole` or decoded custom claims and reject non-recruiter callers before touching Firestore. Consider double-checking `isRecruiter`/`tier` inside the transaction to prevent spoofing.
+
+### M2. Profile search imports browser Firebase through shared utilities (new)
+
+- **Files:** `src/app/api/profiles/search/route.ts`, `src/app/api/profiles/search/search-query.ts`, `src/lib/firebase.ts`
+- **Issue:** The route reuses `buildNormalizedFilters` from `search-query.ts`. That module imports `collection/doc/getDoc` from `firebase/firestore` plus `db` from `@/lib/firebase` even though the server handler only needs pure string helpers. Importing the module on the server therefore spins up the browser SDK, triggering the same `self` reference errors and bundling all client-side Firebase code into the serverless artifact.
+- **Recommendation:** Split `search-query.ts` into two files: one with pure normalization/matching helpers (safe for server imports) and one with client-only Firestore queries. Point the server route at the pure helper module.
+
+### M3. Support feedback rate limiting is per-instance memory (new)
+
+- **Files:** `src/lib/services/supportFeedbackService.ts`, `src/app/api/contact/feedback/route.ts`
+- **Issue:** `checkRateLimit` stores counts in a module-level `Map`. Each serverless instance maintains its own counters, which reset on cold start or redeploy. Attackers can bypass the “5 submissions/hour per IP” guard by spraying requests across instances or waiting for a restart.
+- **Recommendation:** Swap in the existing distributed limiter (`checkDistributedRateLimit`) or a Redis/Firestore counter keyed by IP, and persist the reset timestamp so limits survive process restarts.
+
+### M4. Firebase client null-safety (carried forward)
+
+- **Files:** `src/lib/firebase.ts`
 - **Status:** _Open_
-- **Issue:** The module still exports `auth`, `db`, etc. by casting possibly-null singletons (`const authClient = auth as Auth`). When Firebase config is missing (e.g., mis-set env in staging) the module reports `firebaseStatus.isReady = false` yet downstream consumers will still dereference the casted objects and crash.
-- **Impact:** Any environment bootstrap regression translates into an immediate runtime failure before graceful degradation or feature flag checks can run.
-- **Recommendation:** Export accessors (e.g., `getAuthClient()`), throw descriptive errors when `firebaseStatus.isReady` is false, or lazily initialize clients per call rather than relying on module-level casts.
+- **Summary:** The module still exports `auth`, `db`, etc. via casts, so misconfigured environments crash before any guard can run. Follow the accessor plan from v3 (throw descriptive errors or lazily init per call).
 
-### M2. Email Verification UX on Localhost
+### M5. Email verification UX on localhost (carried forward)
 
-- **Location:** `src/hooks/useAuth.tsx` (`getActionCodeSettings`)
+- **Files:** `src/hooks/useAuth.tsx`
 - **Status:** _Open_
-- **Issue:** When running on localhost without `NEXT_PUBLIC_AUTH_VERIFICATION_URL`, the helper returns `undefined`, so `sendEmailVerification` silently uses Firebase defaults that point to production. This was the original "fails silently on localhost" bug.
-- **Impact:** Developers cannot validate the verification flow locally, and QA environments risk sending users to the wrong domain.
-- **Recommendation:** Always supply an environment-aware URL via config (falls back to origin), and block signup in dev if neither env var nor origin is available so the failure is explicit.
+- **Summary:** Without `NEXT_PUBLIC_AUTH_VERIFICATION_URL`, verification links fall back to Firebase defaults that point to production. Supply an origin-aware fallback or block signup when no callback URL is configured.
 
 ---
 
-## 3. Open Findings (🔵 Low)
+## 4. Low Findings (🔵)
 
-### L1. System Config Cache TTL Not Tunable
+### L1. System config cache TTL not tunable (carried forward)
 
-- **Location:** `src/context/SystemConfigProvider.tsx`
-- **Status:** _Partially addressed_
-- **Issue:** The provider now fetches via `/api/system-config` but still relies on a hardcoded `CONFIG_CACHE_TTL_MS` (5 minutes) stored in `sessionStorage`. Operators cannot shorten/extend the cache without a redeploy, and multi-tab coherence still depends on session storage rather than broadcast channels/local storage.
-- **Impact:** Emergency toggles (maintenance mode, feature kills) may take up to five minutes to propagate on long-lived sessions.
-- **Recommendation:** Move TTL to remote config or env, broadcast updates via `BroadcastChannel`, and consider falling back to `localStorage` to share cache across tabs.
+- `src/context/SystemConfigProvider.tsx` still hardcodes a 5-minute `sessionStorage` cache, delaying emergency toggles. Externalize TTL and broadcast updates across tabs.
 
-### L2. Firebase Client Analytics Not Guarded
+### L2. Firebase analytics init not guarded (carried forward)
 
-- **Location:** `src/lib/firebase.ts`
-- **Status:** _Open_
-- **Issue:** Analytics initialization still runs `isSupported().then(...)` without cancellation and caches the promise globally. During SSR or when the window object disappears (Next.js fast refresh), the promise may reject noisily.
-- **Impact:** Low-severity console noise; however, it complicates diagnosing real auth init failures.
-- **Recommendation:** Gate analytics init behind `if (typeof window === "undefined") return;` (already partially present) and swallow promise rejections with logging.
+- `src/lib/firebase.ts` still runs `isSupported().then(...)` without swallowing rejections during SSR. Guard on `typeof window !== "undefined"` and log-and-ignore failures.
 
 ---
 
-## 4. Next Steps
+## 5. Next Steps
 
-1. **Prioritize M1 + M2** — these are the only remaining user-facing risks. Move null-safe Firebase exports and verification URL config into the next sprint.
-2. **Optional polish for L1/L2** — address cache configurability and analytics logging when touching the config stack.
-3. **Keep this report in sync** — after each remediation PR merges, update both this audit and `CODE_REMEDIATION_PLAN.md` so product/security stakeholders have a single source of truth.
+1. **Replatform server routes off the browser SDK (H1–H3):** Use `adminDb` everywhere, add regression tests that stub `firebase-admin` only, and run an integration check to ensure Firestore reads succeed without client credentials.
+2. **Enforce recruiter authorization (M1):** Require `role === "recruiter"` (or admin) before creating contact/access requests, and log violations.
+3. **Ship distributed throttling for support feedback (M3):** Wire Firestore-backed rate limits or Redis before enabling the endpoint publicly.
+4. **Close out legacy items (M4–L2):** Move Firebase client exports behind safe getters and finish the verification/config polish as part of the same refactor.
 
-> ✅ _Verification:_ Firestore simulator and manual endpoint tests confirm all previously critical paths are sealed. Re-run automated security tests before the next release to guard against regressions.
+> ✅ _Verification:_ Please rerun the serverless smoke tests after replacing the browser SDK imports. The failures described above reproduce immediately when invoking the affected routes via `curl` because Firestore rejects unauthenticated requests.

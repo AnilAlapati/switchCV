@@ -1,6 +1,11 @@
 import { initializeApp, type FirebaseApp } from "firebase/app";
-import { getAuth, type Auth } from "firebase/auth";
-import { getFirestore, type Firestore } from "firebase/firestore";
+import { getAuth, type Auth, connectAuthEmulator } from "firebase/auth";
+import {
+  getFirestore,
+  type Firestore,
+  connectFirestoreEmulator,
+  setLogLevel,
+} from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { getFunctions, type Functions } from "firebase/functions";
 import { getAnalytics, type Analytics, isSupported } from "firebase/analytics";
@@ -66,6 +71,19 @@ const resolveClient = <T extends object>(
 ): T => client ?? createUnavailableClient<T>(name);
 
 const canInitialize = firebaseStatus.isConfigured;
+const isProduction = process.env.NODE_ENV === "production";
+const enableFirestoreDebugLogs =
+  !isProduction && process.env.NEXT_PUBLIC_FIREBASE_DEBUG_LOGS === "true";
+const useFirebaseEmulators =
+  !isProduction && process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "true";
+const emulatorHost =
+  process.env.NEXT_PUBLIC_FIREBASE_EMULATOR_HOST || "127.0.0.1";
+const firestoreEmulatorPort = Number(
+  process.env.NEXT_PUBLIC_FIRESTORE_EMULATOR_PORT || 8080
+);
+const authEmulatorPort = Number(
+  process.env.NEXT_PUBLIC_AUTH_EMULATOR_PORT || 9099
+);
 
 try {
   if (canInitialize) {
@@ -90,6 +108,42 @@ try {
             );
           }
         });
+    }
+
+    if (enableFirestoreDebugLogs) {
+      setLogLevel("debug");
+      logger.info(
+        {
+          source: "firebase",
+        },
+        "Firebase Firestore debug logging enabled"
+      );
+    }
+
+    if (useFirebaseEmulators) {
+      if (db) {
+        connectFirestoreEmulator(db, emulatorHost, firestoreEmulatorPort);
+      }
+      if (auth) {
+        const emulatorOrigin = `http://${emulatorHost}:${authEmulatorPort}`;
+        try {
+          connectAuthEmulator(auth, emulatorOrigin, { disableWarnings: true });
+        } catch (error) {
+          logger.warn(
+            { err: error, source: "firebase.auth" },
+            "Auth emulator already configured"
+          );
+        }
+      }
+      logger.info(
+        {
+          source: "firebase",
+          emulatorHost,
+          firestoreEmulatorPort,
+          authEmulatorPort,
+        },
+        "Connected Firebase clients to local emulators"
+      );
     }
 
     firebaseStatus.isReady = true;

@@ -300,6 +300,20 @@ The hook automatically uses `DEV_TIER_OVERRIDE` in dev mode, skipping the API ca
 2. Create `functions/.env.local` with `DEV_BYPASS_CHECKS=true`
 3. Restart emulator after adding env file
 
+### Need precise Firestore permission errors?
+
+1. **Turn on verbose logs** by setting `NEXT_PUBLIC_FIREBASE_DEBUG_LOGS=true` in `.env.local` (dev-only). The browser console will now show every rule evaluation with the exact Firestore error code/path.
+2. **Point the app at local emulators** by adding:
+
+```bash
+NEXT_PUBLIC_USE_FIREBASE_EMULATORS=true
+NEXT_PUBLIC_FIREBASE_EMULATOR_HOST=127.0.0.1
+NEXT_PUBLIC_FIRESTORE_EMULATOR_PORT=8080
+NEXT_PUBLIC_AUTH_EMULATOR_PORT=9099
+```
+
+Then run `firebase emulators:start --only auth,firestore`. The emulator UI immediately highlights the rule/line that denied the request. 3. **Restart `npm run dev`** so the new settings take effect. On startup you’ll see `Connected Firebase clients to local emulators` in the terminal when the hook is active. 4. When you reproduce the signup or recruiter flow, copy the exact `permission-denied` log (it now includes the collection path, rule, and auth context) into the issue so we can patch the specific rule quickly.
+
 ---
 
 ## Files Reference
