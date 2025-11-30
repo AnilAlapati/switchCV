@@ -32,7 +32,7 @@ export default function Home() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const { stats } = useGlobalStats();
-  const { scrolled, particles } = useHeroBackground();
+  const { scrolled, particles, isMobile } = useHeroBackground();
 
   const canAccessDashboard =
     !!user &&
@@ -59,11 +59,24 @@ export default function Home() {
         <div
           className={`absolute top-0 left-0 w-full h-full bg-gradient-to-br ${
             scrolled ? "from-blue-500/5" : "from-blue-500/10"
-          } via-purple-500/10 to-cyan-500/10 animate-pulse`}
+          } via-purple-500/10 to-cyan-500/10 ${
+            isMobile ? "" : "animate-pulse"
+          }`}
         ></div>
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse delay-2000"></div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-blue-500/10 rounded-full blur-2xl animate-spin duration-[20s]"></div>
+        {/* Reduce blur effects on mobile for better performance */}
+        <div
+          className={`absolute top-1/4 left-1/4 w-96 h-96 bg-cyan-500/20 rounded-full ${
+            isMobile ? "blur-2xl" : "blur-3xl animate-pulse delay-1000"
+          }`}
+        ></div>
+        <div
+          className={`absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/20 rounded-full ${
+            isMobile ? "blur-2xl" : "blur-3xl animate-pulse delay-2000"
+          }`}
+        ></div>
+        {!isMobile && (
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-blue-500/10 rounded-full blur-2xl animate-spin duration-[20s]"></div>
+        )}
       </div>
 
       <div className="absolute inset-0 overflow-hidden">
@@ -100,10 +113,25 @@ export default function Home() {
 
 function useHeroBackground() {
   const [scrolled, setScrolled] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile devices for performance optimization
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768 || "ontouchstart" in window);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  // Reduce particle count on mobile for better performance
+  const particleCount = isMobile ? 8 : 20;
+
   const [particles] = useState<
     Array<{ left: string; top: string; delay: string; duration: string }>
   >(() =>
-    [...Array(20)].map(() => ({
+    [...Array(particleCount)].map(() => ({
       left: `${Math.random() * 100}%`,
       top: `${Math.random() * 100}%`,
       delay: `${Math.random() * 3}s`,
@@ -115,9 +143,9 @@ function useHeroBackground() {
     const handleScroll = () => {
       setScrolled(window.scrollY > 50);
     };
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  return { scrolled, particles };
+  return { scrolled, particles, isMobile };
 }

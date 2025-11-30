@@ -1,6 +1,26 @@
 import type { NextConfig } from "next";
 import packageJson from "./package.json";
 
+const isDev = process.env.NODE_ENV === "development";
+
+// CSP directives - stricter in production
+const cspDirectives = [
+  "default-src 'self'",
+  // In development, allow eval for hot reload. In production, use stricter policy
+  `script-src 'self' ${
+    isDev ? "'unsafe-eval'" : ""
+  } 'unsafe-inline' https://www.googletagmanager.com`.trim(),
+  // Style-src requires unsafe-inline for Next.js styled-jsx and inline styles
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: https:",
+  "font-src 'self' data:",
+  "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net https://firestore.googleapis.com wss://*.firebaseio.com",
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "upgrade-insecure-requests",
+];
+
 const nextConfig: NextConfig = {
   serverExternalPackages: ["pino", "pino-pretty"],
   env: {
@@ -29,16 +49,16 @@ const nextConfig: NextConfig = {
             value: "1; mode=block",
           },
           {
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
+          },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
+          },
+          {
             key: "Content-Security-Policy",
-            value: [
-              "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://www.googletagmanager.com",
-              "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: https:",
-              "font-src 'self' data:",
-              "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net",
-              "frame-ancestors 'none'",
-            ].join("; "),
+            value: cspDirectives.join("; "),
           },
         ],
       },

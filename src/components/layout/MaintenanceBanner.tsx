@@ -5,7 +5,7 @@ import { useSystemConfig } from "@/context/SystemConfigProvider";
 
 const DISMISS_CACHE_KEY = "switchcv:maintenance-banner:dismissed";
 
-export const MaintenanceBanner = (): JSX.Element | null => {
+export const MaintenanceBanner = (): React.JSX.Element | null => {
   const {
     config: { maintenance },
     loading,
@@ -25,8 +25,8 @@ export const MaintenanceBanner = (): JSX.Element | null => {
     try {
       return window.sessionStorage.getItem(DISMISS_CACHE_KEY);
     } catch (
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      _error
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _error
     ) {
       return null;
     }
@@ -64,8 +64,8 @@ export const MaintenanceBanner = (): JSX.Element | null => {
     try {
       window.sessionStorage.setItem(DISMISS_CACHE_KEY, bannerId);
     } catch (
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      _error
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _error
     ) {
       // Ignore storage failures and still hide banner for the session.
     }

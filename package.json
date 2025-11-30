@@ -1,6 +1,6 @@
 {
   "name": "switchcv",
-  "version": "0.0.42",
+  "version": "0.0.48",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -38,6 +38,7 @@
     "posthog-js": "^1.298.1",
     "react": "19.2.0",
     "react-dom": "19.2.0",
+    "sonner": "^2.0.7",
     "swr": "^2.3.6",
     "zod": "^4.1.13"
   },

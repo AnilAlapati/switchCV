@@ -1,304 +1,54 @@
-/* eslint-disable max-lines */
 "use client";
 
-import { useState, useEffect, Suspense, useCallback, useRef } from "react";
-import { useAuth } from "@/hooks/useAuth";
-import { useRouter, useSearchParams } from "next/navigation";
-import { applyActionCode } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { Suspense } from "react";
 import { AuthBackground } from "@/components/auth/AuthBackground";
 import { AuthBrand } from "@/components/auth/AuthBrand";
-import { AuthFormInputs } from "@/components/auth/AuthFormInputs";
 import { EmailVerificationNotice } from "@/components/auth/EmailVerificationNotice";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
-import { useDebouncedValue } from "@/hooks/useDebounce";
-import { USERNAME_CONFIG } from "@/config/constants";
+import { LoginForm } from "@/components/auth/LoginForm";
+import { SignupForm } from "@/components/auth/SignupForm";
+import { useAuthPage } from "@/hooks/useAuthPage";
 import { useSystemConfig } from "@/context/SystemConfigProvider";
-import type { UsernameCheckResponse } from "@/app/api/user/username/check/route";
-
-type UsernameStatus =
-  | "idle"
-  | "checking"
-  | "available"
-  | "taken"
-  | "invalid"
-  | "error";
 
 function AuthContent() {
-  const searchParams = useSearchParams();
   const {
     config: {
       auth: { registrationClosed, loginDisabled },
     },
   } = useSystemConfig();
 
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [username, setUsername] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const [usernameError, setUsernameError] = useState("");
-  const [resending, setResending] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>("idle");
-  const [usernameSuggestion, setUsernameSuggestion] = useState("");
-  const [verificationSuccess, setVerificationSuccess] = useState(false);
-  const [verificationProcessing, setVerificationProcessing] = useState(false);
-  const verificationAttempted = useRef(false);
-
-  // Debounce username for availability check
-  const { debouncedValue: debouncedUsername, isPending: isCheckingUsername } =
-    useDebouncedValue(username, USERNAME_CONFIG.CHECK_DEBOUNCE_MS);
-
-  // Check username availability when debounced value changes
-  const checkUsernameAvailability = useCallback(async () => {
-    if (
-      !debouncedUsername ||
-      debouncedUsername.length < USERNAME_CONFIG.MIN_LENGTH
-    ) {
-      setUsernameStatus("idle");
-      setUsernameError("");
-      setUsernameSuggestion("");
-      return;
-    }
-
-    setUsernameStatus("checking");
-    setUsernameError("");
-
-    try {
-      const response = await fetch(
-        `/api/user/username/check?username=${encodeURIComponent(
-          debouncedUsername
-        )}`
-      );
-      const data: UsernameCheckResponse = await response.json();
-
-      if (response.status === 429) {
-        setUsernameStatus("error");
-        setUsernameError(data.reason || "Too many requests. Please wait.");
-        return;
-      }
-
-      if (data.available) {
-        setUsernameStatus("available");
-        setUsernameError("");
-        setUsernameSuggestion("");
-      } else {
-        const isInvalid =
-          data.reason?.includes("format") ||
-          data.reason?.includes("characters") ||
-          data.reason?.includes("at least");
-        setUsernameStatus(isInvalid ? "invalid" : "taken");
-        setUsernameError(data.reason || "Username is not available");
-        setUsernameSuggestion(data.suggestion || "");
-      }
-    } catch {
-      setUsernameStatus("error");
-      setUsernameError("Failed to check availability. Please try again.");
-    }
-  }, [debouncedUsername]);
-
-  useEffect(() => {
-    if (isSignUp && debouncedUsername) {
-      checkUsernameAvailability();
-    }
-  }, [isSignUp, debouncedUsername, checkUsernameAvailability]);
+  const { state, actions, authContext, isCheckingUsername } = useAuthPage();
 
   const {
-    user,
-    loading: authLoading,
-    needsEmailVerification,
-    needsUsername,
-    verificationEmail,
-    signIn,
-    signUp,
-    signInWithGoogle,
-    resendVerificationEmail,
-    refreshUser,
-    checkNeedsUsername,
-  } = useAuth();
-  const router = useRouter();
+    isSignUp,
+    email,
+    password,
+    username,
+    error,
+    loading,
+    mounted,
+    usernameError,
+    resending,
+    refreshing,
+    usernameStatus,
+    usernameSuggestion,
+    verificationSuccess,
+    verificationProcessing,
+  } = state;
 
-  useEffect(() => {
-    setMounted(true);
-    if (searchParams.get("mode") === "signup") {
-      setIsSignUp(true);
-    }
-  }, [searchParams]);
+  const {
+    setIsSignUp,
+    setEmail,
+    setPassword,
+    setUsername,
+    handleSubmit,
+    handleGoogleSignIn,
+    handleResend,
+    handleRefreshVerification,
+    handleUseSuggestion,
+  } = actions;
 
-  // Handle email verification link (oobCode from Firebase)
-  useEffect(() => {
-    const handleEmailVerification = async () => {
-      const mode = searchParams.get("mode");
-      const oobCode = searchParams.get("oobCode");
-
-      // Check for both "verifyEmail" (Firebase default) and "verify-email" (our custom)
-      if (
-        (mode === "verifyEmail" || mode === "verify-email") &&
-        oobCode &&
-        auth &&
-        !verificationAttempted.current
-      ) {
-        verificationAttempted.current = true;
-        setVerificationProcessing(true);
-        setError("");
-
-        try {
-          // Apply the action code to verify the email
-          await applyActionCode(auth, oobCode);
-
-          // Reload the current user to get updated emailVerified status
-          if (auth.currentUser) {
-            await auth.currentUser.reload();
-            await auth.currentUser.getIdToken(true);
-          }
-
-          setVerificationSuccess(true);
-          setError("");
-
-          // Refresh the user state in our auth context
-          await refreshUser();
-        } catch (err) {
-          const error = err as { code?: string; message?: string };
-          if (error.code === "auth/expired-action-code") {
-            setError(
-              "This verification link has expired. Please request a new one."
-            );
-          } else if (error.code === "auth/invalid-action-code") {
-            setError(
-              "This verification link is invalid or has already been used. Please request a new one."
-            );
-          } else {
-            setError(
-              error.message || "Failed to verify email. Please try again."
-            );
-          }
-        } finally {
-          setVerificationProcessing(false);
-        }
-      }
-    };
-
-    handleEmailVerification();
-  }, [searchParams, refreshUser]);
-
-  useEffect(() => {
-    if (!authLoading && user && !needsEmailVerification) {
-      // Check if user needs to choose a username
-      if (needsUsername) {
-        router.push("/auth/choose-username");
-      } else {
-        // Also check Firestore in case state was lost
-        checkNeedsUsername().then((needs) => {
-          if (needs) {
-            router.push("/auth/choose-username");
-          } else {
-            router.push("/dashboard");
-          }
-        });
-      }
-    }
-  }, [
-    user,
-    needsEmailVerification,
-    needsUsername,
-    authLoading,
-    router,
-    checkNeedsUsername,
-  ]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-    setUsernameError("");
-
-    try {
-      if (isSignUp) {
-        if (!username.trim()) {
-          setUsernameError("Username is required to create your profile.");
-          setLoading(false);
-          return;
-        }
-        // Check if username availability check is still pending or not available
-        if (isCheckingUsername || usernameStatus === "checking") {
-          setUsernameError(
-            "Please wait for username availability check to complete."
-          );
-          setLoading(false);
-          return;
-        }
-        if (usernameStatus !== "available" && usernameStatus !== "idle") {
-          setUsernameError("Please choose an available username.");
-          setLoading(false);
-          return;
-        }
-        await signUp(email, password, username);
-        setIsSignUp(false);
-      } else {
-        await signIn(email, password);
-      }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-      if (
-        err instanceof Error &&
-        err.message.toLowerCase().includes("username")
-      ) {
-        setUsernameError(err.message);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    setError("");
-    setLoading(true);
-    try {
-      const result = await signInWithGoogle();
-      // If the user needs to choose a username (new Google OAuth user), redirect to username selection
-      if (result.needsUsername) {
-        router.push("/auth/choose-username");
-      } else {
-        router.push("/dashboard");
-      }
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to sign in with Google"
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResend = async () => {
-    setResending(true);
-    setError("");
-    try {
-      await resendVerificationEmail();
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to resend verification email"
-      );
-    } finally {
-      setResending(false);
-    }
-  };
-
-  const handleRefreshVerification = async () => {
-    setRefreshing(true);
-    try {
-      await refreshUser();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to refresh status");
-    } finally {
-      setRefreshing(false);
-    }
-  };
+  const { needsEmailVerification, verificationEmail } = authContext;
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
@@ -323,6 +73,7 @@ function AuthContent() {
                 </div>
               </div>
             )}
+
             {verificationSuccess && !verificationProcessing && (
               <div className="mb-6 rounded-2xl border border-green-400/40 bg-green-400/10 p-4 text-center">
                 <p className="text-sm text-green-100 font-semibold">
@@ -333,6 +84,7 @@ function AuthContent() {
                 </p>
               </div>
             )}
+
             {needsEmailVerification && !isSignUp && !verificationSuccess && (
               <EmailVerificationNotice
                 email={verificationEmail}
@@ -342,6 +94,7 @@ function AuthContent() {
                 refreshing={refreshing}
               />
             )}
+
             <div className="text-center mb-6">
               <h2 className="text-2xl font-bold text-white mb-2">
                 {isSignUp ? "Join the Future" : "Welcome Back"}
@@ -358,91 +111,50 @@ function AuthContent() {
             </div>
 
             {isSignUp && registrationClosed ? (
-              <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-xl p-6 text-center">
-                <p className="text-yellow-200 mb-4">
-                  We are currently performing system upgrades. New account
-                  registration is temporarily disabled.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setIsSignUp(false)}
-                  className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors"
-                >
-                  Return to Sign In
-                </button>
-              </div>
+              <MaintenanceNotice
+                message="We are currently performing system upgrades. New account registration is temporarily disabled."
+                actionLabel="Return to Sign In"
+                onAction={() => setIsSignUp(false)}
+              />
             ) : !isSignUp && loginDisabled ? (
-              <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-xl p-6 text-center">
-                <p className="text-yellow-200 mb-4">
-                  We are currently performing system upgrades. Login is
-                  temporarily disabled.
-                </p>
-                {!registrationClosed && (
-                  <button
-                    type="button"
-                    onClick={() => setIsSignUp(true)}
-                    className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors"
-                  >
-                    Create an Account
-                  </button>
-                )}
-              </div>
+              <MaintenanceNotice
+                message="We are currently performing system upgrades. Login is temporarily disabled."
+                actionLabel={
+                  !registrationClosed ? "Create an Account" : undefined
+                }
+                onAction={
+                  !registrationClosed ? () => setIsSignUp(true) : undefined
+                }
+              />
+            ) : isSignUp ? (
+              <SignupForm
+                email={email}
+                password={password}
+                username={username}
+                error={error}
+                usernameError={usernameError}
+                usernameStatus={usernameStatus}
+                isCheckingUsername={isCheckingUsername}
+                usernameSuggestion={usernameSuggestion}
+                loading={loading}
+                onEmailChange={setEmail}
+                onPasswordChange={setPassword}
+                onUsernameChange={setUsername}
+                onUseSuggestion={handleUseSuggestion}
+                onSubmit={handleSubmit}
+                onSwitchToLogin={() => setIsSignUp(false)}
+              />
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <AuthFormInputs
-                  email={email}
-                  password={password}
-                  username={username}
-                  showUsername={isSignUp}
-                  usernameError={usernameError}
-                  usernameStatus={usernameStatus}
-                  isCheckingUsername={isCheckingUsername}
-                  usernameSuggestion={usernameSuggestion}
-                  onEmailChange={setEmail}
-                  onPasswordChange={setPassword}
-                  onUsernameChange={setUsername}
-                  onUseSuggestion={() => {
-                    setUsername(usernameSuggestion);
-                  }}
-                />
-
-                {error && (
-                  <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3">
-                    <p className="text-red-400 text-sm text-center">{error}</p>
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-3 px-6 bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-105 hover:shadow-lg hover:shadow-cyan-500/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                >
-                  {loading ? (
-                    <div className="flex items-center justify-center">
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                      Processing...
-                    </div>
-                  ) : isSignUp ? (
-                    "Create Account"
-                  ) : (
-                    "Sign In"
-                  )}
-                </button>
-
-                {(!registrationClosed || !loginDisabled) && (
-                  <div className="text-center">
-                    <button
-                      type="button"
-                      onClick={() => setIsSignUp(!isSignUp)}
-                      className="text-slate-400 hover:text-cyan-400 text-sm transition-colors duration-200"
-                    >
-                      {isSignUp
-                        ? "Already have an account? Sign in"
-                        : "Don't have an account? Sign up"}
-                    </button>
-                  </div>
-                )}
-              </form>
+              <LoginForm
+                email={email}
+                password={password}
+                error={error}
+                loading={loading}
+                onEmailChange={setEmail}
+                onPasswordChange={setPassword}
+                onSubmit={handleSubmit}
+                onSwitchToSignUp={() => setIsSignUp(true)}
+              />
             )}
 
             {((!isSignUp && !loginDisabled) ||
@@ -471,6 +183,33 @@ function AuthContent() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+interface MaintenanceNoticeProps {
+  message: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}
+
+function MaintenanceNotice({
+  message,
+  actionLabel,
+  onAction,
+}: MaintenanceNoticeProps) {
+  return (
+    <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-xl p-6 text-center">
+      <p className="text-yellow-200 mb-4">{message}</p>
+      {actionLabel && onAction && (
+        <button
+          type="button"
+          onClick={onAction}
+          className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors"
+        >
+          {actionLabel}
+        </button>
+      )}
     </div>
   );
 }

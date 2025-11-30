@@ -3,11 +3,19 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { ResumeCreationFlow } from "@/components/ResumeCreationFlow";
 import { useAIResume } from "@/hooks/useAIResume";
 import { MockResumeQAForm, MockResumeGenerationLoader, MockResumeReviewModal } from "../__support__/resumeMocks";
+import { toast } from "sonner";
 
 jest.mock("@/hooks/useAIResume");
 jest.mock("@/components/ResumeQAForm", () => ({ ResumeQAForm: (props: any) => <MockResumeQAForm {...props} /> }));
 jest.mock("@/components/ResumeGenerationLoader", () => ({ ResumeGenerationLoader: (props: any) => <MockResumeGenerationLoader {...props} /> }));
 jest.mock("@/components/ResumeReviewModal", () => ({ ResumeReviewModal: (props: any) => <MockResumeReviewModal {...props} /> }));
+jest.mock("sonner", () => ({
+  toast: {
+    error: jest.fn(),
+    warning: jest.fn(),
+    success: jest.fn(),
+  },
+}));
 
 describe("ResumeCreationFlow", () => {
   const mockGenerateResumeContent = jest.fn();
@@ -17,7 +25,6 @@ describe("ResumeCreationFlow", () => {
     jest.clearAllMocks();
     (useAIResume as jest.Mock).mockReturnValue({ generateResumeContent: mockGenerateResumeContent, loading: false });
     global.fetch = jest.fn();
-    global.alert = jest.fn();
   });
 
   it("renders QA form and handles cancellation", () => {
@@ -74,7 +81,7 @@ describe("ResumeCreationFlow", () => {
     fireEvent.click(screen.getByText("Submit QA"));
     await waitFor(() => expect(screen.getByTestId("resume-review-modal")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Accept"));
-    await waitFor(() => expect(global.alert).toHaveBeenCalledWith("Save failed"));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Save failed"));
     jest.useRealTimers();
   });
 
@@ -105,12 +112,12 @@ describe("ResumeCreationFlow", () => {
     // Error
     mockGenerateResumeContent.mockRejectedValueOnce(new Error("Regen failed"));
     fireEvent.click(screen.getByText("Rewrite"));
-    await waitFor(() => expect(global.alert).toHaveBeenCalledWith("Failed to regenerate resume. Please try again."));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Failed to regenerate resume. Please try again."));
 
     // Null result (Line 203 coverage)
     mockGenerateResumeContent.mockResolvedValueOnce(null);
     fireEvent.click(screen.getByText("Rewrite"));
-    await waitFor(() => expect(global.alert).toHaveBeenCalledWith("Failed to regenerate resume. Please try again."));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Failed to regenerate resume. Please try again."));
 
     // Max retries (we already did 3 retries above: success, error, null. Need 2 more to hit 5)
     mockGenerateResumeContent.mockResolvedValue({ enhancedSummary: "Summary", skillSuggestions: [], enhancedExperience: [] });
@@ -119,6 +126,6 @@ describe("ResumeCreationFlow", () => {
       await waitFor(() => expect(screen.getByTestId("resume-review-modal")).toBeInTheDocument());
     }
     fireEvent.click(screen.getByText("Rewrite"));
-    expect(global.alert).toHaveBeenCalledWith("Maximum rewrites reached. Please accept this version.");
+    expect(toast.warning).toHaveBeenCalledWith("Maximum rewrites reached. Please accept this version.");
   });
 });
