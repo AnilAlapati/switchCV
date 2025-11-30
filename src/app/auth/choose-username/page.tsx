@@ -156,27 +156,33 @@ export default function ChooseUsernamePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-pulse text-gray-600">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+        <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-gray-600">Redirecting to sign in...</div>
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+        <div className="text-slate-400">Redirecting to sign in...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-gray-100 px-4">
-      <div className="max-w-md w-full">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 px-4 text-white">
+      {/* Background effects */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
+      </div>
+
+      <div className="relative z-10 max-w-md w-full">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-2xl mb-6">
             <svg
-              className="w-8 h-8 text-blue-600"
+              className="w-8 h-8 text-white"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -189,15 +195,15 @@ export default function ChooseUsernamePage() {
               />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-3xl sm:text-4xl font-bold mb-3">
             Choose your username
           </h1>
-          <p className="mt-2 text-gray-600">
+          <p className="text-slate-400 text-lg max-w-xl mx-auto">
             This will be your unique identifier on SwitchCV
           </p>
         </div>
 
-        <div className="bg-white shadow-lg rounded-xl p-6">
+        <div className="bg-white/5 border border-white/10 backdrop-blur-sm rounded-2xl p-6">
           <form onSubmit={handleSubmit}>
             <UsernameInput
               value={username}
@@ -211,15 +217,15 @@ export default function ChooseUsernamePage() {
             />
 
             {submitError && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm text-red-600">{submitError}</p>
+              <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
+                <p className="text-sm text-red-400">{submitError}</p>
               </div>
             )}
 
             <button
               type="submit"
               disabled={status !== "available" || isSubmitting || isPending}
-              className="w-full py-3 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              className="w-full py-3 px-4 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-medium rounded-lg hover:from-cyan-400 hover:to-purple-500 focus:ring-4 focus:ring-cyan-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               {isSubmitting ? "Setting username..." : "Continue"}
             </button>
@@ -227,10 +233,10 @@ export default function ChooseUsernamePage() {
 
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200" />
+              <div className="w-full border-t border-white/10" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">or</span>
+              <span className="px-2 bg-slate-900 text-slate-500">or</span>
             </div>
           </div>
 
@@ -238,21 +244,22 @@ export default function ChooseUsernamePage() {
             type="button"
             onClick={handleSkip}
             disabled={isSubmitting}
-            className="w-full py-3 px-4 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 focus:ring-4 focus:ring-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full py-3 px-4 bg-white/10 text-white font-medium rounded-lg hover:bg-white/20 focus:ring-4 focus:ring-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Skip for now
           </button>
-          <p className="mt-2 text-center text-xs text-gray-500">
+          <p className="mt-2 text-center text-xs text-slate-500">
             We&apos;ll assign you{" "}
-            <span className="font-mono text-gray-600">
+            <span className="font-mono text-slate-400">
               @{skipPreviewUsername}
             </span>
           </p>
         </div>
 
         {user.email && (
-          <p className="mt-6 text-center text-sm text-gray-500">
-            Signed in as <span className="font-medium">{user.email}</span>
+          <p className="mt-6 text-center text-sm text-slate-500">
+            Signed in as{" "}
+            <span className="font-medium text-slate-400">{user.email}</span>
           </p>
         )}
       </div>

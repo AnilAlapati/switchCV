@@ -122,8 +122,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const { reserveUsername, ensureUserProfile, releaseUsernameReservation } =
     createAuthProfileHelpers(db);
 
+  const skipEmailVerification =
+    process.env.NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION === "true";
+
   const needsEmailVerification =
-    !!user && isPasswordProvider(user) && !user.emailVerified;
+    !!user &&
+    isPasswordProvider(user) &&
+    !user.emailVerified &&
+    !skipEmailVerification;
 
   const ensureAuthAvailable = () => {
     if (!firebaseReady) {
@@ -221,8 +227,27 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
       );
 
-      if (!credential.user.emailVerified) {
-        await sendVerification(credential.user);
+      // Username successfully reserved - mark that we don't need username selection
+      // This prevents race condition where checkNeedsUsername() is called before Firestore write propagates
+      setNeedsUsername(false);
+
+      if (!credential.user.emailVerified && !skipEmailVerification) {
+        try {
+          await sendVerification(credential.user);
+        } catch (verificationError) {
+          // Don't fail signup if verification email fails (rate limiting, etc.)
+          // User can resend from the verification banner
+          const verifyErr = verificationError as { code?: string };
+          reportError(verificationError, {
+            source: "useAuth.signUp.sendVerification",
+            severity: "warning",
+            meta: { code: verifyErr.code },
+          });
+          logger.warn(
+            { err: verificationError, source: "useAuth.signUp" },
+            "Verification email failed but signup succeeded - user can resend later"
+          );
+        }
       }
     } catch (error) {
       // Only rollback if the error is NOT a permission error that might resolve
