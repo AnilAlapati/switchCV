@@ -136,7 +136,82 @@ jest.mock('@/lib/firebase-admin', () => ({
   adminDb: {
     collection: jest.fn(() => ({
       doc: jest.fn(() => ({
-        get: jest.fn().mockResolvedValue({ exists: false, data: jest.fn(() => ({})) }),
+        get: jest.fn().mockResolvedValue({ 
+          exists: true, 
+          data: jest.fn(() => ({
+            maintenance: { isActive: false, message: '', blocking: false },
+            auth: { registrationClosed: false, loginDisabled: false },
+            features: { enableAnalytics: false, enableMockData: true },
+            rateLimits: {
+              api: { windowMs: 60000, maxRequests: 100 },
+              search: { perMinute: 50 },
+              aiEnhancement: {
+                basic: { perHour: 10, perDay: 100 },
+                premium: { perHour: 50, perDay: 500 },
+                enterprise: { perHour: 200, perDay: 2000 }
+              },
+              usernameCheck: { maxRequests: 50, windowMs: 60000 },
+              supportFeedback: { maxPerHour: 20, windowMs: 3600000 }
+            },
+            tiers: {
+              basic: {
+                resumeLimit: 5,
+                canEdit: true,
+                retentionDays: null,
+                deletionGracePeriodDays: null,
+                expiryWarningHours: null,
+                recruiterContacts: { total: 100 },
+                recruiterSearches: 9999
+              },
+              premium: {
+                resumeLimit: 50,
+                canEdit: true,
+                retentionDays: null,
+                deletionGracePeriodDays: null,
+                expiryWarningHours: null,
+                recruiterContacts: { perMonth: 50 },
+                recruiterSearches: 9999
+              },
+              enterprise: {
+                resumeLimit: 9999,
+                canEdit: true,
+                retentionDays: null,
+                deletionGracePeriodDays: null,
+                expiryWarningHours: null,
+                recruiterContacts: { perMonth: 9999 },
+                recruiterSearches: 9999
+              }
+            },
+            search: {
+              basicQuota: 9999,
+              premiumQuota: 999999,
+              similarityThreshold: 0.3,
+              maxResults: 50,
+              costPerSearch: 0.5
+            },
+            ai: {
+              defaultModel: 'gemini-2.0-flash-lite',
+              embeddingModel: 'text-embedding-004',
+              embeddingDimension: 768,
+              maxRetries: 3,
+              timeoutMs: 30000,
+              maxTokens: 4096,
+              preferredModels: ['gemini-2.0-flash-lite', 'gemini-2.5-flash', 'gpt-4o-mini', 'groq/llama-3.1-8b'],
+              enableCostWarnings: true
+            },
+            validation: {
+              username: { minLength: 3, maxLength: 30 },
+              fields: { maxLength: 200, maxDescriptionLength: 2000 },
+              resume: { maxSkills: 50, maxExperiences: 20, maxEducations: 10, maxProjects: 20 }
+            },
+            cache: {
+              systemConfigTtlMs: 3600000,
+              templateCacheTtlMs: 1800000,
+              tierCacheTtlMs: 86400000,
+              aiCacheTtlMs: 86400000
+            }
+          }))
+        }),
         set: jest.fn().mockResolvedValue({}),
         update: jest.fn().mockResolvedValue({}),
         delete: jest.fn().mockResolvedValue({}),

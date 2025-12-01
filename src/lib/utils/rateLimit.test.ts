@@ -17,63 +17,63 @@ describe("Rate Limiting", () => {
   });
 
   describe("checkRateLimit", () => {
-    it("allows first request", () => {
-      const result = checkRateLimit("test-user-1");
+    it("allows first request", async () => {
+      const result = await checkRateLimit("test-user-1");
 
       expect(result.allowed).toBe(true);
       expect(result.current).toBe(1);
       expect(result.remaining).toBeGreaterThan(0);
     });
 
-    it("tracks request count", () => {
-      checkRateLimit("test-user-2");
-      checkRateLimit("test-user-2");
-      const result = checkRateLimit("test-user-2");
+    it("tracks request count", async () => {
+      await checkRateLimit("test-user-2");
+      await checkRateLimit("test-user-2");
+      const result = await checkRateLimit("test-user-2");
 
       expect(result.current).toBe(3);
     });
 
-    it("blocks when limit exceeded", () => {
+    it("blocks when limit exceeded", async () => {
       const options = { limit: 3, windowMs: 60000 };
 
-      checkRateLimit("test-user-3", options);
-      checkRateLimit("test-user-3", options);
-      checkRateLimit("test-user-3", options);
-      const result = checkRateLimit("test-user-3", options);
+      await checkRateLimit("test-user-3", options);
+      await checkRateLimit("test-user-3", options);
+      await checkRateLimit("test-user-3", options);
+      const result = await checkRateLimit("test-user-3", options);
 
       expect(result.allowed).toBe(false);
       expect(result.remaining).toBe(0);
     });
 
-    it("isolates different identifiers", () => {
+    it("isolates different identifiers", async () => {
       const options = { limit: 2, windowMs: 60000 };
 
-      checkRateLimit("user-a", options);
-      checkRateLimit("user-a", options);
-      const resultA = checkRateLimit("user-a", options);
+      await checkRateLimit("user-a", options);
+      await checkRateLimit("user-a", options);
+      const resultA = await checkRateLimit("user-a", options);
 
-      const resultB = checkRateLimit("user-b", options);
+      const resultB = await checkRateLimit("user-b", options);
 
       expect(resultA.allowed).toBe(false);
       expect(resultB.allowed).toBe(true);
     });
 
-    it("returns correct remaining count", () => {
+    it("returns correct remaining count", async () => {
       const options = { limit: 5, windowMs: 60000 };
 
-      const result1 = checkRateLimit("test-user-4", options);
+      const result1 = await checkRateLimit("test-user-4", options);
       expect(result1.remaining).toBe(4);
 
-      checkRateLimit("test-user-4", options);
-      checkRateLimit("test-user-4", options);
+      await checkRateLimit("test-user-4", options);
+      await checkRateLimit("test-user-4", options);
 
-      const result4 = checkRateLimit("test-user-4", options);
+      const result4 = await checkRateLimit("test-user-4", options);
       expect(result4.remaining).toBe(1);
     });
 
-    it("provides reset time", () => {
+    it("provides reset time", async () => {
       const options = { limit: 10, windowMs: 5000 };
-      const result = checkRateLimit("test-user-5", options);
+      const result = await checkRateLimit("test-user-5", options);
 
       expect(result.resetIn).toBeGreaterThan(0);
       expect(result.resetIn).toBeLessThanOrEqual(5000);
@@ -81,12 +81,12 @@ describe("Rate Limiting", () => {
   });
 
   describe("createRateLimiter", () => {
-    it("creates limiter with custom options", () => {
+    it("creates limiter with custom options", async () => {
       const limiter = createRateLimiter({ limit: 2, windowMs: 1000 });
 
-      expect(limiter("custom-user").allowed).toBe(true);
-      expect(limiter("custom-user").allowed).toBe(true);
-      expect(limiter("custom-user").allowed).toBe(false);
+      expect((await limiter("custom-user")).allowed).toBe(true);
+      expect((await limiter("custom-user")).allowed).toBe(true);
+      expect((await limiter("custom-user")).allowed).toBe(false);
     });
   });
 
