@@ -22,7 +22,7 @@
  * @module lib/utils/rateLimit
  */
 
-import { RATE_LIMITS } from "@/config/constants";
+import { getConstants } from "@/lib/getSystemConfig";
 
 interface RateLimitEntry {
   count: number;
@@ -87,12 +87,13 @@ export interface RateLimitOptions {
  * }
  * ```
  */
-export function checkRateLimit(
+export async function checkRateLimit(
   identifier: string,
   options: RateLimitOptions = {}
-): RateLimitResult {
+): Promise<RateLimitResult> {
+  const constants = await getConstants();
   const {
-    limit = RATE_LIMITS.API_REQUESTS_PER_MINUTE,
+    limit = constants.RATE_LIMITS.API_REQUESTS_PER_MINUTE,
     windowMs = 60 * 1000, // 1 minute default
   } = options;
 
@@ -139,7 +140,9 @@ export function checkRateLimit(
  * @returns A function that can be used as middleware
  */
 export function createRateLimiter(options: RateLimitOptions = {}) {
-  return function rateLimiter(identifier: string): RateLimitResult {
+  return async function rateLimiter(
+    identifier: string
+  ): Promise<RateLimitResult> {
     return checkRateLimit(identifier, options);
   };
 }
@@ -147,18 +150,28 @@ export function createRateLimiter(options: RateLimitOptions = {}) {
 /**
  * AI-specific rate limiter (stricter limits)
  */
-export const aiRateLimiter = createRateLimiter({
-  limit: RATE_LIMITS.AI_REQUESTS_PER_HOUR,
-  windowMs: 60 * 60 * 1000, // 1 hour
-});
+export const aiRateLimiter = async (
+  identifier: string
+): Promise<RateLimitResult> => {
+  const constants = await getConstants();
+  return checkRateLimit(identifier, {
+    limit: constants.RATE_LIMITS.AI_REQUESTS_PER_HOUR,
+    windowMs: 60 * 60 * 1000, // 1 hour
+  });
+};
 
 /**
  * API rate limiter (standard limits)
  */
-export const apiRateLimiter = createRateLimiter({
-  limit: RATE_LIMITS.API_REQUESTS_PER_MINUTE,
-  windowMs: 60 * 1000, // 1 minute
-});
+export const apiRateLimiter = async (
+  identifier: string
+): Promise<RateLimitResult> => {
+  const constants = await getConstants();
+  return checkRateLimit(identifier, {
+    limit: constants.RATE_LIMITS.API_REQUESTS_PER_MINUTE,
+    windowMs: 60 * 1000, // 1 minute
+  });
+};
 
 /**
  * Reset rate limit for a specific identifier (useful for testing)

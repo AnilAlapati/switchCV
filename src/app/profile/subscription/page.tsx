@@ -1,14 +1,8 @@
 "use client";
 
 import { useTier } from "@/hooks/useTier";
-import {
-  RESUME_CREATION_LIMITS,
-  RESUME_EDITING_ALLOWED,
-  RESUME_RETENTION_DAYS,
-  RECRUITER_SEARCH_LIMITS,
-  RECRUITER_CONTACT_LIMITS,
-  SubscriptionTier,
-} from "@/lib/config";
+import { useTierLimits } from "@/hooks/useTierLimits";
+import { SubscriptionTier } from "@/lib/config";
 
 // ...existing code...
 function SparklesIcon({ className }: { className?: string }) {
@@ -30,7 +24,10 @@ function SparklesIcon({ className }: { className?: string }) {
 }
 
 export default function SubscriptionPage() {
-  const { tier, loading } = useTier();
+  const { tier, loading: tierLoading } = useTier();
+  const { limits, loading: limitsLoading, error } = useTierLimits();
+
+  const loading = tierLoading || limitsLoading;
 
   if (loading) {
     return (
@@ -57,11 +54,15 @@ export default function SubscriptionPage() {
       price: "Free",
       description: "Essential features for job seekers starting their journey.",
       features: [
-        `${RESUME_CREATION_LIMITS.basic} Resume Creation`,
-        RESUME_EDITING_ALLOWED.basic ? "Resume Editing" : "No Resume Editing",
-        `${RESUME_RETENTION_DAYS.basic} Days Resume Retention`,
-        `${RECRUITER_SEARCH_LIMITS.basic} AI Searches (Recruiter)`,
-        `${RECRUITER_CONTACT_LIMITS.basic.amount} Contact Requests (${RECRUITER_CONTACT_LIMITS.basic.interval})`,
+        `${limits.basic.resumeCreationLimit} Resume Creation`,
+        limits.basic.resumeEditingAllowed
+          ? "Resume Editing"
+          : "No Resume Editing",
+        `${
+          limits.basic.resumeRetentionDays || "Forever"
+        } Days Resume Retention`,
+        `${limits.basic.recruiterSearchLimit} AI Searches (Recruiter)`,
+        `${limits.basic.recruiterContactLimit.amount} Contact Requests (${limits.basic.recruiterContactLimit.interval})`,
       ],
     },
     {
@@ -71,13 +72,13 @@ export default function SubscriptionPage() {
       description: "Advanced AI tools for serious candidates and recruiters.",
       highlight: true,
       features: [
-        `${RESUME_CREATION_LIMITS.premium} Resume Creations`,
-        RESUME_EDITING_ALLOWED.premium
+        `${limits.premium.resumeCreationLimit} Resume Creations`,
+        limits.premium.resumeEditingAllowed
           ? "Unlimited Resume Editing"
           : "No Resume Editing",
         "Forever Resume Retention",
-        `${RECRUITER_SEARCH_LIMITS.premium} AI Searches (Recruiter)`,
-        `${RECRUITER_CONTACT_LIMITS.premium.amount} Contact Requests (${RECRUITER_CONTACT_LIMITS.premium.interval})`,
+        `${limits.premium.recruiterSearchLimit} AI Searches (Recruiter)`,
+        `${limits.premium.recruiterContactLimit.amount} Contact Requests (${limits.premium.recruiterContactLimit.interval})`,
       ],
     },
     {

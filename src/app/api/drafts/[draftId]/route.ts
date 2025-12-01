@@ -14,8 +14,9 @@ import {
   handleApiError,
   safeParseBody,
 } from "@/lib/utils/api-helpers";
-import { DraftPatchRequestSchema } from "@/lib/schemas/draftSchema";
+import { getDraftProfileUpdateSchema } from "@/lib/schemas/draftSchema";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
+import { getConstants } from "@/lib/getSystemConfig";
 
 export async function GET(
   request: NextRequest,
@@ -58,8 +59,9 @@ export async function PATCH(
     if (authError) return authError;
 
     // Rate Limit
-    const rateLimitResult = checkRateLimit(`${userId}:draft:update`, {
-      limit: 60,
+    const constants = await getConstants();
+    const rateLimitResult = await checkRateLimit(`${userId}:draft:update`, {
+      limit: constants.RATE_LIMITS.DRAFT_UPDATES_PER_MINUTE,
       windowMs: 60 * 1000, // 1 minute
     });
 
@@ -81,6 +83,7 @@ export async function PATCH(
       return handleApiError(e, "Invalid JSON payload", 400);
     }
 
+    const { DraftPatchRequestSchema } = await getDraftProfileUpdateSchema();
     const validationResult = DraftPatchRequestSchema.safeParse(body);
     if (!validationResult.success) {
       const errorMessages = validationResult.error.issues

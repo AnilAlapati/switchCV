@@ -1,6 +1,6 @@
 import { withRetry } from "@/lib/utils/retry";
 import { logger } from "@/lib/logger";
-import { AI_SERVICE } from "@/config/constants";
+import { getConstants } from "@/lib/getSystemConfig";
 
 /**
  * Gemini API model response structure
@@ -21,20 +21,26 @@ let modelCache: {
 } | null = null;
 let inflightModelFetch: Promise<string[]> | null = null;
 
-const {
-  MODEL_CACHE_DURATION_MS: CACHE_DURATION,
-  FALLBACK_MODEL,
-  MAX_MODEL_REFRESH_ATTEMPTS: MAX_REMOTE_MODEL_REFRESHES,
-  MODEL_PREFERENCES,
-} = AI_SERVICE;
+// Cache for AI constants
+let aiConstants: Awaited<ReturnType<typeof getConstants>>["AI_SERVICE"] | null =
+  null;
+
+async function getAIConstants() {
+  if (!aiConstants) {
+    const constants = await getConstants();
+    aiConstants = constants.AI_SERVICE;
+  }
+  return aiConstants;
+}
 
 /**
  * Check if the model cache is valid
  */
-function isCacheValid(): boolean {
+async function isCacheValid(): Promise<boolean> {
   if (!modelCache) return false;
   const cacheAge = Date.now() - modelCache.timestamp;
-  return cacheAge < CACHE_DURATION;
+  const constants = await getAIConstants();
+  return cacheAge < constants.MODEL_CACHE_DURATION_MS;
 }
 
 /**
@@ -123,8 +129,9 @@ async function loadModelSelection(apiKey: string): Promise<{
     return { models, usingFallback: false };
   }
 
+  const constants = await getAIConstants();
   return {
-    models: [...MODEL_PREFERENCES],
+    models: [...constants.MODEL_PREFERENCES],
     usingFallback: true,
   };
 }
@@ -132,13 +139,15 @@ async function loadModelSelection(apiKey: string): Promise<{
 /**
  * Select the best available model based on preferences
  */
-function selectBestModel(availableModels: string[]): string {
+async function selectBestModel(availableModels: string[]): Promise<string> {
+  const constants = await getAIConstants();
+
   if (!availableModels.length) {
-    return FALLBACK_MODEL;
+    return constants.FALLBACK_MODEL;
   }
 
   // Try each preference in order
-  for (const preferred of MODEL_PREFERENCES) {
+  for (const preferred of constants.MODEL_PREFERENCES) {
     const match = availableModels.find((model) =>
       model.toLowerCase().includes(preferred.toLowerCase())
     );
@@ -158,7 +167,7 @@ function selectBestModel(availableModels: string[]): string {
   }
 
   // Last resort: try the current known model
-  return FALLBACK_MODEL;
+  return constants.FALLBACK_MODEL;
 }
 
 /**
@@ -190,9 +199,13 @@ async function generateWithGemini(
         break;
       }
 
-      if (remoteRefreshes >= MAX_REMOTE_MODEL_REFRESHES) {
+      const constants = await getAIConstants();
+      if (remoteRefreshes >= constants.MAX_MODEL_REFRESH_ATTEMPTS) {
         modelCache = null;
-        selection = { models: [...MODEL_PREFERENCES], usingFallback: true };
+        selection = {
+          models: [...constants.MODEL_PREFERENCES],
+          usingFallback: true,
+        };
         attemptedModels.clear();
         continue;
       }
@@ -204,7 +217,7 @@ async function generateWithGemini(
       continue;
     }
 
-    const modelName = selectBestModel(candidatePool);
+    const modelName = await selectBestModel(candidatePool);
     logger.info({ model: modelName }, "Using Gemini model");
 
     let response: Response;

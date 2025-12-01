@@ -8,13 +8,12 @@ import {
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
 import { getUserTier } from "@/lib/services/userService";
-import { RECRUITER_SEARCH_LIMITS } from "@/lib/config";
+import { getRecruiterSearchLimits } from "@/lib/config";
 import { consumeQuota, QuotaExceededError } from "@/lib/services/quotaService";
 import { getUserRole } from "@/lib/services/userService";
+import { getConstants } from "@/lib/getSystemConfig";
 
 type AllowedRole = "recruiter" | "admin";
-
-const MAX_RESULTS = 20;
 
 const toIsoString = (value: unknown): string => {
   if (typeof value === "string" && value) {
@@ -123,7 +122,8 @@ export async function GET(request: NextRequest) {
     }
 
     const tier = await getUserTier(recruiterId!);
-    const limit = RECRUITER_SEARCH_LIMITS[tier];
+    const searchLimits = await getRecruiterSearchLimits();
+    const limit = searchLimits[tier];
 
     try {
       await consumeQuota({
@@ -227,8 +227,9 @@ export async function GET(request: NextRequest) {
         new Map(results.map((r) => [r.resumeId, r])).values()
       );
 
+      const constants = await getConstants();
       return NextResponse.json({
-        results: uniqueResults.slice(0, MAX_RESULTS),
+        results: uniqueResults.slice(0, constants.AI_SEARCH.MAX_RESULTS),
         count: uniqueResults.length,
         query: searchQuery,
       });

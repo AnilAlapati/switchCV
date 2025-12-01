@@ -9,10 +9,10 @@ import {
 } from "@/lib/utils/api-helpers";
 import { getUserTier } from "@/lib/services/userService";
 import {
-  RESUME_CREATION_LIMITS,
-  RESUME_RETENTION_DAYS,
-  RESUME_DELETION_GRACE_DAYS,
-  RESUME_EXPIRY_WARNING_HOURS,
+  getResumeCreationLimits,
+  getResumeRetentionDays,
+  getResumeDeletionGraceDays,
+  getResumeExpiryWarningHours,
 } from "@/lib/config";
 
 interface CreateResumeRequest {
@@ -62,7 +62,8 @@ export async function POST(request: NextRequest) {
 
     // Check Quota
     const tier = await getUserTier(userId);
-    const limit = RESUME_CREATION_LIMITS[tier];
+    const limits = await getResumeCreationLimits();
+    const limit = limits[tier];
 
     // We use "resume_create" scope and "monthly" period (or "forever" if we want total limit)
     // For now, let's assume it's a total limit on active resumes, but consumeQuota is for "events over time".
@@ -97,9 +98,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate Expiration
-    const retentionDays = RESUME_RETENTION_DAYS[tier];
-    const deletionGraceDays = RESUME_DELETION_GRACE_DAYS[tier];
-    const warningHours = RESUME_EXPIRY_WARNING_HOURS[tier];
+    const retentionConfig = await getResumeRetentionDays();
+    const deletionGraceConfig = await getResumeDeletionGraceDays();
+    const warningHoursConfig = await getResumeExpiryWarningHours();
+
+    const retentionDays = retentionConfig[tier];
+    const deletionGraceDays = deletionGraceConfig[tier];
+    const warningHours = warningHoursConfig[tier];
 
     let expiresAt: string | null = null;
     let deletionScheduledAt: string | null = null;

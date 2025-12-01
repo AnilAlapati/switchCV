@@ -7,6 +7,7 @@ import {
   safeParseBody,
 } from "@/lib/utils/api-helpers";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
+import { getConstants } from "@/lib/getSystemConfig";
 import { createResumeSchema } from "@/lib/validations/resume";
 
 export async function POST(request: NextRequest) {
@@ -21,8 +22,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Rate Limiting
-    const rateLimitResult = checkRateLimit(`${userId}:resume:create`, {
-      limit: 10,
+    const constants = await getConstants();
+    const rateLimitResult = await checkRateLimit(`${userId}:resume:create`, {
+      limit: constants.RATE_LIMITS.RESUME_CREATE_PER_HOUR,
       windowMs: 60 * 60 * 1000, // 1 hour
     });
 

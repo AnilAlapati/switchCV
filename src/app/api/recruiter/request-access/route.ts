@@ -8,7 +8,7 @@ import {
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
 import { getUserTier } from "@/lib/services/userService";
-import { RECRUITER_CONTACT_LIMITS } from "@/lib/config";
+import { getRecruiterContactLimits } from "@/lib/config";
 import { consumeQuota, QuotaExceededError } from "@/lib/services/quotaService";
 
 export async function POST(request: NextRequest) {
@@ -26,7 +26,8 @@ export async function POST(request: NextRequest) {
 
     // Check Quota
     const tier = await getUserTier(recruiterId!);
-    const limitConfig = RECRUITER_CONTACT_LIMITS[tier];
+    const limitConfigs = await getRecruiterContactLimits();
+    const limitConfig = limitConfigs[tier];
 
     try {
       await consumeQuota({
