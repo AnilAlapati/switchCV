@@ -11,11 +11,7 @@ import {
   handleApiError,
 } from "@/lib/utils/api-helpers";
 import { getUserRole } from "@/lib/services/userService";
-
-const ADMIN_REFRESH_LIMIT = {
-  limit: 5,
-  windowMs: 60 * 1000,
-};
+import { getConstants } from "@/lib/getSystemConfig";
 
 export async function GET(request: NextRequest) {
   try {
@@ -30,10 +26,11 @@ export async function GET(request: NextRequest) {
     }
 
     const clientIp = getClientIp(request);
-    const rateCheck = applyRateLimit(
-      `refresh-models:${clientIp}`,
-      ADMIN_REFRESH_LIMIT
-    );
+    const constants = await getConstants();
+    const rateCheck = applyRateLimit(`refresh-models:${clientIp}`, {
+      limit: constants.RATE_LIMITS.ADMIN_REFRESH_PER_MINUTE,
+      windowMs: 60 * 1000,
+    });
     if (!rateCheck.allowed) {
       return rateCheck.response;
     }

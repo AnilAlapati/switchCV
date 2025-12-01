@@ -4,7 +4,7 @@
  * Username Input Component with availability status indicator
  */
 
-import { USERNAME_CONFIG } from "@/config/constants";
+import { useConstants } from "@/config/constants";
 
 type AvailabilityStatus =
   | "idle"
@@ -102,6 +102,7 @@ export function UsernameInput({
   disabled,
   onUseSuggestion,
 }: UsernameInputProps) {
+  const { USERNAME_CONFIG } = useConstants();
   const borderColor =
     status === "available"
       ? "border-green-500"

@@ -29,6 +29,7 @@ import {
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
+import { getConstants } from "@/lib/getSystemConfig";
 import { notificationRequestSchema } from "@/lib/validations/notification";
 
 export async function POST(request: NextRequest) {
@@ -39,10 +40,14 @@ export async function POST(request: NextRequest) {
       return authError || handleApiError(null, "Unauthorized", 401);
 
     // Rate Limit
-    const rateLimitResult = checkRateLimit(`${authUserId}:notifications`, {
-      limit: 100,
-      windowMs: 60 * 1000, // 1 minute
-    });
+    const constants = await getConstants();
+    const rateLimitResult = await checkRateLimit(
+      `${authUserId}:notifications`,
+      {
+        limit: constants.RATE_LIMITS.NOTIFICATIONS_PER_MINUTE,
+        windowMs: 60 * 1000, // 1 minute
+      }
+    );
 
     if (!rateLimitResult.allowed) {
       return handleApiError(null, "Too many requests", 429);

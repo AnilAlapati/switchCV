@@ -9,7 +9,7 @@ import { logger } from "@/lib/logger";
  */
 
 import { adminDb } from "@/lib/firebase-admin";
-import { RATE_LIMITS } from "@/config/constants";
+import { getConstants } from "@/lib/getSystemConfig";
 
 interface RateLimitEntry {
   count: number;
@@ -63,8 +63,9 @@ export async function checkDistributedRateLimit(
   identifier: string,
   options: DistributedRateLimitOptions = {}
 ): Promise<DistributedRateLimitResult> {
+  const constants = await getConstants();
   const {
-    limit = RATE_LIMITS.API_REQUESTS_PER_MINUTE,
+    limit = constants.RATE_LIMITS.API_REQUESTS_PER_MINUTE,
     windowMs = 60 * 1000, // 1 minute default
     scope = "default",
   } = options;

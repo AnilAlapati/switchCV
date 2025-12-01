@@ -91,51 +91,51 @@ describe("Rate Limiting", () => {
   });
 
   describe("aiRateLimiter", () => {
-    it("uses AI-specific limits", () => {
-      const result = aiRateLimiter("ai-user");
+    it("uses AI-specific limits", async () => {
+      const result = await aiRateLimiter("ai-user");
 
       expect(result.allowed).toBe(true);
-      expect(result.limit).toBe(20); // AI_REQUESTS_PER_HOUR from constants
+      expect(result.limit).toBe(10); // AI_REQUESTS_PER_HOUR from config (basic tier)
     });
   });
 
   describe("apiRateLimiter", () => {
-    it("uses API-specific limits", () => {
-      const result = apiRateLimiter("api-user");
+    it("uses API-specific limits", async () => {
+      const result = await apiRateLimiter("api-user");
 
       expect(result.allowed).toBe(true);
-      expect(result.limit).toBe(60); // API_REQUESTS_PER_MINUTE from constants
+      expect(result.limit).toBe(100); // API_REQUESTS_PER_MINUTE from config
     });
   });
 
   describe("resetRateLimit", () => {
-    it("resets rate limit for specific identifier", () => {
+    it("resets rate limit for specific identifier", async () => {
       const options = { limit: 2, windowMs: 60000 };
 
-      checkRateLimit("reset-user", options);
-      checkRateLimit("reset-user", options);
-      expect(checkRateLimit("reset-user", options).allowed).toBe(false);
+      await checkRateLimit("reset-user", options);
+      await checkRateLimit("reset-user", options);
+      expect((await checkRateLimit("reset-user", options)).allowed).toBe(false);
 
       resetRateLimit("reset-user");
 
-      expect(checkRateLimit("reset-user", options).allowed).toBe(true);
+      expect((await checkRateLimit("reset-user", options)).allowed).toBe(true);
     });
   });
 
   describe("clearAllRateLimits", () => {
-    it("clears all rate limits", () => {
+    it("clears all rate limits", async () => {
       const options = { limit: 1, windowMs: 60000 };
 
-      checkRateLimit("user-1", options);
-      checkRateLimit("user-2", options);
+      await checkRateLimit("user-1", options);
+      await checkRateLimit("user-2", options);
 
-      expect(checkRateLimit("user-1", options).allowed).toBe(false);
-      expect(checkRateLimit("user-2", options).allowed).toBe(false);
+      expect((await checkRateLimit("user-1", options)).allowed).toBe(false);
+      expect((await checkRateLimit("user-2", options)).allowed).toBe(false);
 
       clearAllRateLimits();
 
-      expect(checkRateLimit("user-1", options).allowed).toBe(true);
-      expect(checkRateLimit("user-2", options).allowed).toBe(true);
+      expect((await checkRateLimit("user-1", options)).allowed).toBe(true);
+      expect((await checkRateLimit("user-2", options)).allowed).toBe(true);
     });
   });
 });

@@ -12,7 +12,7 @@ import {
 } from "@/lib/utils/api-helpers";
 import { sanitizeResumeForPublicView } from "@/lib/utils/resumeVisibility";
 import { getUserTier } from "@/lib/services/userService";
-import { RESUME_EDITING_ALLOWED } from "@/lib/config";
+import { getResumeEditingAllowed } from "@/lib/config";
 
 type AccessGrantType = "request" | "grant";
 
@@ -321,7 +321,8 @@ export async function PUT(
 
     // Check Editing Permissions
     const tier = await getUserTier(requestUserId!);
-    const canEdit = RESUME_EDITING_ALLOWED[tier];
+    const editingAllowed = await getResumeEditingAllowed();
+    const canEdit = editingAllowed[tier];
 
     if (!canEdit) {
       return handleApiError(

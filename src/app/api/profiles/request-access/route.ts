@@ -12,7 +12,7 @@ import {
   handleApiError,
 } from "@/lib/utils/api-helpers";
 import { createNotification } from "@/lib/notificationService";
-import { RECRUITER_CONTACT_LIMITS } from "@/lib/config";
+import { getRecruiterContactLimits, type SubscriptionTier } from "@/lib/config";
 import {
   NotificationType,
   NotificationChannel,
@@ -86,12 +86,13 @@ export async function POST(request: NextRequest) {
 
     // Check request limits
     const rawTier = userData?.subscriptionTier;
-    const userTier =
+    const userTier: SubscriptionTier =
       rawTier && ["basic", "premium", "enterprise"].includes(rawTier)
-        ? (rawTier as keyof typeof RECRUITER_CONTACT_LIMITS)
+        ? (rawTier as SubscriptionTier)
         : "basic";
 
-    const limitConfig = RECRUITER_CONTACT_LIMITS[userTier];
+    const limitConfigs = await getRecruiterContactLimits();
+    const limitConfig = limitConfigs[userTier];
 
     if (limitConfig.amount < 9999) {
       let query = adminDb

@@ -14,18 +14,18 @@ import {
 import { FieldValue } from "firebase-admin/firestore";
 import { recordRecruiterSearchEvent } from "@/lib/recruiterSearchHistory";
 import { getUserRole, getUserTier } from "@/lib/services/userService";
-import { RATE_LIMITS } from "@/config/constants";
+import { getConstants } from "@/lib/getSystemConfig";
 import { logger } from "@/lib/logger";
 import { searchResumesSchema } from "@/lib/validations/recruiter";
 import { createDistributedRateLimiter } from "@/lib/utils/distributedRateLimit";
 
-const recruiterSearchRateLimiter = createDistributedRateLimiter(
-  "recruiter-search",
-  {
-    limit: RATE_LIMITS.SEARCH_REQUESTS_PER_MINUTE,
+const getRecruiterSearchRateLimiter = async () => {
+  const constants = await getConstants();
+  return createDistributedRateLimiter("recruiter-search", {
+    limit: constants.RATE_LIMITS.SEARCH_REQUESTS_PER_MINUTE,
     windowMs: 60 * 1000,
-  }
-);
+  });
+};
 
 export async function POST(request: NextRequest) {
   try {
@@ -66,6 +66,7 @@ export async function POST(request: NextRequest) {
     }
 
     const rateIdentifier = `${authenticatedUserId}:${getClientIp(request)}`;
+    const recruiterSearchRateLimiter = await getRecruiterSearchRateLimiter();
     const rateLimitResult = await recruiterSearchRateLimiter(rateIdentifier);
     if (!rateLimitResult.allowed) {
       const response = handleApiError(
