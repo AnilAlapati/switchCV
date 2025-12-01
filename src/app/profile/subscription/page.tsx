@@ -25,7 +25,7 @@ function SparklesIcon({ className }: { className?: string }) {
 
 export default function SubscriptionPage() {
   const { tier, loading: tierLoading } = useTier();
-  const { limits, loading: limitsLoading, error } = useTierLimits();
+  const { limits, loading: limitsLoading } = useTierLimits();
 
   const loading = tierLoading || limitsLoading;
 

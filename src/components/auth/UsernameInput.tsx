@@ -102,7 +102,7 @@ export function UsernameInput({
   disabled,
   onUseSuggestion,
 }: UsernameInputProps) {
-  const { USERNAME_CONFIG } = useConstants();
+  const { USERNAME_VALIDATION } = useConstants();
   const borderColor =
     status === "available"
       ? "border-green-500"
@@ -159,8 +159,8 @@ export function UsernameInput({
       )}
 
       <p className="mt-2 text-xs text-gray-500">
-        {USERNAME_CONFIG.MIN_LENGTH}-{USERNAME_CONFIG.MAX_LENGTH} characters.
-        Letters, numbers, hyphens, and underscores only.
+        {USERNAME_VALIDATION.MIN_LENGTH}-{USERNAME_VALIDATION.MAX_LENGTH}{" "}
+        characters. Letters, numbers, hyphens, and underscores only.
       </p>
     </div>
   );

@@ -191,6 +191,15 @@ export const RESERVED_USERNAMES = [
 export type ReservedUsername = (typeof RESERVED_USERNAMES)[number];
 
 /**
+ * Username Configuration
+ * Static constants that don't require Firebase config
+ */
+export const USERNAME_CONFIG = {
+  /** Debounce delay for availability check in ms */
+  CHECK_DEBOUNCE_MS: 400,
+} as const;
+
+/**
  * Dynamic Constants Hook
  * Returns constants that can be configured via Firebase
  */
@@ -253,15 +262,13 @@ export const useConstants = () => {
     } as const,
 
     /**
-     * Username Configuration
+     * Username Configuration (Dynamic)
      */
-    USERNAME_CONFIG: {
+    USERNAME_VALIDATION: {
       /** Minimum username length */
       MIN_LENGTH: config.validation.username.minLength,
       /** Maximum username length */
       MAX_LENGTH: config.validation.username.maxLength,
-      /** Debounce delay for availability check in ms */
-      CHECK_DEBOUNCE_MS: 400,
       /** Rate limit for username availability checks per minute */
       CHECK_RATE_LIMIT_PER_MINUTE: config.rateLimits.usernameCheck.maxRequests,
     } as const,

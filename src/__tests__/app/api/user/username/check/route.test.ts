@@ -50,7 +50,7 @@ describe("Username Check API", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (checkRateLimit as jest.Mock).mockReturnValue(mockRateLimitAllowed);
+    (checkRateLimit as jest.Mock).mockResolvedValue(mockRateLimitAllowed);
   });
 
   function createRequest(username: string): NextRequest {
@@ -68,7 +68,7 @@ describe("Username Check API", () => {
 
   describe("Rate Limiting", () => {
     it("returns 429 when rate limited", async () => {
-      (checkRateLimit as jest.Mock).mockReturnValue(mockRateLimitBlocked);
+      (checkRateLimit as jest.Mock).mockResolvedValue(mockRateLimitBlocked);
 
       const request = createRequest("testuser");
       const response = await GET(request);
