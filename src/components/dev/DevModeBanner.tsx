@@ -1,6 +1,6 @@
 "use client";
 
-import { getDevModeStatus } from "@/lib/config";
+import { getDevModeStatus } from "@/lib/config.client";
 
 /**
  * Development Mode Banner

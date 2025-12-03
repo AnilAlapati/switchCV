@@ -5,6 +5,7 @@ import { AuthBackground } from "@/components/auth/AuthBackground";
 import { AuthBrand } from "@/components/auth/AuthBrand";
 import { EmailVerificationNotice } from "@/components/auth/EmailVerificationNotice";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import { GoogleSignInDebug } from "@/components/auth/GoogleSignInDebug";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { SignupForm } from "@/components/auth/SignupForm";
 import { useAuthPage } from "@/hooks/useAuthPage";
@@ -218,6 +219,7 @@ export default function AuthPage() {
   return (
     <Suspense fallback={<div>Loading...</div>}>
       <AuthContent />
+      <GoogleSignInDebug />
     </Suspense>
   );
 }
