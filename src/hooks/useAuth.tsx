@@ -36,7 +36,7 @@ import {
   getSignUpErrorMessage,
   getGoogleSignInErrorMessage,
 } from "./useAuth.errors";
-import { getVerificationUrl } from "@/lib/config";
+import { getVerificationUrl } from "@/lib/config.client";
 import { logger } from "@/lib/logger";
 
 const googleProvider =

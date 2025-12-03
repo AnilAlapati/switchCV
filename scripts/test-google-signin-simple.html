@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Quick Google Sign-In Test</title>
+    <style>
+        body { 
+            font-family: system-ui; 
+            max-width: 600px; 
+            margin: 50px auto; 
+            padding: 20px; 
+        }
+        button { 
+            padding: 12px 24px; 
+            font-size: 16px; 
+            cursor: pointer; 
+            background: #4285f4; 
+            color: white; 
+            border: none; 
+            border-radius: 4px;
+        }
+        button:hover { background: #357ae8; }
+        .result { 
+            margin-top: 20px; 
+            padding: 15px; 
+            border-radius: 5px; 
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; border: 1px solid #bee5eb; }
+    </style>
+</head>
+<body>
+    <h1>🔐 Quick Google Sign-In Test</h1>
+    <p>Your Firebase Project: <strong>switchcv-dev</strong></p>
+    
+    <button onclick="testGoogleSignIn()">🚀 Test Google Sign-In</button>
+    
+    <div id="result"></div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+        const config = {
+            apiKey: "AIzaSyAduU_bS8-Vzq-90LuR5stn5PuBleyMQNs",
+            authDomain: "switchcv-dev.firebaseapp.com",
+            projectId: "switchcv-dev",
+            storageBucket: "switchcv-dev.firebasestorage.app",
+            messagingSenderId: "810736137134",
+            appId: "1:810736137134:web:8f2dc30604aebd6825ce3f"
+        };
+
+        const app = initializeApp(config);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+
+        window.testGoogleSignIn = async function() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = 'result info';
+            resultDiv.textContent = 'Opening Google Sign-In popup...';
+
+            try {
+                const result = await signInWithPopup(auth, provider);
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `✅ SUCCESS!\n\nEmail: ${result.user.email}\nUID: ${result.user.uid}\nDisplay Name: ${result.user.displayName}`;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                
+                let diagnosis = '';
+                switch (error.code) {
+                    case 'auth/popup-closed-by-user':
+                        diagnosis = '\n\n💡 You closed the popup before completing sign-in. Try again and complete the flow.';
+                        break;
+                    case 'auth/popup-blocked':
+                        diagnosis = '\n\n💡 Your browser blocked the popup. Please allow popups for this page.';
+                        break;
+                    case 'auth/unauthorized-domain':
+                        diagnosis = '\n\n💡 Firebase Console → Authentication → Settings → Add this domain to "Authorized domains"';
+                        break;
+                    case 'auth/operation-not-allowed':
+                        diagnosis = '\n\n💡 Firebase Console → Authentication → Sign-in method → Enable Google provider';
+                        break;
+                    case 'auth/network-request-failed':
+                        diagnosis = '\n\n💡 Network error. Check your internet connection.';
+                        break;
+                    default:
+                        diagnosis = '\n\n💡 Check Firebase Console settings or browser console for more details.';
+                }
+                
+                resultDiv.textContent = `❌ ERROR\n\nCode: ${error.code}\nMessage: ${error.message}${diagnosis}`;
+                console.error('Full error:', error);
+            }
+        };
+    </script>
+</body>
+</html>
