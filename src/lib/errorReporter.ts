@@ -74,7 +74,7 @@ export function reportError(error: unknown, context: ErrorContext): void {
   };
 
   if (typeof window !== "undefined") {
-    logger.error(payload);
+    logger.error({ ...payload, rawError: error });
   } else {
     logger.error(payload);
   }
