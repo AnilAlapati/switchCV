@@ -46,6 +46,8 @@ const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
 const retryHandler_1 = require("./utils/retryHandler");
 const config_1 = require("./config");
+const rateLimiter_1 = require("./middleware/rateLimiter");
+const db = admin.firestore();
 // Initialize AI clients
 const HUGGINGFACE_TOKEN = process.env.HUGGINGFACE_TOKEN;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -78,6 +80,90 @@ const ALLOWED_MODELS = [
     "gemini-1.5-flash",
     "gemini-1.5-pro",
 ];
+const TIER_MODEL_ALLOWLIST = {
+    basic: ["gemini-1.5-flash", "google/flan-t5-base", "distilgpt2"],
+    premium: [
+        "gemini-1.5-flash",
+        "google/flan-t5-base",
+        "mistralai/Mistral-7B-Instruct-v0.3",
+        "gpt2-medium",
+        "distilgpt2",
+    ],
+    enterprise: ALLOWED_MODELS,
+};
+const TIER_USAGE_LIMITS = {
+    basic: {
+        hour: {
+            windowMs: 60 * 60 * 1000,
+            maxRequests: 2,
+            keyPrefix: "ai_resume_basic_hour",
+        },
+        day: {
+            windowMs: 24 * 60 * 60 * 1000,
+            maxRequests: 5,
+            keyPrefix: "ai_resume_basic_day",
+        },
+    },
+    premium: {
+        hour: {
+            windowMs: 60 * 60 * 1000,
+            maxRequests: 10,
+            keyPrefix: "ai_resume_premium_hour",
+        },
+        day: {
+            windowMs: 24 * 60 * 60 * 1000,
+            maxRequests: 40,
+            keyPrefix: "ai_resume_premium_day",
+        },
+    },
+    enterprise: {
+        hour: {
+            windowMs: 60 * 60 * 1000,
+            maxRequests: 30,
+            keyPrefix: "ai_resume_enterprise_hour",
+        },
+        day: {
+            windowMs: 24 * 60 * 60 * 1000,
+            maxRequests: 200,
+            keyPrefix: "ai_resume_enterprise_day",
+        },
+    },
+};
+async function resolveSubscriptionTier(userId) {
+    var _a;
+    try {
+        const snapshot = await db.collection("users").doc(userId).get();
+        const tier = (_a = snapshot.data()) === null || _a === void 0 ? void 0 : _a.subscriptionTier;
+        if (tier && TIER_MODEL_ALLOWLIST[tier]) {
+            return tier;
+        }
+    }
+    catch (error) {
+        functions.logger.error("Failed to resolve subscription tier", {
+            userId,
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+    return "basic";
+}
+function isModelAllowedForTier(modelId, tier) {
+    const normalized = modelId || "gemini-1.5-flash";
+    const allowlist = TIER_MODEL_ALLOWLIST[tier] || [];
+    return allowlist.includes(normalized);
+}
+async function enforceTierUsage(userId, tier) {
+    const limits = TIER_USAGE_LIMITS[tier];
+    for (const window of Object.keys(limits)) {
+        const result = await (0, rateLimiter_1.checkRateLimit)(userId, limits[window]);
+        if (!result.allowed) {
+            return { allowed: false, window, retryAfter: result.retryAfter };
+        }
+    }
+    return { allowed: true };
+}
+function describeAllowedModels(tier) {
+    return TIER_MODEL_ALLOWLIST[tier].join(", ");
+}
 /**
  * Generate AI-powered resume content
  */
@@ -99,6 +185,7 @@ exports.generateResumeContent = functions
             }
             try {
                 const { userId, resumeData, template = "modern", tone = "professional", modelId = "gemini-1.5-flash", } = req.body;
+                const normalizedModelId = modelId || "gemini-1.5-flash";
                 if (!userId || !resumeData) {
                     res.status(400).json({
                         error: "Missing required fields: userId and resumeData",
@@ -106,9 +193,10 @@ exports.generateResumeContent = functions
                     return;
                 }
                 // Validate model selection
-                if (modelId && !ALLOWED_MODELS.includes(modelId)) {
+                if (normalizedModelId &&
+                    !ALLOWED_MODELS.includes(normalizedModelId)) {
                     res.status(400).json({
-                        error: `Invalid model: ${modelId}. Allowed models: ${ALLOWED_MODELS.join(", ")}`,
+                        error: `Invalid model: ${normalizedModelId}. Allowed models: ${ALLOWED_MODELS.join(", ")}`,
                     });
                     return;
                 }
@@ -131,10 +219,27 @@ exports.generateResumeContent = functions
                     res.status(403).json({ error: "Forbidden" });
                     return;
                 }
+                const subscriptionTier = await resolveSubscriptionTier(userId);
+                if (!isModelAllowedForTier(normalizedModelId, subscriptionTier)) {
+                    res.status(403).json({
+                        error: `Model ${normalizedModelId} is not available on the ${subscriptionTier} plan. Allowed models: ${describeAllowedModels(subscriptionTier)}`,
+                    });
+                    return;
+                }
+                const usageResult = await enforceTierUsage(userId, subscriptionTier);
+                if (!usageResult.allowed) {
+                    res.status(429).json({
+                        error: usageResult.window === "hour"
+                            ? "Hourly AI generation limit reached. Please wait before trying again."
+                            : "Daily AI generation limit reached. Upgrade your plan for higher limits.",
+                        retryAfter: usageResult.retryAfter,
+                        tier: subscriptionTier,
+                    });
+                    return;
+                }
                 // Generate enhanced resume content using AI
-                const enhancedContent = await enhanceResumeWithAI(resumeData, tone, modelId);
+                const enhancedContent = await enhanceResumeWithAI(resumeData, tone, normalizedModelId);
                 // Store the generated content
-                const db = admin.firestore();
                 await db.collection("users").doc(userId).collection("resumes").add({
                     originalData: resumeData,
                     enhancedContent,
