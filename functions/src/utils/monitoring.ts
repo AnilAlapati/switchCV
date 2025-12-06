@@ -217,7 +217,16 @@ export class PerformanceMonitor {
         metric.p95 = values[index];
 
         // Check P95 threshold
-        alertManager.checkP95(metric.name, metric.p95);
+        try {
+          alertManager.checkP95(metric.name, metric.p95);
+        } catch (e) {
+          // If alertManager is not initialized or checkP95 throws, log it
+          functions.logger.error("Error checking P95 threshold", {
+            metricName: metric.name,
+            p95Value: metric.p95,
+            error: e instanceof Error ? e.message : String(e),
+          });
+        }
       }
     });
 

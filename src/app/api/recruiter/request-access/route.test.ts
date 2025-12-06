@@ -19,6 +19,13 @@ jest.mock("@/lib/utils/api-helpers", () => ({
 jest.mock("@/lib/services/userService");
 jest.mock("@/lib/services/quotaService");
 
+// Mock config.server to avoid DB calls
+jest.mock("@/lib/config.server", () => ({
+  getRecruiterContactLimits: jest.fn().mockResolvedValue({
+    basic: { amount: 2, interval: "lifetime" },
+  }),
+}));
+
 // Mock firebase-admin
 jest.mock("@/lib/firebase-admin", () => ({
   adminDb: {
