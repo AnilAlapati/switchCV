@@ -8,7 +8,7 @@ import {
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
 import { getUserTier } from "@/lib/services/userService";
-import { getRecruiterContactLimits } from "@/lib/config";
+import { getRecruiterContactLimits } from "@/lib/config.server";
 import { consumeQuota, QuotaExceededError } from "@/lib/services/quotaService";
 
 export async function POST(request: NextRequest) {

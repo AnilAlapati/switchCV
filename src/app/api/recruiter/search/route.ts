@@ -8,7 +8,7 @@ import {
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
 import { getUserTier } from "@/lib/services/userService";
-import { getRecruiterSearchLimits } from "@/lib/config";
+import { getRecruiterSearchLimits } from "@/lib/config.server";
 import { consumeQuota, QuotaExceededError } from "@/lib/services/quotaService";
 import { getUserRole } from "@/lib/services/userService";
 import { getConstants } from "@/lib/getSystemConfig";

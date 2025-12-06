@@ -12,7 +12,7 @@ import {
 } from "@/lib/utils/api-helpers";
 import { sanitizeResumeForPublicView } from "@/lib/utils/resumeVisibility";
 import { getUserTier } from "@/lib/services/userService";
-import { getResumeEditingAllowed } from "@/lib/config";
+import { getResumeEditingAllowed } from "@/lib/config.server";
 
 type AccessGrantType = "request" | "grant";
 

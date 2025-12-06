@@ -12,7 +12,8 @@ import {
   handleApiError,
 } from "@/lib/utils/api-helpers";
 import { createNotification } from "@/lib/notificationService";
-import { getRecruiterContactLimits, type SubscriptionTier } from "@/lib/config";
+import { getRecruiterContactLimits } from "@/lib/config.server";
+import type { SubscriptionTier } from "@/lib/config.client";
 import {
   NotificationType,
   NotificationChannel,
