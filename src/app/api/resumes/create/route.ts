@@ -13,7 +13,7 @@ import {
   getResumeRetentionDays,
   getResumeDeletionGraceDays,
   getResumeExpiryWarningHours,
-} from "@/lib/config";
+} from "@/lib/config.server";
 
 interface CreateResumeRequest {
   userId: string;

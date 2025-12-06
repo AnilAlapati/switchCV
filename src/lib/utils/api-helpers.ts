@@ -257,19 +257,20 @@ export async function safeParseBody<T = unknown>(
  *
  * @example
  * ```typescript
- * const { allowed, response, result } = applyRateLimit(userId || request.ip);
+ * const { allowed, response, result } = await applyRateLimit(userId || request.ip);
  * if (!allowed) return response;
  * // Proceed with request handling
  * attachRateLimitHeaders(myResponse, result);
  * ```
  */
-export function applyRateLimit(
+export async function applyRateLimit(
   identifier: string,
   options?: { limit?: number; windowMs?: number }
-):
+): Promise<
   | { allowed: true; result: RateLimitResult }
-  | { allowed: false; response: NextResponse } {
-  const result = checkRateLimit(identifier, options);
+  | { allowed: false; response: NextResponse }
+> {
+  const result = await checkRateLimit(identifier, options);
 
   if (!result.allowed) {
     const response = NextResponse.json(

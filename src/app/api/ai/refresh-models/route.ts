@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     const clientIp = getClientIp(request);
     const constants = await getConstants();
-    const rateCheck = applyRateLimit(`refresh-models:${clientIp}`, {
+    const rateCheck = await applyRateLimit(`refresh-models:${clientIp}`, {
       limit: constants.RATE_LIMITS.ADMIN_REFRESH_PER_MINUTE,
       windowMs: 60 * 1000,
     });

@@ -75,7 +75,7 @@ export function getCacheStatus(): {
  */
 async function getAvailableGeminiModels(apiKey: string): Promise<string[]> {
   // Return cached models if still valid
-  if (isCacheValid()) {
+  if (await isCacheValid()) {
     return modelCache!.models;
   }
 

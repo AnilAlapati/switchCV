@@ -52,7 +52,8 @@ const getCacheStorage = () => {
 };
 
 const getCacheTtlMs = (config?: SystemConfig): number =>
-  config?.cache?.ttlMs ?? defaultSystemConfig.cache.ttlMs;
+  config?.cache?.systemConfigTtlMs ??
+  defaultSystemConfig.cache.systemConfigTtlMs;
 
 const readCachedConfig = (): SystemConfig | null => {
   const storage = getCacheStorage();
