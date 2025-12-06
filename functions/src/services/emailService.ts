@@ -1,4 +1,5 @@
-import nodemailer from "nodemailer";
+// Lazy loaded import
+// import nodemailer from "nodemailer";
 import {
   EmailTemplate,
   EmailOptions,
@@ -11,30 +12,36 @@ import {
  * Handles email sending with templating system
  */
 export class EmailService {
-  private transporter: nodemailer.Transporter;
+  private transporter: any; // Type: nodemailer.Transporter
   private fromEmail: string;
   private fromName: string;
 
   constructor() {
-    // Initialize nodemailer transporter
-    // Configured for Titan Email (or other SMTP providers via env vars)
-    const smtpHost = process.env.SMTP_HOST || "smtp.titan.email";
-    const smtpPort = parseInt(process.env.SMTP_PORT || "465");
     const smtpUser = process.env.SMTP_USER || "support@switchcv.com";
-    const smtpPass = process.env.SMTP_PASS || "";
-
     this.fromEmail = smtpUser;
     this.fromName = "SwitchCV";
+  }
 
-    this.transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpPort === 465, // true for 465, false for other ports
-      auth: {
-        user: smtpUser,
-        pass: smtpPass,
-      },
-    });
+  private async getTransporter() {
+    if (!this.transporter) {
+      const nodemailer = (await import("nodemailer")).default;
+
+      const smtpHost = process.env.SMTP_HOST || "smtp.titan.email";
+      const smtpPort = parseInt(process.env.SMTP_PORT || "465");
+      const smtpUser = process.env.SMTP_USER || "support@switchcv.com";
+      const smtpPass = process.env.SMTP_PASS || "";
+
+      this.transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpPort === 465, // true for 465, false for other ports
+        auth: {
+          user: smtpUser,
+          pass: smtpPass,
+        },
+      });
+    }
+    return this.transporter;
   }
 
   /**
@@ -50,7 +57,8 @@ export class EmailService {
         text: options.text || options.html.replace(/<[^>]+>/g, ""),
       };
 
-      const info = await this.transporter.sendMail(mailOptions);
+      const transporter = await this.getTransporter();
+      const info = await transporter.sendMail(mailOptions);
 
       return {
         success: true,
@@ -83,7 +91,8 @@ export class EmailService {
         text: template.text, // Fallback plain text
       };
 
-      const info = await this.transporter.sendMail(mailOptions);
+      const transporter = await this.getTransporter();
+      const info = await transporter.sendMail(mailOptions);
 
       return {
         success: true,
@@ -291,7 +300,8 @@ export class EmailService {
    */
   async verifyConnection(): Promise<boolean> {
     try {
-      await this.transporter.verify();
+      const transporter = await this.getTransporter();
+      await transporter.verify();
       console.log("Email service configured successfully");
       return true;
     } catch (error) {

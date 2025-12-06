@@ -1,7 +1,8 @@
 import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
-import { HfInference } from "@huggingface/inference";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+// Lazy loaded imports
+// import { HfInference } from "@huggingface/inference";
+// import { GoogleGenerativeAI } from "@google/generative-ai";
 import cors from "cors";
 import helmet from "helmet";
 import {
@@ -27,8 +28,25 @@ const db = admin.firestore();
 const HUGGINGFACE_TOKEN = process.env.HUGGINGFACE_TOKEN;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-const hf = new HfInference(HUGGINGFACE_TOKEN);
-const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
+// Lazy load clients
+let hf: any = null; // Type: HfInference
+let genAI: any = null; // Type: GoogleGenerativeAI
+
+async function getHfClient() {
+  if (!hf) {
+    const { HfInference } = await import("@huggingface/inference");
+    hf = new HfInference(HUGGINGFACE_TOKEN);
+  }
+  return hf;
+}
+
+async function getGenAIClient() {
+  if (!genAI && GEMINI_API_KEY) {
+    const { GoogleGenerativeAI } = await import("@google/generative-ai");
+    genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+  }
+  return genAI;
+}
 
 // Circuit breakers for AI services
 const geminiCircuitBreaker = new CircuitBreaker(5, 60000, 2);
@@ -309,22 +327,25 @@ export async function enhanceResumeWithAI(
   try {
     const prompt = createResumeEnhancementPrompt(resumeData, tone);
     const isGemini = modelId.startsWith("gemini-");
-    const useGemini = isGemini && genAI;
+    const useGemini = isGemini && GEMINI_API_KEY;
     const useHuggingFace = !isGemini && HUGGINGFACE_TOKEN;
     const randomProvider = Math.random() < 0.5 ? "gemini" : "huggingface";
 
     let enhancedText = "";
     let actualProvider = "";
 
-    if (useGemini || (randomProvider === "gemini" && genAI)) {
+    if (useGemini || (randomProvider === "gemini" && GEMINI_API_KEY)) {
       actualProvider = "Google Gemini";
       const actualModel = modelId || "gemini-1.5-flash";
       console.log(`✨ Using ${actualProvider}: ${actualModel}`);
       console.log("📡 Calling Gemini API...");
 
+      const client = await getGenAIClient();
+      if (!client) throw new Error("Gemini client initialization failed");
+
       enhancedText = await resilientCall(
         async () => {
-          const model = genAI!.getGenerativeModel({
+          const model = client.getGenerativeModel({
             model: actualModel,
           });
           const result = await model.generateContent(prompt);
@@ -350,9 +371,11 @@ export async function enhanceResumeWithAI(
       console.log("📡 Calling Hugging Face API...");
 
       const isMistral = actualModel === "mistralai/Mistral-7B-Instruct-v0.3";
+      const client = await getHfClient();
+
       const response = await resilientCall(
         async () => {
-          return hf.textGeneration({
+          return client.textGeneration({
             model: actualModel,
             inputs: prompt,
             parameters: {
@@ -431,8 +454,8 @@ Current Summary: ${resumeData.summary}
 
 Experience:
 ${resumeData.experience
-  .map((exp) => `- ${exp.title} at ${exp.company}: ${exp.description}`)
-  .join("\n")}
+      .map((exp) => `- ${exp.title} at ${exp.company}: ${exp.description}`)
+      .join("\n")}
 
 Skills: ${resumeData.skills.join(", ")}
 
