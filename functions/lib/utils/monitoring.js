@@ -156,9 +156,15 @@ class PerformanceMonitor {
      */
     aggregateMetrics(metrics) {
         const aggregated = new Map();
+        const valuesMap = new Map();
         metrics.forEach((metric) => {
-            var _a, _b, _c;
+            var _a, _b, _c, _d;
             const key = `${metric.type}:${metric.name}`;
+            // Store all values for percentile calculation
+            if (!valuesMap.has(key)) {
+                valuesMap.set(key, []);
+            }
+            (_a = valuesMap.get(key)) === null || _a === void 0 ? void 0 : _a.push(metric.value);
             const existing = aggregated.get(key);
             if (existing) {
                 existing.count++;
@@ -167,7 +173,7 @@ class PerformanceMonitor {
                 existing.maxValue = Math.max(existing.maxValue, metric.value);
                 existing.avgValue = existing.totalValue / existing.count;
                 // Track errors
-                if ((_a = metric.metadata) === null || _a === void 0 ? void 0 : _a.error) {
+                if ((_b = metric.metadata) === null || _b === void 0 ? void 0 : _b.error) {
                     existing.errorCount++;
                     if (!existing.errors) {
                         existing.errors = [];
@@ -185,9 +191,20 @@ class PerformanceMonitor {
                     avgValue: metric.value,
                     minValue: metric.value,
                     maxValue: metric.value,
-                    errorCount: ((_b = metric.metadata) === null || _b === void 0 ? void 0 : _b.error) ? 1 : 0,
-                    errors: ((_c = metric.metadata) === null || _c === void 0 ? void 0 : _c.error) ? [metric.metadata.error] : [],
+                    errorCount: ((_c = metric.metadata) === null || _c === void 0 ? void 0 : _c.error) ? 1 : 0,
+                    errors: ((_d = metric.metadata) === null || _d === void 0 ? void 0 : _d.error) ? [metric.metadata.error] : [],
                 });
+            }
+        });
+        // Calculate P95 for each aggregated metric
+        aggregated.forEach((metric, key) => {
+            const values = valuesMap.get(key);
+            if (values && values.length > 0) {
+                values.sort((a, b) => a - b);
+                const index = Math.ceil(0.95 * values.length) - 1;
+                metric.p95 = values[index];
+                // Check P95 threshold
+                exports.alertManager.checkP95(metric.name, metric.p95);
             }
         });
         return Array.from(aggregated.values());
@@ -328,6 +345,63 @@ class AlertManager {
         }
     }
     /**
+     * Check P95 threshold with per-operation support
+     * Thresholds can be overridden via Firebase config:
+     * - monitoring.p95_threshold_default (global fallback)
+     * - monitoring.p95_threshold_ai_api_call (AI operations)
+     * - monitoring.p95_threshold_database_query (DB queries)
+     * - monitoring.p95_threshold_function_execution (standard functions)
+     * - monitoring.p95_threshold_external_api (external APIs)
+     */
+    async checkP95(functionName, p95Value, operationType) {
+        const config = functions.config();
+        const monitoringConfig = (config === null || config === void 0 ? void 0 : config.monitoring) || {};
+        // Determine operation type from function name patterns if not provided
+        const opType = operationType || this.inferOperationType(functionName);
+        // Check for operation-specific config override first
+        const configKey = `p95_threshold_${opType.replace(/-/g, "_")}`;
+        const defaultKey = "p95_threshold_default";
+        let threshold;
+        if (monitoringConfig[configKey]) {
+            threshold = parseInt(monitoringConfig[configKey]);
+        }
+        else if (monitoringConfig[defaultKey]) {
+            threshold = parseInt(monitoringConfig[defaultKey]);
+        }
+        else {
+            // Fall back to built-in defaults
+            threshold = AlertManager.DEFAULT_P95_THRESHOLDS[opType]
+                || AlertManager.DEFAULT_P95_THRESHOLDS.default;
+        }
+        if (threshold > 0 && p95Value > threshold) {
+            await this.sendAlert(AlertSeverity.WARNING, `High P95 latency detected: ${functionName}`, `P95 latency: ${p95Value}ms (threshold: ${threshold}ms, type: ${opType})`, {
+                functionName,
+                p95Value,
+                threshold,
+                operationType: opType,
+            });
+        }
+    }
+    /**
+     * Infer operation type from function name patterns
+     */
+    inferOperationType(functionName) {
+        const lowerName = functionName.toLowerCase();
+        if (lowerName.includes("ai") || lowerName.includes("generate") ||
+            lowerName.includes("gemini") || lowerName.includes("llm")) {
+            return "ai_api_call";
+        }
+        if (lowerName.includes("query") || lowerName.includes("fetch") ||
+            lowerName.includes("get") || lowerName.includes("firestore")) {
+            return "database_query";
+        }
+        if (lowerName.includes("external") || lowerName.includes("webhook") ||
+            lowerName.includes("huggingface")) {
+            return "external_api";
+        }
+        return "function_execution";
+    }
+    /**
      * Fan out alert emails to the support mailbox
      */
     async sendSupportEmail(severity, title, message, metadata) {
@@ -364,6 +438,22 @@ class AlertManager {
     }
 }
 exports.AlertManager = AlertManager;
+/**
+ * Default P95 thresholds by operation type (in ms)
+ * These are sensible defaults based on industry standards
+ */
+AlertManager.DEFAULT_P95_THRESHOLDS = {
+    // Fast operations - database lookups, simple queries
+    database_query: 250,
+    // Standard API endpoints
+    function_execution: 500,
+    // External API calls (non-AI)
+    external_api: 1000,
+    // AI/LLM operations - inherently slow
+    ai_api_call: 5000,
+    // Default fallback
+    default: 1000,
+};
 // Export singleton instances
 exports.performanceMonitor = PerformanceMonitor.getInstance();
 exports.alertManager = AlertManager.getInstance();

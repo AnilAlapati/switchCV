@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onUserRoleChanged = exports.getSearchQuota = exports.searchResumesAI = exports.reindexResume = exports.indexResumeOnWrite = exports.cleanupAuditLogs = exports.notifyAdminSuspiciousActivity = exports.sendProfileViewDigest = exports.onRecruiterRequestApproved = exports.onRecruiterRequestCreated = exports.onUserCreated = exports.cleanupRateLimits = exports.cleanupExpiredResumes = exports.cleanupRecruiterSearchHistory = exports.cleanupAnalyticsEvents = exports.aggregateAnalyticsDaily = exports.generateJobMatchSuggestions = exports.generateResumeContent = exports.aggregateGlobalStats = void 0;
+exports.setUserRole = exports.onUserRoleChanged = exports.getSearchQuota = exports.searchResumesAI = exports.fanOutResumeDocuments = exports.reindexResume = exports.indexResumeOnWrite = exports.cleanupAuditLogs = exports.notifyAdminSuspiciousActivity = exports.sendProfileViewDigest = exports.onRecruiterRequestApproved = exports.onRecruiterRequestCreated = exports.onUserCreated = exports.cleanupRateLimits = exports.cleanupExpiredResumes = exports.cleanupRecruiterSearchHistory = exports.cleanupAnalyticsEvents = exports.aggregateAnalyticsDaily = exports.generateJobMatchSuggestions = exports.generateResumeContent = exports.aggregateGlobalStats = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 require("./config/bootstrap");
 const resumeService_1 = require("./resumeService");
@@ -74,10 +74,13 @@ Object.defineProperty(exports, "cleanupAuditLogs", { enumerable: true, get: func
 var indexResumeService_1 = require("./indexResumeService");
 Object.defineProperty(exports, "indexResumeOnWrite", { enumerable: true, get: function () { return indexResumeService_1.indexResumeOnWrite; } });
 Object.defineProperty(exports, "reindexResume", { enumerable: true, get: function () { return indexResumeService_1.reindexResume; } });
+var resumeFanoutService_1 = require("./resumeFanoutService");
+Object.defineProperty(exports, "fanOutResumeDocuments", { enumerable: true, get: function () { return resumeFanoutService_1.fanOutResumeDocuments; } });
 var searchResumeService_1 = require("./searchResumeService");
 Object.defineProperty(exports, "searchResumesAI", { enumerable: true, get: function () { return searchResumeService_1.searchResumesAI; } });
 Object.defineProperty(exports, "getSearchQuota", { enumerable: true, get: function () { return searchResumeService_1.getSearchQuota; } });
 // ==================== AUTH FUNCTIONS ====================
 var authFunctions_1 = require("./authFunctions");
 Object.defineProperty(exports, "onUserRoleChanged", { enumerable: true, get: function () { return authFunctions_1.onUserRoleChanged; } });
+Object.defineProperty(exports, "setUserRole", { enumerable: true, get: function () { return authFunctions_1.setUserRole; } });
 //# sourceMappingURL=index.js.map
