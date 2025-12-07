@@ -82,7 +82,7 @@ export function NotificationsMenu() {
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-slate-400 hover:text-white transition-colors"
+        className="relative p-2 text-[#2C4A3B]/60 hover:text-[#1A2F25] hover:bg-[#2C4A3B]/10 rounded-full transition-colors"
       >
         <svg
           className="w-6 h-6"
@@ -98,38 +98,37 @@ export function NotificationsMenu() {
           />
         </svg>
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] flex items-center justify-center text-white font-bold">
+          <span className="absolute top-1 right-1 w-4 h-4 bg-emerald-500 rounded-full text-[10px] flex items-center justify-center text-white font-bold shadow-sm">
             {unreadCount}
           </span>
         )}
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-slate-900 border border-slate-700 rounded-xl shadow-xl z-50 overflow-hidden">
-          <div className="p-3 border-b border-slate-800 flex justify-between items-center">
-            <h3 className="font-semibold text-white text-sm">Notifications</h3>
+        <div className="absolute right-0 mt-2 w-80 glass-panel rounded-xl shadow-xl z-50 overflow-hidden">
+          <div className="p-3 border-b border-[#2C4A3B]/10 flex justify-between items-center bg-[#2C4A3B]/5">
+            <h3 className="font-bold text-[#1A2F25] text-sm">Notifications</h3>
           </div>
           <div className="max-h-96 overflow-y-auto">
             {notifications.length === 0 ? (
-              <div className="p-4 text-center text-slate-500 text-sm">
+              <div className="p-4 text-center text-[#2C4A3B]/50 text-sm">
                 No notifications
               </div>
             ) : (
               notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`p-3 border-b border-slate-800 hover:bg-slate-800/50 transition-colors cursor-pointer ${
-                    notification.status !== "read" ? "bg-slate-800/30" : ""
-                  }`}
+                  className={`p-3 border-b border-[#2C4A3B]/10 hover:bg-[#2C4A3B]/5 transition-colors cursor-pointer ${notification.status !== "read" ? "bg-white/40" : ""
+                    }`}
                   onClick={() => markAsRead(notification.id)}
                 >
-                  <p className="text-sm text-white font-medium mb-1">
+                  <p className="text-sm text-[#1A2F25] font-bold mb-1">
                     {notification.payload.title}
                   </p>
-                  <p className="text-xs text-slate-400 mb-2">
+                  <p className="text-xs text-[#2C4A3B]/70 mb-2">
                     {notification.payload.body}
                   </p>
-                  <span className="text-[10px] text-slate-500">
+                  <span className="text-[10px] text-[#2C4A3B]/50">
                     {new Date(notification.createdAt).toLocaleDateString()}
                   </span>
                 </div>

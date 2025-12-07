@@ -5,6 +5,7 @@ import { logger } from "@/lib/logger";
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useResume } from "@/hooks/useResume";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { useRouter } from "next/navigation";
 import { DashboardBackground } from "@/components/dashboard/DashboardBackground";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
@@ -89,6 +90,8 @@ export default function SettingsPage() {
     }
   }, [user, needsEmailVerification, authLoading, router, fetchSettings]);
 
+  const { mutate } = useUserProfile();
+
   const handleRecruiterToggle = async (checked: boolean) => {
     if (!user?.uid) {
       setMessage({
@@ -116,6 +119,7 @@ export default function SettingsPage() {
 
       if (response.ok) {
         await fetchSettings(); // Re-fetch to get the latest data
+        await mutate(); // Force re-fetch of global user profile to update dashboard role state
         setShowCompanyInput(checked);
         setMessage({ type: "success", text: "Account type updated!" });
         setTimeout(() => setMessage(null), 3000);
@@ -240,8 +244,8 @@ export default function SettingsPage() {
       <DashboardBackground>
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center">
-            <div className="w-16 h-16 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-slate-400 text-lg">Loading settings...</p>
+            <div className="w-16 h-16 border-4 border-[#2C4A3B]/20 border-t-[#2C4A3B] rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-[#1A2F25]/70 text-lg">Loading settings...</p>
           </div>
         </div>
       </DashboardBackground>
@@ -258,10 +262,10 @@ export default function SettingsPage() {
 
       <main className="relative z-10 max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+          <h1 className="text-4xl font-bold text-[#1A2F25]">
             Settings & Profile
           </h1>
-          <p className="text-slate-400 text-lg mt-2">
+          <p className="text-[#1A2F25]/70 text-lg mt-2">
             Manage your account and profile information
           </p>
         </div>

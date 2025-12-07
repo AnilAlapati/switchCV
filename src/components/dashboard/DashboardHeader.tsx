@@ -16,18 +16,13 @@ export function DashboardHeader({ userEmail, onLogout }: DashboardHeaderProps) {
   }).format(new Date());
 
   return (
-    <header className="relative z-40 border-b border-slate-800 bg-slate-950/80 backdrop-blur">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-24 -left-20 h-64 w-64 rounded-full bg-cyan-500/10 blur-3xl" />
-        <div className="absolute -bottom-16 right-0 h-56 w-56 rounded-full bg-purple-600/10 blur-3xl" />
-      </div>
+    <header className="relative z-40 border-b border-white/50 bg-white/30 backdrop-blur-md">
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-6 py-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-4">
-            <div className="relative inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900 via-slate-900/80 to-slate-950 shadow-lg shadow-slate-950/40">
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-purple-600/10 blur" />
+            <div className="relative inline-flex h-12 w-12 items-center justify-center rounded-xl border border-white/60 bg-white/40 shadow-sm backdrop-blur-sm">
               <svg
-                className="relative h-6 w-6 text-white"
+                className="relative h-6 w-6 text-[#2C4A3B]"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -40,28 +35,26 @@ export function DashboardHeader({ userEmail, onLogout }: DashboardHeaderProps) {
                 />
               </svg>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-1">
               <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-cyan-300/80">
+                <p className="text-xs font-bold uppercase tracking-wider text-blue-600">
                   SwitchCV
                 </p>
-                <h1 className="text-3xl font-semibold tracking-tight text-white">
-                  SwitchCV Dashboard
+                <h1 className="text-2xl font-bold tracking-tight text-[#1A2F25]">
+                  Dashboard
                 </h1>
               </div>
-              <p className="max-w-xl text-sm text-slate-300">
-                Surface the most actionable signals so you can respond faster,
-                nurture top candidates, and keep your pipeline moving toward the
-                next offer.
+              <p className="max-w-xl text-sm text-[#1A2F25]/70">
+                Surface the most actionable signals so you can respond faster.
               </p>
-              <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-slate-300">
-                <span className="inline-flex items-center gap-2 rounded-full border border-slate-700/60 bg-slate-900/70 px-3 py-1">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+              <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-[#2C4A3B]/60 pt-2">
+                <span className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-blue-700">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-600" />
                   Live momentum insights synced
                 </span>
-                <span className="hidden sm:inline-flex items-center gap-2 rounded-full border border-slate-800 bg-slate-950/80 px-3 py-1 text-slate-400">
+                <span className="hidden sm:inline-flex items-center gap-2 rounded-full border border-white/40 bg-white/30 px-3 py-1 text-[#2C4A3B]/70">
                   <svg
-                    className="h-3.5 w-3.5 text-cyan-400"
+                    className="h-3.5 w-3.5 text-[#2C4A3B]/50"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"

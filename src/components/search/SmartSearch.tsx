@@ -109,11 +109,11 @@ export function SmartSearch({ onResultSelect }: SmartSearchProps) {
 
   if (authLoading) {
     return (
-      <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+      <div className="glass-panel p-6">
         <div className="animate-pulse">
-          <div className="h-6 bg-gray-700 rounded w-1/3 mb-4"></div>
-          <div className="h-24 bg-gray-700 rounded mb-4"></div>
-          <div className="h-10 bg-gray-700 rounded w-1/4"></div>
+          <div className="h-6 bg-[#2C4A3B]/10 rounded w-1/3 mb-4"></div>
+          <div className="h-24 bg-[#2C4A3B]/10 rounded mb-4"></div>
+          <div className="h-10 bg-[#2C4A3B]/10 rounded w-1/4"></div>
         </div>
       </div>
     );
@@ -121,17 +121,17 @@ export function SmartSearch({ onResultSelect }: SmartSearchProps) {
 
   if (!user) {
     return (
-      <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-        <h3 className="text-xl font-semibold text-white mb-4">
+      <div className="glass-panel p-6">
+        <h3 className="text-xl font-bold text-[#1A2F25] mb-4">
           🔮 AI-Powered Smart Search
         </h3>
-        <p className="text-gray-400 mb-4">
+        <p className="text-[#1A2F25]/70 mb-4">
           Sign in to use our AI-powered search that understands what you&apos;re
           looking for.
         </p>
         <Link
           href="/auth"
-          className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
+          className="glass-button inline-block bg-[#2C4A3B] hover:bg-[#1A2F25] text-white px-6 py-2 rounded-lg transition-colors"
         >
           Sign In
         </Link>
@@ -140,20 +140,20 @@ export function SmartSearch({ onResultSelect }: SmartSearchProps) {
   }
 
   return (
-    <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+    <div className="glass-panel p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-xl font-semibold text-white flex items-center gap-2">
+        <h3 className="text-xl font-bold text-[#1A2F25] flex items-center gap-2">
           <span>🔮</span>
           <span>AI-Powered Smart Search</span>
-          <span className="ml-2 px-2 py-1 bg-gradient-to-r from-purple-600 to-blue-600 text-xs rounded-full">
+          <span className="ml-2 px-2 py-1 bg-gradient-to-r from-[#2C4A3B] to-emerald-600 text-white text-xs rounded-full">
             Premium
           </span>
         </h3>
         {quota && (
-          <div className="text-sm text-gray-400">
+          <div className="text-sm text-[#1A2F25]/60">
             {quota.limit === -1 ? (
-              <span className="text-green-400">Unlimited searches</span>
+              <span className="text-emerald-600 font-bold">Unlimited searches</span>
             ) : (
               <span>
                 {quota.remaining}/{quota.limit} searches remaining
@@ -164,7 +164,7 @@ export function SmartSearch({ onResultSelect }: SmartSearchProps) {
       </div>
 
       {/* Description */}
-      <p className="text-gray-400 text-sm mb-4">
+      <p className="text-[#1A2F25]/70 text-sm mb-4">
         Describe the ideal candidate using natural language. Our AI understands
         context, skills, and experience to find the best matches.
       </p>
@@ -176,11 +176,11 @@ export function SmartSearch({ onResultSelect }: SmartSearchProps) {
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="e.g., Looking for a senior React developer with 5+ years experience who has worked on e-commerce platforms and understands AWS..."
-          className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+          className="glass-input w-full px-4 py-3 rounded-lg text-[#1A2F25] placeholder-[#2C4A3B]/40 focus:outline-none focus:ring-2 focus:ring-[#2C4A3B]/20 resize-none shadow-inner"
           rows={3}
           disabled={searching}
         />
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs text-[#2C4A3B]/60 mt-1">
           Press Enter to search • Be as specific as possible for better results
         </p>
       </div>
@@ -189,7 +189,7 @@ export function SmartSearch({ onResultSelect }: SmartSearchProps) {
       <button
         onClick={performSearch}
         disabled={searching || !query.trim()}
-        className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-600 disabled:to-gray-600 text-white font-medium rounded-lg transition-all flex items-center justify-center gap-2"
+        className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-[#2C4A3B] to-emerald-600 hover:from-[#1A2F25] hover:to-emerald-700 disabled:from-slate-300 disabled:to-slate-400 text-white font-bold rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
       >
         {searching ? (
           <>
@@ -206,12 +206,12 @@ export function SmartSearch({ onResultSelect }: SmartSearchProps) {
 
       {/* Error Display */}
       {error && (
-        <div className="mt-4 p-4 bg-red-900/30 border border-red-500/50 rounded-lg text-red-300">
+        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
           {error}
           {error.includes("upgrade") && (
             <Link
               href="/settings/subscription"
-              className="block mt-2 text-blue-400 hover:text-blue-300 underline"
+              className="block mt-2 text-red-700 hover:text-red-800 underline font-medium"
             >
               View subscription plans →
             </Link>
@@ -222,7 +222,7 @@ export function SmartSearch({ onResultSelect }: SmartSearchProps) {
       {/* Results */}
       {results.length > 0 && (
         <div className="mt-6">
-          <h4 className="text-lg font-medium text-white mb-4">
+          <h4 className="text-lg font-bold text-[#1A2F25] mb-4">
             Found {results.length} matching profile
             {results.length !== 1 ? "s" : ""}
           </h4>
@@ -241,7 +241,7 @@ export function SmartSearch({ onResultSelect }: SmartSearchProps) {
       {/* No results */}
       {hasSearched && !searching && !error && results.length === 0 && (
         <div className="mt-6 text-center py-8">
-          <p className="text-gray-500">
+          <p className="text-[#2C4A3B]/60">
             No matching profiles found. Try adjusting your search criteria.
           </p>
         </div>

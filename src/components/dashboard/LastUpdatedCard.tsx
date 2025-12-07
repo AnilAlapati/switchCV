@@ -80,10 +80,10 @@ export function LastUpdatedCard({ hasResume }: LastUpdatedCardProps) {
   }, [user, usingContext]);
 
   return (
-    <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6 shadow-lg shadow-slate-950/40 transition hover:border-cyan-500/40">
+    <div className="glass-panel rounded-3xl p-6 transition hover:shadow-lg hover:shadow-[#2C4A3B]/10 hover:border-white">
       <div className="flex items-center">
         <div className="flex-shrink-0">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-slate-700 bg-slate-950 text-amber-300">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-amber-100 bg-amber-50 text-amber-600">
             <svg
               className="h-6 w-6"
               fill="none"
@@ -101,24 +101,24 @@ export function LastUpdatedCard({ hasResume }: LastUpdatedCardProps) {
         </div>
         <div className="ml-5 w-0 flex-1">
           <dl>
-            <dt className="text-sm font-medium text-slate-400 truncate">
+            <dt className="text-sm font-bold text-[#2C4A3B]/60 truncate">
               Last Updated
             </dt>
-            <dd className="text-lg font-bold text-white">
+            <dd className="text-lg font-bold text-[#1A2F25]">
               {loadingState ? "-" : formatTimeAgo(lastUpdatedValue)}
             </dd>
           </dl>
         </div>
       </div>
       <div className="mt-4">
-        <p className="text-sm text-slate-300">
+        <p className="text-sm text-[#1A2F25]/60">
           {loadingState
             ? "Loading..."
             : resumePrompt
-            ? "Create your resume to track updates"
-            : lastUpdatedValue
-            ? "Keep your resume fresh!"
-            : "Update history will appear here"}
+              ? "Create your resume to track updates"
+              : lastUpdatedValue
+                ? "Keep your resume fresh!"
+                : "Update history will appear here"}
         </p>
       </div>
     </div>

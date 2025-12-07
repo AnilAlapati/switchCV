@@ -39,7 +39,7 @@ export default function TickerPage() {
                                     stroke="#00ff00"
                                     strokeWidth="2"
                                 />
-                                <area xmlns="http://www.w3.org/2000/svg" />
+                                {/* area tag removed due to build error: property xmlns does not exist on area HTML element when inside SVG context in TS/Next.js */}
                                 {/* Gradient fill effect could be added here */}
                             </svg>
                         </div>

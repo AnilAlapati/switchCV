@@ -104,19 +104,7 @@ export function AuthFormInputs({
   onUsernameChange,
   onUseSuggestion,
 }: AuthFormInputsProps) {
-  const getBorderColor = () => {
-    if (
-      usernameError ||
-      usernameStatus === "taken" ||
-      usernameStatus === "invalid"
-    ) {
-      return "border-rose-500";
-    }
-    if (usernameStatus === "available") {
-      return "border-green-500";
-    }
-    return "border-slate-600";
-  };
+
 
   const getStatusMessage = () => {
     if (usernameError) return usernameError;
@@ -132,15 +120,15 @@ export function AuthFormInputs({
       usernameStatus === "taken" ||
       usernameStatus === "invalid"
     ) {
-      return "text-rose-400";
+      return "text-rose-600";
     }
     if (usernameStatus === "available") {
-      return "text-green-400";
+      return "text-emerald-600";
     }
     if (usernameStatus === "checking" || isCheckingUsername) {
-      return "text-slate-400";
+      return "text-slate-500";
     }
-    return "text-slate-400";
+    return "text-[#1A2F25]/60";
   };
 
   return (
@@ -149,7 +137,7 @@ export function AuthFormInputs({
         <div className="relative">
           <label
             htmlFor="username"
-            className="block text-sm font-medium text-slate-300 mb-2"
+            className="block text-sm font-bold text-[#1A2F25] mb-2"
           >
             Username
           </label>
@@ -162,7 +150,8 @@ export function AuthFormInputs({
               minLength={3}
               maxLength={30}
               autoComplete="username"
-              className={`w-full px-4 py-3 pr-12 bg-slate-800/50 border ${getBorderColor()} rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-200 backdrop-blur-sm`}
+              className={`w-full px-4 py-3 pr-12 glass-input rounded-xl text-[#1A2F25] placeholder-[#2C4A3B]/40 focus:outline-none focus:ring-4 transition-all duration-200 ${usernameError || usernameStatus === "taken" ? "border-rose-500/50" : ""
+                }`}
               placeholder="e.g. avery-kim"
               value={username}
               onChange={(e) => onUsernameChange?.(e.target.value.toLowerCase())}
@@ -173,7 +162,7 @@ export function AuthFormInputs({
                 isChecking={isCheckingUsername}
               />
             </div>
-            <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-cyan-500/20 to-purple-500/20 opacity-0 hover:opacity-100 transition-opacity duration-200 pointer-events-none"></div>
+            {/* Removed gradient overlay */}
           </div>
           <p className={`mt-2 text-xs ${getMessageColor()}`}>
             {getStatusMessage()}
@@ -184,7 +173,7 @@ export function AuthFormInputs({
               <button
                 type="button"
                 onClick={onUseSuggestion}
-                className="mt-1 text-xs text-cyan-400 hover:text-cyan-300 underline transition-colors"
+                className="mt-1 text-xs text-blue-600 hover:text-blue-500 underline transition-colors"
               >
                 Try @{usernameSuggestion} instead?
               </button>
@@ -196,7 +185,7 @@ export function AuthFormInputs({
       <div className="relative">
         <label
           htmlFor="email"
-          className="block text-sm font-medium text-slate-300 mb-2"
+          className="block text-sm font-bold text-[#1A2F25] mb-2"
         >
           Email Address
         </label>
@@ -206,12 +195,11 @@ export function AuthFormInputs({
             name="email"
             type="email"
             required
-            className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-200 backdrop-blur-sm"
+            className="w-full px-4 py-3 glass-input rounded-xl focus:ring-4 focus:ring-[#2C4A3B]/10 transition-all duration-200"
             placeholder="Enter your email"
             value={email}
             onChange={(e) => onEmailChange(e.target.value)}
           />
-          <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-cyan-500/20 to-purple-500/20 opacity-0 hover:opacity-100 transition-opacity duration-200 pointer-events-none"></div>
         </div>
       </div>
 
@@ -219,7 +207,7 @@ export function AuthFormInputs({
       <div className="relative">
         <label
           htmlFor="password"
-          className="block text-sm font-medium text-slate-300 mb-2"
+          className="block text-sm font-bold text-slate-700 mb-2"
         >
           Password
         </label>
@@ -229,12 +217,11 @@ export function AuthFormInputs({
             name="password"
             type="password"
             required
-            className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-200 backdrop-blur-sm"
+            className="w-full px-4 py-3 glass-input rounded-xl focus:ring-4 focus:ring-[#2C4A3B]/10 transition-all duration-200"
             placeholder="Enter your password"
             value={password}
             onChange={(e) => onPasswordChange(e.target.value)}
           />
-          <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-cyan-500/20 to-purple-500/20 opacity-0 hover:opacity-100 transition-opacity duration-200 pointer-events-none"></div>
         </div>
       </div>
     </>

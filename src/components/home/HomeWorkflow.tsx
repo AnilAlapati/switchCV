@@ -39,16 +39,16 @@ export function HomeWorkflow() {
         {WORKFLOW_STEPS.map((step, index) => (
           <article
             key={step.title}
-            className={`rounded-3xl border border-white/10 bg-gradient-to-br ${step.accent} p-6 backdrop-blur-xl`}
+            className={`rounded-3xl glass-panel bg-gradient-to-br ${step.accent} p-6 backdrop-blur-xl`}
           >
             <div className="flex items-center justify-between mb-4">
-              <span className="text-sm text-slate-300">Step {index + 1}</span>
-              <span className="w-9 h-9 rounded-2xl bg-white/10 flex items-center justify-center text-white/80">
+              <span className="text-sm text-[#1A2F25]/60">Step {index + 1}</span>
+              <span className="w-9 h-9 rounded-2xl bg-[#2C4A3B]/10 flex items-center justify-center text-[#1A2F25]/80 font-bold">
                 {index + 1}
               </span>
             </div>
-            <h3 className="text-xl font-semibold mb-2">{step.title}</h3>
-            <p className="text-slate-200 text-sm leading-relaxed">
+            <h3 className="text-xl font-bold text-[#1A2F25] mb-2">{step.title}</h3>
+            <p className="text-[#1A2F25]/70 text-sm leading-relaxed">
               {step.description}
             </p>
           </article>

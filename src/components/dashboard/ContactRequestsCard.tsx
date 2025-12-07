@@ -58,10 +58,10 @@ export function ContactRequestsCard() {
 
   return (
     <Link href="/dashboard/access-requests">
-      <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6 shadow-lg shadow-slate-950/40 transition hover:border-cyan-500/40 cursor-pointer">
+      <div className="glass-panel rounded-3xl p-6 transition hover:shadow-lg hover:shadow-[#2C4A3B]/10 hover:border-white cursor-pointer">
         <div className="flex items-center">
           <div className="flex-shrink-0">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-slate-700 bg-slate-950 text-cyan-300">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-blue-200/50 bg-blue-100/30 text-blue-600">
               <svg
                 className="h-6 w-6"
                 fill="none"
@@ -79,23 +79,22 @@ export function ContactRequestsCard() {
           </div>
           <div className="ml-5 w-0 flex-1">
             <dl>
-              <dt className="text-sm font-medium text-slate-400 truncate">
+              <dt className="text-sm font-bold text-[#2C4A3B]/60 truncate">
                 Contact Requests
               </dt>
-              <dd className="text-2xl font-bold text-white">
+              <dd className="text-2xl font-bold text-[#1A2F25]">
                 {loadingState ? "-" : displayValue}
               </dd>
             </dl>
           </div>
         </div>
         <div className="mt-4">
-          <p className="text-sm text-slate-300">
+          <p className="text-sm text-[#1A2F25]/60">
             {loadingState
               ? "Loading..."
               : displayValue === 0
-              ? "No requests yet"
-              : `${displayValue} contact request${
-                  displayValue !== 1 ? "s" : ""
+                ? "No requests yet"
+                : `${displayValue} contact request${displayValue !== 1 ? "s" : ""
                 }`}
           </p>
         </div>
