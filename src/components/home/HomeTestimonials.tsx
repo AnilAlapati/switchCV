@@ -34,14 +34,14 @@ export function HomeTestimonials() {
         {TESTIMONIALS.map((testimonial) => (
           <blockquote
             key={testimonial.author}
-            className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-2xl shadow-xl shadow-black/30"
+            className="glass-panel p-6 shadow-xl hover:shadow-2xl transition-all duration-300"
           >
-            <p className="text-slate-200 text-lg leading-relaxed">
+            <p className="text-[#1A2F25]/80 text-lg leading-relaxed">
               &ldquo;{testimonial.quote}&rdquo;
             </p>
             <footer className="mt-6">
-              <p className="text-white font-semibold">{testimonial.author}</p>
-              <p className="text-sm text-slate-400">{testimonial.role}</p>
+              <p className="text-[#1A2F25] font-bold">{testimonial.author}</p>
+              <p className="text-sm text-[#2C4A3B]/60 font-medium">{testimonial.role}</p>
             </footer>
           </blockquote>
         ))}

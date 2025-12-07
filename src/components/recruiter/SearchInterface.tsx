@@ -91,11 +91,11 @@ export function SearchInterface({
       {(location || selectedSkills.length > 0 || targetRole) && (
         <div className="flex flex-wrap gap-2">
           {location && (
-            <div className="flex items-center gap-2 bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 px-3 py-1 rounded-full text-sm">
+            <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-full text-sm font-medium">
               {location}
               <button
                 onClick={() => setLocation("")}
-                className="hover:text-cyan-100"
+                className="hover:text-emerald-900"
               >
                 ❌
               </button>
@@ -104,23 +104,23 @@ export function SearchInterface({
           {selectedSkills.map((skill) => (
             <div
               key={skill}
-              className="flex items-center gap-2 bg-purple-500/10 text-purple-300 border border-purple-500/20 px-3 py-1 rounded-full text-sm"
+              className="flex items-center gap-2 bg-[#2C4A3B]/10 text-[#1A2F25] border border-[#2C4A3B]/20 px-3 py-1 rounded-full text-sm font-medium"
             >
               {skill}
               <button
                 onClick={() => toggleSkill(skill)}
-                className="hover:text-purple-100"
+                className="hover:text-[#2C4A3B]"
               >
                 ❌
               </button>
             </div>
           ))}
           {targetRole && (
-            <div className="flex items-center gap-2 bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 px-3 py-1 rounded-full text-sm">
+            <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-full text-sm font-medium">
               {targetRole}
               <button
                 onClick={() => setTargetRole("")}
-                className="hover:text-emerald-100"
+                className="hover:text-emerald-900"
               >
                 ❌
               </button>

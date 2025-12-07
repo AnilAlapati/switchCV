@@ -38,20 +38,20 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         usernameSuggestion=""
         onEmailChange={onEmailChange}
         onPasswordChange={onPasswordChange}
-        onUsernameChange={() => {}}
-        onUseSuggestion={() => {}}
+        onUsernameChange={() => { }}
+        onUseSuggestion={() => { }}
       />
 
       {error && (
-        <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3">
-          <p className="text-red-400 text-sm text-center">{error}</p>
+        <div className="bg-rose-50 border border-rose-200 rounded-xl p-3">
+          <p className="text-rose-600 text-sm text-center">{error}</p>
         </div>
       )}
 
       <button
         type="submit"
         disabled={loading}
-        className="w-full py-3 px-6 bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-105 hover:shadow-lg hover:shadow-cyan-500/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+        className="w-full py-3 px-6 glass-button font-bold rounded-xl"
       >
         {loading ? (
           <div className="flex items-center justify-center">
@@ -67,7 +67,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         <button
           type="button"
           onClick={onSwitchToSignUp}
-          className="text-slate-400 hover:text-cyan-400 text-sm transition-colors duration-200"
+          className="text-[#2C4A3B]/60 hover:text-[#1A2F25] text-sm font-medium transition-colors duration-200"
         >
           Don&apos;t have an account? Sign up
         </button>

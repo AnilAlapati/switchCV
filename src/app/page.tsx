@@ -9,6 +9,7 @@ import { HomeHero } from "@/components/home/HomeHero";
 import { HomeTestimonials } from "@/components/home/HomeTestimonials";
 import { HomeWorkflow } from "@/components/home/HomeWorkflow";
 import { useGlobalStats } from "@/hooks/useGlobalStats";
+import { BackgroundBlobs } from "@/components/ui/BackgroundBlobs";
 
 const HERO_HIGHLIGHTS = [
   {
@@ -47,55 +48,21 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
-        <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+        <BackgroundBlobs />
+        <div className="relative z-10 w-8 h-8 border-4 border-[#2C4A3B] border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-slate-950 text-white selection:bg-cyan-500/30">
-      <div className="absolute inset-0">
-        <div
-          className={`absolute top-0 left-0 w-full h-full bg-gradient-to-br ${
-            scrolled ? "from-blue-500/5" : "from-blue-500/10"
-          } via-purple-500/10 to-cyan-500/10 ${
-            isMobile ? "" : "animate-pulse"
-          }`}
-        ></div>
-        {/* Reduce blur effects on mobile for better performance */}
-        <div
-          className={`absolute top-1/4 left-1/4 w-96 h-96 bg-cyan-500/20 rounded-full ${
-            isMobile ? "blur-2xl" : "blur-3xl animate-pulse delay-1000"
-          }`}
-        ></div>
-        <div
-          className={`absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/20 rounded-full ${
-            isMobile ? "blur-2xl" : "blur-3xl animate-pulse delay-2000"
-          }`}
-        ></div>
-        {!isMobile && (
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-blue-500/10 rounded-full blur-2xl animate-spin duration-[20s]"></div>
-        )}
+    <div className="min-h-screen relative overflow-hidden text-[#1A2F25] selection:bg-[#2C4A3B]/20 selection:text-[#1A2F25]">
+      <div className="fixed inset-0 z-0">
+        <BackgroundBlobs />
       </div>
 
-      <div className="absolute inset-0 overflow-hidden">
-        {particles.map((particle, i) => (
-          <div
-            key={i}
-            className="absolute w-1 h-1 bg-cyan-400 rounded-full opacity-60 animate-ping"
-            style={{
-              left: particle.left,
-              top: particle.top,
-              animationDelay: particle.delay,
-              animationDuration: particle.duration,
-            }}
-          ></div>
-        ))}
-      </div>
-
-      <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
-        <div className="container mx-auto px-4 py-16 space-y-20">
+      <div className="relative z-10 min-h-screen">
+        <div className="container mx-auto px-6 py-12 md:py-24 space-y-32">
           <HomeHero stats={stats} highlights={HERO_HIGHLIGHTS} />
 
           <HomeFeatureCards />

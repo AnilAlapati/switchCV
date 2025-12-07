@@ -108,10 +108,10 @@ export function ResumeStatusCard({
 
   return (
     <>
-      <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6 shadow-lg shadow-slate-950/40 transition hover:border-cyan-500/40">
+      <div className="glass-panel rounded-3xl p-6 transition hover:shadow-lg hover:shadow-[#2C4A3B]/10 hover:border-white">
         <div className="flex items-center">
           <div className="flex-shrink-0">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-slate-700 bg-slate-950 text-cyan-300">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#2C4A3B]/20 bg-[#2C4A3B]/5 text-[#2C4A3B]">
               <svg
                 className="h-6 w-6"
                 fill="none"
@@ -129,7 +129,7 @@ export function ResumeStatusCard({
           </div>
           <div className="ml-5 w-0 flex-1">
             <dl>
-              <dt className="text-sm font-medium text-slate-400 truncate mb-2">
+              <dt className="text-sm font-bold text-[#2C4A3B]/60 truncate mb-1">
                 Resume Status
               </dt>
               <dd className="flex items-center">
@@ -149,14 +149,14 @@ export function ResumeStatusCard({
                   </span>
 
                   {/* Tooltip */}
-                  <div className="absolute left-0 bottom-full mb-2 hidden w-56 rounded-xl border border-slate-700 bg-slate-900/95 p-3 text-xs text-slate-300 shadow-xl backdrop-blur-sm group-hover:block z-20">
-                    <p className="font-medium text-white mb-0.5">
+                  <div className="absolute left-0 bottom-full mb-2 hidden w-56 rounded-xl border border-white/60 bg-white/80 backdrop-blur-xl p-3 text-xs text-[#2C4A3B]/80 shadow-xl z-20">
+                    <p className="font-bold text-slate-900 mb-0.5">
                       {status.label}
                     </p>
-                    <p className="text-slate-400 leading-relaxed">
+                    <p className="text-slate-500 leading-relaxed">
                       {status.desc}
                     </p>
-                    <div className="absolute -bottom-1.5 left-6 h-3 w-3 rotate-45 border-b border-r border-slate-700 bg-slate-900/95"></div>
+                    <div className="absolute -bottom-1.5 left-6 h-3 w-3 rotate-45 border-b border-r border-slate-200 bg-white"></div>
                   </div>
                 </div>
               </dd>
@@ -175,7 +175,7 @@ export function ResumeStatusCard({
           ) : (
             <Link
               href="/create-resume"
-              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white font-medium rounded-xl transition-all duration-200 transform hover:scale-105 hover:shadow-lg hover:shadow-cyan-500/25"
+              className="inline-flex items-center px-4 py-2 glass-button font-bold rounded-xl"
             >
               Create Resume
               <svg

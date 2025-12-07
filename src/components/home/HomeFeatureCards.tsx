@@ -34,30 +34,30 @@ const FEATURE_CARDS = [
 
 export function HomeFeatureCards() {
   return (
-    <section aria-labelledby="features-heading" className="space-y-12">
+    <section aria-labelledby="features-heading" className="space-y-16">
       <div className="text-center max-w-3xl mx-auto space-y-4">
-        <p className="text-sm font-semibold tracking-[0.3em] text-cyan-300 uppercase">
+        <p className="text-sm font-bold tracking-[0.2em] text-blue-600 uppercase">
           Why SwitchCV
         </p>
-        <h2 id="features-heading" className="text-3xl sm:text-4xl font-bold">
-          Everything you need to go from draft to deal-ready resume.
+        <h2 id="features-heading" className="text-3xl sm:text-4xl font-bold text-[#1A2F25] tracking-tight">
+          Everything you need to go from <br className="hidden sm:block" /> draft to deal-ready resume.
         </h2>
-        <p className="text-slate-300">
+        <p className="text-lg text-[#1A2F25]/70">
           Built for modern job searches where privacy, speed, and
           personalization matter more than ever.
         </p>
       </div>
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
         {FEATURE_CARDS.map((card) => (
           <article
             key={card.title}
-            className="backdrop-blur-2xl bg-white/5 rounded-3xl border border-white/10 p-6 shadow-xl shadow-black/30 hover:bg-white/10 transition-all duration-300"
+            className="group glass-panel rounded-2xl p-8 hover:shadow-xl hover:translate-y-[-4px] transition-all duration-300"
           >
             <div
-              className={`w-12 h-12 rounded-2xl bg-gradient-to-r ${card.accent} flex items-center justify-center mb-4`}
+              className={`w-12 h-12 rounded-xl bg-white/40 border border-white/60 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}
             >
               <svg
-                className="w-6 h-6 text-white"
+                className="w-6 h-6 text-slate-900"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -70,10 +70,10 @@ export function HomeFeatureCards() {
                 />
               </svg>
             </div>
-            <h3 className="text-xl font-semibold text-white mb-3">
+            <h3 className="text-lg font-bold text-[#1A2F25] mb-3">
               {card.title}
             </h3>
-            <p className="text-slate-400 leading-relaxed text-sm">
+            <p className="text-[#1A2F25]/70 leading-relaxed text-sm">
               {card.description}
             </p>
           </article>
