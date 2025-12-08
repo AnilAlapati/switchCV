@@ -140,7 +140,7 @@ export default function SubscriptionPage() {
         <div className="grid gap-6 lg:grid-cols-3 lg:gap-x-8 items-stretch bg-transparent">
           {tiers.map((plan) => {
             const isCurrent = tier === plan.id;
-            const isHighlight = plan.highlight;
+            // const isHighlight = plan.highlight;
 
             return (
               <div

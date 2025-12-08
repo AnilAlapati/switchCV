@@ -24,6 +24,7 @@ export default function TimelinePage() {
                     <div className="relative pb-32 -top-32">
                         <div className="absolute bottom-[-24px] left-1/2 -translate-x-1/2 w-4 h-4 bg-[#2D3748] rounded-full border-4 border-[#FDFBF7] z-10"></div>
                         <div className="w-80 bg-white p-6 rounded-lg shadow-xl border border-gray-100 transform hover:-translate-y-2 transition-transform">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src="https://via.placeholder.com/300x150/f0f0f0/cccccc?text=University" alt="Uni" className="w-full h-32 object-cover rounded-md mb-4 grayscale hover:grayscale-0 transition-all" />
                             <h3 className="text-xl font-bold mb-1">Graduated CS</h3>
                             <p className="text-sm text-gray-600 leading-relaxed">
@@ -48,6 +49,7 @@ export default function TimelinePage() {
                     <div className="relative pb-32 -top-32">
                         <div className="absolute bottom-[-24px] left-1/2 -translate-x-1/2 w-4 h-4 bg-[#2D3748] rounded-full border-4 border-[#FDFBF7] z-10"></div>
                         <div className="w-80 bg-white p-6 rounded-lg shadow-xl border border-gray-100 transform hover:-translate-y-2 transition-transform">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src="https://via.placeholder.com/300x150/f0f0f0/cccccc?text=Big+Tech" alt="Corp" className="w-full h-32 object-cover rounded-md mb-4 grayscale hover:grayscale-0 transition-all" />
                             <h3 className="text-xl font-bold mb-1">Senior Engineer</h3>
                             <p className="text-sm text-gray-600 leading-relaxed">

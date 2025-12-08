@@ -33,7 +33,9 @@ export default function Home() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const { stats } = useGlobalStats();
-  const { scrolled, particles, isMobile } = useHeroBackground();
+  // const { scrolled, particles, isMobile } = useHeroBackground();
+  // Preventing unused var warning by commenting out usage until needed
+  useHeroBackground();
 
   const canAccessDashboard =
     !!user &&
