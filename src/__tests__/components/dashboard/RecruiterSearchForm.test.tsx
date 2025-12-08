@@ -99,7 +99,7 @@ describe("RecruiterSearchForm", () => {
     render(<RecruiterSearchForm {...mockProps} />);
 
     const basicButton = screen.getByRole("button", { name: /Basic Lookup/i });
-    expect(basicButton).toHaveClass("border-amber-400/60", "bg-gradient-to-br");
+    expect(basicButton).toHaveClass("border-amber-500", "bg-amber-50");
   });
 
   it("applies correct styling to active premium mode button", () => {
@@ -109,8 +109,8 @@ describe("RecruiterSearchForm", () => {
       name: /Premium Filters/i,
     });
     expect(premiumButton).toHaveClass(
-      "border-purple-500/60",
-      "bg-gradient-to-br"
+      "border-purple-500",
+      "bg-purple-50"
     );
   });
 
@@ -120,7 +120,7 @@ describe("RecruiterSearchForm", () => {
     const premiumButton = screen.getByRole("button", {
       name: /Premium Filters/i,
     });
-    expect(premiumButton).toHaveClass("bg-slate-900/40", "border-white/10");
+    expect(premiumButton).toHaveClass("bg-white", "border-slate-200");
   });
 
   it("updates userId when basic search input changes", () => {
@@ -298,7 +298,7 @@ describe("RecruiterSearchForm", () => {
     const premiumButton = screen.getByRole("button", {
       name: /Premium Filters/i,
     });
-    expect(premiumButton).toHaveClass("hover:bg-slate-900/60");
+    expect(premiumButton).toHaveClass("hover:bg-purple-50/50");
   });
 
   it("applies hover and scale effects to search button", () => {
@@ -319,8 +319,8 @@ describe("RecruiterSearchForm", () => {
 
     const skillTag = screen.getByText("React").closest("span");
     expect(skillTag).toHaveClass(
-      "bg-gradient-to-r",
-      "text-purple-100",
+      "bg-purple-50",
+      "text-purple-700",
       "rounded-full"
     );
   });

@@ -30,6 +30,9 @@ const createMockAuthContext = (user: any) => ({
   deleteAccount: jest.fn(),
   resendVerificationEmail: jest.fn(),
   refreshUser: jest.fn(),
+  needsUsername: false,
+  setUsername: jest.fn(),
+  checkNeedsUsername: jest.fn(),
 });
 
 
@@ -254,13 +257,13 @@ describe("AccessRequestsCard", () => {
       render(<AccessRequestsCard />);
 
       await waitFor(() => {
-        const card = document.querySelector(".backdrop-blur-xl");
+        const card = document.querySelector(".glass-panel");
         expect(card).toHaveClass(
-          "backdrop-blur-xl",
-          "bg-white/10",
+          "glass-panel",
           "rounded-3xl",
-          "border",
-          "border-white/20"
+          "p-6",
+          "transition",
+          "hover:shadow-lg"
         );
       });
     });

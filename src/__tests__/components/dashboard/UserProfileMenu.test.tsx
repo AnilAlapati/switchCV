@@ -123,7 +123,7 @@ describe("UserProfileMenu", () => {
     expect(screen.getByText("Account & Security")).toBeInTheDocument();
     expect(screen.getByText("Subscription Plan")).toBeInTheDocument();
     expect(screen.getByText("Basic")).toBeInTheDocument();
-    expect(screen.getByText("Help Center")).toBeInTheDocument();
+    expect(screen.getByText("Feedback & Support")).toBeInTheDocument();
     expect(screen.getByText("Email Support")).toBeInTheDocument();
     expect(screen.getByText("Logout")).toBeInTheDocument();
   });
@@ -195,9 +195,9 @@ describe("UserProfileMenu", () => {
     // Find the dropdown menu by its classes
     const menu = document.querySelector(".absolute.right-0.mt-2.w-72");
     expect(menu).toHaveClass(
-      "bg-gradient-to-br",
-      "from-slate-800",
-      "to-slate-900"
+      "bg-white",
+      "rounded-xl",
+      "shadow-xl"
     );
     expect(menu).toHaveClass("animate-in", "fade-in", "slide-in-from-top-2");
   });
@@ -246,6 +246,6 @@ describe("UserProfileMenu", () => {
     await userEvent.click(screen.getByRole("button"));
 
     const badge = screen.getByText("Basic");
-    expect(badge).toHaveClass("bg-amber-500/20", "text-amber-300");
+    expect(badge).toHaveClass("bg-amber-100", "text-amber-700");
   });
 });

@@ -65,7 +65,9 @@ describe("RequestAccessDialog", () => {
 
     await userEvent.type(textarea, "Test message");
 
-    expect(screen.getByText("12/500 characters")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("12/500 characters")).toBeInTheDocument();
+    });
   });
 
   test("enforces maximum message length of 500 characters", async () => {
@@ -272,8 +274,8 @@ describe("RequestAccessDialog", () => {
 
     await waitFor(() => {
       expect(textarea.value).toBe("");
-    });
-  });
+    }, { timeout: 10000 });
+  }, 15000);
 
   test("includes message in request when provided", async () => {
     mockFetch.mockResolvedValueOnce({

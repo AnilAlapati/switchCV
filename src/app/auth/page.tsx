@@ -27,7 +27,7 @@ function AuthContent() {
     username,
     error,
     loading,
-    mounted,
+
     usernameError,
     resending,
     refreshing,

@@ -51,7 +51,7 @@ https.get(`https://${authDomain}/__/auth/handler`, (res) => {
 
   // Test 2: Check Google OAuth configuration
   console.log('\n2️⃣  Testing Google OAuth configuration...');
-  const testUrl = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=${process.env.NEXT_PUBLIC_FIREBASE_API_KEY}`;
+  // const testUrl = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=${process.env.NEXT_PUBLIC_FIREBASE_API_KEY}`;
 
   const postData = JSON.stringify({
     postBody: 'providerId=google.com',
@@ -99,7 +99,7 @@ https.get(`https://${authDomain}/__/auth/handler`, (res) => {
           console.log('   ✅ OAuth configuration appears valid');
         }
       } catch (parseError) {
-        console.log('   ⚠️  Could not parse response');
+        console.log('   ⚠️  Could not parse response', parseError);
       }
 
       console.log('\n📝 Next Steps:');
