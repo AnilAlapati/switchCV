@@ -93,20 +93,20 @@ export function RecruiterSearchForm({
     searchMode === "basic"
       ? "Use Basic mode when you already have a unique candidate ID from your pipeline."
       : searchMode === "ai"
-      ? "Describe your ideal candidate in natural language. Our AI will find the best matches."
-      : "Combine skills and location to surface up to 50 curated resumes in one pass.";
+        ? "Describe your ideal candidate in natural language. Our AI will find the best matches."
+        : "Combine skills and location to surface up to 50 curated resumes in one pass.";
 
   return (
     <div className="space-y-5">
-      <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900/60 to-slate-950/40 p-5 backdrop-blur-sm">
+      <div className="glass-panel rounded-2xl p-5">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="h-1.5 w-1.5 rounded-full bg-cyan-400"></div>
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
+            <div className="h-1.5 w-1.5 rounded-full bg-cyan-500"></div>
+            <span className="text-xs font-bold uppercase tracking-wider text-[#2C4A3B]/60">
               Search Mode
             </span>
           </div>
-          <span className="text-[10px] uppercase tracking-widest text-slate-500">
+          <span className="text-[10px] uppercase tracking-widest text-[#2C4A3B]/40">
             Switch Anytime
           </span>
         </div>
@@ -116,37 +116,34 @@ export function RecruiterSearchForm({
             type="button"
             onClick={() => handleModeSwitch("ai")}
             disabled={!aiSearchEnabled}
-            className={`group relative overflow-hidden rounded-xl border p-4 text-left transition-all duration-300 ${
-              searchMode === "ai"
-                ? "border-cyan-400/60 bg-gradient-to-br from-cyan-500/20 via-blue-500/10 to-transparent shadow-lg shadow-cyan-500/20"
-                : "border-white/10 bg-slate-900/40 hover:border-cyan-400/40 hover:bg-slate-900/60"
-            } ${!aiSearchEnabled ? "cursor-not-allowed opacity-50" : ""}`}
+            className={`group relative overflow-hidden rounded-xl border p-4 text-left transition-all duration-300 ${searchMode === "ai"
+              ? "border-cyan-500 bg-cyan-50 shadow-md shadow-cyan-500/10"
+              : "border-slate-200 bg-white hover:border-cyan-300 hover:bg-cyan-50/50 hover:shadow-sm"
+              } ${!aiSearchEnabled ? "cursor-not-allowed opacity-50 grayscale" : ""}`}
           >
             <div className="relative z-10">
               <div className="mb-2 flex items-center gap-2.5">
                 <span
-                  className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm ${
-                    searchMode === "ai"
-                      ? "bg-cyan-400/20 text-cyan-300 shadow-inner shadow-cyan-500/10"
-                      : "bg-slate-800/60 text-slate-400 group-hover:bg-cyan-400/10 group-hover:text-cyan-400"
-                  }`}
+                  className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm ${searchMode === "ai"
+                    ? "bg-cyan-100 text-cyan-700 shadow-inner"
+                    : "bg-slate-100 text-slate-500 group-hover:bg-cyan-100 group-hover:text-cyan-600"
+                    }`}
                 >
                   ✨
                 </span>
                 <span
-                  className={`text-sm font-bold ${
-                    searchMode === "ai"
-                      ? "text-cyan-100"
-                      : "text-slate-300 group-hover:text-white"
-                  }`}
+                  className={`text-sm font-bold ${searchMode === "ai"
+                    ? "text-cyan-900"
+                    : "text-slate-600 group-hover:text-cyan-900"
+                    }`}
                 >
                   AI Search
                 </span>
-                <span className="rounded bg-gradient-to-r from-cyan-500/30 to-blue-500/30 px-1.5 py-0.5 text-[10px] font-bold text-cyan-200">
+                <span className="rounded bg-gradient-to-r from-cyan-500/20 to-blue-500/20 px-1.5 py-0.5 text-[10px] font-bold text-cyan-700">
                   NEW
                 </span>
               </div>
-              <p className="text-xs leading-relaxed text-slate-400">
+              <p className="text-xs leading-relaxed text-slate-500">
                 {aiSearchEnabled
                   ? "Natural language search powered by AI"
                   : "Requires Premium or Enterprise"}
@@ -158,70 +155,65 @@ export function RecruiterSearchForm({
           <button
             type="button"
             onClick={() => handleModeSwitch("basic")}
-            className={`group relative overflow-hidden rounded-xl border p-4 text-left transition-all duration-300 ${
-              searchMode === "basic"
-                ? "border-amber-400/60 bg-gradient-to-br from-amber-500/20 via-amber-500/10 to-transparent shadow-lg shadow-amber-500/20"
-                : "border-white/10 bg-slate-900/40 hover:border-amber-400/40 hover:bg-slate-900/60"
-            }`}
+            className={`group relative overflow-hidden rounded-xl border p-4 text-left transition-all duration-300 ${searchMode === "basic"
+              ? "border-amber-500 bg-amber-50 shadow-md shadow-amber-500/10"
+              : "border-slate-200 bg-white hover:border-amber-300 hover:bg-amber-50/50 hover:shadow-sm"
+              }`}
           >
             <div className="relative z-10">
               <div className="mb-2 flex items-center gap-2.5">
                 <span
-                  className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-bold ${
-                    searchMode === "basic"
-                      ? "bg-amber-400/20 text-amber-300 shadow-inner shadow-amber-500/10"
-                      : "bg-slate-800/60 text-slate-400 group-hover:bg-amber-400/10 group-hover:text-amber-400"
-                  }`}
+                  className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-bold ${searchMode === "basic"
+                    ? "bg-amber-100 text-amber-700 shadow-inner"
+                    : "bg-slate-100 text-slate-500 group-hover:bg-amber-100 group-hover:text-amber-600"
+                    }`}
                 >
                   ID
                 </span>
                 <span
-                  className={`text-sm font-bold ${
-                    searchMode === "basic"
-                      ? "text-amber-100"
-                      : "text-slate-300 group-hover:text-white"
-                  }`}
+                  className={`text-sm font-bold ${searchMode === "basic"
+                    ? "text-amber-900"
+                    : "text-slate-600 group-hover:text-amber-900"
+                    }`}
                 >
                   Basic Lookup
                 </span>
               </div>
-              <p className="text-xs leading-relaxed text-slate-400">
+              <p className="text-xs leading-relaxed text-slate-500">
                 Quick candidate retrieval using resume ID or user ID
               </p>
             </div>
           </button>
+
           <button
             type="button"
             onClick={() => handleModeSwitch("premium")}
             disabled={!premiumFiltersEnabled}
-            className={`group relative overflow-hidden rounded-xl border p-4 text-left transition-all duration-300 ${
-              searchMode === "premium"
-                ? "border-purple-500/60 bg-gradient-to-br from-purple-500/20 via-purple-500/10 to-transparent shadow-lg shadow-purple-500/20"
-                : "border-white/10 bg-slate-900/40 hover:border-purple-500/40 hover:bg-slate-900/60"
-            } ${!premiumFiltersEnabled ? "cursor-not-allowed opacity-50" : ""}`}
+            className={`group relative overflow-hidden rounded-xl border p-4 text-left transition-all duration-300 ${searchMode === "premium"
+              ? "border-purple-500 bg-purple-50 shadow-md shadow-purple-500/10"
+              : "border-slate-200 bg-white hover:border-purple-300 hover:bg-purple-50/50 hover:shadow-sm"
+              } ${!premiumFiltersEnabled ? "cursor-not-allowed opacity-50 grayscale" : ""}`}
           >
             <div className="relative z-10">
               <div className="mb-2 flex items-center gap-2.5">
                 <span
-                  className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-bold ${
-                    searchMode === "premium"
-                      ? "bg-purple-400/20 text-purple-300 shadow-inner shadow-purple-500/10"
-                      : "bg-slate-800/60 text-slate-400 group-hover:bg-purple-400/10 group-hover:text-purple-400"
-                  }`}
+                  className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-bold ${searchMode === "premium"
+                    ? "bg-purple-100 text-purple-700 shadow-inner"
+                    : "bg-slate-100 text-slate-500 group-hover:bg-purple-100 group-hover:text-purple-600"
+                    }`}
                 >
                   ★
                 </span>
                 <span
-                  className={`text-sm font-bold ${
-                    searchMode === "premium"
-                      ? "text-purple-100"
-                      : "text-slate-300 group-hover:text-white"
-                  }`}
+                  className={`text-sm font-bold ${searchMode === "premium"
+                    ? "text-purple-900"
+                    : "text-slate-600 group-hover:text-purple-900"
+                    }`}
                 >
                   Premium Filters
                 </span>
               </div>
-              <p className="text-xs leading-relaxed text-slate-400">
+              <p className="text-xs leading-relaxed text-slate-500">
                 {premiumFiltersEnabled
                   ? "Advanced search with skills and location filters"
                   : "Advanced filters will arrive soon for premium recruiters."}
@@ -230,7 +222,7 @@ export function RecruiterSearchForm({
           </button>
         </div>
         {!premiumFiltersEnabled && (
-          <p className="mt-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+          <p className="mt-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
             Premium search is temporarily disabled while we build the dedicated
             plan.
           </p>
@@ -241,9 +233,9 @@ export function RecruiterSearchForm({
         onSubmit={
           searchMode === "ai"
             ? (e) => {
-                e.preventDefault();
-                onAiSearch?.();
-              }
+              e.preventDefault();
+              onAiSearch?.();
+            }
             : onSearch
         }
         className="space-y-5"
@@ -252,14 +244,14 @@ export function RecruiterSearchForm({
           /* AI Search Input */
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 text-sm font-semibold text-slate-200">
-                <span className="h-1 w-1 rounded-full bg-cyan-400"></span>
+              <label className="flex items-center gap-2 text-sm font-semibold text-[#1A2F25]">
+                <span className="h-1 w-1 rounded-full bg-cyan-500"></span>
                 Describe Your Ideal Candidate
               </label>
               {aiQuota && (
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-[#2C4A3B]/60">
                   {aiQuota.limit === -1 ? (
-                    <span className="text-green-400">Unlimited searches</span>
+                    <span className="text-emerald-600">Unlimited searches</span>
                   ) : (
                     <span>
                       {aiQuota.remaining}/{aiQuota.limit} searches left
@@ -275,12 +267,12 @@ export function RecruiterSearchForm({
                 placeholder="e.g., Looking for a Java developer with 10 years experience and cloud tools like AWS or Azure..."
                 disabled={aiSearching}
                 rows={3}
-                className="w-full rounded-xl border border-white/10 bg-slate-900/60 px-4 py-3.5 text-white placeholder-slate-500 shadow-inner shadow-black/30 transition-all focus:border-cyan-400/60 focus:bg-slate-900/80 focus:outline-none focus:ring-2 focus:ring-cyan-400/20 disabled:opacity-50 resize-none"
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-[#1A2F25] placeholder-slate-400 shadow-sm transition-all focus:border-cyan-500 focus:bg-cyan-50/10 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 disabled:opacity-50 resize-none hover:border-cyan-300"
               />
             </div>
-            <p className="flex items-start gap-2 text-xs leading-relaxed text-slate-400">
+            <p className="flex items-start gap-2 text-xs leading-relaxed text-[#2C4A3B]/60">
               <svg
-                className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-slate-500"
+                className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-slate-400"
                 fill="currentColor"
                 viewBox="0 0 20 20"
               >
@@ -294,19 +286,19 @@ export function RecruiterSearchForm({
               technologies, or any requirements
             </p>
             {aiError && (
-              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
                 {aiError}
               </div>
             )}
           </div>
         ) : searchMode === "basic" ? (
           <div className="space-y-3">
-            <label className="flex items-center gap-2 text-sm font-semibold text-slate-200">
-              <span className="h-1 w-1 rounded-full bg-amber-400"></span>
+            <label className="flex items-center gap-2 text-sm font-semibold text-[#1A2F25]">
+              <span className="h-1 w-1 rounded-full bg-amber-500"></span>
               Resume ID or User ID
             </label>
             <div className="relative">
-              <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-slate-500">
+              <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-slate-400">
                 <svg
                   className="h-4 w-4"
                   fill="none"
@@ -327,12 +319,12 @@ export function RecruiterSearchForm({
                 onChange={(e) => setUserId(e.target.value)}
                 placeholder="e.g., 2"
                 disabled={loading}
-                className="w-full rounded-xl border border-white/10 bg-slate-900/60 py-3.5 pl-11 pr-4 text-white placeholder-slate-500 shadow-inner shadow-black/30 transition-all focus:border-amber-400/60 focus:bg-slate-900/80 focus:outline-none focus:ring-2 focus:ring-amber-400/20 disabled:opacity-50"
+                className="w-full rounded-xl border border-slate-200 bg-white py-3.5 pl-11 pr-4 text-[#1A2F25] placeholder-slate-400 shadow-sm transition-all focus:border-amber-500 focus:bg-amber-50/10 focus:outline-none focus:ring-2 focus:ring-amber-500/20 disabled:opacity-50 hover:border-amber-300"
               />
             </div>
-            <p className="flex items-start gap-2 text-xs leading-relaxed text-slate-400">
+            <p className="flex items-start gap-2 text-xs leading-relaxed text-[#2C4A3B]/60">
               <svg
-                className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-slate-500"
+                className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-slate-400"
                 fill="currentColor"
                 viewBox="0 0 20 20"
               >
@@ -348,8 +340,8 @@ export function RecruiterSearchForm({
         ) : (
           <div className="space-y-5">
             <div>
-              <label className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-200">
-                <span className="h-1 w-1 rounded-full bg-purple-400"></span>
+              <label className="mb-3 flex items-center gap-2 text-sm font-semibold text-[#1A2F25]">
+                <span className="h-1 w-1 rounded-full bg-purple-500"></span>
                 Skills
               </label>
               <div className="flex flex-col gap-2 sm:flex-row">
@@ -364,13 +356,13 @@ export function RecruiterSearchForm({
                       commitSkill();
                     }
                   }}
-                  className="flex-1 rounded-xl border border-white/10 bg-slate-900/60 px-4 py-3 text-white placeholder-slate-500 shadow-inner shadow-black/30 transition-all focus:border-purple-500/60 focus:bg-slate-900/80 focus:outline-none focus:ring-2 focus:ring-purple-500/20 disabled:opacity-50"
+                  className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-[#1A2F25] placeholder-slate-400 shadow-sm transition-all focus:border-purple-500 focus:bg-purple-50/10 focus:outline-none focus:ring-2 focus:ring-purple-500/20 disabled:opacity-50 hover:border-purple-300"
                 />
                 <button
                   type="button"
                   onClick={commitSkill}
                   disabled={loading}
-                  className="rounded-xl border border-purple-500/40 bg-gradient-to-r from-purple-500/20 to-purple-600/10 px-6 py-3 text-sm font-bold text-purple-100 shadow-lg shadow-purple-500/10 transition-all hover:border-purple-400/60 hover:from-purple-500/30 hover:to-purple-600/20 hover:shadow-purple-500/20 disabled:opacity-60"
+                  className="rounded-xl border border-purple-200 bg-purple-50 px-6 py-3 text-sm font-bold text-purple-700 shadow-sm transition-all hover:border-purple-300 hover:bg-purple-100 disabled:opacity-60"
                 >
                   Add Skill
                 </button>
@@ -380,13 +372,13 @@ export function RecruiterSearchForm({
                   {skills.map((skill, idx) => (
                     <span
                       key={`${skill}-${idx}`}
-                      className="group inline-flex items-center gap-2 rounded-full border border-purple-400/30 bg-gradient-to-r from-purple-500/15 to-purple-600/10 px-3.5 py-1.5 text-xs font-semibold text-purple-100 shadow-sm shadow-purple-500/10"
+                      className="group inline-flex items-center gap-2 rounded-full border border-purple-200 bg-purple-50 px-3.5 py-1.5 text-xs font-semibold text-purple-700"
                     >
                       {skill}
                       <button
                         type="button"
                         onClick={() => onRemoveSkill(idx)}
-                        className="flex h-4 w-4 items-center justify-center rounded-full bg-purple-400/20 text-purple-300 transition-all hover:bg-purple-400/30 hover:text-white"
+                        className="flex h-4 w-4 items-center justify-center rounded-full bg-purple-200 text-purple-600 transition-all hover:bg-purple-300 hover:text-purple-800"
                       >
                         ×
                       </button>
@@ -397,12 +389,12 @@ export function RecruiterSearchForm({
             </div>
 
             <div>
-              <label className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-200">
-                <span className="h-1 w-1 rounded-full bg-purple-400"></span>
+              <label className="mb-3 flex items-center gap-2 text-sm font-semibold text-[#1A2F25]">
+                <span className="h-1 w-1 rounded-full bg-purple-500"></span>
                 Location
               </label>
               <div className="relative">
-                <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-slate-500">
+                <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-slate-400">
                   <svg
                     className="h-4 w-4"
                     fill="none"
@@ -429,12 +421,12 @@ export function RecruiterSearchForm({
                   onChange={(e) => setLocation(e.target.value)}
                   placeholder="City, region, or remote"
                   disabled={loading}
-                  className="w-full rounded-xl border border-white/10 bg-slate-900/60 py-3.5 pl-11 pr-4 text-white placeholder-slate-500 shadow-inner shadow-black/30 transition-all focus:border-purple-500/60 focus:bg-slate-900/80 focus:outline-none focus:ring-2 focus:ring-purple-500/20 disabled:opacity-50"
+                  className="w-full rounded-xl border border-slate-200 bg-white py-3.5 pl-11 pr-4 text-[#1A2F25] placeholder-slate-400 shadow-sm transition-all focus:border-purple-500 focus:bg-purple-50/10 focus:outline-none focus:ring-2 focus:ring-purple-500/20 disabled:opacity-50 hover:border-purple-300"
                 />
               </div>
-              <p className="mt-2 flex items-start gap-2 text-xs leading-relaxed text-slate-400">
+              <p className="mt-2 flex items-start gap-2 text-xs leading-relaxed text-[#2C4A3B]/60">
                 <svg
-                  className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-slate-500"
+                  className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-slate-400"
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
@@ -450,9 +442,9 @@ export function RecruiterSearchForm({
           </div>
         )}
 
-        <div className="rounded-xl border border-cyan-500/20 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10 px-4 py-3.5 backdrop-blur-sm">
+        <div className="rounded-xl border border-cyan-200 bg-gradient-to-r from-cyan-50 via-blue-50 to-purple-50 px-4 py-3.5">
           <div className="flex items-start gap-3">
-            <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-cyan-400/20 text-cyan-300">
+            <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-cyan-100 text-cyan-600">
               <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
                 <path
                   fillRule="evenodd"
@@ -461,7 +453,7 @@ export function RecruiterSearchForm({
                 />
               </svg>
             </span>
-            <p className="text-xs leading-relaxed text-slate-300">
+            <p className="text-xs leading-relaxed text-[#2C4A3B]/80">
               {helperCopy}
             </p>
           </div>
@@ -470,11 +462,10 @@ export function RecruiterSearchForm({
         <button
           type="submit"
           disabled={loading || aiSearching}
-          className={`group relative w-full overflow-hidden rounded-xl px-6 py-3.5 text-base font-bold text-white shadow-xl transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-60 ${
-            searchMode === "ai"
-              ? "bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 shadow-cyan-500/30 hover:shadow-2xl hover:shadow-cyan-500/40"
-              : "bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 shadow-cyan-500/30 hover:shadow-2xl hover:shadow-cyan-500/40"
-          }`}
+          className={`group relative w-full overflow-hidden rounded-xl px-6 py-3.5 text-base font-bold text-white shadow-xl transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-60 ${searchMode === "ai"
+            ? "bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 shadow-cyan-500/30 hover:shadow-2xl hover:shadow-cyan-500/40"
+            : "bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 shadow-cyan-500/30 hover:shadow-2xl hover:shadow-cyan-500/40"
+            }`}
         >
           <span className="relative z-10 flex items-center justify-center gap-2">
             {loading || aiSearching ? (

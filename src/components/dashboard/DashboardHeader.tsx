@@ -16,7 +16,7 @@ export function DashboardHeader({ userEmail, onLogout }: DashboardHeaderProps) {
   }).format(new Date());
 
   return (
-    <header className="relative z-40 border-b border-white/50 bg-white/30 backdrop-blur-md">
+    <header className="relative z-50 border-b border-white/50 bg-white/30 backdrop-blur-md">
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-6 py-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-4">

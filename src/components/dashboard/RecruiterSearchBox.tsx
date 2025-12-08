@@ -16,9 +16,9 @@ import {
 import { useAiSearch } from "./useAiSearch";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-interface RecruiterSearchBoxProps {}
+interface RecruiterSearchBoxProps { }
 
-export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
+export function RecruiterSearchBox({ }: RecruiterSearchBoxProps = {}) {
   const { user } = useAuth();
   const { isPremiumOrHigher, loading: tierLoading } = useTier();
   const [searchMode, setSearchMode] = useState<SearchModeType>("ai"); // Default to AI search
@@ -154,7 +154,7 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
     setNotification("Request sent successfully!");
     // Refresh search to update status
     if (searched) {
-      handleSearch({ preventDefault: () => {} } as React.FormEvent);
+      handleSearch({ preventDefault: () => { } } as React.FormEvent);
     }
   };
 
@@ -175,42 +175,40 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
 
   return (
     <section className="space-y-6">
-      <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900/90 via-slate-900/80 to-slate-950/90 p-6 shadow-2xl shadow-cyan-500/10 backdrop-blur-sm ring-1 ring-white/5 lg:p-8">
-        <div className="flex flex-col gap-6">
-          <RecruiterSearchHeader
-            loading={loading}
-            aiSearching={aiSearching}
-            searched={searched}
-          />
+      <div className="flex flex-col gap-6">
+        <RecruiterSearchHeader
+          loading={loading}
+          aiSearching={aiSearching}
+          searched={searched}
+        />
 
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr),340px]">
-            <div className="rounded-2xl border border-white/5 bg-slate-950/50 p-6 backdrop-blur-sm">
-              <RecruiterSearchForm
-                searchMode={effectiveSearchMode}
-                setSearchMode={setSearchMode}
-                premiumFiltersEnabled={premiumFiltersEnabled}
-                aiSearchEnabled={aiSearchEnabled}
-                userId={userId}
-                setUserId={setUserId}
-                skills={skills}
-                location={location}
-                setLocation={setLocation}
-                loading={loading}
-                onSearch={handleSearch}
-                onAddSkill={handleAddSkill}
-                onRemoveSkill={handleRemoveSkill}
-                searchResults={searchResults}
-                setSearchResults={setSearchResults}
-                setSearched={setSearched}
-                // AI Search props
-                aiQuery={aiQuery}
-                setAiQuery={setAiQuery}
-                onAiSearch={handleAiSearch}
-                aiSearching={aiSearching}
-                aiError={aiError}
-                aiQuota={aiQuota}
-              />
-            </div>
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr),340px]">
+          <div>
+            <RecruiterSearchForm
+              searchMode={effectiveSearchMode}
+              setSearchMode={setSearchMode}
+              premiumFiltersEnabled={premiumFiltersEnabled}
+              aiSearchEnabled={aiSearchEnabled}
+              userId={userId}
+              setUserId={setUserId}
+              skills={skills}
+              location={location}
+              setLocation={setLocation}
+              loading={loading}
+              onSearch={handleSearch}
+              onAddSkill={handleAddSkill}
+              onRemoveSkill={handleRemoveSkill}
+              searchResults={searchResults}
+              setSearchResults={setSearchResults}
+              setSearched={setSearched}
+              // AI Search props
+              aiQuery={aiQuery}
+              setAiQuery={setAiQuery}
+              onAiSearch={handleAiSearch}
+              aiSearching={aiSearching}
+              aiError={aiError}
+              aiQuota={aiQuota}
+            />
           </div>
         </div>
       </div>

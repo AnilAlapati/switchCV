@@ -102,7 +102,7 @@ export function ActionPlanCard({
                 <button
                   type="button"
                   onClick={item.cta.onClick}
-                  className="inline-flex items-center gap-2 rounded-lg bg-cyan-500/20 px-3 py-1.5 text-xs font-medium text-cyan-200 transition hover:bg-cyan-500/30"
+                  className="inline-flex items-center gap-2 rounded-lg bg-cyan-100 px-3 py-1.5 text-xs font-bold text-cyan-700 transition hover:bg-cyan-200"
                 >
                   {item.cta.label}
                   <svg

@@ -57,7 +57,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen relative overflow-hidden text-[#1A2F25] selection:bg-[#2C4A3B]/20 selection:text-[#1A2F25]">
-      <div className="fixed inset-0 z-0">
+      <div className="fixed inset-0 z-0 pointer-events-none">
         <BackgroundBlobs />
       </div>
 
