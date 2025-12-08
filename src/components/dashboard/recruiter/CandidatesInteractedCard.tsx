@@ -71,12 +71,10 @@ export function CandidatesInteractedCard() {
 
   return (
     <Link href="/dashboard/recruiter/requests">
-      <div className="group relative overflow-hidden backdrop-blur-xl rounded-3xl border border-white/20 bg-white/10 p-6 shadow-lg shadow-slate-950/40 transition-all duration-300 hover:border-emerald-500/40 hover:bg-white/15 hover:scale-[1.02] cursor-pointer h-full flex flex-col justify-between">
-        <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-emerald-500/10 blur-2xl transition-all group-hover:bg-emerald-500/20"></div>
-
+      <div className="glass-panel rounded-3xl p-6 transition hover:shadow-lg hover:shadow-emerald-500/10 hover:border-emerald-200/50 cursor-pointer h-full flex flex-col justify-between group">
         <div className="flex items-center relative z-10">
           <div className="flex-shrink-0">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 group-hover:text-emerald-300 transition-colors">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 transition-colors">
               <svg
                 className="h-6 w-6"
                 fill="none"
@@ -94,28 +92,27 @@ export function CandidatesInteractedCard() {
           </div>
           <div className="ml-5 w-0 flex-1">
             <dl>
-              <dt className="text-sm font-medium text-slate-400 truncate group-hover:text-slate-300 transition-colors">
+              <dt className="text-sm font-bold text-[#2C4A3B]/60 truncate transition-colors">
                 Candidates Contacted
               </dt>
-              <dd className="text-2xl font-bold text-white">
+              <dd className="text-2xl font-bold text-[#1A2F25]">
                 {loadingState ? "-" : totalContacted}
               </dd>
             </dl>
           </div>
         </div>
         <div className="mt-4 relative z-10 flex items-center justify-between">
-          <p className="text-sm text-slate-400 group-hover:text-slate-300 transition-colors">
+          <p className="text-sm text-[#1A2F25]/60 transition-colors">
             {loadingState
               ? "Loading..."
               : totalContacted === 0
-              ? "No candidates contacted yet"
-              : `${totalContacted} candidate${
-                  totalContacted !== 1 ? "s" : ""
+                ? "No candidates contacted yet"
+                : `${totalContacted} candidate${totalContacted !== 1 ? "s" : ""
                 } contacted`}
           </p>
           <div className="opacity-0 transform translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
             <svg
-              className="w-5 h-5 text-emerald-400"
+              className="w-5 h-5 text-emerald-600"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"

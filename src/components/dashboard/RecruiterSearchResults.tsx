@@ -19,24 +19,24 @@ const badgeStyles: Record<
   approved: {
     label: "Approved",
     classes:
-      "bg-emerald-500/15 text-emerald-200 border border-emerald-400/40 shadow-lg shadow-emerald-500/10",
+      "bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm",
     helper: "Full resume unlocked and ready to view",
   },
   pending: {
     label: "Pending",
     classes:
-      "bg-amber-500/15 text-amber-200 border border-amber-400/40 shadow-lg shadow-amber-500/10",
+      "bg-amber-50 text-amber-700 border border-amber-200 shadow-sm",
     helper: "You'll be notified when the candidate responds",
   },
   denied: {
     label: "Denied",
     classes:
-      "bg-rose-500/15 text-rose-200 border border-rose-400/40 shadow-lg shadow-rose-500/10",
+      "bg-rose-50 text-rose-700 border border-rose-200 shadow-sm",
     helper: "Consider personalizing your request and trying again",
   },
   none: {
     label: "Request Access",
-    classes: "bg-slate-800/80 text-slate-200 border border-white/20",
+    classes: "bg-slate-100 text-slate-600 border border-slate-200",
     helper: "Send a personalized request to view full contact details",
   },
 };
@@ -48,15 +48,14 @@ const Callout = ({
   variant: "error" | "info";
   children: ReactNode;
 }) => (
-  <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6 backdrop-blur-sm">
+  <section className="glass-panel p-6">
     <div
-      className={`flex items-center gap-3 rounded-2xl border px-5 py-4 font-bold shadow-lg ${
-        variant === "error"
-          ? "border-rose-500/40 bg-rose-500/15 text-rose-100 shadow-rose-500/20"
-          : "border-cyan-500/40 bg-cyan-500/15 text-cyan-100 shadow-cyan-500/20"
-      }`}
+      className={`flex items-center gap-3 rounded-2xl border px-5 py-4 font-bold shadow-sm ${variant === "error"
+        ? "border-rose-200 bg-rose-50 text-rose-700"
+        : "border-cyan-200 bg-cyan-50 text-cyan-700"
+        }`}
     >
-      <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-white/10">
+      <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-white/40 shadow-sm">
         {variant === "error" ? "!" : "i"}
       </span>
       {children}
@@ -86,19 +85,19 @@ export function RecruiterSearchResults({
   if (hasResults) {
     return (
       <section className="space-y-5">
-        <div className="flex flex-col gap-3 rounded-3xl border border-white/10 bg-gradient-to-r from-slate-950/90 to-slate-900/70 px-6 py-5 shadow-xl shadow-slate-950/40 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="glass-panel flex flex-col gap-3 rounded-3xl px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="mb-1 flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+              <p className="text-xs font-bold uppercase tracking-wider text-[#2C4A3B]/60">
                 Search Complete
               </p>
             </div>
-            <h3 className="bg-gradient-to-r from-white to-slate-300 bg-clip-text text-2xl font-black text-transparent">
+            <h3 className="text-2xl font-black text-[#1A2F25]">
               {results.length} resume{results.length === 1 ? "" : "s"} found
             </h3>
           </div>
-          <p className="text-sm leading-relaxed text-slate-400">
+          <p className="text-sm leading-relaxed text-[#2C4A3B]/70">
             Results sorted by recency. Refine filters to narrow down.
           </p>
         </div>
@@ -225,12 +224,12 @@ export function RecruiterSearchResults({
             return (
               <article
                 key={result.resumeId}
-                className="group rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900/80 via-slate-950/70 to-slate-900/60 p-6 shadow-lg shadow-slate-950/40 backdrop-blur-sm transition-all hover:border-white/20 hover:shadow-xl hover:shadow-cyan-500/10"
+                className="group glass-panel rounded-3xl p-6 transition-all hover:shadow-lg hover:shadow-cyan-500/10 hover:border-cyan-200/50"
               >
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
                   <div className="flex-1 space-y-4">
                     <div className="flex flex-wrap items-start gap-3">
-                      <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 text-cyan-200 ring-1 ring-cyan-400/30">
+                      <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-cyan-50 text-cyan-600 ring-1 ring-cyan-200">
                         <svg
                           className="h-7 w-7"
                           fill="none"
@@ -246,28 +245,28 @@ export function RecruiterSearchResults({
                         </svg>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-lg font-bold text-white">
+                        <h4 className="text-lg font-bold text-[#1A2F25]">
                           {result.title}
                         </h4>
-                        <p className="text-sm text-slate-400">
+                        <p className="text-sm text-[#2C4A3B]/60 font-medium">
                           {result.userName}
                         </p>
                       </div>
-                      <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-bold text-slate-300 backdrop-blur-sm">
+                      <span className="rounded-full border border-slate-200 bg-white/50 px-3 py-1 text-xs font-bold text-slate-500 backdrop-blur-sm">
                         #{result.userId.substring(0, 8)}
                       </span>
                     </div>
 
                     {result.skills && result.skills.length > 0 && (
                       <div className="space-y-2">
-                        <p className="text-xs uppercase tracking-wide text-slate-500">
+                        <p className="text-xs uppercase tracking-wide text-[#2C4A3B]/50 font-bold">
                           Core skills
                         </p>
                         <div className="flex flex-wrap gap-2">
                           {result.skills.map((skill, idx) => (
                             <span
                               key={`${result.resumeId}-skill-${idx}`}
-                              className="rounded-full border border-purple-400/30 bg-purple-500/10 px-3 py-1 text-xs text-purple-100"
+                              className="rounded-full border border-purple-200 bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700"
                             >
                               {skill}
                             </span>
@@ -276,9 +275,9 @@ export function RecruiterSearchResults({
                       </div>
                     )}
 
-                    <div className="flex flex-wrap gap-3 text-xs text-slate-400">
+                    <div className="flex flex-wrap gap-3 text-xs text-[#2C4A3B]/60 font-medium">
                       {result.location && (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-white/10 px-3 py-1">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white/50 px-3 py-1">
                           <svg
                             className="h-3.5 w-3.5"
                             fill="none"
@@ -301,21 +300,21 @@ export function RecruiterSearchResults({
                           {result.location}
                         </span>
                       )}
-                      <span className="inline-flex items-center gap-1 rounded-full border border-white/10 px-3 py-1">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white/50 px-3 py-1">
                         Posted {created}
                       </span>
                     </div>
                   </div>
 
-                  <div className="w-full rounded-2xl border border-white/10 bg-slate-900/80 p-5 backdrop-blur-sm lg:w-80">
+                  <div className="w-full rounded-2xl border border-slate-200 bg-white/60 p-5 backdrop-blur-sm lg:w-80 shadow-sm">
                     <div className="mb-4 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="h-1 w-1 rounded-full bg-cyan-400"></span>
-                        <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                        <span className="h-1 w-1 rounded-full bg-cyan-500"></span>
+                        <span className="text-xs font-bold uppercase tracking-wider text-[#2C4A3B]/60">
                           Access Status
                         </span>
                       </div>
-                      <span className="rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
                         {searchMode === "basic" ? "Direct" : "Premium"}
                       </span>
                     </div>
@@ -325,7 +324,7 @@ export function RecruiterSearchResults({
                       <span className="h-1.5 w-1.5 rounded-full bg-current"></span>
                       {badge.label}
                     </div>
-                    <p className="mb-5 text-xs leading-relaxed text-slate-400">
+                    <p className="mb-5 text-xs leading-relaxed text-[#2C4A3B]/70">
                       {badge.helper}
                     </p>
                     {actionArea()}
@@ -341,10 +340,10 @@ export function RecruiterSearchResults({
 
   if (searched && results.length === 0) {
     return (
-      <section className="rounded-3xl border border-white/10 bg-slate-950/60 px-6 py-12 text-center text-slate-300">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-white/10 bg-slate-900">
+      <section className="glass-panel px-6 py-12 text-center text-[#2C4A3B]/70">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
           <svg
-            className="h-8 w-8 text-slate-500"
+            className="h-8 w-8 text-slate-400"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -357,8 +356,8 @@ export function RecruiterSearchResults({
             />
           </svg>
         </div>
-        <p className="text-lg font-semibold text-white">No resumes found</p>
-        <p className="text-sm text-slate-400">
+        <p className="text-lg font-bold text-[#1A2F25]">No resumes found</p>
+        <p className="text-sm font-medium">
           Adjust your filters or widen the location range to discover more
           talent.
         </p>
@@ -367,10 +366,10 @@ export function RecruiterSearchResults({
   }
 
   return (
-    <section className="rounded-3xl border border-white/10 bg-slate-950/60 px-6 py-12 text-center text-slate-300">
-      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-white/10 bg-cyan-500/10">
+    <section className="glass-panel px-6 py-12 text-center text-[#2C4A3B]/70">
+      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-cyan-50">
         <svg
-          className="h-8 w-8 text-cyan-300"
+          className="h-8 w-8 text-cyan-600"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -383,8 +382,8 @@ export function RecruiterSearchResults({
           />
         </svg>
       </div>
-      <p className="text-lg font-semibold text-white">Ready when you are</p>
-      <p className="text-sm text-slate-400">
+      <p className="text-lg font-bold text-[#1A2F25]">Ready when you are</p>
+      <p className="text-sm font-medium">
         {searchMode === "basic"
           ? "Enter a resume ID or user ID to pull a single candidate."
           : "Add at least one skill or a location to preview premium matches."}

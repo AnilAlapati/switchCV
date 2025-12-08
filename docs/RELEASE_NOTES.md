@@ -1,5 +1,17 @@
 # Release Notes
 
+## [AI.0.0.65] - 2025-12-08
+### Changed
+- Automated version increment.
+
+## [AI.0.0.64] - 2025-12-08
+### Changed
+- Automated version increment.
+
+## [AI.0.0.63] - 2025-12-08
+### Changed
+- Automated version increment.
+
 ## [AI.0.0.62] - 2025-12-07
 ### Changed
 - Automated version increment.

@@ -166,7 +166,7 @@ export default function ContactPage() {
 
   return (
     <div className="min-h-screen text-[#1A2F25] relative overflow-hidden">
-      <div className="fixed inset-0 z-0">
+      <div className="fixed inset-0 z-0 pointer-events-none">
         <BackgroundBlobs />
       </div>
 

@@ -80,7 +80,7 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-72 glass-panel rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+        <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-[100] animate-in fade-in slide-in-from-top-2 ring-1 ring-black/5">
           {/* User Info Section */}
           <div className="px-4 py-4 border-b border-[#2C4A3B]/10 bg-[#2C4A3B]/5">
             <div className="flex items-center gap-3 mb-2">

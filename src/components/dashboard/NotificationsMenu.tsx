@@ -105,7 +105,7 @@ export function NotificationsMenu() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 glass-panel rounded-xl shadow-xl z-50 overflow-hidden">
+        <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl z-50 overflow-hidden border border-slate-100 ring-1 ring-black/5">
           <div className="p-3 border-b border-[#2C4A3B]/10 flex justify-between items-center bg-[#2C4A3B]/5">
             <h3 className="font-bold text-[#1A2F25] text-sm">Notifications</h3>
           </div>
