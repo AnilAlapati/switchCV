@@ -11,6 +11,7 @@ import { MaintenanceBanner } from "@/components/layout/MaintenanceBanner";
 import { DevModeBanner } from "@/components/dev/DevModeBanner";
 import { SWRProvider } from "@/components/providers/SWRProvider";
 import { Toaster } from "sonner";
+import { GoogleAnalytics } from "@next/third-parties/google";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -62,6 +63,10 @@ export default function RootLayout({
           </SystemConfigProvider>
         </ConnectivityStatusProvider>
       </body>
+      {process.env.NODE_ENV === "production" &&
+        process.env.NEXT_PUBLIC_GA_ID && (
+          <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID} />
+        )}
     </html>
   );
 }

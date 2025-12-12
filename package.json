@@ -28,6 +28,7 @@
     "release": "node scripts/increment-version.js"
   },
   "dependencies": {
+    "@next/third-parties": "^16.0.10",
     "@sentry/nextjs": "^10.27.0",
     "firebase": "^12.5.0",
     "firebase-admin": "^13.6.0",
