@@ -64,9 +64,7 @@ function AuthContent() {
             <div className="mb-6 rounded-2xl border border-blue-400/40 bg-blue-400/10 p-4 text-center">
               <div className="flex items-center justify-center">
                 <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mr-2"></div>
-                <p className="text-sm text-blue-100">
-                  Verifying your email...
-                </p>
+                <p className="text-sm text-blue-100">Verifying your email...</p>
               </div>
             </div>
           )}
@@ -102,8 +100,8 @@ function AuthContent() {
                   ? "Registration is currently closed for maintenance"
                   : "Create your account to get started"
                 : loginDisabled
-                  ? "Login is currently disabled for maintenance"
-                  : "Sign in to access your dashboard"}
+                ? "Login is currently disabled for maintenance"
+                : "Sign in to access your dashboard"}
             </p>
           </div>
 
@@ -156,20 +154,20 @@ function AuthContent() {
 
           {((!isSignUp && !loginDisabled) ||
             (isSignUp && !registrationClosed)) && (
-              <div className="mt-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="flex-1 h-px bg-[#2C4A3B]/10"></span>
-                  <span className="text-xs uppercase tracking-[0.3em] text-[#2C4A3B]/40 font-bold">
-                    or
-                  </span>
-                  <span className="flex-1 h-px bg-[#2C4A3B]/10"></span>
-                </div>
-                <GoogleSignInButton
-                  onClick={handleGoogleSignIn}
-                  disabled={loading}
-                />
+            <div className="mt-6">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="flex-1 h-px bg-[#2C4A3B]/10"></span>
+                <span className="text-xs uppercase tracking-[0.3em] text-[#2C4A3B]/40 font-bold">
+                  or
+                </span>
+                <span className="flex-1 h-px bg-[#2C4A3B]/10"></span>
               </div>
-            )}
+              <GoogleSignInButton
+                onClick={handleGoogleSignIn}
+                disabled={loading}
+              />
+            </div>
+          )}
 
           <div className="mt-8 pt-6 border-t border-white/40">
             <p className="text-xs text-[#1A2F25]/60 text-center">
@@ -214,7 +212,7 @@ export default function AuthPage() {
   return (
     <Suspense fallback={<div>Loading...</div>}>
       <AuthContent />
-      <GoogleSignInDebug />
+      {process.env.NODE_ENV !== "production" && <GoogleSignInDebug />}
     </Suspense>
   );
 }
