@@ -19,19 +19,16 @@ export function validateEnvironment(): void {
     process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT;
 
   if (!projectId) {
-    // Log available env vars for debugging (excluding secrets)
-    const safeEnv = Object.keys(process.env).reduce((acc, key) => {
-      if (
-        !key.includes("KEY") &&
-        !key.includes("SECRET") &&
-        !key.includes("PASS")
-      ) {
-        acc[key] = process.env[key];
-      }
-      return acc;
-    }, {} as Record<string, string | undefined>);
-
-    console.error("Missing Project ID. Available Env:", safeEnv);
+    // Dev-only, allowlisted env snapshot to help local debugging.
+    // Avoid logging arbitrary env vars (blocklists are easy to miss).
+    if (process.env.NODE_ENV !== "production") {
+      console.error("Missing Project ID. Env snapshot:", {
+        NODE_ENV: process.env.NODE_ENV,
+        GCLOUD_PROJECT: process.env.GCLOUD_PROJECT,
+        NEXT_PUBLIC_FIREBASE_PROJECT_ID:
+          process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      });
+    }
 
     throw new FirebaseAdminConfigError(
       "Missing required environment variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID or GCLOUD_PROJECT."
