@@ -3,6 +3,7 @@
 import useSWR from "swr";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { apiClient } from "@/lib/apiClient";
 import {
   DEFAULT_JOB_METRICS,
   DEFAULT_RECRUITER_METRICS,
@@ -20,18 +21,6 @@ interface UseDashboardMetricsResult {
   refreshRecruiterMetrics: () => Promise<any>;
 }
 
-const fetcher = async (url: string, token: string) => {
-  const res = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-  if (!res.ok) {
-    throw new Error("Failed to fetch metrics");
-  }
-  return res.json();
-};
-
 export function useDashboardMetrics(): UseDashboardMetricsResult {
   const { user, loading: authLoading } = useAuth();
   const { role, loading: profileLoading } = useUserProfile();
@@ -42,7 +31,7 @@ export function useDashboardMetrics(): UseDashboardMetricsResult {
   // Job Seeker Metrics SWR
   const jobMetricsKey =
     !authLoading && !profileLoading && userId && !isRecruiter
-      ? [`/api/jobseeker/metrics?userId=${userId}`, userId]
+      ? `/api/jobseeker/metrics?userId=${userId}`
       : null;
 
   const {
@@ -50,19 +39,15 @@ export function useDashboardMetrics(): UseDashboardMetricsResult {
     error: jobError,
     isLoading: jobLoading,
     mutate: mutateJob,
-  } = useSWR(
-    jobMetricsKey,
-    ([url]) => user!.getIdToken().then((token) => fetcher(url, token)),
-    {
-      dedupingInterval: 60000, // 1 minute
-      fallbackData: DEFAULT_JOB_METRICS,
-    }
-  );
+  } = useSWR(jobMetricsKey, (url) => apiClient(url), {
+    dedupingInterval: 60000, // 1 minute
+    fallbackData: DEFAULT_JOB_METRICS,
+  });
 
   // Recruiter Metrics SWR
   const recruiterMetricsKey =
     !authLoading && !profileLoading && userId && isRecruiter
-      ? [`/api/recruiter/metrics?userId=${userId}`, userId]
+      ? `/api/recruiter/metrics?userId=${userId}`
       : null;
 
   const {
@@ -70,14 +55,10 @@ export function useDashboardMetrics(): UseDashboardMetricsResult {
     error: recruiterError,
     isLoading: recruiterLoading,
     mutate: mutateRecruiter,
-  } = useSWR(
-    recruiterMetricsKey,
-    ([url]) => user!.getIdToken().then((token) => fetcher(url, token)),
-    {
-      dedupingInterval: 60000, // 1 minute
-      fallbackData: DEFAULT_RECRUITER_METRICS,
-    }
-  );
+  } = useSWR(recruiterMetricsKey, (url) => apiClient(url), {
+    dedupingInterval: 60000, // 1 minute
+    fallbackData: DEFAULT_RECRUITER_METRICS,
+  });
 
   return {
     jobSeekerMetrics: jobData

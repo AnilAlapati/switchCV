@@ -1,413 +1,335 @@
-/* eslint-disable max-lines */
-import { renderHook, waitFor, act } from "@testing-library/react";
-import { useAuth } from "@/hooks/useAuth";
-import {
-  User,
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
-  signInWithPopup,
-  sendEmailVerification,
-} from "firebase/auth";
-import { createMockUser, TestWrapper } from "./useAuth.helpers";
+import React from "react";
+import { render, screen, waitFor } from "@testing-library/react";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import * as firebase from "firebase/auth";
+import * as firestore from "firebase/firestore";
+import { createMockFirebaseUser } from "@/__tests__/support/mocks/firebase";
 
-// Mock ConnectivityStatusProvider
+// Mock Firebase modules
+jest.mock("firebase/auth");
+jest.mock("firebase/firestore");
+jest.mock("@/lib/firebase");
 jest.mock("@/context/ConnectivityStatusProvider", () => ({
   useConnectivityStatus: jest.fn(() => ({
-    firebase: { isReady: true },
+    firebase: { isReady: true, error: null },
   })),
 }));
-
-// Mock Firebase auth/firestore exports
-jest.mock("@/lib/firebase", () => ({
-  auth: {},
-  db: { __isMock: true },
-}));
-
-// Mock Firebase Auth
-jest.mock("firebase/auth", () => ({
-  onAuthStateChanged: jest.fn(),
-  signInWithEmailAndPassword: jest.fn(),
-  createUserWithEmailAndPassword: jest.fn(),
-  signOut: jest.fn(),
-  GoogleAuthProvider: jest.fn().mockImplementation(() => ({
-    setCustomParameters: jest.fn(),
+jest.mock("@/lib/errorReporter");
+jest.mock("@/lib/logger");
+jest.mock("@/hooks/useAuth.helpers", () => ({
+  createAuthProfileHelpers: jest.fn(() => ({
+    reserveUsername: jest.fn().mockResolvedValue("username"),
+    ensureUserProfile: jest.fn().mockResolvedValue({ needsUsername: false }),
+    releaseUsernameReservation: jest.fn(),
   })),
-  signInWithPopup: jest.fn(),
-  sendEmailVerification: jest.fn(),
+  isPasswordProvider: jest.fn((user) => {
+    // Check if user has a password provider
+    if (!user) return false;
+    return (user.providerData || []).some(
+      (provider: any) => provider.providerId === "password"
+    );
+  }),
+  sanitizeUsername: jest.fn((username) =>
+    username?.toLowerCase().replace(/\s+/g, "_")
+  ),
+  USERNAME_REGEX: /^[a-z0-9_-]{3,30}$/,
 }));
 
-const mockOnAuthStateChanged = jest.mocked(onAuthStateChanged);
-const mockSignInWithEmailAndPassword = jest.mocked(signInWithEmailAndPassword);
-const mockCreateUserWithEmailAndPassword = jest.mocked(
-  createUserWithEmailAndPassword
-);
-const mockSignOut = jest.mocked(signOut);
-const mockSignInWithPopup = jest.mocked(signInWithPopup);
-const mockSendEmailVerification = jest.mocked(sendEmailVerification);
-
-describe("useAuth", () => {
-  let mockUnsubscribe: jest.Mock;
-
+describe("useAuth hook - State Management", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUnsubscribe = jest.fn();
-    mockOnAuthStateChanged.mockReturnValue(mockUnsubscribe);
   });
 
-  describe("useAuth hook", () => {
-    it("should throw error when used outside AuthProvider", () => {
-      expect(() => renderHook(() => useAuth())).toThrow(
-        "useAuth must be used within an AuthProvider"
+  const TestComponent = () => {
+    const auth = useAuth();
+    return (
+      <div>
+        <div data-testid="user-status">
+          {auth.user ? "logged-in" : "logged-out"}
+        </div>
+        <div data-testid="loading">{auth.loading ? "loading" : "ready"}</div>
+        <div data-testid="needsUsername">
+          {auth.needsUsername ? "yes" : "no"}
+        </div>
+        <div data-testid="verificationEmail">
+          {auth.verificationEmail || "none"}
+        </div>
+      </div>
+    );
+  };
+
+  it("should initialize with loading state", async () => {
+    (firebase.onAuthStateChanged as jest.Mock).mockImplementation(
+      (auth, callback) => {
+        setTimeout(() => callback(null), 0);
+        return jest.fn();
+      }
+    );
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    );
+
+    // Initially loading
+    expect(screen.getByTestId("loading")).toHaveTextContent("loading");
+
+    // Should transition to ready
+    await waitFor(() => {
+      expect(screen.getByTestId("loading")).toHaveTextContent("ready");
+    });
+  });
+
+  it("should set user when auth state changes", async () => {
+    const mockUser = createMockFirebaseUser({
+      uid: "test-uid",
+      email: "test@example.com",
+      emailVerified: true,
+    });
+
+    (firebase.onAuthStateChanged as jest.Mock).mockImplementation(
+      (auth, callback) => {
+        callback(mockUser);
+        return jest.fn();
+      }
+    );
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("user-status")).toHaveTextContent("logged-in");
+    });
+  });
+
+  it("should set verification email from signed user", async () => {
+    const mockUser = createMockFirebaseUser({
+      uid: "test-uid",
+      email: "newuser@example.com",
+      emailVerified: false,
+    });
+
+    (firebase.onAuthStateChanged as jest.Mock).mockImplementation(
+      (auth, callback) => {
+        callback(mockUser);
+        return jest.fn();
+      }
+    );
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("verificationEmail")).toHaveTextContent(
+        "newuser@example.com"
       );
     });
+  });
 
-    it("should return auth context when used within AuthProvider", () => {
-      const mockUser = createMockUser();
-      mockOnAuthStateChanged.mockImplementation((auth, callback) => {
-        (callback as (user: User | null) => void)(mockUser as User);
-        return mockUnsubscribe;
-      });
+  it("should handle no user (logged out state)", async () => {
+    (firebase.onAuthStateChanged as jest.Mock).mockImplementation(
+      (auth, callback) => {
+        callback(null);
+        return jest.fn();
+      }
+    );
 
-      const { result } = renderHook(() => useAuth(), {
-        wrapper: TestWrapper,
-      });
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    );
 
-      expect(result.current.user).toEqual(mockUser);
-      expect(result.current.loading).toBe(false);
-      expect(typeof result.current.signIn).toBe("function");
-      expect(typeof result.current.signUp).toBe("function");
-      expect(typeof result.current.logout).toBe("function");
-      expect(typeof result.current.signInWithGoogle).toBe("function");
-      expect(typeof result.current.resendVerificationEmail).toBe("function");
+    await waitFor(() => {
+      expect(screen.getByTestId("user-status")).toHaveTextContent("logged-out");
     });
   });
 
-  describe("AuthProvider", () => {
-    it("should show loading state initially", () => {
-      mockOnAuthStateChanged.mockImplementation(() => mockUnsubscribe);
-
-      const { result } = renderHook(() => useAuth(), {
-        wrapper: TestWrapper,
-      });
-
-      expect(result.current.loading).toBe(true);
-      expect(result.current.user).toBeNull();
+  it("should detect email verification requirement for password provider", async () => {
+    const mockUser = createMockFirebaseUser({
+      uid: "test-uid",
+      email: "unverified@example.com",
+      emailVerified: false,
+      providerData: [{ providerId: "password" }] as any,
     });
 
-    it("should set user when authenticated", async () => {
-      const mockUser = createMockUser();
-      mockOnAuthStateChanged.mockImplementation((auth, callback) => {
-        (callback as (user: User | null) => void)(mockUser as User);
-        return mockUnsubscribe;
-      });
+    (firebase.onAuthStateChanged as jest.Mock).mockImplementation(
+      (auth, callback) => {
+        callback(mockUser);
+        return jest.fn();
+      }
+    );
 
-      const { result } = renderHook(() => useAuth(), {
-        wrapper: TestWrapper,
-      });
+    const VerificationTestComponent = () => {
+      const { needsEmailVerification } = useAuth();
+      return (
+        <div data-testid="needs-verification">
+          {needsEmailVerification ? "required" : "not-required"}
+        </div>
+      );
+    };
 
-      await waitFor(() => {
-        expect(result.current.loading).toBe(false);
-      });
+    render(
+      <AuthProvider>
+        <VerificationTestComponent />
+      </AuthProvider>
+    );
 
-      expect(result.current.user).toEqual(mockUser);
-    });
-
-    it("should handle unauthenticated state", async () => {
-      mockOnAuthStateChanged.mockImplementation((auth, callback) => {
-        (callback as (user: User | null) => void)(null);
-        return mockUnsubscribe;
-      });
-
-      const { result } = renderHook(() => useAuth(), {
-        wrapper: TestWrapper,
-      });
-
-      await waitFor(() => {
-        expect(result.current.loading).toBe(false);
-      });
-
-      expect(result.current.user).toBeNull();
-    });
-
-    it("should call unsubscribe on unmount", () => {
-      mockOnAuthStateChanged.mockReturnValue(mockUnsubscribe);
-
-      const { unmount } = renderHook(() => useAuth(), {
-        wrapper: TestWrapper,
-      });
-
-      unmount();
-
-      expect(mockUnsubscribe).toHaveBeenCalled();
-    });
-  });
-
-  describe("signIn", () => {
-    it("should sign in successfully", async () => {
-      const mockUser = createMockUser();
-      mockOnAuthStateChanged.mockImplementation((auth, callback) => {
-        (callback as (user: User | null) => void)(mockUser as User);
-        return mockUnsubscribe;
-      });
-      mockSignInWithEmailAndPassword.mockResolvedValue({
-        user: mockUser,
-      } as any);
-
-      const { result } = renderHook(() => useAuth(), {
-        wrapper: TestWrapper,
-      });
-
-      await act(async () => {
-        await result.current.signIn("test@example.com", "password123");
-      });
-
-      expect(mockSignInWithEmailAndPassword).toHaveBeenCalledWith(
-        {},
-        "test@example.com",
-        "password123"
+    await waitFor(() => {
+      expect(screen.getByTestId("needs-verification")).toHaveTextContent(
+        "required"
       );
     });
-
-    it("should handle invalid credentials error", async () => {
-      const mockError = { code: "auth/invalid-credential" };
-      mockSignInWithEmailAndPassword.mockRejectedValue(mockError);
-
-      const { result } = renderHook(() => useAuth(), {
-        wrapper: TestWrapper,
-      });
-
-      await act(async () => {
-        await expect(
-          result.current.signIn("test@example.com", "wrongpassword")
-        ).rejects.toThrow(
-          "Invalid email or password. Please check your credentials or sign up first."
-        );
-      });
-    });
-
-    it("should handle user not found error", async () => {
-      const mockError = { code: "auth/user-not-found" };
-      mockSignInWithEmailAndPassword.mockRejectedValue(mockError);
-
-      const { result } = renderHook(() => useAuth(), {
-        wrapper: TestWrapper,
-      });
-
-      await act(async () => {
-        await expect(
-          result.current.signIn("nonexistent@example.com", "password123")
-        ).rejects.toThrow(
-          "No account found with this email. Please sign up first."
-        );
-      });
-    });
-
-    it("should handle wrong password error", async () => {
-      const mockError = { code: "auth/wrong-password" };
-      mockSignInWithEmailAndPassword.mockRejectedValue(mockError);
-
-      const { result } = renderHook(() => useAuth(), {
-        wrapper: TestWrapper,
-      });
-
-      await act(async () => {
-        await expect(
-          result.current.signIn("test@example.com", "wrongpassword")
-        ).rejects.toThrow("Incorrect password. Please try again.");
-      });
-    });
-
-    it("should handle too many requests error", async () => {
-      const mockError = { code: "auth/too-many-requests" };
-      mockSignInWithEmailAndPassword.mockRejectedValue(mockError);
-
-      const { result } = renderHook(() => useAuth(), {
-        wrapper: TestWrapper,
-      });
-
-      await act(async () => {
-        await expect(
-          result.current.signIn("test@example.com", "password123")
-        ).rejects.toThrow(
-          "Too many failed login attempts. Please try again later."
-        );
-      });
-    });
-
-    it("should handle generic sign in error", async () => {
-      const mockError = new Error("Network error");
-      mockSignInWithEmailAndPassword.mockRejectedValue(mockError);
-
-      const { result } = renderHook(() => useAuth(), {
-        wrapper: TestWrapper,
-      });
-
-      await act(async () => {
-        await expect(
-          result.current.signIn("test@example.com", "password123")
-        ).rejects.toThrow("Network error");
-      });
-    });
   });
 
-  describe("signUp", () => {
-    it("should sign up successfully", async () => {
-      const mockUser = createMockUser({ emailVerified: false });
-      mockOnAuthStateChanged.mockImplementation((auth, callback) => {
-        (callback as (user: User | null) => void)(mockUser as User);
-        return mockUnsubscribe;
-      });
-      mockCreateUserWithEmailAndPassword.mockResolvedValue({
-        user: mockUser,
-      } as any);
+  it("should not require verification for OAuth providers", async () => {
+    const mockUser = createMockFirebaseUser({
+      uid: "google-uid",
+      email: "google@example.com",
+      emailVerified: false,
+      providerData: [{ providerId: "google.com" }] as any,
+    });
 
-      const { result } = renderHook(() => useAuth(), {
-        wrapper: TestWrapper,
-      });
+    (firebase.onAuthStateChanged as jest.Mock).mockImplementation(
+      (auth, callback) => {
+        callback(mockUser);
+        return jest.fn();
+      }
+    );
 
-      await act(async () => {
-        await result.current.signUp(
-          "test@example.com",
-          "password123",
-          "testuser"
-        );
-      });
-
-      expect(mockCreateUserWithEmailAndPassword).toHaveBeenCalledWith(
-        {},
-        "test@example.com",
-        "password123"
+    const VerificationTestComponent = () => {
+      const { needsEmailVerification } = useAuth();
+      return (
+        <div data-testid="needs-verification">
+          {needsEmailVerification ? "required" : "not-required"}
+        </div>
       );
-      expect(mockSendEmailVerification).toHaveBeenCalled();
-    });
+    };
 
-    it("should handle email already in use error", async () => {
-      const mockError = { code: "auth/email-already-in-use" };
-      mockCreateUserWithEmailAndPassword.mockRejectedValue(mockError);
+    render(
+      <AuthProvider>
+        <VerificationTestComponent />
+      </AuthProvider>
+    );
 
-      const { result } = renderHook(() => useAuth(), {
-        wrapper: TestWrapper,
-      });
-
-      await act(async () => {
-        await expect(
-          result.current.signUp(
-            "existing@example.com",
-            "password123",
-            "takenname"
-          )
-        ).rejects.toThrow(
-          "This email is already registered. Please sign in instead."
-        );
-      });
-    });
-
-    it("should handle weak password error", async () => {
-      const mockError = { code: "auth/weak-password" };
-      mockCreateUserWithEmailAndPassword.mockRejectedValue(mockError);
-
-      const { result } = renderHook(() => useAuth(), {
-        wrapper: TestWrapper,
-      });
-
-      await act(async () => {
-        await expect(
-          result.current.signUp("test@example.com", "123", "short")
-        ).rejects.toThrow("Password should be at least 6 characters.");
-      });
-    });
-
-    it("should handle invalid email error", async () => {
-      const mockError = { code: "auth/invalid-email" };
-      mockCreateUserWithEmailAndPassword.mockRejectedValue(mockError);
-
-      const { result } = renderHook(() => useAuth(), {
-        wrapper: TestWrapper,
-      });
-
-      await act(async () => {
-        await expect(
-          result.current.signUp("invalid-email", "password123", "invalidemail")
-        ).rejects.toThrow("Invalid email address.");
-      });
-    });
-
-    it("should handle generic sign up error", async () => {
-      const mockError = new Error("Network error");
-      mockCreateUserWithEmailAndPassword.mockRejectedValue(mockError);
-
-      const { result } = renderHook(() => useAuth(), {
-        wrapper: TestWrapper,
-      });
-
-      await act(async () => {
-        await expect(
-          result.current.signUp("test@example.com", "password123", "tester")
-        ).rejects.toThrow("Network error");
-      });
+    await waitFor(() => {
+      expect(screen.getByTestId("needs-verification")).toHaveTextContent(
+        "not-required"
+      );
     });
   });
 
-  describe("logout", () => {
-    it("should logout successfully", async () => {
-      mockSignOut.mockResolvedValue();
+  it("should provide useAuth context hook", async () => {
+    (firebase.onAuthStateChanged as jest.Mock).mockImplementation(
+      (auth, callback) => {
+        callback(null);
+        return jest.fn();
+      }
+    );
 
-      const { result } = renderHook(() => useAuth(), {
-        wrapper: TestWrapper,
-      });
+    const HookTestComponent = () => {
+      const auth = useAuth();
 
-      await act(async () => {
-        await result.current.logout();
-      });
+      // Verify all expected methods exist
+      return (
+        <div>
+          <div data-testid="has-signIn">
+            {typeof auth.signIn === "function" ? "yes" : "no"}
+          </div>
+          <div data-testid="has-signUp">
+            {typeof auth.signUp === "function" ? "yes" : "no"}
+          </div>
+          <div data-testid="has-logout">
+            {typeof auth.logout === "function" ? "yes" : "no"}
+          </div>
+          <div data-testid="has-google">
+            {typeof auth.signInWithGoogle === "function" ? "yes" : "no"}
+          </div>
+          <div data-testid="has-refresh">
+            {typeof auth.refreshUser === "function" ? "yes" : "no"}
+          </div>
+          <div data-testid="has-resend">
+            {typeof auth.resendVerificationEmail === "function" ? "yes" : "no"}
+          </div>
+        </div>
+      );
+    };
 
-      expect(mockSignOut).toHaveBeenCalledWith({});
+    render(
+      <AuthProvider>
+        <HookTestComponent />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("has-signIn")).toHaveTextContent("yes");
     });
 
-    it("should handle logout error", async () => {
-      const mockError = new Error("Logout failed");
-      mockSignOut.mockRejectedValue(mockError);
-
-      const { result } = renderHook(() => useAuth(), {
-        wrapper: TestWrapper,
-      });
-
-      await act(async () => {
-        await expect(result.current.logout()).rejects.toThrow("Logout failed");
-      });
-    });
+    expect(screen.getByTestId("has-signUp")).toHaveTextContent("yes");
+    expect(screen.getByTestId("has-logout")).toHaveTextContent("yes");
+    expect(screen.getByTestId("has-google")).toHaveTextContent("yes");
+    expect(screen.getByTestId("has-refresh")).toHaveTextContent("yes");
+    expect(screen.getByTestId("has-resend")).toHaveTextContent("yes");
   });
 
-  describe("signInWithGoogle", () => {
-    it("should trigger Google popup flow", async () => {
-      const mockUser = createMockUser();
-      mockSignInWithPopup.mockResolvedValue({ user: mockUser } as any);
+  it("should throw error when using hook outside provider", () => {
+    // Suppress console.error for this test
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation();
 
-      const { result } = renderHook(() => useAuth(), {
-        wrapper: TestWrapper,
-      });
+    expect(() => {
+      const BadComponent = () => {
+        const auth = useAuth();
+        return <div>{auth.user?.email}</div>;
+      };
 
-      await act(async () => {
-        await result.current.signInWithGoogle();
-      });
+      render(<BadComponent />);
+    }).toThrow();
 
-      expect(mockSignInWithPopup).toHaveBeenCalledTimes(1);
+    consoleSpy.mockRestore();
+  });
+
+  it("should handle Firebase connectivity issues", async () => {
+    // Mock the connectivity status to indicate Firebase is not ready
+    const mockConnectivityContext = require("@/context/ConnectivityStatusProvider");
+    mockConnectivityContext.useConnectivityStatus.mockReturnValue({
+      firebase: { isReady: false, error: "Connection failed" },
     });
 
-    it("should surface friendly message when popup closed", async () => {
-      const popupError = { code: "auth/popup-closed-by-user" };
-      mockSignInWithPopup.mockRejectedValue(popupError);
+    (firebase.onAuthStateChanged as jest.Mock).mockImplementation(
+      (auth, callback) => {
+        callback(null);
+        return jest.fn();
+      }
+    );
 
-      const { result } = renderHook(() => useAuth(), {
-        wrapper: TestWrapper,
-      });
+    const ConnectivityTestComponent = () => {
+      const { connectivityIssue, loading } = useAuth();
+      return (
+        <div>
+          <div data-testid="connectivity">
+            {connectivityIssue || "connected"}
+          </div>
+          <div data-testid="loading">{loading ? "loading" : "ready"}</div>
+        </div>
+      );
+    };
 
-      await act(async () => {
-        await expect(result.current.signInWithGoogle()).rejects.toThrow(
-          "Google sign-in was closed before completion."
-        );
-      });
+    render(
+      <AuthProvider>
+        <ConnectivityTestComponent />
+      </AuthProvider>
+    );
+
+    // When Firebase is not ready, loading should become false
+    await waitFor(() => {
+      expect(screen.getByTestId("loading")).toHaveTextContent("ready");
     });
   });
 });

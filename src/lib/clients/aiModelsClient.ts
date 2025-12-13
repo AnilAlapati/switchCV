@@ -1,4 +1,5 @@
 import type { SelectableModel, UserTier } from "@/types/ai";
+import { apiClient } from "@/lib/apiClient";
 
 interface FetchSelectableModelsOptions {
   /** User tier to request server-allowed models for */
@@ -13,17 +14,6 @@ interface SelectableModelsResponse {
   models: SelectableModel[];
 }
 
-const buildEndpoint = (userTier: UserTier, baseUrl?: string): string => {
-  const path = `/api/ai/models?tier=${encodeURIComponent(userTier)}`;
-  if (!baseUrl) {
-    return path;
-  }
-  const url = new URL(baseUrl);
-  url.pathname = "/api/ai/models";
-  url.search = `tier=${encodeURIComponent(userTier)}`;
-  return url.toString();
-};
-
 /**
  * Client-safe helper to fetch selectable AI models with strong typing.
  */
@@ -32,18 +22,25 @@ export const fetchSelectableModels = async ({
   signal,
   baseUrl,
 }: FetchSelectableModelsOptions): Promise<SelectableModel[]> => {
-  const response = await fetch(buildEndpoint(userTier, baseUrl), {
-    method: "GET",
-    signal,
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
+  const endpoint = "/api/ai/models";
+  const params = { tier: userTier };
 
-  if (!response.ok) {
-    throw new Error(`Failed to load AI models (status ${response.status})`);
+  // If baseUrl is provided, we might need to construct the full URL manually
+  // or just rely on apiClient if baseUrl matches the app's base.
+  // For now, let's assume apiClient handles the relative path correctly.
+  // If baseUrl is strictly needed (e.g. SSR), apiClient might need adjustment or we pass full URL.
+
+  let url = endpoint;
+  if (baseUrl) {
+    const urlObj = new URL(baseUrl);
+    urlObj.pathname = endpoint;
+    url = urlObj.toString();
   }
 
-  const payload = (await response.json()) as SelectableModelsResponse;
+  const payload = await apiClient<SelectableModelsResponse>(url, {
+    signal,
+    params,
+  });
+
   return payload.models;
 };
