@@ -260,41 +260,49 @@ export default function SettingsPage() {
     <DashboardBackground>
       <DashboardHeader userEmail={user.email} onLogout={handleLogout} />
 
-      <main className="relative z-10 max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-[#1A2F25]">
-            Settings & Profile
+      <main className="relative z-10 max-w-6xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+        <div className="mb-12 text-center">
+          <h1 className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-[#1A2F25] to-[#2C4A3B] tracking-tight">
+            Your Profile
           </h1>
-          <p className="text-[#1A2F25]/70 text-lg mt-2">
-            Manage your account and profile information
+          <p className="text-[#1A2F25]/60 text-lg mt-4 font-light max-w-2xl mx-auto">
+            Manage your personal information and account settings in one place.
           </p>
         </div>
 
-        <AccountInformation
-          email={user?.email}
-          resumeId={resumeId}
-          hasResume={hasResume}
-          isRecruiter={settings.isRecruiter}
-          saving={saving}
-          onRecruiterToggle={handleRecruiterToggle}
-          onCopy={handleCopyResumeId}
-        />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Left Column: Profile Details (Main Focus) */}
+          <div className="lg:col-span-7 space-y-8">
+            <ProfileDetails
+              displayName={settings.displayName}
+              companyName={settings.companyName}
+              updatedAt={settings.updatedAt}
+              showCompanyInput={showCompanyInput}
+              saving={saving}
+              onDisplayNameChange={(value) =>
+                setSettings({ ...settings, displayName: value })
+              }
+              onCompanyNameChange={(value) =>
+                setSettings({ ...settings, companyName: value })
+              }
+              onSaveDisplayName={handleSaveDisplayName}
+              onSaveCompanyName={handleSaveCompanyName}
+            />
+          </div>
 
-        <ProfileDetails
-          displayName={settings.displayName}
-          companyName={settings.companyName}
-          updatedAt={settings.updatedAt}
-          showCompanyInput={showCompanyInput}
-          saving={saving}
-          onDisplayNameChange={(value) =>
-            setSettings({ ...settings, displayName: value })
-          }
-          onCompanyNameChange={(value) =>
-            setSettings({ ...settings, companyName: value })
-          }
-          onSaveDisplayName={handleSaveDisplayName}
-          onSaveCompanyName={handleSaveCompanyName}
-        />
+          {/* Right Column: Account Info (Secondary) */}
+          <div className="lg:col-span-5 space-y-8">
+            <AccountInformation
+              email={user?.email}
+              resumeId={resumeId}
+              hasResume={hasResume}
+              isRecruiter={settings.isRecruiter}
+              saving={saving}
+              onRecruiterToggle={handleRecruiterToggle}
+              onCopy={handleCopyResumeId}
+            />
+          </div>
+        </div>
 
         {message && <Notification type={message.type} text={message.text} />}
       </main>

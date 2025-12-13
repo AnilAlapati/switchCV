@@ -141,7 +141,11 @@ export default function Dashboard() {
 
   return (
     <DashboardBackground>
-      <DashboardHeader userEmail={user.email} onLogout={handleLogout} />
+      <DashboardHeader
+        userEmail={user.email}
+        onLogout={handleLogout}
+        userRole={role}
+      />
 
       <DashboardMetricsProvider value={metricsProviderValue}>
         <main className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">

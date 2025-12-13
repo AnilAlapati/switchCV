@@ -64,15 +64,16 @@ export function UserProfileSettings() {
     setSaving(true);
     try {
       const idToken = await user.getIdToken();
-      const response = await fetch("/api/user/profile", {
-        method: "PUT",
+      // Call the role change function to properly update both role and isRecruiter
+      const response = await fetch("/api/user/update-role", {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${idToken}`,
         },
         body: JSON.stringify({
           uid: user.uid,
-          isRecruiter: checked,
+          newRole: checked ? "recruiter" : "jobseeker",
           companyName: checked ? settings.companyName : "",
         }),
       });
@@ -80,8 +81,14 @@ export function UserProfileSettings() {
       if (response.ok) {
         setSettings((prev) => ({ ...prev, isRecruiter: checked }));
         setShowCompanyInput(checked);
-        setMessage({ type: "success", text: "Account type updated!" });
-        setTimeout(() => setMessage(null), 3000);
+        setMessage({
+          type: "success",
+          text: "Account type updated! Refreshing...",
+        });
+        // Refresh the page to ensure dashboard updates immediately
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
       } else {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
@@ -285,13 +292,13 @@ export function UserProfileSettings() {
         </div>
       )}
 
-      {/* Messages */}
+      {/* Messages - Fixed Position Centered */}
       {message && (
         <div
-          className={`px-4 py-3 rounded-lg text-sm font-medium transition-all duration-300 ${
+          className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 px-8 py-6 rounded-2xl text-lg font-bold transition-all duration-300 shadow-2xl z-50 border-2 ${
             message.type === "success"
-              ? "bg-green-500/20 text-green-300 border border-green-500/30"
-              : "bg-red-500/20 text-red-300 border border-red-500/30"
+              ? "bg-blue-600 text-white border-blue-400"
+              : "bg-yellow-500 text-slate-900 border-yellow-600"
           }`}
         >
           {message.text}

@@ -1,19 +1,36 @@
 "use client";
 
 import { UserProfileMenu } from "./UserProfileMenu";
-import { NotificationsMenu } from "./NotificationsMenu";
 
 interface DashboardHeaderProps {
   userEmail?: string | null;
   onLogout: () => void;
+  userRole?: string | null;
 }
 
-export function DashboardHeader({ userEmail, onLogout }: DashboardHeaderProps) {
+export function DashboardHeader({
+  userEmail,
+  onLogout,
+  userRole,
+}: DashboardHeaderProps) {
   const formattedDate = new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
   }).format(new Date());
+
+  const getRoleDisplay = (role: string | null | undefined) => {
+    if (!role) return null;
+    const isRecruiter = role === "recruiter" || role === "admin";
+    return {
+      label: isRecruiter ? "Recruiter" : "Job Seeker",
+      color: isRecruiter
+        ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+        : "bg-blue-100 text-blue-800 border-blue-200",
+    };
+  };
+
+  const roleInfo = getRoleDisplay(userRole);
 
   return (
     <header className="relative z-50 border-b border-white/50 bg-white/30 backdrop-blur-md">
@@ -36,13 +53,23 @@ export function DashboardHeader({ userEmail, onLogout }: DashboardHeaderProps) {
               </svg>
             </div>
             <div className="space-y-1">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-blue-600">
-                  SwitchCV
-                </p>
-                <h1 className="text-2xl font-bold tracking-tight text-[#1A2F25]">
-                  Dashboard
-                </h1>
+              <div className="flex items-center gap-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-blue-600">
+                    SwitchCV
+                  </p>
+                  <h1 className="text-2xl font-bold tracking-tight text-[#1A2F25]">
+                    Dashboard
+                  </h1>
+                </div>
+                {roleInfo && (
+                  <span
+                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-bold ${roleInfo.color}`}
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-current opacity-60" />
+                    {roleInfo.label}
+                  </span>
+                )}
               </div>
               <p className="max-w-xl text-sm text-[#1A2F25]/70">
                 Surface the most actionable signals so you can respond faster.
@@ -74,7 +101,6 @@ export function DashboardHeader({ userEmail, onLogout }: DashboardHeaderProps) {
 
           {/* User Profile Menu */}
           <div className="flex items-center gap-4">
-            <NotificationsMenu />
             <UserProfileMenu userEmail={userEmail} onLogout={onLogout} />
           </div>
         </div>

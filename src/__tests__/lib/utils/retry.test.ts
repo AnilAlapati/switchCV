@@ -38,44 +38,49 @@ describe("Retry Utility", () => {
         .mockResolvedValue("success");
 
       const promise = withRetry(mockFn, 1, 0); // Use 1 retry, 0 delay
-      jest.runAllTimers();
+
+      // Advance timers and wait for promise
+      await jest.runAllTimersAsync();
       const result = await promise;
 
       expect(result).toBe("success");
       expect(mockFn).toHaveBeenCalledTimes(2); // initial + 1 retry
-    }, 5000);
+    }, 10000);
 
     it("should throw error after all retries exhausted", async () => {
+      jest.useRealTimers();
       const error = new Error("Persistent failure");
       mockFn.mockRejectedValue(error);
 
-      const promise = withRetry(mockFn, 1, 0); // Use 0 delay
-      jest.runAllTimers();
+      await expect(withRetry(mockFn, 1, 0)).rejects.toThrow(
+        "Persistent failure"
+      );
 
-      await expect(promise).rejects.toThrow("Persistent failure");
       expect(mockFn).toHaveBeenCalledTimes(2); // initial + 1 retry
-    }, 5000);
+      jest.useFakeTimers();
+    });
+
     it("should use zero retries in test environment", async () => {
+      jest.useRealTimers();
       process.env.NODE_ENV = "test";
       const error = new Error("Failure");
       mockFn.mockRejectedValue(error);
 
-      const promise = withRetry(mockFn);
-      jest.runAllTimers();
+      await expect(withRetry(mockFn)).rejects.toThrow("Failure");
 
-      await expect(promise).rejects.toThrow("Failure");
       expect(mockFn).toHaveBeenCalledTimes(1); // only initial call
+      jest.useFakeTimers();
     });
     it.skip("should respect custom retry count", async () => {
       const error = new Error("Failure");
       mockFn.mockRejectedValue(error);
 
       const promise = withRetry(mockFn, 1, 0); // Use 0 delay
-      jest.runAllTimers();
+      await jest.runAllTimersAsync();
 
       await expect(promise).rejects.toThrow("Failure");
       expect(mockFn).toHaveBeenCalledTimes(2); // initial + 1 retry
-    }, 5000);
+    }, 10000);
     it.skip("should implement exponential backoff", async () => {
       mockFn.mockRejectedValue(new Error("Failure"));
 

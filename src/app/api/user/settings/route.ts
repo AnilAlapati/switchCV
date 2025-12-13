@@ -39,8 +39,22 @@ export async function GET(request: NextRequest) {
     }
 
     const userData = userDoc.data();
+
+    // Ensure role field is in sync with isRecruiter (migration fix)
+    const isRecruiter = userData?.isRecruiter || false;
+    if (userData && userData.role === undefined) {
+      // Update the document to include the role field
+      await adminDb
+        .collection("users")
+        .doc(userId!)
+        .set(
+          { role: isRecruiter ? "recruiter" : "jobseeker" },
+          { merge: true }
+        );
+    }
+
     const settings = {
-      isRecruiter: userData?.isRecruiter || false,
+      isRecruiter,
       displayName: userData?.displayName || "",
       companyName: userData?.companyName || "",
       updatedAt: userData?.settingsUpdatedAt || new Date().toISOString(),
@@ -102,6 +116,8 @@ export async function PUT(request: NextRequest) {
     // Only add fields that were explicitly provided
     if (typeof isRecruiter === "boolean") {
       updateData.isRecruiter = isRecruiter;
+      // Also update the role field to keep them in sync
+      updateData.role = isRecruiter ? "recruiter" : "jobseeker";
     }
     if (companyName !== undefined && companyName !== null) {
       updateData.companyName = companyName;

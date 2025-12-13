@@ -23,14 +23,14 @@ export function HomeWorkflow() {
     <section aria-labelledby="workflow-heading" className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-          <p className="text-sm uppercase tracking-[0.3em] text-purple-300">
+          <p className="text-sm uppercase tracking-[0.3em] text-purple-700 font-semibold">
             Workflow
           </p>
           <h2 id="workflow-heading" className="text-3xl font-bold">
             Launch a tailored resume in three focused steps.
           </h2>
         </div>
-        <p className="text-slate-300 max-w-xl">
+        <p className="text-slate-800 font-medium max-w-xl leading-relaxed">
           SwitchCV adapts to however you work—start from a blank canvas or let
           AI guide you through a conversation to build your resume.
         </p>
@@ -42,12 +42,16 @@ export function HomeWorkflow() {
             className={`rounded-3xl glass-panel bg-gradient-to-br ${step.accent} p-6 backdrop-blur-xl`}
           >
             <div className="flex items-center justify-between mb-4">
-              <span className="text-sm text-[#1A2F25]/60">Step {index + 1}</span>
+              <span className="text-sm text-[#1A2F25]/60">
+                Step {index + 1}
+              </span>
               <span className="w-9 h-9 rounded-2xl bg-[#2C4A3B]/10 flex items-center justify-center text-[#1A2F25]/80 font-bold">
                 {index + 1}
               </span>
             </div>
-            <h3 className="text-xl font-bold text-[#1A2F25] mb-2">{step.title}</h3>
+            <h3 className="text-xl font-bold text-[#1A2F25] mb-2">
+              {step.title}
+            </h3>
             <p className="text-[#1A2F25]/70 text-sm leading-relaxed">
               {step.description}
             </p>
