@@ -7,13 +7,16 @@ import { useAuth } from "@/hooks/useAuth";
 import { useTier } from "@/hooks/useTier";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useRouter } from "next/navigation";
+import { DashboardBackground } from "@/components/dashboard/DashboardBackground";
 import { CreateResumeHeader } from "@/components/create-resume/CreateResumeHeader";
 import { CreateResumeInputForm } from "@/components/create-resume/CreateResumeInputForm";
 import { AILoadingState } from "@/components/create-resume/AILoadingState";
 import { ResumeProgress } from "@/components/create-resume/ResumeProgress";
 import { getVerificationRoute } from "@/lib/config";
+import { Bot, User } from "lucide-react";
 
 const VERIFICATION_ROUTE = getVerificationRoute();
+const SESSION_KEY = "resume_creation_session";
 
 interface Message {
   id: string;
@@ -54,6 +57,42 @@ export default function CreateResume() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const loading = authLoading || profileLoading;
+
+  // Load session on mount
+  useEffect(() => {
+    const savedSession = localStorage.getItem(SESSION_KEY);
+    if (savedSession) {
+      try {
+        const parsed = JSON.parse(savedSession);
+        if (parsed.messages) {
+          setMessages(
+            parsed.messages.map((m: any) => ({
+              ...m,
+              timestamp: new Date(m.timestamp),
+            }))
+          );
+        }
+        if (parsed.stage) setStage(parsed.stage);
+        if (parsed.sessionData) setSessionData(parsed.sessionData);
+        if (parsed.progress) setProgress(parsed.progress);
+      } catch {
+        // Failed to restore session, continue with defaults
+      }
+    }
+  }, []);
+
+  // Save session on change
+  useEffect(() => {
+    if (messages.length > 0 || stage !== "input" || progress > 0) {
+      const sessionToSave = {
+        messages,
+        stage,
+        sessionData,
+        progress,
+      };
+      localStorage.setItem(SESSION_KEY, JSON.stringify(sessionToSave));
+    }
+  }, [messages, stage, sessionData, progress]);
 
   const scrollToBottom = () => {
     // Guard against environments (like some test runners) where
@@ -172,6 +211,7 @@ export default function CreateResume() {
 
       if (data.resumeId) {
         setStage("complete");
+        localStorage.removeItem(SESSION_KEY);
         // Show success message and redirect after a moment
         setTimeout(() => {
           // Redirect to singular `/resumes/:id` route (legacy/test expectation)
@@ -183,9 +223,116 @@ export default function CreateResume() {
       }
     } catch (error) {
       logger.error({ err: error }, "Error generating resume:");
-      setAiError(
-        error instanceof Error ? error.message : "Unknown error occurred"
-      );
+      let errorMessage = "An unexpected error occurred. Please try again.";
+      if (error instanceof Error) {
+        if (error.message.includes("401"))
+          errorMessage = "Your session has expired. Please refresh the page.";
+        else if (error.message.includes("429"))
+          errorMessage =
+            "You're sending messages too fast. Please wait a moment.";
+        else if (error.message.includes("500"))
+          errorMessage =
+            "Our AI service is having a hiccup. Please try again in a minute.";
+        else if (
+          error.message.includes("fetch") ||
+          error.message.includes("Network")
+        )
+          errorMessage =
+            "Network error. Please check your internet connection.";
+        else errorMessage = error.message;
+      }
+      setAiError(errorMessage);
+      setStage("input");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleForceCreate = async () => {
+    if (!user) return;
+
+    const forceMessage = "Create my resume now";
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      content: forceMessage,
+      isUser: true,
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setAiLoading(true);
+    setAiError(null);
+    setStage("generating");
+
+    try {
+      const idToken = await user.getIdToken();
+      const response = await fetch("/api/resume/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          message: forceMessage,
+          conversationHistory: messages,
+          sessionData,
+          modelId: selectedModelId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to generate resume: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: data.response || "Resume generated successfully!",
+        isUser: false,
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, aiMessage]);
+
+      if (data.sessionData) {
+        setSessionData(data.sessionData);
+      }
+
+      if (data.progress !== undefined) {
+        setProgress(data.progress);
+      }
+
+      if (data.resumeId) {
+        setStage("complete");
+        localStorage.removeItem(SESSION_KEY);
+        setTimeout(() => {
+          router.push(`/resumes/${data.resumeId}`);
+        }, 2000);
+      } else {
+        setStage("input");
+      }
+    } catch (error) {
+      logger.error({ err: error }, "Error generating resume:");
+      let errorMessage = "An unexpected error occurred. Please try again.";
+      if (error instanceof Error) {
+        if (error.message.includes("401"))
+          errorMessage = "Your session has expired. Please refresh the page.";
+        else if (error.message.includes("429"))
+          errorMessage =
+            "You're sending messages too fast. Please wait a moment.";
+        else if (error.message.includes("500"))
+          errorMessage =
+            "Our AI service is having a hiccup. Please try again in a minute.";
+        else if (
+          error.message.includes("fetch") ||
+          error.message.includes("Network")
+        )
+          errorMessage =
+            "Network error. Please check your internet connection.";
+        else errorMessage = error.message;
+      }
+      setAiError(errorMessage);
       setStage("input");
     } finally {
       setAiLoading(false);
@@ -216,17 +363,17 @@ export default function CreateResume() {
   const shouldShowProgress = progress > 0;
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900 text-white">
+    <DashboardBackground>
       <CreateResumeHeader aiConnectionStatus={aiConnectionStatus} />
 
       {isPremiumOrHigher && availableModels.length > 0 && (
         <div className="max-w-4xl mx-auto px-4 mt-4 flex justify-end">
-          <div className="flex items-center gap-2 text-sm text-gray-300">
-            <span className="text-gray-400">Model:</span>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span>Model:</span>
             <select
               value={selectedModelId || ""}
               onChange={(e) => setSelectedModelId(e.target.value || undefined)}
-              className="bg-gray-800 border border-gray-700 text-sm rounded-md px-3 py-1 text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              className="bg-card border border-border text-sm rounded-md px-3 py-1 text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option value="">Auto (recommended)</option>
               {availableModels.map((model) => (
@@ -244,7 +391,7 @@ export default function CreateResume() {
           <div className="pointer-events-auto">
             <ResumeProgress
               {...resumeProgressProps}
-              className="border-cyan-500/30 shadow-[0_25px_80px_rgba(6,182,212,0.35)]"
+              className="border-primary/30 shadow-lg bg-card/80 backdrop-blur-md"
             />
           </div>
         </div>
@@ -258,64 +405,93 @@ export default function CreateResume() {
 
       <div className="max-w-4xl mx-auto p-4">
         {/* Messages/Chat History */}
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-2xl border border-gray-700/50 mb-4 min-h-[400px] max-h-[600px] overflow-y-auto p-6 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-600 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-gray-500">
+        <div
+          className="bg-card/50 backdrop-blur-md rounded-3xl shadow-xl border border-white/20 mb-6 min-h-[500px] max-h-[650px] overflow-y-auto p-6 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary/50"
+          tabIndex={0}
+          role="log"
+          aria-live="polite"
+          aria-label="Chat history"
+        >
           {messages.length === 0 ? (
-            <div className="text-center text-gray-400 py-12">
-              <div className="mb-6">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full mb-4">
-                  <svg
-                    className="w-8 h-8 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
-                  </svg>
+            <div className="text-center text-muted-foreground py-16 flex flex-col items-center justify-center h-full">
+              <div className="mb-8 relative">
+                <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse"></div>
+                <div className="relative inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-primary to-emerald-600 rounded-2xl shadow-lg mb-4 transform rotate-3 transition-transform hover:rotate-0 duration-300">
+                  <Bot className="w-10 h-10 text-white" />
                 </div>
               </div>
-              <p className="text-xl font-semibold mb-3 text-white">
+              <h2 className="text-2xl font-bold mb-3 text-foreground">
                 Let's Build Your Perfect Resume
-              </p>
-              <p className="text-gray-400 max-w-md mx-auto">
+              </h2>
+              <p className="text-muted-foreground max-w-md mx-auto text-lg leading-relaxed">
                 Tell me about your experience, skills, education, or what kind
                 of job you're targeting. I'll help you create a professional
                 resume.
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-6">
               {messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex ${
+                  className={`flex items-end gap-3 ${
                     message.isUser ? "justify-end" : "justify-start"
                   }`}
                 >
+                  {!message.isUser && (
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 border border-primary/20">
+                      <Bot className="w-5 h-5 text-primary" />
+                    </div>
+                  )}
+
                   <div
-                    className={`max-w-[80%] p-4 rounded-2xl shadow-lg ${
+                    className={`max-w-[80%] p-5 rounded-2xl shadow-sm ${
                       message.isUser
-                        ? "bg-gradient-to-br from-cyan-500 to-blue-600 text-white"
-                        : "bg-gray-700/80 backdrop-blur-sm text-gray-100 border border-gray-600/50"
+                        ? "bg-primary text-primary-foreground rounded-br-none"
+                        : "bg-white/60 backdrop-blur-sm text-foreground border border-white/40 rounded-bl-none"
                     }`}
                   >
-                    <p className="whitespace-pre-wrap">{message.content}</p>
-                    <p className="text-xs opacity-70 mt-1">
-                      {message.timestamp.toLocaleTimeString()}
+                    <p className="whitespace-pre-wrap leading-relaxed">
+                      {message.content}
+                    </p>
+                    <p
+                      className={`text-[10px] mt-2 ${
+                        message.isUser
+                          ? "text-primary-foreground/70"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {message.timestamp.toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </p>
                   </div>
+
+                  {message.isUser && (
+                    <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center flex-shrink-0 border border-emerald-500/20">
+                      <User className="w-5 h-5 text-emerald-600" />
+                    </div>
+                  )}
                 </div>
               ))}
+              <AILoadingState aiLoading={aiLoading} aiError={aiError} />
               <div ref={messagesEndRef} />
             </div>
           )}
         </div>
 
-        <AILoadingState aiLoading={aiLoading} aiError={aiError} />
+        {progress >= 60 && stage !== "complete" && !aiLoading && (
+          <div className="flex justify-center mb-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <button
+              onClick={handleForceCreate}
+              aria-label="Create resume now"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-full shadow-lg font-semibold flex items-center gap-2 transition-all hover:scale-105 text-sm border border-emerald-500/50"
+            >
+              <span>✨ Create Resume Now</span>
+            </button>
+          </div>
+        )}
 
         <CreateResumeInputForm
           currentInput={currentInput}
@@ -324,6 +500,6 @@ export default function CreateResume() {
           stage={stage}
         />
       </div>
-    </div>
+    </DashboardBackground>
   );
 }

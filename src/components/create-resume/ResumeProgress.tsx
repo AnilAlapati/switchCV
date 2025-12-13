@@ -26,10 +26,10 @@ export function ResumeProgress({
     missingFields.length > 0 && missingFields.length <= 5;
 
   const containerClassName = [
-    "group relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-gray-900/80 backdrop-blur-xl text-white shadow-[0_20px_60px_rgba(0,0,0,0.55)] transition-all duration-500",
+    "group relative overflow-hidden rounded-2xl border border-primary/20 bg-card/80 backdrop-blur-xl text-foreground shadow-lg transition-all duration-500",
     isMinimized
       ? "w-16 h-16 p-0 hover:scale-110 cursor-pointer rounded-full"
-      : "w-full lg:w-52 p-4 hover:-translate-y-1 hover:shadow-[0_25px_70px_rgba(6,182,212,0.25)]",
+      : "w-full lg:w-52 p-4 hover:-translate-y-1 hover:shadow-xl",
     className,
   ]
     .filter((value): value is string => Boolean(value))
@@ -52,7 +52,7 @@ export function ResumeProgress({
               stroke="currentColor"
               strokeWidth="4"
               fill="transparent"
-              className="text-gray-800"
+              className="text-muted/20"
             />
             <circle
               cx="50%"
@@ -63,15 +63,15 @@ export function ResumeProgress({
               fill="transparent"
               strokeDasharray={2 * Math.PI * 24}
               strokeDashoffset={2 * Math.PI * 24 * (1 - clampedProgress / 100)}
-              className="text-cyan-500 transition-all duration-1000 ease-out"
+              className="text-primary transition-all duration-1000 ease-out"
               strokeLinecap="round"
             />
           </svg>
-          <span className="absolute text-[10px] font-bold text-white">
+          <span className="absolute text-[10px] font-bold text-primary">
             {clampedProgress}%
           </span>
         </div>
-        <div className="absolute inset-0 rounded-full bg-cyan-500/10 blur-md" />
+        <div className="absolute inset-0 rounded-full bg-primary/10 blur-md" />
       </button>
     );
   }
@@ -80,10 +80,14 @@ export function ResumeProgress({
     <section
       className={containerClassName}
       aria-label="Resume progress overview"
+      role="progressbar"
+      aria-valuenow={clampedProgress}
+      aria-valuemin={0}
+      aria-valuemax={100}
     >
       <button
         onClick={() => setIsMinimized(true)}
-        className="absolute top-2 right-2 z-20 rounded-full p-1 text-gray-400 hover:bg-white/10 hover:text-white transition-colors"
+        className="absolute top-2 right-2 z-20 rounded-full p-1 text-muted-foreground hover:bg-black/5 hover:text-foreground transition-colors"
         aria-label="Minimize"
       >
         <svg
@@ -102,33 +106,28 @@ export function ResumeProgress({
       </button>
 
       <div className="pointer-events-none absolute inset-0 opacity-70">
-        <div className="absolute -top-16 -right-8 h-44 w-44 rounded-full bg-cyan-500/30 blur-3xl" />
-        <div className="absolute -bottom-20 -left-6 h-40 w-40 rounded-full bg-blue-500/20 blur-3xl" />
-        <div
-          className="absolute inset-0 opacity-40"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 20% 20%, rgba(59,130,246,0.2), transparent 55%), radial-gradient(circle at 80% 30%, rgba(6,182,212,0.25), transparent 55%)",
-          }}
-        />
+        <div className="absolute -top-16 -right-8 h-44 w-44 rounded-full bg-primary/10 blur-3xl" />
+        <div className="absolute -bottom-20 -left-6 h-40 w-40 rounded-full bg-emerald-500/10 blur-3xl" />
       </div>
 
       <div className="relative z-10 space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-gray-400">
+            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
               Resume Progress
             </p>
-            <p className="text-lg font-semibold text-white/90">
+            <p className="text-lg font-semibold text-foreground">
               You're on track—keep going!
             </p>
           </div>
           <div className="text-right">
-            <p className="text-3xl font-black text-cyan-300 drop-shadow-sm">
+            <p className="text-3xl font-black text-primary drop-shadow-sm">
               {clampedProgress}
-              <span className="ml-1 text-base align-top text-cyan-100">%</span>
+              <span className="ml-1 text-base align-top text-primary/70">
+                %
+              </span>
             </p>
-            <p className="text-xs uppercase tracking-widest text-gray-400">
+            <p className="text-xs uppercase tracking-widest text-muted-foreground">
               Complete
             </p>
           </div>
@@ -136,9 +135,9 @@ export function ResumeProgress({
 
         {/* Progress bar */}
         <div className="space-y-2">
-          <div className="relative h-3 w-full overflow-hidden rounded-full bg-gray-800/80">
+          <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted/50">
             <div
-              className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 shadow-[0_0_25px_rgba(34,211,238,0.5)] transition-[width] duration-500 ease-out"
+              className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-primary via-emerald-500 to-teal-500 shadow-lg transition-[width] duration-500 ease-out"
               style={{ width: `${clampedProgress}%` }}
             >
               <div className="absolute inset-0 opacity-30 mix-blend-screen">
@@ -146,12 +145,12 @@ export function ResumeProgress({
               </div>
             </div>
             <div
-              className="absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full border-4 border-blue-500/50 bg-white shadow-[0_0_15px_rgba(59,130,246,0.9)] transition-all duration-500"
+              className="absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full border-4 border-primary/50 bg-white shadow-lg transition-all duration-500"
               style={{ left: `calc(${indicatorPosition}% - 10px)` }}
               aria-hidden="true"
             />
           </div>
-          <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.2em] text-gray-500">
+          <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
             <span>Start</span>
             <span>Finish</span>
           </div>
@@ -159,16 +158,16 @@ export function ResumeProgress({
 
         {/* Collected fields */}
         {showCollectedFields && (
-          <div className="rounded-xl border border-green-500/20 bg-green-500/5 p-3">
-            <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-green-300">
-              <span className="inline-block h-2 w-2 rounded-full bg-green-300 animate-pulse" />
+          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+            <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-emerald-600">
+              <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
               ✓ Collected:
             </p>
             <div className="flex flex-wrap gap-2">
               {collectedFields.map((field) => (
                 <span
                   key={field}
-                  className="rounded-lg border border-green-500/30 bg-green-900/20 px-2 py-1 text-xs text-green-100"
+                  className="rounded-lg border border-emerald-500/30 bg-emerald-100/50 px-2 py-1 text-xs text-emerald-700"
                 >
                   {field}
                 </span>
@@ -180,15 +179,15 @@ export function ResumeProgress({
         {/* Missing fields */}
         {showMissingFields && (
           <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
-            <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-amber-200">
-              <span className="inline-block h-2 w-2 rounded-full bg-amber-300 animate-pulse" />
+            <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-amber-600">
+              <span className="inline-block h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
               ⏳ Still need:
             </p>
             <div className="flex flex-wrap gap-2">
               {missingFields.slice(0, 5).map((field) => (
                 <span
                   key={field}
-                  className="rounded-lg border border-amber-400/30 bg-slate-800/80 px-2 py-1 text-xs text-amber-100"
+                  className="rounded-lg border border-amber-400/30 bg-amber-100/50 px-2 py-1 text-xs text-amber-700"
                 >
                   {field}
                 </span>
@@ -199,7 +198,7 @@ export function ResumeProgress({
 
         {/* Completion message */}
         {clampedProgress >= 100 && (
-          <div className="rounded-2xl border border-emerald-500/40 bg-gradient-to-r from-emerald-900/40 to-cyan-900/40 p-3 text-center text-sm font-semibold text-emerald-200">
+          <div className="rounded-2xl border border-emerald-500/40 bg-gradient-to-r from-emerald-100 to-teal-100 p-3 text-center text-sm font-semibold text-emerald-700">
             ✨ All information collected! Creating your resume...
           </div>
         )}

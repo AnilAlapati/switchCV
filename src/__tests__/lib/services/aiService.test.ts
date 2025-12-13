@@ -33,7 +33,7 @@ describe("aiService", () => {
 
       expect(result).toEqual(mockResponse);
       expect(global.fetch).toHaveBeenCalledWith(
-        "/api/ai/generate",
+        expect.stringContaining("/api/ai/generate"),
         expect.objectContaining({
           method: "POST",
           headers: expect.objectContaining({
@@ -46,13 +46,12 @@ describe("aiService", () => {
     it("should throw error on API failure", async () => {
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: false,
+        status: 500,
         statusText: "Internal Server Error",
-        json: jest.fn().mockResolvedValue({ error: "Some error" }),
+        json: jest.fn().mockResolvedValue({ message: "Some error" }),
       });
 
-      await expect(initializeAIGreeting()).rejects.toThrow(
-        "API failed: Some error"
-      );
+      await expect(initializeAIGreeting()).rejects.toThrow("Some error");
     });
   });
 

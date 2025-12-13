@@ -1,12 +1,5 @@
 "use client";
 
-interface CreateResumeInputFormProps {
-  currentInput: string;
-  onInputChange: (value: string) => void;
-  onSubmit: (e: React.FormEvent) => void;
-  stage: string;
-}
-
 import { useRef, useEffect } from "react";
 
 interface CreateResumeInputFormProps {
@@ -38,14 +31,28 @@ export function CreateResumeInputForm({
     }
   };
 
+  const handleFocus = () => {
+    // Small delay to allow keyboard to appear
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }
+    }, 300);
+  };
+
   return (
-    <div className="p-4 border-t border-gray-700/50 bg-gray-800/20 backdrop-blur-sm rounded-b-xl">
+    <div className="p-4 border-t border-white/20 bg-card/50 backdrop-blur-md rounded-b-3xl">
       <form onSubmit={onSubmit} className="flex space-x-3 items-end">
         <textarea
           ref={textareaRef}
           value={currentInput}
           onChange={(e) => onInputChange(e.target.value)}
           onKeyDown={handleKeyDown}
+          onFocus={handleFocus}
+          aria-label="Message input"
           placeholder={
             stage === "generating"
               ? "✨ Generating your resume..."
@@ -53,13 +60,14 @@ export function CreateResumeInputForm({
               ? "✓ Resume ready! Check above."
               : "Tell me about your experience, skills, or job goals..."
           }
-          className="flex-1 p-4 bg-gray-800/80 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all resize-none min-h-[80px] max-h-[200px] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-600 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-gray-500"
+          className="flex-1 p-4 bg-white/50 border border-white/40 rounded-2xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all resize-none min-h-[80px] max-h-[200px] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/40"
           disabled={stage === "generating" || stage === "complete"}
           rows={3}
         />
         <button
           type="submit"
-          className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 rounded-xl font-semibold shadow-lg hover:shadow-cyan-500/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98] h-[80px]"
+          aria-label="Send message"
+          className="px-8 py-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-2xl font-semibold shadow-lg hover:shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98] h-[80px]"
           disabled={
             !currentInput.trim() ||
             stage === "generating" ||
