@@ -1,6 +1,6 @@
 {
   "name": "switchcv",
-  "version": "0.0.67",
+  "version": "0.0.69",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -22,6 +22,7 @@
     "cleanup": "bash scripts/auto-maintain.sh",
     "setup:dev": "bash scripts/setup-dev-env.sh",
     "deploy:cloud": "bash scripts/deploy-sync.sh",
+    "deploy:prod": "bash scripts/deploy-prod.sh",
     "env:dev": "bash scripts/switch-env.sh dev",
     "env:prod": "bash scripts/switch-env.sh prod",
     "health-check": "bash scripts/check-repo-health.sh",

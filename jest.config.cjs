@@ -8,12 +8,25 @@ module.exports = {
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
     'server-only': path.resolve(__dirname, 'test/mocks/server-only.ts'),
   },
-  collectCoverageFrom: ['src/**/*.{js,jsx,ts,tsx}', '!src/**/*.d.ts'],
+  collectCoverageFrom: [
+    'src/**/*.{js,jsx,ts,tsx}',
+    '!src/**/*.d.ts',
+    '!src/app/vibe-concepts/**',
+    '!src/**/*.test.{ts,tsx}',
+    '!src/**/*.spec.{ts,tsx}',
+  ],
   testMatch: [
     '<rootDir>/src/**/__tests__/**/*.{test,spec}.{js,jsx,ts,tsx}',
     '<rootDir>/src/**/*.{test,spec}.{js,jsx,ts,tsx}',
   ],
-  testPathIgnorePatterns: ['<rootDir>/src/__tests__/__support__/'],
+  testPathIgnorePatterns: [
+    '<rootDir>/src/__tests__/__support__/',
+    '<rootDir>/node_modules/',
+  ],
+  coveragePathIgnorePatterns: [
+    '<rootDir>/node_modules/',
+    '<rootDir>/src/app/vibe-concepts/',
+  ],
   transform: {
     '^.+\\.(js|jsx|ts|tsx)$': '<rootDir>/jest-preprocessor.js',
   },
