@@ -2,6 +2,29 @@ import { withRetry } from "@/lib/utils/retry";
 import { logger } from "@/lib/logger";
 import { getConstants } from "@/lib/getSystemConfig";
 
+const AI_REQUEST_TIMEOUT = 30000; // 30 seconds
+
+/**
+ * Helper to fetch with timeout
+ */
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), AI_REQUEST_TIMEOUT);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 /**
  * Gemini API model response structure
  */
@@ -83,7 +106,7 @@ async function getAvailableGeminiModels(apiKey: string): Promise<string[]> {
     inflightModelFetch = (async () => {
       try {
         const response = await withRetry(() =>
-          fetch(
+          fetchWithTimeout(
             `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`
           )
         );
@@ -223,7 +246,7 @@ async function generateWithGemini(
     let response: Response;
     try {
       response = await withRetry(() =>
-        fetch(
+        fetchWithTimeout(
           `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${apiKey}`,
           {
             method: "POST",
@@ -301,7 +324,7 @@ async function generateWithOpenAI(
   const model = "gpt-4o-mini"; // Fast and cheap
 
   const response = await withRetry(() =>
-    fetch("https://api.openai.com/v1/chat/completions", {
+    fetchWithTimeout("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -351,7 +374,7 @@ async function generateWithGroq(
   const model = "llama-3.3-70b-versatile"; // Fast and free tier available
 
   const response = await withRetry(() =>
-    fetch("https://api.groq.com/openai/v1/chat/completions", {
+    fetchWithTimeout("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -400,20 +423,23 @@ async function generateWithHuggingFace(
 
   // HuggingFace Inference API - using text-generation endpoint
   const response = await withRetry(() =>
-    fetch("https://router.huggingface.co/models/google/flan-t5-base", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        inputs: prompt,
-        parameters: {
-          max_new_tokens: maxTokens,
-          temperature,
+    fetchWithTimeout(
+      "https://router.huggingface.co/models/google/flan-t5-base",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
-      }),
-    })
+        body: JSON.stringify({
+          inputs: prompt,
+          parameters: {
+            max_new_tokens: maxTokens,
+            temperature,
+          },
+        }),
+      }
+    )
   );
 
   if (!response.ok) {
