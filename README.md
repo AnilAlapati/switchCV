@@ -1,6 +1,6 @@
 # SwitchCV
 
-A modern resume creation and recruitment platform built with Next.js 15, Firebase, and AI-powered features.
+A modern resume creation and recruitment platform built with Next.js 16, Firebase, and AI-powered features.
 
 ## 🚀 Quick Start
 
@@ -144,7 +144,7 @@ npm run test:coverage # With coverage report
 
 ## 🛠️ Key Technologies
 
-- **Frontend:** Next.js 15, React 19, TailwindCSS
+- **Frontend:** Next.js 16, React 19, TailwindCSS
 - **Backend:** Firebase (Auth, Firestore, Functions)
 - **AI:** Google Gemini (embeddings + generation)
 - **Testing:** Jest, React Testing Library
