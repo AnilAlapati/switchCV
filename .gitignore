@@ -71,3 +71,14 @@ functions/lib/
 # logs
 test-output.log
 key.json
+
+# Additional secret files
+*.key
+*.p12
+*.pem
+secrets.json
+config.local.json
+firebase-service-account.json
+service-account.json
+credentials.json
+auth.json
