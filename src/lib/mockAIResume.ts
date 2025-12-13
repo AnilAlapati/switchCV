@@ -77,6 +77,9 @@ export function generateMockEnhancedResume(
   currentCompany: string,
   skills: string[]
 ): MockEnhancedResumeContent {
+  // Ensure skills is an array
+  const safeSkills = Array.isArray(skills) ? skills : [];
+
   // Generate enhanced summary
   const template =
     summaryTemplates[Math.floor(Math.random() * summaryTemplates.length)];
@@ -84,8 +87,8 @@ export function generateMockEnhancedResume(
     .replace("{role}", currentRole || "Professional")
     .replace("{years}", "7+")
     .replace("{industry}", "technology and innovation")
-    .replace("{skill1}", skills[0] || "leadership")
-    .replace("{skill2}", skills[1] || "problem-solving");
+    .replace("{skill1}", safeSkills[0] || "leadership")
+    .replace("{skill2}", safeSkills[1] || "problem-solving");
 
   // Generate enhanced experience
   const enhancedExperience = [
@@ -103,23 +106,23 @@ export function generateMockEnhancedResume(
           metrics[Math.floor(Math.random() * metrics.length)]
         }`,
         `Led implementation of new ${
-          skills[0] || "technical"
+          safeSkills[0] || "technical"
         } solutions resulting in improved outcomes`,
         "Mentored junior team members and contributed to professional growth",
       ],
       enhancedDescription: `Strategic ${currentRole || "professional"} at ${
         currentCompany || "organization"
       } focused on ${
-        skills[0] || "innovation"
+        safeSkills[0] || "innovation"
       }. Demonstrated strong leadership in managing multiple initiatives simultaneously, with consistent delivery of results-driven outcomes. Expertise in leveraging ${
-        skills[1] || "technology"
+        safeSkills[1] || "technology"
       } to solve complex business challenges.`,
     },
   ];
 
   // Suggest additional skills
   const skillSuggestions = recommendedSkills
-    .filter((s) => !skills.includes(s))
+    .filter((s) => !safeSkills.includes(s))
     .slice(0, 5);
 
   // Generate improvement tips

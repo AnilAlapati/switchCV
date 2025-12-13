@@ -145,18 +145,155 @@ describe("useSkillInventory", () => {
     expect(searchResults).toEqual(["React"]);
   });
 
-  it("should get stats", () => {
+  it("should handle add skill error", () => {
     const { result } = renderHook(() => useSkillInventory(mockUserId));
     act(() => {
       result.current.initialize();
     });
 
-    const mockStats = { total: 10 };
-    (skillInventoryLib.getSkillStatistics as jest.Mock).mockReturnValue(
-      mockStats
+    (skillInventoryLib.createSkill as jest.Mock).mockImplementation(() => {
+      throw new Error("Create skill failed");
+    });
+
+    act(() => {
+      result.current.addSkill(
+        "React",
+        SkillCategory.TECHNICAL,
+        ProficiencyLevel.EXPERT
+      );
+    });
+
+    expect(result.current.error).toBe("Create skill failed");
+  });
+
+  it("should handle add skill error with non-Error object", () => {
+    const { result } = renderHook(() => useSkillInventory(mockUserId));
+    act(() => {
+      result.current.initialize();
+    });
+
+    (skillInventoryLib.createSkill as jest.Mock).mockImplementation(() => {
+      throw "String error";
+    });
+
+    act(() => {
+      result.current.addSkill(
+        "React",
+        SkillCategory.TECHNICAL,
+        ProficiencyLevel.EXPERT
+      );
+    });
+
+    expect(result.current.error).toBe("Failed to add skill");
+  });
+
+  it("should handle update skill error", () => {
+    const { result } = renderHook(() => useSkillInventory(mockUserId));
+    act(() => {
+      result.current.initialize();
+    });
+
+    (skillInventoryLib.updateSkillProficiency as jest.Mock).mockImplementation(
+      () => {
+        throw new Error("Update skill failed");
+      }
     );
 
+    act(() => {
+      result.current.updateSkill("skill1", ProficiencyLevel.INTERMEDIATE);
+    });
+
+    expect(result.current.error).toBe("Update skill failed");
+  });
+
+  it("should handle update skill error with non-Error object", () => {
+    const { result } = renderHook(() => useSkillInventory(mockUserId));
+    act(() => {
+      result.current.initialize();
+    });
+
+    (skillInventoryLib.updateSkillProficiency as jest.Mock).mockImplementation(
+      () => {
+        throw { customError: true };
+      }
+    );
+
+    act(() => {
+      result.current.updateSkill("skill1", ProficiencyLevel.INTERMEDIATE);
+    });
+
+    expect(result.current.error).toBe("Failed to update skill");
+  });
+
+  it("should handle remove skill error", () => {
+    const { result } = renderHook(() => useSkillInventory(mockUserId));
+    act(() => {
+      result.current.initialize();
+    });
+
+    (
+      skillInventoryLib.removeSkillFromInventory as jest.Mock
+    ).mockImplementation(() => {
+      throw new Error("Remove skill failed");
+    });
+
+    act(() => {
+      result.current.removeSkill("skill1");
+    });
+
+    expect(result.current.error).toBe("Remove skill failed");
+  });
+
+  it("should handle remove skill error with non-Error object", () => {
+    const { result } = renderHook(() => useSkillInventory(mockUserId));
+    act(() => {
+      result.current.initialize();
+    });
+
+    (
+      skillInventoryLib.removeSkillFromInventory as jest.Mock
+    ).mockImplementation(() => {
+      throw null;
+    });
+
+    act(() => {
+      result.current.removeSkill("skill1");
+    });
+
+    expect(result.current.error).toBe("Failed to remove skill");
+  });
+
+  it("should fail to update skill if not initialized", () => {
+    const { result } = renderHook(() => useSkillInventory(mockUserId));
+
+    act(() => {
+      result.current.updateSkill("skill1", ProficiencyLevel.INTERMEDIATE);
+    });
+
+    expect(result.current.error).toBe("Inventory not initialized");
+  });
+
+  it("should fail to remove skill if not initialized", () => {
+    const { result } = renderHook(() => useSkillInventory(mockUserId));
+
+    act(() => {
+      result.current.removeSkill("skill1");
+    });
+
+    expect(result.current.error).toBe("Inventory not initialized");
+  });
+
+  it("should return empty array for search if not initialized", () => {
+    const { result } = renderHook(() => useSkillInventory(mockUserId));
+
+    const searchResults = result.current.searchByName("test");
+    expect(searchResults).toEqual([]);
+  });
+
+  it("should return null for stats if not initialized", () => {
+    const { result } = renderHook(() => useSkillInventory(mockUserId));
+
     const stats = result.current.getStats();
-    expect(stats).toEqual(mockStats);
+    expect(stats).toBeNull();
   });
 });

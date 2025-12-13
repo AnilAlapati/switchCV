@@ -52,7 +52,8 @@ export function useUsernameChecker(
         const isInvalid =
           data.reason?.includes("format") ||
           data.reason?.includes("characters") ||
-          data.reason?.includes("at least");
+          data.reason?.includes("at least") ||
+          data.reason?.includes("contain");
         setUsernameStatus(isInvalid ? "invalid" : "taken");
         setUsernameError(data.reason || "Username is not available");
         setUsernameSuggestion(data.suggestion || "");
