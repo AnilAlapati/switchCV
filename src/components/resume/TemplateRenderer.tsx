@@ -15,6 +15,7 @@ import {
 } from "./templateRendererUtils";
 import { renderContactField } from "@/lib/utils/resumeVisibility";
 import { renderTemplateField } from "./renderTemplateField";
+import { MasonryResumeRenderer } from "./MasonryResumeRenderer"; // [NEW]
 
 type VisibilityLevel = "public" | "masked" | "request";
 type ContactField = "email" | "phone";
@@ -61,6 +62,17 @@ export const TemplateRenderer: React.FC<TemplateRendererProps> = ({
   isAuthenticated = false,
   onRequestAccess,
 }) => {
+  if (template.id === "masonry-v1") {
+    return (
+      <MasonryResumeRenderer
+        template={template}
+        data={data}
+        isAuthenticated={isAuthenticated}
+        onRequestAccess={onRequestAccess}
+      />
+    );
+  }
+
   const personalInfo = data.personalInfo || {};
   const viewerAccess = (data.viewerAccess as ViewerAccessMeta) ?? {};
   const allowsFullContact =
@@ -103,8 +115,8 @@ export const TemplateRenderer: React.FC<TemplateRendererProps> = ({
         (visibility === "request"
           ? "Available upon request"
           : baseValue
-          ? renderContactField(baseValue, "masked", field)
-          : "Available upon request");
+            ? renderContactField(baseValue, "masked", field)
+            : "Available upon request");
 
       return maskedLabel ? { label: maskedLabel } : null;
     }
