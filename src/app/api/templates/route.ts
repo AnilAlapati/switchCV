@@ -3,7 +3,8 @@ import { templateService } from "@/lib/services/templateService";
 import { handleApiError } from "@/lib/utils/api-helpers";
 import { logger } from "@/lib/logger";
 
-export async function GET(request: NextRequest) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function GET(_request: NextRequest) {
   try {
     logger.info("Fetching all resume templates");
 

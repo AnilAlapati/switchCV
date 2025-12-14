@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 const admin = require('firebase-admin');
 
 // Initialize Firebase Admin with dev project
@@ -452,7 +453,7 @@ async function seedResumes() {
         ]
       };
 
-      const docRef = await db.collection('resumes').add(resume);
+      await db.collection('resumes').add(resume);
       console.log(`✅ [${resumeCount + 1}/10] Seeded "${resumeTemplate.title}" for user: ${user.email}`);
       
       resumeCount++;

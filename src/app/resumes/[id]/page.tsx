@@ -272,8 +272,8 @@ export default function ResumeView() {
         const resumeData = await response.json();
         setResume(resumeData);
 
-        // Fetch template if ID exists, otherwise default to standard
-        const templateId = resumeData.templateId || "standard-v1";
+        // Fetch template if ID exists, otherwise default to masonry
+        const templateId = resumeData.templateId || "masonry-v1";
         const fetchedTemplate = await templateService.getTemplateById(
           templateId
         );
@@ -328,7 +328,7 @@ export default function ResumeView() {
   // Use the new TemplateRenderer if a template is loaded
   if (template) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white p-8 font-sans relative">
+      <div className={`min-h-screen ${template.id === 'masonry-v1' ? '' : 'bg-gray-900 text-white'} p-8 font-sans relative`}>
         <ResumeToastOverlay toast={toast} onDismiss={() => setToast(null)} />
         {countdownBanner}
         {editingBanner}
@@ -388,9 +388,8 @@ function DeletionCountdownBanner({
 }) {
   return (
     <div
-      className={`mb-4 rounded-lg border px-4 py-3 text-sm leading-relaxed ${
-        bannerStyles[notice.severity]
-      }`}
+      className={`mb-4 rounded-lg border px-4 py-3 text-sm leading-relaxed ${bannerStyles[notice.severity]
+        }`}
       role="status"
     >
       <p className="font-semibold text-base">

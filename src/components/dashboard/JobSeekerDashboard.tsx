@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { ResumeActionCenter } from "@/components/dashboard/ResumeActionCenter";
 import { ProfileViewsCard } from "@/components/dashboard/ProfileViewsCard";
@@ -15,6 +15,8 @@ import {
 } from "@/lib/dashboard/jobSeekerInsights";
 import { getResumeUrl, ENABLE_SEEDING_AND_DEBUG_LISTS } from "@/lib/config";
 import type { JobSeekerMetrics } from "@/types/dashboard";
+import { useAuth } from "@/hooks/useAuth";
+import { logger } from "@/lib/logger";
 
 interface JobSeekerDashboardProps {
   hasResume: boolean;
@@ -37,9 +39,81 @@ export function JobSeekerDashboard({
   resumes,
   onRefreshResume,
 }: JobSeekerDashboardProps) {
+  const { user } = useAuth();
+  const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
+
   const resumeIdString = resumeId ? String(resumeId) : null;
   const resumeUrl =
     hasResume && resumeIdString ? getResumeUrl(resumeIdString) : null;
+
+  // Use property 'isPublic' if available (from new API), fallback to 'publishedAt' logic
+  // Also check 'visibility' string for 'public'
+  const isPublished = useMemo(() => {
+    if (!resume) return false;
+    // If 'isPublic' is explicitly defined (boolean), use it.
+    if (typeof resume.isPublic === "boolean") return resume.isPublic;
+    // If 'visibility' is 'public', use it.
+    if (resume.visibility === "public") return true;
+    // Fallback: check publishedAt and not being edited
+    return !!(resume.publishedAt && !resume.isBeingEdited);
+  }, [resume]);
+
+  // Optimistic UI state
+  const [optimisticStatus, setOptimisticStatus] = useState<boolean | null>(
+    null
+  );
+  const currentStatus = optimisticStatus ?? isPublished;
+
+  const handleToggleVisibility = async () => {
+    if (!user || !resumeIdString) return;
+
+    // Store previous status for rollback
+    const previousStatus = currentStatus;
+    // Optimistic update
+    setOptimisticStatus(!previousStatus);
+    setIsUpdatingVisibility(true);
+
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch(`/api/resumes/${resumeIdString}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ isPublic: !previousStatus }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update visibility");
+      }
+
+      if (onRefreshResume) {
+        onRefreshResume();
+      }
+
+      // Clear optimistic state after successful refresh (or let it stay until prop updates)
+      // Usually, we want to clear it once the prop updates, but relies on effect.
+      // Safest is to keep it null once parent refreshes, but setting it to null immediately might flicker if refresh is slow.
+      // Better: keep it null, rely on onRefreshResume to trigger re-render with new prop.
+      // But props change might be slower. The persisted optimistic state is fine until next full mount or we can sync it.
+      // Simplest: just leave it, but we need to reset it if `isPublished` prop changes externally?
+      // Let's reset it to null after a short delay or assume refresh handles it.
+      // Actually, if we just set it to null here, we might flash back to old value if refresh hasn't finished.
+      // Ideally, we wait for props to change.
+      // For now, let's keep the optimistic value until the component unmounts or we verify strict sync.
+      // Or simply: don't clear it. The displayed value matches the server state anyway now.
+    } catch (error) {
+      logger.error({ err: error }, "Error updating visibility:");
+      alert("Failed to update visibility settings.");
+      // Revert on error
+      setOptimisticStatus(previousStatus);
+    } finally {
+      setIsUpdatingVisibility(false);
+      // Optional: Clear optimistic status after a delay to ensure props have caught up
+      setTimeout(() => setOptimisticStatus(null), 2000);
+    }
+  };
 
   const actionItems = useMemo(
     () =>
@@ -56,63 +130,6 @@ export function JobSeekerDashboard({
     () => buildJobSeekerInsights(metrics),
     [metrics]
   );
-
-  const resources = useMemo(() => {
-    const list = [] as Array<{
-      id: string;
-      title: string;
-      description: string;
-      href: string;
-      external?: boolean;
-    }>;
-
-    if (hasResume && resumeIdString) {
-      list.push({
-        id: "edit-resume",
-        title: "Polish your resume copy",
-        description:
-          "Tweak bullet points, keywords, and formatting to lift your quality score.",
-        href: `/resumes/${resumeIdString}/edit`,
-      });
-
-      if (resumeUrl) {
-        list.push({
-          id: "share-resume",
-          title: "Share with recruiters",
-          description:
-            "Copy your live SwitchCV link and include a personal note when you reach out.",
-          href: resumeUrl,
-          external: true,
-        });
-      }
-    } else {
-      list.push({
-        id: "create-resume",
-        title: "Create your first resume",
-        description:
-          "We will walk you through the essentials so you can publish a shareable resume today.",
-        href: "/create-resume",
-      });
-    }
-
-    list.push({
-      id: "update-profile",
-      title: "Refresh your profile essentials",
-      description:
-        "Align your headline, target role, and locations with the roles you want next.",
-      href: "/profile",
-    });
-
-    list.push({
-      id: "practice-interviews",
-      title: "Draft interview stories",
-      description:
-        "Outline your key STAR stories so you can respond confidently when interviews pop up.",
-      href: "/create-resume",
-    });
-
-    return list;
-  }, [hasResume, resumeIdString, resumeUrl]);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -131,9 +148,11 @@ export function JobSeekerDashboard({
             hasResume={hasResume}
             resumeId={resumeId}
             resumeLoading={resumeLoading}
-            isPublished={!!(resume?.publishedAt && !resume?.isBeingEdited)}
+            isPublished={currentStatus}
             lastUpdated={resume?.updatedAt || resume?.lastUpdatedAt}
             onRefresh={onRefreshResume}
+            onToggleVisibility={handleToggleVisibility}
+            isUpdatingVisibility={isUpdatingVisibility}
           />
 
           <OpportunityInsightsCard

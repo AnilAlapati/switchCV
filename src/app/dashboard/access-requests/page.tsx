@@ -199,40 +199,38 @@ export default function AccessRequestsPage() {
     <DashboardBackground>
       <DashboardHeader userEmail={user?.email} onLogout={handleLogout} />
       <main className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <h1 className="text-3xl font-bold text-white mb-8">Access Requests</h1>
+        <h1 className="text-3xl font-bold text-[#1A2F25] mb-8">Access Requests</h1>
 
         {/* Tabs */}
-        <div className="flex space-x-4 mb-6 border-b border-slate-700">
+        <div className="flex space-x-4 mb-6 border-b border-[#1A2F25]/10">
           <button
             onClick={() => setActiveTab("pending")}
-            className={`pb-2 px-4 text-sm font-medium transition-colors ${
-              activeTab === "pending"
-                ? "text-cyan-400 border-b-2 border-cyan-400"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
+            className={`pb-2 px-4 text-sm font-medium transition-colors ${activeTab === "pending"
+                ? "text-[#2C4A3B] border-b-2 border-[#2C4A3B]"
+                : "text-[#1A2F25]/60 hover:text-[#1A2F25]"
+              }`}
           >
             Pending ({pendingRequests.length})
           </button>
           <button
             onClick={() => setActiveTab("history")}
-            className={`pb-2 px-4 text-sm font-medium transition-colors ${
-              activeTab === "history"
-                ? "text-cyan-400 border-b-2 border-cyan-400"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
+            className={`pb-2 px-4 text-sm font-medium transition-colors ${activeTab === "history"
+                ? "text-[#2C4A3B] border-b-2 border-[#2C4A3B]"
+                : "text-[#1A2F25]/60 hover:text-[#1A2F25]"
+              }`}
           >
             History ({historyRequests.length})
           </button>
         </div>
 
         {loading ? (
-          <div className="text-center text-slate-400">Loading requests...</div>
+          <div className="text-center text-[#1A2F25]/60">Loading requests...</div>
         ) : error ? (
-          <div className="text-center text-red-400 bg-red-900/20 p-8 rounded-xl border border-red-800">
+          <div className="text-center text-red-600 bg-red-50 p-8 rounded-xl border border-red-200">
             {error}
           </div>
         ) : displayedRequests.length === 0 ? (
-          <div className="text-center text-slate-400 bg-slate-900/50 p-8 rounded-xl border border-slate-800">
+          <div className="text-center text-[#1A2F25]/60 glass-panel p-8 rounded-xl">
             {activeTab === "pending"
               ? "No pending access requests."
               : "No request history available."}
