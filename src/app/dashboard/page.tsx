@@ -111,10 +111,12 @@ export default function Dashboard() {
   if (authLoading || (user && profileLoading)) {
     return (
       <DashboardBackground>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center">
+        <div className="relative z-20 flex min-h-screen items-center justify-center">
+          <div className="rounded-lg bg-black/60 px-8 py-6 text-center backdrop-blur-sm">
             <div className="mx-auto mb-4 h-16 w-16 animate-spin rounded-full border-4 border-cyan-500/30 border-t-cyan-400"></div>
-            <p className="text-lg text-slate-300">Loading your dashboard…</p>
+            <p className="text-lg font-semibold text-white">
+              Loading your dashboard…
+            </p>
           </div>
         </div>
       </DashboardBackground>
@@ -129,10 +131,12 @@ export default function Dashboard() {
   if (!role) {
     return (
       <DashboardBackground>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center">
+        <div className="relative z-20 flex min-h-screen items-center justify-center">
+          <div className="rounded-lg bg-black/60 px-8 py-6 text-center backdrop-blur-sm">
             <div className="mx-auto mb-4 h-16 w-16 animate-spin rounded-full border-4 border-cyan-500/30 border-t-cyan-400"></div>
-            <p className="text-lg text-slate-300">Setting up your account…</p>
+            <p className="text-lg font-semibold text-white">
+              Setting up your account…
+            </p>
           </div>
         </div>
       </DashboardBackground>

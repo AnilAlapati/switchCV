@@ -1,15 +1,13 @@
 "use client";
 
 import { useMemo } from "react";
-import { ResumeStatusCard } from "@/components/dashboard/ResumeStatusCard";
+import { DashboardHero } from "@/components/dashboard/DashboardHero";
+import { ResumeActionCenter } from "@/components/dashboard/ResumeActionCenter";
 import { ProfileViewsCard } from "@/components/dashboard/ProfileViewsCard";
 import { ContactRequestsCard } from "@/components/dashboard/ContactRequestsCard";
-import { ResumeQualityCard } from "@/components/dashboard/ResumeQualityCard";
-import { LastUpdatedCard } from "@/components/dashboard/LastUpdatedCard";
 
-import { ActionPlanCard } from "@/components/dashboard/ActionPlanCard";
+import { PriorityActionsCard } from "@/components/dashboard/PriorityActionsCard";
 import { OpportunityInsightsCard } from "@/components/dashboard/OpportunityInsightsCard";
-import { ResourceLinksCard } from "@/components/dashboard/ResourceLinksCard";
 import { ResumeList } from "@/components/dashboard/ResumeList";
 import {
   buildJobSeekerActionPlan,
@@ -117,48 +115,43 @@ export function JobSeekerDashboard({
   }, [hasResume, resumeIdString, resumeUrl]);
 
   return (
-    <div className="space-y-8">
-      <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <DashboardHero>
+        <ProfileViewsCard />
+        <ContactRequestsCard />
+      </DashboardHero>
+
+      <div className="grid gap-6 lg:grid-cols-[2fr,1fr] xl:grid-cols-[3fr,2fr]">
         <div className="space-y-6">
           {ENABLE_SEEDING_AND_DEBUG_LISTS && resumes && resumes.length > 1 && (
             <ResumeList resumes={resumes} />
           )}
 
-          <ResumeStatusCard
+          <ResumeActionCenter
             hasResume={hasResume}
             resumeId={resumeId}
             resumeLoading={resumeLoading}
-            isPublished={resume?.published ?? false}
+            isPublished={!!(resume?.publishedAt && !resume?.isBeingEdited)}
+            lastUpdated={resume?.updatedAt || resume?.lastUpdatedAt}
             onRefresh={onRefreshResume}
           />
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-            <ProfileViewsCard />
-            <ContactRequestsCard />
-            <ResumeQualityCard hasResume={hasResume} />
-            <LastUpdatedCard hasResume={hasResume} />
-          </div>
+          <OpportunityInsightsCard
+            title="Insights & Signals"
+            subtitle="Based on your recent activity"
+            insights={opportunityInsights}
+          />
         </div>
 
-        <div className="space-y-6">
-          <ActionPlanCard
-            headline="Today's next steps"
+        <div className="space-y-6 h-full">
+          <PriorityActionsCard
+            headline="Priority Actions"
             items={actionItems}
             loading={metricsLoading}
-          />
-          <ResourceLinksCard
-            title="Keep momentum"
-            caption="Drop into these focus areas between applications."
-            links={resources}
+            emptyMessage="You're all set! No urgent actions right now."
           />
         </div>
       </div>
-
-      <OpportunityInsightsCard
-        title="Where to focus next"
-        subtitle="Signals from your profile activity"
-        insights={opportunityInsights}
-      />
     </div>
   );
 }

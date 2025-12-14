@@ -8,10 +8,16 @@ interface OpportunityInsightsCardProps {
   insights: OpportunityInsight[];
 }
 
-const toneAccent: Record<OpportunityInsight["tone"], string> = {
-  positive: "bg-emerald-50 text-emerald-700 border border-emerald-100",
-  info: "bg-cyan-50 text-cyan-700 border border-cyan-100",
-  caution: "bg-amber-50 text-amber-700 border border-amber-100",
+const toneStyles: Record<OpportunityInsight["tone"], string> = {
+  positive: "from-emerald-500/10 to-emerald-500/5 border-emerald-500/10",
+  info: "from-cyan-500/10 to-cyan-500/5 border-cyan-500/10",
+  caution: "from-amber-500/10 to-amber-500/5 border-amber-500/10",
+};
+
+const iconStyles: Record<OpportunityInsight["tone"], string> = {
+  positive: "text-emerald-500",
+  info: "text-cyan-500",
+  caution: "text-amber-500",
 };
 
 export function OpportunityInsightsCard({
@@ -20,31 +26,36 @@ export function OpportunityInsightsCard({
   insights,
 }: OpportunityInsightsCardProps) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <header className="mb-5 space-y-1">
-        <h2 className="text-lg font-bold text-slate-900">{title}</h2>
-        {subtitle && <p className="text-sm text-slate-500">{subtitle}</p>}
+    <section className="glass-panel rounded-3xl p-6">
+      <header className="mb-6 flex items-start justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-[#1A2F25]">{title}</h2>
+          {subtitle && <p className="text-sm text-[#1A2F25]/60 mt-1">{subtitle}</p>}
+        </div>
       </header>
+
       <div className="grid gap-4 md:grid-cols-3">
         {insights.map((insight) => (
           <article
             key={insight.id}
-            className={`flex flex-col gap-4 rounded-xl p-4 transition hover:shadow-md ${toneAccent[insight.tone]
-              }`}
+            className={`group relative flex flex-col gap-4 rounded-2xl p-5 border bg-gradient-to-br transition-all hover:shadow-lg ${toneStyles[insight.tone]} hover:border-opacity-40`}
           >
-            <div>
-              <span className="text-xs font-bold uppercase tracking-wide text-current opacity-70">
+            <div className="flex items-center justify-between">
+              <span className={`text-xs font-bold uppercase tracking-wider opacity-80 ${iconStyles[insight.tone]}`}>
                 {insight.metricLabel}
               </span>
-              <p className="text-2xl font-bold text-slate-900">
+            </div>
+
+            <div>
+              <p className="text-3xl font-bold text-[#1A2F25] mb-4">
                 {insight.metricValue}
               </p>
-            </div>
-            <div>
-              <h3 className="text-sm font-bold tracking-wide text-slate-900">
+
+              <h3 className="text-base font-bold text-[#1A2F25] mb-2">
                 {insight.title}
               </h3>
-              <p className="mt-1 text-sm text-slate-600">
+
+              <p className="text-sm text-[#1A2F25]/70 leading-relaxed">
                 {insight.description}
               </p>
             </div>

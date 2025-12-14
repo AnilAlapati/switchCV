@@ -100,7 +100,7 @@ describe("SettingsPage (app/profile/settings)", () => {
     const { getByText, getByTestId } = render((<SettingsPage />) as any);
 
     await waitFor(() => {
-      expect(getByText("Settings & Profile")).toBeInTheDocument();
+      expect(getByText("Your Profile")).toBeInTheDocument();
       expect(getByTestId("db-header")).toBeInTheDocument();
       expect(getByTestId("account-info")).toBeInTheDocument();
       expect(getByTestId("profile-details")).toBeInTheDocument();

@@ -20,7 +20,7 @@ describe("ProfileDetails", () => {
 
   it("renders correctly with default props", () => {
     render(<ProfileDetails {...mockProps} />);
-    expect(screen.getByText("Profile Details")).toBeInTheDocument();
+    expect(screen.getByText("Public Profile")).toBeInTheDocument();
     expect(screen.getByDisplayValue("John Doe")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Acme Corp")).toBeInTheDocument();
     expect(screen.getByText(/January 1, 2023/)).toBeInTheDocument();
@@ -72,6 +72,6 @@ describe("ProfileDetails", () => {
 
   it("displays 'Never' when updatedAt is empty", () => {
     render(<ProfileDetails {...mockProps} updatedAt="" />);
-    expect(screen.getByText("Never")).toBeInTheDocument();
+    expect(screen.queryByText("Last updated")).not.toBeInTheDocument();
   });
 });

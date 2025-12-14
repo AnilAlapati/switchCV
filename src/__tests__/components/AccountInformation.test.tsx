@@ -16,7 +16,7 @@ describe("AccountInformation", () => {
 
   it("displays account information title", () => {
     render(<AccountInformation {...mockProps} />);
-    expect(screen.getByText("Account Information")).toBeInTheDocument();
+    expect(screen.getByText("Account Settings")).toBeInTheDocument();
   });
 
   it("displays email address", () => {
