@@ -29,7 +29,6 @@ export default function Dashboard() {
 
   const { role, loading: profileLoading } = useUserProfile();
   const userIsRecruiter = role === "recruiter" || role === "admin";
-  const userRoleLoading = profileLoading;
 
   const {
     jobSeekerMetrics,
@@ -46,7 +45,7 @@ export default function Dashboard() {
     resume,
     resumes,
     refetch: refreshResume,
-  } = useResume({ enabled: !userRoleLoading && !userIsRecruiter });
+  } = useResume({ enabled: !authLoading && !!user });
 
   const recruiterSearchRef = useRef<HTMLDivElement>(null);
 

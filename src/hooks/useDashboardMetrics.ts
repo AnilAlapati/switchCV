@@ -28,9 +28,10 @@ export function useDashboardMetrics(): UseDashboardMetricsResult {
   const isRecruiter = role === "recruiter" || role === "admin";
   const userId = user?.uid;
 
-  // Job Seeker Metrics SWR
+  // Job Seeker Metrics SWR - Optimistically fetch if we have a user, regardless of role loading
+  // This helps parallelize fetching. If user turns out to be recruiter, we just ignore this data.
   const jobMetricsKey =
-    !authLoading && !profileLoading && userId && !isRecruiter
+    !authLoading && userId && !isRecruiter
       ? `/api/jobseeker/metrics?userId=${userId}`
       : null;
 
