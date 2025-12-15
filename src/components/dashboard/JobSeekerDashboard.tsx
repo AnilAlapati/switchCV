@@ -150,7 +150,6 @@ export function JobSeekerDashboard({
             resumeLoading={resumeLoading}
             isPublished={currentStatus}
             lastUpdated={resume?.updatedAt || resume?.lastUpdatedAt}
-            onRefresh={onRefreshResume}
             onToggleVisibility={handleToggleVisibility}
             isUpdatingVisibility={isUpdatingVisibility}
           />

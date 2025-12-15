@@ -175,9 +175,15 @@ export async function POST(
     const cleanedResponse = stripEditArtifacts(responseText);
 
     if (!isComplete || !completionPayload) {
+      // Even if incomplete, ensure we strip any partial JSON or artifacts
+      const safeResponse =
+        cleanedResponse || "Let me know what else you’d like to adjust.";
+      const finalResponse = safeResponse
+        .replace(/```json[\s\S]*$/, "") // aggressive strip if it trails
+        .trim();
+
       return NextResponse.json({
-        response:
-          cleanedResponse || "Let me know what else you’d like to adjust.",
+        response: finalResponse,
         model: aiResult.model,
         provider: aiResult.provider,
         completed: false,
@@ -231,9 +237,15 @@ export async function POST(
       lastUpdatedAt: timestamp,
     };
 
+    // Ensure the response text doesn't contain the JSON
+    const finalCleanedResponse = cleanedResponse
+      .replace(/```json[\s\S]*?```/gi, "")
+      .replace(/RESUME_EDIT_COMPLETE/gi, "")
+      .trim();
+
     const successMessage = completionPayload.changeSummary
       ? `${completionPayload.changeSummary} — all set!`
-      : cleanedResponse || "All set! Your resume has been updated.";
+      : finalCleanedResponse || "All set! Your resume has been updated.";
 
     return NextResponse.json({
       response: successMessage,
