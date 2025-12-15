@@ -160,7 +160,7 @@ export const MasonryResumeRenderer: React.FC<MasonryResumeRendererProps> = ({
                     key={idx}
                     className="px-3 py-2 bg-white rounded-xl font-bold text-[#5D4037] text-sm shadow-sm hover:shadow-md transition-all cursor-default"
                   >
-                    {skill.name || skill}
+                    {typeof skill === "object" ? skill.name : skill}
                   </div>
                 ))}
               </div>
@@ -194,13 +194,12 @@ export const MasonryResumeRenderer: React.FC<MasonryResumeRendererProps> = ({
               </div>
               {/* Abstract Pattern for Project Card Background */}
               <div
-                className={`absolute inset-0 opacity-40 bg-gradient-to-br ${
-                  idx % 3 === 0
+                className={`absolute inset-0 opacity-40 bg-gradient-to-br ${idx % 3 === 0
                     ? "from-blue-600 to-purple-600"
                     : idx % 3 === 1
-                    ? "from-emerald-600 to-teal-600"
-                    : "from-orange-600 to-red-600"
-                }`}
+                      ? "from-emerald-600 to-teal-600"
+                      : "from-orange-600 to-red-600"
+                  }`}
               ></div>
             </div>
           ))}
