@@ -25,6 +25,11 @@ export class AlertManager {
 
   /**
    * Load alert thresholds from Firestore
+   * 
+   * Fetches the 'alertThresholds' document from the 'config' collection
+   * and updates the local thresholds map.
+   * 
+   * @returns {Promise<void>} A promise that resolves when thresholds are loaded
    */
   private async loadThresholds(): Promise<void> {
     try {
@@ -44,6 +49,12 @@ export class AlertManager {
 
   /**
    * Check metric against thresholds and send alerts
+   * 
+   * Evaluates a metric against defined thresholds. If a threshold is exceeded
+   * and the alert is not in cooldown, it triggers an alert notification.
+   * 
+   * @param {Metric} metric - The metric to evaluate
+   * @returns {Promise<void>} A promise that resolves when the check is complete
    */
   async checkAndAlert(metric: Metric): Promise<void> {
     const key = `${metric.type}_${metric.name}`;
@@ -170,7 +181,9 @@ export class AlertManager {
   /**
    * Get all active alerts
    */
-  async getActiveAlerts(timeWindowMs: number = 24 * 60 * 60 * 1000): Promise<any[]> {
+  async getActiveAlerts(
+    timeWindowMs: number = 24 * 60 * 60 * 1000
+  ): Promise<any[]> {
     const startTime = Date.now() - timeWindowMs;
 
     try {

@@ -84,7 +84,7 @@ export function startRateLimitCleanup(): void {
     }
 
     if (cleaned > 0) {
-      console.log(`[RateLimit] Cleaned up ${cleaned} expired buckets`);
+      // logger.info(`[RateLimit] Cleaned up ${cleaned} expired buckets`);
     }
   }, RATE_LIMIT_CONFIG.CLEANUP_INTERVAL_MS);
 }

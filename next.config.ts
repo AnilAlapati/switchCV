@@ -22,6 +22,12 @@ const cspDirectives = [
 ];
 
 const nextConfig: NextConfig = {
+  reactStrictMode: true,
+  compress: true,
+  poweredByHeader: false,
+  experimental: {
+    optimizePackageImports: ['lucide-react', 'date-fns', 'lodash'],
+  },
   serverExternalPackages: ["pino", "pino-pretty"],
   env: {
     NEXT_PUBLIC_APP_VERSION: packageJson.version,

@@ -7,6 +7,7 @@ import {
   DEV_ROLE_OVERRIDE,
 } from "@/lib/config";
 import { logger } from "@/lib/logger";
+import { userTierCache, userRoleCache } from "@/lib/utils/cache";
 
 /**
  * Get user's subscription tier.
@@ -23,16 +24,26 @@ export async function getUserTier(userId: string): Promise<SubscriptionTier> {
     return DEV_TIER_OVERRIDE;
   }
 
+  // Check cache
+  const cachedTier = userTierCache.get(userId);
+  if (cachedTier) {
+    return cachedTier as SubscriptionTier;
+  }
+
   const snapshot = await adminDb.collection("users").doc(userId).get();
   const tier = snapshot.data()?.subscriptionTier as
     | SubscriptionTier
     | undefined;
 
   // Default to "basic" if not set or invalid
+  let result: SubscriptionTier = "basic";
   if (tier && ["basic", "premium", "enterprise"].includes(tier)) {
-    return tier;
+    result = tier;
   }
-  return "basic";
+
+  // Cache result
+  userTierCache.set(userId, result);
+  return result;
 }
 
 /**
@@ -50,12 +61,22 @@ export async function getUserRole(userId: string): Promise<UserRole> {
     return DEV_ROLE_OVERRIDE;
   }
 
+  // Check cache
+  const cachedRole = userRoleCache.get(userId);
+  if (cachedRole) {
+    return cachedRole as UserRole;
+  }
+
   const snapshot = await adminDb.collection("users").doc(userId).get();
   const role = snapshot.data()?.role as UserRole | undefined;
 
   // Default to "jobseeker" if not set or invalid
+  let result: UserRole = "jobseeker";
   if (role && ["jobseeker", "recruiter", "admin"].includes(role)) {
-    return role;
+    result = role;
   }
-  return "jobseeker";
+
+  // Cache result
+  userRoleCache.set(userId, result);
+  return result;
 }
