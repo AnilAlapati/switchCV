@@ -125,7 +125,7 @@ export function validateSystemConfig(
   try {
     return SystemConfigSchema.parse(data);
   } catch (error) {
-    logger.error("❌ Invalid system config, using defaults:", error);
+    logger.error({ error }, "❌ Invalid system config, using defaults:");
     return defaultConfig;
   }
 }
@@ -140,9 +140,6 @@ export function validateAICosts(config: SystemConfig): void {
 
   const cost = expensiveModels[config.ai.defaultModel];
   if (cost && config.ai.enableCostWarnings) {
-    logger.warn(
-      `🚨 WARNING: Expensive AI model selected: ${config.ai.defaultModel}`,
-      `Cost: $${cost}/1M tokens vs $0.15 for Gemini Flash`
-    );
+    logger.warn({ comparison: `Cost: $${cost}/1M tokens vs $0.15 for Gemini Flash` }, `🚨 WARNING: Expensive AI model selected: ${config.ai.defaultModel}`);
   }
 }

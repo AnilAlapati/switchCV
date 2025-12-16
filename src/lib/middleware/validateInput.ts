@@ -76,7 +76,7 @@ export async function validateInput<T>(
         code: issue.code,
       }));
 
-      logger.warn("Input validation failed", { errors });
+      logger.warn({ errors }, "Input validation failed");
 
       return {
         data: null,
@@ -98,7 +98,7 @@ export async function validateInput<T>(
       valid: true,
     };
   } catch (err) {
-    logger.error("Validation middleware error", { error: err });
+    logger.error({ error: err }, "Validation middleware error");
 
     return {
       data: null,
@@ -135,7 +135,7 @@ export async function validateQuery<T>(
         message: issue.message,
       }));
 
-      logger.warn("Query validation failed", { errors });
+      logger.warn({ errors }, "Query validation failed");
 
       return {
         data: null,
@@ -157,7 +157,7 @@ export async function validateQuery<T>(
       valid: true,
     };
   } catch (err) {
-    logger.error("Query validation error", { error: err });
+    logger.error({ error: err }, "Query validation error");
 
     return {
       data: null,

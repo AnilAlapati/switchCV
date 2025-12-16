@@ -9,15 +9,10 @@
 
 import { NextRequest } from "next/server";
 
-// Mock the Firebase Admin SDK and auth helpers
+// Mock the Firebase Admin SDK
 jest.mock("@/lib/firebase-admin", () => ({
   getFirestore: jest.fn(),
   getAuth: jest.fn(),
-}));
-
-jest.mock("@/lib/auth-helpers", () => ({
-  verifySessionToken: jest.fn(),
-  getCurrentUser: jest.fn(),
 }));
 
 describe("Route Authorization Audit", () => {
