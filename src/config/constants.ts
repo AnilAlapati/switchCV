@@ -299,4 +299,147 @@ export const useConstants = () => {
       QUOTA_COLLECTION: "searchQuotas",
     } as const,
   };
-};
+}
+
+/**
+ * Rate limiting configuration
+ */
+export const RATE_LIMITS = {
+  /** Profile search requests per minute per user */
+  PROFILE_SEARCH_PER_MINUTE: 30,
+
+  /** Resume generation requests per minute per user */
+  RESUME_GENERATION_PER_MINUTE: 5,
+
+  /** AI API calls per minute per user */
+  AI_CALLS_PER_MINUTE: 20,
+
+  /** Contact request notifications per hour per recruiter */
+  CONTACT_REQUESTS_PER_HOUR: 50,
+
+  /** Access request approvals per minute per user */
+  ACCESS_REQUESTS_PER_MINUTE: 30,
+
+  /** General API requests per minute per user */
+  GENERAL_API_PER_MINUTE: 100,
+} as const;
+
+/**
+ * Cache configuration (in milliseconds)
+ */
+export const CACHE_TTL = {
+  /** Resume cache - 5 minutes */
+  RESUME: 5 * 60 * 1000,
+
+  /** User profile cache - 10 minutes */
+  USER_PROFILE: 10 * 60 * 1000,
+
+  /** Search results cache - 3 minutes */
+  SEARCH_RESULTS: 3 * 60 * 1000,
+
+  /** Public profile cache - 1 hour */
+  PUBLIC_PROFILE: 60 * 60 * 1000,
+
+  /** AI model list cache - 1 hour */
+  AI_MODELS: 60 * 60 * 1000,
+} as const;
+
+/**
+ * Pagination configuration
+ */
+export const PAGINATION = {
+  /** Default page limit */
+  DEFAULT_LIMIT: 20,
+
+  /** Maximum page limit */
+  MAX_LIMIT: 100,
+
+  /** Minimum page limit */
+  MIN_LIMIT: 1,
+
+  /** Default offset */
+  DEFAULT_OFFSET: 0,
+} as const;
+
+/**
+ * Search configuration
+ */
+export const SEARCH_CONFIG = {
+  /** Minimum search query length */
+  MIN_QUERY_LENGTH: 2,
+
+  /** Maximum search query length */
+  MAX_QUERY_LENGTH: 500,
+} as const;
+
+/**
+ * Access request configuration
+ */
+export const ACCESS_REQUEST = {
+  /** Access token expiry in hours */
+  TOKEN_EXPIRY_HOURS: 24,
+
+  /** Request expiry in days */
+  REQUEST_EXPIRY_DAYS: 7,
+
+  /** Maximum pending requests per recruiter */
+  MAX_PENDING_PER_RECRUITER: 100,
+
+  /** Maximum daily requests per recruiter */
+  MAX_DAILY_PER_RECRUITER: 500,
+} as const;
+
+/**
+ * Authentication configuration
+ */
+export const AUTH = {
+  /** Password minimum length */
+  PASSWORD_MIN_LENGTH: 8,
+
+  /** Password maximum length */
+  PASSWORD_MAX_LENGTH: 128,
+
+  /** Session timeout in milliseconds (30 minutes) */
+  SESSION_TIMEOUT_MS: 30 * 60 * 1000,
+
+  /** Token expiry in hours */
+  TOKEN_EXPIRY_HOURS: 24,
+
+  /** Refresh token expiry in days */
+  REFRESH_TOKEN_EXPIRY_DAYS: 7,
+} as const;
+
+/**
+ * AI configuration
+ */
+export const AI_CONFIG = {
+  /** Default AI model */
+  DEFAULT_MODEL: 'gemini-1.5-flash',
+
+  /** Maximum tokens for AI generation */
+  MAX_TOKENS: 1000,
+
+  /** Temperature for AI requests (0-1) */
+  TEMPERATURE: 0.8,
+
+  /** Maximum retries for AI API calls */
+  MAX_RETRIES: 3,
+
+  /** Timeout for AI API calls in milliseconds */
+  TIMEOUT_MS: 30000,
+} as const;
+
+/**
+ * Error codes
+ */
+export const ERROR_CODES = {
+  UNAUTHORIZED: 'UNAUTHORIZED',
+  FORBIDDEN: 'FORBIDDEN',
+  NOT_FOUND: 'NOT_FOUND',
+  INVALID_INPUT: 'INVALID_INPUT',
+  RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED',
+  INTERNAL_SERVER_ERROR: 'INTERNAL_SERVER_ERROR',
+  SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  AUTHENTICATION_FAILED: 'AUTHENTICATION_FAILED',
+} as const;
