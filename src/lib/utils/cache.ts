@@ -1,6 +1,6 @@
 /**
  * Simple in-memory cache with TTL
- * 
+ *
  * Useful for caching Firestore lookups in serverless environments
  * where container reuse allows for some caching benefit.
  */
@@ -35,7 +35,7 @@ export class TTLCache<T> {
 
   get(key: string): T | undefined {
     const entry = this.cache.get(key);
-    
+
     if (!entry) {
       return undefined;
     }

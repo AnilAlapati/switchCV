@@ -36,11 +36,6 @@ const ALLOWED_ORIGINS =
       ];
 
 /**
- * HTTP methods that require CORS preflight
- */
-const PREFLIGHT_METHODS = ["POST", "PUT", "DELETE", "PATCH"];
-
-/**
  * Standard CORS headers
  */
 const CORS_HEADERS = {

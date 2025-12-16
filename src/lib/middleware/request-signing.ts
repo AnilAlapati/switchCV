@@ -11,15 +11,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { logger } from "../logger";
 
 /**
- * Request signature format
- */
-interface RequestSignature {
-  signature: string;
-  timestamp: number;
-  nonce: string;
-}
-
-/**
  * Secret for signing requests
  * Should be stored in environment variables
  */
@@ -187,10 +178,18 @@ export function verifyRequestSignature(
   );
 
   // Compare signatures using constant-time comparison
-  const signatureMatch = crypto.timingSafeEqual(
-    Buffer.from(signatureHeader),
-    Buffer.from(expectedSignature)
-  );
+  // If lengths don't match, it's definitely invalid, but we still do constant-time comparison with a padded expected signature
+  let signatureMatch = false;
+  if (signatureHeader.length === expectedSignature.length) {
+    try {
+      signatureMatch = crypto.timingSafeEqual(
+        Buffer.from(signatureHeader),
+        Buffer.from(expectedSignature)
+      );
+    } catch {
+      signatureMatch = false;
+    }
+  }
 
   if (!signatureMatch) {
     return {
@@ -239,10 +238,10 @@ export async function withRequestSigning(
 
   // Check if signature required but missing
   if (requireSignature && (!signature || !timestamp || !nonce)) {
-    logger.warn("Missing request signature", {
+    logger.warn({
       path: new URL(request.url).pathname,
       method: request.method,
-    });
+    }, "Missing request signature");
 
     return NextResponse.json({ error: "Missing signature" }, { status: 401 });
   }
@@ -273,17 +272,14 @@ export async function withRequestSigning(
   );
 
   if (!verification.valid) {
-    logger.warn("Invalid request signature", {
+    logger.warn({
       path,
       method,
       reason: verification.reason,
-    });
+    }, "Invalid request signature");
 
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
-
-  // Recreate request with body for handler
-  const newRequest = new NextRequest(request);
 
   return handler();
 }
@@ -296,7 +292,7 @@ export async function withRequestSigning(
 export async function makeSignedRequest(
   method: string,
   url: string,
-  body?: any,
+  body?: Record<string, unknown>,
   additionalHeaders?: Record<string, string>
 ): Promise<Response> {
   const urlObj = new URL(url);

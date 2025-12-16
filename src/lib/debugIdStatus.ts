@@ -33,9 +33,9 @@ export async function checkIdStatus() {
     if (counterSnap.exists()) {
       const counterData = counterSnap.data();
       logger.info("✅ Counter exists:");
-      logger.info("   Created At:", counterData.createdAt);
-      logger.info("   Last Reset:", counterData.lastResetAt);
-      logger.info("   Description:", counterData.description);
+      logger.info({ createdAt: counterData.createdAt }, "   Created At:");
+      logger.info({ lastResetAt: counterData.lastResetAt }, "   Last Reset:");
+      logger.info({ description: counterData.description }, "   Description:");
     } else {
       logger.info("❌ Counter doesn't exist");
     }
@@ -61,10 +61,10 @@ export async function checkIdStatus() {
     if (poolSnap.exists()) {
       const poolData = poolSnap.data();
       logger.info("✅ Pool exists:");
-      logger.info("   Recycled IDs count:", poolData.deletedIds?.length || 0);
-      logger.info("   Total recycled:", poolData.totalRecycled || 0);
+      logger.info({ count: poolData.deletedIds?.length || 0 }, "   Recycled IDs count:");
+      logger.info({ total: poolData.totalRecycled || 0 }, "   Total recycled:");
       if (poolData.deletedIds && poolData.deletedIds.length > 0) {
-        logger.info("   First 10 IDs:", poolData.deletedIds.slice(0, 10));
+        logger.info({ ids: poolData.deletedIds.slice(0, 10) }, "   First 10 IDs:");
       }
     } else {
       logger.info("❌ Pool doesn't exist");
