@@ -8,21 +8,21 @@ Complete reference of all environment variables used in SwitchCV with their purp
 
 These variables are safe to expose to the browser and are required for Firebase client SDK initialization.
 
-| Variable | Required | Purpose | Example |
-|----------|----------|---------|---------|
-| `NEXT_PUBLIC_FIREBASE_API_KEY` | ✅ Yes | Firebase API key | `AIzaSyD...` |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | ✅ Yes | Firebase auth domain | `switchcv.firebaseapp.com` |
-| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | ✅ Yes | Firebase project ID | `switchcv-prod` |
-| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | ✅ Yes | Firebase storage bucket | `switchcv-prod.appspot.com` |
-| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | ✅ Yes | FCM sender ID | `123456789` |
-| `NEXT_PUBLIC_FIREBASE_APP_ID` | ✅ Yes | Firebase app ID | `1:123456789:web:abc123` |
+| Variable                                   | Required | Purpose                 | Example                     |
+| ------------------------------------------ | -------- | ----------------------- | --------------------------- |
+| `NEXT_PUBLIC_FIREBASE_API_KEY`             | ✅ Yes   | Firebase API key        | `AIzaSyD...`                |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`         | ✅ Yes   | Firebase auth domain    | `switchcv.firebaseapp.com`  |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`          | ✅ Yes   | Firebase project ID     | `switchcv-prod`             |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`      | ✅ Yes   | Firebase storage bucket | `switchcv-prod.appspot.com` |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | ✅ Yes   | FCM sender ID           | `123456789`                 |
+| `NEXT_PUBLIC_FIREBASE_APP_ID`              | ✅ Yes   | Firebase app ID         | `1:123456789:web:abc123`    |
 
 ### Firebase Admin SDK (Server-Side Only - Secret)
 
 These variables must **NEVER** be exposed to the browser. They're used for server-side Firebase operations.
 
-| Variable | Required | Purpose | Example |
-|----------|----------|---------|---------|
+| Variable                 | Required            | Purpose                                                | Example                          |
+| ------------------------ | ------------------- | ------------------------------------------------------ | -------------------------------- |
 | `FIREBASE_ADMIN_SDK_KEY` | ✅ Yes (Production) | Firebase Admin SDK private key (JSON string or base64) | `{"type":"service_account",...}` |
 
 **⚠️ IMPORTANT:** This is a sensitive secret. Store it securely in your hosting platform's secret manager.
@@ -33,17 +33,17 @@ These variables must **NEVER** be exposed to the browser. They're used for serve
 
 ### Gemini API
 
-| Variable | Required | Purpose | Example |
-|----------|----------|---------|---------|
+| Variable         | Required            | Purpose               | Example     |
+| ---------------- | ------------------- | --------------------- | ----------- |
 | `GEMINI_API_KEY` | ✅ Yes (Production) | Google Gemini API key | `AIzaSy...` |
 
 **Access:** https://ai.google.dev/
 
 ### HuggingFace API
 
-| Variable | Required | Purpose | Example |
-|----------|----------|---------|---------|
-| `HUGGINGFACE_TOKEN` | ❌ No | HuggingFace API token (optional fallback) | `hf_XXXXXXXXXXXXXXXXXXXXX` |
+| Variable            | Required | Purpose                                   | Example                    |
+| ------------------- | -------- | ----------------------------------------- | -------------------------- |
+| `HUGGINGFACE_TOKEN` | ❌ No    | HuggingFace API token (optional fallback) | `hf_XXXXXXXXXXXXXXXXXXXXX` |
 
 **Access:** https://huggingface.co/settings/tokens
 
@@ -51,11 +51,11 @@ These variables must **NEVER** be exposed to the browser. They're used for serve
 
 ## Application Configuration
 
-| Variable | Required | Default | Purpose | Example |
-|----------|----------|---------|---------|---------|
-| `NODE_ENV` | ✅ Yes | `development` | Environment mode | `production` or `development` |
-| `NEXT_PUBLIC_APP_URL` | ❌ No | `http://localhost:3000` | Base URL for app | `https://switchcv.app` |
-| `NEXT_PUBLIC_APP_VERSION` | ✅ Auto | (from package.json) | App version (auto-set) | `0.0.97` |
+| Variable                  | Required | Default                 | Purpose                | Example                       |
+| ------------------------- | -------- | ----------------------- | ---------------------- | ----------------------------- |
+| `NODE_ENV`                | ✅ Yes   | `development`           | Environment mode       | `production` or `development` |
+| `NEXT_PUBLIC_APP_URL`     | ❌ No    | `http://localhost:3000` | Base URL for app       | `https://switchcv.app`        |
+| `NEXT_PUBLIC_APP_VERSION` | ✅ Auto  | (from package.json)     | App version (auto-set) | `0.0.97`                      |
 
 ---
 
@@ -63,11 +63,11 @@ These variables must **NEVER** be exposed to the browser. They're used for serve
 
 These variables are only used in development and override production settings.
 
-| Variable | Required | Purpose | Example |
-|----------|----------|---------|---------|
-| `NEXT_PUBLIC_DEV_MODE` | ❌ No | Enable development mode overrides | `true` |
-| `NEXT_PUBLIC_DEV_TIER` | ❌ No | Override subscription tier in dev | `enterprise` or `premium` or `basic` |
-| `NEXT_PUBLIC_DEV_ROLE` | ❌ No | Override user role in dev | `recruiter` or `jobseeker` |
+| Variable               | Required | Purpose                           | Example                              |
+| ---------------------- | -------- | --------------------------------- | ------------------------------------ |
+| `NEXT_PUBLIC_DEV_MODE` | ❌ No    | Enable development mode overrides | `true`                               |
+| `NEXT_PUBLIC_DEV_TIER` | ❌ No    | Override subscription tier in dev | `enterprise` or `premium` or `basic` |
+| `NEXT_PUBLIC_DEV_ROLE` | ❌ No    | Override user role in dev         | `recruiter` or `jobseeker`           |
 
 ### Using Development Overrides
 
@@ -122,6 +122,7 @@ NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abc123
 ### 5. Set Admin SDK Key
 
 Option A: Store entire JSON as base64:
+
 ```bash
 # Convert JSON to base64 (macOS/Linux)
 base64 < service-account-key.json > key.txt
@@ -129,6 +130,7 @@ base64 < service-account-key.json > key.txt
 ```
 
 Option B: Store as JSON string:
+
 ```bash
 # Just paste the JSON contents directly
 FIREBASE_ADMIN_SDK_KEY='{"type":"service_account",...}'
@@ -214,6 +216,7 @@ NEXT_PUBLIC_DEV_ROLE=recruiter
 **Problem:** Build fails with environment validation error.
 
 **Solution:**
+
 1. Check all variables in `.env.local`
 2. Run: `npm run build` to see which are missing
 3. Add missing variables to `.env.local`
@@ -224,6 +227,7 @@ NEXT_PUBLIC_DEV_ROLE=recruiter
 **Problem:** "Cannot read property 'apiKey' of undefined"
 
 **Solution:**
+
 1. Verify all `NEXT_PUBLIC_FIREBASE_*` variables are set
 2. Check values match Firebase project settings exactly
 3. Restart dev server: `npm run dev`
@@ -233,6 +237,7 @@ NEXT_PUBLIC_DEV_ROLE=recruiter
 **Problem:** "Invalid API key" error from Gemini or HuggingFace
 
 **Solution:**
+
 1. Verify API key is correct and not expired
 2. Check API key has necessary permissions
 3. Regenerate key if needed
@@ -243,6 +248,7 @@ NEXT_PUBLIC_DEV_ROLE=recruiter
 **Problem:** Subscription tier still shows as "basic"
 
 **Solution:**
+
 1. Set all three variables:
    ```bash
    NEXT_PUBLIC_DEV_MODE=true
@@ -260,6 +266,7 @@ NEXT_PUBLIC_DEV_ROLE=recruiter
 
 1. Go to Project Settings → Environment Variables
 2. Add each non-public variable:
+
    - `FIREBASE_ADMIN_SDK_KEY`
    - `GEMINI_API_KEY`
    - `HUGGINGFACE_TOKEN` (optional)
@@ -281,12 +288,14 @@ NEXT_PUBLIC_DEV_ROLE=recruiter
 ### Security Best Practices
 
 ✅ **DO:**
+
 - Use platform secret managers (Vercel, AWS Secrets Manager, etc.)
 - Rotate API keys periodically
 - Use separate keys for dev, staging, and production
 - Audit who has access to secrets
 
 ❌ **DON'T:**
+
 - Commit `.env.local` to git (it's in `.gitignore`)
 - Paste secrets in Slack or email
 - Use the same key across environments

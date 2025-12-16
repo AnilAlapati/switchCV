@@ -5,6 +5,7 @@ Use this checklist before deploying SwitchCV to production to ensure all securit
 ## ✅ Environment & Configuration
 
 - [ ] **Environment Variables Validated**
+
   - [ ] All required env vars are set (run `validateEnv()`)
   - [ ] No hardcoded secrets in code
   - [ ] API keys are server-side only (no `NEXT_PUBLIC_*` for keys)
@@ -12,6 +13,7 @@ Use this checklist before deploying SwitchCV to production to ensure all securit
   - [ ] `.env.local.example` has only dummy values
 
 - [ ] **Firebase Configuration**
+
   - [ ] Admin SDK initialized with production credentials
   - [ ] Firestore backup configured in production project
   - [ ] Firebase rules tested in production environment
@@ -26,11 +28,13 @@ Use this checklist before deploying SwitchCV to production to ensure all securit
 ### Authentication & Authorization
 
 - [ ] **All protected endpoints require authentication**
+
   - [ ] Use `getAuthenticatedUserId()` on protected routes
   - [ ] No public endpoints expose PII
   - [ ] Admin routes verify admin role
 
 - [ ] **Ownership Verification Implemented**
+
   - [ ] Users cannot access others' resumes
   - [ ] Users cannot modify others' profiles
   - [ ] Recruiter operations scoped to recruiter's account
@@ -43,6 +47,7 @@ Use this checklist before deploying SwitchCV to production to ensure all securit
 ### Data Protection
 
 - [ ] **PII Handled Securely**
+
   - [ ] No email addresses logged in production
   - [ ] No phone numbers exposed in API responses
   - [ ] Sensitive fields masked for public views
@@ -56,18 +61,21 @@ Use this checklist before deploying SwitchCV to production to ensure all securit
 ### API Security
 
 - [ ] **Input Validation**
+
   - [ ] All API routes validate input with zod schemas
   - [ ] File upload size limits enforced (5MB)
   - [ ] Query parameters validated
   - [ ] Request body size limited (1MB default)
 
 - [ ] **Error Handling**
+
   - [ ] No error messages expose internal details
   - [ ] Use `handleSecureApiError()` for all errors
   - [ ] Auth errors are generic (don't reveal user existence)
   - [ ] Database errors are generic (don't expose schema)
 
 - [ ] **Rate Limiting**
+
   - [ ] Rate limits applied to search endpoints
   - [ ] Rate limits applied to AI generation endpoints
   - [ ] Rate limits applied to access request endpoints
@@ -81,6 +89,7 @@ Use this checklist before deploying SwitchCV to production to ensure all securit
 ### Firestore Security
 
 - [ ] **Firestore Rules Tested**
+
   - [ ] User documents can only be read by owner
   - [ ] Role field cannot be escalated
   - [ ] Tier field cannot be changed by user
@@ -95,12 +104,14 @@ Use this checklist before deploying SwitchCV to production to ensure all securit
 ## 🧪 Testing
 
 - [ ] **Security Tests Pass**
+
   - [ ] `npm test -- security` passes all tests
   - [ ] No console errors in test output
   - [ ] Authentication tests pass
   - [ ] Authorization tests pass
 
 - [ ] **API Route Tests**
+
   - [ ] Critical API routes tested
   - [ ] Error scenarios tested
   - [ ] Rate limiting tested
@@ -114,12 +125,14 @@ Use this checklist before deploying SwitchCV to production to ensure all securit
 ## 📊 Performance
 
 - [ ] **Bundle Size Optimized**
+
   - [ ] Production bundle < 200KB (gzipped)
   - [ ] No unused dependencies
   - [ ] Tree shaking enabled
   - [ ] Code splitting working
 
 - [ ] **Database Queries Optimized**
+
   - [ ] No N+1 queries
   - [ ] Firestore indexes used
   - [ ] Pagination implemented
@@ -133,11 +146,13 @@ Use this checklist before deploying SwitchCV to production to ensure all securit
 ## 📝 Documentation
 
 - [ ] **Security Documentation Updated**
+
   - [ ] `docs/SECURITY.md` covers all security practices
   - [ ] Examples use secure patterns
   - [ ] Common vulnerabilities documented
 
 - [ ] **API Documentation Updated**
+
   - [ ] `docs/API_TESTING.md` has latest API patterns
   - [ ] Error codes documented
   - [ ] Rate limits documented
@@ -150,11 +165,13 @@ Use this checklist before deploying SwitchCV to production to ensure all securit
 ## 🚨 Monitoring & Logging
 
 - [ ] **Error Monitoring Configured**
+
   - [ ] Sentry configured with production DSN
   - [ ] Error tracking enabled
   - [ ] Alerts configured
 
 - [ ] **Access Logging**
+
   - [ ] API requests logged (without PII)
   - [ ] Authentication events logged
   - [ ] Admin actions logged
@@ -166,6 +183,7 @@ Use this checklist before deploying SwitchCV to production to ensure all securit
 ## 🔄 Dependencies
 
 - [ ] **Dependencies Scanned**
+
   - [ ] `npm audit` shows no critical vulnerabilities
   - [ ] All high-risk packages updated
   - [ ] Dev dependencies don't have known CVEs
@@ -177,17 +195,20 @@ Use this checklist before deploying SwitchCV to production to ensure all securit
 ## 📋 Final Checks
 
 - [ ] **Code Review**
+
   - [ ] Security review completed
   - [ ] Performance review completed
   - [ ] No hardcoded secrets found
 
 - [ ] **Staging Environment**
+
   - [ ] Deployed to staging first
   - [ ] All tests pass on staging
   - [ ] Manual testing completed
   - [ ] Security scan passed
 
 - [ ] **Backup & Disaster Recovery**
+
   - [ ] Firestore backups configured
   - [ ] Database backups tested
   - [ ] Recovery plan documented
@@ -201,6 +222,7 @@ Use this checklist before deploying SwitchCV to production to ensure all securit
 ## 🚀 Deployment
 
 - [ ] **Pre-Deployment**
+
   - [ ] All checklist items completed
   - [ ] Last backup taken
   - [ ] Rollback plan ready
@@ -208,6 +230,7 @@ Use this checklist before deploying SwitchCV to production to ensure all securit
   - [ ] Team notified
 
 - [ ] **Deployment**
+
   - [ ] Deploy to production
   - [ ] Verify deployment successful
   - [ ] Check application health
@@ -222,12 +245,14 @@ Use this checklist before deploying SwitchCV to production to ensure all securit
 ## 📞 Post-Deployment
 
 - [ ] **Verify All Systems**
+
   - [ ] Authentication working
   - [ ] All API endpoints responding
   - [ ] Database queries fast
   - [ ] No errors in logs
 
 - [ ] **User Communication**
+
   - [ ] Notify users of deployment (if needed)
   - [ ] Check for support requests
   - [ ] Monitor social media
@@ -241,14 +266,14 @@ Use this checklist before deploying SwitchCV to production to ensure all securit
 
 ## Checklist Sign-Off
 
-**Prepared by:** ________________  
-**Date:** ________________  
-**Project Version:** ________________  
+**Prepared by:** ******\_\_\_\_******  
+**Date:** ******\_\_\_\_******  
+**Project Version:** ******\_\_\_\_******
 
-**Reviewed by:** ________________  
-**Date:** ________________  
+**Reviewed by:** ******\_\_\_\_******  
+**Date:** ******\_\_\_\_******
 
-**Approved for Production:** ☐  
+**Approved for Production:** ☐
 
 ---
 
