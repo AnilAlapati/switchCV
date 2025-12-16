@@ -10,6 +10,7 @@ import {
   validateAICosts,
 } from "@/lib/system-config-validator";
 import { handleApiError } from "@/lib/utils/api-helpers";
+import { logger } from "@/lib/logger";
 
 export async function GET() {
   try {
@@ -25,8 +26,7 @@ export async function GET() {
       validateAICosts(config);
     } else {
       config = defaultSystemConfig;
-      // eslint-disable-next-line no-console
-      console.warn("⚠️ No system config found in Firebase, using defaults");
+      logger.warn("⚠️ No system config found in Firebase, using defaults");
     }
 
     return NextResponse.json({

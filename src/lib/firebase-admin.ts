@@ -1,5 +1,6 @@
 /* eslint-disable no-console */
 import * as admin from "firebase-admin";
+import { logger } from "@/lib/logger";
 
 /**
  * Firebase Admin Environment Configuration Error
@@ -22,7 +23,7 @@ export function validateEnvironment(): void {
     // Dev-only, allowlisted env snapshot to help local debugging.
     // Avoid logging arbitrary env vars (blocklists are easy to miss).
     if (process.env.NODE_ENV !== "production") {
-      console.error("Missing Project ID. Env snapshot:", {
+      logger.error("Missing Project ID. Env snapshot:", {
         NODE_ENV: process.env.NODE_ENV,
         GCLOUD_PROJECT: process.env.GCLOUD_PROJECT,
         NEXT_PUBLIC_FIREBASE_PROJECT_ID:

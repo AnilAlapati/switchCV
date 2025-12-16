@@ -4,6 +4,7 @@ import { useSystemConfig } from "@/context/SystemConfigProvider";
 import { useEffect, type ReactNode } from "react";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { logger } from "@/lib/logger";
 
 export const BlockingGuard = ({
   children,
@@ -16,8 +17,7 @@ export const BlockingGuard = ({
   useEffect(() => {
     if (maintenance.isActive && maintenance.blocking && auth) {
       void signOut(auth).catch((error) => {
-        // eslint-disable-next-line no-console
-        console.error("Failed to sign out during maintenance lockout:", error);
+        logger.error("Failed to sign out during maintenance lockout:", error);
       });
     }
   }, [maintenance.isActive, maintenance.blocking]);
