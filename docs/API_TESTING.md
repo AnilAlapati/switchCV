@@ -20,13 +20,13 @@ This guide explains how to test API routes in SwitchCV to ensure reliability, se
 Create test utilities in `src/__tests__/support/api-test-helpers.ts`:
 
 ```typescript
-import { NextRequest } from 'next/server';
+import { NextRequest } from "next/server";
 
 /**
  * Create a mock NextRequest for testing
  */
 export function createMockRequest(
-  url: string = 'http://localhost:3000/api/test',
+  url: string = "http://localhost:3000/api/test",
   options: {
     method?: string;
     body?: unknown;
@@ -35,17 +35,17 @@ export function createMockRequest(
   } = {}
 ): NextRequest {
   const headers = new Headers(options.headers || {});
-  
+
   if (options.token) {
-    headers.set('Authorization', `Bearer ${options.token}`);
+    headers.set("Authorization", `Bearer ${options.token}`);
   }
-  
+
   if (options.body) {
-    headers.set('Content-Type', 'application/json');
+    headers.set("Content-Type", "application/json");
   }
 
   return new NextRequest(url, {
-    method: options.method || 'GET',
+    method: options.method || "GET",
     headers,
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
@@ -65,7 +65,7 @@ export async function getResponseJson(response: Response): Promise<unknown> {
 export function createAuthenticatedRequest(
   url: string,
   token: string,
-  method: string = 'GET',
+  method: string = "GET",
   body?: unknown
 ): NextRequest {
   return createMockRequest(url, { method, body, token });
@@ -77,10 +77,10 @@ export function createAuthenticatedRequest(
 export function mockFirebaseAdminAuth() {
   return {
     verifyIdToken: jest.fn(async (token: string) => {
-      if (token === 'valid-token') {
-        return { uid: 'test-user-id' };
+      if (token === "valid-token") {
+        return { uid: "test-user-id" };
       }
-      throw new Error('Invalid token');
+      throw new Error("Invalid token");
     }),
   };
 }
@@ -94,7 +94,7 @@ export function mockFirebaseAdminFirestore() {
       doc: jest.fn((id: string) => ({
         get: jest.fn(async () => ({
           exists: true,
-          data: () => ({ id, userId: 'test-user-id' }),
+          data: () => ({ id, userId: "test-user-id" }),
         })),
         set: jest.fn(),
         update: jest.fn(),
@@ -117,53 +117,58 @@ export function mockFirebaseAdminFirestore() {
 
 ```typescript
 // src/app/api/resume/create/route.test.ts
-import { POST } from './route';
-import { createAuthenticatedRequest, getResponseJson } from '@/__tests__/support/api-test-helpers';
+import { POST } from "./route";
+import {
+  createAuthenticatedRequest,
+  getResponseJson,
+} from "@/__tests__/support/api-test-helpers";
 
-jest.mock('@/lib/firebase-admin', () => ({
+jest.mock("@/lib/firebase-admin", () => ({
   adminAuth: {
-    verifyIdToken: jest.fn(async () => ({ uid: 'test-user' })),
+    verifyIdToken: jest.fn(async () => ({ uid: "test-user" })),
   },
   adminDb: {
     collection: jest.fn(() => ({
-      add: jest.fn(async () => ({ id: 'resume-123' })),
+      add: jest.fn(async () => ({ id: "resume-123" })),
     })),
   },
 }));
 
-describe('POST /api/resume/create', () => {
-  test('should require authentication', async () => {
-    const request = new Request('http://localhost/api/resume/create', {
-      method: 'POST',
+describe("POST /api/resume/create", () => {
+  test("should require authentication", async () => {
+    const request = new Request("http://localhost/api/resume/create", {
+      method: "POST",
     });
     const response = await POST(request);
-    
+
     expect(response.status).toBe(401);
     const data = await getResponseJson(response);
     expect(data.error).toBeDefined();
   });
 
-  test('should validate input', async () => {
+  test("should validate input", async () => {
     const request = createAuthenticatedRequest(
-      'http://localhost/api/resume/create',
-      'valid-token',
-      'POST',
-      { /* invalid data */ }
+      "http://localhost/api/resume/create",
+      "valid-token",
+      "POST",
+      {
+        /* invalid data */
+      }
     );
     const response = await POST(request);
-    
+
     expect(response.status).toBe(400);
   });
 
-  test('should create resume with valid input', async () => {
+  test("should create resume with valid input", async () => {
     const request = createAuthenticatedRequest(
-      'http://localhost/api/resume/create',
-      'valid-token',
-      'POST',
-      { title: 'My Resume', content: 'Content here' }
+      "http://localhost/api/resume/create",
+      "valid-token",
+      "POST",
+      { title: "My Resume", content: "Content here" }
     );
     const response = await POST(request);
-    
+
     expect(response.status).toBe(200);
     const data = await getResponseJson(response);
     expect(data.id).toBeDefined();
@@ -175,49 +180,49 @@ describe('POST /api/resume/create', () => {
 
 ```typescript
 // src/lib/middleware/validateInput.test.ts
-import { validateInput } from './validateInput';
-import { z } from 'zod';
+import { validateInput } from "./validateInput";
+import { z } from "zod";
 
-describe('Input Validation', () => {
-  test('should accept valid input', async () => {
+describe("Input Validation", () => {
+  test("should accept valid input", async () => {
     const schema = z.object({
       name: z.string(),
       age: z.number(),
     });
-    
-    const request = new Request('http://localhost/api/test', {
-      method: 'POST',
-      body: JSON.stringify({ name: 'John', age: 30 }),
+
+    const request = new Request("http://localhost/api/test", {
+      method: "POST",
+      body: JSON.stringify({ name: "John", age: 30 }),
     });
-    
+
     const result = await validateInput(request, schema);
     expect(result.valid).toBe(true);
-    expect(result.data).toEqual({ name: 'John', age: 30 });
+    expect(result.data).toEqual({ name: "John", age: 30 });
   });
 
-  test('should reject invalid input', async () => {
+  test("should reject invalid input", async () => {
     const schema = z.object({
       name: z.string(),
       age: z.number(),
     });
-    
-    const request = new Request('http://localhost/api/test', {
-      method: 'POST',
-      body: JSON.stringify({ name: 'John', age: 'thirty' }),
+
+    const request = new Request("http://localhost/api/test", {
+      method: "POST",
+      body: JSON.stringify({ name: "John", age: "thirty" }),
     });
-    
+
     const result = await validateInput(request, schema);
     expect(result.valid).toBe(false);
     expect(result.error?.status).toBe(400);
   });
 
-  test('should handle invalid JSON', async () => {
+  test("should handle invalid JSON", async () => {
     const schema = z.object({});
-    const request = new Request('http://localhost/api/test', {
-      method: 'POST',
-      body: 'invalid json',
+    const request = new Request("http://localhost/api/test", {
+      method: "POST",
+      body: "invalid json",
     });
-    
+
     const result = await validateInput(request, schema);
     expect(result.valid).toBe(false);
     expect(result.error?.status).toBe(400);
@@ -233,14 +238,18 @@ describe('Input Validation', () => {
 
 ```typescript
 // src/app/api/resume/create/route.integration.test.ts
-import { initializeTestEnvironment, assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import {
+  initializeTestEnvironment,
+  assertSucceeds,
+  assertFails,
+} from "@firebase/rules-unit-testing";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 let testEnv: any;
 
 beforeAll(async () => {
   testEnv = await initializeTestEnvironment({
-    projectId: 'test-project',
+    projectId: "test-project",
   });
 });
 
@@ -248,41 +257,47 @@ afterAll(async () => {
   await testEnv.cleanup();
 });
 
-describe('Resume CRUD - Integration', () => {
-  test('should create resume for authenticated user', async () => {
-    const uid = 'test-user-id';
+describe("Resume CRUD - Integration", () => {
+  test("should create resume for authenticated user", async () => {
+    const uid = "test-user-id";
     const db = testEnv.authenticatedContext(uid).firestore();
-    
-    const resumeRef = doc(db, 'resumes', 'resume-123');
-    
-    await assertSucceeds(setDoc(resumeRef, {
-      userId: uid,
-      title: 'My Resume',
-      createdAt: new Date(),
-    }));
+
+    const resumeRef = doc(db, "resumes", "resume-123");
+
+    await assertSucceeds(
+      setDoc(resumeRef, {
+        userId: uid,
+        title: "My Resume",
+        createdAt: new Date(),
+      })
+    );
   });
 
-  test('should prevent unauthenticated writes', async () => {
+  test("should prevent unauthenticated writes", async () => {
     const db = testEnv.unauthenticatedContext().firestore();
-    const resumeRef = doc(db, 'resumes', 'resume-456');
-    
-    await assertFails(setDoc(resumeRef, {
-      userId: 'other-user',
-      title: 'Hacked Resume',
-    }));
+    const resumeRef = doc(db, "resumes", "resume-456");
+
+    await assertFails(
+      setDoc(resumeRef, {
+        userId: "other-user",
+        title: "Hacked Resume",
+      })
+    );
   });
 
-  test('should prevent users from modifying others resumes', async () => {
-    const uid = 'test-user-id';
+  test("should prevent users from modifying others resumes", async () => {
+    const uid = "test-user-id";
     const db = testEnv.authenticatedContext(uid).firestore();
-    
+
     // Try to update another user's resume
-    const resumeRef = doc(db, 'resumes', 'other-user-resume');
-    
-    await assertFails(setDoc(resumeRef, {
-      userId: 'other-user',
-      title: 'Modified',
-    }));
+    const resumeRef = doc(db, "resumes", "other-user-resume");
+
+    await assertFails(
+      setDoc(resumeRef, {
+        userId: "other-user",
+        title: "Modified",
+      })
+    );
   });
 });
 ```
@@ -295,29 +310,29 @@ describe('Resume CRUD - Integration', () => {
 
 ```typescript
 // src/app/api/resume/[id]/route.test.ts
-describe('API Security - Authentication', () => {
-  test('should reject request without auth header', async () => {
-    const request = new Request('http://localhost/api/resume/123', {
-      method: 'GET',
+describe("API Security - Authentication", () => {
+  test("should reject request without auth header", async () => {
+    const request = new Request("http://localhost/api/resume/123", {
+      method: "GET",
     });
     const response = await GET(request);
     expect(response.status).toBe(401);
   });
 
-  test('should reject request with invalid token', async () => {
-    const request = new Request('http://localhost/api/resume/123', {
-      method: 'GET',
-      headers: { Authorization: 'Bearer invalid-token' },
+  test("should reject request with invalid token", async () => {
+    const request = new Request("http://localhost/api/resume/123", {
+      method: "GET",
+      headers: { Authorization: "Bearer invalid-token" },
     });
     const response = await GET(request);
     expect(response.status).toBe(401);
   });
 
-  test('should accept valid token', async () => {
+  test("should accept valid token", async () => {
     const request = createAuthenticatedRequest(
-      'http://localhost/api/resume/123',
-      'valid-token',
-      'GET'
+      "http://localhost/api/resume/123",
+      "valid-token",
+      "GET"
     );
     const response = await GET(request);
     expect(response.status).not.toBe(401);
@@ -328,22 +343,22 @@ describe('API Security - Authentication', () => {
 ### Authorization Tests
 
 ```typescript
-describe('API Security - Authorization', () => {
-  test('should prevent users from accessing others resumes', async () => {
+describe("API Security - Authorization", () => {
+  test("should prevent users from accessing others resumes", async () => {
     const request = createAuthenticatedRequest(
-      'http://localhost/api/resume/other-user-resume',
-      'valid-token', // Different user
-      'GET'
+      "http://localhost/api/resume/other-user-resume",
+      "valid-token", // Different user
+      "GET"
     );
     const response = await GET(request);
     expect(response.status).toBe(403);
   });
 
-  test('should allow users to access their own resume', async () => {
+  test("should allow users to access their own resume", async () => {
     const request = createAuthenticatedRequest(
-      'http://localhost/api/resume/user-own-resume',
-      'valid-token',
-      'GET'
+      "http://localhost/api/resume/user-own-resume",
+      "valid-token",
+      "GET"
     );
     const response = await GET(request);
     expect(response.status).toBe(200);
@@ -354,20 +369,20 @@ describe('API Security - Authorization', () => {
 ### Rate Limiting Tests
 
 ```typescript
-describe('API Security - Rate Limiting', () => {
-  test('should enforce rate limits', async () => {
-    const userId = 'test-user';
-    
+describe("API Security - Rate Limiting", () => {
+  test("should enforce rate limits", async () => {
+    const userId = "test-user";
+
     // Make 31 requests (limit is 30 per minute)
     for (let i = 0; i < 31; i++) {
       const request = createAuthenticatedRequest(
-        'http://localhost/api/profiles/search',
-        'valid-token',
-        'POST',
-        { query: 'test' }
+        "http://localhost/api/profiles/search",
+        "valid-token",
+        "POST",
+        { query: "test" }
       );
       const response = await POST(request);
-      
+
       if (i < 30) {
         expect(response.status).toBe(200);
       } else {
@@ -376,18 +391,18 @@ describe('API Security - Rate Limiting', () => {
     }
   });
 
-  test('should include rate limit headers', async () => {
+  test("should include rate limit headers", async () => {
     const request = createAuthenticatedRequest(
-      'http://localhost/api/profiles/search',
-      'valid-token',
-      'POST',
-      { query: 'test' }
+      "http://localhost/api/profiles/search",
+      "valid-token",
+      "POST",
+      { query: "test" }
     );
     const response = await POST(request);
-    
-    expect(response.headers.get('X-RateLimit-Limit')).toBeDefined();
-    expect(response.headers.get('X-RateLimit-Remaining')).toBeDefined();
-    expect(response.headers.get('X-RateLimit-Reset')).toBeDefined();
+
+    expect(response.headers.get("X-RateLimit-Limit")).toBeDefined();
+    expect(response.headers.get("X-RateLimit-Remaining")).toBeDefined();
+    expect(response.headers.get("X-RateLimit-Reset")).toBeDefined();
   });
 });
 ```
@@ -400,33 +415,33 @@ describe('API Security - Rate Limiting', () => {
 
 ```typescript
 // e2e/api-flow.spec.ts
-import { test, expect } from '@playwright/test';
+import { test, expect } from "@playwright/test";
 
-test('Resume creation and search flow', async ({ request, baseURL }) => {
+test("Resume creation and search flow", async ({ request, baseURL }) => {
   // 1. Authenticate
   const authResponse = await request.post(`${baseURL}/api/auth/login`, {
-    data: { email: 'test@example.com', password: 'password123' },
+    data: { email: "test@example.com", password: "password123" },
   });
   const { token } = await authResponse.json();
-  
+
   // 2. Create resume
   const createResponse = await request.post(`${baseURL}/api/resume/create`, {
     headers: { Authorization: `Bearer ${token}` },
-    data: { title: 'My Resume', content: 'Content' },
+    data: { title: "My Resume", content: "Content" },
   });
   const { id } = await createResponse.json();
   expect(createResponse.ok()).toBeTruthy();
-  
+
   // 3. Fetch resume
   const getResponse = await request.get(`${baseURL}/api/resume/${id}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   expect(getResponse.ok()).toBeTruthy();
-  
+
   // 4. Search for resume
   const searchResponse = await request.post(`${baseURL}/api/profiles/search`, {
     headers: { Authorization: `Bearer ${token}` },
-    data: { query: 'My Resume' },
+    data: { query: "My Resume" },
   });
   expect(searchResponse.ok()).toBeTruthy();
 });
@@ -455,39 +470,39 @@ Ensure errors return generic messages without leaking internal details.
 ### 5. Test Edge Cases
 
 ```typescript
-describe('Edge Cases', () => {
-  test('should handle empty query string', async () => {
+describe("Edge Cases", () => {
+  test("should handle empty query string", async () => {
     const request = createAuthenticatedRequest(
-      'http://localhost/api/profiles/search',
-      'valid-token',
-      'POST',
-      { query: '' }
+      "http://localhost/api/profiles/search",
+      "valid-token",
+      "POST",
+      { query: "" }
     );
     const response = await POST(request);
     // Should return 400 (invalid query)
     expect(response.status).toBe(400);
   });
 
-  test('should handle very large payloads', async () => {
-    const largeData = { content: 'x'.repeat(10 * 1024 * 1024) }; // 10MB
+  test("should handle very large payloads", async () => {
+    const largeData = { content: "x".repeat(10 * 1024 * 1024) }; // 10MB
     const request = createAuthenticatedRequest(
-      'http://localhost/api/resume/create',
-      'valid-token',
-      'POST',
+      "http://localhost/api/resume/create",
+      "valid-token",
+      "POST",
       largeData
     );
     const response = await POST(request);
     expect(response.status).toBe(400);
   });
 
-  test('should handle malformed JSON', async () => {
-    const request = new Request('http://localhost/api/resume/create', {
-      method: 'POST',
+  test("should handle malformed JSON", async () => {
+    const request = new Request("http://localhost/api/resume/create", {
+      method: "POST",
       headers: {
-        Authorization: 'Bearer valid-token',
-        'Content-Type': 'application/json',
+        Authorization: "Bearer valid-token",
+        "Content-Type": "application/json",
       },
-      body: '{invalid json',
+      body: "{invalid json",
     });
     const response = await POST(request);
     expect(response.status).toBe(400);
@@ -498,20 +513,18 @@ describe('Edge Cases', () => {
 ### 6. Test Concurrent Requests
 
 ```typescript
-test('should handle concurrent requests', async () => {
+test("should handle concurrent requests", async () => {
   const requests = Array.from({ length: 10 }).map((_, i) =>
     createAuthenticatedRequest(
       `http://localhost/api/resume/create`,
-      'valid-token',
-      'POST',
+      "valid-token",
+      "POST",
       { title: `Resume ${i}` }
     )
   );
-  
-  const responses = await Promise.all(
-    requests.map((req) => POST(req))
-  );
-  
+
+  const responses = await Promise.all(requests.map((req) => POST(req)));
+
   responses.forEach((res) => {
     expect(res.status).toBe(200);
   });

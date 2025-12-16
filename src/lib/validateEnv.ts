@@ -33,7 +33,7 @@ interface RequiredEnv {
   NEXT_PUBLIC_FIREBASE_APP_ID: string;
 
   // Environment mode
-  NODE_ENV: 'development' | 'production' | 'test';
+  NODE_ENV: "development" | "production" | "test";
 }
 
 /**
@@ -43,18 +43,18 @@ interface RequiredEnv {
  */
 export function validateEnv(): boolean {
   const required: (keyof RequiredEnv)[] = [
-    'FIREBASE_ADMIN_SDK_KEY',
-    'NEXT_PUBLIC_FIREBASE_API_KEY',
-    'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
-    'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
-    'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET',
-    'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
-    'NEXT_PUBLIC_FIREBASE_APP_ID',
+    "FIREBASE_ADMIN_SDK_KEY",
+    "NEXT_PUBLIC_FIREBASE_API_KEY",
+    "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
+    "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
+    "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET",
+    "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID",
+    "NEXT_PUBLIC_FIREBASE_APP_ID",
   ];
 
   // In production, AI keys are required
-  if (process.env.NODE_ENV === 'production') {
-    required.push('GEMINI_API_KEY');
+  if (process.env.NODE_ENV === "production") {
+    required.push("GEMINI_API_KEY");
   }
 
   const missing: string[] = [];
@@ -65,20 +65,25 @@ export function validateEnv(): boolean {
 
     if (!value) {
       missing.push(key);
-    } else if (key.startsWith('NEXT_PUBLIC_') && !validatePublicConfig(key, value)) {
-      invalid.push({ key, reason: 'Invalid format' });
+    } else if (
+      key.startsWith("NEXT_PUBLIC_") &&
+      !validatePublicConfig(key, value)
+    ) {
+      invalid.push({ key, reason: "Invalid format" });
     }
   }
 
   if (missing.length > 0) {
-    const errorMsg = `Missing required environment variables:\n${missing.map((k) => `  - ${k}`).join('\n')}`;
+    const errorMsg = `Missing required environment variables:\n${missing
+      .map((k) => `  - ${k}`)
+      .join("\n")}`;
     throw new Error(errorMsg);
   }
 
   if (invalid.length > 0) {
     const errorMsg = `Invalid environment variables:\n${invalid
       .map((i) => `  - ${i.key}: ${i.reason}`)
-      .join('\n')}`;
+      .join("\n")}`;
     throw new Error(errorMsg);
   }
 
@@ -96,13 +101,13 @@ function validatePublicConfig(key: string, value: string): boolean {
 
   // Basic validation for Firebase config keys
   switch (key) {
-    case 'NEXT_PUBLIC_FIREBASE_API_KEY':
-    case 'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN':
-    case 'NEXT_PUBLIC_FIREBASE_PROJECT_ID':
-    case 'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET':
-    case 'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID':
-    case 'NEXT_PUBLIC_FIREBASE_APP_ID':
-      return value.length > 0 && value !== 'undefined' && value !== 'null';
+    case "NEXT_PUBLIC_FIREBASE_API_KEY":
+    case "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN":
+    case "NEXT_PUBLIC_FIREBASE_PROJECT_ID":
+    case "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET":
+    case "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID":
+    case "NEXT_PUBLIC_FIREBASE_APP_ID":
+      return value.length > 0 && value !== "undefined" && value !== "null";
     default:
       return true;
   }
@@ -114,7 +119,7 @@ function validatePublicConfig(key: string, value: string): boolean {
  * @returns {boolean} True if the variable is set
  */
 export function hasEnv(key: string): boolean {
-  return process.env[key] !== undefined && process.env[key] !== '';
+  return process.env[key] !== undefined && process.env[key] !== "";
 }
 
 /**
@@ -123,7 +128,7 @@ export function hasEnv(key: string): boolean {
  * @param defaultValue - Default value if not set
  * @returns {string} The environment variable value or default
  */
-export function getEnv(key: string, defaultValue: string = ''): string {
+export function getEnv(key: string, defaultValue: string = ""): string {
   return process.env[key] ?? defaultValue;
 }
 

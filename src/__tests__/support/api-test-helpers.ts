@@ -7,7 +7,7 @@
  * @module __tests__/support/api-test-helpers
  */
 
-import { NextRequest } from 'next/server';
+import { NextRequest } from "next/server";
 
 /**
  * Create a mock NextRequest for testing
@@ -16,7 +16,7 @@ import { NextRequest } from 'next/server';
  * @returns Mocked NextRequest
  */
 export function createMockRequest(
-  url: string = 'http://localhost:3000/api/test',
+  url: string = "http://localhost:3000/api/test",
   options: {
     method?: string;
     body?: unknown;
@@ -27,15 +27,15 @@ export function createMockRequest(
   const headers = new Headers(options.headers || {});
 
   if (options.token) {
-    headers.set('Authorization', `Bearer ${options.token}`);
+    headers.set("Authorization", `Bearer ${options.token}`);
   }
 
   if (options.body) {
-    headers.set('Content-Type', 'application/json');
+    headers.set("Content-Type", "application/json");
   }
 
   return new NextRequest(url, {
-    method: options.method || 'GET',
+    method: options.method || "GET",
     headers,
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
@@ -72,7 +72,7 @@ export async function getResponseText(response: Response): Promise<string> {
 export function createAuthenticatedRequest(
   url: string,
   token: string,
-  method: string = 'GET',
+  method: string = "GET",
   body?: unknown
 ): NextRequest {
   return createMockRequest(url, { method, body, token });
@@ -89,15 +89,15 @@ export function createAuthenticatedRequest(
 export function createUserRequest(
   url: string,
   userId: string,
-  method: string = 'GET',
+  method: string = "GET",
   body?: unknown
 ): NextRequest {
   return createMockRequest(url, {
     method,
     body,
     headers: {
-      'X-User-ID': userId,
-      'Authorization': 'Bearer valid-token',
+      "X-User-ID": userId,
+      Authorization: "Bearer valid-token",
     },
   });
 }
@@ -111,7 +111,7 @@ export function createUserRequest(
  */
 export function createUnauthenticatedRequest(
   url: string,
-  method: string = 'GET',
+  method: string = "GET",
   body?: unknown
 ): NextRequest {
   return createMockRequest(url, { method, body });
@@ -130,8 +130,7 @@ export function expectStatus(
 ): void {
   if (response.status !== expectedStatus) {
     throw new Error(
-      message ||
-        `Expected status ${expectedStatus}, got ${response.status}`
+      message || `Expected status ${expectedStatus}, got ${response.status}`
     );
   }
 }
@@ -142,14 +141,8 @@ export function expectStatus(
  * @param message - Error message
  */
 export function expectErrorResponse(data: unknown, message?: string): void {
-  if (
-    typeof data !== 'object' ||
-    data === null ||
-    !('error' in data)
-  ) {
-    throw new Error(
-      message || 'Expected response to have error field'
-    );
+  if (typeof data !== "object" || data === null || !("error" in data)) {
+    throw new Error(message || "Expected response to have error field");
   }
 }
 
@@ -160,13 +153,13 @@ export function expectErrorResponse(data: unknown, message?: string): void {
 export function mockFirebaseAdminAuth() {
   return {
     verifyIdToken: jest.fn(async (token: string) => {
-      if (token === 'valid-token') {
-        return { uid: 'test-user-id' };
+      if (token === "valid-token") {
+        return { uid: "test-user-id" };
       }
-      if (token === 'other-user-token') {
-        return { uid: 'other-user-id' };
+      if (token === "other-user-token") {
+        return { uid: "other-user-id" };
       }
-      throw new Error('Invalid token');
+      throw new Error("Invalid token");
     }),
   };
 }
@@ -180,10 +173,10 @@ export function mockFirebaseAdminFirestore() {
     collection: jest.fn((name: string) => ({
       doc: jest.fn((id: string) => ({
         get: jest.fn(async () => ({
-          exists: id !== 'nonexistent',
+          exists: id !== "nonexistent",
           data: () => ({
             id,
-            userId: 'test-user-id',
+            userId: "test-user-id",
           }),
         })),
         set: jest.fn(),
@@ -191,7 +184,7 @@ export function mockFirebaseAdminFirestore() {
         delete: jest.fn(),
         batch: jest.fn(),
       })),
-      add: jest.fn(async () => ({ id: 'new-doc-id' })),
+      add: jest.fn(async () => ({ id: "new-doc-id" })),
       where: jest.fn(() => ({
         get: jest.fn(async () => ({
           docs: [],
@@ -227,14 +220,14 @@ export function mockRateLimitCheck(allowed: boolean = true) {
  */
 export function setupApiMocks() {
   // Mock Firebase Admin
-  jest.mock('@/lib/firebase-admin', () => ({
+  jest.mock("@/lib/firebase-admin", () => ({
     adminAuth: mockFirebaseAdminAuth(),
     adminDb: mockFirebaseAdminFirestore(),
   }));
 
   // Return cleanup function
   return () => {
-    jest.unmock('@/lib/firebase-admin');
+    jest.unmock("@/lib/firebase-admin");
   };
 }
 
@@ -249,15 +242,10 @@ export function setupApiMocks() {
 export function createBatchRequests(
   url: string,
   count: number,
-  method: string = 'POST',
+  method: string = "POST",
   bodyGenerator: (i: number) => unknown = (i) => ({ id: i })
 ): NextRequest[] {
   return Array.from({ length: count }).map((_, i) =>
-    createAuthenticatedRequest(
-      url,
-      'valid-token',
-      method,
-      bodyGenerator(i)
-    )
+    createAuthenticatedRequest(url, "valid-token", method, bodyGenerator(i))
   );
 }

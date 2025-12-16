@@ -20,18 +20,24 @@ This document outlines security best practices for developing on the SwitchCV pl
 ### ✅ Do's
 
 - **Always verify authentication** before processing protected endpoints
+
   ```typescript
   const { userId, error } = await getAuthenticatedUserId(request);
   if (error) return error;
   ```
 
 - **Verify ownership** of resources before allowing modifications
+
   ```typescript
   const { success, userId } = await verifyResumeOwnership(request, resumeId);
-  if (!success) return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
+  if (!success)
+    return {
+      error: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+    };
   ```
 
 - **Check user roles** for sensitive operations
+
   ```typescript
   const userDoc = await adminDb.collection("users").doc(userId).get();
   if (userDoc.data()?.role !== "admin") {
@@ -59,8 +65,8 @@ This document outlines security best practices for developing on the SwitchCV pl
 **Always validate API inputs** before processing:
 
 ```typescript
-import { validateInput, CommonSchemas } from '@/lib/middleware/validateInput';
-import { z } from 'zod';
+import { validateInput, CommonSchemas } from "@/lib/middleware/validateInput";
+import { z } from "zod";
 
 const schema = z.object({
   email: CommonSchemas.email,
@@ -71,7 +77,7 @@ const schema = z.object({
 export async function POST(request: NextRequest) {
   const { data, error } = await validateInput(request, schema);
   if (error) return error; // Returns 400 response
-  
+
   // data is now type-safe and validated
 }
 ```
@@ -81,7 +87,7 @@ export async function POST(request: NextRequest) {
 **Always set explicit CORS headers:**
 
 ```typescript
-import { withCORS } from '@/lib/middleware/cors';
+import { withCORS } from "@/lib/middleware/cors";
 
 export async function POST(request: NextRequest) {
   // Your logic
@@ -95,7 +101,7 @@ export async function POST(request: NextRequest) {
 **Apply rate limiting to prevent abuse:**
 
 ```typescript
-import { applyRateLimit } from '@/lib/utils/api-helpers';
+import { applyRateLimit } from "@/lib/utils/api-helpers";
 
 export async function POST(request: NextRequest) {
   const { userId, error: authError } = await getAuthenticatedUserId(request);
@@ -122,15 +128,17 @@ export async function POST(request: NextRequest) {
 ### PII (Personally Identifiable Information)
 
 - **Never log PII** (emails, phone numbers, etc.)
+
   ```typescript
   // ❌ Bad
   logger.info(`User email: ${user.email}`);
-  
+
   // ✅ Good
   logger.info(`User authenticated: ${userId}`);
   ```
 
 - **Use visibility controls** for sensitive fields
+
   ```typescript
   // In Firestore documents
   {
@@ -141,7 +149,7 @@ export async function POST(request: NextRequest) {
 
 - **Mask sensitive fields** for public views
   ```typescript
-  import { sanitizeResumeForPublicView } from '@/lib/utils/resumeVisibility';
+  import { sanitizeResumeForPublicView } from "@/lib/utils/resumeVisibility";
   const publicResume = sanitizeResumeForPublicView(resumeData);
   ```
 
@@ -173,7 +181,7 @@ NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
 Always validate environment variables on startup:
 
 ```typescript
-import { validateEnv } from '@/lib/validateEnv';
+import { validateEnv } from "@/lib/validateEnv";
 
 // In next.config.ts or app initialization
 validateEnv(); // Throws if any required vars are missing
@@ -182,13 +190,13 @@ validateEnv(); // Throws if any required vars are missing
 ### Getting Environment Variables
 
 ```typescript
-import { getEnv, getRequiredEnv } from '@/lib/validateEnv';
+import { getEnv, getRequiredEnv } from "@/lib/validateEnv";
 
 // With fallback
-const appUrl = getEnv('NEXT_PUBLIC_APP_URL', 'http://localhost:3000');
+const appUrl = getEnv("NEXT_PUBLIC_APP_URL", "http://localhost:3000");
 
 // Required (throws if not set)
-const projectId = getRequiredEnv('NEXT_PUBLIC_FIREBASE_PROJECT_ID');
+const projectId = getRequiredEnv("NEXT_PUBLIC_FIREBASE_PROJECT_ID");
 ```
 
 ---
@@ -200,14 +208,17 @@ const projectId = getRequiredEnv('NEXT_PUBLIC_FIREBASE_PROJECT_ID');
 **Use secure error handlers** that prevent exposing internal details:
 
 ```typescript
-import { handleSecureApiError, getSecureAuthErrorMessage } from '@/lib/utils/api-helpers';
+import {
+  handleSecureApiError,
+  getSecureAuthErrorMessage,
+} from "@/lib/utils/api-helpers";
 
 try {
   // Your logic
 } catch (error) {
   // Returns generic message to client
   return handleSecureApiError(error, {
-    publicMessage: 'Failed to process request',
+    publicMessage: "Failed to process request",
     status: 500,
     userId, // Optional, for logging
     endpoint: request.nextUrl.pathname, // Optional
@@ -220,7 +231,7 @@ try {
 **Always sanitize auth errors:**
 
 ```typescript
-import { getSecureAuthErrorMessage } from '@/lib/utils/api-helpers';
+import { getSecureAuthErrorMessage } from "@/lib/utils/api-helpers";
 
 try {
   await signInWithEmailAndPassword(auth, email, password);
@@ -236,10 +247,10 @@ try {
 **Sanitize database errors:**
 
 ```typescript
-import { getSecureFirestoreErrorMessage } from '@/lib/utils/api-helpers';
+import { getSecureFirestoreErrorMessage } from "@/lib/utils/api-helpers";
 
 try {
-  await adminDb.collection('resumes').doc(id).get();
+  await adminDb.collection("resumes").doc(id).get();
 } catch (error) {
   const message = getSecureFirestoreErrorMessage(error);
   return handleSecureApiError(error, {
@@ -256,7 +267,7 @@ try {
 ### Common Patterns
 
 ```typescript
-import { validateInput, CommonSchemas } from '@/lib/middleware/validateInput';
+import { validateInput, CommonSchemas } from "@/lib/middleware/validateInput";
 
 // Email validation
 const emailSchema = CommonSchemas.email;
@@ -277,7 +288,7 @@ const searchSchema = z.object({
 export async function POST(request: NextRequest) {
   const { data, error } = await validateInput(request, searchSchema);
   if (error) return error;
-  
+
   // data is validated
   await search(data.query, data.filters);
 }
@@ -286,14 +297,15 @@ export async function POST(request: NextRequest) {
 ### Custom Validation
 
 ```typescript
-const customSchema = z.object({
-  resumeId: z.string().min(1),
-  visibility: z.enum(['public', 'masked', 'request', 'private']),
-  expiresAt: CommonSchemas.dateString.optional(),
-}).refine(
-  (data) => !data.expiresAt || new Date(data.expiresAt) > new Date(),
-  { message: "Expiry date must be in the future" }
-);
+const customSchema = z
+  .object({
+    resumeId: z.string().min(1),
+    visibility: z.enum(["public", "masked", "request", "private"]),
+    expiresAt: CommonSchemas.dateString.optional(),
+  })
+  .refine((data) => !data.expiresAt || new Date(data.expiresAt) > new Date(), {
+    message: "Expiry date must be in the future",
+  });
 ```
 
 ---
@@ -301,23 +313,28 @@ const customSchema = z.object({
 ## Common Vulnerabilities
 
 ### SQL Injection
+
 - ✅ Firestore uses queries (not string concatenation)
 - Use parameterized queries always
 
 ### Cross-Site Scripting (XSS)
+
 - ✅ React auto-escapes content
 - ✅ Avoid `dangerouslySetInnerHTML`
 - Use Content Security Policy (configured in `next.config.ts`)
 
 ### Cross-Site Request Forgery (CSRF)
+
 - ✅ Implement CSRF tokens for state-changing operations
 - Same-origin policy + token validation
 
 ### Insecure Direct Object Reference (IDOR)
+
 - ✅ Always verify ownership before allowing access
 - Never trust user-supplied IDs
 
 ### Sensitive Data Exposure
+
 - ✅ API keys are server-side only
 - ✅ Use secure error messages
 - ✅ Mask sensitive fields in responses
@@ -329,24 +346,24 @@ const customSchema = z.object({
 ### Unit Tests
 
 ```typescript
-describe('API Security', () => {
-  test('should reject unauthenticated requests', async () => {
-    const request = new Request('http://localhost/api/resume/create');
+describe("API Security", () => {
+  test("should reject unauthenticated requests", async () => {
+    const request = new Request("http://localhost/api/resume/create");
     const response = await POST(request);
     expect(response.status).toBe(401);
   });
 
-  test('should reject invalid input', async () => {
-    const request = new Request('http://localhost/api/resume/create', {
-      method: 'POST',
+  test("should reject invalid input", async () => {
+    const request = new Request("http://localhost/api/resume/create", {
+      method: "POST",
       body: JSON.stringify({ invalidField: true }),
     });
     const response = await POST(request);
     expect(response.status).toBe(400);
   });
 
-  test('should enforce rate limits', async () => {
-    const userId = 'test-user';
+  test("should enforce rate limits", async () => {
+    const userId = "test-user";
     // Make multiple requests and verify 429 response
   });
 });
@@ -355,18 +372,22 @@ describe('API Security', () => {
 ### Firestore Security Tests
 
 ```typescript
-import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
+import {
+  initializeTestEnvironment,
+  assertFails,
+  assertSucceeds,
+} from "@firebase/rules-unit-testing";
 
-describe('Firestore Security Rules', () => {
-  test('should allow users to read their own documents', async () => {
+describe("Firestore Security Rules", () => {
+  test("should allow users to read their own documents", async () => {
     const db = getFirestore(); // Authenticated user
-    const docRef = doc(db, 'users', userId);
+    const docRef = doc(db, "users", userId);
     await assertSucceeds(getDoc(docRef));
   });
 
-  test('should prevent users from reading others documents', async () => {
+  test("should prevent users from reading others documents", async () => {
     const db = getFirestore(); // Different user
-    const docRef = doc(db, 'users', otherUserId);
+    const docRef = doc(db, "users", otherUserId);
     await assertFails(getDoc(docRef));
   });
 });

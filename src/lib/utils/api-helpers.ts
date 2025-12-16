@@ -353,7 +353,7 @@ export function handleSecureApiError(
   } = {}
 ): NextResponse {
   const {
-    publicMessage = 'An error occurred processing your request',
+    publicMessage = "An error occurred processing your request",
     status = 500,
     logDetails = true,
     userId,
@@ -361,15 +361,15 @@ export function handleSecureApiError(
   } = options;
 
   // Determine error type for better logging
-  let errorType = 'Unknown';
-  let errorMsg = 'Unknown error';
+  let errorType = "Unknown";
+  let errorMsg = "Unknown error";
   let stack = undefined;
 
   if (error instanceof Error) {
     errorType = error.constructor.name;
     errorMsg = error.message;
     stack = error.stack;
-  } else if (typeof error === 'object' && error !== null) {
+  } else if (typeof error === "object" && error !== null) {
     errorMsg = JSON.stringify(error);
   } else {
     errorMsg = String(error);
@@ -386,7 +386,7 @@ export function handleSecureApiError(
         endpoint,
         status,
       },
-      'API Error - Detailed Log'
+      "API Error - Detailed Log"
     );
   }
 
@@ -395,7 +395,7 @@ export function handleSecureApiError(
     {
       error: publicMessage,
       // Only include request ID in development or if explicitly requested
-      ...(process.env.NODE_ENV === 'development' && {
+      ...(process.env.NODE_ENV === "development" && {
         requestId: Math.random().toString(36).substr(2, 9),
       }),
     },
@@ -415,13 +415,14 @@ export function getSecureAuthErrorMessage(error: unknown): string {
 
   // Generic message for all auth errors
   const authErrors: Record<string, string> = {
-    'auth/user-not-found': 'Invalid email or password',
-    'auth/wrong-password': 'Invalid email or password',
-    'auth/email-already-in-use': 'Invalid email or password',
-    'auth/weak-password': 'Password does not meet requirements',
-    'auth/invalid-email': 'Invalid email or password',
-    'auth/operation-not-allowed': 'This operation is not available',
-    'auth/too-many-requests': 'Too many login attempts. Please try again later.',
+    "auth/user-not-found": "Invalid email or password",
+    "auth/wrong-password": "Invalid email or password",
+    "auth/email-already-in-use": "Invalid email or password",
+    "auth/weak-password": "Password does not meet requirements",
+    "auth/invalid-email": "Invalid email or password",
+    "auth/operation-not-allowed": "This operation is not available",
+    "auth/too-many-requests":
+      "Too many login attempts. Please try again later.",
   };
 
   for (const [key, message] of Object.entries(authErrors)) {
@@ -431,7 +432,7 @@ export function getSecureAuthErrorMessage(error: unknown): string {
   }
 
   // Default generic message
-  return 'Authentication failed. Please try again.';
+  return "Authentication failed. Please try again.";
 }
 
 /**
@@ -444,30 +445,30 @@ export function getSecureAuthErrorMessage(error: unknown): string {
 export function getSecureFirestoreErrorMessage(error: unknown): string {
   const errorStr = error instanceof Error ? error.message : String(error);
 
-  if (errorStr.includes('PERMISSION_DENIED')) {
-    return 'You do not have permission to perform this action';
+  if (errorStr.includes("PERMISSION_DENIED")) {
+    return "You do not have permission to perform this action";
   }
 
-  if (errorStr.includes('NOT_FOUND')) {
-    return 'The requested resource was not found';
+  if (errorStr.includes("NOT_FOUND")) {
+    return "The requested resource was not found";
   }
 
-  if (errorStr.includes('ALREADY_EXISTS')) {
-    return 'This resource already exists';
+  if (errorStr.includes("ALREADY_EXISTS")) {
+    return "This resource already exists";
   }
 
-  if (errorStr.includes('FAILED_PRECONDITION')) {
-    return 'Cannot perform this operation at this time';
+  if (errorStr.includes("FAILED_PRECONDITION")) {
+    return "Cannot perform this operation at this time";
   }
 
-  if (errorStr.includes('RESOURCE_EXHAUSTED')) {
-    return 'Service limit exceeded. Please try again later.';
+  if (errorStr.includes("RESOURCE_EXHAUSTED")) {
+    return "Service limit exceeded. Please try again later.";
   }
 
-  if (errorStr.includes('UNAVAILABLE')) {
-    return 'Service temporarily unavailable. Please try again later.';
+  if (errorStr.includes("UNAVAILABLE")) {
+    return "Service temporarily unavailable. Please try again later.";
   }
 
   // Default generic message
-  return 'Unable to process your request. Please try again.';
+  return "Unable to process your request. Please try again.";
 }
