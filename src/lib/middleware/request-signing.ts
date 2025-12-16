@@ -23,9 +23,9 @@ interface RequestSignature {
  * Secret for signing requests
  * Should be stored in environment variables
  */
-const REQUEST_SIGNING_SECRET = process.env.REQUEST_SIGNING_SECRET || "default-secret";
-const REQUEST_SIGNING_ENABLED =
-  process.env.REQUEST_SIGNING_ENABLED !== "false";
+const REQUEST_SIGNING_SECRET =
+  process.env.REQUEST_SIGNING_SECRET || "default-secret";
+const REQUEST_SIGNING_ENABLED = process.env.REQUEST_SIGNING_ENABLED !== "false";
 const SIGNATURE_MAX_AGE_MS = parseInt(
   process.env.SIGNATURE_MAX_AGE || "300000",
   10
@@ -244,10 +244,7 @@ export async function withRequestSigning(
       method: request.method,
     });
 
-    return NextResponse.json(
-      { error: "Missing signature" },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: "Missing signature" }, { status: 401 });
   }
 
   // If signing not required and headers missing, proceed
@@ -282,10 +279,7 @@ export async function withRequestSigning(
       reason: verification.reason,
     });
 
-    return NextResponse.json(
-      { error: "Invalid signature" },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
   // Recreate request with body for handler
@@ -310,15 +304,10 @@ export async function makeSignedRequest(
 
   const bodyString = body ? JSON.stringify(body) : null;
 
-  const headers = createSignedRequestHeaders(
-    method,
-    path,
-    bodyString,
-    {
-      "Content-Type": "application/json",
-      ...additionalHeaders,
-    }
-  );
+  const headers = createSignedRequestHeaders(method, path, bodyString, {
+    "Content-Type": "application/json",
+    ...additionalHeaders,
+  });
 
   return fetch(url, {
     method,

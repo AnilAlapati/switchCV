@@ -32,8 +32,20 @@ describe("Request Signing", () => {
       const timestamp = 1234567890;
       const nonce = "test-nonce-123";
 
-      const sig1 = generateRequestSignature(method, path, body, timestamp, nonce);
-      const sig2 = generateRequestSignature(method, path, body, timestamp, nonce);
+      const sig1 = generateRequestSignature(
+        method,
+        path,
+        body,
+        timestamp,
+        nonce
+      );
+      const sig2 = generateRequestSignature(
+        method,
+        path,
+        body,
+        timestamp,
+        nonce
+      );
 
       expect(sig1).toBe(sig2);
     });
@@ -44,8 +56,20 @@ describe("Request Signing", () => {
       const timestamp = 1234567890;
       const nonce = "test-nonce-123";
 
-      const postSig = generateRequestSignature("POST", path, body, timestamp, nonce);
-      const putSig = generateRequestSignature("PUT", path, body, timestamp, nonce);
+      const postSig = generateRequestSignature(
+        "POST",
+        path,
+        body,
+        timestamp,
+        nonce
+      );
+      const putSig = generateRequestSignature(
+        "PUT",
+        path,
+        body,
+        timestamp,
+        nonce
+      );
 
       expect(postSig).not.toBe(putSig);
     });
@@ -56,8 +80,20 @@ describe("Request Signing", () => {
       const timestamp = 1234567890;
       const nonce = "test-nonce-123";
 
-      const sig1 = generateRequestSignature(method, "/api/resumes", body, timestamp, nonce);
-      const sig2 = generateRequestSignature(method, "/api/users", body, timestamp, nonce);
+      const sig1 = generateRequestSignature(
+        method,
+        "/api/resumes",
+        body,
+        timestamp,
+        nonce
+      );
+      const sig2 = generateRequestSignature(
+        method,
+        "/api/users",
+        body,
+        timestamp,
+        nonce
+      );
 
       expect(sig1).not.toBe(sig2);
     });
@@ -92,7 +128,13 @@ describe("Request Signing", () => {
       const timestamp = 1234567890;
       const nonce = "test-nonce-123";
 
-      const sig = generateRequestSignature(method, path, null, timestamp, nonce);
+      const sig = generateRequestSignature(
+        method,
+        path,
+        null,
+        timestamp,
+        nonce
+      );
       expect(sig).toBeTruthy();
       expect(sig.length).toBe(64); // SHA256 hex length
     });
@@ -115,8 +157,20 @@ describe("Request Signing", () => {
       const body = '{"title":"My Resume"}';
       const timestamp = 1234567890;
 
-      const sig1 = generateRequestSignature(method, path, body, timestamp, "nonce1");
-      const sig2 = generateRequestSignature(method, path, body, timestamp, "nonce2");
+      const sig1 = generateRequestSignature(
+        method,
+        path,
+        body,
+        timestamp,
+        "nonce1"
+      );
+      const sig2 = generateRequestSignature(
+        method,
+        path,
+        body,
+        timestamp,
+        "nonce2"
+      );
 
       expect(sig1).not.toBe(sig2);
     });
@@ -124,7 +178,7 @@ describe("Request Signing", () => {
 
   describe("createSignedRequestHeaders", () => {
     test("should include required signature headers", () => {
-      const headers = createSignedRequestHeaders("POST", "/api/resumes", '{}');
+      const headers = createSignedRequestHeaders("POST", "/api/resumes", "{}");
 
       expect(headers["x-signature"]).toBeTruthy();
       expect(headers["x-signature-timestamp"]).toBeTruthy();
@@ -133,12 +187,10 @@ describe("Request Signing", () => {
     });
 
     test("should merge with additional headers", () => {
-      const headers = createSignedRequestHeaders(
-        "POST",
-        "/api/resumes",
-        "{}",
-        { "Content-Type": "application/json", "X-Custom": "value" }
-      );
+      const headers = createSignedRequestHeaders("POST", "/api/resumes", "{}", {
+        "Content-Type": "application/json",
+        "X-Custom": "value",
+      });
 
       expect(headers["Content-Type"]).toBe("application/json");
       expect(headers["X-Custom"]).toBe("value");
@@ -149,7 +201,9 @@ describe("Request Signing", () => {
       const headers1 = createSignedRequestHeaders("POST", "/api/resumes", "{}");
       const headers2 = createSignedRequestHeaders("POST", "/api/resumes", "{}");
 
-      expect(headers1["x-signature-nonce"]).not.toBe(headers2["x-signature-nonce"]);
+      expect(headers1["x-signature-nonce"]).not.toBe(
+        headers2["x-signature-nonce"]
+      );
     });
 
     test("should use current timestamp", () => {
@@ -164,7 +218,11 @@ describe("Request Signing", () => {
     });
 
     test("should handle null body", () => {
-      const headers = createSignedRequestHeaders("DELETE", "/api/resumes/123", null);
+      const headers = createSignedRequestHeaders(
+        "DELETE",
+        "/api/resumes/123",
+        null
+      );
 
       expect(headers["x-signature"]).toBeTruthy();
     });
@@ -535,7 +593,7 @@ describe("Request Signing", () => {
     test("should handle special characters in body", () => {
       const method = "POST";
       const path = "/api/resumes";
-      const body = '{"title":"Hello\\nWorld\\t\"quoted\""}';
+      const body = '{"title":"Hello\\nWorld\\t"quoted""}';
       const timestamp = Date.now();
       const nonce = "test-nonce-123";
 

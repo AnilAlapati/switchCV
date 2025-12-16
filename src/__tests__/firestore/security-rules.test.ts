@@ -48,9 +48,7 @@ describe("Firestore Security Rules", () => {
     test("should deny user reading other user's document", async () => {
       const db = testEnv.authenticatedContext(userId).firestore();
 
-      await assertFails(
-        db.collection("users").doc(otherUserId).get()
-      );
+      await assertFails(db.collection("users").doc(otherUserId).get());
     });
 
     test("should deny unauthenticated read", async () => {
@@ -133,9 +131,7 @@ describe("Firestore Security Rules", () => {
       });
 
       // Users shouldn't be able to delete their own document
-      await assertFails(
-        db.collection("users").doc(userId).delete()
-      );
+      await assertFails(db.collection("users").doc(userId).delete());
     });
   });
 
@@ -444,53 +440,61 @@ describe("Firestore Security Rules", () => {
     test("should enforce ACL for masked visibility", async () => {
       const db = testEnv.authenticatedContext(userId).firestore();
 
-      await db.collection("resumes").doc(resumeId).set({
-        userId,
-        title: "My Resume",
-        visibility: "masked",
-        acl: [otherUserId],
-      });
+      await db
+        .collection("resumes")
+        .doc(resumeId)
+        .set({
+          userId,
+          title: "My Resume",
+          visibility: "masked",
+          acl: [otherUserId],
+        });
 
       // Other user in ACL should be able to read
       const otherDb = testEnv.authenticatedContext(otherUserId).firestore();
-      await assertSucceeds(
-        otherDb.collection("resumes").doc(resumeId).get()
-      );
+      await assertSucceeds(otherDb.collection("resumes").doc(resumeId).get());
     });
 
     test("should deny access to non-ACL users", async () => {
       const db = testEnv.authenticatedContext(userId).firestore();
       const thirdUserId = "user-789";
 
-      await db.collection("resumes").doc(resumeId).set({
-        userId,
-        title: "My Resume",
-        visibility: "masked",
-        acl: [otherUserId],
-      });
+      await db
+        .collection("resumes")
+        .doc(resumeId)
+        .set({
+          userId,
+          title: "My Resume",
+          visibility: "masked",
+          acl: [otherUserId],
+        });
 
       // User not in ACL should be denied
       const thirdDb = testEnv.authenticatedContext(thirdUserId).firestore();
-      await assertFails(
-        thirdDb.collection("resumes").doc(resumeId).get()
-      );
+      await assertFails(thirdDb.collection("resumes").doc(resumeId).get());
     });
 
     test("should prevent modifying ACL without ownership", async () => {
       const db = testEnv.authenticatedContext(userId).firestore();
 
-      await db.collection("resumes").doc(resumeId).set({
-        userId,
-        title: "My Resume",
-        acl: [otherUserId],
-      });
+      await db
+        .collection("resumes")
+        .doc(resumeId)
+        .set({
+          userId,
+          title: "My Resume",
+          acl: [otherUserId],
+        });
 
       // Other user should not be able to modify ACL
       const otherDb = testEnv.authenticatedContext(otherUserId).firestore();
       await assertFails(
-        otherDb.collection("resumes").doc(resumeId).update({
-          acl: ["user-789"],
-        })
+        otherDb
+          .collection("resumes")
+          .doc(resumeId)
+          .update({
+            acl: ["user-789"],
+          })
       );
     });
   });
@@ -529,10 +533,7 @@ describe("Firestore Security Rules", () => {
       const db = testEnv.authenticatedContext("user-123").firestore();
 
       await assertFails(
-        db
-          .collection("auditTrail")
-          .where("userId", "==", "user-456")
-          .get()
+        db.collection("auditTrail").where("userId", "==", "user-456").get()
       );
     });
   });
@@ -545,10 +546,13 @@ describe("Firestore Security Rules", () => {
       // Rapid writes should succeed (server enforces rate limits)
       for (let i = 0; i < 5; i++) {
         await assertSucceeds(
-          db.collection("resumes").doc(`resume-${i}`).set({
-            userId,
-            title: `Resume ${i}`,
-          })
+          db
+            .collection("resumes")
+            .doc(`resume-${i}`)
+            .set({
+              userId,
+              title: `Resume ${i}`,
+            })
         );
       }
     });

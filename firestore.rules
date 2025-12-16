@@ -1,6 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // ==================== CORE AUTH FUNCTIONS ====================
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -9,29 +10,40 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    function userRoleIsProtected() {
-      // Allow if role is not being set
-      return !('role' in request.resource.data)
-        // Allow if document doesn't exist (create) and role is valid
-        || (resource == null && request.resource.data.role in ['jobseeker', 'recruiter'])
-        // Allow if document exists but has no role yet (first role selection)
-        || (resource != null && !('role' in resource.data) && request.resource.data.role in ['jobseeker', 'recruiter'])
-        // Allow if document exists with role but roleSelectedAt is not set (user hasn't selected role yet - default was set)
-        || (resource != null && 'role' in resource.data && !('roleSelectedAt' in resource.data) && request.resource.data.role in ['jobseeker', 'recruiter'])
-        // Allow if role matches existing role (no change)
-        || (resource != null && 'role' in resource.data && request.resource.data.role == resource.data.role);
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.role == 'admin';
     }
 
-    function userTierIsProtected() {
-      return !('subscriptionTier' in request.resource.data)
-        || (resource == null && request.resource.data.subscriptionTier == 'basic')
-        || (resource != null && request.resource.data.subscriptionTier == resource.data.subscriptionTier);
+    function isRecruiter() {
+      return isAuthenticated() && request.auth.token.role == 'recruiter';
     }
 
-    function recruiterFlagProtected() {
-      return !('isRecruiter' in request.resource.data)
-        || (resource == null && request.resource.data.isRecruiter == false)
-        || (resource != null && request.resource.data.isRecruiter == resource.data.isRecruiter);
+    // ==================== USER DOCUMENT VALIDATION ====================
+    
+    // Extracted: Role transition validation
+    function roleTransitionAllowed() {
+      let noRoleChange = !('role' in request.resource.data);
+      let newUserRole = resource == null && request.resource.data.role in ['jobseeker', 'recruiter'];
+      let firstRoleSelection = resource != null && !('role' in resource.data) && request.resource.data.role in ['jobseeker', 'recruiter'];
+      let onboardingRoleChange = resource != null && 'role' in resource.data && !('roleSelectedAt' in resource.data) && request.resource.data.role in ['jobseeker', 'recruiter'];
+      let roleUnchanged = resource != null && 'role' in resource.data && request.resource.data.role == resource.data.role;
+      return noRoleChange || newUserRole || firstRoleSelection || onboardingRoleChange || roleUnchanged;
+    }
+
+    // Extracted: Tier transition validation
+    function tierTransitionAllowed() {
+      let noTierChange = !('subscriptionTier' in request.resource.data);
+      let newUserBasicTier = resource == null && request.resource.data.subscriptionTier == 'basic';
+      let tierUnchanged = resource != null && request.resource.data.subscriptionTier == resource.data.subscriptionTier;
+      return noTierChange || newUserBasicTier || tierUnchanged;
+    }
+
+    // Extracted: Recruiter flag transition validation
+    function recruiterFlagTransitionAllowed() {
+      let noFlagChange = !('isRecruiter' in request.resource.data);
+      let newUserDefault = resource == null && request.resource.data.isRecruiter == false;
+      let flagUnchanged = resource != null && request.resource.data.isRecruiter == resource.data.isRecruiter;
+      return noFlagChange || newUserDefault || flagUnchanged;
     }
 
     function userDocHasOnlyAllowedFields() {
@@ -98,21 +110,8 @@ service cloud.firestore {
     // Users can read their own user document. Writes are limited to safe fields only.
     match /users/{userId} {
       allow read: if isOwner(userId);
-
-      allow create: if isOwner(userId)
-        && userDocHasOnlyAllowedFields()
-        && userDocHasRequiredIdentity(userId)
-        && userRoleIsProtected()
-        && userTierIsProtected()
-        && recruiterFlagProtected();
-
-      allow update: if isOwner(userId)
-        && userDocHasOnlyAllowedFields()
-        && existingDocHasCorrectIdentity(userId)
-        && userRoleIsProtected()
-        && userTierIsProtected()
-        && recruiterFlagProtected();
-
+      allow create: if canCreateUserDoc(userId);
+      allow update: if canUpdateUserDoc(userId);
       allow delete: if isOwner(userId);
     }
 
@@ -143,24 +142,17 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == resource.data.toUserId;
       // Recruiter can read their own requests
       allow read: if request.auth != null && request.auth.uid == resource.data.fromRecruiter.recruiterId;
-      // Admins can read all requests (Optimized: uses Custom Claims)
-      allow read: if request.auth != null && request.auth.token.role == 'admin';
+      // Admins can read all requests
+      allow read: if isAdmin();
       
-      // SECURITY FIX: Recruiters can create requests only with proper validation
-      // - Must be authenticated
-      // - Must have recruiter role (Optimized: uses Custom Claims)
-      // - fromRecruiter.recruiterId must match the authenticated user
-      // - Required fields must be present
-      allow create: if request.auth != null 
-        && request.auth.token.role == 'recruiter'
+      // Recruiters can create validated requests
+      allow create: if isRecruiter()
         && request.resource.data.fromRecruiter.recruiterId == request.auth.uid
         && request.resource.data.toUserId is string
         && request.resource.data.status == 'pending';
       
-      // Only admins can update (to approve/deny) (Optimized: uses Custom Claims)
-      allow update: if request.auth != null && request.auth.token.role == 'admin';
-      
-      // Prevent deletion
+      // Only admins can update
+      allow update: if isAdmin();
       allow delete: if false;
     }
 

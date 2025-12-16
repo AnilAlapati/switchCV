@@ -164,7 +164,7 @@ export function resetAllRateLimits(): void {
  */
 export function getRateLimitStatus(
   identifier: string
-): Omit<RateLimitBucket, "resetTime"> & { resetIn: number } | null {
+): (Omit<RateLimitBucket, "resetTime"> & { resetIn: number }) | null {
   const bucket = rateLimitStore.get(identifier);
   if (!bucket) return null;
 
@@ -184,7 +184,10 @@ export function getRateLimitStatus(
  * Get all active rate limit entries (for debugging)
  * @returns Map of all active buckets
  */
-export function getAllRateLimits(): Map<string, Omit<RateLimitBucket, "resetTime"> & { resetIn: number }> {
+export function getAllRateLimits(): Map<
+  string,
+  Omit<RateLimitBucket, "resetTime"> & { resetIn: number }
+> {
   const now = Date.now();
   const result = new Map();
 
