@@ -1,17 +1,17 @@
-/*
-  REFACTORED FIRESTORE RULES - EXTRACT HELPERS
-  
-  This document shows how to refactor the deeply nested rules 
-  to improve readability. Replace the corresponding sections in firestore.rules
-*/
+/\*
+REFACTORED FIRESTORE RULES - EXTRACT HELPERS
+
+This document shows how to refactor the deeply nested rules
+to improve readability. Replace the corresponding sections in firestore.rules
+\*/
 
 rules_version = '2';
 service cloud.firestore {
-  match /databases/{database}/documents {
-    // ==================== CORE AUTH FUNCTIONS ====================
-    function isAuthenticated() {
-      return request.auth != null;
-    }
+match /databases/{database}/documents {
+// ==================== CORE AUTH FUNCTIONS ====================
+function isAuthenticated() {
+return request.auth != null;
+}
 
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
@@ -26,33 +26,33 @@ service cloud.firestore {
     }
 
     // ==================== USER DOCUMENT VALIDATION ====================
-    
+
     // Extracted from userRoleIsProtected - checks role transitions
     function roleTransitionAllowed() {
       // Role not being modified
       let noRoleChange = !('role' in request.resource.data);
-      
+
       // Creating new user with valid role
-      let newUserRole = resource == null 
+      let newUserRole = resource == null
         && request.resource.data.role in ['jobseeker', 'recruiter'];
-      
+
       // First role selection on existing user
-      let firstRoleSelection = resource != null 
-        && !('role' in resource.data) 
+      let firstRoleSelection = resource != null
+        && !('role' in resource.data)
         && request.resource.data.role in ['jobseeker', 'recruiter'];
-      
+
       // Setting new role during onboarding (no roleSelectedAt yet)
-      let onboardingRoleChange = resource != null 
-        && 'role' in resource.data 
-        && !('roleSelectedAt' in resource.data) 
+      let onboardingRoleChange = resource != null
+        && 'role' in resource.data
+        && !('roleSelectedAt' in resource.data)
         && request.resource.data.role in ['jobseeker', 'recruiter'];
-      
+
       // Role unchanged (no modification)
-      let roleUnchanged = resource != null 
-        && 'role' in resource.data 
+      let roleUnchanged = resource != null
+        && 'role' in resource.data
         && request.resource.data.role == resource.data.role;
-      
-      return noRoleChange || newUserRole || firstRoleSelection 
+
+      return noRoleChange || newUserRole || firstRoleSelection
         || onboardingRoleChange || roleUnchanged;
     }
 
@@ -60,15 +60,15 @@ service cloud.firestore {
     function tierTransitionAllowed() {
       // Tier not being modified
       let noTierChange = !('subscriptionTier' in request.resource.data);
-      
+
       // Default tier for new user
-      let newUserBasicTier = resource == null 
+      let newUserBasicTier = resource == null
         && request.resource.data.subscriptionTier == 'basic';
-      
+
       // Tier unchanged
-      let tierUnchanged = resource != null 
+      let tierUnchanged = resource != null
         && request.resource.data.subscriptionTier == resource.data.subscriptionTier;
-      
+
       return noTierChange || newUserBasicTier || tierUnchanged;
     }
 
@@ -76,15 +76,15 @@ service cloud.firestore {
     function recruiterFlagTransitionAllowed() {
       // Flag not being modified
       let noFlagChange = !('isRecruiter' in request.resource.data);
-      
+
       // Default false for new user
-      let newUserDefault = resource == null 
+      let newUserDefault = resource == null
         && request.resource.data.isRecruiter == false;
-      
+
       // Flag unchanged
-      let flagUnchanged = resource != null 
+      let flagUnchanged = resource != null
         && request.resource.data.isRecruiter == resource.data.isRecruiter;
-      
+
       return noFlagChange || newUserDefault || flagUnchanged;
     }
 
@@ -108,7 +108,7 @@ service cloud.firestore {
     }
 
     function userDocHasRequiredIdentity(userId) {
-      return request.resource.data.uid == userId 
+      return request.resource.data.uid == userId
         && request.resource.data.email is string;
     }
 
@@ -117,7 +117,7 @@ service cloud.firestore {
     }
 
     // ==================== USER DOCUMENT OPERATIONS ====================
-    
+
     // Extracted user creation validation
     function canCreateUserDoc(userId) {
       return isOwner(userId)
@@ -139,7 +139,7 @@ service cloud.firestore {
     }
 
     // ==================== RECRUITER REQUEST VALIDATION ====================
-    
+
     function recruiterRequestOwnsRequest() {
       return request.resource.data.fromRecruiter.recruiterId == request.auth.uid;
     }
@@ -156,7 +156,7 @@ service cloud.firestore {
     }
 
     // ==================== ACCESS CONTROL RULES ====================
-    
+
     // Users can read/write their own user document
     match /users/{userId} {
       allow read: if isOwner(userId);
@@ -174,9 +174,9 @@ service cloud.firestore {
     match /usernames/{usernameId} {
       allow get: if isAuthenticated();
       allow list: if false;
-      allow create: if isAuthenticated() 
+      allow create: if isAuthenticated()
         && request.resource.data.uid == request.auth.uid;
-      allow update, delete: if isAuthenticated() 
+      allow update, delete: if isAuthenticated()
         && resource.data.uid == request.auth.uid;
     }
 
@@ -187,50 +187,50 @@ service cloud.firestore {
     }
 
     // ==================== RECRUITER WORKFLOW ====================
-    
+
     // Recruiter contact requests
     match /recruiterRequests/{requestId} {
       // Candidate can read their own incoming requests
-      allow read: if request.auth != null 
+      allow read: if request.auth != null
         && request.auth.uid == resource.data.toUserId;
-      
+
       // Recruiter can read their own outgoing requests
-      allow read: if request.auth != null 
+      allow read: if request.auth != null
         && request.auth.uid == resource.data.fromRecruiter.recruiterId;
-      
+
       // Admins can read all requests
       allow read: if isAdmin();
-      
+
       // Recruiters can create new requests with validation
       allow create: if canCreateRecruiterRequest();
-      
+
       // Only admins can update (approve/deny)
       allow update: if isAdmin();
-      
+
       allow delete: if false;
     }
 
     // Access tokens for recruiter PII access
     match /accessTokens/{tokenId} {
       // Recruiters can read their own tokens
-      allow read: if request.auth != null 
+      allow read: if request.auth != null
         && request.auth.uid == resource.data.recruiterId;
-      
+
       // Candidates can verify tokens for their data
-      allow read: if request.auth != null 
+      allow read: if request.auth != null
         && request.auth.uid == resource.data.userId;
-      
+
       allow create, update, delete: if false; // Backend only
     }
 
     // Recruiter notifications
     match /recruiterNotifications/{notificationId} {
       // Recruiters read/update their own notifications
-      allow read: if request.auth != null 
+      allow read: if request.auth != null
         && request.auth.uid == resource.data.recruiterId;
-      allow update: if request.auth != null 
+      allow update: if request.auth != null
         && request.auth.uid == resource.data.recruiterId;
-      
+
       allow create, delete: if false; // Backend only
     }
 
@@ -247,7 +247,7 @@ service cloud.firestore {
     }
 
     // ==================== AUDIT & LOGGING ====================
-    
+
     // Audit logs - admins read all, users read own
     match /auditLogs/{logId} {
       allow read: if isAdmin()
@@ -268,5 +268,6 @@ service cloud.firestore {
         || (isAuthenticated() && request.auth.uid == resource.data.userId);
       allow create, update, delete: if false;
     }
-  }
+
+}
 }

@@ -175,11 +175,11 @@ describe("Rate Limiting Utility", () => {
       resetRateLimit(user1);
 
       // User 1 should be reset
-      let result1 = checkRateLimit(user1, limit);
+      const result1 = checkRateLimit(user1, limit);
       expect(result1.count).toBe(1);
 
       // User 2 should still be at 2
-      let result2 = checkRateLimit(user2, limit);
+      const result2 = checkRateLimit(user2, limit);
       expect(result2.count).toBe(2);
     });
   });

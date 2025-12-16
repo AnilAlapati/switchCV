@@ -64,8 +64,8 @@ If you delete the `.git` folder to "recreate everything":
     ```bash
     git secrets --install
     git secrets --register-aws
-    git secrets --add 'AIza[0-9A-Za-z-_]{35}'
-    git secrets --add 'sk-[a-zA-Z0-9]{48}'
+    git secrets --add 'YOUR_GOOGLE_KEY_REGEX' # e.g. your Google Key pattern
+    git secrets --add 'YOUR_OPENAI_KEY_REGEX' # e.g. your OpenAI Key pattern
     # ... add other patterns
     ```
 

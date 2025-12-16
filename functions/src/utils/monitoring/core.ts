@@ -20,6 +20,10 @@ export class PerformanceMonitorCore {
 
   /**
    * Get Firestore instance
+   * 
+   * Lazily initializes the Firestore instance if it hasn't been created yet.
+   * 
+   * @returns {FirebaseFirestore.Firestore} The Firestore instance
    */
   protected getDb(): FirebaseFirestore.Firestore {
     if (!this.db) {
@@ -30,6 +34,11 @@ export class PerformanceMonitorCore {
 
   /**
    * Add metric to buffer
+   * 
+   * Adds a metric to the internal buffer. If the buffer size exceeds the batch size,
+   * it triggers a flush operation.
+   * 
+   * @param {Metric} metric - The metric object to add
    */
   protected addMetric(metric: Metric): void {
     this.metrics.push(metric);
@@ -43,6 +52,11 @@ export class PerformanceMonitorCore {
 
   /**
    * Flush metrics to Firestore
+   * 
+   * Writes all buffered metrics to Firestore in a batch operation.
+   * Clears the buffer after successful write.
+   * 
+   * @returns {Promise<void>} A promise that resolves when the flush is complete
    */
   protected async flush(): Promise<void> {
     if (this.metrics.length === 0) {
@@ -57,7 +71,9 @@ export class PerformanceMonitorCore {
         const docRef = this.getDb()
           .collection("metrics")
           .doc(
-            `${metric.type}_${metric.name}_${Math.floor(metric.timestamp / 1000)}`
+            `${metric.type}_${metric.name}_${Math.floor(
+              metric.timestamp / 1000
+            )}`
           );
 
         batch.set(docRef, metric);

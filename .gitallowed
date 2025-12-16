@@ -1,2 +1,0 @@
-git secrets --add 'AIza\[0-9A-Za-z-_\]{35}'
-git secrets --add 'sk-\[a-zA-Z0-9\]{48}'
