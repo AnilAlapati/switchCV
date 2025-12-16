@@ -8,6 +8,7 @@
  */
 
 import { validateEnv } from "./validateEnv";
+import { logger } from "./logger";
 
 /**
  * Initialize environment variables
@@ -24,15 +25,15 @@ export function initializeEnvironment(): void {
     validateEnv();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error("❌ Environment initialization failed:");
-    console.error(message);
+    logger.error("❌ Environment initialization failed:");
+    logger.error(message);
 
     if (process.env.NODE_ENV === "production") {
       // In production, fail fast
       process.exit(1);
     } else {
       // In development, warn but continue
-      console.warn(
+      logger.warn(
         "⚠️ Continuing in development mode despite validation errors"
       );
     }

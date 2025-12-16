@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { SystemConfig } from "./system-config-types";
+import { logger } from "./logger";
 
 // =============================================================================
 // ZOD VALIDATION SCHEMAS
@@ -124,8 +125,7 @@ export function validateSystemConfig(
   try {
     return SystemConfigSchema.parse(data);
   } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error("❌ Invalid system config, using defaults:", error);
+    logger.error("❌ Invalid system config, using defaults:", error);
     return defaultConfig;
   }
 }
@@ -140,8 +140,7 @@ export function validateAICosts(config: SystemConfig): void {
 
   const cost = expensiveModels[config.ai.defaultModel];
   if (cost && config.ai.enableCostWarnings) {
-    // eslint-disable-next-line no-console
-    console.warn(
+    logger.warn(
       `🚨 WARNING: Expensive AI model selected: ${config.ai.defaultModel}`,
       `Cost: $${cost}/1M tokens vs $0.15 for Gemini Flash`
     );
