@@ -98,10 +98,7 @@ export function verifyCsrfToken(sessionId: string, token: string): boolean {
   }
 
   // Use constant-time comparison to prevent timing attacks
-  return crypto.timingSafeEqual(
-    Buffer.from(stored.token),
-    Buffer.from(token)
-  );
+  return crypto.timingSafeEqual(Buffer.from(stored.token), Buffer.from(token));
 }
 
 /**

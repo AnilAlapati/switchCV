@@ -28,11 +28,11 @@ export const BlockingGuard = ({
 
   if (maintenance.isActive && maintenance.blocking) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 px-4 text-center">
-        <div className="max-w-md rounded-lg bg-white p-8 shadow-xl">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-emerald-50 to-white px-4 text-center">
+        <div className="max-w-md rounded-lg bg-white/80 p-8 shadow-xl backdrop-blur-sm">
           <div className="mb-6 flex justify-center">
             <svg
-              className="h-16 w-16 text-red-500"
+              className="h-16 w-16 text-emerald-600"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -45,14 +45,14 @@ export const BlockingGuard = ({
               />
             </svg>
           </div>
-          <h1 className="mb-2 text-2xl font-bold text-slate-900">
-            Service Temporarily Suspended
+          <h1 className="mb-2 text-2xl font-bold text-black">
+            Under Maintenance
           </h1>
-          <p className="mb-6 text-slate-600">
+          <p className="mb-6 text-slate-800">
             {maintenance.message ||
-              "We are currently performing essential maintenance. Access to the platform is suspended, and all active sessions have been concluded. We apologize for the inconvenience."}
+              "We're making improvements to serve you better.\n\nWe'll be back soon. Thank you for your patience!"}
           </p>
-          <div className="text-xs text-slate-400">Access Restricted</div>
+          <div className="text-xs text-slate-500">Access Restricted</div>
         </div>
       </div>
     );

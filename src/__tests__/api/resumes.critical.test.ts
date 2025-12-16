@@ -267,7 +267,9 @@ describe("Resume CRUD Operations - Critical Path Tests", () => {
       );
 
       // Should see full resume
-      expect(ownerRequest.headers.get("Authorization")).toBe("Bearer valid-token");
+      expect(ownerRequest.headers.get("Authorization")).toBe(
+        "Bearer valid-token"
+      );
 
       // Other authenticated user retrieves masked resume
       const otherRequest = createAuthenticatedRequest(
@@ -277,7 +279,9 @@ describe("Resume CRUD Operations - Critical Path Tests", () => {
       );
 
       // Should see masked version
-      expect(otherRequest.headers.get("Authorization")).toBe("Bearer other-user-token");
+      expect(otherRequest.headers.get("Authorization")).toBe(
+        "Bearer other-user-token"
+      );
     });
 
     test("should respect access request visibility", async () => {

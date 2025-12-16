@@ -281,15 +281,12 @@ describe("Authentication Flow - Critical Path Tests", () => {
     });
 
     test("should reject malformed auth headers", async () => {
-      const request = new NextRequest(
-        "http://localhost:3000/api/resumes",
-        {
-          method: "GET",
-          headers: {
-            Authorization: "InvalidFormat",
-          },
-        }
-      );
+      const request = new NextRequest("http://localhost:3000/api/resumes", {
+        method: "GET",
+        headers: {
+          Authorization: "InvalidFormat",
+        },
+      });
 
       // Should return 401
       expect(request.headers.get("Authorization")).toBe("InvalidFormat");
