@@ -118,10 +118,10 @@ export class AlertManager {
 
       // Send email if configured
       if (threshold.notifyEmail) {
-        await emailService.sendEmail({
+        await emailService.sendCustomEmail({
           to: threshold.notifyEmail,
           subject: `Alert: ${metric.name}`,
-          body: message,
+          html: message,
         });
       }
 
