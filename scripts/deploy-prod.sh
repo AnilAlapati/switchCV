@@ -103,6 +103,21 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     exit 1
 fi
 
+# Ensure USE_LEGACY_CONFIG is set to true for functions (Migration Phase 3)
+echo "Configuring functions environment for legacy mode..."
+if [ -f functions/.env ]; then
+    if grep -q "USE_LEGACY_CONFIG" functions/.env; then
+        # Update existing to true
+        sed -i '' 's/USE_LEGACY_CONFIG=.*/USE_LEGACY_CONFIG=true/' functions/.env
+    else
+        # Append
+        echo "USE_LEGACY_CONFIG=true" >> functions/.env
+    fi
+else
+    # Create if missing
+    echo "USE_LEGACY_CONFIG=true" > functions/.env
+fi
+
 # Deploy everything (Hosting, Functions, Firestore, Storage)
 # Using -P default which usually points to the production project alias
 firebase deploy -P default

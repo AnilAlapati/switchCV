@@ -23,12 +23,15 @@ export function validateEnvironment(): void {
     // Dev-only, allowlisted env snapshot to help local debugging.
     // Avoid logging arbitrary env vars (blocklists are easy to miss).
     if (process.env.NODE_ENV !== "production") {
-      logger.error({
-        NODE_ENV: process.env.NODE_ENV,
-        GCLOUD_PROJECT: process.env.GCLOUD_PROJECT,
-        NEXT_PUBLIC_FIREBASE_PROJECT_ID:
-          process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-      }, "Missing Project ID. Env snapshot:");
+      logger.error(
+        {
+          NODE_ENV: process.env.NODE_ENV,
+          GCLOUD_PROJECT: process.env.GCLOUD_PROJECT,
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID:
+            process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+        },
+        "Missing Project ID. Env snapshot:"
+      );
     }
 
     throw new FirebaseAdminConfigError(

@@ -1,5 +1,6 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
+import { configLoader } from "../lib/configLoader";
 import { emailService } from "../services/emailService";
 
 /**
@@ -448,8 +449,7 @@ export class AlertManager {
     p95Value: number,
     operationType?: string
   ): Promise<void> {
-    const config = (functions as any).config();
-    const monitoringConfig = config?.monitoring || {};
+    const monitoringConfig = configLoader.getMonitoringConfig();
 
     // Determine operation type from function name patterns if not provided
     const opType = operationType || this.inferOperationType(functionName);
@@ -465,8 +465,9 @@ export class AlertManager {
       threshold = parseInt(monitoringConfig[defaultKey]);
     } else {
       // Fall back to built-in defaults
-      threshold = AlertManager.DEFAULT_P95_THRESHOLDS[opType]
-        || AlertManager.DEFAULT_P95_THRESHOLDS.default;
+      threshold =
+        AlertManager.DEFAULT_P95_THRESHOLDS[opType] ||
+        AlertManager.DEFAULT_P95_THRESHOLDS.default;
     }
 
     if (threshold > 0 && p95Value > threshold) {
@@ -490,16 +491,27 @@ export class AlertManager {
   private inferOperationType(functionName: string): string {
     const lowerName = functionName.toLowerCase();
 
-    if (lowerName.includes("ai") || lowerName.includes("generate") ||
-      lowerName.includes("gemini") || lowerName.includes("llm")) {
+    if (
+      lowerName.includes("ai") ||
+      lowerName.includes("generate") ||
+      lowerName.includes("gemini") ||
+      lowerName.includes("llm")
+    ) {
       return "ai_api_call";
     }
-    if (lowerName.includes("query") || lowerName.includes("fetch") ||
-      lowerName.includes("get") || lowerName.includes("firestore")) {
+    if (
+      lowerName.includes("query") ||
+      lowerName.includes("fetch") ||
+      lowerName.includes("get") ||
+      lowerName.includes("firestore")
+    ) {
       return "database_query";
     }
-    if (lowerName.includes("external") || lowerName.includes("webhook") ||
-      lowerName.includes("huggingface")) {
+    if (
+      lowerName.includes("external") ||
+      lowerName.includes("webhook") ||
+      lowerName.includes("huggingface")
+    ) {
       return "external_api";
     }
     return "function_execution";
@@ -525,8 +537,9 @@ export class AlertManager {
 
       await emailService.sendCustomEmail({
         to: this.alertEmailTo,
-        subject: `${this.alertEmailSubjectPrefix
-          } ${severity.toUpperCase()}: ${title}`,
+        subject: `${
+          this.alertEmailSubjectPrefix
+        } ${severity.toUpperCase()}: ${title}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px;">
             <h2>${title}</h2>
