@@ -114,10 +114,10 @@ export function checkRateLimit(
     rateLimitStore.set(identifier, newBucket);
 
     return {
-      allowed: true,
+      allowed: limit > 0,
       count: 1,
       limit,
-      remaining: limit - 1,
+      remaining: Math.max(0, limit - 1),
       resetTime: newBucket.resetTime,
       resetIn: windowMs,
     };

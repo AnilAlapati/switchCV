@@ -30,7 +30,7 @@ if (typeof globalThis.Request === 'undefined') {
     constructor(input, init = {}) {
       this._url = typeof input === 'string' ? input : (input && input.url) || '';
       this.method = init.method || 'GET';
-      this.headers = new Map(Object.entries(init.headers || {}));
+      this.headers = new Headers(init.headers || {});
       this._body = init.body || null;
     }
 
@@ -59,6 +59,16 @@ if (typeof globalThis.Request === 'undefined') {
   };
 }
 
+// Polyfill NextRequest
+if (typeof globalThis.NextRequest === 'undefined') {
+  globalThis.NextRequest = class NextRequest extends Request {
+    constructor(input, init = {}) {
+      super(input, init);
+      this.nextUrl = new URL(typeof input === 'string' ? input : input.url);
+    }
+  };
+}
+
 // Polyfill Response if not available
 if (typeof globalThis.Response === 'undefined') {
   globalThis.Response = class Response {
@@ -66,7 +76,7 @@ if (typeof globalThis.Response === 'undefined') {
       this.body = body;
       this.status = init.status || 200;
       this.statusText = init.statusText || 'OK';
-      this.headers = new Map(Object.entries(init.headers || {}));
+      this.headers = new Headers(init.headers || {});
       this.ok = this.status >= 200 && this.status < 300;
     }
 
@@ -90,7 +100,7 @@ if (typeof globalThis.Response === 'undefined') {
       return new Response(this.body, {
         status: this.status,
         statusText: this.statusText,
-        headers: Object.fromEntries(this.headers),
+        headers: Object.fromEntries(this.headers.entries()),
       });
     }
 
