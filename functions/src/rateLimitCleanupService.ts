@@ -36,7 +36,7 @@ export const cleanupRateLimits = functions.pubsub
           throw error;
         }
       },
-      MetricType.FUNCTION_EXECUTION,
+      MetricType.BACKGROUND_TASK,
       { eventId: context.eventId }
     );
   });

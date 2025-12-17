@@ -191,7 +191,7 @@ export const cleanupExpiredResumes = functions.pubsub
 
         return null;
       },
-      MetricType.FUNCTION_EXECUTION,
+      MetricType.BACKGROUND_TASK,
       { eventId: context.eventId }
     );
   });
