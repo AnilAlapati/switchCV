@@ -11,6 +11,7 @@ export enum MetricType {
   AI_API_CALL = "ai_api_call",
   DATABASE_QUERY = "database_query",
   EXTERNAL_API = "external_api",
+  BACKGROUND_TASK = "background_task",
   ERROR_RATE = "error_rate",
 }
 
@@ -219,7 +220,7 @@ export class PerformanceMonitor {
 
         // Check P95 threshold
         try {
-          alertManager.checkP95(metric.name, metric.p95);
+          alertManager.checkP95(metric.name, metric.p95, metric.type);
         } catch (e) {
           // If alertManager is not initialized or checkP95 throws, log it
           functions.logger.error("Error checking P95 threshold", {
@@ -429,6 +430,8 @@ export class AlertManager {
     function_execution: 500,
     // External API calls (non-AI)
     external_api: 1000,
+    // Background tasks/aggregations
+    background_task: 5000,
     // AI/LLM operations - inherently slow
     ai_api_call: 5000,
     // Default fallback
@@ -490,6 +493,10 @@ export class AlertManager {
    */
   private inferOperationType(functionName: string): string {
     const lowerName = functionName.toLowerCase();
+
+    if (lowerName.startsWith("stats.")) {
+      return "background_task";
+    }
 
     if (
       lowerName.includes("ai") ||

@@ -47,7 +47,7 @@ const fetchCount = async (
 
       return rawCount;
     },
-    MetricType.DATABASE_QUERY,
+    MetricType.BACKGROUND_TASK,
     { metricName }
   );
 };
@@ -142,7 +142,7 @@ export const aggregateGlobalStats = functions
           throw error;
         }
       },
-      MetricType.FUNCTION_EXECUTION,
+      MetricType.BACKGROUND_TASK,
       { eventId: context.eventId }
     );
   });

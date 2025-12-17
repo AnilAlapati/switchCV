@@ -101,7 +101,7 @@ export const aggregateAnalyticsDaily = functions.pubsub
           throw error;
         }
       },
-      MetricType.FUNCTION_EXECUTION,
+      MetricType.BACKGROUND_TASK,
       { eventId: context.eventId }
     );
   });
@@ -195,7 +195,7 @@ export const cleanupAnalyticsEvents = functions.pubsub
           throw error;
         }
       },
-      MetricType.FUNCTION_EXECUTION,
+      MetricType.BACKGROUND_TASK,
       { eventId: context.eventId }
     );
   });
