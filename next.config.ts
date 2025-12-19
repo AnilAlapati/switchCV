@@ -29,7 +29,29 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react", "date-fns", "lodash"],
   },
-  serverExternalPackages: ["pino", "pino-pretty"],
+  serverExternalPackages: ["pino", "pino-pretty", "firebase-admin"],
+  transpilePackages: ["path-scurry"],
+  webpack: (config, { isServer }) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "node:process": "process",
+      "node:path": "path",
+      "node:fs": "fs",
+      "node:url": "url",
+      "node:util": "util",
+      "node:vm": "vm",
+      "node:module": "module",
+    };
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        process: require.resolve("process/browser"),
+        path: require.resolve("path-browserify"),
+        fs: false,
+      };
+    }
+    return config;
+  },
   env: {
     NEXT_PUBLIC_APP_VERSION: packageJson.version,
   },

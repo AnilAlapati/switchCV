@@ -5,6 +5,7 @@ import { logger } from "@/lib/logger";
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { ResumeEditChatHeader } from "@/components/resume/ResumeEditChatHeader";
 import { ResumeEditChatInput } from "@/components/resume/ResumeEditChatInput";
 import { ResumeEditChatStatus } from "@/components/resume/ResumeEditChatStatus";
@@ -39,6 +40,13 @@ export default function ResumeAIEditPage() {
   const resumeId = params?.id;
   const router = useRouter();
   const { user, loading, needsEmailVerification } = useAuth();
+  const { tier, loading: tierLoading } = useUserProfile();
+
+  useEffect(() => {
+    if (!tierLoading && tier === "basic") {
+      router.replace("/dashboard");
+    }
+  }, [tier, tierLoading, router]);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -237,12 +245,14 @@ export default function ResumeAIEditPage() {
     );
   }
 
-  if (loading || !initialised) {
+  if (!initialised || tierLoading || tier === "basic") {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-400 text-lg">Loading editor…</p>
+          <p className="text-slate-400 text-lg">
+            {tier === "basic" ? "Redirecting..." : "Loading editor…"}
+          </p>
         </div>
       </div>
     );
@@ -264,8 +274,8 @@ export default function ResumeAIEditPage() {
             <div className="bg-yellow-900/30 border border-yellow-500/50 rounded-xl p-4 text-yellow-200">
               <p className="font-semibold mb-2">No resume on file yet</p>
               <p className="text-sm mb-3">
-                I can only edit an existing resume. Start by creating one with our
-                AI Resume Builder, then return here to keep refining it.
+                I can only edit an existing resume. Start by creating one with
+                our AI Resume Builder, then return here to keep refining it.
               </p>
               <Link
                 href="/create-resume"

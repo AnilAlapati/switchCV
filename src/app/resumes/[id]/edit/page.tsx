@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { useProfileForm } from "@/hooks/useProfileForm";
 import {
   mergeProfileIntoResume,
@@ -41,8 +42,16 @@ export default function EditResumePage() {
     : resumeIdParam;
   const searchParams = useSearchParams();
   const mode = searchParams?.get("mode") ?? "ai";
+  const { tier, loading: tierLoading } = useUserProfile();
+  const router = useRouter();
 
-  if (!resumeId) {
+  useEffect(() => {
+    if (!tierLoading && tier === "basic") {
+      router.replace("/dashboard");
+    }
+  }, [tier, tierLoading, router]);
+
+  if (!resumeId || tierLoading || tier === "basic") {
     return null;
   }
 

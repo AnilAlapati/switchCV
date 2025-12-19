@@ -1,4 +1,4 @@
-// src/middleware.ts
+// src/proxy.ts - Next.js middleware
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 
@@ -72,7 +72,7 @@ async function getMaintenanceConfig(): Promise<{
   return { isActive: false, blocking: false };
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // Don't intercept maintenance page itself, API routes, or static assets
   const path = request.nextUrl.pathname;
 
