@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { Tooltip } from "@/components/ui/Tooltip";
 
 interface ResumeSnapshotCardProps {
   resumeId: string;
@@ -15,6 +17,9 @@ export function ResumeSnapshotCard({
   summary,
   updatedAt,
 }: ResumeSnapshotCardProps) {
+  const { tier } = useUserProfile();
+  const isBasicUser = tier === "basic";
+
   return (
     <div className="glass-panel rounded-xl p-4 transition hover:shadow-lg hover:shadow-[#2C4A3B]/10 hover:border-white">
       <h2 className="text-lg font-semibold text-[#1A2F25] flex items-center gap-2">
@@ -56,12 +61,23 @@ export function ResumeSnapshotCard({
         >
           View Public Resume
         </Link>
-        <Link
-          href={`/resumes/${resumeId}/edit`}
-          className="inline-flex items-center px-3 py-1.5 text-sm glass-button font-medium rounded-lg"
-        >
-          Open Manual Editor
-        </Link>
+        {isBasicUser ? (
+          <Tooltip content="AI Edit feature is available for Premium or Enterprise users">
+            <button
+              disabled
+              className="inline-flex items-center px-3 py-1.5 text-sm bg-slate-100 text-slate-400 font-medium rounded-lg cursor-not-allowed border border-slate-200"
+            >
+              Open Manual Editor
+            </button>
+          </Tooltip>
+        ) : (
+          <Link
+            href={`/resumes/${resumeId}/edit`}
+            className="inline-flex items-center px-3 py-1.5 text-sm glass-button font-medium rounded-lg"
+          >
+            Open Manual Editor
+          </Link>
+        )}
       </div>
     </div>
   );
