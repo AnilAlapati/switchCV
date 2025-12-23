@@ -37,14 +37,14 @@ interface Entitlement {
   plan: "basic" | "premium" | "enterprise" | string;
 }
 
-export class RateLimitError extends Error {
+class RateLimitError extends Error {
   constructor(public readonly retryAfterSeconds: number) {
     super("Too many requests");
     this.name = "RateLimitError";
   }
 }
 
-export class EntitlementError extends Error {
+class EntitlementError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "EntitlementError";
@@ -59,8 +59,8 @@ const BASE_LIMIT = Math.max(
   1,
   Number(
     process.env.RATE_LIMIT_AI_GENERATION ||
-      process.env.NEXT_PUBLIC_RATE_LIMIT_AI_GENERATION ||
-      10
+    process.env.NEXT_PUBLIC_RATE_LIMIT_AI_GENERATION ||
+    10
   )
 );
 const PLAN_MULTIPLIER: Record<string, number> = {
@@ -176,8 +176,8 @@ async function enforceRateLimit(userId: string, plan: string) {
         data?.windowStart instanceof admin.firestore.Timestamp
           ? data.windowStart.toMillis()
           : typeof data?.windowStart === "number"
-          ? data.windowStart
-          : windowStart;
+            ? data.windowStart
+            : windowStart;
 
       if (storedWindowStart > windowStartThreshold) {
         windowStart = storedWindowStart;

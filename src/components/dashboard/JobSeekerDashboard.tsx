@@ -12,7 +12,6 @@ import {
   buildJobSeekerActionPlan,
   buildJobSeekerInsights,
   calculateReadinessScore,
-  readinessLabel,
 } from "@/lib/dashboard/jobSeekerInsights";
 import { getResumeUrl, ENABLE_SEEDING_AND_DEBUG_LISTS } from "@/lib/config";
 import type { JobSeekerMetrics } from "@/types/dashboard";
@@ -118,11 +117,6 @@ export function JobSeekerDashboard({
   const readinessScore = useMemo(
     () => calculateReadinessScore(metrics, hasResume),
     [metrics, hasResume]
-  );
-
-  const readinessText = useMemo(
-    () => readinessLabel(readinessScore),
-    [readinessScore]
   );
 
   const careerResources = useMemo(
