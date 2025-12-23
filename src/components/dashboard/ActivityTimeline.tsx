@@ -1,51 +1,108 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { CheckCircle2, Search, Zap, Star, MessageSquare } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 export function ActivityTimeline() {
-    const activities = [
-        {
-            id: 1,
-            type: "update",
-            content: "Resume updated",
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-            icon: <CheckCircle2 className="h-4 w-4 text-emerald-500" />,
-            color: "bg-emerald-500/10",
-        },
-        {
-            id: 2,
-            type: "search",
-            content: "5 recruiters searched for 'React Developer'",
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5), // 5 hours ago
-            icon: <Search className="h-4 w-4 text-indigo-500" />,
-            color: "bg-indigo-500/10",
-        },
-        {
-            id: 3,
-            type: "insight",
-            content: "New interview guide available in resources",
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), // 24 hours ago
-            icon: <Zap className="h-4 w-4 text-yellow-500" />,
-            color: "bg-yellow-500/10",
-        },
-        {
-            id: 4,
-            type: "success",
-            content: "Profile visibility boosted by 15%",
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 48), // 2 days ago
-            icon: <Star className="h-4 w-4 text-purple-500" />,
-            color: "bg-purple-500/10",
-        },
-        {
-            id: 5,
-            type: "engagement",
-            content: "New contact request received",
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 72), // 3 days ago
-            icon: <MessageSquare className="h-4 w-4 text-pink-500" />,
-            color: "bg-pink-500/10",
-        },
-    ];
+    const [activities, setActivities] = useState(() => {
+        // Initialize with placeholder timestamps that will be replaced
+        const placeholderDate = new Date(2024, 0, 1);
+        return [
+            {
+                id: 1,
+                type: "update",
+                content: "Resume updated",
+                timestamp: placeholderDate,
+                icon: <CheckCircle2 className="h-4 w-4 text-emerald-500" />,
+                color: "bg-emerald-500/10",
+            },
+            {
+                id: 2,
+                type: "search",
+                content: "5 recruiters searched for 'React Developer'",
+                timestamp: placeholderDate,
+                icon: <Search className="h-4 w-4 text-indigo-500" />,
+                color: "bg-indigo-500/10",
+            },
+            {
+                id: 3,
+                type: "insight",
+                content: "New interview guide available in resources",
+                timestamp: placeholderDate,
+                icon: <Zap className="h-4 w-4 text-yellow-500" />,
+                color: "bg-yellow-500/10",
+            },
+            {
+                id: 4,
+                type: "success",
+                content: "Profile visibility boosted by 15%",
+                timestamp: placeholderDate,
+                icon: <Star className="h-4 w-4 text-purple-500" />,
+                color: "bg-purple-500/10",
+            },
+            {
+                id: 5,
+                type: "engagement",
+                content: "New contact request received",
+                timestamp: placeholderDate,
+                icon: <MessageSquare className="h-4 w-4 text-pink-500" />,
+                color: "bg-pink-500/10",
+            },
+        ];
+    });
+
+    useEffect(() => {
+        // Set actual timestamps after component mounts
+        // Use setTimeout to avoid synchronous state update warning
+        const timer = setTimeout(() => {
+            const now = Date.now();
+            setActivities([
+                {
+                    id: 1,
+                    type: "update",
+                    content: "Resume updated",
+                    timestamp: new Date(now - 1000 * 60 * 60 * 2), // 2 hours ago
+                    icon: <CheckCircle2 className="h-4 w-4 text-emerald-500" />,
+                    color: "bg-emerald-500/10",
+                },
+                {
+                    id: 2,
+                    type: "search",
+                    content: "5 recruiters searched for 'React Developer'",
+                    timestamp: new Date(now - 1000 * 60 * 60 * 5), // 5 hours ago
+                    icon: <Search className="h-4 w-4 text-indigo-500" />,
+                    color: "bg-indigo-500/10",
+                },
+                {
+                    id: 3,
+                    type: "insight",
+                    content: "New interview guide available in resources",
+                    timestamp: new Date(now - 1000 * 60 * 60 * 24), // 24 hours ago
+                    icon: <Zap className="h-4 w-4 text-yellow-500" />,
+                    color: "bg-yellow-500/10",
+                },
+                {
+                    id: 4,
+                    type: "success",
+                    content: "Profile visibility boosted by 15%",
+                    timestamp: new Date(now - 1000 * 60 * 60 * 48), // 2 days ago
+                    icon: <Star className="h-4 w-4 text-purple-500" />,
+                    color: "bg-purple-500/10",
+                },
+                {
+                    id: 5,
+                    type: "engagement",
+                    content: "New contact request received",
+                    timestamp: new Date(now - 1000 * 60 * 60 * 72), // 3 days ago
+                    icon: <MessageSquare className="h-4 w-4 text-pink-500" />,
+                    color: "bg-pink-500/10",
+                },
+            ]);
+        }, 0);
+
+        return () => clearTimeout(timer);
+    }, []);
 
     return (
         <div className="glass-panel rounded-3xl p-6 bg-white/40 border-white/60">

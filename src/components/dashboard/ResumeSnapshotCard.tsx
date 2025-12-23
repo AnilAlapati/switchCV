@@ -4,7 +4,7 @@ import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { useUserProfile } from "@/hooks/useUserProfile";
-import { Copy, Edit3, Eye, Share2 } from "lucide-react";
+import { Edit3, Eye, Share2 } from "lucide-react";
 
 interface ResumeSnapshotCardProps {
     hasResume: boolean;

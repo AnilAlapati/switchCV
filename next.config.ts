@@ -7,9 +7,8 @@ const isDev = process.env.NODE_ENV === "development";
 const cspDirectives = [
   "default-src 'self'",
   // In development, allow eval for hot reload. In production, use stricter policy
-  `script-src 'self' ${
-    isDev ? "'unsafe-eval'" : ""
-  } 'unsafe-inline' https://www.googletagmanager.com https://apis.google.com`.trim(),
+  `script-src 'self' ${isDev ? "'unsafe-eval'" : ""
+    } 'unsafe-inline' https://www.googletagmanager.com https://apis.google.com`.trim(),
   // Style-src requires unsafe-inline for Next.js styled-jsx and inline styles
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https:",
@@ -97,6 +96,18 @@ const nextConfig: NextConfig = {
     // Strict type checking enabled for production quality
     // Run `npx tsc --noEmit` to see all type errors before building
     ignoreBuildErrors: false,
+  },
+
+  turbopack: {
+    resolveAlias: {
+      "node:process": "process",
+      "node:path": "path",
+      "node:fs": "fs",
+      "node:url": "url",
+      "node:util": "util",
+      "node:vm": "vm",
+      "node:module": "module",
+    },
   },
 };
 
