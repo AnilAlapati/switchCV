@@ -11,11 +11,25 @@ import { getUserTier } from "@/lib/services/userService";
 import { getRecruiterContactLimits } from "@/lib/config.server";
 import { consumeQuota, QuotaExceededError } from "@/lib/services/quotaService";
 
+/**
+ * Helper to verify recruiter role
+ */
+async function verifyRecruiterRole(userId: string): Promise<boolean> {
+  const userSnap = await adminDb.collection("users").doc(userId).get();
+  const userData = userSnap.data();
+  return userData?.role === "recruiter" || userData?.role === "admin";
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { userId: recruiterId, error: authError } =
       await getAuthenticatedUserId(request);
-    if (authError) return authError;
+    if (authError || !recruiterId)
+      return authError || handleApiError(null, "Unauthorized", 401);
+
+    if (!(await verifyRecruiterRole(recruiterId))) {
+      return handleApiError(null, "Forbidden: Recruiter role required", 403);
+    }
 
     const { resumeId, requestedFields = ["email", "phone"] } =
       await request.json();

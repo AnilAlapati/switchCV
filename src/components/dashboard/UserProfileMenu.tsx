@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { APP_CONFIG } from "@/config/constants";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 interface UserProfileMenuProps {
   userEmail?: string | null;
@@ -12,13 +13,17 @@ interface UserProfileMenuProps {
 export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const { role } = useUserProfile();
 
   const userInitial = userEmail ? userEmail.charAt(0).toUpperCase() : "U";
   const displayName = userEmail?.split("@")[0] || "User";
   const emailLabel = userEmail || "Signed out";
-  const appVersion = `${APP_CONFIG.VERSION_PREFIX}.${process.env.NEXT_PUBLIC_APP_VERSION || "0.0.1"
-    }`;
+  const appVersion = `${APP_CONFIG.VERSION_PREFIX}.${
+    process.env.NEXT_PUBLIC_APP_VERSION || "0.0.1"
+  }`;
 
+  // Check if user has access to analytics (admin or recruiter)
+  const hasAnalyticsAccess = role === "admin" || role === "recruiter";
   // Close menu when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -63,8 +68,9 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
 
         {/* Chevron */}
         <svg
-          className={`relative h-4 w-4 text-[#2C4A3B]/60 transition-transform duration-200 group-hover:text-[#1A2F25] ${isOpen ? "rotate-180" : ""
-            }`}
+          className={`relative h-4 w-4 text-[#2C4A3B]/60 transition-transform duration-200 group-hover:text-[#1A2F25] ${
+            isOpen ? "rotate-180" : ""
+          }`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -95,6 +101,35 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
               </div>
             </div>
           </div>
+
+          {/* Analytics - Admin/Recruiter Only */}
+          {hasAnalyticsAccess && (
+            <Link
+              href="/analytics"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-3 px-4 py-3 text-sm text-[#1A2F25] hover:bg-[#2C4A3B]/5 transition-colors duration-150 font-medium"
+            >
+              <svg
+                className="w-4 h-4 text-indigo-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                />
+              </svg>
+              <span>View Analytics</span>
+              <span className="ml-auto px-2 py-0.5 text-xs rounded-full bg-indigo-100 text-indigo-700 font-bold border border-indigo-200">
+                {role === "admin" ? "Admin" : "Pro"}
+              </span>
+            </Link>
+          )}
+
+          {/* 
 
           {/* Menu Items */}
           <div className="py-2">

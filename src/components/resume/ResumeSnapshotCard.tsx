@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useUserProfile } from "@/hooks/useUserProfile";
-import { Tooltip } from "@/components/ui/Tooltip";
+import { RestrictedFeature } from "@/components/ui/RestrictedFeature";
 
 interface ResumeSnapshotCardProps {
   resumeId: string;
@@ -61,23 +61,23 @@ export function ResumeSnapshotCard({
         >
           View Public Resume
         </Link>
-        {isBasicUser ? (
-          <Tooltip content="AI Edit feature is available for Premium or Enterprise users">
+        <RestrictedFeature messageKey="AI_EDIT" requiredTier="premium">
+          {isBasicUser ? (
             <button
               disabled
               className="inline-flex items-center px-3 py-1.5 text-sm bg-slate-100 text-slate-400 font-medium rounded-lg cursor-not-allowed border border-slate-200"
             >
               Open Manual Editor
             </button>
-          </Tooltip>
-        ) : (
-          <Link
-            href={`/resumes/${resumeId}/edit`}
-            className="inline-flex items-center px-3 py-1.5 text-sm glass-button font-medium rounded-lg"
-          >
-            Open Manual Editor
-          </Link>
-        )}
+          ) : (
+            <Link
+              href={`/resumes/${resumeId}/edit`}
+              className="inline-flex items-center px-3 py-1.5 text-sm glass-button font-medium rounded-lg"
+            >
+              Open Manual Editor
+            </Link>
+          )}
+        </RestrictedFeature>
       </div>
     </div>
   );

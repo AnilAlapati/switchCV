@@ -11,7 +11,10 @@ import { adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import { BulkAction } from "@/lib/recruiterDashboard.types";
 import { createBulkAction } from "@/lib/recruiterPipelineHelpers";
-import { handleApiError } from "@/lib/utils/api-helpers";
+import {
+  getAuthenticatedUserId,
+  handleApiError,
+} from "@/lib/utils/api-helpers";
 import { logger } from "@/lib/logger";
 
 interface CreateBulkActionRequest {
@@ -45,6 +48,15 @@ type BulkActionWithMeta = BulkAction & {
 };
 
 /**
+ * Helper to verify recruiter role
+ */
+async function verifyRecruiterRole(userId: string): Promise<boolean> {
+  const userSnap = await adminDb.collection("users").doc(userId).get();
+  const userData = userSnap.data();
+  return userData?.role === "recruiter" || userData?.role === "admin";
+}
+
+/**
  * Helper to convert Firestore doc to BulkAction object
  */
 function docToBulkAction(
@@ -74,7 +86,17 @@ function docToBulkAction(
 }
 
 export async function POST(request: NextRequest) {
+  const { userId: authUserId, error: authError } = await getAuthenticatedUserId(
+    request
+  );
+  if (authError || !authUserId)
+    return authError || handleApiError(null, "Unauthorized", 401);
+
   try {
+    if (!(await verifyRecruiterRole(authUserId))) {
+      return handleApiError(null, "Forbidden: Recruiter role required", 403);
+    }
+
     const body: BulkActionRequest = await request.json();
 
     switch (body.action) {
@@ -100,6 +122,7 @@ export async function POST(request: NextRequest) {
             ...bulkAction,
             metadata: metadata || null,
             createdAt: FieldValue.serverTimestamp(),
+            createdBy: authUserId,
           });
 
         logger.info(
@@ -203,7 +226,17 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const { userId: authUserId, error: authError } = await getAuthenticatedUserId(
+    request
+  );
+  if (authError || !authUserId)
+    return authError || handleApiError(null, "Unauthorized", 401);
+
   try {
+    if (!(await verifyRecruiterRole(authUserId))) {
+      return handleApiError(null, "Forbidden: Recruiter role required", 403);
+    }
+
     const bulkActionId = request.nextUrl.searchParams.get("id");
     const status = request.nextUrl.searchParams.get("status");
 

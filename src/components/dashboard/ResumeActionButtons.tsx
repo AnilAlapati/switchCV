@@ -2,6 +2,7 @@ import React from "react";
 import Link from "next/link";
 import { getResumeUrl } from "@/lib/config";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { RestrictedFeature } from "@/components/ui/RestrictedFeature";
 import { Tooltip } from "@/components/ui/Tooltip";
 
 interface ResumeActionButtonsProps {
@@ -51,11 +52,10 @@ export function ResumeActionButtons({
       <button
         onClick={onToggleVisibility}
         disabled={isUpdatingVisibility}
-        className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all border ${
-          isPublished
+        className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all border ${isPublished
             ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20 hover:bg-emerald-500/20"
             : "bg-white/40 text-[#1A2F25]/60 border-white/60 hover:bg-white/60 hover:text-[#1A2F25]"
-        }`}
+          }`}
       >
         {isUpdatingVisibility ? (
           <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
@@ -98,8 +98,8 @@ export function ResumeActionButtons({
       </button>
 
       {resumeIdString ? (
-        isBasicUser ? (
-          <Tooltip content="AI Edit feature is available for Premium or Enterprise users">
+        <RestrictedFeature messageKey="AI_EDIT" requiredTier="premium" tooltipPosition="left">
+          {isBasicUser ? (
             <button
               disabled
               className="inline-flex items-center gap-2 rounded-xl bg-slate-50 border border-slate-200 px-4 py-2 text-sm font-bold text-slate-400 cursor-not-allowed opacity-60"
@@ -119,28 +119,28 @@ export function ResumeActionButtons({
                 />
               </svg>
             </button>
-          </Tooltip>
-        ) : (
-          <Link
-            href={`/resumes/${resumeIdString}/edit`}
-            className="inline-flex items-center gap-2 rounded-xl bg-white/40 border border-white/60 px-4 py-2 text-sm font-bold text-[#1A2F25] transition hover:bg-white/60 shadow-sm"
-          >
-            Edit
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          ) : (
+            <Link
+              href={`/resumes/${resumeIdString}/edit`}
+              className="inline-flex items-center gap-2 rounded-xl bg-white/40 border border-white/60 px-4 py-2 text-sm font-bold text-[#1A2F25] transition hover:bg-white/60 shadow-sm"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M11 5h2m-1-1v2m1 5h-4m6-9.5l1.5 1.5M5 19l4.586-4.586a2 2 0 012.828 0L17 19"
-              />
-            </svg>
-          </Link>
-        )
+              Edit
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M11 5h2m-1-1v2m1 5h-4m6-9.5l1.5 1.5M5 19l4.586-4.586a2 2 0 012.828 0L17 19"
+                />
+              </svg>
+            </Link>
+          )}
+        </RestrictedFeature>
       ) : (
         <button
           type="button"

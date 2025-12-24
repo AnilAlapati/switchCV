@@ -17,7 +17,10 @@ import {
 } from "@/lib/recruiterDashboard.types";
 import { createCandidate } from "@/lib/recruiterPipeline";
 import { generatePipelineId } from "@/lib/recruiterPipelineHelpers";
-import { handleApiError } from "@/lib/utils/api-helpers";
+import {
+  getAuthenticatedUserId,
+  handleApiError,
+} from "@/lib/utils/api-helpers";
 import { logger } from "@/lib/logger";
 
 interface InitializeRequest {
@@ -58,6 +61,15 @@ type PipelineRequest =
 
 const PIPELINES_COLLECTION = "recruiterPipelines";
 const CANDIDATES_SUBCOLLECTION = "candidates";
+
+/**
+ * Helper to verify recruiter role
+ */
+async function verifyRecruiterRole(userId: string): Promise<boolean> {
+  const userSnap = await adminDb.collection("users").doc(userId).get();
+  const userData = userSnap.data();
+  return userData?.role === "recruiter" || userData?.role === "admin";
+}
 
 /**
  * Get pipeline from Firestore
@@ -121,7 +133,17 @@ async function getPipeline(
 }
 
 export async function POST(request: NextRequest) {
+  const { userId: authUserId, error: authError } = await getAuthenticatedUserId(
+    request
+  );
+  if (authError || !authUserId)
+    return authError || handleApiError(null, "Unauthorized", 401);
+
   try {
+    if (!(await verifyRecruiterRole(authUserId))) {
+      return handleApiError(null, "Forbidden: Recruiter role required", 403);
+    }
+
     const body: PipelineRequest = await request.json();
 
     switch (body.action) {
@@ -144,7 +166,7 @@ export async function POST(request: NextRequest) {
           .set({
             jobId,
             jobTitle,
-            recruiterId: recruiterId || null,
+            recruiterId: recruiterId || authUserId,
             totalCandidates: 0,
             createdAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp(),
@@ -307,6 +329,40 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     logger.error({ err: error }, "Pipeline API error");
+    return handleApiError(error, "Internal server error");
+  }
+}
+
+export async function GET(request: NextRequest) {
+  const { userId: authUserId, error: authError } = await getAuthenticatedUserId(
+    request
+  );
+  if (authError || !authUserId)
+    return authError || handleApiError(null, "Unauthorized", 401);
+
+  try {
+    if (!(await verifyRecruiterRole(authUserId))) {
+      return handleApiError(null, "Forbidden: Recruiter role required", 403);
+    }
+
+    const pipelineId = request.nextUrl.searchParams.get("id");
+
+    if (!pipelineId) {
+      return handleApiError(null, "pipelineId is required", 400);
+    }
+
+    const pipeline = await getPipeline(pipelineId);
+
+    if (!pipeline) {
+      return handleApiError(null, "Pipeline not found", 404);
+    }
+
+    return NextResponse.json({
+      success: true,
+      pipeline,
+    });
+  } catch (error) {
+    logger.error({ err: error }, "Pipeline GET error");
     return handleApiError(error, "Internal server error");
   }
 }

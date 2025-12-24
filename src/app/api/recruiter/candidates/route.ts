@@ -19,7 +19,10 @@ import {
   updateCandidatePriority,
   addCandidateNote,
 } from "@/lib/recruiterPipeline";
-import { handleApiError } from "@/lib/utils/api-helpers";
+import {
+  getAuthenticatedUserId,
+  handleApiError,
+} from "@/lib/utils/api-helpers";
 import { logger } from "@/lib/logger";
 
 interface CreateRequest {
@@ -52,8 +55,27 @@ type CandidateRequest = CreateRequest | UpdatePriorityRequest | AddNoteRequest;
 const CANDIDATES_COLLECTION = "recruiterCandidates";
 const NOTES_SUBCOLLECTION = "notes";
 
+/**
+ * Helper to verify recruiter role
+ */
+async function verifyRecruiterRole(userId: string): Promise<boolean> {
+  const userSnap = await adminDb.collection("users").doc(userId).get();
+  const userData = userSnap.data();
+  return userData?.role === "recruiter" || userData?.role === "admin";
+}
+
 export async function POST(request: NextRequest) {
+  const { userId: authUserId, error: authError } = await getAuthenticatedUserId(
+    request
+  );
+  if (authError || !authUserId)
+    return authError || handleApiError(null, "Unauthorized", 401);
+
   try {
+    if (!(await verifyRecruiterRole(authUserId))) {
+      return handleApiError(null, "Forbidden: Recruiter role required", 403);
+    }
+
     const body: CandidateRequest = await request.json();
 
     switch (body.action) {
@@ -86,6 +108,7 @@ export async function POST(request: NextRequest) {
             ...candidate,
             createdAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp(),
+            createdBy: authUserId,
           });
 
         logger.info({ candidateId: candidate.id }, "Candidate created");
@@ -134,13 +157,13 @@ export async function POST(request: NextRequest) {
       }
 
       case "add-note": {
-        const { candidateId, userId, content, category, isPrivate } =
+        const { candidateId, content, category, isPrivate } =
           body as AddNoteRequest;
 
-        if (!candidateId || !userId || !content) {
+        if (!candidateId || !content) {
           return handleApiError(
             null,
-            "Missing required fields: candidateId, userId, content",
+            "Missing required fields: candidateId, content",
             400
           );
         }
@@ -157,7 +180,7 @@ export async function POST(request: NextRequest) {
 
         const note = addCandidateNote(
           candidateId,
-          userId,
+          authUserId,
           content,
           category,
           isPrivate
@@ -210,7 +233,17 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const { userId: authUserId, error: authError } = await getAuthenticatedUserId(
+    request
+  );
+  if (authError || !authUserId)
+    return authError || handleApiError(null, "Unauthorized", 401);
+
   try {
+    if (!(await verifyRecruiterRole(authUserId))) {
+      return handleApiError(null, "Forbidden: Recruiter role required", 403);
+    }
+
     const candidateId = request.nextUrl.searchParams.get("id");
 
     if (candidateId) {

@@ -8,6 +8,8 @@ import { PriorityActionsCard } from "@/components/dashboard/PriorityActionsCard"
 import { OpportunityInsightsCard } from "@/components/dashboard/OpportunityInsightsCard";
 import { ResourceLinksCard } from "@/components/dashboard/ResourceLinksCard";
 import { ResumeList } from "@/components/dashboard/ResumeList";
+import { PremiumFeatureLock } from "@/components/ui/PremiumFeatureLock";
+import { TIER_RESTRICTION_MESSAGES } from "@/lib/utils/tier-restrictions";
 import {
   buildJobSeekerActionPlan,
   buildJobSeekerInsights,
@@ -160,13 +162,28 @@ export function JobSeekerDashboard({
           />
 
           <div className="grid gap-6 md:grid-cols-2">
-            <OpportunityInsightsCard
-              title="Your Market Reach"
-              subtitle="How your profile is performing"
-              insights={opportunityInsights}
-            />
+            {/* Only show Market Reach for Premium and Enterprise users */}
+            {(tier === "premium" || tier === "enterprise") && (
+              <OpportunityInsightsCard
+                title="Your Market Reach"
+                subtitle="How your profile is performing"
+                insights={opportunityInsights}
+              />
+            )}
 
-            <div className="glass-panel rounded-3xl p-8 flex flex-col items-center justify-center text-center bg-gradient-to-br from-indigo-500/10 to-purple-500/5 border-indigo-500/10">
+            <div
+              className={`glass-panel rounded-3xl p-8 flex flex-col items-center justify-center text-center bg-gradient-to-br from-indigo-500/10 to-purple-500/5 border-indigo-500/10 ${
+                tier !== "premium" && tier !== "enterprise"
+                  ? "md:col-span-2"
+                  : ""
+              }`}
+            >
+              <h3 className="text-sm font-semibold text-indigo-600 uppercase tracking-wider mb-2">
+                Profile Readiness
+              </h3>
+              <p className="text-xs text-slate-500 mb-4">
+                How recruiter-ready you are
+              </p>
               <div className="relative mb-6">
                 <svg className="h-32 w-32 transform -rotate-90">
                   <circle
@@ -196,6 +213,9 @@ export function JobSeekerDashboard({
                   </span>
                 </div>
               </div>
+              <p className="text-xs text-slate-600 max-w-[200px]">
+                Based on quality, visibility, and engagement
+              </p>
             </div>
           </div>
         </div>
@@ -219,42 +239,111 @@ export function JobSeekerDashboard({
             title="Career Growth"
             caption="Resources to help you level up"
             links={careerResources}
+            lockForBasic={true}
           />
 
-          <div className="glass-panel rounded-3xl p-8 bg-gradient-to-br from-indigo-500/5 to-cyan-500/5 border-indigo-500/10">
-            <h3 className="text-xl font-bold text-[#1A2F25] mb-6">Pro Tips</h3>
-            <div className="space-y-6">
-              <div className="flex gap-4">
-                <div className="h-6 w-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0 text-xs font-bold">1</div>
-                <p className="text-sm text-[#1A2F25]/70 leading-relaxed">
-                  Profiles with a professional photo get <span className="font-bold text-[#1A2F25]">14x more views</span>.
-                </p>
+          {tier === "basic" ? (
+            <PremiumFeatureLock
+              featureName="Pro Tips"
+              description={TIER_RESTRICTION_MESSAGES.PRIORITY_ACTIONS}
+              className="h-full"
+            >
+              <div className="glass-panel rounded-3xl p-8 bg-gradient-to-br from-indigo-500/5 to-cyan-500/5 border-indigo-500/10">
+                <h3 className="text-xl font-bold text-[#1A2F25] mb-6">
+                  Pro Tips
+                </h3>
+                <div className="space-y-6">
+                  <div className="flex gap-4">
+                    <div className="h-6 w-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0 text-xs font-bold">
+                      1
+                    </div>
+                    <p className="text-sm text-[#1A2F25]/70 leading-relaxed">
+                      Profiles with a professional photo get{" "}
+                      <span className="font-bold text-[#1A2F25]">
+                        14x more views
+                      </span>
+                      .
+                    </p>
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="h-6 w-6 rounded-full bg-cyan-100 text-cyan-600 flex items-center justify-center flex-shrink-0 text-xs font-bold">
+                      2
+                    </div>
+                    <p className="text-sm text-[#1A2F25]/70 leading-relaxed">
+                      Quantifying your impact increases recruiter engagement by{" "}
+                      <span className="font-bold text-[#1A2F25]">40%</span>.
+                    </p>
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="h-6 w-6 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center flex-shrink-0 text-xs font-bold">
+                      3
+                    </div>
+                    <p className="text-sm text-[#1A2F25]/70 leading-relaxed">
+                      Weekly updates keep you at the{" "}
+                      <span className="font-bold text-[#1A1F25]">
+                        top of search results
+                      </span>
+                      .
+                    </p>
+                  </div>
+                </div>
               </div>
-              <div className="flex gap-4">
-                <div className="h-6 w-6 rounded-full bg-cyan-100 text-cyan-600 flex items-center justify-center flex-shrink-0 text-xs font-bold">2</div>
-                <p className="text-sm text-[#1A2F25]/70 leading-relaxed">
-                  Quantifying your impact increases recruiter engagement by <span className="font-bold text-[#1A2F25]">40%</span>.
-                </p>
-              </div>
-              <div className="flex gap-4">
-                <div className="h-6 w-6 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center flex-shrink-0 text-xs font-bold">3</div>
-                <p className="text-sm text-[#1A2F25]/70 leading-relaxed">
-                  Weekly updates keep you at the <span className="font-bold text-[#1A1F25]">top of search results</span>.
-                </p>
+            </PremiumFeatureLock>
+          ) : (
+            <div className="glass-panel rounded-3xl p-8 bg-gradient-to-br from-indigo-500/5 to-cyan-500/5 border-indigo-500/10">
+              <h3 className="text-xl font-bold text-[#1A2F25] mb-6">
+                Pro Tips
+              </h3>
+              <div className="space-y-6">
+                <div className="flex gap-4">
+                  <div className="h-6 w-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0 text-xs font-bold">
+                    1
+                  </div>
+                  <p className="text-sm text-[#1A2F25]/70 leading-relaxed">
+                    Profiles with a professional photo get{" "}
+                    <span className="font-bold text-[#1A2F25]">
+                      14x more views
+                    </span>
+                    .
+                  </p>
+                </div>
+                <div className="flex gap-4">
+                  <div className="h-6 w-6 rounded-full bg-cyan-100 text-cyan-600 flex items-center justify-center flex-shrink-0 text-xs font-bold">
+                    2
+                  </div>
+                  <p className="text-sm text-[#1A2F25]/70 leading-relaxed">
+                    Quantifying your impact increases recruiter engagement by{" "}
+                    <span className="font-bold text-[#1A2F25]">40%</span>.
+                  </p>
+                </div>
+                <div className="flex gap-4">
+                  <div className="h-6 w-6 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center flex-shrink-0 text-xs font-bold">
+                    3
+                  </div>
+                  <p className="text-sm text-[#1A2F25]/70 leading-relaxed">
+                    Weekly updates keep you at the{" "}
+                    <span className="font-bold text-[#1A1F25]">
+                      top of search results
+                    </span>
+                    .
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* Bottom Section: Activity History */}
+      {/* Activity Timeline Section */}
       <div className="grid gap-8">
         <ActivityTimeline />
       </div>
 
       {ENABLE_SEEDING_AND_DEBUG_LISTS && resumes && resumes.length > 1 && (
         <div className="mt-12">
-          <h3 className="text-sm font-bold text-[#1A2F25]/40 uppercase tracking-widest mb-4 px-2">Manage All Resumes</h3>
+          <h3 className="text-sm font-bold text-[#1A2F25]/40 uppercase tracking-widest mb-4 px-2">
+            Manage All Resumes
+          </h3>
           <ResumeList resumes={resumes} />
         </div>
       )}

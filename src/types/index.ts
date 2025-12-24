@@ -247,6 +247,13 @@ export interface Analytics {
   totalInteractions: number; // views + requests
   lastUpdatedAt: string;
   period?: "daily" | "weekly" | "monthly";
+
+  // Optional metadata for dashboard
+  demographics?: {
+    topIndustries: string[];
+    topLocations: string[];
+  };
+  attractivenessScore?: number;
 }
 
 /**

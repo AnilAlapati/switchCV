@@ -5,24 +5,41 @@
 
 import { POST, GET } from "@/app/api/profiles/analytics/route";
 import { NextRequest } from "next/server";
+import {
+  getAnalytics,
+  trackAnalyticsEvent,
+} from "@/lib/services/analyticsService";
+import {
+  incrementJobSeekerMetric,
+  incrementRecruiterMetric,
+} from "@/lib/services/metricsService";
+import { adminDb } from "@/lib/firebase-admin";
 
-// Mock Firebase
-jest.mock("@/lib/firebase", () => ({
-  db: {},
+// Mock Services
+jest.mock("@/lib/services/analyticsService", () => ({
+  getAnalytics: jest.fn(),
+  trackAnalyticsEvent: jest.fn(),
 }));
 
-jest.mock("firebase/firestore", () => ({
-  collection: jest.fn(),
-  doc: jest.fn(),
-  getDoc: jest.fn(),
-  setDoc: jest.fn(),
-  updateDoc: jest.fn(),
-  increment: jest.fn(),
-  query: jest.fn(),
-  where: jest.fn(),
-  orderBy: jest.fn(),
-  limit: jest.fn(),
-  getDocs: jest.fn(),
+jest.mock("@/lib/services/metricsService", () => ({
+  incrementJobSeekerMetric: jest.fn(),
+  incrementRecruiterMetric: jest.fn(),
+}));
+
+jest.mock("@/lib/firebase-admin", () => ({
+  adminDb: {
+    collection: jest.fn().mockReturnThis(),
+    doc: jest.fn().mockReturnThis(),
+    get: jest.fn(),
+  },
+}));
+
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+  },
 }));
 
 describe("Analytics API", () => {
@@ -49,56 +66,110 @@ describe("Analytics API", () => {
       expect(data.error).toContain("required");
     });
 
-    it("should track view events", () => {
+    it("should track view events and update metrics", async () => {
       const trackingData = {
         resumeId: "resume-123",
-        userId: "user-456",
-        eventType: "view" as const,
-        metadata: {
-          viewedBy: "user-456",
-          source: "search" as const,
-          sessionDuration: 120,
-        },
+        userId: "viewer-456",
+        eventType: "view",
       };
 
-      expect(trackingData.eventType).toBe("view");
-      expect(trackingData.metadata.sessionDuration).toBe(120);
+      (trackAnalyticsEvent as jest.Mock).mockResolvedValue({ success: true });
+      (adminDb.get as jest.Mock).mockResolvedValue({
+        data: () => ({ userId: "owner-789" }),
+      });
+
+      const req = new NextRequest(
+        new URL("http://localhost/api/profiles/analytics"),
+        {
+          method: "POST",
+          body: JSON.stringify(trackingData),
+        }
+      );
+
+      const response = await POST(req);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(trackAnalyticsEvent).toHaveBeenCalledWith(trackingData);
+      expect(incrementJobSeekerMetric).toHaveBeenCalledWith(
+        "owner-789",
+        "profileViews"
+      );
+      expect(incrementRecruiterMetric).toHaveBeenCalledWith(
+        "viewer-456",
+        "profilesViewed"
+      );
     });
 
-    it("should track request events", () => {
+    it("should track download events and update metrics", async () => {
       const trackingData = {
         resumeId: "resume-123",
-        eventType: "request" as const,
+        eventType: "download",
       };
 
-      expect(trackingData.eventType).toBe("request");
+      (trackAnalyticsEvent as jest.Mock).mockResolvedValue({ success: true });
+      (adminDb.get as jest.Mock).mockResolvedValue({
+        data: () => ({ userId: "owner-789" }),
+      });
+
+      const req = new NextRequest(
+        new URL("http://localhost/api/profiles/analytics"),
+        {
+          method: "POST",
+          body: JSON.stringify(trackingData),
+        }
+      );
+
+      const response = await POST(req);
+      expect(response.status).toBe(200);
+      expect(incrementJobSeekerMetric).toHaveBeenCalledWith(
+        "owner-789",
+        "downloads"
+      );
     });
 
-    it("should track approval events", () => {
+    it("should handle errors in metric updates gracefully", async () => {
       const trackingData = {
         resumeId: "resume-123",
-        eventType: "approval" as const,
+        eventType: "view",
       };
 
-      expect(trackingData.eventType).toBe("approval");
+      (trackAnalyticsEvent as jest.Mock).mockResolvedValue({ success: true });
+      (adminDb.get as jest.Mock).mockRejectedValue(
+        new Error("Firestore error")
+      );
+
+      const req = new NextRequest(
+        new URL("http://localhost/api/profiles/analytics"),
+        {
+          method: "POST",
+          body: JSON.stringify(trackingData),
+        }
+      );
+
+      const response = await POST(req);
+      const data = await response.json();
+
+      expect(response.status).toBe(200); // Should still succeed
+      expect(data.success).toBe(true);
     });
 
-    it("should include metadata in events", () => {
-      const trackingData = {
-        resumeId: "resume-123",
-        eventType: "view" as const,
-        metadata: {
-          viewedBy: "user-456",
-          viewerName: "John Doe",
-          source: "direct" as const,
-          referrer: "google.com",
-          sessionDuration: 300,
-        },
-      };
+    it("should handle tracking service errors", async () => {
+      (trackAnalyticsEvent as jest.Mock).mockRejectedValue(
+        new Error("Tracking failed")
+      );
 
-      expect(trackingData.metadata.viewedBy).toBe("user-456");
-      expect(trackingData.metadata.referrer).toBe("google.com");
-      expect(trackingData.metadata.sessionDuration).toBe(300);
+      const req = new NextRequest(
+        new URL("http://localhost/api/profiles/analytics"),
+        {
+          method: "POST",
+          body: JSON.stringify({ resumeId: "123", eventType: "view" }),
+        }
+      );
+
+      const response = await POST(req);
+      expect(response.status).toBe(500);
     });
   });
 
@@ -114,150 +185,29 @@ describe("Analytics API", () => {
       expect(data.error).toContain("required");
     });
 
-    it("should return analytics for a resume", () => {
-      const analyticsData = {
-        slug: "john-doe",
-        resumeId: "resume-123",
-        userId: "user-456",
-        views: {
-          count: 45,
-          lastViewedAt: new Date().toISOString(),
-          topReferrers: {
-            "google.com": 20,
-            "linkedin.com": 15,
-            direct: 10,
-          },
-          uniqueViewers: 30,
-          avgSessionDuration: 180,
-        },
-        totalInteractions: 50,
-        lastUpdatedAt: new Date().toISOString(),
-      };
+    it("should return analytics for a resume", async () => {
+      const mockAnalytics = { views: 100, downloads: 5 };
+      (getAnalytics as jest.Mock).mockResolvedValue(mockAnalytics);
 
-      expect(analyticsData.views.count).toBe(45);
-      expect(analyticsData.views.uniqueViewers).toBe(30);
-      expect(analyticsData.totalInteractions).toBe(50);
+      const req = new NextRequest(
+        new URL("http://localhost/api/profiles/analytics?resumeId=resume-123")
+      );
+      const response = await GET(req);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data).toEqual(mockAnalytics);
+      expect(getAnalytics).toHaveBeenCalledWith("resume-123");
     });
 
-    it("should return 404 if no analytics exist", () => {
-      // Test response structure for non-existent analytics
-      const response = {
-        status: 404,
-        error: "No analytics found for this resume",
-      };
+    it("should handle analytics service errors", async () => {
+      (getAnalytics as jest.Mock).mockRejectedValue(new Error("Not found"));
 
-      expect(response.status).toBe(404);
-    });
-  });
-
-  describe("Analytics metrics calculation", () => {
-    it("should calculate unique viewers correctly", () => {
-      const viewers = new Set(["user-1", "user-2", "user-3", "user-1"]);
-      expect(viewers.size).toBe(3); // Duplicate removed
-    });
-
-    it("should calculate average session duration", () => {
-      const sessions = [60, 120, 180, 240];
-      const avg = sessions.reduce((a, b) => a + b, 0) / sessions.length;
-
-      expect(avg).toBe(150);
-    });
-
-    it("should track top referrers", () => {
-      const referrers: Record<string, number> = {
-        "google.com": 50,
-        "linkedin.com": 30,
-        direct: 20,
-      };
-
-      const topReferrer = Object.entries(referrers).sort(
-        ([, a], [, b]) => b - a
-      )[0];
-      expect(topReferrer[0]).toBe("google.com");
-      expect(topReferrer[1]).toBe(50);
-    });
-
-    it("should aggregate views by source", () => {
-      const viewsBySource = {
-        search: 25,
-        direct: 15,
-        link: 8,
-        recruiter: 5,
-        other: 2,
-      };
-
-      const total = Object.values(viewsBySource).reduce((a, b) => a + b, 0);
-      expect(total).toBe(55);
-    });
-  });
-
-  describe("Request statistics", () => {
-    it("should track pending requests", () => {
-      const requests = {
-        resumeId: "resume-123",
-        totalRequests: 10,
-        pendingRequests: 3,
-        approvedRequests: 5,
-        deniedRequests: 2,
-      };
-
-      expect(
-        requests.pendingRequests +
-          requests.approvedRequests +
-          requests.deniedRequests
-      ).toBe(10);
-    });
-
-    it("should calculate request approval rate", () => {
-      const stats = {
-        totalRequests: 20,
-        approvedRequests: 15,
-        deniedRequests: 5,
-      };
-
-      const approvalRate = (stats.approvedRequests / stats.totalRequests) * 100;
-      expect(approvalRate).toBe(75);
-    });
-  });
-
-  describe("Engagement metrics", () => {
-    it("should calculate engagement score components", () => {
-      const engagement = {
-        resumeId: "resume-123",
-        totalViews: 100,
-        uniqueViewers: 80,
-        avgSessionDuration: 240,
-        viewsBySource: {
-          search: 40,
-          direct: 30,
-          link: 20,
-          recruiter: 10,
-          other: 0,
-        },
-      };
-
-      const engagementScore =
-        (engagement.uniqueViewers / engagement.totalViews) * 100 +
-        engagement.avgSessionDuration / 10;
-      expect(engagementScore).toBeGreaterThan(0);
-    });
-
-    it("should track view trends over time", () => {
-      const viewTrend = [
-        { date: "2025-11-09", count: 5 },
-        { date: "2025-11-10", count: 8 },
-        { date: "2025-11-11", count: 12 },
-        { date: "2025-11-12", count: 10 },
-        { date: "2025-11-13", count: 15 },
-        { date: "2025-11-14", count: 18 },
-        { date: "2025-11-15", count: 20 },
-      ];
-
-      const totalViews = viewTrend.reduce((sum, day) => sum + day.count, 0);
-      expect(totalViews).toBe(88);
-
-      const avgDaily = totalViews / viewTrend.length;
-      expect(avgDaily).toBeCloseTo(12.57, 1);
+      const req = new NextRequest(
+        new URL("http://localhost/api/profiles/analytics?resumeId=resume-123")
+      );
+      const response = await GET(req);
+      expect(response.status).toBe(500);
     });
   });
 });

@@ -351,4 +351,42 @@ describe("/api/ai/refresh-models route", () => {
     expect(data1.compatible).toBe(data2.compatible);
     expect(data1.total).toBe(data2.total);
   });
+
+  it("should return 401 when unauthorized", async () => {
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: null,
+      error: null,
+    });
+
+    const response = await GET(createRequest());
+    const data = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(data.error).toBe("Unauthorized");
+  });
+
+  it("should return 403 when not an admin", async () => {
+    (getUserRole as jest.Mock).mockResolvedValue("jobseeker");
+
+    const response = await GET(createRequest());
+    const data = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(data.error).toBe("Forbidden: Admin access required");
+  });
+
+  it("should return 429 when rate limited", async () => {
+    (applyRateLimit as jest.Mock).mockResolvedValue({
+      allowed: false,
+      response: new Response(JSON.stringify({ error: "Too many requests" }), {
+        status: 429,
+      }),
+    });
+
+    const response = await GET(createRequest());
+    const data = await response.json();
+
+    expect(response.status).toBe(429);
+    expect(data.error).toBe("Too many requests");
+  });
 });

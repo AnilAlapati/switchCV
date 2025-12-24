@@ -10,11 +10,24 @@ import {
   updateRecruiterAccessMetric,
 } from "@/lib/services/metricsService";
 
+/**
+ * Helper to verify recruiter role
+ */
+async function verifyRecruiterRole(userId: string): Promise<boolean> {
+  const userSnap = await adminDb.collection("users").doc(userId).get();
+  const userData = userSnap.data();
+  return userData?.role === "recruiter" || userData?.role === "admin";
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { userId, error } = await getAuthenticatedUserId(request);
     if (error) return error;
     if (!userId) return handleApiError(null, "Unauthorized", 401);
+
+    if (!(await verifyRecruiterRole(userId))) {
+      return handleApiError(null, "Forbidden: Recruiter role required", 403);
+    }
 
     // Fetch all requests made by this recruiter using Collection Group Query
     const requestsSnapshot = await adminDb

@@ -12,13 +12,17 @@ import type {
 } from "@/lib/analytics.types";
 import { AnalyticsService } from "@/lib/analytics.service";
 import { logger } from "@/lib/logger";
+import {
+  getAuthenticatedUserId,
+  handleApiError,
+} from "@/lib/utils/api-helpers";
 
 /**
  * Request body interface
  */
 interface DashboardRequest {
   resumeId: string;
-  userId: string;
+  userId?: string; // Optional now, will use auth userId if missing
 }
 
 /**
@@ -186,14 +190,27 @@ async function getIndustryBenchmark(
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
+    const { userId: authUserId, error: authError } =
+      await getAuthenticatedUserId(request);
+    if (authError) return authError;
+
     const body = (await request.json()) as DashboardRequest;
-    const { resumeId, userId } = body;
+    const { resumeId } = body;
+    const userId = body.userId || authUserId;
 
     if (!resumeId || !userId) {
       return NextResponse.json(
         { success: false, message: "Missing resumeId or userId" },
         { status: 400 }
       );
+    }
+
+    // Security check: Ensure user owns the resume or is admin
+    if (userId !== authUserId) {
+      const userDoc = await adminDb.collection("users").doc(authUserId!).get();
+      if (userDoc.data()?.role !== "admin") {
+        return handleApiError(null, "Forbidden: Access denied", 403);
+      }
     }
 
     // Get real data from Firestore
@@ -203,13 +220,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       getHeatmaps(resumeId),
       getRecruiterEngagement(resumeId),
     ]);
-
-    if (!analytics) {
-      return NextResponse.json(
-        { success: false, message: "Analytics not found" },
-        { status: 404 }
-      );
-    }
 
     // Get benchmark data
     const benchmark = await getIndustryBenchmark("Technology");
@@ -253,14 +263,26 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
+    const { userId: authUserId, error: authError } =
+      await getAuthenticatedUserId(request);
+    if (authError) return authError;
+
     const resumeId = request.nextUrl.searchParams.get("resumeId");
-    const userId = request.nextUrl.searchParams.get("userId");
+    const userId = request.nextUrl.searchParams.get("userId") || authUserId;
 
     if (!resumeId || !userId) {
       return NextResponse.json(
         { success: false, message: "Missing resumeId or userId" },
         { status: 400 }
       );
+    }
+
+    // Security check
+    if (userId !== authUserId) {
+      const userDoc = await adminDb.collection("users").doc(authUserId!).get();
+      if (userDoc.data()?.role !== "admin") {
+        return handleApiError(null, "Forbidden: Access denied", 403);
+      }
     }
 
     const analytics = await getAnalyticsFromFirestore(resumeId, userId);

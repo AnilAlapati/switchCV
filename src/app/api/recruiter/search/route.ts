@@ -94,6 +94,20 @@ async function enforceRecruiterRole(userId: string): Promise<AllowedRole> {
 
 export async function GET(request: NextRequest) {
   try {
+    const { userId: authUserId, error: authError } =
+      await getAuthenticatedUserId(request);
+    if (authError || !authUserId)
+      return authError || handleApiError(null, "Unauthorized", 401);
+
+    try {
+      await enforceRecruiterRole(authUserId);
+    } catch (error: any) {
+      if (error.message === "forbidden-role") {
+        return handleApiError(null, "Forbidden: Recruiter role required", 403);
+      }
+      throw error;
+    }
+
     const { searchParams } = new URL(request.url);
     const rawQuery = searchParams.get("q");
 
@@ -107,19 +121,7 @@ export async function GET(request: NextRequest) {
       return handleApiError(null, "Search query is required", 400);
     }
 
-    const { userId: recruiterId, error: authError } =
-      await getAuthenticatedUserId(request);
-    if (authError) return authError;
-
-    try {
-      await enforceRecruiterRole(recruiterId!);
-    } catch {
-      return handleApiError(
-        new Error("Forbidden"),
-        "Recruiter access only",
-        403
-      );
-    }
+    const recruiterId = authUserId;
 
     const tier = await getUserTier(recruiterId!);
     const searchLimits = await getRecruiterSearchLimits();
