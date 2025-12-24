@@ -1,8 +1,11 @@
 import { logger } from "@/lib/logger";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { mapResumeId } from "@/lib/resumeIdMapping";
-import { handleApiError } from "@/lib/utils/api-helpers";
+import {
+  getAuthenticatedUserId,
+  handleApiError,
+} from "@/lib/utils/api-helpers";
 
 /**
  * ADMIN ONLY: This endpoint migrates existing resumes to use the new ID mapping system
@@ -11,8 +14,30 @@ import { handleApiError } from "@/lib/utils/api-helpers";
  * Usage: POST /api/admin/migrate-resume-ids
  */
 
-export async function POST() {
+async function verifyAdminRole(userId: string): Promise<boolean> {
   try {
+    const userDoc = await adminDb.collection("users").doc(userId).get();
+    return userDoc.exists && userDoc.data()?.role === "admin";
+  } catch (error) {
+    logger.error({ err: error, userId }, "Error verifying admin role");
+    return false;
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    // SECURITY FIX: Require authentication
+    const { userId, error: authError } = await getAuthenticatedUserId(request);
+    if (authError) {
+      return authError;
+    }
+
+    // SECURITY FIX: Require admin role
+    const isAdmin = await verifyAdminRole(userId!);
+    if (!isAdmin) {
+      return handleApiError(null, "Forbidden: Admin access required", 403);
+    }
+
     logger.info("[Migration] Starting resume ID mapping migration...");
 
     // Get all published resumes

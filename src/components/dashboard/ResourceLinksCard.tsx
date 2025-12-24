@@ -1,6 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { PremiumFeatureLock } from "@/components/ui/PremiumFeatureLock";
+import { TIER_RESTRICTION_MESSAGES } from "@/lib/utils/tier-restrictions";
 
 interface ResourceLink {
   id: string;
@@ -14,14 +17,19 @@ interface ResourceLinksCardProps {
   title: string;
   caption?: string;
   links: ResourceLink[];
+  lockForBasic?: boolean;
 }
 
 export function ResourceLinksCard({
   title,
   caption,
   links,
+  lockForBasic = false,
 }: ResourceLinksCardProps) {
-  return (
+  const { tier } = useUserProfile();
+  const isBasic = tier === "basic";
+
+  const cardContent = (
     <section className="glass-panel rounded-3xl p-6 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 border-indigo-500/10">
       <header className="mb-5 space-y-1">
         <h2 className="text-lg font-bold text-[#1A2F25]">{title}</h2>
@@ -47,4 +55,18 @@ export function ResourceLinksCard({
       </div>
     </section>
   );
+
+  if (lockForBasic && isBasic) {
+    return (
+      <PremiumFeatureLock
+        featureName={title}
+        description={TIER_RESTRICTION_MESSAGES.PRIORITY_ACTIONS}
+        className="h-full"
+      >
+        {cardContent}
+      </PremiumFeatureLock>
+    );
+  }
+
+  return cardContent;
 }

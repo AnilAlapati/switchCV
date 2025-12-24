@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { Tooltip } from "@/components/ui/Tooltip";
+import { PremiumFeatureLock } from "@/components/ui/PremiumFeatureLock";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { TIER_RESTRICTION_MESSAGES } from "@/lib/utils/tier-restrictions";
 import type { ActionItem } from "@/types/dashboard";
-import { Lock } from "lucide-react";
 
 interface PriorityActionsCardProps {
   headline: string;
@@ -35,27 +36,9 @@ export function PriorityActionsCard({
   const { tier } = useUserProfile();
   const isBasic = tier === "basic";
 
-  return (
-    <section className="glass-panel rounded-3xl p-6 h-full flex flex-col relative overflow-hidden">
-      {isBasic && (
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/40 backdrop-blur-[2px] p-6 text-center">
-          <div className="p-4 rounded-2xl bg-white shadow-xl mb-4">
-            <Lock className="h-8 w-8 text-indigo-600" />
-          </div>
-          <h3 className="text-lg font-bold text-[#1A2F25] mb-2">Growth Path</h3>
-          <p className="text-sm text-[#1A2F25]/60 mb-6 max-w-[200px]">
-            Unlock personalized priority actions with Premium or Enterprise.
-          </p>
-          <Link
-            href="/pricing"
-            className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-600/20"
-          >
-            Upgrade Now
-          </Link>
-        </div>
-      )}
-
-      <div className={`flex items-center justify-between gap-3 mb-6 ${isBasic ? 'opacity-20 pointer-events-none' : ''}`}>
+  const cardContent = (
+    <section className="glass-panel rounded-3xl p-6 h-full flex flex-col">
+      <div className="flex items-center justify-between gap-3 mb-6">
         <h2 className="text-xl font-bold text-[#1A2F25] flex items-center gap-2">
           <span className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600">
             <svg
@@ -81,7 +64,7 @@ export function PriorityActionsCard({
         )}
       </div>
 
-      <div className={`space-y-4 flex-1 overflow-y-auto pr-2 custom-scrollbar ${isBasic ? 'opacity-20 pointer-events-none' : ''}`}>
+      <div className="space-y-4 flex-1 overflow-y-auto pr-2 custom-scrollbar">
         {loading && (
           <div className="space-y-3">
             {Array.from({ length: 3 }).map((_, index) => (
@@ -128,7 +111,7 @@ export function PriorityActionsCard({
 
             const CTAButton = item.cta ? (
               item.cta.disabled ? (
-                <Tooltip content={item.cta.tooltip || "Feature unavailable"}>
+                <Tooltip content={item.cta.tooltip || "Feature unavailable"} position="left">
                   <button
                     disabled
                     className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 p-2 text-xs font-bold text-slate-400 cursor-not-allowed border border-slate-200"
@@ -238,4 +221,18 @@ export function PriorityActionsCard({
       </div>
     </section>
   );
+
+  if (isBasic) {
+    return (
+      <PremiumFeatureLock
+        featureName="Growth Path"
+        description={TIER_RESTRICTION_MESSAGES.PRIORITY_ACTIONS}
+        className="h-full"
+      >
+        {cardContent}
+      </PremiumFeatureLock>
+    );
+  }
+
+  return cardContent;
 }

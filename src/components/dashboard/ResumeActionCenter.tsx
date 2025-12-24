@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { Tooltip } from "@/components/ui/Tooltip";
+import { RestrictedFeature } from "@/components/ui/RestrictedFeature";
 import { useUserProfile } from "@/hooks/useUserProfile";
 
 interface ResumeActionCenterProps {
@@ -99,9 +100,8 @@ export function ResumeActionCenter({
                   className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${statusBg} ${statusColor} ${statusBorder} cursor-help`}
                 >
                   <span
-                    className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
-                      isPublished ? "bg-emerald-500" : "bg-amber-500"
-                    }`}
+                    className={`mr-1.5 h-1.5 w-1.5 rounded-full ${isPublished ? "bg-emerald-500" : "bg-amber-500"
+                      }`}
                   ></span>
                   {statusText}
                 </div>
@@ -114,16 +114,14 @@ export function ResumeActionCenter({
                     disabled={isUpdatingVisibility}
                     className={`
                                             relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2
-                                            ${
-                                              isPublished
-                                                ? "bg-emerald-500"
-                                                : "bg-gray-200"
-                                            }
-                                            ${
-                                              isUpdatingVisibility
-                                                ? "opacity-50 cursor-wait"
-                                                : ""
-                                            }
+                                            ${isPublished
+                        ? "bg-emerald-500"
+                        : "bg-gray-200"
+                      }
+                                            ${isUpdatingVisibility
+                        ? "opacity-50 cursor-wait"
+                        : ""
+                      }
                                         `}
                     role="switch"
                     aria-checked={isPublished}
@@ -133,11 +131,10 @@ export function ResumeActionCenter({
                       aria-hidden="true"
                       className={`
                                                 pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out
-                                                ${
-                                                  isPublished
-                                                    ? "translate-x-5"
-                                                    : "translate-x-0"
-                                                }
+                                                ${isPublished
+                          ? "translate-x-5"
+                          : "translate-x-0"
+                        }
                                             `}
                     />
                   </button>
@@ -157,8 +154,8 @@ export function ResumeActionCenter({
           </div>
 
           <div className="flex gap-3">
-            {isBasicUser ? (
-              <Tooltip content="AI Edit feature is available for Premium or Enterprise users">
+            <RestrictedFeature messageKey="AI_EDIT" requiredTier="premium" tooltipPosition="left">
+              {isBasicUser ? (
                 <button
                   disabled
                   className="inline-flex items-center justify-center rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-medium text-slate-400 cursor-not-allowed border border-slate-200"
@@ -178,28 +175,28 @@ export function ResumeActionCenter({
                   </svg>
                   Edit
                 </button>
-              </Tooltip>
-            ) : (
-              <Link
-                href={`/resumes/${resumeIdString}/edit`}
-                className="inline-flex items-center justify-center rounded-xl bg-white/50 px-4 py-2.5 text-sm font-medium text-[#1A2F25] backdrop-blur-sm transition-all hover:bg-white/80 border border-white/20 shadow-sm"
-              >
-                <svg
-                  className="mr-2 h-4 w-4 text-[#1A2F25]/60"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+              ) : (
+                <Link
+                  href={`/resumes/${resumeIdString}/edit`}
+                  className="inline-flex items-center justify-center rounded-xl bg-white/50 px-4 py-2.5 text-sm font-medium text-[#1A2F25] backdrop-blur-sm transition-all hover:bg-white/80 border border-white/20 shadow-sm"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                  />
-                </svg>
-                Edit
-              </Link>
-            )}
+                  <svg
+                    className="mr-2 h-4 w-4 text-[#1A2F25]/60"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                    />
+                  </svg>
+                  Edit
+                </Link>
+              )}
+            </RestrictedFeature>
             <Link
               href={`/resumes/${resumeIdString}`}
               className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-cyan-500/20 transition-all hover:shadow-cyan-500/30 hover:scale-[1.02]"

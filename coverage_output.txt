@@ -1,0 +1,26 @@
+watchman warning: Recrawled this watch 49 times, most recently because:
+MustScanSubDirs UserDroppedTo resolve, please review the information on
+https://facebook.github.io/watchman/docs/troubleshooting.html#recrawl
+To clear this warning, run:
+`watchman watch-del '/Users/anilalapati/Development/Switch_cv_Nov_21' ; watchman watch-project '/Users/anilalapati/Development/Switch_cv_Nov_21'`
+
+PASS src/__tests__/api/admin-migrate-resume-ids.test.ts
+  Admin Migrate Resume IDs API
+    ✓ should return 401 if not authenticated (4 ms)
+    ✓ should return 403 if not an admin (1 ms)
+    ✓ should migrate resumes successfully (2 ms)
+    ✓ should handle errors during migration of individual resumes (1 ms)
+    ✓ should handle global errors (5 ms)
+    ✓ should handle errors in verifyAdminRole (1 ms)
+
+----------|---------|----------|---------|---------|-------------------
+File      | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+----------|---------|----------|---------|---------|-------------------
+All files |     100 |    83.33 |     100 |     100 |                   
+ route.ts |     100 |    83.33 |     100 |     100 | 54-70             
+----------|---------|----------|---------|---------|-------------------
+Test Suites: 1 passed, 1 total
+Tests:       6 passed, 6 total
+Snapshots:   0 total
+Time:        0.614 s, estimated 1 s
+Ran all test suites matching src/__tests__/api/admin-migrate-resume-ids.test.ts.
