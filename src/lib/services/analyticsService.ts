@@ -41,7 +41,7 @@ export async function getAnalytics(resumeId: string) {
         slug: "",
         views: {
           count: 0,
-          lastViewedAt: new Date().toISOString(),
+          lastViewedAt: "",
           topReferrers: {},
           uniqueViewers: 0,
           avgSessionDuration: 0,

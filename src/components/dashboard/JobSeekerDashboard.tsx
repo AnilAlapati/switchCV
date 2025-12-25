@@ -13,7 +13,6 @@ import { TIER_RESTRICTION_MESSAGES } from "@/lib/utils/tier-restrictions";
 import {
   buildJobSeekerActionPlan,
   buildJobSeekerInsights,
-  calculateReadinessScore,
 } from "@/lib/dashboard/jobSeekerInsights";
 import { getResumeUrl, ENABLE_SEEDING_AND_DEBUG_LISTS } from "@/lib/config";
 import type { JobSeekerMetrics } from "@/types/dashboard";
@@ -116,10 +115,6 @@ export function JobSeekerDashboard({
     [metrics]
   );
 
-  const readinessScore = useMemo(
-    () => calculateReadinessScore(metrics, hasResume),
-    [metrics, hasResume]
-  );
 
   const careerResources = useMemo(
     () => [
@@ -161,63 +156,16 @@ export function JobSeekerDashboard({
             isUpdatingVisibility={isUpdatingVisibility}
           />
 
-          <div className="grid gap-6 md:grid-cols-2">
-            {/* Only show Market Reach for Premium and Enterprise users */}
-            {(tier === "premium" || tier === "enterprise") && (
+          {/* Only show Market Reach for Premium and Enterprise users */}
+          {(tier === "premium" || tier === "enterprise") && (
+            <div className="md:col-span-2">
               <OpportunityInsightsCard
                 title="Your Market Reach"
                 subtitle="How your profile is performing"
                 insights={opportunityInsights}
               />
-            )}
-
-            <div
-              className={`glass-panel rounded-3xl p-8 flex flex-col items-center justify-center text-center bg-gradient-to-br from-indigo-500/10 to-purple-500/5 border-indigo-500/10 ${
-                tier !== "premium" && tier !== "enterprise"
-                  ? "md:col-span-2"
-                  : ""
-              }`}
-            >
-              <h3 className="text-sm font-semibold text-indigo-600 uppercase tracking-wider mb-2">
-                Profile Readiness
-              </h3>
-              <p className="text-xs text-slate-500 mb-4">
-                How recruiter-ready you are
-              </p>
-              <div className="relative mb-6">
-                <svg className="h-32 w-32 transform -rotate-90">
-                  <circle
-                    cx="64"
-                    cy="64"
-                    r="54"
-                    stroke="currentColor"
-                    strokeWidth="10"
-                    fill="transparent"
-                    className="text-slate-200/20"
-                  />
-                  <circle
-                    cx="64"
-                    cy="64"
-                    r="54"
-                    stroke="currentColor"
-                    strokeWidth="10"
-                    fill="transparent"
-                    strokeDasharray={339.12}
-                    strokeDashoffset={339.12 - (339.12 * readinessScore) / 100}
-                    className="text-indigo-500 transition-all duration-1000 ease-out"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-3xl font-black text-[#1A2F25]">
-                    {readinessScore}%
-                  </span>
-                </div>
-              </div>
-              <p className="text-xs text-slate-600 max-w-[200px]">
-                Based on quality, visibility, and engagement
-              </p>
             </div>
-          </div>
+          )}
         </div>
 
         <div className="space-y-8">
