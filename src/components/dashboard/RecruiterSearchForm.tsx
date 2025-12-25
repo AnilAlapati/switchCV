@@ -93,8 +93,8 @@ export function RecruiterSearchForm({
     searchMode === "basic"
       ? "Use Basic mode when you already have a unique candidate ID from your pipeline."
       : searchMode === "ai"
-        ? "Describe your ideal candidate in natural language. Our AI will find the best matches."
-        : "Combine skills and location to surface up to 50 curated resumes in one pass.";
+      ? "Describe your ideal candidate in natural language. Our AI will find the best matches."
+      : "Combine skills and location to surface up to 50 curated resumes in one pass.";
 
   return (
     <div className="space-y-5">
@@ -110,40 +110,46 @@ export function RecruiterSearchForm({
             Switch Anytime
           </span>
         </div>
+
         <div className="grid gap-3 sm:grid-cols-3">
           {/* AI Search Mode */}
           <button
             type="button"
             onClick={() => handleModeSwitch("ai")}
             disabled={!aiSearchEnabled}
-            className={`group relative overflow-hidden rounded-xl border p-4 text-left transition-all duration-300 ${searchMode === "ai"
-              ? "border-cyan-500 bg-cyan-50 shadow-md shadow-cyan-500/10"
-              : "border-slate-200 bg-white hover:border-cyan-300 hover:bg-cyan-50/50 hover:shadow-sm"
-              } ${!aiSearchEnabled ? "cursor-not-allowed opacity-50 grayscale" : ""}`}
+            className={`group relative flex flex-col gap-3 rounded-xl border p-4 text-left transition-all duration-200 ${
+              searchMode === "ai"
+                ? "border-cyan-500 bg-cyan-50/50 shadow-sm ring-1 ring-cyan-500/20"
+                : "border-slate-200 bg-white hover:border-cyan-300 hover:bg-cyan-50/30 hover:shadow-sm"
+            } ${
+              !aiSearchEnabled ? "cursor-not-allowed opacity-50 grayscale" : ""
+            }`}
           >
-            <div className="relative z-10">
-              <div className="mb-2 flex items-center gap-2.5">
-                <span
-                  className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm ${searchMode === "ai"
-                    ? "bg-cyan-100 text-cyan-700 shadow-inner"
+            <div className="flex items-start justify-between">
+              <div
+                className={`flex h-10 w-10 items-center justify-center rounded-lg text-lg transition-colors ${
+                  searchMode === "ai"
+                    ? "bg-cyan-100 text-cyan-700"
                     : "bg-slate-100 text-slate-500 group-hover:bg-cyan-100 group-hover:text-cyan-600"
-                    }`}
-                >
-                  ✨
-                </span>
-                <span
-                  className={`text-sm font-bold ${searchMode === "ai"
-                    ? "text-cyan-900"
-                    : "text-slate-600 group-hover:text-cyan-900"
-                    }`}
-                >
-                  AI Search
-                </span>
-                <span className="rounded bg-gradient-to-r from-cyan-500/20 to-blue-500/20 px-1.5 py-0.5 text-[10px] font-bold text-cyan-700">
-                  NEW
-                </span>
+                }`}
+              >
+                ✨
               </div>
-              <p className="text-xs leading-relaxed text-slate-500">
+              <span className="rounded bg-gradient-to-r from-cyan-500/20 to-blue-500/20 px-1.5 py-0.5 text-[10px] font-bold text-cyan-700">
+                NEW
+              </span>
+            </div>
+            <div>
+              <span
+                className={`block font-bold ${
+                  searchMode === "ai"
+                    ? "text-cyan-900"
+                    : "text-slate-700 group-hover:text-cyan-900"
+                }`}
+              >
+                AI Search
+              </span>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">
                 {aiSearchEnabled
                   ? "Natural language search powered by AI"
                   : "Requires Premium or Enterprise"}
@@ -155,65 +161,76 @@ export function RecruiterSearchForm({
           <button
             type="button"
             onClick={() => handleModeSwitch("basic")}
-            className={`group relative overflow-hidden rounded-xl border p-4 text-left transition-all duration-300 ${searchMode === "basic"
-              ? "border-amber-500 bg-amber-50 shadow-md shadow-amber-500/10"
-              : "border-slate-200 bg-white hover:border-amber-300 hover:bg-amber-50/50 hover:shadow-sm"
-              }`}
+            className={`group relative flex flex-col gap-3 rounded-xl border p-4 text-left transition-all duration-200 ${
+              searchMode === "basic"
+                ? "border-amber-500 bg-amber-50/50 shadow-sm ring-1 ring-amber-500/20"
+                : "border-slate-200 bg-white hover:border-amber-300 hover:bg-amber-50/30 hover:shadow-sm"
+            }`}
           >
-            <div className="relative z-10">
-              <div className="mb-2 flex items-center gap-2.5">
-                <span
-                  className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-bold ${searchMode === "basic"
-                    ? "bg-amber-100 text-amber-700 shadow-inner"
+            <div className="flex items-start justify-between">
+              <div
+                className={`flex h-10 w-10 items-center justify-center rounded-lg text-sm font-bold transition-colors ${
+                  searchMode === "basic"
+                    ? "bg-amber-100 text-amber-700"
                     : "bg-slate-100 text-slate-500 group-hover:bg-amber-100 group-hover:text-amber-600"
-                    }`}
-                >
-                  ID
-                </span>
-                <span
-                  className={`text-sm font-bold ${searchMode === "basic"
-                    ? "text-amber-900"
-                    : "text-slate-600 group-hover:text-amber-900"
-                    }`}
-                >
-                  Basic Lookup
-                </span>
+                }`}
+              >
+                ID
               </div>
-              <p className="text-xs leading-relaxed text-slate-500">
+            </div>
+            <div>
+              <span
+                className={`block font-bold ${
+                  searchMode === "basic"
+                    ? "text-amber-900"
+                    : "text-slate-700 group-hover:text-amber-900"
+                }`}
+              >
+                Basic Lookup
+              </span>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">
                 Quick candidate retrieval using resume ID or user ID
               </p>
             </div>
           </button>
 
+          {/* Premium Filters Mode */}
           <button
             type="button"
             onClick={() => handleModeSwitch("premium")}
             disabled={!premiumFiltersEnabled}
-            className={`group relative overflow-hidden rounded-xl border p-4 text-left transition-all duration-300 ${searchMode === "premium"
-              ? "border-purple-500 bg-purple-50 shadow-md shadow-purple-500/10"
-              : "border-slate-200 bg-white hover:border-purple-300 hover:bg-purple-50/50 hover:shadow-sm"
-              } ${!premiumFiltersEnabled ? "cursor-not-allowed opacity-50 grayscale" : ""}`}
+            className={`group relative flex flex-col gap-3 rounded-xl border p-4 text-left transition-all duration-200 ${
+              searchMode === "premium"
+                ? "border-purple-500 bg-purple-50/50 shadow-sm ring-1 ring-purple-500/20"
+                : "border-slate-200 bg-white hover:border-purple-300 hover:bg-purple-50/30 hover:shadow-sm"
+            } ${
+              !premiumFiltersEnabled
+                ? "cursor-not-allowed opacity-50 grayscale"
+                : ""
+            }`}
           >
-            <div className="relative z-10">
-              <div className="mb-2 flex items-center gap-2.5">
-                <span
-                  className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-bold ${searchMode === "premium"
-                    ? "bg-purple-100 text-purple-700 shadow-inner"
+            <div className="flex items-start justify-between">
+              <div
+                className={`flex h-10 w-10 items-center justify-center rounded-lg text-sm font-bold transition-colors ${
+                  searchMode === "premium"
+                    ? "bg-purple-100 text-purple-700"
                     : "bg-slate-100 text-slate-500 group-hover:bg-purple-100 group-hover:text-purple-600"
-                    }`}
-                >
-                  ★
-                </span>
-                <span
-                  className={`text-sm font-bold ${searchMode === "premium"
-                    ? "text-purple-900"
-                    : "text-slate-600 group-hover:text-purple-900"
-                    }`}
-                >
-                  Premium Filters
-                </span>
+                }`}
+              >
+                ★
               </div>
-              <p className="text-xs leading-relaxed text-slate-500">
+            </div>
+            <div>
+              <span
+                className={`block font-bold ${
+                  searchMode === "premium"
+                    ? "text-purple-900"
+                    : "text-slate-700 group-hover:text-purple-900"
+                }`}
+              >
+                Premium Filters
+              </span>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">
                 {premiumFiltersEnabled
                   ? "Advanced search with skills and location filters"
                   : "Advanced filters will arrive soon for premium recruiters."}
@@ -221,11 +238,17 @@ export function RecruiterSearchForm({
             </div>
           </button>
         </div>
+
         {!premiumFiltersEnabled && (
-          <p className="mt-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Premium search is temporarily disabled while we build the dedicated
-            plan.
-          </p>
+          <div className="mt-3 flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500 border border-slate-100">
+            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-600">
+              i
+            </span>
+            <p>
+              Premium search is temporarily disabled while we build the
+              dedicated plan.
+            </p>
+          </div>
         )}
       </div>
 
@@ -233,9 +256,9 @@ export function RecruiterSearchForm({
         onSubmit={
           searchMode === "ai"
             ? (e) => {
-              e.preventDefault();
-              onAiSearch?.();
-            }
+                e.preventDefault();
+                onAiSearch?.();
+              }
             : onSearch
         }
         className="space-y-5"
@@ -462,10 +485,11 @@ export function RecruiterSearchForm({
         <button
           type="submit"
           disabled={loading || aiSearching}
-          className={`group relative w-full overflow-hidden rounded-xl px-6 py-3.5 text-base font-bold text-white shadow-xl transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-60 ${searchMode === "ai"
-            ? "bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 shadow-cyan-500/30 hover:shadow-2xl hover:shadow-cyan-500/40"
-            : "bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 shadow-cyan-500/30 hover:shadow-2xl hover:shadow-cyan-500/40"
-            }`}
+          className={`group relative w-full overflow-hidden rounded-xl px-6 py-3.5 text-base font-bold text-white shadow-xl transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-60 ${
+            searchMode === "ai"
+              ? "bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 shadow-cyan-500/30 hover:shadow-2xl hover:shadow-cyan-500/40"
+              : "bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 shadow-cyan-500/30 hover:shadow-2xl hover:shadow-cyan-500/40"
+          }`}
         >
           <span className="relative z-10 flex items-center justify-center gap-2">
             {loading || aiSearching ? (

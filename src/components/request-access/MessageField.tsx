@@ -7,10 +7,10 @@ interface MessageFieldProps {
 export function MessageField({ message, onChange, loading }: MessageFieldProps) {
   return (
     <div>
-      <label className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-200">
-        <span className="h-1 w-1 rounded-full bg-cyan-400"></span>
+      <label className="mb-3 flex items-center gap-2 text-sm font-bold text-[#1A2F25]">
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
         Personal Message
-        <span className="ml-auto text-xs font-normal text-slate-500">(Optional)</span>
+        <span className="ml-auto text-xs font-normal text-[#1A2F25]/40">(Optional)</span>
       </label>
       <textarea
         value={message}
@@ -19,11 +19,11 @@ export function MessageField({ message, onChange, loading }: MessageFieldProps) 
         placeholder="Hi! I'd love to learn more about your experience with..."
         maxLength={500}
         rows={5}
-        className="w-full resize-none rounded-xl border border-white/10 bg-slate-900/60 px-4 py-3 text-white placeholder-slate-500 shadow-inner shadow-black/30 transition-all focus:border-cyan-500/60 focus:bg-slate-900/80 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+        className="w-full resize-none rounded-xl border border-emerald-100 bg-emerald-50/30 px-4 py-3 text-[#1A2F25] placeholder-emerald-800/30 shadow-inner transition-all focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:opacity-50"
       />
       <div className="mt-2 flex items-center justify-between">
-        <p className="text-xs text-slate-500">{message.length}/500 characters</p>
-        {message.length > 0 && <span className="text-xs text-emerald-400">✓ Looks good</span>}
+        <p className="text-xs text-[#1A2F25]/40">{message.length}/500 characters</p>
+        {message.length > 0 && <span className="text-xs text-emerald-600 font-medium">✓ Looks good</span>}
       </div>
     </div>
   );

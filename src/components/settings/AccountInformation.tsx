@@ -5,7 +5,7 @@ interface AccountInformationProps {
   resumeId?: string | number | null;
   hasResume: boolean;
   isRecruiter: boolean;
-  saving: boolean;
+  savingRecruiter: boolean;
   onRecruiterToggle: (checked: boolean) => void;
   onCopy: () => void;
 }
@@ -15,7 +15,7 @@ export function AccountInformation({
   resumeId,
   hasResume,
   isRecruiter,
-  saving,
+  savingRecruiter,
   onRecruiterToggle,
   onCopy,
 }: AccountInformationProps) {
@@ -98,11 +98,10 @@ export function AccountInformation({
                 Account Type
               </label>
               <span
-                className={`px-3 py-1 rounded-full text-xs font-bold ${
-                  isRecruiter
+                className={`px-3 py-1 rounded-full text-xs font-bold ${isRecruiter
                     ? "bg-emerald-100 text-emerald-800"
                     : "bg-slate-100 text-slate-600"
-                }`}
+                  }`}
               >
                 {isRecruiter ? "Recruiter" : "Job Seeker"}
               </span>
@@ -120,19 +119,16 @@ export function AccountInformation({
                 </span>
                 <button
                   onClick={() => onRecruiterToggle(!isRecruiter)}
-                  disabled={saving}
-                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#2C4A3B] focus:ring-offset-2 ${
-                    isRecruiter
+                  disabled={savingRecruiter}
+                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#2C4A3B] focus:ring-offset-2 ${isRecruiter
                       ? "bg-[#2C4A3B]"
                       : "bg-slate-300 hover:bg-slate-400"
-                  } ${
-                    saving ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
-                  }`}
+                    } ${savingRecruiter ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                    }`}
                 >
                   <span
-                    className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm ${
-                      isRecruiter ? "translate-x-6" : "translate-x-1"
-                    }`}
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm ${isRecruiter ? "translate-x-6" : "translate-x-1"
+                      }`}
                   />
                 </button>
               </div>

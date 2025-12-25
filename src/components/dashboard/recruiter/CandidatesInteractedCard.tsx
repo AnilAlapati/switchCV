@@ -6,6 +6,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useOptionalDashboardMetricsContext } from "@/context/DashboardMetricsContext";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { RECRUITER_CONTACT_LIMITS } from "@/lib/config.client";
 
 interface AccessMetrics {
   pending: number;
@@ -15,6 +17,9 @@ interface AccessMetrics {
 
 export function CandidatesInteractedCard() {
   const { user } = useAuth();
+  const { tier } = useUserProfile();
+  const isBasic = tier === "basic";
+
   const metricsContext = useOptionalDashboardMetricsContext();
   const usingContext = Boolean(
     metricsContext && metricsContext.recruiterMetrics
@@ -70,7 +75,7 @@ export function CandidatesInteractedCard() {
     displayMetrics.pending + displayMetrics.approved + displayMetrics.denied;
 
   return (
-    <Link href="/dashboard/recruiter/requests">
+    <Link href="/dashboard/recruiter/requests?tab=history">
       <div className="glass-panel rounded-3xl p-6 transition hover:shadow-lg hover:shadow-emerald-500/10 hover:border-emerald-200/50 cursor-pointer h-full flex flex-col justify-between group">
         <div className="flex items-center relative z-10">
           <div className="flex-shrink-0">
@@ -106,10 +111,18 @@ export function CandidatesInteractedCard() {
             {loadingState
               ? "Loading..."
               : totalContacted === 0
-                ? "No candidates contacted yet"
-                : `${totalContacted} candidate${totalContacted !== 1 ? "s" : ""
+              ? "No candidates contacted yet"
+              : isBasic
+              ? `${totalContacted} / ${RECRUITER_CONTACT_LIMITS.basic.amount} contacts used`
+              : `${totalContacted} candidate${
+                  totalContacted !== 1 ? "s" : ""
                 } contacted`}
           </p>
+          {isBasic && !loadingState && (
+            <p className="text-xs text-emerald-600/50 font-medium">
+              {RECRUITER_CONTACT_LIMITS.basic.amount - totalContacted} remaining
+            </p>
+          )}
           <div className="opacity-0 transform translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
             <svg
               className="w-5 h-5 text-emerald-600"

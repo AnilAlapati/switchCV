@@ -65,14 +65,13 @@ export class EmailService {
         {
           maxAttempts: 3,
           initialDelayMs: 1000,
-          operationName: "sendCustomEmail",
         },
         "sendCustomEmail"
       );
 
       return {
         success: true,
-        messageId: info.messageId,
+        messageId: (info as any).messageId,
         timestamp: new Date(),
       };
     } catch (error) {
@@ -108,14 +107,13 @@ export class EmailService {
         {
           maxAttempts: 3,
           initialDelayMs: 1000,
-          operationName: "sendEmail",
         },
         "sendEmail"
       );
 
       return {
         success: true,
-        messageId: info.messageId,
+        messageId: (info as any).messageId,
         timestamp: new Date(),
       };
     } catch (error) {

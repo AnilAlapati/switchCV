@@ -5,7 +5,8 @@ interface ProfileDetailsProps {
   companyName: string;
   updatedAt: string;
   showCompanyInput: boolean;
-  saving: boolean;
+  savingDisplayName: boolean;
+  savingCompanyName: boolean;
   onDisplayNameChange: (value: string) => void;
   onCompanyNameChange: (value: string) => void;
   onSaveDisplayName: () => void;
@@ -17,7 +18,8 @@ export function ProfileDetails({
   companyName,
   updatedAt,
   showCompanyInput,
-  saving,
+  savingDisplayName,
+  savingCompanyName,
   onDisplayNameChange,
   onCompanyNameChange,
   onSaveDisplayName,
@@ -64,15 +66,15 @@ export function ProfileDetails({
                 value={displayName}
                 onChange={(e) => onDisplayNameChange(e.target.value)}
                 placeholder="Enter your display name"
-                disabled={saving}
+                disabled={savingDisplayName}
                 className="w-full bg-[#F5F7F6] border-none rounded-xl px-5 py-4 text-[#1A2F25] font-medium placeholder-[#1A2F25]/30 focus:ring-2 focus:ring-[#2C4A3B]/20 focus:bg-white transition-all duration-200"
               />
               <button
                 onClick={onSaveDisplayName}
-                disabled={saving}
+                disabled={savingDisplayName}
                 className="absolute right-2 px-4 py-2 bg-white text-[#2C4A3B] text-sm font-bold rounded-lg shadow-sm border border-[#2C4A3B]/10 hover:bg-[#2C4A3B] hover:text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {saving ? "Saving..." : "Save"}
+                {savingDisplayName ? "Saving..." : "Save"}
               </button>
             </div>
             <p className="text-[#1A2F25]/40 text-xs mt-2 ml-1">
@@ -92,15 +94,15 @@ export function ProfileDetails({
                   value={companyName}
                   onChange={(e) => onCompanyNameChange(e.target.value)}
                   placeholder="Enter your company name"
-                  disabled={saving}
+                  disabled={savingCompanyName}
                   className="w-full bg-[#F5F7F6] border-none rounded-xl px-5 py-4 text-[#1A2F25] font-medium placeholder-[#1A2F25]/30 focus:ring-2 focus:ring-[#2C4A3B]/20 focus:bg-white transition-all duration-200"
                 />
                 <button
                   onClick={onSaveCompanyName}
-                  disabled={saving}
+                  disabled={savingCompanyName}
                   className="absolute right-2 px-4 py-2 bg-white text-[#2C4A3B] text-sm font-bold rounded-lg shadow-sm border border-[#2C4A3B]/10 hover:bg-[#2C4A3B] hover:text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {saving ? "Saving..." : "Save"}
+                  {savingCompanyName ? "Saving..." : "Save"}
                 </button>
               </div>
               <p className="text-[#1A2F25]/40 text-xs mt-2 ml-1">
