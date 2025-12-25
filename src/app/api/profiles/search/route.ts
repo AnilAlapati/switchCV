@@ -113,6 +113,30 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Direct ID search optimization: If the query looks like a Firestore ID (20 or 28 chars alphanumeric typical)
+    // and no other filters are present, try a direct document get.
+    const isLikelyId = /^[a-zA-Z0-9]{20,28}$/.test(sanitizedQuery);
+    const hasMinimalFilters = !normalizedFilters.role && !normalizedFilters.location && normalizedFilters.skills.length === 0;
+
+    if (isLikelyId && hasMinimalFilters) {
+      const directDoc = await adminDb.collection("users").doc(sanitizedQuery).get();
+      if (directDoc.exists) {
+        const userData = directDoc.data();
+        if (userData?.publicProfile?.visible) {
+          const result = mapProfileResult(directDoc.id, userData);
+          return NextResponse.json({
+            results: [result],
+            count: 1,
+            total: 1,
+            query: sanitizedQuery,
+            filters,
+            offset: 0,
+            hasMore: false,
+          });
+        }
+      }
+    }
+
     // Build the base query using admin SDK
     let baseQuery = adminDb
       .collection("users")

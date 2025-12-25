@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { useTier } from "@/hooks/useTier";
 import { logger } from "@/lib/logger";
 import { DashboardBackground } from "@/components/dashboard/DashboardBackground";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
@@ -14,6 +15,7 @@ import type { Analytics } from "@/types";
 
 export default function ResumeAnalyticsPage() {
   const { user, loading: authLoading, logout } = useAuth();
+  const { tier } = useTier();
   const router = useRouter();
   const params = useParams();
   const resumeId = params?.resumeId as string;
@@ -78,7 +80,6 @@ export default function ResumeAnalyticsPage() {
       setAnalytics(analyticsData);
       setRecentEvents(data.recentEvents || []);
       setResumeTitle(data.resumeTitle || `Resume #${resumeId}`);
-      setOwnerName(data.ownerName || "");
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       logger.error(

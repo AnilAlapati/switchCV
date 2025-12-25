@@ -53,7 +53,10 @@ export function ResponseRateCard() {
           });
         }
       } catch (error) {
-        logger.error({ err: error }, "Failed to fetch metrics for response rate:");
+        logger.error(
+          { err: error },
+          "Failed to fetch metrics for response rate:"
+        );
       } finally {
         setLoading(false);
       }
@@ -74,7 +77,7 @@ export function ResponseRateCard() {
       : 0;
 
   return (
-    <Link href="/dashboard/recruiter/requests">
+    <Link href="/dashboard/recruiter/requests?tab=history">
       <div className="group relative overflow-hidden backdrop-blur-xl rounded-3xl border border-white/20 bg-white/10 p-6 shadow-lg shadow-slate-950/40 transition-all duration-300 hover:border-blue-500/40 hover:bg-white/15 hover:scale-[1.02] cursor-pointer">
         <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-blue-500/10 blur-2xl transition-all group-hover:bg-blue-500/20"></div>
 

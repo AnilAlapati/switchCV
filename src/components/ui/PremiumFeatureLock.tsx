@@ -53,9 +53,8 @@ export function PremiumFeatureLock({
     <div className={`relative overflow-hidden ${className}`}>
       {/* Lock Overlay */}
       <div
-        className={`absolute inset-0 z-20 flex flex-col items-center justify-center ${
-          blurBackground ? "bg-white/40 backdrop-blur-[2px]" : "bg-white/60"
-        } p-6 text-center`}
+        className={`absolute inset-0 z-20 flex flex-col items-center justify-center ${blurBackground ? "bg-white/40 backdrop-blur-[2px]" : "bg-white/60"
+          } p-6 text-center`}
       >
         <div className="p-4 rounded-2xl bg-white shadow-xl mb-4">
           <Icon className="h-8 w-8 text-indigo-600" />
@@ -68,7 +67,7 @@ export function PremiumFeatureLock({
           {description}
         </p>
         <Link
-          href="/pricing"
+          href="/profile/subscription"
           className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-600/20"
         >
           Upgrade Now

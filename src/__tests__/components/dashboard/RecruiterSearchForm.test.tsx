@@ -99,7 +99,7 @@ describe("RecruiterSearchForm", () => {
     render(<RecruiterSearchForm {...mockProps} />);
 
     const basicButton = screen.getByRole("button", { name: /Basic Lookup/i });
-    expect(basicButton).toHaveClass("border-amber-500", "bg-amber-50");
+    expect(basicButton).toHaveClass("border-amber-500", "bg-amber-50/50");
   });
 
   it("applies correct styling to active premium mode button", () => {
@@ -108,10 +108,7 @@ describe("RecruiterSearchForm", () => {
     const premiumButton = screen.getByRole("button", {
       name: /Premium Filters/i,
     });
-    expect(premiumButton).toHaveClass(
-      "border-purple-500",
-      "bg-purple-50"
-    );
+    expect(premiumButton).toHaveClass("border-purple-500", "bg-purple-50/50");
   });
 
   it("applies correct styling to inactive mode buttons", () => {
@@ -298,7 +295,7 @@ describe("RecruiterSearchForm", () => {
     const premiumButton = screen.getByRole("button", {
       name: /Premium Filters/i,
     });
-    expect(premiumButton).toHaveClass("hover:bg-purple-50/50");
+    expect(premiumButton).toHaveClass("hover:bg-purple-50/30");
   });
 
   it("applies hover and scale effects to search button", () => {

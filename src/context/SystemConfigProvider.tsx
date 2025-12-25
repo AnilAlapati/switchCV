@@ -117,8 +117,8 @@ const fetchRemoteConfig = async (): Promise<SystemConfig> => {
     };
     return mergeWithDefaultConfig(payload.config);
   } catch (
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _error
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _error
   ) {
     return defaultSystemConfig;
   }
@@ -152,10 +152,15 @@ export const SystemConfigProvider = ({
       if (cached) {
         setConfig(cached);
         setLoading(false);
+      } else {
+        // Only stay in loading state if no cache is available.
+        // This prevents the "flash of loading" if we already have data.
+        setLoading(true);
       }
 
       const remote = await refresh();
       setConfig(remote);
+      setLoading(false); // Ensure loading is false after remote fetch
 
       interval = setInterval(() => {
         void refresh();

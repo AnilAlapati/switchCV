@@ -53,7 +53,10 @@ export function AvailableResumesCard() {
           });
         }
       } catch (error) {
-        logger.error({ err: error }, "Failed to fetch metrics for available resumes:");
+        logger.error(
+          { err: error },
+          "Failed to fetch metrics for available resumes:"
+        );
       } finally {
         setLoading(false);
       }
@@ -71,12 +74,12 @@ export function AvailableResumesCard() {
 
   return (
     <Link href="/dashboard/recruiter/requests?tab=active">
-      <div className="glass-panel rounded-3xl p-6 transition hover:shadow-lg hover:shadow-blue-500/10 hover:border-blue-200/50 cursor-pointer h-full flex flex-col justify-between group">
+      <div className="glass-panel rounded-3xl p-6 transition-all duration-300 hover:shadow-xl hover:shadow-cyan-500/20 hover:border-cyan-400/50 cursor-pointer h-full flex flex-col justify-between group hover:scale-[1.02]">
         <div className="flex items-center relative z-10">
           <div className="flex-shrink-0">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-600 transition-colors">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-cyan-500/30 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 text-cyan-400 transition-all duration-300 group-hover:border-cyan-400 group-hover:shadow-lg group-hover:shadow-cyan-500/30">
               <svg
-                className="h-6 w-6"
+                className="h-7 w-7"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -92,38 +95,41 @@ export function AvailableResumesCard() {
           </div>
           <div className="ml-5 w-0 flex-1">
             <dl>
-              <dt className="text-sm font-bold text-[#2C4A3B]/60 truncate transition-colors">
+              <dt className="text-sm font-bold text-gray-900 truncate transition-colors group-hover:text-cyan-700">
                 Available Resumes
               </dt>
-              <dd className="text-2xl font-bold text-[#1A2F25]">
+              <dd className="text-3xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">
                 {loadingState ? "-" : availableCount}
               </dd>
             </dl>
           </div>
         </div>
-        <div className="mt-4 relative z-10 flex items-center justify-between">
-          <p className="text-sm text-[#1A2F25]/60 transition-colors">
+        <div className="mt-5 relative z-10 flex items-center justify-between">
+          <p className="text-sm font-medium text-gray-700 transition-colors group-hover:text-gray-900">
             {loadingState
               ? "Loading..."
               : availableCount === 0
-                ? "No active grants"
-                : `${availableCount} resume${availableCount !== 1 ? "s" : ""
+              ? "No active grants"
+              : `${availableCount} resume${
+                  availableCount !== 1 ? "s" : ""
                 } unlocked`}
           </p>
           <div className="opacity-0 transform translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
-            <svg
-              className="w-5 h-5 text-blue-600"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
+            <div className="flex items-center justify-center h-8 w-8 rounded-full bg-cyan-500/10 border border-cyan-500/30">
+              <svg
+                className="w-4 h-4 text-cyan-600"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2.5}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </div>
           </div>
         </div>
       </div>

@@ -10,14 +10,14 @@ export function ActionButtons({ loading, onClose }: ActionButtonsProps) {
         type="button"
         onClick={onClose}
         disabled={loading}
-        className="flex-1 rounded-xl border border-white/10 bg-slate-800/60 px-5 py-3 font-bold text-white transition-all hover:border-white/30 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex-1 rounded-xl border border-emerald-100 bg-emerald-50/50 px-5 py-3 font-bold text-emerald-700 transition-all hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
       >
         Cancel
       </button>
       <button
         type="submit"
         disabled={loading}
-        className="group relative flex-1 overflow-hidden rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-5 py-3 font-bold text-white shadow-lg shadow-cyan-500/30 transition-all hover:shadow-xl hover:shadow-cyan-500/40 disabled:cursor-not-allowed disabled:opacity-50"
+        className="group relative flex-1 overflow-hidden rounded-xl bg-gradient-to-r from-[#2C4A3B] to-emerald-600 px-5 py-3 font-bold text-white shadow-lg shadow-emerald-500/20 transition-all hover:shadow-xl hover:shadow-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50"
       >
         <span className="relative z-10 flex items-center justify-center gap-2">
           {loading ? (
@@ -62,7 +62,7 @@ export function ActionButtons({ loading, onClose }: ActionButtonsProps) {
             </>
           )}
         </span>
-        <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-500 group-hover:translate-x-full"></div>
+        <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-500 group-hover:translate-x-full"></div>
       </button>
     </div>
   );

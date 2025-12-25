@@ -107,7 +107,9 @@ export default function Dashboard() {
     ]
   );
 
-  if (authLoading || (user && profileLoading)) {
+  const isPostBootLoading = authLoading || (user && profileLoading);
+
+  if (isPostBootLoading) {
     return (
       <DashboardBackground>
         <div className="relative z-20 flex min-h-screen items-center justify-center">
@@ -128,18 +130,7 @@ export default function Dashboard() {
 
   // Show loading while redirecting to role selection
   if (!role) {
-    return (
-      <DashboardBackground>
-        <div className="relative z-20 flex min-h-screen items-center justify-center">
-          <div className="rounded-lg bg-black/60 px-8 py-6 text-center backdrop-blur-sm">
-            <div className="mx-auto mb-4 h-16 w-16 animate-spin rounded-full border-4 border-cyan-500/30 border-t-cyan-400"></div>
-            <p className="text-lg font-semibold text-white">
-              Setting up your account…
-            </p>
-          </div>
-        </div>
-      </DashboardBackground>
-    );
+    return null; // Let the useEffect handle the redirect to /select-role
   }
 
   return (

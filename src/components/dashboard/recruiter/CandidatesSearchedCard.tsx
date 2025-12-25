@@ -8,6 +8,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useOptionalDashboardMetricsContext } from "@/context/DashboardMetricsContext";
 import type { RecruiterSearchBreakdown } from "@/types/dashboard";
 import { DEFAULT_SEARCH_BREAKDOWN } from "@/app/dashboard/metricsDefaults";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { RECRUITER_SEARCH_LIMITS } from "@/lib/config.client";
 
 interface SearchMetrics {
   totalSearches: number;
@@ -38,6 +40,9 @@ const normalizeBreakdown = (
 
 export function CandidatesSearchedCard() {
   const { user } = useAuth();
+  const { tier } = useUserProfile();
+  const isBasic = tier === "basic";
+
   const metricsContext = useOptionalDashboardMetricsContext();
   const usingContext = Boolean(
     metricsContext && metricsContext.recruiterMetrics
@@ -135,11 +140,15 @@ export function CandidatesSearchedCard() {
               ? "Loading..."
               : totalSearches === 0
                 ? "Start searching for candidates"
-                : `${totalSearches} all-time · ${uniqueRecent} unique candidates`}
+                : isBasic
+                  ? `${totalSearches} / ${RECRUITER_SEARCH_LIMITS.basic} searches used`
+                  : `${totalSearches} all-time · ${uniqueRecent} unique candidates`}
           </p>
           {!loadingState && (
             <p className="text-xs text-primary/50 font-medium">
-              {lastDaySearches} in past 24h
+              {isBasic
+                ? `${RECRUITER_SEARCH_LIMITS.basic - totalSearches} remaining`
+                : `${lastDaySearches} in past 24h`}
             </p>
           )}
           <div className="opacity-0 transform translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">

@@ -38,7 +38,9 @@ export default function SettingsPage() {
     companyName: "",
     updatedAt: new Date().toISOString(),
   });
-  const [saving, setSaving] = useState(false);
+  const [savingDisplayName, setSavingDisplayName] = useState(false);
+  const [savingCompanyName, setSavingCompanyName] = useState(false);
+  const [savingRecruiter, setSavingRecruiter] = useState(false);
   const [showCompanyInput, setShowCompanyInput] = useState(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
@@ -101,7 +103,7 @@ export default function SettingsPage() {
       return;
     }
 
-    setSaving(true);
+    setSavingRecruiter(true);
     try {
       const idToken = await user.getIdToken();
       const response = await fetch("/api/user/settings", {
@@ -132,7 +134,7 @@ export default function SettingsPage() {
         text: err instanceof Error ? err.message : "An error occurred",
       });
     } finally {
-      setSaving(false);
+      setSavingRecruiter(false);
     }
   };
 
@@ -150,7 +152,7 @@ export default function SettingsPage() {
       return;
     }
 
-    setSaving(true);
+    setSavingDisplayName(true);
     try {
       const idToken = await user.getIdToken();
       const response = await fetch("/api/user/settings", {
@@ -178,7 +180,7 @@ export default function SettingsPage() {
         text: err instanceof Error ? err.message : "An error occurred",
       });
     } finally {
-      setSaving(false);
+      setSavingDisplayName(false);
     }
   };
 
@@ -196,7 +198,7 @@ export default function SettingsPage() {
       return;
     }
 
-    setSaving(true);
+    setSavingCompanyName(true);
     try {
       const idToken = await user.getIdToken();
       const response = await fetch("/api/user/settings", {
@@ -224,7 +226,7 @@ export default function SettingsPage() {
         text: err instanceof Error ? err.message : "An error occurred",
       });
     } finally {
-      setSaving(false);
+      setSavingCompanyName(false);
     }
   };
 
@@ -278,7 +280,8 @@ export default function SettingsPage() {
               companyName={settings.companyName}
               updatedAt={settings.updatedAt}
               showCompanyInput={showCompanyInput}
-              saving={saving}
+              savingDisplayName={savingDisplayName}
+              savingCompanyName={savingCompanyName}
               onDisplayNameChange={(value) =>
                 setSettings({ ...settings, displayName: value })
               }
@@ -297,7 +300,7 @@ export default function SettingsPage() {
               resumeId={resumeId}
               hasResume={hasResume}
               isRecruiter={settings.isRecruiter}
-              saving={saving}
+              savingRecruiter={savingRecruiter}
               onRecruiterToggle={handleRecruiterToggle}
               onCopy={handleCopyResumeId}
             />
