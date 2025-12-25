@@ -30,44 +30,6 @@ function getDaysSince(timestamp: string | null | undefined) {
   return Math.floor(diff / DAYS_IN_MS);
 }
 
-export function calculateReadinessScore(
-  metrics: JobSeekerMetrics | null | undefined,
-  hasResume: boolean
-) {
-  const data = metrics ?? DEFAULT_JOB_METRICS;
-  if (!hasResume) return 20;
-
-  const qualityScore = clamp(data.quality, 0, 100) * 0.4; // 40 pts
-  const visibilityScore = clamp(data.profileViews, 0, 30) * (20 / 30); // 20 pts
-  const interestScore = clamp(data.contactRequests, 0, 10) * (15 / 10); // 15 pts
-  const engagementScore = clamp(data.downloads, 0, 10) * (15 / 10); // 15 pts
-  const freshnessPenalty = (() => {
-    const days = getDaysSince(data.lastUpdated);
-    if (days === null) return 10;
-    if (days <= 7) return 0;
-    if (days <= 21) return 5;
-    return 10;
-  })();
-
-  const base = 25; // credit for having a resume live
-  const score =
-    base +
-    qualityScore +
-    visibilityScore +
-    interestScore +
-    engagementScore -
-    freshnessPenalty;
-
-  return clamp(Math.round(score), 0, 100);
-}
-
-export function readinessLabel(score: number) {
-  if (score >= 85) return "Interview ready";
-  if (score >= 65) return "On track";
-  if (score >= 45) return "Momentum building";
-  return "Let's get moving";
-}
-
 export function formatLastUpdatedMessage(lastUpdated: string | null) {
   const days = getDaysSince(lastUpdated);
   if (days === null) return "No updates logged yet";
@@ -148,11 +110,11 @@ export function buildJobSeekerActionPlan(options: {
       priority: "high",
       cta: resumeId
         ? {
-            label: "Add metrics",
-            href: isBasic ? undefined : `/resumes/${resumeId}/edit`,
-            disabled: isBasic,
-            tooltip: isBasic ? premiumTooltip : undefined,
-          }
+          label: "Add metrics",
+          href: isBasic ? undefined : `/resumes/${resumeId}/edit`,
+          disabled: isBasic,
+          tooltip: isBasic ? premiumTooltip : undefined,
+        }
         : undefined,
     });
   }
@@ -169,11 +131,11 @@ export function buildJobSeekerActionPlan(options: {
       priority: "medium",
       cta: resumeId
         ? {
-            label: "Add projects",
-            href: isBasic ? undefined : `/resumes/${resumeId}/edit`,
-            disabled: isBasic,
-            tooltip: isBasic ? premiumTooltip : undefined,
-          }
+          label: "Add projects",
+          href: isBasic ? undefined : `/resumes/${resumeId}/edit`,
+          disabled: isBasic,
+          tooltip: isBasic ? premiumTooltip : undefined,
+        }
         : undefined,
     });
   }
@@ -225,11 +187,11 @@ export function buildJobSeekerActionPlan(options: {
       meta: `Current score ${clamp(data.quality, 0, 100)}%`,
       cta: resumeId
         ? {
-            label: "Open editor",
-            href: isBasic ? undefined : `/resumes/${resumeId}/edit`,
-            disabled: isBasic,
-            tooltip: isBasic ? premiumTooltip : undefined,
-          }
+          label: "Open editor",
+          href: isBasic ? undefined : `/resumes/${resumeId}/edit`,
+          disabled: isBasic,
+          tooltip: isBasic ? premiumTooltip : undefined,
+        }
         : undefined,
     });
   }
@@ -246,16 +208,15 @@ export function buildJobSeekerActionPlan(options: {
       meta:
         lastUpdatedDays === null
           ? "No updates recorded"
-          : `Last update ${lastUpdatedDays} day${
-              lastUpdatedDays === 1 ? "" : "s"
-            } ago`,
+          : `Last update ${lastUpdatedDays} day${lastUpdatedDays === 1 ? "" : "s"
+          } ago`,
       cta: resumeId
         ? {
-            label: "Add update",
-            href: isBasic ? undefined : `/resumes/${resumeId}/edit`,
-            disabled: isBasic,
-            tooltip: isBasic ? premiumTooltip : undefined,
-          }
+          label: "Add update",
+          href: isBasic ? undefined : `/resumes/${resumeId}/edit`,
+          disabled: isBasic,
+          tooltip: isBasic ? premiumTooltip : undefined,
+        }
         : undefined,
     });
   }
@@ -302,14 +263,14 @@ export function buildJobSeekerInsights(
     data.profileViews >= 15
       ? "positive"
       : data.profileViews === 0
-      ? "caution"
-      : "info";
+        ? "caution"
+        : "info";
   const requestsTone =
     data.contactRequests >= 3
       ? "positive"
       : data.contactRequests === 0
-      ? "caution"
-      : "info";
+        ? "caution"
+        : "info";
   const qualityTone =
     data.quality >= 80 ? "positive" : data.quality < 60 ? "caution" : "info";
 

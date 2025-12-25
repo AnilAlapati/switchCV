@@ -165,28 +165,28 @@ export default function AnalyticsPage() {
                 title="Total Users"
                 value={analytics.totalUsers.toLocaleString()}
                 icon="👥"
-                trend="+12%"
+                trend="Live"
                 color="blue"
               />
               <MetricCard
                 title="Total Resumes"
                 value={analytics.totalResumes.toLocaleString()}
                 icon="📄"
-                trend="+8%"
+                trend="Live"
                 color="cyan"
               />
               <MetricCard
                 title="Active Recruiters"
                 value={analytics.activeRecruiters.toLocaleString()}
                 icon="🎯"
-                trend="+5%"
+                trend="Live"
                 color="emerald"
               />
               <MetricCard
                 title="Total Views"
                 value={analytics.totalViews.toLocaleString()}
                 icon="👁️"
-                trend="+18%"
+                trend="Live"
                 color="indigo"
               />
             </div>
@@ -198,7 +198,7 @@ export default function AnalyticsPage() {
                   title="Contact Requests"
                   value={analytics.totalContactRequests.toLocaleString()}
                   icon="✉️"
-                  trend="+15%"
+                  trend="Live"
                   color="purple"
                 />
 
@@ -206,7 +206,7 @@ export default function AnalyticsPage() {
                   title="Avg Attractiveness"
                   value={`${analytics.averageAttractiveness}%`}
                   icon="⭐"
-                  trend="+3.2%"
+                  trend="Score"
                   color="amber"
                 />
 

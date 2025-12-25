@@ -65,15 +65,25 @@ export async function GET(request: NextRequest) {
     }
 
     try {
+      // Fetch owner details for display name
+      const ownerSnap = await adminDb.collection("users").doc(resumeData?.userId || "").get();
+      const ownerData = ownerSnap.data();
+      const ownerName = ownerData?.displayName || ownerData?.email?.split('@')[0] || "Unknown User";
+
       const result = await getAnalytics(resumeId);
-      return NextResponse.json(result);
-    } catch (analyticsError) {
-      logger.error({ err: analyticsError, resumeId }, "Error fetching analytics from service");
-      return handleApiError(analyticsError, "Failed to retrieve analytics data from service");
+
+      return NextResponse.json({
+        ...result,
+        ownerName,
+        resumeTitle: resumeData?.title || `Resume #${resumeId}`
+      });
+    } catch (innerError) {
+      logger.error({ err: innerError, resumeId }, "Error fetching analytics from service");
+      return handleApiError(innerError, "Failed to retrieve analytics data from service");
     }
-  } catch (error) {
-    logger.error({ err: error }, "Top-level error in resume analytics route");
-    return handleApiError(error, "Failed to retrieve analytics");
+  } catch (outerError) {
+    logger.error({ err: outerError }, "Top-level error in resume analytics GET route");
+    return handleApiError(outerError, "Failed to retrieve analytics");
   }
 }
 

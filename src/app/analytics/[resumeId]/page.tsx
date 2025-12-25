@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { logger } from "@/lib/logger";
 import { DashboardBackground } from "@/components/dashboard/DashboardBackground";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
@@ -14,6 +15,7 @@ import type { Analytics } from "@/types";
 
 export default function ResumeAnalyticsPage() {
   const { user, loading: authLoading, logout } = useAuth();
+  const { role, tier, loading: profileLoading } = useUserProfile();
   const router = useRouter();
   const params = useParams();
   const resumeId = params?.resumeId as string;
@@ -23,6 +25,7 @@ export default function ResumeAnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [resumeTitle, setResumeTitle] = useState<string>("");
+  const [ownerName, setOwnerName] = useState<string>("");
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -78,6 +81,7 @@ export default function ResumeAnalyticsPage() {
       setAnalytics(analyticsData);
       setRecentEvents(data.recentEvents || []);
       setResumeTitle(data.resumeTitle || `Resume #${resumeId}`);
+      setOwnerName(data.ownerName || "");
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       logger.error(
@@ -127,6 +131,14 @@ export default function ResumeAnalyticsPage() {
       <DashboardHeader userEmail={user.email} onLogout={handleLogout} />
 
       <main className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* Beta Badge Section */}
+        <div className="flex justify-center mb-8">
+          <div className="inline-flex items-center gap-2 rounded-full bg-blue-50/80 px-4 py-1.5 border border-blue-100/50 backdrop-blur-sm shadow-sm">
+            <span className="flex h-2 w-2 rounded-full bg-blue-500 animate-pulse"></span>
+            <span className="text-[10px] font-black text-blue-700 uppercase tracking-[0.2em]">Alpha-Beta Preview v0.4.2</span>
+          </div>
+        </div>
+
         <div className="mb-10">
           <button
             onClick={() => router.push("/dashboard")}
@@ -149,23 +161,36 @@ export default function ResumeAnalyticsPage() {
                 {resumeTitle}
               </h1>
               <p className="mt-2 text-[#1A2F25]/60 max-w-2xl">
-                Detailed performance metrics and engagement signals for this resume.
+                Detailed performance metrics and engagement signals for this profile.
               </p>
             </div>
 
             <div className="flex gap-3">
               <button
                 onClick={() => window.print()}
-                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-[#1A2F25] shadow-sm transition-all hover:bg-slate-50 active:scale-95"
+                disabled={tier === "basic"}
+                title={tier === "basic" ? "Available for Premium/Enterprise users" : "Download Report"}
+                className={`flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-[#1A2F25] shadow-sm transition-all active:scale-95 ${tier === "basic" ? "opacity-40 cursor-not-allowed group relative" : "hover:bg-slate-50"}`}
               >
-                📥 Download Report
+                <span>📥</span> Download Report
+                {tier === "basic" && (
+                  <span className="absolute -top-10 left-1/2 -translate-x-1/2 scale-0 rounded bg-gray-900 px-3 py-1.5 text-[10px] text-white group-hover:scale-100 transition-all shadow-xl whitespace-nowrap z-50">
+                    Premium/Enterprise Only
+                  </span>
+                )}
               </button>
               <button
                 onClick={fetchAnalytics}
-                disabled={loading}
-                className="flex items-center gap-2 rounded-xl bg-[#1A2F25] px-4 py-2.5 text-sm font-bold text-white shadow-lg transition-all hover:bg-black active:scale-95 disabled:opacity-50"
+                disabled={loading || tier === "basic"}
+                title={tier === "basic" ? "Available for Premium/Enterprise users" : "Refresh Data"}
+                className={`flex items-center gap-2 rounded-xl bg-[#1A2F25] px-4 py-2.5 text-sm font-bold text-white shadow-lg transition-all active:scale-95 disabled:opacity-50 ${tier === "basic" ? "opacity-40 cursor-not-allowed group relative" : "hover:bg-black"}`}
               >
                 <span>🔄</span> {loading ? "Refreshing..." : "Refresh Data"}
+                {tier === "basic" && (
+                  <span className="absolute -top-10 left-1/2 -translate-x-1/2 scale-0 rounded bg-gray-900 px-3 py-1.5 text-[10px] text-white group-hover:scale-100 transition-all shadow-xl whitespace-nowrap z-50">
+                    Premium/Enterprise Only
+                  </span>
+                )}
               </button>
             </div>
           </div>
@@ -285,7 +310,7 @@ export default function ResumeAnalyticsPage() {
 
                 <div className="mt-4 pt-4 border-t border-slate-100">
                   <p className="text-[10px] text-center text-[#1A2F25]/40 font-bold uppercase tracking-widest leading-relaxed">
-                    Higher scores correlate with 3.4x more interview requests
+                    Powered by Live Analytics Engine
                   </p>
                 </div>
               </div>
