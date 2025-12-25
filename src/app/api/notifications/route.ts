@@ -13,6 +13,7 @@ import {
   createNotification,
   getUserNotifications,
   getUnreadNotifications,
+  getNotification,
   markAsRead,
   getPreferences,
   savePreference,
@@ -72,13 +73,13 @@ export async function POST(request: NextRequest) {
         return handleSend(userId, data);
 
       case "mark-read":
-        return handleMarkRead(data?.notificationId);
+        return handleMarkRead(data?.notificationId, authUserId);
 
       case "mark-all-read":
         return handleMarkAllRead(userId);
 
       case "delete":
-        return handleDelete(data?.notificationId);
+        return handleDelete(data?.notificationId, authUserId);
 
       case "get-preferences":
         return handleGetPreferences(userId);
@@ -169,9 +170,15 @@ async function handleSend(userId: string, data: any) {
   });
 }
 
-async function handleMarkRead(notificationId: string) {
+async function handleMarkRead(notificationId: string, authUserId: string) {
   if (!notificationId) {
     return handleApiError(null, "Missing notificationId", 400);
+  }
+
+  // Ownership check
+  const notification = await getNotification(notificationId);
+  if (!notification || notification.recipientId !== authUserId) {
+    return handleApiError(null, "Forbidden: You do not own this notification", 403);
   }
 
   await markAsRead(notificationId);
@@ -190,9 +197,15 @@ async function handleMarkAllRead(userId: string) {
   return NextResponse.json({ success: true, markedCount: unread.length });
 }
 
-async function handleDelete(notificationId: string) {
+async function handleDelete(notificationId: string, authUserId: string) {
   if (!notificationId) {
     return handleApiError(null, "Missing notificationId", 400);
+  }
+
+  // Ownership check
+  const notification = await getNotification(notificationId);
+  if (!notification || notification.recipientId !== authUserId) {
+    return handleApiError(null, "Forbidden: You do not own this notification", 403);
   }
 
   await deleteNotification(notificationId);

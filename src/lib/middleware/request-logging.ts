@@ -41,7 +41,7 @@ function getClientIp(request: NextRequest): string {
   }
 
   // Fallback - this will be localhost in development
-  return (request as any).ip || "unknown";
+  return (request as { ip?: string }).ip || "unknown";
 }
 
 /**
@@ -60,7 +60,9 @@ function getUserId(request: NextRequest): string | undefined {
  *
  * Removes sensitive query params like API keys, tokens, passwords
  */
-function getSafeQueryParams(request: NextRequest): Record<string, string> | undefined {
+function getSafeQueryParams(
+  request: NextRequest
+): Record<string, string> | undefined {
   const params: Record<string, string> = {};
   const url = new URL(request.url);
 
@@ -127,14 +129,17 @@ export async function withRequestLogging(
     error = err instanceof Error ? err.message : String(err);
 
     // Log error
-    logger.error({
-      method,
-      path,
-      userId,
-      ipAddress,
-      error,
-      stack: err instanceof Error ? err.stack : undefined,
-    }, "Request handler error");
+    logger.error(
+      {
+        method,
+        path,
+        userId,
+        ipAddress,
+        error,
+        stack: err instanceof Error ? err.stack : undefined,
+      },
+      "Request handler error"
+    );
 
     // Return 500 response
     response = NextResponse.json(
@@ -197,13 +202,16 @@ export function requestLoggingMiddleware(request: NextRequest) {
   const queryParams = getSafeQueryParams(request);
 
   // Log request start
-  logger.debug({
-    method,
-    path,
-    userId,
-    ipAddress,
-    queryParams,
-  }, "Request received");
+  logger.debug(
+    {
+      method,
+      path,
+      userId,
+      ipAddress,
+      queryParams,
+    },
+    "Request received"
+  );
 
   // Create response
   const response = NextResponse.next();
@@ -284,17 +292,20 @@ export function createDetailedRequestLogger() {
     );
 
     // Create detailed log
-    logger.debug({
-      method,
-      path,
-      statusCode: response.status,
-      userId,
-      ipAddress,
-      requestSize: formatBytes(requestSize),
-      responseSize: formatBytes(responseSize),
-      duration: `${duration}ms`,
-      error,
-    }, "Detailed request log");
+    logger.debug(
+      {
+        method,
+        path,
+        statusCode: response.status,
+        userId,
+        ipAddress,
+        requestSize: formatBytes(requestSize),
+        responseSize: formatBytes(responseSize),
+        duration: `${duration}ms`,
+        error,
+      },
+      "Detailed request log"
+    );
 
     return response;
   };
@@ -320,15 +331,18 @@ export async function withSlowRequestLogging(
   const duration = Date.now() - startTime;
 
   if (duration > thresholdMs) {
-    logger.warn({
-      method,
-      path,
-      userId,
-      ipAddress,
-      duration: `${duration}ms`,
-      threshold: `${thresholdMs}ms`,
-      statusCode: response.status,
-    }, "Slow request detected");
+    logger.warn(
+      {
+        method,
+        path,
+        userId,
+        ipAddress,
+        duration: `${duration}ms`,
+        threshold: `${thresholdMs}ms`,
+        statusCode: response.status,
+      },
+      "Slow request detected"
+    );
   }
 
   return response;

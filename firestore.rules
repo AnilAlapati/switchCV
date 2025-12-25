@@ -18,6 +18,10 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.token.role == 'recruiter';
     }
 
+    function existingDocHasCorrectIdentity(userId) {
+      return resource.data.uid == userId;
+    }
+
     // ==================== USER DOCUMENT VALIDATION ====================
     
     // Extracted: Role transition validation
@@ -102,9 +106,24 @@ service cloud.firestore {
       return request.resource.data.uid == userId && request.resource.data.email is string;
     }
 
-    // For updates with merge, verify existing document has correct identity
-    function existingDocHasCorrectIdentity(userId) {
-      return resource.data.uid == userId;
+    // Extracted user creation validation
+    function canCreateUserDoc(userId) {
+      return isOwner(userId)
+        && userDocHasOnlyAllowedFields()
+        && userDocHasRequiredIdentity(userId)
+        && roleTransitionAllowed()
+        && tierTransitionAllowed()
+        && recruiterFlagTransitionAllowed();
+    }
+
+    // Extracted user update validation
+    function canUpdateUserDoc(userId) {
+      return isOwner(userId)
+        && userDocHasOnlyAllowedFields()
+        && existingDocHasCorrectIdentity(userId)
+        && roleTransitionAllowed()
+        && tierTransitionAllowed()
+        && recruiterFlagTransitionAllowed();
     }
 
     // Users can read their own user document. Writes are limited to safe fields only.
@@ -252,32 +271,41 @@ service cloud.firestore {
     // Analytics - public read for profile views, write by system
     match /analytics/{slug} {
       // globalStats is public (marketing stats on homepage - no sensitive data)
-      // Other analytics documents require authentication
-      allow read: if slug == 'globalStats' || request.auth != null;
-      allow write: if request.auth != null; // Authenticated users can write events
+      allow read: if slug == 'globalStats';
+      
+      // Resume-specific analytics require ownership or recruiter access
+      allow read: if isAuthenticated() && (
+        isOwner(resource.data.userId) || 
+        isRecruiter() ||
+        isAdmin()
+      );
+      
+      // Writes (events) are allowed for authenticated users (to record views)
+      // but strictly validated in a real scenario
+      allow write: if isAuthenticated(); 
       
       // Analytics events subcollection
       match /events/{eventId} {
-        allow read: if request.auth != null; // Authenticated users only
-        allow create: if request.auth != null; // Authenticated users can create events
-        allow delete: if false; // Prevent deletion
+        allow read: if isAuthenticated() && (isOwner(get(/databases/$(database)/documents/analytics/$(slug)).data.userId) || isAdmin());
+        allow create: if isAuthenticated();
+        allow delete: if false;
       }
       
       // Engagement metrics subcollection
       match /engagement/{document=**} {
-        allow read: if request.auth != null; // Authenticated users only
+        allow read: if isAuthenticated() && (isOwner(get(/databases/$(database)/documents/analytics/$(slug)).data.userId) || isRecruiter() || isAdmin());
         allow write: if false; // Server-side only
       }
       
       // Request statistics subcollection
       match /requests/{document=**} {
-        allow read: if request.auth != null; // Authenticated users only
+        allow read: if isAuthenticated() && (isOwner(get(/databases/$(database)/documents/analytics/$(slug)).data.userId) || isRecruiter() || isAdmin());
         allow write: if false; // Server-side only
       }
       
       // View analytics subcollection
       match /views/{document=**} {
-        allow read: if request.auth != null; // Authenticated users only
+        allow read: if isAuthenticated() && (isOwner(get(/databases/$(database)/documents/analytics/$(slug)).data.userId) || isRecruiter() || isAdmin());
         allow write: if false; // Server-side only
       }
     }
@@ -310,9 +338,12 @@ service cloud.firestore {
       }
     }
 
-    // Notifications
-    match /notifications/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    // Notifications - Flat collection used by repository
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && (resource.data.recipientId == request.auth.uid || isAdmin());
+      // Writes are performed server-side via Admin SDK or specifically allowed actions
+      allow update: if isAuthenticated() && (resource.data.recipientId == request.auth.uid || isAdmin());
+      allow create, delete: if false; // Backend only
     }
 
     // ==================== SYSTEM COLLECTIONS ====================

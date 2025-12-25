@@ -63,7 +63,7 @@ async function getMaintenanceConfig(): Promise<{
 
       return maintenanceCache.config;
     }
-  } catch (error) {
+  } catch {
     // On error, return cached value if available, otherwise assume no maintenance
     // console.error("Middleware error checking maintenance status:", error);
     return maintenanceCache.config || { isActive: false, blocking: false };
@@ -93,7 +93,7 @@ export async function proxy(request: NextRequest) {
     if (maintenance?.isActive && maintenance?.blocking) {
       return NextResponse.rewrite(new URL("/maintenance", request.url));
     }
-  } catch (error) {
+  } catch {
     // Silently fail - let request through if there's any error
     // console.error("Middleware error:", error);
   }

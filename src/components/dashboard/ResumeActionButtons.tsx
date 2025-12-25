@@ -3,7 +3,6 @@ import Link from "next/link";
 import { getResumeUrl } from "@/lib/config";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { RestrictedFeature } from "@/components/ui/RestrictedFeature";
-import { Tooltip } from "@/components/ui/Tooltip";
 
 interface ResumeActionButtonsProps {
   resumeId: string | number | null;
@@ -52,10 +51,11 @@ export function ResumeActionButtons({
       <button
         onClick={onToggleVisibility}
         disabled={isUpdatingVisibility}
-        className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all border ${isPublished
+        className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all border ${
+          isPublished
             ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20 hover:bg-emerald-500/20"
             : "bg-white/40 text-[#1A2F25]/60 border-white/60 hover:bg-white/60 hover:text-[#1A2F25]"
-          }`}
+        }`}
       >
         {isUpdatingVisibility ? (
           <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
@@ -98,7 +98,11 @@ export function ResumeActionButtons({
       </button>
 
       {resumeIdString ? (
-        <RestrictedFeature messageKey="AI_EDIT" requiredTier="premium" tooltipPosition="left">
+        <RestrictedFeature
+          messageKey="AI_EDIT"
+          requiredTier="premium"
+          tooltipPosition="left"
+        >
           {isBasicUser ? (
             <button
               disabled

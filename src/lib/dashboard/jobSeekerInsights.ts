@@ -4,6 +4,7 @@ import type {
   JobSeekerMetrics,
   OpportunityInsight,
 } from "@/types/dashboard";
+import type { ResumeProfile } from "@/types";
 
 const DEFAULT_JOB_METRICS: JobSeekerMetrics = {
   profileViews: 0,
@@ -47,8 +48,8 @@ export function buildJobSeekerActionPlan(options: {
   resumeId?: string | number | null;
   resumeUrl?: string | null;
   tier?: string;
-  resumeData?: any;
-  userProfile?: any;
+  resumeData?: ResumeProfile;
+  userProfile?: { photoURL?: string } | null;
 }): ActionItem[] {
   const {
     metrics,
@@ -97,7 +98,7 @@ export function buildJobSeekerActionPlan(options: {
 
   // Resume exists
   // 1. Quantify Impact (High Priority)
-  const hasNumbers = resumeData?.experience?.some((exp: any) =>
+  const hasNumbers = resumeData?.experience?.some((exp) =>
     /\d+%|\d+\s?%|\$\d+|\d+\s?USD|\d+\+/.test(exp.description || "")
   );
   if (!hasNumbers && hasResume) {
@@ -120,7 +121,7 @@ export function buildJobSeekerActionPlan(options: {
   }
 
   // 2. Portfolio/Projects check
-  const hasProjects = resumeData?.projects?.length > 0;
+  const hasProjects = (resumeData?.projects?.length ?? 0) > 0;
   if (!hasProjects && hasResume) {
     items.push({
       id: "add-projects",

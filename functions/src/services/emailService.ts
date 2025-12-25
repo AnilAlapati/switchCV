@@ -6,6 +6,7 @@ import {
   EmailResult,
   CustomEmailOptions,
 } from "../types/email";
+import { retryWithBackoff } from "../utils/retryHandler";
 
 /**
  * Email Service for user/recruiter communication
@@ -58,7 +59,16 @@ export class EmailService {
       };
 
       const transporter = await this.getTransporter();
-      const info = await transporter.sendMail(mailOptions);
+
+      const info = await retryWithBackoff(
+        () => transporter.sendMail(mailOptions),
+        {
+          maxAttempts: 3,
+          initialDelayMs: 1000,
+          operationName: "sendCustomEmail",
+        },
+        "sendCustomEmail"
+      );
 
       return {
         success: true,
@@ -92,7 +102,16 @@ export class EmailService {
       };
 
       const transporter = await this.getTransporter();
-      const info = await transporter.sendMail(mailOptions);
+
+      const info = await retryWithBackoff(
+        () => transporter.sendMail(mailOptions),
+        {
+          maxAttempts: 3,
+          initialDelayMs: 1000,
+          operationName: "sendEmail",
+        },
+        "sendEmail"
+      );
 
       return {
         success: true,

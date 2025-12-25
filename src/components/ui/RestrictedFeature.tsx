@@ -50,17 +50,17 @@ export function RestrictedFeature({
   const restrictionMessage =
     customMessage || getTierRestrictionMessage(messageKey);
 
+  // Handle access denied callback - must be called before any early returns
+  React.useEffect(() => {
+    if (!hasAccess && onAccessDenied) {
+      onAccessDenied();
+    }
+  }, [hasAccess, onAccessDenied]);
+
   // If user has access, render children normally
   if (hasAccess) {
     return <>{children}</>;
   }
-
-  // Handle access denied callback
-  React.useEffect(() => {
-    if (onAccessDenied) {
-      onAccessDenied();
-    }
-  }, [onAccessDenied]);
 
   // If no tooltip, just render disabled children
   if (!showTooltip) {

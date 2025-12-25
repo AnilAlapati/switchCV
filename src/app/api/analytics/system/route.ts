@@ -31,7 +31,10 @@ interface SystemAnalytics {
 export async function GET(request: NextRequest) {
   const { userId, error: authError } = await getAuthenticatedUserId(request);
   if (authError || !userId) {
-    return authError || NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return (
+      authError ||
+      handleApiError(new Error("Unauthorized"), "Unauthorized", 401)
+    );
   }
 
   try {
@@ -39,19 +42,19 @@ export async function GET(request: NextRequest) {
     const userDoc = await adminDb.collection("users").doc(userId).get();
 
     if (!userDoc.exists) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return handleApiError(new Error("User not found"), "User not found", 404);
     }
 
     const userData = userDoc.data()!;
     const userRole = userData.role;
 
     if (userRole !== "admin" && userRole !== "recruiter") {
-      return NextResponse.json(
-        {
-          error:
-            "Unauthorized. Only admins and recruiters can access system analytics.",
-        },
-        { status: 403 }
+      return handleApiError(
+        new Error(
+          "Unauthorized. Only admins and recruiters can access system analytics."
+        ),
+        "Unauthorized. Only admins and recruiters can access system analytics.",
+        403
       );
     }
 
@@ -81,7 +84,11 @@ export async function GET(request: NextRequest) {
 
       // Count active recruiters
       if (data.role === "recruiter" || data.role === "admin") {
-        const lastLogin = data.lastLoginAt?.toDate?.() || (typeof data.lastLoginAt?.toDate === 'function' ? data.lastLoginAt.toDate() : null);
+        const lastLogin =
+          data.lastLoginAt?.toDate?.() ||
+          (typeof data.lastLoginAt?.toDate === "function"
+            ? data.lastLoginAt.toDate()
+            : null);
         if (lastLogin && lastLogin >= thirtyDaysAgo) {
           activeRecruiters++;
         }

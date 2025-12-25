@@ -20,12 +20,12 @@ export function Tooltip({ children, content, position = "top" }: TooltipProps) {
   };
 
   const arrowClasses = {
-    top: "absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-[#1A2F25]",
+    top: "absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-foreground",
     bottom:
-      "absolute bottom-full left-1/2 -translate-x-1/2 -mb-1 border-4 border-transparent border-b-[#1A2F25]",
-    left: "absolute left-full top-1/2 -translate-y-1/2 -ml-1 border-4 border-transparent border-l-[#1A2F25]",
+      "absolute bottom-full left-1/2 -translate-x-1/2 -mb-1 border-4 border-transparent border-b-foreground",
+    left: "absolute left-full top-1/2 -translate-y-1/2 -ml-1 border-4 border-transparent border-l-foreground",
     right:
-      "absolute right-full top-1/2 -translate-y-1/2 -mr-1 border-4 border-transparent border-r-[#1A2F25]",
+      "absolute right-full top-1/2 -translate-y-1/2 -mr-1 border-4 border-transparent border-r-foreground",
   };
 
   return (
@@ -38,7 +38,7 @@ export function Tooltip({ children, content, position = "top" }: TooltipProps) {
       {isVisible && (
         <div
           ref={tooltipRef}
-          className={`absolute ${positionClasses[position]} px-4 py-2 bg-[#1A2F25] text-white text-xs font-medium rounded-lg whitespace-normal leading-relaxed w-max max-w-[240px] z-[9999] shadow-2xl border border-white/10 animate-in fade-in zoom-in-95 duration-200`}
+          className={`absolute ${positionClasses[position]} px-4 py-2 bg-foreground text-white text-xs font-medium rounded-lg whitespace-normal leading-relaxed w-max max-w-[240px] z-[9999] shadow-2xl border border-white/10 animate-in fade-in zoom-in-95 duration-200`}
           style={{
             pointerEvents: "none",
             wordBreak: "normal",

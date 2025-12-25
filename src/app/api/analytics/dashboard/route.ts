@@ -31,7 +31,7 @@ interface DashboardRequest {
 async function getAnalyticsFromFirestore(
   resumeId: string,
   userId: string
-): Promise<ResumeAnalytics | null> {
+): Promise<ResumeAnalytics> {
   const analyticsRef = adminDb.collection("analytics").doc(resumeId);
   const doc = await analyticsRef.get();
 
@@ -229,12 +229,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       heatmaps.length > 0
         ? heatmaps
         : AnalyticsService.generateHeatmap(viewEvents, resumeId, [
-            "summary",
-            "experience",
-            "skills",
-            "education",
-            "projects",
-          ]);
+          "summary",
+          "experience",
+          "skills",
+          "education",
+          "projects",
+        ]);
 
     // Aggregate to dashboard
     const dashboard = AnalyticsService.aggregateToDashboard(

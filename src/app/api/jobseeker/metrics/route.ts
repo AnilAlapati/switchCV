@@ -1,16 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
-import { handleApiError } from "@/lib/utils/api-helpers";
+import {
+  handleApiError,
+  getAuthenticatedUserId,
+} from "@/lib/utils/api-helpers";
+import { logger } from "@/lib/logger";
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
+    const { userId: authUserId, error: authError } =
+      await getAuthenticatedUserId(request);
+    if (authError || !authUserId) {
+      return authError || handleApiError(null, "Unauthorized", 401);
+    }
 
-    if (!userId) {
+    const { searchParams } = new URL(request.url);
+    const requestedUserId = searchParams.get("userId");
+
+    if (!requestedUserId) {
       return handleApiError(null, "userId is required", 400);
     }
+
+    // BOLA FIX: Verify that the authenticated user is accessing their own metrics
+    if (authUserId !== requestedUserId) {
+      logger.warn(
+        { authUserId, requestedUserId },
+        "BOLA attempt detected in JobSeeker Metrics API"
+      );
+      return handleApiError(
+        null,
+        "Forbidden: Cannot access metrics for another user",
+        403
+      );
+    }
+
+    const userId = requestedUserId;
 
     // Get metrics from jobSeekerMetrics collection
     const metricsRef = adminDb.collection("jobSeekerMetrics").doc(userId);

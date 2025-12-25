@@ -120,17 +120,17 @@ export function CandidatesSearchedCard() {
           </div>
           <div className="ml-5 w-0 flex-1">
             <dl>
-              <dt className="text-sm font-bold text-[#2C4A3B]/60 truncate transition-colors">
+              <dt className="text-sm font-bold text-primary/60 truncate transition-colors">
                 Searches (last 7 days)
               </dt>
-              <dd className="text-2xl font-bold text-[#1A2F25]">
+              <dd className="text-2xl font-bold text-foreground">
                 {loadingState ? "-" : recentSearches}
               </dd>
             </dl>
           </div>
         </div>
         <div className="mt-4 relative z-10 flex items-center justify-between">
-          <p className="text-sm text-[#1A2F25]/60 transition-colors">
+          <p className="text-sm text-foreground/60 transition-colors">
             {loadingState
               ? "Loading..."
               : totalSearches === 0
@@ -138,7 +138,7 @@ export function CandidatesSearchedCard() {
                 : `${totalSearches} all-time · ${uniqueRecent} unique candidates`}
           </p>
           {!loadingState && (
-            <p className="text-xs text-[#2C4A3B]/50 font-medium">
+            <p className="text-xs text-primary/50 font-medium">
               {lastDaySearches} in past 24h
             </p>
           )}
