@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
-import { Tooltip } from "@/components/ui/Tooltip";
 import { RestrictedFeature } from "@/components/ui/RestrictedFeature";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { Edit3, Eye, Share2 } from "lucide-react";
 import { toast } from "sonner";
+import type { JobSeekerMetrics } from "@/types/dashboard";
 
 interface ResumeSnapshotCardProps {
   hasResume: boolean;
@@ -14,6 +14,7 @@ interface ResumeSnapshotCardProps {
   resumeLoading: boolean;
   isPublished: boolean;
   resumeData?: any;
+  metrics?: JobSeekerMetrics | null;
   onToggleVisibility?: () => void;
   isUpdatingVisibility?: boolean;
 }
@@ -24,6 +25,7 @@ export function ResumeSnapshotCard({
   resumeLoading,
   isPublished,
   resumeData,
+  metrics,
   onToggleVisibility,
   isUpdatingVisibility,
 }: ResumeSnapshotCardProps) {
@@ -85,14 +87,16 @@ export function ResumeSnapshotCard({
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-4">
               <span
-                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${isPublished
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                  isPublished
                     ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
                     : "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                  }`}
+                }`}
               >
                 <span
-                  className={`mr-1.5 h-1.5 w-1.5 rounded-full ${isPublished ? "bg-emerald-500" : "bg-amber-500"
-                    }`}
+                  className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
+                    isPublished ? "bg-emerald-500" : "bg-amber-500"
+                  }`}
                 ></span>
                 {isPublished ? "Public" : "Private"}
               </span>
@@ -156,7 +160,11 @@ export function ResumeSnapshotCard({
             </div>
 
             <div className="flex lg:flex-col gap-2">
-              <RestrictedFeature messageKey="AI_EDIT" requiredTier="premium" tooltipPosition="left">
+              <RestrictedFeature
+                messageKey="AI_EDIT"
+                requiredTier="premium"
+                tooltipPosition="left"
+              >
                 {isBasicUser ? (
                   <button
                     disabled
@@ -208,11 +216,19 @@ export function ResumeSnapshotCard({
             <div className="flex items-center gap-2">
               <div className="h-1.5 w-24 bg-slate-200 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-indigo-500 rounded-full"
-                  style={{ width: "65%" }}
+                  className="h-full bg-indigo-500 rounded-full transition-all duration-1000"
+                  style={{ width: `${metrics?.quality || 0}%` }}
                 ></div>
               </div>
-              <span className="text-sm font-bold text-[#1A2F25]">High</span>
+              <span className="text-sm font-bold text-[#1A2F25]">
+                {metrics?.quality
+                  ? metrics.quality > 75
+                    ? "High"
+                    : metrics.quality > 40
+                    ? "Medium"
+                    : "Developing"
+                  : "Not analyzed"}
+              </span>
             </div>
           </div>
           <div className="flex flex-col">
@@ -220,7 +236,7 @@ export function ResumeSnapshotCard({
               Recruiter Searches
             </span>
             <span className="text-sm font-bold text-[#1A2F25]">
-              24 this week
+              {metrics?.profileViews ?? 0} this week
             </span>
           </div>
           <div className="flex flex-col ml-auto">

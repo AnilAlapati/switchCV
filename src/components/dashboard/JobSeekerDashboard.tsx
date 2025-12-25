@@ -31,6 +31,46 @@ interface JobSeekerDashboardProps {
   onRefreshResume?: () => void;
 }
 
+function ProTips() {
+  return (
+    <div className="glass-panel rounded-3xl p-8 bg-gradient-to-br from-indigo-500/5 to-cyan-500/5 border-indigo-500/10 h-full">
+      <h3 className="text-xl font-bold text-[#1A2F25] mb-6">Pro Tips</h3>
+      <div className="space-y-6">
+        <div className="flex gap-4">
+          <div className="h-6 w-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0 text-xs font-bold">
+            1
+          </div>
+          <p className="text-sm text-[#1A2F25]/70 leading-relaxed">
+            Profiles with a professional photo get{" "}
+            <span className="font-bold text-[#1A2F25]">14x more views</span>.
+          </p>
+        </div>
+        <div className="flex gap-4">
+          <div className="h-6 w-6 rounded-full bg-cyan-100 text-cyan-600 flex items-center justify-center flex-shrink-0 text-xs font-bold">
+            2
+          </div>
+          <p className="text-sm text-[#1A2F25]/70 leading-relaxed">
+            Quantifying your impact increases recruiter engagement by{" "}
+            <span className="font-bold text-[#1A2F25]">40%</span>.
+          </p>
+        </div>
+        <div className="flex gap-4">
+          <div className="h-6 w-6 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center flex-shrink-0 text-xs font-bold">
+            3
+          </div>
+          <p className="text-sm text-[#1A2F25]/70 leading-relaxed">
+            Weekly updates keep you at the{" "}
+            <span className="font-bold text-[#1A1F25]">
+              top of search results
+            </span>
+            .
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function JobSeekerDashboard({
   hasResume,
   resumeId,
@@ -149,9 +189,10 @@ export function JobSeekerDashboard({
           <ResumeSnapshotCard
             hasResume={hasResume}
             resumeId={resumeId}
-            resumeLoading={resumeLoading}
+            resumeLoading={resumeLoading || metricsLoading}
             isPublished={currentStatus}
             resumeData={resume}
+            metrics={metrics}
             onToggleVisibility={handleToggleVisibility}
             isUpdatingVisibility={isUpdatingVisibility}
           />
@@ -190,95 +231,19 @@ export function JobSeekerDashboard({
             lockForBasic={true}
           />
 
-          {tier === "basic" ? (
-            <PremiumFeatureLock
-              featureName="Pro Tips"
-              description={TIER_RESTRICTION_MESSAGES.PRIORITY_ACTIONS}
-              className="h-full"
-            >
-              <div className="glass-panel rounded-3xl p-8 bg-gradient-to-br from-indigo-500/5 to-cyan-500/5 border-indigo-500/10">
-                <h3 className="text-xl font-bold text-[#1A2F25] mb-6">
-                  Pro Tips
-                </h3>
-                <div className="space-y-6">
-                  <div className="flex gap-4">
-                    <div className="h-6 w-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0 text-xs font-bold">
-                      1
-                    </div>
-                    <p className="text-sm text-[#1A2F25]/70 leading-relaxed">
-                      Profiles with a professional photo get{" "}
-                      <span className="font-bold text-[#1A2F25]">
-                        14x more views
-                      </span>
-                      .
-                    </p>
-                  </div>
-                  <div className="flex gap-4">
-                    <div className="h-6 w-6 rounded-full bg-cyan-100 text-cyan-600 flex items-center justify-center flex-shrink-0 text-xs font-bold">
-                      2
-                    </div>
-                    <p className="text-sm text-[#1A2F25]/70 leading-relaxed">
-                      Quantifying your impact increases recruiter engagement by{" "}
-                      <span className="font-bold text-[#1A2F25]">40%</span>.
-                    </p>
-                  </div>
-                  <div className="flex gap-4">
-                    <div className="h-6 w-6 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center flex-shrink-0 text-xs font-bold">
-                      3
-                    </div>
-                    <p className="text-sm text-[#1A2F25]/70 leading-relaxed">
-                      Weekly updates keep you at the{" "}
-                      <span className="font-bold text-[#1A1F25]">
-                        top of search results
-                      </span>
-                      .
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </PremiumFeatureLock>
-          ) : (
-            <div className="glass-panel rounded-3xl p-8 bg-gradient-to-br from-indigo-500/5 to-cyan-500/5 border-indigo-500/10">
-              <h3 className="text-xl font-bold text-[#1A2F25] mb-6">
-                Pro Tips
-              </h3>
-              <div className="space-y-6">
-                <div className="flex gap-4">
-                  <div className="h-6 w-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0 text-xs font-bold">
-                    1
-                  </div>
-                  <p className="text-sm text-[#1A2F25]/70 leading-relaxed">
-                    Profiles with a professional photo get{" "}
-                    <span className="font-bold text-[#1A2F25]">
-                      14x more views
-                    </span>
-                    .
-                  </p>
-                </div>
-                <div className="flex gap-4">
-                  <div className="h-6 w-6 rounded-full bg-cyan-100 text-cyan-600 flex items-center justify-center flex-shrink-0 text-xs font-bold">
-                    2
-                  </div>
-                  <p className="text-sm text-[#1A2F25]/70 leading-relaxed">
-                    Quantifying your impact increases recruiter engagement by{" "}
-                    <span className="font-bold text-[#1A2F25]">40%</span>.
-                  </p>
-                </div>
-                <div className="flex gap-4">
-                  <div className="h-6 w-6 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center flex-shrink-0 text-xs font-bold">
-                    3
-                  </div>
-                  <p className="text-sm text-[#1A2F25]/70 leading-relaxed">
-                    Weekly updates keep you at the{" "}
-                    <span className="font-bold text-[#1A1F25]">
-                      top of search results
-                    </span>
-                    .
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+          <div className="h-full">
+            {tier === "basic" ? (
+              <PremiumFeatureLock
+                featureName="Pro Tips"
+                description={TIER_RESTRICTION_MESSAGES.PRIORITY_ACTIONS}
+                className="h-full"
+              >
+                <ProTips />
+              </PremiumFeatureLock>
+            ) : (
+              <ProTips />
+            )}
+          </div>
         </div>
       </div>
 
