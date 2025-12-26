@@ -148,6 +148,15 @@ export const generateResumeContent = functions
 
 // ==================== ANALYTICS ====================
 
+export const aggregateGlobalStats = functions
+  .runWith({ timeoutSeconds: 60, memory: "1GB" })
+  .pubsub.schedule("0 * * * *")
+  .timeZone("UTC")
+  .onRun(async (context) => {
+    const { aggregateGlobalStatsHandler } = await import("./statsService");
+    return aggregateGlobalStatsHandler(context);
+  });
+
 export const aggregateAnalyticsDaily = functions.pubsub
   .schedule("0 1 * * *")
   .timeZone("UTC")
@@ -166,4 +175,36 @@ export const cleanupAnalyticsEvents = functions.pubsub
       "./analyticsService"
     );
     return cleanupAnalyticsEventsHandler(context);
+  });
+
+// ==================== CLEANUP TASKS ====================
+
+export const cleanupExpiredResumes = functions.pubsub
+  .schedule("10 2 * * *")
+  .timeZone("UTC")
+  .onRun(async (context) => {
+    const { cleanupExpiredResumesHandler } = await import(
+      "./resumeCleanupService"
+    );
+    return cleanupExpiredResumesHandler(context);
+  });
+
+export const cleanupRateLimits = functions.pubsub
+  .schedule("every 24 hours")
+  .timeZone("UTC")
+  .onRun(async (context) => {
+    const { cleanupRateLimitsHandler } = await import(
+      "./rateLimitCleanupService"
+    );
+    return cleanupRateLimitsHandler(context);
+  });
+
+export const cleanupRecruiterSearchHistory = functions.pubsub
+  .schedule("0 3 * * *")
+  .timeZone("UTC")
+  .onRun(async (context) => {
+    const { cleanupRecruiterSearchHistoryHandler } = await import(
+      "./recruiterService"
+    );
+    return cleanupRecruiterSearchHistoryHandler(context);
   });

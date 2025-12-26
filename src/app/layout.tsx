@@ -12,6 +12,7 @@ import { DevModeBanner } from "@/components/dev/DevModeBanner";
 import { SWRProvider } from "@/components/providers/SWRProvider";
 import { Toaster } from "sonner";
 import { GoogleAnalytics } from "@next/third-parties/google";
+import { BetaBadge } from "@/components/layout/BetaBadge";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -57,6 +58,7 @@ export default function RootLayout({
                     <Footer />
                   </div>
                   <DevModeBanner />
+                  <BetaBadge />
                 </SWRProvider>
               </AuthProvider>
             </BlockingGuard>

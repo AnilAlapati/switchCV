@@ -11,7 +11,14 @@ import { logger } from "@/lib/logger";
 jest.mock("@/lib/logger", () => ({
   logger: {
     warn: jest.fn(),
+    info: jest.fn(),
+    error: jest.fn(),
   },
+}));
+
+jest.mock("@/lib/services/metricsService", () => ({
+  decrementJobSeekerMetric: jest.fn(),
+  updateRecruiterAccessMetric: jest.fn(),
 }));
 
 // Mock dependencies
@@ -98,7 +105,7 @@ describe("GET /api/recruiter/requests", () => {
     };
 
     const mockUserDoc = {
-      data: () => ({ displayName: "John Doe" }),
+      data: () => ({ displayName: "John Doe", role: "recruiter" }),
     };
 
     // Mock chain for collectionGroup
@@ -169,6 +176,11 @@ describe("GET /api/recruiter/requests", () => {
       data: () => ({}),
     };
 
+    const mockRecruiterDoc = {
+      exists: true,
+      data: () => ({ role: "recruiter" }),
+    };
+
     // Mock chain for collectionGroup
     const mockGet = jest.fn().mockResolvedValue({ docs: mockRequests });
     const mockOrderBy = jest.fn().mockReturnValue({ get: mockGet });
@@ -183,6 +195,8 @@ describe("GET /api/recruiter/requests", () => {
 
     (adminDb.collection as jest.Mock).mockImplementation((collectionName) => {
       if (collectionName === "resumes") return { doc: mockDocResume };
+      if (collectionName === "users")
+        return { doc: jest.fn().mockReturnValue({ get: jest.fn().mockResolvedValue(mockRecruiterDoc) }) };
       return { doc: jest.fn() };
     });
 
@@ -247,6 +261,11 @@ describe("GET /api/recruiter/requests", () => {
       where: mockWhere,
     });
 
+    const mockRecruiterDoc = {
+      exists: true,
+      data: () => ({ role: "recruiter" }),
+    };
+
     // Mock chain for collection (resumes)
     const mockDocGetResume = jest
       .fn()
@@ -255,6 +274,8 @@ describe("GET /api/recruiter/requests", () => {
 
     (adminDb.collection as jest.Mock).mockImplementation((collectionName) => {
       if (collectionName === "resumes") return { doc: mockDocResume };
+      if (collectionName === "users")
+        return { doc: jest.fn().mockReturnValue({ get: jest.fn().mockResolvedValue(mockRecruiterDoc) }) };
       return { doc: jest.fn() };
     });
 
