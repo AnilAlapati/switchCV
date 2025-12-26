@@ -19,7 +19,12 @@ export function AuthBrand() {
             />
           </svg>
         </div>
-        <h1 className="text-2xl font-bold text-[#1A2F25] tracking-tight">SwitchCV</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-[#1A2F25] tracking-tight">SwitchCV</h1>
+          <span className="rounded-full bg-blue-600/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-tighter text-blue-600">
+            Beta
+          </span>
+        </div>
       </div>
       <p className="text-slate-500 text-sm">Your AI-powered resume platform</p>
     </div>

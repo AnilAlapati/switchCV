@@ -86,7 +86,7 @@ describe("retry", () => {
       .mockRejectedValueOnce(new Error("fail"))
       .mockResolvedValue("success");
 
-    // @ts-ignore
+    // @ts-expect-error - testing private module isolation
     const promise = isolatedWithRetry(fn, 1, 100);
 
     // In production mode, it should use the full delay (100ms)

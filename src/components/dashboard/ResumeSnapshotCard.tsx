@@ -4,7 +4,7 @@ import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { RestrictedFeature } from "@/components/ui/RestrictedFeature";
 import { useUserProfile } from "@/hooks/useUserProfile";
-import { Edit3, Eye, Share2, Trash2 } from "lucide-react";
+import { Edit3, Eye, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { JobSeekerMetrics } from "@/types/dashboard";
 import { DeleteResumeDialog } from "./DeleteResumeDialog";
@@ -56,8 +56,7 @@ export function ResumeSnapshotCard({
       toast.success("Resume deleted successfully");
       setShowDeleteDialog(false);
       router.refresh();
-    } catch (error) {
-      console.error("Error deleting resume:", error);
+    } catch {
       toast.error("Failed to delete resume");
     } finally {
       setIsDeleting(false);
@@ -118,8 +117,8 @@ export function ResumeSnapshotCard({
             <div className="flex items-center gap-3 mb-4">
               <span
                 className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${isPublished
-                    ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                    : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                  ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                  : "bg-amber-500/10 text-amber-600 border-amber-500/20"
                   }`}
               >
                 <span

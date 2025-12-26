@@ -1,4 +1,5 @@
 import { logger } from "@/lib/logger";
+import { z } from "zod";
 /* eslint-disable max-lines */
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
@@ -333,15 +334,32 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const resumePayload = body?.resume;
 
-    if (!resumePayload || typeof resumePayload !== "object") {
+    // Validate input using Zod
+    const updateSchema = z.object({
+      resume: z.object({
+        title: z.string().min(1, "Title is required"),
+        summary: z.string().optional(),
+        experience: z.array(z.any()).optional(),
+        education: z.array(z.any()).optional(),
+        skills: z.array(z.any()).optional(),
+        projects: z.array(z.any()).optional(),
+        certifications: z.array(z.any()).optional(),
+        languages: z.array(z.any()).optional(),
+        interests: z.array(z.any()).optional(),
+      }),
+    });
+
+    const result = updateSchema.safeParse(body);
+    if (!result.success) {
       return handleApiError(
-        new Error("Invalid resume payload"),
-        "Invalid resume payload",
+        new Error("Invalid input"),
+        result.error.issues.map((e: z.ZodIssue) => e.message).join(", "),
         400
       );
     }
+
+    const resumePayload = result.data.resume;
 
     const sanitizedResume = sanitizeResumePayload(resumePayload);
     const timestamp = new Date().toISOString();

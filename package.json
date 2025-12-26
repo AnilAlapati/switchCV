@@ -1,6 +1,6 @@
 {
   "name": "switchcv",
-  "version": "0.0.128",
+  "version": "0.0.131",
   "private": true,
   "scripts": {
     "dev": "next dev",
