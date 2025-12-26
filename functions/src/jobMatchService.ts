@@ -209,6 +209,98 @@ function deriveDeterministicInsights(
 /**
  * Generate resume suggestions based on job description
  */
+const generateJobMatchSuggestionsHandler = async (
+  req: functions.https.Request,
+  res: functions.Response
+) => {
+  corsHandler(req, res, async () => {
+    helmetHandler(req, res, async () => {
+      if (req.method !== "POST") {
+        res.status(405).json({ error: "Method not allowed" });
+        return;
+      }
+
+      try {
+        const suggestions = await performanceMonitor.measure(
+          "functions.generateJobMatchSuggestions",
+          async () => {
+            const {
+              userId,
+              jobDescription,
+              resumeData,
+              modelId = defaultModel,
+            } = req.body ?? {};
+
+            const normalizedUserId = validateUserId(userId);
+            const validatedDescription = validateJobDescription(jobDescription);
+            const resumePayload = resumeData as ResumeData;
+            validateResumeData(resumePayload);
+            const selectedModel = validateModelId(modelId, ALLOWED_MODELS);
+
+            const authHeader = req.headers.authorization;
+            if (!authHeader?.startsWith("Bearer ")) {
+              throw new functions.https.HttpsError(
+                "unauthenticated",
+                "Missing bearer token"
+              );
+            }
+
+            const idToken = authHeader.split("Bearer ")[1].trim();
+            const decodedToken = await verifyIdTokenCached(idToken);
+
+            if (decodedToken.uid !== normalizedUserId) {
+              throw new functions.https.HttpsError(
+                "permission-denied",
+                "Authenticated user mismatch"
+              );
+            }
+
+            functions.logger.info("Job match request accepted", {
+              userId: normalizedUserId,
+              modelId: selectedModel,
+              authProvider: decodedToken.firebase?.sign_in_provider,
+            });
+
+            if (securityConfig.enableRateLimit) {
+              const limitResult = await checkRateLimit(
+                normalizedUserId,
+                jobMatchRateLimit
+              );
+              if (!limitResult.allowed) {
+                functions.logger.warn("Job match rate limit hit", {
+                  userId: normalizedUserId,
+                  retryAfter: limitResult.retryAfter,
+                });
+                throw new RateLimitExceeded(limitResult.retryAfter);
+              }
+            }
+
+            const suggestions = await generateJobMatchingSuggestions(
+              validatedDescription,
+              resumePayload,
+              selectedModel
+            );
+
+            return suggestions;
+          },
+          MetricType.FUNCTION_EXECUTION,
+          { path: req.path || req.url }
+        );
+
+        res.status(200).json({
+          success: true,
+          suggestions,
+        });
+      } catch (error) {
+        const { status, payload } = await handleJobMatchError(error, req);
+        res.status(status).json(payload);
+      }
+    });
+  });
+};
+
+export { generateJobMatchSuggestionsHandler };
+
 export const generateJobMatchSuggestions = functions
   .runWith({
     secrets: [
@@ -220,93 +312,7 @@ export const generateJobMatchSuggestions = functions
     timeoutSeconds: 60,
     memory: "512MB",
   })
-  .https.onRequest(async (req, res) => {
-    corsHandler(req, res, async () => {
-      helmetHandler(req, res, async () => {
-        if (req.method !== "POST") {
-          res.status(405).json({ error: "Method not allowed" });
-          return;
-        }
-
-        try {
-          const suggestions = await performanceMonitor.measure(
-            "functions.generateJobMatchSuggestions",
-            async () => {
-              const {
-                userId,
-                jobDescription,
-                resumeData,
-                modelId = defaultModel,
-              } = req.body ?? {};
-
-              const normalizedUserId = validateUserId(userId);
-              const validatedDescription =
-                validateJobDescription(jobDescription);
-              const resumePayload = resumeData as ResumeData;
-              validateResumeData(resumePayload);
-              const selectedModel = validateModelId(modelId, ALLOWED_MODELS);
-
-              const authHeader = req.headers.authorization;
-              if (!authHeader?.startsWith("Bearer ")) {
-                throw new functions.https.HttpsError(
-                  "unauthenticated",
-                  "Missing bearer token"
-                );
-              }
-
-              const idToken = authHeader.split("Bearer ")[1].trim();
-              const decodedToken = await verifyIdTokenCached(idToken);
-
-              if (decodedToken.uid !== normalizedUserId) {
-                throw new functions.https.HttpsError(
-                  "permission-denied",
-                  "Authenticated user mismatch"
-                );
-              }
-
-              functions.logger.info("Job match request accepted", {
-                userId: normalizedUserId,
-                modelId: selectedModel,
-                authProvider: decodedToken.firebase?.sign_in_provider,
-              });
-
-              if (securityConfig.enableRateLimit) {
-                const limitResult = await checkRateLimit(
-                  normalizedUserId,
-                  jobMatchRateLimit
-                );
-                if (!limitResult.allowed) {
-                  functions.logger.warn("Job match rate limit hit", {
-                    userId: normalizedUserId,
-                    retryAfter: limitResult.retryAfter,
-                  });
-                  throw new RateLimitExceeded(limitResult.retryAfter);
-                }
-              }
-
-              const suggestions = await generateJobMatchingSuggestions(
-                validatedDescription,
-                resumePayload,
-                selectedModel
-              );
-
-              return suggestions;
-            },
-            MetricType.FUNCTION_EXECUTION,
-            { path: req.path || req.url }
-          );
-
-          res.status(200).json({
-            success: true,
-            suggestions,
-          });
-        } catch (error) {
-          const { status, payload } = await handleJobMatchError(error, req);
-          res.status(status).json(payload);
-        }
-      });
-    });
-  });
+  .https.onRequest(generateJobMatchSuggestionsHandler);
 
 async function handleJobMatchError(
   error: unknown,
@@ -398,8 +404,8 @@ ${jobDescription}
 
 Resume Skills: ${resumeData.skills.join(", ")}
 Resume Experience: ${resumeData.experience
-        .map((exp) => `${exp.title} at ${exp.company}`)
-        .join(", ")}
+          .map((exp) => `${exp.title} at ${exp.company}`)
+          .join(", ")}
 
 Provide:
 1. Skills match percentage
@@ -410,11 +416,9 @@ Provide:
       const aiAnalysis = await generateAiAnalysis(prompt, modelId);
       const insights = deriveDeterministicInsights(jobDescription, resumeData);
 
-      const deterministicSummary = `Deterministic insights:\n- Skill overlap: ${
-        insights.skillOverlapPercent
-      }%\n- Missing skills: ${
-        insights.missingSkills.slice(0, 5).join(", ") || "None"
-      }`;
+      const deterministicSummary = `Deterministic insights:\n- Skill overlap: ${insights.skillOverlapPercent
+        }%\n- Missing skills: ${insights.missingSkills.slice(0, 5).join(", ") || "None"
+        }`;
 
       return {
         analysis: `${aiAnalysis}\n\n${deterministicSummary}`.trim(),

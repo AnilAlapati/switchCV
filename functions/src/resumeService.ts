@@ -184,6 +184,127 @@ function describeAllowedModels(tier: SubscriptionTier) {
 /**
  * Generate AI-powered resume content
  */
+const generateResumeContentHandler = async (
+  req: functions.https.Request,
+  res: functions.Response
+) => {
+  corsHandler(req, res, async () => {
+    helmetHandler(req, res, async () => {
+      if (req.method !== "POST") {
+        res.status(405).json({ error: "Method not allowed" });
+        return;
+      }
+
+      try {
+        const {
+          userId,
+          resumeData,
+          template = "modern",
+          tone = "professional",
+          modelId = "gemini-1.5-flash",
+        } = req.body as GenerateResumeRequest;
+
+        const normalizedModelId = modelId || "gemini-1.5-flash";
+
+        if (!userId || !resumeData) {
+          res.status(400).json({
+            error: "Missing required fields: userId and resumeData",
+          });
+          return;
+        }
+
+        // Validate model selection
+        if (
+          normalizedModelId &&
+          !ALLOWED_MODELS.includes(normalizedModelId)
+        ) {
+          res.status(400).json({
+            error: `Invalid model: ${normalizedModelId}. Allowed models: ${ALLOWED_MODELS.join(
+              ", "
+            )}`,
+          });
+          return;
+        }
+
+        // Verify user authentication
+        const authHeader = req.headers.authorization;
+        if (!authHeader?.startsWith("Bearer ")) {
+          res.status(401).json({ error: "Unauthorized" });
+          return;
+        }
+
+        const idToken = authHeader.split("Bearer ")[1];
+        let decodedToken;
+        try {
+          decodedToken = await admin.auth().verifyIdToken(idToken);
+        } catch {
+          res.status(401).json({ error: "Invalid token" });
+          return;
+        }
+
+        if (decodedToken.uid !== userId) {
+          res.status(403).json({ error: "Forbidden" });
+          return;
+        }
+
+        const subscriptionTier = await resolveSubscriptionTier(userId);
+
+        if (!isModelAllowedForTier(normalizedModelId, subscriptionTier)) {
+          res.status(403).json({
+            error: `Model ${normalizedModelId} is not available on the ${subscriptionTier} plan. Allowed models: ${describeAllowedModels(
+              subscriptionTier
+            )}`,
+          });
+          return;
+        }
+
+        const usageResult = await enforceTierUsage(userId, subscriptionTier);
+        if (!usageResult.allowed) {
+          res.status(429).json({
+            error:
+              usageResult.window === "hour"
+                ? "Hourly AI generation limit reached. Please wait before trying again."
+                : "Daily AI generation limit reached. Upgrade your plan for higher limits.",
+            retryAfter: usageResult.retryAfter,
+            tier: subscriptionTier,
+          });
+          return;
+        }
+
+        // Generate enhanced resume content using AI
+        const enhancedContent = await enhanceResumeWithAI(
+          resumeData,
+          tone,
+          normalizedModelId
+        );
+
+        // Store the generated content
+        await db.collection("users").doc(userId).collection("resumes").add({
+          originalData: resumeData,
+          enhancedContent,
+          template,
+          tone,
+          generatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          version: "ai-enhanced-v1",
+        });
+
+        res.status(200).json({
+          success: true,
+          data: enhancedContent,
+        });
+      } catch (error) {
+        console.error("Error generating resume content:", error);
+        res.status(500).json({
+          error: "Failed to generate resume content",
+          details: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
+    });
+  });
+};
+
+export { generateResumeContentHandler };
+
 export const generateResumeContent = functions
   .runWith({
     secrets: [
@@ -193,121 +314,7 @@ export const generateResumeContent = functions
       "OPENAI_API_KEY",
     ],
   })
-  .https.onRequest(async (req, res) => {
-    corsHandler(req, res, async () => {
-      helmetHandler(req, res, async () => {
-        if (req.method !== "POST") {
-          res.status(405).json({ error: "Method not allowed" });
-          return;
-        }
-
-        try {
-          const {
-            userId,
-            resumeData,
-            template = "modern",
-            tone = "professional",
-            modelId = "gemini-1.5-flash",
-          } = req.body as GenerateResumeRequest;
-
-          const normalizedModelId = modelId || "gemini-1.5-flash";
-
-          if (!userId || !resumeData) {
-            res.status(400).json({
-              error: "Missing required fields: userId and resumeData",
-            });
-            return;
-          }
-
-          // Validate model selection
-          if (
-            normalizedModelId &&
-            !ALLOWED_MODELS.includes(normalizedModelId)
-          ) {
-            res.status(400).json({
-              error: `Invalid model: ${normalizedModelId}. Allowed models: ${ALLOWED_MODELS.join(
-                ", "
-              )}`,
-            });
-            return;
-          }
-
-          // Verify user authentication
-          const authHeader = req.headers.authorization;
-          if (!authHeader?.startsWith("Bearer ")) {
-            res.status(401).json({ error: "Unauthorized" });
-            return;
-          }
-
-          const idToken = authHeader.split("Bearer ")[1];
-          let decodedToken;
-          try {
-            decodedToken = await admin.auth().verifyIdToken(idToken);
-          } catch {
-            res.status(401).json({ error: "Invalid token" });
-            return;
-          }
-
-          if (decodedToken.uid !== userId) {
-            res.status(403).json({ error: "Forbidden" });
-            return;
-          }
-
-          const subscriptionTier = await resolveSubscriptionTier(userId);
-
-          if (!isModelAllowedForTier(normalizedModelId, subscriptionTier)) {
-            res.status(403).json({
-              error: `Model ${normalizedModelId} is not available on the ${subscriptionTier} plan. Allowed models: ${describeAllowedModels(
-                subscriptionTier
-              )}`,
-            });
-            return;
-          }
-
-          const usageResult = await enforceTierUsage(userId, subscriptionTier);
-          if (!usageResult.allowed) {
-            res.status(429).json({
-              error:
-                usageResult.window === "hour"
-                  ? "Hourly AI generation limit reached. Please wait before trying again."
-                  : "Daily AI generation limit reached. Upgrade your plan for higher limits.",
-              retryAfter: usageResult.retryAfter,
-              tier: subscriptionTier,
-            });
-            return;
-          }
-
-          // Generate enhanced resume content using AI
-          const enhancedContent = await enhanceResumeWithAI(
-            resumeData,
-            tone,
-            normalizedModelId
-          );
-
-          // Store the generated content
-          await db.collection("users").doc(userId).collection("resumes").add({
-            originalData: resumeData,
-            enhancedContent,
-            template,
-            tone,
-            generatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            version: "ai-enhanced-v1",
-          });
-
-          res.status(200).json({
-            success: true,
-            data: enhancedContent,
-          });
-        } catch (error) {
-          console.error("Error generating resume content:", error);
-          res.status(500).json({
-            error: "Failed to generate resume content",
-            details: error instanceof Error ? error.message : "Unknown error",
-          });
-        }
-      });
-    });
-  });
+  .https.onRequest(generateResumeContentHandler);
 
 /**
  * Enhance resume with AI suggestions

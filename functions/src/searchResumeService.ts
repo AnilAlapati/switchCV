@@ -163,167 +163,171 @@ async function checkAndDecrementQuota(
 /**
  * Main search function - callable by authenticated recruiters
  */
+const searchResumesAIHandler = async (
+  data: {
+    query: string;
+    filters?: SearchFilters;
+    limit?: number;
+  },
+  context: functions.https.CallableContext
+) => {
+  // Verify authentication
+  if (!context.auth) {
+    throw new functions.https.HttpsError(
+      "unauthenticated",
+      "Must be authenticated to search"
+    );
+  }
+
+  const { query, filters, limit = AI_SEARCH.MAX_RESULTS } = data;
+
+  if (!query || query.trim().length < 3) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "Query must be at least 3 characters"
+    );
+  }
+
+  const userId = context.auth.uid;
+  const devBypass = isDevBypassEnabled();
+
+  // Log dev bypass status
+  if (devBypass) {
+    functions.logger.info(
+      `[DEV BYPASS] Skipping role/tier/quota checks for user ${userId}`
+    );
+  }
+
+  // Check user role (must be recruiter) - skip in dev bypass mode
+  if (!devBypass) {
+    const userDoc = await db.collection("users").doc(userId).get();
+    const userRole = userDoc.data()?.role;
+
+    if (userRole !== "recruiter" && userRole !== "admin") {
+      throw new functions.https.HttpsError(
+        "permission-denied",
+        "Only recruiters can use AI search"
+      );
+    }
+  }
+
+  // Check subscription tier and quota - skip in dev bypass mode
+  let tier: "basic" | "premium" | "enterprise" = "enterprise";
+  let quotaRemaining = 999999;
+
+  if (!devBypass) {
+    tier = await getUserTier(userId);
+    const quotaCheck = await checkAndDecrementQuota(userId, tier);
+
+    if (!quotaCheck.allowed) {
+      throw new functions.https.HttpsError(
+        "resource-exhausted",
+        tier === "basic"
+          ? "AI Search requires Premium or Enterprise subscription"
+          : "Monthly search quota exceeded. Upgrade to Enterprise for unlimited searches."
+      );
+    }
+    quotaRemaining = quotaCheck.remaining;
+  }
+
+  functions.logger.info(`AI search by ${userId}: "${query}"`, {
+    tier,
+    remaining: quotaRemaining,
+    devBypass,
+  });
+
+  try {
+    const queryEmbedding = await generateQueryEmbedding(query);
+
+    let providerResult;
+    try {
+      providerResult = await primarySearchProvider.search(queryEmbedding, {
+        limit,
+        filters,
+      });
+    } catch (providerError) {
+      if (fallbackSearchProvider) {
+        functions.logger.error(
+          "Primary AI search provider failed. Falling back to legacy provider.",
+          providerError
+        );
+        providerResult = await fallbackSearchProvider.search(queryEmbedding, {
+          limit,
+          filters,
+        });
+      } else {
+        throw providerError;
+      }
+    }
+
+    console.log(
+      "[AI_SEARCH] Provider=",
+      providerResult.metadata.provider,
+      "scanned=",
+      providerResult.metadata.scannedCount,
+      "limit=",
+      limit
+    );
+
+    const results: FormattedSearchResult[] = providerResult.matches.map(
+      ({ doc, score }) => {
+        const data = doc.data()!;
+        const profile = data.profile || {};
+
+        return {
+          resumeId: data.resumeId,
+          title: profile.title || "Untitled",
+          summary: profile.summary?.substring(0, 200) || "",
+          skills:
+            profile.skills?.slice(0, 5).map((s: { name: string }) => s.name) ||
+            [],
+          similarityScore: Math.round(score * 100) / 100,
+        };
+      }
+    );
+
+    // Log search for analytics
+    await db.collection("recruiterSearchHistory").add({
+      recruiterId: userId,
+      query,
+      filters: filters || {},
+      resultCount: results.length,
+      tier,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return {
+      results,
+      quotaRemaining,
+      totalIndexedResumes: providerResult.metadata.scannedCount,
+    };
+  } catch (error) {
+    functions.logger.error("AI search failed:", error);
+    throw new functions.https.HttpsError(
+      "internal",
+      "Search failed. Please try again."
+    );
+  }
+};
+
+export { searchResumesAIHandler };
+
+/**
+ * Main search function - callable by authenticated recruiters
+ */
 export const searchResumesAI = functions
   .runWith({
     secrets: ["GEMINI_API_KEY"],
   })
-  .https.onCall(
-    async (
-      data: {
-        query: string;
-        filters?: SearchFilters;
-        limit?: number;
-      },
-      context
-    ) => {
-      // Verify authentication
-      if (!context.auth) {
-        throw new functions.https.HttpsError(
-          "unauthenticated",
-          "Must be authenticated to search"
-        );
-      }
-
-      const { query, filters, limit = AI_SEARCH.MAX_RESULTS } = data;
-
-      if (!query || query.trim().length < 3) {
-        throw new functions.https.HttpsError(
-          "invalid-argument",
-          "Query must be at least 3 characters"
-        );
-      }
-
-      const userId = context.auth.uid;
-      const devBypass = isDevBypassEnabled();
-
-      // Log dev bypass status
-      if (devBypass) {
-        functions.logger.info(
-          `[DEV BYPASS] Skipping role/tier/quota checks for user ${userId}`
-        );
-      }
-
-      // Check user role (must be recruiter) - skip in dev bypass mode
-      if (!devBypass) {
-        const userDoc = await db.collection("users").doc(userId).get();
-        const userRole = userDoc.data()?.role;
-
-        if (userRole !== "recruiter" && userRole !== "admin") {
-          throw new functions.https.HttpsError(
-            "permission-denied",
-            "Only recruiters can use AI search"
-          );
-        }
-      }
-
-      // Check subscription tier and quota - skip in dev bypass mode
-      let tier: "basic" | "premium" | "enterprise" = "enterprise";
-      let quotaRemaining = 999999;
-
-      if (!devBypass) {
-        tier = await getUserTier(userId);
-        const quotaCheck = await checkAndDecrementQuota(userId, tier);
-
-        if (!quotaCheck.allowed) {
-          throw new functions.https.HttpsError(
-            "resource-exhausted",
-            tier === "basic"
-              ? "AI Search requires Premium or Enterprise subscription"
-              : "Monthly search quota exceeded. Upgrade to Enterprise for unlimited searches."
-          );
-        }
-        quotaRemaining = quotaCheck.remaining;
-      }
-
-      functions.logger.info(`AI search by ${userId}: "${query}"`, {
-        tier,
-        remaining: quotaRemaining,
-        devBypass,
-      });
-
-      try {
-        const queryEmbedding = await generateQueryEmbedding(query);
-
-        let providerResult;
-        try {
-          providerResult = await primarySearchProvider.search(queryEmbedding, {
-            limit,
-            filters,
-          });
-        } catch (providerError) {
-          if (fallbackSearchProvider) {
-            functions.logger.error(
-              "Primary AI search provider failed. Falling back to legacy provider.",
-              providerError
-            );
-            providerResult = await fallbackSearchProvider.search(
-              queryEmbedding,
-              {
-                limit,
-                filters,
-              }
-            );
-          } else {
-            throw providerError;
-          }
-        }
-
-        console.log(
-          "[AI_SEARCH] Provider=",
-          providerResult.metadata.provider,
-          "scanned=",
-          providerResult.metadata.scannedCount,
-          "limit=",
-          limit
-        );
-
-        const results: FormattedSearchResult[] = providerResult.matches.map(
-          ({ doc, score }) => {
-            const data = doc.data()!;
-            const profile = data.profile || {};
-
-            return {
-              resumeId: data.resumeId,
-              title: profile.title || "Untitled",
-              summary: profile.summary?.substring(0, 200) || "",
-              skills:
-                profile.skills
-                  ?.slice(0, 5)
-                  .map((s: { name: string }) => s.name) || [],
-              similarityScore: Math.round(score * 100) / 100,
-            };
-          }
-        );
-
-        // Log search for analytics
-        await db.collection("recruiterSearchHistory").add({
-          recruiterId: userId,
-          query,
-          filters: filters || {},
-          resultCount: results.length,
-          tier,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-
-        return {
-          results,
-          quotaRemaining,
-          totalIndexedResumes: providerResult.metadata.scannedCount,
-        };
-      } catch (error) {
-        functions.logger.error("AI search failed:", error);
-        throw new functions.https.HttpsError(
-          "internal",
-          "Search failed. Please try again."
-        );
-      }
-    }
-  );
+  .https.onCall(searchResumesAIHandler);
 
 /**
  * Get remaining search quota for user
  */
-export const getSearchQuota = functions.https.onCall(async (data, context) => {
+const getSearchQuotaHandler = async (
+  data: any,
+  context: functions.https.CallableContext
+) => {
   if (!context.auth) {
     throw new functions.https.HttpsError(
       "unauthenticated",
@@ -367,4 +371,8 @@ export const getSearchQuota = functions.https.onCall(async (data, context) => {
     remaining: Math.max(0, monthlyLimit - used),
     canUseAISearch: true,
   };
-});
+};
+
+export { getSearchQuotaHandler };
+
+export const getSearchQuota = functions.https.onCall(getSearchQuotaHandler);
