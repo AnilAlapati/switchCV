@@ -172,17 +172,24 @@ const upsertDerivedDocs = async (
   await Promise.allSettled(writes);
 };
 
+const fanOutResumeDocumentsHandler = async (
+  change: functions.Change<functions.firestore.DocumentSnapshot>,
+  context: functions.EventContext
+) => {
+  const resumeId = context.params.resumeId;
+
+  if (!change.after.exists) {
+    await deleteDerivedDocs(resumeId, change.before.data() as ResumeDoc);
+    return null;
+  }
+
+  const resumeData = change.after.data() as ResumeDoc;
+  await upsertDerivedDocs(resumeId, resumeData);
+  return null;
+};
+
+export { fanOutResumeDocumentsHandler };
+
 export const fanOutResumeDocuments = functions.firestore
   .document("resumes/{resumeId}")
-  .onWrite(async (change, context) => {
-    const resumeId = context.params.resumeId;
-
-    if (!change.after.exists) {
-      await deleteDerivedDocs(resumeId, change.before.data() as ResumeDoc);
-      return null;
-    }
-
-    const resumeData = change.after.data() as ResumeDoc;
-    await upsertDerivedDocs(resumeId, resumeData);
-    return null;
-  });
+  .onWrite(fanOutResumeDocumentsHandler);
