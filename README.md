@@ -69,7 +69,7 @@ Client (Next.js) → Firebase Auth → API Routes → Cloud Functions → Firest
 - Structured logging with Pino
 - Zod validation on all inputs
 
-See [docs/ARCHITECTURE_DIAGRAM.md](docs/ARCHITECTURE_DIAGRAM.md) for full diagrams.
+See [docs/SYSTEM.md](docs/SYSTEM.md) for full diagrams and architecture deep-dive.
 
 ## 💳 Subscription Tiers
 
@@ -91,20 +91,11 @@ See [docs/ARCHITECTURE_DIAGRAM.md](docs/ARCHITECTURE_DIAGRAM.md) for full diagra
 
 ## 🚢 Deployment
 
+Run the production deployment script for a safe release:
 ```bash
-# 1. Deploy Firestore indexes (required first)
-firebase deploy --only firestore:indexes
-
-# 2. Build & deploy functions
-cd functions && npm run build
-firebase deploy --only functions
-
-# 3. Deploy frontend
-npm run build
-# Deploy to Vercel/Firebase Hosting
+npm run deploy:prod
 ```
-
-See [docs/DEPLOYMENT_CHECKLIST.md](docs/DEPLOYMENT_CHECKLIST.md) for full guide.
+See [docs/OPERATIONS.md](docs/OPERATIONS.md) for the full guide and checklists.
 
 ## 🔐 Environment Variables
 
@@ -116,12 +107,7 @@ NEXT_PUBLIC_FIREBASE_API_KEY=your-key
 GEMINI_API_KEY=your-gemini-key
 ```
 
-### Cloud Functions (`functions/.env.local`)
-
-```bash
-GEMINI_API_KEY=your-key
-DEV_BYPASS_CHECKS=true  # Emulator only
-```
+See [docs/ENV_VARIABLES.md](docs/ENV_VARIABLES.md) for a full reference of all variables.
 
 ## 🧪 Testing
 
@@ -133,14 +119,17 @@ npm run test:coverage # With coverage report
 
 **Coverage:** 2,489 tests, ~90% coverage
 
-## 📖 Documentation
+## 📖 Documentation Index
 
-| File                                                           | Description                  |
-| -------------------------------------------------------------- | ---------------------------- |
-| [docs/DEV_MODE_GUIDE.md](docs/DEV_MODE_GUIDE.md)               | Development mode & overrides |
-| [docs/ARCHITECTURE_DIAGRAM.md](docs/ARCHITECTURE_DIAGRAM.md)   | System architecture          |
-| [docs/DEPLOYMENT_CHECKLIST.md](docs/DEPLOYMENT_CHECKLIST.md)   | Production deployment        |
-| [docs/DEPLOYMENT_AUTOMATION.md](docs/DEPLOYMENT_AUTOMATION.md) | CI/CD with GitHub Actions    |
+| Feature | Description |
+| :--- | :--- |
+| **[System Architecture](docs/SYSTEM.md)** | Tech stack, high-level diagrams, and schema. |
+| **[Security & Compliance](docs/SECURITY.md)** | Auth, PII protection, and vulnerability reports. |
+| **[Platform Features](docs/FEATURES.md)** | AI search, Tier logic, and Feature Locks. |
+| **[Operations & Deploy](docs/OPERATIONS.md)** | Production release guide and runbook. |
+| **[Troubleshooting](docs/TROUBLESHOOTING.md)** | Google Sign-in fixes and common errors. |
+| **[Development Guide](docs/DEVELOPMENT.md)** | Local setup and dev-mode overrides. |
+
 
 ## 🛠️ Key Technologies
 

@@ -24,7 +24,7 @@ export class TTLCache<T> {
     // Simple eviction if full
     if (this.cache.size >= this.maxEntries) {
       const firstKey = this.cache.keys().next().value;
-      if (firstKey) this.cache.delete(firstKey);
+      if (firstKey !== undefined) this.cache.delete(firstKey);
     }
 
     this.cache.set(key, {

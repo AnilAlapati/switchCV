@@ -369,3 +369,39 @@ export async function PUT(
     return handleApiError(error, "Error updating resume");
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    if (!id) {
+      return handleApiError(
+        new Error("Resume ID is required"),
+        "Resume ID is required",
+        400
+      );
+    }
+
+    // Verify ownership
+    const verification = await verifyResumeOwnership(request, id);
+    if (!verification.success) {
+      return verification.error;
+    }
+
+    const { docRef } = verification;
+
+    // Delete the document
+    await docRef.delete();
+
+    logger.info(`[ResumeAPI] Deleted resume ${id}.`);
+
+    return NextResponse.json({
+      success: true,
+      message: "Resume deleted successfully",
+    });
+  } catch (error) {
+    return handleApiError(error, "Error deleting resume");
+  }
+}

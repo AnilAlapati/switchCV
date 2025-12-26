@@ -257,6 +257,114 @@ describe("Profiles Search API", () => {
     expect(data.results).toHaveLength(0);
   });
 
+  it("should search by direct ID successfully", async () => {
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "user-1",
+      error: null,
+    });
+    const mockId = "a".repeat(20);
+    (adminDb.get as jest.Mock).mockResolvedValue({
+      exists: true,
+      id: mockId,
+      data: () => ({
+        publicProfile: { visible: true },
+        displayName: "Direct User",
+      }),
+    });
+
+    const req = new NextRequest(
+      new URL("http://localhost:3000/api/profiles/search"),
+      {
+        method: "POST",
+        body: JSON.stringify({ query: mockId }),
+      }
+    );
+    const response = await POST(req);
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.results).toHaveLength(1);
+    expect(data.results[0].displayName).toBe("Direct User");
+  });
+
+  it("should break loop when desiredResultCount is reached", async () => {
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "user-1",
+      error: null,
+    });
+    (searchQuery.buildNormalizedFilters as jest.Mock).mockReturnValue({
+      skills: [],
+    });
+
+    (adminDb.get as jest.Mock).mockResolvedValue({
+      empty: false,
+      size: 5,
+      docs: Array(5)
+        .fill(0)
+        .map((_, i) => ({
+          id: `u${i}`,
+          data: () => ({ displayName: `User ${i}` }),
+        })),
+    });
+
+    const req = new NextRequest(
+      new URL("http://localhost:3000/api/profiles/search"),
+      {
+        method: "POST",
+        body: JSON.stringify({
+          query: "test",
+          limit: 2,
+        }),
+      }
+    );
+    const response = await POST(req);
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.results).toHaveLength(2);
+  });
+
+  it("should skip documents that do not match all filters", async () => {
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "user-1",
+      error: null,
+    });
+    (searchQuery.buildNormalizedFilters as jest.Mock).mockReturnValue({
+      skills: [],
+    });
+
+    // Mock matchesAllFilters to return false for the first doc, true for the second
+    (searchQuery.matchesAllFilters as jest.Mock)
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(true);
+
+    (adminDb.get as jest.Mock).mockResolvedValue({
+      empty: false,
+      size: 2,
+      docs: [
+        { id: "u1", data: () => ({ displayName: "User 1" }) },
+        { id: "u2", data: () => ({ displayName: "User 2" }) },
+      ],
+    });
+
+    const req = new NextRequest(
+      new URL("http://localhost:3000/api/profiles/search"),
+      {
+        method: "POST",
+        body: JSON.stringify({
+          query: "test",
+          limit: 1,
+        }),
+      }
+    );
+    const response = await POST(req);
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.results).toHaveLength(1);
+    expect(data.results[0].id).toBe("u2");
+  });
+
   it("should handle errors in POST", async () => {
     (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
       userId: "user-1",

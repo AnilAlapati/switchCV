@@ -4,9 +4,12 @@ import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { RestrictedFeature } from "@/components/ui/RestrictedFeature";
 import { useUserProfile } from "@/hooks/useUserProfile";
-import { Edit3, Eye, Share2 } from "lucide-react";
+import { Edit3, Eye, Share2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { JobSeekerMetrics } from "@/types/dashboard";
+import { DeleteResumeDialog } from "./DeleteResumeDialog";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 interface ResumeSnapshotCardProps {
   hasResume: boolean;
@@ -33,6 +36,33 @@ export function ResumeSnapshotCard({
   const isBasicUser = tier === "basic";
   const resumeIdString = resumeId ? String(resumeId) : null;
   const lastUpdated = resumeData?.updatedAt || resumeData?.lastUpdatedAt;
+  const router = useRouter();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!resumeIdString) return;
+
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/resumes/${resumeIdString}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete resume");
+      }
+
+      toast.success("Resume deleted successfully");
+      setShowDeleteDialog(false);
+      router.refresh();
+    } catch (error) {
+      console.error("Error deleting resume:", error);
+      toast.error("Failed to delete resume");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   if (resumeLoading) {
     return (
@@ -87,16 +117,14 @@ export function ResumeSnapshotCard({
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-4">
               <span
-                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                  isPublished
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${isPublished
                     ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
                     : "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                }`}
+                  }`}
               >
                 <span
-                  className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
-                    isPublished ? "bg-emerald-500" : "bg-amber-500"
-                  }`}
+                  className={`mr-1.5 h-1.5 w-1.5 rounded-full ${isPublished ? "bg-emerald-500" : "bg-amber-500"
+                    }`}
                 ></span>
                 {isPublished ? "Public" : "Private"}
               </span>
@@ -201,12 +229,26 @@ export function ResumeSnapshotCard({
                 }}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-[#1A2F25] text-sm font-bold border border-slate-200 shadow-sm transition-all hover:bg-slate-50 hover:shadow-md active:scale-95"
               >
-                <Share2 className="h-4 w-4 text-cyan-600" />
                 Share
+              </button>
+              <button
+                onClick={() => setShowDeleteDialog(true)}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-red-600 text-sm font-bold border border-slate-200 shadow-sm transition-all hover:bg-red-50 hover:border-red-200 hover:shadow-md active:scale-95"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete
               </button>
             </div>
           </div>
         </div>
+
+        <DeleteResumeDialog
+          isOpen={showDeleteDialog}
+          onClose={() => setShowDeleteDialog(false)}
+          onConfirm={handleDelete}
+          isDeleting={isDeleting}
+          isBasicUser={isBasicUser}
+        />
 
         <div className="mt-8 pt-6 border-t border-[#1A2F25]/5 flex flex-wrap gap-8">
           <div className="flex flex-col">
@@ -225,8 +267,8 @@ export function ResumeSnapshotCard({
                   ? metrics.quality > 75
                     ? "High"
                     : metrics.quality > 40
-                    ? "Medium"
-                    : "Developing"
+                      ? "Medium"
+                      : "Developing"
                   : "Not analyzed"}
               </span>
             </div>
