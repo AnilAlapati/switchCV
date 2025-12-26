@@ -9,6 +9,11 @@ interface ReviewStepProps {
  * Displays a summary of all information before submission
  */
 export function ReviewStep({ profile }: ReviewStepProps) {
+  const experience = profile.experience || [];
+  const education = profile.education || [];
+  const skills = profile.skills || [];
+  const projects = profile.projects || [];
+
   return (
     <div className="space-y-6">
       <h3 className="text-lg font-medium">Review Your Information</h3>
@@ -29,10 +34,10 @@ export function ReviewStep({ profile }: ReviewStepProps) {
           />
 
           <ReviewSection
-            title={`Experience (${(profile.experience || []).length})`}
+            title={`Experience (${experience.length})`}
             content={
-              (profile.experience || []).length > 0 ? (
-                (profile.experience || []).map((exp, i) => (
+              experience.length > 0 ? (
+                experience.map((exp, i) => (
                   <div key={i} className="ml-4 mb-2 text-sm text-gray-700">
                     <p>
                       <strong>{exp.role}</strong> at {exp.company} (
@@ -47,10 +52,10 @@ export function ReviewStep({ profile }: ReviewStepProps) {
           />
 
           <ReviewSection
-            title={`Education (${(profile.education || []).length})`}
+            title={`Education (${education.length})`}
             content={
-              (profile.education || []).length > 0 ? (
-                (profile.education || []).map((edu, i) => (
+              education.length > 0 ? (
+                education.map((edu, i) => (
                   <div key={i} className="ml-4 mb-2 text-sm text-gray-700">
                     <p>
                       <strong>{edu.degree}</strong> from {edu.institution} (
@@ -65,11 +70,11 @@ export function ReviewStep({ profile }: ReviewStepProps) {
           />
 
           <ReviewSection
-            title={`Skills (${(profile.skills || []).length})`}
+            title={`Skills (${skills.length})`}
             content={
-              (profile.skills || []).length > 0 ? (
+              skills.length > 0 ? (
                 <p className="text-gray-700 text-sm">
-                  {(profile.skills || []).map((s) => s.name).join(", ")}
+                  {skills.map((s) => s.name).join(", ")}
                 </p>
               ) : (
                 <p className="text-gray-500 text-sm">No skills added</p>
@@ -78,10 +83,10 @@ export function ReviewStep({ profile }: ReviewStepProps) {
           />
 
           <ReviewSection
-            title={`Projects (${(profile.projects || []).length})`}
+            title={`Projects (${projects.length})`}
             content={
-              (profile.projects || []).length > 0 ? (
-                (profile.projects || []).map((proj, i) => (
+              projects.length > 0 ? (
+                projects.map((proj, i) => (
                   <div key={i} className="ml-4 mb-2 text-sm text-gray-700">
                     <p>
                       <strong>{proj.name}</strong>

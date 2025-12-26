@@ -6,7 +6,8 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import Link from "next/link";
 import { reloadPage } from "@/lib/utils/navigation";
-import { DeleteConfirmationDialog } from "./DeleteConfirmationDialog";
+import { DeleteResumeDialog } from "./DeleteResumeDialog";
+import { useTier } from "@/hooks/useTier";
 import { getStatusDetails } from "./useResumeStatus";
 import { ResumeActionButtons } from "./ResumeActionButtons";
 
@@ -26,6 +27,7 @@ export function ResumeStatusCard({
   onRefresh,
 }: ResumeStatusCardProps) {
   const { user } = useAuth();
+  const { isBasic } = useTier();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
@@ -196,12 +198,13 @@ export function ResumeStatusCard({
         </div>
       </div>
 
-      {/* Delete Confirmation Dialog - Positioned in Middle of Page */}
-      <DeleteConfirmationDialog
+      {/* Delete Confirmation Dialog - Standardized across dashboard */}
+      <DeleteResumeDialog
         isOpen={showDeleteConfirm}
-        isDeleting={isDeleting}
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={handleDeleteResume}
+        isDeleting={isDeleting}
+        isBasicUser={isBasic}
       />
     </>
   );

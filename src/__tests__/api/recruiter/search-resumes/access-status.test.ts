@@ -31,7 +31,19 @@ describe("access-status", () => {
   });
 
   describe("getAccessStatus", () => {
-    it("should return 'approved' if there is a valid access grant", async () => {
+    it("should return status from map if provided", async () => {
+      const map = new Map([["res1", "approved"] as [string, any]]);
+      const status = await getAccessStatus("res1", mockRecruiterId, map);
+      expect(status).toBe("approved");
+    });
+
+    it("should return 'none' if map provided but resumeId missing", async () => {
+      const map = new Map();
+      const status = await getAccessStatus("res1", mockRecruiterId, map);
+      expect(status).toBe("none");
+    });
+
+    it("should return 'approved' if there is a valid access grant (toDate)", async () => {
       const mockGrantsSnapshot = {
         docs: [
           {
@@ -42,131 +54,265 @@ describe("access-status", () => {
         ],
       };
 
-      const mockCollection = jest.fn().mockReturnValue({
-        doc: jest.fn().mockReturnValue({
-          collection: jest.fn().mockImplementation((name) => {
-            if (name === "accessGrants") {
-              return {
-                where: jest.fn().mockReturnValue({
-                  get: jest.fn().mockResolvedValue(mockGrantsSnapshot),
-                }),
-              };
-            }
+      const mockDoc = {
+        collection: jest.fn().mockImplementation((name) => {
+          if (name === "accessGrants") {
             return {
-              where: jest
-                .fn()
-                .mockReturnValue({
-                  get: jest.fn().mockResolvedValue({ empty: true }),
-                }),
+              where: jest.fn().mockReturnThis(),
+              get: jest.fn().mockResolvedValue(mockGrantsSnapshot),
             };
-          }),
+          }
+          return {
+            where: jest.fn().mockReturnThis(),
+            get: jest.fn().mockResolvedValue({ empty: true, docs: [] }),
+          };
         }),
-      });
+      };
 
-      (adminDb.collection as jest.Mock).mockImplementation(() =>
-        mockCollection()
-      );
+      (adminDb.collection as jest.Mock).mockReturnValue({
+        doc: jest.fn().mockReturnValue(mockDoc),
+      });
 
       const status = await getAccessStatus(mockResumeId, mockRecruiterId);
       expect(status).toBe("approved");
     });
 
-    it("should return 'approved' if there is a valid approved request (even without grant)", async () => {
-      const mockRequestsSnapshot = {
-        empty: false,
-        docs: [
-          {
-            data: () => ({
-              status: "approved",
-              expiresAt: { toDate: () => new Date("2025-01-02T12:00:00Z") },
-            }),
-          },
-        ],
+    it("should return 'approved' if expiresAt is null (forever)", async () => {
+      const mockGrantsSnapshot = {
+        docs: [{ data: () => ({ expiresAt: null }) }],
       };
-
-      const mockCollection = jest.fn().mockReturnValue({
-        doc: jest.fn().mockReturnValue({
-          collection: jest.fn().mockImplementation((name) => {
-            if (name === "accessGrants") {
-              return {
-                where: jest.fn().mockReturnValue({
-                  get: jest.fn().mockResolvedValue({ docs: [] }),
-                }),
-              };
-            }
-            if (name === "accessRequests") {
-              return {
-                where: jest.fn().mockReturnValue({
-                  get: jest.fn().mockResolvedValue(mockRequestsSnapshot),
-                }),
-              };
-            }
-            return {
-              where: jest
-                .fn()
-                .mockReturnValue({
-                  get: jest.fn().mockResolvedValue({ empty: true }),
-                }),
-            };
-          }),
-        }),
-      });
-
-      (adminDb.collection as jest.Mock).mockImplementation(() =>
-        mockCollection()
-      );
+      const mockDoc = {
+        collection: jest.fn().mockImplementation((name) => ({
+          where: jest.fn().mockReturnThis(),
+          get: jest.fn().mockResolvedValue(name === "accessGrants" ? mockGrantsSnapshot : { empty: true, docs: [] }),
+        })),
+      };
+      (adminDb.collection as jest.Mock).mockReturnValue({ doc: jest.fn().mockReturnValue(mockDoc) });
 
       const status = await getAccessStatus(mockResumeId, mockRecruiterId);
       expect(status).toBe("approved");
     });
 
-    it("should return 'none' if approved request is expired", async () => {
+    it("should return 'approved' if expiresAt is a Date object", async () => {
+      const mockGrantsSnapshot = {
+        docs: [{ data: () => ({ expiresAt: new Date("2025-01-02T12:00:00Z") }) }],
+      };
+      const mockDoc = {
+        collection: jest.fn().mockImplementation((name) => ({
+          where: jest.fn().mockReturnThis(),
+          get: jest.fn().mockResolvedValue(name === "accessGrants" ? mockGrantsSnapshot : { empty: true, docs: [] }),
+        })),
+      };
+      (adminDb.collection as jest.Mock).mockReturnValue({ doc: jest.fn().mockReturnValue(mockDoc) });
+
+      const status = await getAccessStatus(mockResumeId, mockRecruiterId);
+      expect(status).toBe("approved");
+    });
+
+    it("should check requests if no valid grant", async () => {
       const mockRequestsSnapshot = {
         empty: false,
         docs: [
-          {
-            data: () => ({
-              status: "approved",
-              expiresAt: { toDate: () => new Date("2024-12-31T12:00:00Z") },
-            }),
-          },
+          { data: () => ({ status: "pending" }) }
         ],
       };
+      const mockDoc = {
+        collection: jest.fn().mockImplementation((name) => ({
+          where: jest.fn().mockReturnThis(),
+          get: jest.fn().mockResolvedValue(name === "accessRequests" ? mockRequestsSnapshot : { empty: true, docs: [] }),
+        })),
+      };
+      (adminDb.collection as jest.Mock).mockReturnValue({ doc: jest.fn().mockReturnValue(mockDoc) });
 
-      const mockCollection = jest.fn().mockReturnValue({
-        doc: jest.fn().mockReturnValue({
-          collection: jest.fn().mockImplementation((name) => {
-            if (name === "accessGrants") {
-              return {
-                where: jest.fn().mockReturnValue({
-                  get: jest.fn().mockResolvedValue({ docs: [] }),
-                }),
-              };
-            }
-            if (name === "accessRequests") {
-              return {
-                where: jest.fn().mockReturnValue({
-                  get: jest.fn().mockResolvedValue(mockRequestsSnapshot),
-                }),
-              };
-            }
-            return {
-              where: jest
-                .fn()
-                .mockReturnValue({
-                  get: jest.fn().mockResolvedValue({ empty: true }),
-                }),
-            };
-          }),
-        }),
-      });
+      const status = await getAccessStatus(mockResumeId, mockRecruiterId);
+      expect(status).toBe("pending");
+    });
 
-      (adminDb.collection as jest.Mock).mockImplementation(() =>
-        mockCollection()
-      );
+    it("should return 'approved' if request is approved and valid", async () => {
+      const mockRequestsSnapshot = {
+        empty: false,
+        docs: [
+          { data: () => ({ status: "approved", expiresAt: new Date("2025-01-02T12:00:00Z") }) }
+        ],
+      };
+      const mockDoc = {
+        collection: jest.fn().mockImplementation((name) => ({
+          where: jest.fn().mockReturnThis(),
+          get: jest.fn().mockResolvedValue(name === "accessRequests" ? mockRequestsSnapshot : { empty: true, docs: [] }),
+        })),
+      };
+      (adminDb.collection as jest.Mock).mockReturnValue({ doc: jest.fn().mockReturnValue(mockDoc) });
+
+      const status = await getAccessStatus(mockResumeId, mockRecruiterId);
+      expect(status).toBe("approved");
+    });
+
+    it("should return 'denied' if request is denied", async () => {
+      const mockRequestsSnapshot = {
+        empty: false,
+        docs: [
+          { data: () => ({ status: "denied" }) }
+        ],
+      };
+      const mockDoc = {
+        collection: jest.fn().mockImplementation((name) => ({
+          where: jest.fn().mockReturnThis(),
+          get: jest.fn().mockResolvedValue(name === "accessRequests" ? mockRequestsSnapshot : { empty: true, docs: [] }),
+        })),
+      };
+      (adminDb.collection as jest.Mock).mockReturnValue({ doc: jest.fn().mockReturnValue(mockDoc) });
+
+      const status = await getAccessStatus(mockResumeId, mockRecruiterId);
+      expect(status).toBe("denied");
+    });
+
+    it("should return 'none' if request status is unknown", async () => {
+      const mockRequestsSnapshot = {
+        empty: false,
+        docs: [
+          { data: () => ({ status: "unknown" }) }
+        ],
+      };
+      const mockDoc = {
+        collection: jest.fn().mockImplementation((name) => ({
+          where: jest.fn().mockReturnThis(),
+          get: jest.fn().mockResolvedValue(name === "accessRequests" ? mockRequestsSnapshot : { empty: true, docs: [] }),
+        })),
+      };
+      (adminDb.collection as jest.Mock).mockReturnValue({ doc: jest.fn().mockReturnValue(mockDoc) });
 
       const status = await getAccessStatus(mockResumeId, mockRecruiterId);
       expect(status).toBe("none");
+    });
+
+    it("should return 'none' if no requests found", async () => {
+      const mockDoc = {
+        collection: jest.fn().mockImplementation(() => ({
+          where: jest.fn().mockReturnThis(),
+          get: jest.fn().mockResolvedValue({ empty: true, docs: [] }),
+        })),
+      };
+      (adminDb.collection as jest.Mock).mockReturnValue({ doc: jest.fn().mockReturnValue(mockDoc) });
+
+      const status = await getAccessStatus(mockResumeId, mockRecruiterId);
+      expect(status).toBe("none");
+    });
+
+    it("should return 'none' if resumeDocRef is null", async () => {
+      (adminDb.collection as jest.Mock).mockReturnValue({
+        doc: null
+      });
+      const status = await getAccessStatus(mockResumeId, mockRecruiterId);
+      expect(status).toBe("none");
+    });
+
+    it("should return 'none' if error occurs", async () => {
+      (adminDb.collection as jest.Mock).mockImplementation(() => {
+        throw new Error("DB Error");
+      });
+      const status = await getAccessStatus(mockResumeId, mockRecruiterId);
+      expect(status).toBe("none");
+    });
+  });
+
+  describe("buildAccessStatusMap", () => {
+    it("should return empty map if no recruiterId", async () => {
+      const map = await buildAccessStatusMap("");
+      expect(map.size).toBe(0);
+    });
+
+    it("should return empty map if collectionGroup is not a function", async () => {
+      const originalCollectionGroup = adminDb.collectionGroup;
+      (adminDb as any).collectionGroup = undefined;
+      const map = await buildAccessStatusMap(mockRecruiterId);
+      expect(map.size).toBe(0);
+      (adminDb as any).collectionGroup = originalCollectionGroup;
+    });
+
+    it("should build map from requests and grants with various scenarios", async () => {
+      const mockRequestsSnapshot = [
+        {
+          id: "req1",
+          data: () => ({ status: "pending" }),
+          ref: { parent: { parent: { id: "resume1" } } }
+        },
+        {
+          id: "req2",
+          data: () => ({ status: "denied" }),
+          ref: { parent: { parent: { id: "resume2" } } }
+        },
+        {
+          id: "req3",
+          data: () => ({ status: "approved", expiresAt: null }),
+          ref: { parent: { parent: { id: "resume3" } } }
+        },
+        {
+          id: "req4",
+          data: () => ({ status: "approved", expiresAt: { toDate: () => new Date("2024-01-01") } }), // Expired toDate
+          ref: { parent: { parent: { id: "resume4" } } }
+        },
+        {
+          id: "req5",
+          data: () => ({ status: "pending" }),
+          ref: { parent: { parent: null } } // No resumeId
+        },
+        {
+          id: "req6",
+          data: () => ({ status: "approved", expiresAt: new Date("2025-01-02") }), // Valid Date object
+          ref: { parent: { parent: { id: "resume6" } } }
+        }
+      ];
+
+      const mockGrantsSnapshot = [
+        {
+          id: "grant1",
+          data: () => ({ expiresAt: { toDate: () => new Date("2025-01-02T12:00:00Z") } }),
+          ref: { parent: { parent: { id: "resume10" } } }
+        },
+        {
+          id: "grant2",
+          data: () => ({ expiresAt: new Date("2024-01-01") }), // Expired
+          ref: { parent: { parent: { id: "resume11" } } }
+        },
+        {
+          id: "grant3",
+          data: () => ({ expiresAt: null }), // Forever
+          ref: { parent: { parent: { id: "resume12" } } }
+        }
+      ];
+
+      (adminDb.collectionGroup as jest.Mock).mockImplementation((name) => {
+        if (name === "accessRequests") {
+          return {
+            where: jest.fn().mockReturnThis(),
+            get: jest.fn().mockResolvedValue({ forEach: (cb: any) => mockRequestsSnapshot.forEach(cb) }),
+          };
+        }
+        if (name === "accessGrants") {
+          return {
+            where: jest.fn().mockReturnThis(),
+            get: jest.fn().mockResolvedValue({ forEach: (cb: any) => mockGrantsSnapshot.forEach(cb) }),
+          };
+        }
+      });
+
+      const map = await buildAccessStatusMap(mockRecruiterId);
+      expect(map.get("resume1")).toBe("pending");
+      expect(map.get("resume2")).toBe("denied");
+      expect(map.get("resume3")).toBe("approved");
+      expect(map.get("resume4")).toBeUndefined();
+      expect(map.get("resume6")).toBe("approved");
+      expect(map.get("resume10")).toBe("approved");
+      expect(map.get("resume11")).toBeUndefined();
+      expect(map.get("resume12")).toBe("approved");
+    });
+
+    it("should handle errors gracefully", async () => {
+      (adminDb.collectionGroup as jest.Mock).mockImplementation(() => {
+        throw new Error("DB Error");
+      });
+      const map = await buildAccessStatusMap(mockRecruiterId);
+      expect(map.size).toBe(0);
     });
   });
 });
