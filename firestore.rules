@@ -408,6 +408,7 @@ service cloud.firestore {
       // Optimized: uses Custom Claims
       allow read: if request.auth != null 
         && request.auth.token.role == 'recruiter'
+        && resource.data.isPublic == true
         && resource.data.isBeingEdited == false;
       
       // Allow admins to read all resumes (Optimized: uses Custom Claims)
@@ -420,9 +421,10 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Global Resumes Collection (for search/listing)
+    // Global Resumes Collection (for recruiter search/listing)
     match /allResumes/{resumeId} {
-      allow read: if request.auth != null; // Authenticated users only
+      // SECURITY FIX: Restrict to recruiters and admins only
+      allow read: if request.auth != null && request.auth.token.role in ['recruiter', 'admin'];
       allow write: if false; // Only backend can write
     }
   }
