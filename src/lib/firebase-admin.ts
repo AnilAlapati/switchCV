@@ -70,10 +70,10 @@ export function initializeFirebaseAdmin(): void {
         projectId,
       });
     }
-    console.log(
-      "Firebase Admin Initialized successfully with Project ID:",
-      projectId
-    );
+    // console.log(
+    //   "Firebase Admin Initialized successfully with Project ID:",
+    //   projectId
+    // );
   } catch (error) {
     console.error("Failed to initialize Firebase Admin SDK:", error);
     // We must throw here because the app cannot function without admin

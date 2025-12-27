@@ -1,5 +1,7 @@
-/* eslint-disable max-lines */
 import { Dispatch, SetStateAction, useRef } from "react";
+import Link from "next/link";
+import { Lock } from "lucide-react";
+import { TIER_RESTRICTION_MESSAGES } from "@/lib/utils/tier-restrictions";
 
 export interface SearchResult {
   resumeId: string;
@@ -93,172 +95,243 @@ export function RecruiterSearchForm({
     searchMode === "basic"
       ? "Use Basic mode when you already have a unique candidate ID from your pipeline."
       : searchMode === "ai"
-      ? "Describe your ideal candidate in natural language. Our AI will find the best matches."
-      : "Combine skills and location to surface up to 50 curated resumes in one pass.";
+        ? "Describe your ideal candidate in natural language. Our AI will find the best matches."
+        : "Combine skills and location to surface up to 50 curated resumes in one pass.";
 
   return (
-    <div className="space-y-5">
-      <div className="glass-panel rounded-2xl p-5">
-        <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="h-1.5 w-1.5 rounded-full bg-cyan-500"></div>
-            <span className="text-xs font-bold uppercase tracking-wider text-[#2C4A3B]/60">
+    <div className="space-y-6">
+      {/* Search Mode Selector */}
+      <div className="glass-panel rounded-2xl p-6 shadow-sm border border-[#2C4A3B]/10">
+        <div className="mb-5 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="h-2 w-2 rounded-full bg-[#2C4A3B] animate-pulse"></div>
+            <span className="text-xs font-bold uppercase tracking-wider text-[#2C4A3B]/70">
               Search Mode
             </span>
           </div>
-          <span className="text-[10px] uppercase tracking-widest text-[#2C4A3B]/40">
+          <span className="text-[10px] uppercase tracking-widest text-[#2C4A3B]/40 bg-[#2C4A3B]/5 px-2 py-0.5 rounded-full">
             Switch Anytime
           </span>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-3">
           {/* AI Search Mode */}
-          <button
-            type="button"
-            onClick={() => handleModeSwitch("ai")}
-            disabled={!aiSearchEnabled}
-            className={`group relative flex flex-col gap-3 rounded-xl border p-4 text-left transition-all duration-200 ${
-              searchMode === "ai"
-                ? "border-cyan-500 bg-cyan-50/50 shadow-sm ring-1 ring-cyan-500/20"
-                : "border-slate-200 bg-white hover:border-cyan-300 hover:bg-cyan-50/30 hover:shadow-sm"
-            } ${
-              !aiSearchEnabled ? "cursor-not-allowed opacity-50 grayscale" : ""
-            }`}
-          >
-            <div className="flex items-start justify-between">
-              <div
-                className={`flex h-10 w-10 items-center justify-center rounded-lg text-lg transition-colors ${
-                  searchMode === "ai"
-                    ? "bg-cyan-100 text-cyan-700"
-                    : "bg-slate-100 text-slate-500 group-hover:bg-cyan-100 group-hover:text-cyan-600"
-                }`}
-              >
-                ✨
+          <div className="relative h-full">
+            {!aiSearchEnabled ? (
+              <div className="group relative flex h-full flex-col gap-4 rounded-2xl border-2 border-slate-200/80 bg-white/80 p-5 text-left overflow-hidden">
+                {/* Lock Overlay */}
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/60 backdrop-blur-[2px] p-4 text-center">
+                  <div className="mb-3 rounded-2xl bg-white p-3 shadow-lg">
+                    <Lock className="h-6 w-6 text-indigo-600" />
+                  </div>
+                  <h3 className="mb-1 text-sm font-bold text-[#1A2F25]">
+                    AI Search
+                  </h3>
+                  <p className="mb-4 text-xs text-[#1A2F25]/60">
+                    Unlock with Premium or Enterprise
+                  </p>
+                  <Link
+                    href="/profile/subscription"
+                    className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-indigo-600/20 transition-colors hover:bg-indigo-700"
+                  >
+                    Upgrade Now
+                  </Link>
+                </div>
+
+                {/* Disabled Content (Blurred/Faded) */}
+                <div className="opacity-20 blur-[1px] pointer-events-none flex h-full flex-col justify-between">
+                  <div className="flex items-start justify-between">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-xl text-slate-500">
+                      ✨
+                    </div>
+                    <span className="rounded-full bg-[#2C4A3B] px-2.5 py-1 text-[10px] font-bold text-white shadow-sm">
+                      NEW
+                    </span>
+                  </div>
+                  <div>
+                    <span className="block font-bold text-[#1A2F25]">
+                      AI Search
+                    </span>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                      Requires Premium or Enterprise
+                    </p>
+                  </div>
+                </div>
               </div>
-              <span className="rounded bg-gradient-to-r from-cyan-500/20 to-blue-500/20 px-1.5 py-0.5 text-[10px] font-bold text-cyan-700">
-                NEW
-              </span>
-            </div>
-            <div>
-              <span
-                className={`block font-bold ${
-                  searchMode === "ai"
-                    ? "text-cyan-900"
-                    : "text-slate-700 group-hover:text-cyan-900"
-                }`}
+            ) : (
+              <button
+                type="button"
+                onClick={() => handleModeSwitch("ai")}
+                className={`group relative flex h-full flex-col justify-between gap-4 rounded-2xl border-2 p-5 text-left transition-all duration-300 ${searchMode === "ai"
+                  ? "border-[#2C4A3B] bg-[#2C4A3B] text-white shadow-lg shadow-[#2C4A3B]/20"
+                  : "border-slate-200/80 bg-white/80 hover:border-[#2C4A3B]/50 hover:bg-[#2C4A3B]/5 hover:shadow-md hover:scale-[1.01]"
+                  }`}
               >
-                AI Search
-              </span>
-              <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                {aiSearchEnabled
-                  ? "Natural language search powered by AI"
-                  : "Requires Premium or Enterprise"}
-              </p>
-            </div>
-          </button>
+                <div className="flex w-full items-start justify-between">
+                  <div
+                    className={`flex h-12 w-12 items-center justify-center rounded-xl text-xl transition-all duration-300 ${searchMode === "ai"
+                      ? "bg-white/20 text-white"
+                      : "bg-slate-100 text-slate-500 group-hover:bg-[#2C4A3B]/10 group-hover:text-[#2C4A3B]"
+                      }`}
+                  >
+                    ✨
+                  </div>
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-[10px] font-bold shadow-sm ${searchMode === "ai"
+                      ? "bg-white/20 text-white"
+                      : "bg-[#2C4A3B] text-white"
+                      }`}
+                  >
+                    NEW
+                  </span>
+                </div>
+                <div>
+                  <span
+                    className={`block font-bold ${searchMode === "ai"
+                      ? "text-white"
+                      : "text-[#1A2F25] group-hover:text-[#2C4A3B]"
+                      }`}
+                  >
+                    AI Search
+                  </span>
+                  <p
+                    className={`mt-1 text-xs leading-relaxed ${searchMode === "ai" ? "text-emerald-100" : "text-slate-500"
+                      }`}
+                  >
+                    Natural language search powered by AI
+                  </p>
+                </div>
+              </button>
+            )}
+          </div>
 
           {/* Basic Lookup Mode */}
           <button
             type="button"
             onClick={() => handleModeSwitch("basic")}
-            className={`group relative flex flex-col gap-3 rounded-xl border p-4 text-left transition-all duration-200 ${
-              searchMode === "basic"
-                ? "border-amber-500 bg-amber-50/50 shadow-sm ring-1 ring-amber-500/20"
-                : "border-slate-200 bg-white hover:border-amber-300 hover:bg-amber-50/30 hover:shadow-sm"
-            }`}
+            className={`group relative flex h-full flex-col justify-between gap-4 rounded-2xl border-2 p-5 text-left transition-all duration-300 ${searchMode === "basic"
+              ? "border-[#2C4A3B] bg-[#2C4A3B] text-white shadow-lg shadow-[#2C4A3B]/20"
+              : "border-slate-200/80 bg-white/80 hover:border-[#2C4A3B]/50 hover:bg-[#2C4A3B]/5 hover:shadow-md hover:scale-[1.01]"
+              }`}
           >
-            <div className="flex items-start justify-between">
+            <div className="flex w-full items-start justify-between">
               <div
-                className={`flex h-10 w-10 items-center justify-center rounded-lg text-sm font-bold transition-colors ${
-                  searchMode === "basic"
-                    ? "bg-amber-100 text-amber-700"
-                    : "bg-slate-100 text-slate-500 group-hover:bg-amber-100 group-hover:text-amber-600"
-                }`}
+                className={`flex h-12 w-12 items-center justify-center rounded-xl text-base font-black transition-all duration-300 ${searchMode === "basic"
+                  ? "bg-white/20 text-white"
+                  : "bg-slate-100 text-slate-500 group-hover:bg-[#2C4A3B]/10 group-hover:text-[#2C4A3B]"
+                  }`}
               >
                 ID
               </div>
             </div>
             <div>
               <span
-                className={`block font-bold ${
-                  searchMode === "basic"
-                    ? "text-amber-900"
-                    : "text-slate-700 group-hover:text-amber-900"
-                }`}
+                className={`block text-base font-bold transition-colors ${searchMode === "basic"
+                  ? "text-white"
+                  : "text-[#1A2F25] group-hover:text-[#2C4A3B]"
+                  }`}
               >
                 Basic Lookup
               </span>
-              <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              <p className={`mt-1.5 text-xs leading-relaxed ${searchMode === "basic" ? "text-emerald-100" : "text-slate-500"
+                }`}>
                 Quick candidate retrieval using resume ID or user ID
               </p>
             </div>
           </button>
 
           {/* Premium Filters Mode */}
-          <button
-            type="button"
-            onClick={() => handleModeSwitch("premium")}
-            disabled={!premiumFiltersEnabled}
-            className={`group relative flex flex-col gap-3 rounded-xl border p-4 text-left transition-all duration-200 ${
-              searchMode === "premium"
-                ? "border-purple-500 bg-purple-50/50 shadow-sm ring-1 ring-purple-500/20"
-                : "border-slate-200 bg-white hover:border-purple-300 hover:bg-purple-50/30 hover:shadow-sm"
-            } ${
-              !premiumFiltersEnabled
-                ? "cursor-not-allowed opacity-50 grayscale"
-                : ""
-            }`}
-          >
-            <div className="flex items-start justify-between">
-              <div
-                className={`flex h-10 w-10 items-center justify-center rounded-lg text-sm font-bold transition-colors ${
-                  searchMode === "premium"
-                    ? "bg-purple-100 text-purple-700"
-                    : "bg-slate-100 text-slate-500 group-hover:bg-purple-100 group-hover:text-purple-600"
-                }`}
-              >
-                ★
+          <div className="relative h-full">
+            {!premiumFiltersEnabled ? (
+              <div className="group relative flex h-full flex-col gap-4 rounded-2xl border-2 border-slate-200/80 bg-white/80 p-5 text-left overflow-hidden">
+                {/* Lock Overlay */}
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/60 backdrop-blur-[2px] p-4 text-center">
+                  <div className="mb-3 rounded-2xl bg-white p-3 shadow-lg">
+                    <Lock className="h-6 w-6 text-indigo-600" />
+                  </div>
+                  <h3 className="mb-1 text-sm font-bold text-[#1A2F25]">
+                    Premium Filters
+                  </h3>
+                  <p className="mb-4 text-xs text-[#1A2F25]/60">
+                    Unlock with Premium or Enterprise
+                  </p>
+                  <Link
+                    href="/profile/subscription"
+                    className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-indigo-600/20 transition-colors hover:bg-indigo-700"
+                  >
+                    Upgrade Now
+                  </Link>
+                </div>
+
+                {/* Disabled Content (Blurred/Faded) */}
+                <div className="opacity-20 blur-[1px] pointer-events-none flex h-full flex-col justify-between">
+                  <div className="flex items-start justify-between">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-lg text-slate-500">
+                      ★
+                    </div>
+                    <span className="rounded-full bg-slate-200 px-2.5 py-1 text-[10px] font-bold text-slate-600">
+                      SOON
+                    </span>
+                  </div>
+                  <div>
+                    <span className="block text-base font-bold text-[#1A2F25]">
+                      Premium Filters
+                    </span>
+                    <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                      Advanced filters will arrive soon for premium recruiters.
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div>
-              <span
-                className={`block font-bold ${
-                  searchMode === "premium"
-                    ? "text-purple-900"
-                    : "text-slate-700 group-hover:text-purple-900"
-                }`}
+            ) : (
+              <button
+                type="button"
+                onClick={() => handleModeSwitch("premium")}
+                className={`group relative flex h-full flex-col justify-between gap-4 rounded-2xl border-2 p-5 text-left transition-all duration-300 ${searchMode === "premium"
+                  ? "border-[#2C4A3B] bg-[#2C4A3B] text-white shadow-lg shadow-[#2C4A3B]/20"
+                  : "border-slate-200/80 bg-white/80 hover:border-[#2C4A3B]/50 hover:bg-[#2C4A3B]/5 hover:shadow-md hover:scale-[1.01]"
+                  }`}
               >
-                Premium Filters
-              </span>
-              <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                {premiumFiltersEnabled
-                  ? "Advanced search with skills and location filters"
-                  : "Advanced filters will arrive soon for premium recruiters."}
-              </p>
-            </div>
-          </button>
+                <div className="flex w-full items-start justify-between">
+                  <div
+                    className={`flex h-12 w-12 items-center justify-center rounded-xl text-lg transition-all duration-300 ${searchMode === "premium"
+                      ? "bg-white/20 text-white"
+                      : "bg-slate-100 text-slate-500 group-hover:bg-[#2C4A3B]/10 group-hover:text-[#2C4A3B]"
+                      }`}
+                  >
+                    ★
+                  </div>
+                </div>
+                <div>
+                  <span
+                    className={`block text-base font-bold transition-colors ${searchMode === "premium"
+                      ? "text-white"
+                      : "text-[#1A2F25] group-hover:text-[#2C4A3B]"
+                      }`}
+                  >
+                    Premium Filters
+                  </span>
+                  <p
+                    className={`mt-1.5 text-xs leading-relaxed ${searchMode === "premium" ? "text-emerald-100" : "text-slate-500"
+                      }`}
+                  >
+                    Advanced search with skills and location filters
+                  </p>
+                </div>
+              </button>
+            )}
+          </div>
         </div>
 
-        {!premiumFiltersEnabled && (
-          <div className="mt-3 flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500 border border-slate-100">
-            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-600">
-              i
-            </span>
-            <p>
-              Premium search is temporarily disabled while we build the
-              dedicated plan.
-            </p>
-          </div>
-        )}
       </div>
 
       <form
         onSubmit={
           searchMode === "ai"
             ? (e) => {
-                e.preventDefault();
-                onAiSearch?.();
-              }
+              e.preventDefault();
+              onAiSearch?.();
+            }
             : onSearch
         }
         className="space-y-5"
@@ -313,17 +386,39 @@ export function RecruiterSearchForm({
                 {aiError}
               </div>
             )}
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={loading || aiSearching}
+                className="flex items-center gap-2 rounded-xl bg-[#2C4A3B] px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#2C4A3B]/20 transition-all hover:bg-[#20362B] hover:shadow-xl hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading || aiSearching ? (
+                  <>
+                    <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Searching...
+                  </>
+                ) : (
+                  <>
+                    <span>✨</span>
+                    Smart Search
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         ) : searchMode === "basic" ? (
-          <div className="space-y-3">
-            <label className="flex items-center gap-2 text-sm font-semibold text-[#1A2F25]">
-              <span className="h-1 w-1 rounded-full bg-amber-500"></span>
+          <div className="space-y-4">
+            <label className="flex items-center gap-2.5 text-sm font-semibold text-[#1A2F25]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#2C4A3B]"></span>
               Resume ID or User ID
             </label>
-            <div className="relative">
-              <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-slate-400">
+            <div className="relative group">
+              <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-slate-400 transition-colors group-focus-within:text-[#2C4A3B]">
                 <svg
-                  className="h-4 w-4"
+                  className="h-5 w-5"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -342,12 +437,31 @@ export function RecruiterSearchForm({
                 onChange={(e) => setUserId(e.target.value)}
                 placeholder="e.g., 2"
                 disabled={loading}
-                className="w-full rounded-xl border border-slate-200 bg-white py-3.5 pl-11 pr-4 text-[#1A2F25] placeholder-slate-400 shadow-sm transition-all focus:border-amber-500 focus:bg-amber-50/10 focus:outline-none focus:ring-2 focus:ring-amber-500/20 disabled:opacity-50 hover:border-amber-300"
+                className="w-full rounded-2xl border-2 border-slate-200 bg-white py-4 pl-12 pr-28 text-lg text-[#1A2F25] placeholder-slate-400 shadow-sm transition-all duration-300 focus:border-[#2C4A3B] focus:bg-emerald-50/10 focus:outline-none focus:ring-4 focus:ring-[#2C4A3B]/10 focus:shadow-lg focus:shadow-[#2C4A3B]/5 disabled:opacity-50 hover:border-[#2C4A3B]/50 hover:shadow-md"
               />
+              <div className="absolute right-2 top-2 bottom-2">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="h-full rounded-xl bg-[#2C4A3B] px-4 font-bold text-white shadow-md transition-all hover:bg-[#20362B] hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {loading ? (
+                    <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                  ) : (
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  )}
+                  Search
+                </button>
+              </div>
             </div>
-            <p className="flex items-start gap-2 text-xs leading-relaxed text-[#2C4A3B]/60">
+            <p className="flex items-start gap-2.5 text-xs leading-relaxed text-[#2C4A3B]/60">
               <svg
-                className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-slate-400"
+                className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#2C4A3B]"
                 fill="currentColor"
                 viewBox="0 0 20 20"
               >
@@ -462,12 +576,46 @@ export function RecruiterSearchForm({
                 Leave blank to search across all locations
               </p>
             </div>
+            <div className="flex justify-end pt-2">
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex items-center gap-2 rounded-xl bg-[#2C4A3B] px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#2C4A3B]/20 transition-all hover:bg-[#20362B] hover:shadow-xl hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <>
+                    <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Searching...
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
+                    Run Filtered Search
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         )}
 
-        <div className="rounded-xl border border-cyan-200 bg-gradient-to-r from-cyan-50 via-blue-50 to-purple-50 px-4 py-3.5">
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 transition-colors hover:bg-slate-50">
           <div className="flex items-start gap-3">
-            <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-cyan-100 text-cyan-600">
+            <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-600">
               <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
                 <path
                   fillRule="evenodd"
@@ -476,70 +624,12 @@ export function RecruiterSearchForm({
                 />
               </svg>
             </span>
-            <p className="text-xs leading-relaxed text-[#2C4A3B]/80">
+            <p className="text-[13px] leading-relaxed text-slate-600">
               {helperCopy}
             </p>
           </div>
         </div>
 
-        <button
-          type="submit"
-          disabled={loading || aiSearching}
-          className={`group relative w-full overflow-hidden rounded-xl px-6 py-3.5 text-base font-bold text-white shadow-xl transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-60 ${
-            searchMode === "ai"
-              ? "bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 shadow-cyan-500/30 hover:shadow-2xl hover:shadow-cyan-500/40"
-              : "bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 shadow-cyan-500/30 hover:shadow-2xl hover:shadow-cyan-500/40"
-          }`}
-        >
-          <span className="relative z-10 flex items-center justify-center gap-2">
-            {loading || aiSearching ? (
-              <>
-                <svg
-                  className="h-5 w-5 animate-spin"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                {searchMode === "ai" ? "Searching with AI..." : "Searching..."}
-              </>
-            ) : (
-              <>
-                {searchMode === "ai" ? (
-                  <span className="text-lg">✨</span>
-                ) : (
-                  <svg
-                    className="h-5 w-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                    />
-                  </svg>
-                )}
-                {searchMode === "ai" ? "Smart Search" : "Run Search"}
-              </>
-            )}
-          </span>
-          <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-500 group-hover:translate-x-full"></div>
-        </button>
       </form>
     </div>
   );

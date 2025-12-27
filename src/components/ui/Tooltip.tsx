@@ -4,7 +4,7 @@ import * as React from "react";
 
 interface TooltipProps {
   children: React.ReactNode;
-  content: string;
+  content: React.ReactNode;
   position?: "top" | "bottom" | "left" | "right";
 }
 

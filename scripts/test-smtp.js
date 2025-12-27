@@ -13,7 +13,7 @@ const SMTP_CONFIG = {
   secure: false, // Use STARTTLS
   auth: {
     user: 'switchcvs@gmail.com',
-    pass: 'atrfdijbhxkvvgfd' // Gmail App Password
+    pass: process.env.SMTP_PASS || 'REPLACE_ME_SMTP_PASS' // Supply via env when testing
   }
 };
 
@@ -30,10 +30,10 @@ async function verify() {
     console.log('Port:', SMTP_CONFIG.port);
     console.log('User:', SMTP_CONFIG.auth.user);
     console.log('');
-    
+
     await transporter.verify();
     console.log('✅ Gmail SMTP connection successful!');
-    
+
     // Optionally send a test email
     const sendTest = process.argv.includes('--send-test');
     if (sendTest) {

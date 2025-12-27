@@ -1,5 +1,4 @@
 import { logger } from "@/lib/logger";
-// src/app/api/user/settings/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import {
@@ -57,6 +56,15 @@ export async function GET(request: NextRequest) {
       isRecruiter,
       displayName: userData?.displayName || "",
       companyName: userData?.companyName || "",
+      notifications: userData?.notifications || {
+        marketing: true,
+        security: true,
+        activity: false,
+      },
+      privacy: userData?.privacy || {
+        profilePublic: true,
+        searchable: true,
+      },
       updatedAt: userData?.settingsUpdatedAt || new Date().toISOString(),
     };
 
@@ -89,6 +97,8 @@ export async function PUT(request: NextRequest) {
       isRecruiter,
       companyName,
       displayName,
+      notifications,
+      privacy,
     } = body;
 
     if (!requestedUserId) {
@@ -124,6 +134,16 @@ export async function PUT(request: NextRequest) {
     }
     if (displayName !== undefined && displayName !== null) {
       updateData.displayName = displayName;
+    }
+
+    // Validate and update notifications
+    if (notifications && typeof notifications === 'object') {
+      updateData.notifications = notifications;
+    }
+
+    // Validate and update privacy
+    if (privacy && typeof privacy === 'object') {
+      updateData.privacy = privacy;
     }
 
     // Use set with merge to create the document if it doesn't exist
