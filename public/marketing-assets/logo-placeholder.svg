@@ -1,0 +1,6 @@
+<svg width="500" height="500" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">
+  <rect width="500" height="500" fill="#2C4A3B"/>
+  <circle cx="250" cy="250" r="200" fill="#E8F3EE" opacity="0.2"/>
+  <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Arial, sans-serif" font-size="150" fill="#FFFFFF" font-weight="bold">SCV</text>
+  <text x="50%" y="70%" dominant-baseline="middle" text-anchor="middle" font-family="Arial, sans-serif" font-size="40" fill="#E8F3EE">Placeholder</text>
+</svg>

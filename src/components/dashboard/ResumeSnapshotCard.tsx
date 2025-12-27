@@ -115,18 +115,34 @@ export function ResumeSnapshotCard({
         <div className="flex flex-col lg:flex-row justify-between items-start gap-6">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-4">
-              <span
-                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${isPublished
-                  ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                  : "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                  }`}
-              >
+              <div className="group relative">
                 <span
-                  className={`mr-1.5 h-1.5 w-1.5 rounded-full ${isPublished ? "bg-emerald-500" : "bg-amber-500"
+                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border cursor-help ${isPublished
+                    ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                    : "bg-amber-500/10 text-amber-600 border-amber-500/20"
                     }`}
-                ></span>
-                {isPublished ? "Public" : "Private"}
-              </span>
+                >
+                  <span
+                    className={`mr-1.5 h-1.5 w-1.5 rounded-full ${isPublished ? "bg-emerald-500" : "bg-amber-500"
+                      }`}
+                  ></span>
+                  {isPublished ? "Public" : "Private"}
+                </span>
+
+                {/* Tooltip */}
+                <div className="absolute left-0 top-full mt-2 hidden group-hover:block w-56 rounded-xl border border-white/60 bg-white/80 backdrop-blur-xl p-3 text-xs text-[#1A2F25]/80 shadow-xl z-30">
+                  <p className="font-bold text-[#1A2F25] mb-0.5">
+                    {isPublished ? "Public Resume" : "Private Resume"}
+                  </p>
+                  <p className="text-[#1A2F25]/60 leading-relaxed">
+                    {isPublished
+                      ? "Your resume is visible to recruiters and can be shared with a public link."
+                      : "Your resume is only visible to you. Recruiters cannot find or view it."}
+                  </p>
+                  {/* Arrow pointing up */}
+                  <div className="absolute -top-1.5 left-6 h-3 w-3 -rotate-45 border-t border-r border-white/60 bg-white/80"></div>
+                </div>
+              </div>
 
               {lastUpdated && (
                 <span className="text-[10px] text-[#1A2F25]/40 font-medium">

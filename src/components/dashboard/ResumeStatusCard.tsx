@@ -151,14 +151,15 @@ export function ResumeStatusCard({
                   </span>
 
                   {/* Tooltip */}
-                  <div className="absolute left-0 bottom-full mb-2 hidden w-56 rounded-xl border border-white/60 bg-white/80 backdrop-blur-xl p-3 text-xs text-[#2C4A3B]/80 shadow-xl z-20">
+                  {/* Tooltip */}
+                  <div className="absolute left-0 top-full mt-2 hidden group-hover:block w-56 rounded-xl border border-white/60 bg-white/80 backdrop-blur-xl p-3 text-xs text-[#2C4A3B]/80 shadow-xl z-20">
                     <p className="font-bold text-slate-900 mb-0.5">
                       {status.label}
                     </p>
                     <p className="text-slate-500 leading-relaxed">
                       {status.desc}
                     </p>
-                    <div className="absolute -bottom-1.5 left-6 h-3 w-3 rotate-45 border-b border-r border-slate-200 bg-white"></div>
+                    <div className="absolute -top-1.5 left-6 h-3 w-3 -rotate-45 border-t border-r border-slate-200 bg-white"></div>
                   </div>
                 </div>
               </dd>
