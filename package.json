@@ -1,6 +1,6 @@
 {
   "name": "switchcv",
-  "version": "0.0.131",
+  "version": "0.0.132",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -34,6 +34,7 @@
     "date-fns": "^4.1.0",
     "firebase": "^12.5.0",
     "firebase-admin": "^13.6.0",
+    "framer-motion": "^12.23.26",
     "lucide-react": "^0.561.0",
     "next": "16.0.10",
     "nodemailer": "^7.0.11",

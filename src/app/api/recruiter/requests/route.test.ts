@@ -1,4 +1,4 @@
-import { GET } from "./route";
+import { GET, DELETE } from "./route";
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import {
@@ -6,6 +6,10 @@ import {
   handleApiError,
 } from "@/lib/utils/api-helpers";
 import { logger } from "@/lib/logger";
+import {
+  decrementJobSeekerMetric,
+  updateRecruiterAccessMetric,
+} from "@/lib/services/metricsService";
 
 // Mock logger
 jest.mock("@/lib/logger", () => ({
@@ -196,7 +200,13 @@ describe("GET /api/recruiter/requests", () => {
     (adminDb.collection as jest.Mock).mockImplementation((collectionName) => {
       if (collectionName === "resumes") return { doc: mockDocResume };
       if (collectionName === "users")
-        return { doc: jest.fn().mockReturnValue({ get: jest.fn().mockResolvedValue(mockRecruiterDoc) }) };
+        return {
+          doc: jest
+            .fn()
+            .mockReturnValue({
+              get: jest.fn().mockResolvedValue(mockRecruiterDoc),
+            }),
+        };
       return { doc: jest.fn() };
     });
 
@@ -275,7 +285,13 @@ describe("GET /api/recruiter/requests", () => {
     (adminDb.collection as jest.Mock).mockImplementation((collectionName) => {
       if (collectionName === "resumes") return { doc: mockDocResume };
       if (collectionName === "users")
-        return { doc: jest.fn().mockReturnValue({ get: jest.fn().mockResolvedValue(mockRecruiterDoc) }) };
+        return {
+          doc: jest
+            .fn()
+            .mockReturnValue({
+              get: jest.fn().mockResolvedValue(mockRecruiterDoc),
+            }),
+        };
       return { doc: jest.fn() };
     });
 
@@ -289,5 +305,290 @@ describe("GET /api/recruiter/requests", () => {
     // Should still return the request with default timestamp (current date)
     expect(response.requests[0].id).toBe("req-3");
     expect(response.requests[0].timestamp).toBeNull();
+  });
+
+  it("should handle requests with expiresAt", async () => {
+    const futureDate = new Date();
+    futureDate.setFullYear(futureDate.getFullYear() + 1);
+    const mockRequests = [
+      {
+        id: "req-4",
+        data: () => ({
+          fromUserId: mockUserId,
+          timestamp: { toDate: () => new Date() },
+          expiresAt: { toDate: () => futureDate },
+          status: "approved",
+        }),
+        ref: {
+          parent: {
+            parent: { id: "resume-4" },
+          },
+        },
+      },
+    ];
+
+    const mockGet = jest.fn().mockResolvedValue({ docs: mockRequests });
+    const mockOrderBy = jest.fn().mockReturnValue({ get: mockGet });
+    const mockWhere = jest.fn().mockReturnValue({ orderBy: mockOrderBy });
+    (adminDb.collectionGroup as jest.Mock).mockReturnValue({
+      where: mockWhere,
+    });
+
+    (adminDb.collection as jest.Mock).mockImplementation((collectionName) => {
+      if (collectionName === "users") {
+        return {
+          doc: jest.fn().mockReturnValue({
+            get: jest.fn().mockResolvedValue({
+              exists: true,
+              data: () => ({ role: "recruiter" }),
+            }),
+          }),
+        };
+      }
+      return {
+        doc: jest.fn().mockReturnValue({
+          get: jest.fn().mockResolvedValue({ exists: false }),
+        }),
+      };
+    });
+
+    const response = (await GET(mockRequest)) as any;
+    expect(response.requests[0].isExpired).toBe(false);
+    expect(response.requests[0].timeRemainingMs).toBeGreaterThan(0);
+  });
+
+  it("should handle requests with expired expiresAt", async () => {
+    const pastDate = new Date();
+    pastDate.setFullYear(pastDate.getFullYear() - 1);
+    const mockRequests = [
+      {
+        id: "req-5",
+        data: () => ({
+          fromUserId: mockUserId,
+          timestamp: { toDate: () => new Date() },
+          expiresAt: { toDate: () => pastDate },
+          status: "approved",
+        }),
+        ref: {
+          parent: {
+            parent: { id: "resume-5" },
+          },
+        },
+      },
+    ];
+
+    const mockGet = jest.fn().mockResolvedValue({ docs: mockRequests });
+    const mockOrderBy = jest.fn().mockReturnValue({ get: mockGet });
+    const mockWhere = jest.fn().mockReturnValue({ orderBy: mockOrderBy });
+    (adminDb.collectionGroup as jest.Mock).mockReturnValue({
+      where: mockWhere,
+    });
+
+    const response = (await GET(mockRequest)) as any;
+    expect(response.requests[0].isExpired).toBe(true);
+    expect(response.requests[0].timeRemainingMs).toBeLessThan(0);
+  });
+
+  it("should handle invalid expiresAt date", async () => {
+    const mockRequests = [
+      {
+        id: "req-6",
+        data: () => ({
+          fromUserId: mockUserId,
+          timestamp: { toDate: () => new Date() },
+          expiresAt: "invalid-date",
+          status: "approved",
+        }),
+        ref: {
+          parent: {
+            parent: { id: "resume-6" },
+          },
+        },
+      },
+    ];
+
+    const mockGet = jest.fn().mockResolvedValue({ docs: mockRequests });
+    const mockOrderBy = jest.fn().mockReturnValue({ get: mockGet });
+    const mockWhere = jest.fn().mockReturnValue({ orderBy: mockOrderBy });
+    (adminDb.collectionGroup as jest.Mock).mockReturnValue({
+      where: mockWhere,
+    });
+
+    const response = (await GET(mockRequest)) as any;
+    expect(response.requests[0].expiresAt).toBeNull();
+  });
+
+  it("should return 403 if user is not a recruiter", async () => {
+    (adminDb.collection as jest.Mock).mockImplementation((collectionName) => {
+      if (collectionName === "users") {
+        return {
+          doc: jest.fn().mockReturnValue({
+            get: jest.fn().mockResolvedValue({
+              exists: true,
+              data: () => ({ role: "jobseeker" }),
+            }),
+          }),
+        };
+      }
+      return {
+        doc: jest.fn().mockReturnValue({
+          get: jest.fn().mockResolvedValue({ exists: false }),
+        }),
+      };
+    });
+
+    await GET(mockRequest);
+
+    expect(handleApiError).toHaveBeenCalledWith(
+      null,
+      "Forbidden: Recruiter role required",
+      403
+    );
+  });
+});
+
+describe("DELETE /api/recruiter/requests", () => {
+  const mockUserId = "recruiter-123";
+  let mockRequest: NextRequest;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockRequest = {
+      url: "http://localhost/api/recruiter/requests?requestId=req-1&resumeId=res-1",
+    } as NextRequest;
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: mockUserId,
+    });
+    (handleApiError as jest.Mock).mockImplementation(
+      (error, message, status) => ({
+        status: status || 500,
+        json: async () => ({ error: message }),
+      })
+    );
+    (NextResponse.json as jest.Mock).mockImplementation((data) => data);
+  });
+
+  it("should delete request successfully", async () => {
+    const mockRequestData = {
+      fromUserId: mockUserId,
+      status: "pending",
+    };
+
+    const mockRequestDoc = {
+      exists: true,
+      data: () => mockRequestData,
+    };
+
+    const mockDelete = jest.fn().mockResolvedValue(undefined);
+    const mockGet = jest.fn().mockResolvedValue(mockRequestDoc);
+
+    const mockResumeDoc = {
+      exists: true,
+      data: () => ({ userId: "jobseeker-123" }),
+    };
+
+    (adminDb.collection as jest.Mock).mockImplementation((collectionName) => {
+      if (collectionName === "resumes") {
+        return {
+          doc: jest.fn().mockImplementation((id) => {
+            if (id === "res-1") {
+              return {
+                get: jest.fn().mockResolvedValue(mockResumeDoc),
+                collection: jest.fn().mockReturnValue({
+                  doc: jest.fn().mockReturnValue({
+                    get: mockGet,
+                    delete: mockDelete,
+                  }),
+                }),
+              };
+            }
+            return { get: jest.fn() };
+          }),
+        };
+      }
+      return { doc: jest.fn() };
+    });
+
+    const response = await DELETE(mockRequest);
+
+    expect(response).toEqual({ success: true });
+    expect(mockDelete).toHaveBeenCalled();
+    expect(decrementJobSeekerMetric).toHaveBeenCalledWith(
+      "jobseeker-123",
+      "contactRequests"
+    );
+    expect(updateRecruiterAccessMetric).toHaveBeenCalledWith(
+      mockUserId,
+      "pending",
+      -1
+    );
+  });
+
+  it("should return 400 if requestId or resumeId is missing", async () => {
+    mockRequest = {
+      url: "http://localhost/api/recruiter/requests",
+    } as NextRequest;
+
+    await DELETE(mockRequest);
+
+    expect(handleApiError).toHaveBeenCalledWith(
+      null,
+      "Missing requestId or resumeId",
+      400
+    );
+  });
+
+  it("should return 404 if request not found", async () => {
+    (adminDb.collection as jest.Mock).mockImplementation(() => ({
+      doc: jest.fn().mockReturnValue({
+        collection: jest.fn().mockReturnValue({
+          doc: jest.fn().mockReturnValue({
+            get: jest.fn().mockResolvedValue({ exists: false }),
+          }),
+        }),
+      }),
+    }));
+
+    await DELETE(mockRequest);
+
+    expect(handleApiError).toHaveBeenCalledWith(null, "Request not found", 404);
+  });
+
+  it("should return 403 if user is not the owner of the request", async () => {
+    const mockRequestDoc = {
+      exists: true,
+      data: () => ({ fromUserId: "other-user" }),
+    };
+
+    (adminDb.collection as jest.Mock).mockImplementation(() => ({
+      doc: jest.fn().mockReturnValue({
+        collection: jest.fn().mockReturnValue({
+          doc: jest.fn().mockReturnValue({
+            get: jest.fn().mockResolvedValue(mockRequestDoc),
+          }),
+        }),
+      }),
+    }));
+
+    await DELETE(mockRequest);
+
+    expect(handleApiError).toHaveBeenCalledWith(
+      null,
+      "Unauthorized to delete this request",
+      403
+    );
+  });
+
+  it("should handle errors during delete", async () => {
+    (adminDb.collection as jest.Mock).mockImplementation(() => {
+      throw new Error("Delete failed");
+    });
+
+    await DELETE(mockRequest);
+
+    expect(handleApiError).toHaveBeenCalledWith(
+      expect.any(Error),
+      "Failed to delete request"
+    );
   });
 });

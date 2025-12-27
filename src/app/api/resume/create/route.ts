@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       return handleApiError(
         new Error("Invalid resume data"),
         "Invalid resume data: " +
-          validationResult.error?.issues?.map((e) => e.message).join(", "),
+        validationResult.error?.issues?.map((e) => e.message).join(", "),
         400
       );
     }

@@ -129,10 +129,7 @@ export const SystemConfigProvider = ({
 }: {
   children: ReactNode;
 }): React.JSX.Element => {
-  const [config, setConfig] = useState<SystemConfig>(() => {
-    const cached = readCachedConfig();
-    return cached ?? defaultSystemConfig;
-  });
+  const [config, setConfig] = useState<SystemConfig>(defaultSystemConfig);
   const [loading, setLoading] = useState<boolean>(true);
 
   const refresh = useCallback(async (): Promise<SystemConfig> => {

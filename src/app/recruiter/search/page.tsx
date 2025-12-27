@@ -103,7 +103,7 @@ export default function RecruiterSearchPage() {
 
       const data = await response.json();
       setResults(data.results || []);
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setIsLoading(false);
@@ -126,13 +126,12 @@ export default function RecruiterSearchPage() {
           <button
             onClick={() => !isBasicTier && setSearchMode("ai")}
             disabled={isBasicTier}
-            className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
-              isBasicTier
+            className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${isBasicTier
                 ? "glass-panel opacity-50 cursor-not-allowed text-[#1A2F25]/40"
                 : searchMode === "ai"
-                ? "bg-gradient-to-r from-[#2C4A3B] to-emerald-600 text-white shadow-lg"
-                : "glass-panel hover:bg-white/60 text-[#1A2F25]/70 hover:text-[#1A2F25]"
-            }`}
+                  ? "bg-gradient-to-r from-[#2C4A3B] to-emerald-600 text-white shadow-lg"
+                  : "glass-panel hover:bg-white/60 text-[#1A2F25]/70 hover:text-[#1A2F25]"
+              }`}
           >
             <span>✨</span>
             AI Search
@@ -142,11 +141,10 @@ export default function RecruiterSearchPage() {
           </button>
           <button
             onClick={() => setSearchMode("basic")}
-            className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
-              searchMode === "basic"
+            className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${searchMode === "basic"
                 ? "bg-[#2C4A3B] text-white shadow-lg"
                 : "glass-panel hover:bg-white/60 text-[#1A2F25]/70 hover:text-[#1A2F25]"
-            }`}
+              }`}
           >
             <span>🔍</span>
             Basic Search
