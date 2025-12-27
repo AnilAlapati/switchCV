@@ -365,29 +365,5 @@ export function RecruiterSearchResults({
     );
   }
 
-  return (
-    <section className="glass-panel px-6 py-12 text-center text-[#2C4A3B]/70">
-      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-cyan-50">
-        <svg
-          className="h-8 w-8 text-cyan-600"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-          />
-        </svg>
-      </div>
-      <p className="text-lg font-bold text-[#1A2F25]">Ready when you are</p>
-      <p className="text-sm font-medium">
-        {searchMode === "basic"
-          ? "Enter a resume ID or user ID to pull a single candidate."
-          : "Add at least one skill or a location to preview premium matches."}
-      </p>
-    </section>
-  );
+  return null;
 }

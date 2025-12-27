@@ -31,6 +31,10 @@ if ! git ls-files >/dev/null 2>&1; then
     git reset 2>/dev/null || true
 fi
 
-echo "✅ Health check passed. Running linter..."
+echo "✅ Health check passed. Running secret scan..."
+
+scripts/secret-scan.sh
+
+echo "✅ Secret scan passed. Running linter..."
 
 npx lint-staged

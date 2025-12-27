@@ -10,12 +10,12 @@ These variables are safe to expose to the browser and are required for Firebase 
 
 | Variable                                   | Required | Purpose                 | Example                     |
 | ------------------------------------------ | -------- | ----------------------- | --------------------------- |
-| `NEXT_PUBLIC_FIREBASE_API_KEY`             | ✅ Yes   | Firebase API key        | `AIzaSyD...`                |
+| `NEXT_PUBLIC_FIREBASE_API_KEY`             | ✅ Yes   | Firebase API key        | `YOUR_API_KEY_HERE`         |
 | `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`         | ✅ Yes   | Firebase auth domain    | `switchcv.firebaseapp.com`  |
 | `NEXT_PUBLIC_FIREBASE_PROJECT_ID`          | ✅ Yes   | Firebase project ID     | `switchcv-prod`             |
 | `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`      | ✅ Yes   | Firebase storage bucket | `switchcv-prod.appspot.com` |
 | `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | ✅ Yes   | FCM sender ID           | `123456789`                 |
-| `NEXT_PUBLIC_FIREBASE_APP_ID`              | ✅ Yes   | Firebase app ID         | `1:123456789:web:abc123`    |
+| `NEXT_PUBLIC_FIREBASE_APP_ID`              | ✅ Yes   | Firebase app ID         | `YOUR_APP_ID_HERE`          |
 
 ### Firebase Admin SDK (Server-Side Only - Secret)
 
@@ -35,7 +35,7 @@ These variables must **NEVER** be exposed to the browser. They're used for serve
 
 | Variable         | Required            | Purpose               | Example     |
 | ---------------- | ------------------- | --------------------- | ----------- |
-| `GEMINI_API_KEY` | ✅ Yes (Production) | Google Gemini API key | `AIzaSy...` |
+| `GEMINI_API_KEY` | ✅ Yes (Production) | Google Gemini API key | `YOUR_API_KEY_HERE` |
 
 **Access:** https://ai.google.dev/
 
@@ -43,7 +43,7 @@ These variables must **NEVER** be exposed to the browser. They're used for serve
 
 | Variable            | Required | Purpose                                   | Example                    |
 | ------------------- | -------- | ----------------------------------------- | -------------------------- |
-| `HUGGINGFACE_TOKEN` | ❌ No    | HuggingFace API token (optional fallback) | `hf_XXXXXXXXXXXXXXXXXXXXX` |
+| `HUGGINGFACE_TOKEN` | ❌ No    | HuggingFace API token (optional fallback) | `YOUR_TOKEN_HERE`          |
 
 **Access:** https://huggingface.co/settings/tokens
 
@@ -104,12 +104,12 @@ cp .env.local.example .env.local
 Update `.env.local` with values from Firebase console:
 
 ```bash
-NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSy...
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=switchcv.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=switchcv-prod
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=switchcv-prod.appspot.com
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789
-NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abc123
+NEXT_PUBLIC_FIREBASE_API_KEY=YOUR_API_KEY_HERE
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
+NEXT_PUBLIC_FIREBASE_APP_ID=your-app-id
 ```
 
 ### 4. Get Firebase Admin SDK Key
@@ -145,7 +145,7 @@ FIREBASE_ADMIN_SDK_KEY='{"type":"service_account",...}'
 3. Add to `.env.local`:
 
 ```bash
-GEMINI_API_KEY=AIzaSy...
+GEMINI_API_KEY=YOUR_API_KEY_HERE
 ```
 
 #### HuggingFace Token (Optional)
@@ -155,7 +155,7 @@ GEMINI_API_KEY=AIzaSy...
 3. Add to `.env.local`:
 
 ```bash
-HUGGINGFACE_TOKEN=hf_XXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+HUGGINGFACE_TOKEN=YOUR_TOKEN_HERE
 ```
 
 ### 7. Validate Environment
@@ -190,8 +190,8 @@ FIREBASE_ADMIN_SDK_KEY=eyJ0eXBlIjoic2VydmljZV9hY2NvdW50IiwicHJvamVjdF9pZCI6Inlvd
 # ====================
 # AI PROVIDERS
 # ====================
-GEMINI_API_KEY=AIzaSy_XXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-HUGGINGFACE_TOKEN=hf_XXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+GEMINI_API_KEY=YOUR_API_KEY_HERE
+HUGGINGFACE_TOKEN=YOUR_TOKEN_HERE
 
 # ====================
 # APPLICATION

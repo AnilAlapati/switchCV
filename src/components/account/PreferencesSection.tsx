@@ -1,8 +1,30 @@
 "use client";
+import { useState, useEffect } from "react";
+import useSWR from "swr";
+import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
-import { useState } from "react";
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
+interface Settings {
+    notifications: {
+        marketing: boolean;
+        security: boolean;
+        activity: boolean;
+    };
+    privacy: {
+        profilePublic: boolean;
+        searchable: boolean;
+    };
+}
 
 export function PreferencesSection() {
+    const { user } = useAuth();
+    const { data: settings, mutate } = useSWR<Settings>(
+        user ? `/api/user/settings?userId=${user.uid}` : null,
+        fetcher
+    );
+
     const [notifications, setNotifications] = useState({
         marketing: true,
         security: true,
@@ -14,15 +36,61 @@ export function PreferencesSection() {
         searchable: true,
     });
 
+    // Sync local state with fetched data
+    useEffect(() => {
+        if (settings) {
+            if (settings.notifications) setNotifications(settings.notifications);
+            if (settings.privacy) setPrivacy(settings.privacy);
+        }
+    }, [settings]);
+
+    const savePreferences = async (
+        newNotifications: typeof notifications,
+        newPrivacy: typeof privacy
+    ) => {
+        if (!user) return;
+
+        try {
+            // Optimistic update
+            mutate({ ...settings!, notifications: newNotifications, privacy: newPrivacy }, false);
+
+            const response = await fetch('/api/user/settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: user.uid,
+                    notifications: newNotifications,
+                    privacy: newPrivacy
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to save settings');
+            }
+
+            toast.success('Preferences saved');
+            mutate(); // Revalidate
+        } catch (error) {
+            // console.error('Failed to save preferences:', error);
+            toast.error('Failed to save changes');
+            // Rollback is handled by revalidation on next focus/interaction or manual revalidation
+            mutate();
+        }
+    };
+
     const toggleNotification = (key: keyof typeof notifications) => {
-        setNotifications(prev => ({ ...prev, [key]: !prev[key] }));
-        // TODO: Persist to backend
+        const updated = { ...notifications, [key]: !notifications[key] };
+        setNotifications(updated); // Immediate UI feedback
+        savePreferences(updated, privacy);
     };
 
     const togglePrivacy = (key: keyof typeof privacy) => {
-        setPrivacy(prev => ({ ...prev, [key]: !prev[key] }));
-        // TODO: Persist to backend
+        const updated = { ...privacy, [key]: !privacy[key] };
+        setPrivacy(updated); // Immediate UI feedback
+        savePreferences(notifications, updated);
     };
+
+    if (!settings && !user) return null;
 
     return (
         <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/20 overflow-hidden transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
