@@ -82,3 +82,8 @@ firebase-service-account.json
 service-account.json
 credentials.json
 auth.json
+
+# Sensitive configuration files (contains secrets)
+extensions/firestore-send-email.env
+firebase_config_*_backup.json
+users.json
