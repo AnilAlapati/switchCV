@@ -106,15 +106,31 @@ body {
 
 /* Glass Utility */
 .glass-panel {
-  @apply bg-white/40 backdrop-blur-xl border border-white/50 shadow-lg shadow-[#2C4A3B]/5;
+  @apply bg-white/40 backdrop-blur-xl border border-white/50 shadow-lg shadow-[#2C4A3B]/5 ring-1 ring-white/20;
+}
+
+.glass-panel-deep {
+  @apply bg-white/60 backdrop-blur-2xl border border-white/70 shadow-2xl shadow-[#2C4A3B]/10 ring-1 ring-white/30;
 }
 
 .glass-button {
-  @apply bg-[#2C4A3B] text-white hover:bg-[#1A2F25] shadow-lg shadow-[#2C4A3B]/20 transition-all hover:scale-[1.02];
+  @apply bg-[#2C4A3B] text-white hover:bg-[#1A2F25] shadow-lg shadow-[#2C4A3B]/20 transition-all hover:scale-[1.02] active:scale-[0.98];
+}
+
+.glass-button-glow {
+  @apply bg-[#2C4A3B] text-white hover:bg-[#1A2F25] shadow-[0_0_20px_#2c4a3b4d] hover:shadow-[0_0_30px_#2c4a3b66] transition-all active:scale-[0.98];
 }
 
 .glass-input {
-  @apply bg-white/50 border border-white/60 focus:border-[#2C4A3B]/30 focus:ring-0 placeholder-[#2C4A3B]/60 text-[#1A2F25];
+  @apply bg-white/50 border border-white/60 focus:border-[#2C4A3B]/30 focus:ring-0 placeholder-[#2C4A3B]/60 text-[#1A2F25] transition-all;
+}
+
+.text-glow {
+  text-shadow: 0 0 20px rgba(44, 74, 59, 0.2);
+}
+
+.bg-glow-mint {
+  background: radial-gradient(circle at center, rgba(74, 222, 128, 0.15) 0%, transparent 70%);
 }
 
 @keyframes blob {
@@ -133,4 +149,12 @@ body {
   100% {
     transform: translate(0px, 0px) scale(1);
   }
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
 }

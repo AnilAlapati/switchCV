@@ -35,11 +35,7 @@ async function updateStats() {
       usersRef.count().get(),
       usersRef.where("role", "==", "jobseeker").count().get(),
       usersRef.where("role", "==", "recruiter").count().get(),
-      db
-        .collection("resumeProfiles")
-        .where("published", "==", true)
-        .count()
-        .get(),
+      db.collectionGroup("resumes").count().get(),
     ]);
 
     const stats = {

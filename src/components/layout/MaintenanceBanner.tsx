@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useSystemConfig } from "@/context/SystemConfigProvider";
 
 const DISMISS_CACHE_KEY = "switchcv:maintenance-banner:dismissed";
@@ -17,20 +17,29 @@ export const MaintenanceBanner = (): React.JSX.Element | null => {
     return `${maintenance.blocking ? "blocking" : "info"}:${suffix}`;
   }, [maintenance.blocking, maintenance.message]);
 
-  const storedDismissId = (() => {
-    if (typeof window === "undefined") {
-      return null;
+  const [isDismissed, setIsDismissed] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = window.sessionStorage.getItem(DISMISS_CACHE_KEY);
+        return stored === bannerId;
+      } catch {
+        return false;
+      }
     }
+    return false;
+  });
 
-    try {
-      return window.sessionStorage.getItem(DISMISS_CACHE_KEY);
-    } catch (
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _error
-    ) {
-      return null;
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = window.sessionStorage.getItem(DISMISS_CACHE_KEY);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setIsDismissed(stored === bannerId);
+      } catch {
+        // Ignore session storage errors
+      }
     }
-  })();
+  }, [bannerId]);
 
   if (loading || !maintenance.isActive) {
     return null;
@@ -38,9 +47,6 @@ export const MaintenanceBanner = (): React.JSX.Element | null => {
 
   const isBlocking = maintenance.blocking;
   const canDismiss = !isBlocking;
-  const isDismissed =
-    (storedDismissId !== null && storedDismissId === bannerId) ||
-    manualDismissId === bannerId;
 
   if (isDismissed && canDismiss) {
     return null;
@@ -71,6 +77,7 @@ export const MaintenanceBanner = (): React.JSX.Element | null => {
     }
 
     setManualDismissId(bannerId);
+    setIsDismissed(true);
   };
 
   return (

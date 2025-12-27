@@ -248,3 +248,25 @@ export const resetIdCounter = async (startValue: number = 0): Promise<void> => {
     throw new IdGenerationError("Failed to reset ID counter", error, true);
   }
 };
+
+/**
+ * Check if a given ID is a honeypot (trap) ID.
+ * Honeypots are valid-looking IDs that never exist.
+ * Accessing them signals malicious scraping behavior.
+ */
+export const isHoneypotId = (id: number | string): boolean => {
+  const numId = typeof id === "string" ? parseInt(id, 10) : id;
+
+  if (isNaN(numId)) return false;
+
+  // Simple honeypot strategy:
+  // 1. Every 1000th ID starting at 500 (500, 1500, 2500...)
+  // 2. Specific patterns like repeated digits (55555, 77777)
+
+  if (numId % 1000 === 500) return true;
+
+  // Example specific trap
+  if (numId === 5050) return true;
+
+  return false;
+};

@@ -14,6 +14,9 @@ import {
 import { sanitizeResumeForPublicView } from "@/lib/utils/resumeVisibility";
 import { getUserTier } from "@/lib/services/userService";
 import { getResumeEditingAllowed } from "@/lib/config.server";
+import { checkRateLimit } from "@/lib/utils/rateLimit";
+import { checkSequentialAccess } from "@/lib/security/accessMonitor";
+import { addDeletedIdToPool } from "@/lib/resumeIdRecycler";
 
 type AccessGrantType = "request" | "grant";
 
@@ -120,6 +123,40 @@ export async function GET(
       );
     }
 
+    // Rate Limiting
+    const ip = request.headers.get("x-forwarded-for") ?? "anonymous";
+    const optionalUserId = await maybeGetAuthenticatedUserId(request);
+    const rateLimitIdentifier = optionalUserId ? `user:${optionalUserId}` : `ip:${ip}`;
+
+    // Stricter limit for unauthenticated (public) access to prevent scraping
+    const limit = optionalUserId ? 30 : 10;
+    const rateLimitResult = await checkRateLimit(rateLimitIdentifier, {
+      limit,
+      windowMs: 60 * 1000, // 1 minute
+    });
+
+    if (!rateLimitResult.allowed) {
+      logger.warn(
+        { identifier: rateLimitIdentifier, path: `/api/resumes/${id}` },
+        "[ResumeAPI] Rate limit exceeded"
+      );
+      return handleApiError(
+        null,
+        "Too many requests. Please try again later.",
+        429
+      );
+    }
+
+    // Scraping Protection (Sequential Access)
+    const isSequentialSafe = await checkSequentialAccess(rateLimitIdentifier, id);
+    if (!isSequentialSafe) {
+      return handleApiError(
+        null,
+        "Access denied due to suspicious activity.",
+        403
+      );
+    }
+
     // Block access to ID 1 (Reserved)
     if (id === "1") {
       return handleApiError(
@@ -147,7 +184,7 @@ export async function GET(
     const isBeingEdited = resumeData?.isBeingEdited ?? false;
 
     const ownerId = resumeData?.userId ?? null;
-    const optionalUserId = await maybeGetAuthenticatedUserId(request);
+    // optionalUserId is already defined above for rate limiting
     logger.info(
       `[ResumeAPI] Fetching resume ${id}. AuthUser: ${optionalUserId}`
     );
@@ -412,6 +449,16 @@ export async function DELETE(
 
     // Delete the document
     await docRef.delete();
+
+    // Recycle the numeric ID
+    // We assume 'id' here is numeric based on previous logic, but check to be safe
+    const numericId = parseInt(id, 10);
+    if (!isNaN(numericId)) {
+      // Async (fire & forget) to not block response
+      addDeletedIdToPool(numericId).catch((err) =>
+        logger.error({ err, numericId }, "Failed to recycle resume ID")
+      );
+    }
 
     logger.info(`[ResumeAPI] Deleted resume ${id}.`);
 
