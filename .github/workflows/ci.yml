@@ -7,7 +7,19 @@ on:
     branches: [main, develop]
 
 jobs:
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+
+      - name: Run secret scan (full repo)
+        run: scripts/secret-scan.sh --all
+
   build:
+    needs: secret-scan
     runs-on: ubuntu-latest
 
     steps:

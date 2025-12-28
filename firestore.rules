@@ -132,6 +132,11 @@ service cloud.firestore {
       allow create: if canCreateUserDoc(userId);
       allow update: if canUpdateUserDoc(userId);
       allow delete: if isOwner(userId);
+
+      // Surveys subcollection
+      match /surveys/{surveyId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     // Users can read and write their own profiles
