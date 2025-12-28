@@ -8,6 +8,7 @@ import { DashboardBackground } from "@/components/dashboard/DashboardBackground"
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
+import { WillingnessToPaySurvey } from "@/components/subscription/WillingnessToPaySurvey";
 
 function SparklesIcon({ className }: { className?: string }) {
   return (
@@ -65,7 +66,9 @@ export default function SubscriptionPage() {
             : "No Resume Editing",
           `${limits.basic.resumeRetentionDays || "Forever"
           } Days Resume Retention`,
-          `${limits.basic.recruiterSearchLimit} AI Searches (Recruiter)`,
+          limits.basic.recruiterSearchLimit > 0
+            ? `${limits.basic.recruiterSearchLimit} AI Searches (Recruiter)`
+            : "AI Search not available",
           `${limits.basic.recruiterContactLimit.amount} Contact Requests (${limits.basic.recruiterContactLimit.interval})`,
         ],
       },
@@ -132,6 +135,8 @@ export default function SubscriptionPage() {
               </div>
             </div>
           </div>
+
+          <WillingnessToPaySurvey />
 
           <div className="text-center mb-20">
             <h2 className="text-[#2C4A3B] font-bold tracking-wide uppercase text-sm mb-3">
