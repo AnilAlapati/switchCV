@@ -77,7 +77,6 @@ key.json
 *.p12
 *.pem
 secrets.json
-config.local.json
 firebase-service-account.json
 service-account.json
 credentials.json
@@ -87,3 +86,6 @@ auth.json
 extensions/firestore-send-email.env
 firebase_config_*_backup.json
 users.json
+config-dev.json
+config.local.json
+config.*.json
