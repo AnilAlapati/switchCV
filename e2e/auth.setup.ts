@@ -31,7 +31,7 @@ setup("authenticate", async ({ page }) => {
     );
     console.log("   To run authenticated tests, set these env vars:");
     console.log("   export E2E_TEST_EMAIL=your-test@email.com");
-    console.log("   export ***REMOVED***your-test-password");
+    console.log("   export E2E_TEST_PASSWORD=your-test-password-here");
 
     // Create empty auth file so dependent tests are skipped gracefully
     const authDir = path.dirname(authFile);
