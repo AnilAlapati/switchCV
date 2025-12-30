@@ -2,12 +2,24 @@ import React from "react";
 import { render, screen, waitFor, act } from "@testing-library/react";
 import { CandidatesSearchedCard } from "@/components/dashboard/recruiter/CandidatesSearchedCard";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 jest.mock("@/hooks/useAuth", () => ({
   useAuth: jest.fn(),
 }));
 
+jest.mock("@/hooks/useUserProfile", () => ({
+  useUserProfile: jest.fn(),
+}));
+
+jest.mock("@/context/DashboardMetricsContext", () => ({
+  useOptionalDashboardMetricsContext: jest.fn(),
+}));
+
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
+const mockUseUserProfile = useUserProfile as jest.MockedFunction<
+  typeof useUserProfile
+>;
 
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
@@ -33,7 +45,6 @@ const createMockAuthContext = (user: any) => ({
   setUsername: jest.fn(),
   checkNeedsUsername: jest.fn(),
 });
-
 
 const buildMetricsResponse = (
   overrides: Partial<{
@@ -93,15 +104,61 @@ describe("CandidatesSearchedCard", () => {
       json: () => Promise.resolve(buildMetricsResponse()),
     } as Response);
     mockUseAuth.mockReturnValue(createMockAuthContext(mockUser));
+    mockUseUserProfile.mockReturnValue({
+      profile: null,
+      tier: "premium",
+      role: "recruiter",
+      loading: false,
+      error: null,
+      mutate: jest.fn(),
+    });
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        totalSearches: 0,
+        searchBreakdown: {
+          searchesLast24h: 0,
+          searchesLast7Days: 0,
+          uniqueCandidatesLast7Days: 0,
+          topSkillsLast7Days: [],
+          topLocationsLast7Days: [],
+        },
+      }),
+    } as Response);
   });
 
   describe("Loading State", () => {
-    it("displays loading state initially", () => {
-      render(<CandidatesSearchedCard />);
+    it("displays loading state initially", async () => {
+      // Mock fetch to never resolve - this keeps the component in loading state
+      mockFetch.mockImplementation(
+        () => new Promise(() => {}) // Never resolves
+      );
+      fetchSpy.mockImplementation(
+        () => new Promise(() => {}) // Never resolves
+      );
 
-      expect(screen.getByText("Searches (last 7 days)")).toBeInTheDocument();
+      await act(async () => {
+        render(<CandidatesSearchedCard />);
+      });
+
+      expect(screen.getByText("Search Intelligence")).toBeInTheDocument();
       expect(screen.getByText("-")).toBeInTheDocument();
       expect(screen.getByText("Loading...")).toBeInTheDocument();
+
+      // Restore the normal mock for subsequent tests
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          totalSearches: 0,
+          searchBreakdown: {
+            searchesLast24h: 0,
+            searchesLast7Days: 0,
+            uniqueCandidatesLast7Days: 0,
+            topSkillsLast7Days: [],
+            topLocationsLast7Days: [],
+          },
+        }),
+      } as Response);
     });
 
     it("fetches metrics on mount when user exists", async () => {
@@ -120,10 +177,12 @@ describe("CandidatesSearchedCard", () => {
       });
     });
 
-    it("does not fetch metrics when user is null", () => {
+    it("does not fetch metrics when user is null", async () => {
       mockUseAuth.mockReturnValue(createMockAuthContext(null));
 
-      render(<CandidatesSearchedCard />);
+      await act(async () => {
+        render(<CandidatesSearchedCard />);
+      });
 
       expect(fetchSpy).not.toHaveBeenCalled();
       expect(screen.getByText("0")).toBeInTheDocument();
@@ -150,10 +209,8 @@ describe("CandidatesSearchedCard", () => {
       await renderCard();
 
       await waitFor(() => {
+        expect(screen.getByText("Search Intelligence")).toBeInTheDocument();
         expect(screen.getByText("8")).toBeInTheDocument();
-        expect(
-          screen.getByText("25 all-time · 5 unique candidates")
-        ).toBeInTheDocument();
         expect(screen.getByText("2 in past 24h")).toBeInTheDocument();
       });
     });
@@ -194,9 +251,6 @@ describe("CandidatesSearchedCard", () => {
 
       await waitFor(() => {
         expect(screen.getByText("1")).toBeInTheDocument();
-        expect(
-          screen.getByText("1 all-time · 1 unique candidates")
-        ).toBeInTheDocument();
         expect(screen.getByText("1 in past 24h")).toBeInTheDocument();
       });
     });
@@ -266,7 +320,7 @@ describe("CandidatesSearchedCard", () => {
       await renderCard();
 
       await waitFor(() => {
-        expect(screen.getByText("Searches (last 7 days)")).toBeInTheDocument();
+        expect(screen.getByText("Search Intelligence")).toBeInTheDocument();
         expect(screen.getByText("5")).toBeInTheDocument();
       });
     });
