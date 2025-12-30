@@ -60,7 +60,7 @@ export default function SubscriptionPage() {
         price: "Free",
         description: "Essential features for job seekers starting their journey.",
         features: [
-          `${limits.basic.resumeCreationLimit} Resume Creation`,
+          `${limits.basic.resumeCreationLimit} Active Resume`,
           limits.basic.resumeEditingAllowed
             ? "Resume Editing"
             : "No Resume Editing",
@@ -79,7 +79,7 @@ export default function SubscriptionPage() {
         description: "Advanced AI tools for serious candidates and recruiters.",
         highlight: true,
         features: [
-          `${limits.premium.resumeCreationLimit} Resume Creations`,
+          `${limits.premium.resumeCreationLimit} Tailored Resume Versions`,
           limits.premium.resumeEditingAllowed
             ? "Unlimited Resume Editing"
             : "No Resume Editing",
@@ -94,7 +94,7 @@ export default function SubscriptionPage() {
         price: "Custom",
         description: "Complete solution for high-volume recruitment agencies.",
         features: [
-          "Unlimited Resume Creations",
+          "Unlimited Resume Management",
           "Unlimited Resume Editing",
           "Forever Resume Retention",
           "Unlimited AI Searches",

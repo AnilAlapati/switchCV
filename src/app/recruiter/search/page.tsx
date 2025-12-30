@@ -25,9 +25,19 @@ export default function RecruiterSearchPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchMode, setSearchMode] = useState<SearchMode>("basic");
+  const [hasInitializedMode, setHasInitializedMode] = useState(false);
 
   const loading = authLoading || profileLoading;
   const isBasicTier = tier === "basic";
+
+  useEffect(() => {
+    if (!loading && tier && !hasInitializedMode) {
+      if (tier !== "basic") {
+        setSearchMode("ai");
+      }
+      setHasInitializedMode(true);
+    }
+  }, [loading, tier, hasInitializedMode]);
 
   useEffect(() => {
     if (!loading) {
@@ -127,10 +137,10 @@ export default function RecruiterSearchPage() {
             onClick={() => !isBasicTier && setSearchMode("ai")}
             disabled={isBasicTier}
             className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${isBasicTier
-                ? "glass-panel opacity-50 cursor-not-allowed text-[#1A2F25]/40"
-                : searchMode === "ai"
-                  ? "bg-gradient-to-r from-[#2C4A3B] to-emerald-600 text-white shadow-lg"
-                  : "glass-panel hover:bg-white/60 text-[#1A2F25]/70 hover:text-[#1A2F25]"
+              ? "glass-panel opacity-50 cursor-not-allowed text-[#1A2F25]/40"
+              : searchMode === "ai"
+                ? "bg-gradient-to-r from-[#2C4A3B] to-emerald-600 text-white shadow-lg"
+                : "glass-panel hover:bg-white/60 text-[#1A2F25]/70 hover:text-[#1A2F25]"
               }`}
           >
             <span>✨</span>
@@ -142,8 +152,8 @@ export default function RecruiterSearchPage() {
           <button
             onClick={() => setSearchMode("basic")}
             className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${searchMode === "basic"
-                ? "bg-[#2C4A3B] text-white shadow-lg"
-                : "glass-panel hover:bg-white/60 text-[#1A2F25]/70 hover:text-[#1A2F25]"
+              ? "bg-[#2C4A3B] text-white shadow-lg"
+              : "glass-panel hover:bg-white/60 text-[#1A2F25]/70 hover:text-[#1A2F25]"
               }`}
           >
             <span>🔍</span>

@@ -159,7 +159,7 @@ describe("GET /api/recruiter/search", () => {
     const data = await response.json();
 
     expect(response.status).toBe(403);
-    expect(data.error).toBe("Recruiter access only");
+    expect(data.error).toBe("Forbidden: Recruiter role required");
   });
 
   it("searches resumes and enriches with user info", async () => {

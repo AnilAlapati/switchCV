@@ -1,6 +1,33 @@
 import { NextRequest } from "next/server";
 import { GET } from "./route";
 
+// Mock api-helpers
+jest.mock("@/lib/utils/api-helpers", () => ({
+  getAuthenticatedUserId: jest
+    .fn()
+    .mockResolvedValue({ userId: "test-user-id", error: null }),
+  maybeGetAuthenticatedUserId: jest
+    .fn()
+    .mockResolvedValue({ userId: "test-user-id" }),
+  handleApiError: jest.fn((error, message, status = 500) => {
+    const details =
+      error instanceof Error
+        ? error.message
+        : error
+        ? String(error)
+        : undefined;
+    return {
+      status,
+      json: async () => ({
+        error: message,
+        ...(details !== undefined ? { details } : {}),
+      }),
+    };
+  }),
+  verifyRecruiterRole: jest.fn().mockResolvedValue(null),
+  verifyAdminRole: jest.fn().mockResolvedValue(null),
+}));
+
 // Mock getRecruiterSearchBreakdown
 jest.mock("@/lib/recruiterSearchHistory", () => ({
   getRecruiterSearchBreakdown: jest.fn().mockResolvedValue({
@@ -15,11 +42,23 @@ jest.mock("@/lib/recruiterSearchHistory", () => ({
 // Mock Firebase admin
 jest.mock("@/lib/firebase-admin", () => ({
   adminDb: {
-    collection: jest.fn(() => ({
-      doc: jest.fn(() => ({
-        get: jest.fn(),
-      })),
-    })),
+    collection: jest.fn((collectionName: string) => {
+      if (collectionName === "users") {
+        return {
+          doc: jest.fn().mockImplementation((userId: string) => ({
+            get: jest.fn().mockResolvedValue({
+              exists: true,
+              data: () => ({ role: "admin" }),
+            }),
+          })),
+        };
+      }
+      return {
+        doc: jest.fn(() => ({
+          get: jest.fn(),
+        })),
+      };
+    }),
     collectionGroup: jest.fn(() => ({
       where: jest.fn(() => ({
         get: jest.fn(),
@@ -41,9 +80,21 @@ const mockGet = jest.fn();
 const mockWhere = jest.fn();
 const mockGroupGet = jest.fn();
 
-mockCollection.mockReturnValue({
-  doc: mockDoc,
-} as any);
+mockCollection.mockImplementation((collectionName: string) => {
+  if (collectionName === "users") {
+    return {
+      doc: jest.fn().mockImplementation((userId: string) => ({
+        get: jest.fn().mockResolvedValue({
+          exists: true,
+          data: () => ({ role: "admin" }),
+        }),
+      })),
+    };
+  }
+  return {
+    doc: mockDoc,
+  } as any;
+});
 
 mockCollectionGroup.mockReturnValue({
   where: mockWhere,
@@ -106,7 +157,8 @@ describe("GET /api/recruiter/metrics", () => {
     });
 
     const request = new NextRequest(
-      "http://localhost:3000/api/recruiter/metrics?userId=recruiter123"
+      "http://localhost:3000/api/recruiter/metrics?userId=recruiter123",
+      { headers: { authorization: "Bearer test-token" } }
     );
 
     const response = await GET(request);
@@ -146,7 +198,8 @@ describe("GET /api/recruiter/metrics", () => {
     });
 
     const request = new NextRequest(
-      "http://localhost:3000/api/recruiter/metrics?userId=recruiter456"
+      "http://localhost:3000/api/recruiter/metrics?userId=recruiter456",
+      { headers: { authorization: "Bearer test-token" } }
     );
 
     const response = await GET(request);
@@ -175,7 +228,8 @@ describe("GET /api/recruiter/metrics", () => {
 
   it("should return 400 when userId is missing", async () => {
     const request = new NextRequest(
-      "http://localhost:3000/api/recruiter/metrics"
+      "http://localhost:3000/api/recruiter/metrics",
+      { headers: { authorization: "Bearer test-token" } }
     );
 
     const response = await GET(request);
@@ -197,7 +251,8 @@ describe("GET /api/recruiter/metrics", () => {
     });
 
     const request = new NextRequest(
-      "http://localhost:3000/api/recruiter/metrics?userId=recruiter789"
+      "http://localhost:3000/api/recruiter/metrics?userId=recruiter789",
+      { headers: { authorization: "Bearer test-token" } }
     );
 
     const response = await GET(request);
@@ -236,7 +291,8 @@ describe("GET /api/recruiter/metrics", () => {
     });
 
     const request = new NextRequest(
-      "http://localhost:3000/api/recruiter/metrics?userId=recruiter123"
+      "http://localhost:3000/api/recruiter/metrics?userId=recruiter123",
+      { headers: { authorization: "Bearer test-token" } }
     );
 
     const response = await GET(request);

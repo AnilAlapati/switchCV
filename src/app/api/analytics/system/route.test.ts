@@ -14,9 +14,16 @@ jest.mock("@/lib/firebase-admin", () => ({
 // Mock auth helpers
 jest.mock("@/lib/utils/api-helpers", () => ({
   getAuthenticatedUserId: jest.fn(),
-  handleApiError: jest.fn(
-    (err, msg) => new Response(JSON.stringify({ error: msg }), { status: 500 })
-  ),
+  handleApiError: jest.fn((error, message, status = 500) => {
+    const res: any = { error: message };
+    if (error) {
+      res.details = error instanceof Error ? error.message : String(error);
+    }
+    return {
+      status,
+      json: async () => res,
+    };
+  }),
 }));
 
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
@@ -37,9 +44,8 @@ describe("System Analytics API", () => {
       }),
     });
 
-    const request = new NextRequest(
-      "http://localhost:3000/api/analytics/system"
-    );
+    const request = new NextRequest("http://localhost:3000/api/analytics/system"
+    , { headers: { authorization: "Bearer test-token" } });
     const response = await GET(request);
 
     expect(response.status).toBe(401);
@@ -61,9 +67,8 @@ describe("System Analytics API", () => {
       }),
     });
 
-    const request = new NextRequest(
-      "http://localhost:3000/api/analytics/system"
-    );
+    const request = new NextRequest("http://localhost:3000/api/analytics/system"
+    , { headers: { authorization: "Bearer test-token" } });
     const response = await GET(request);
 
     expect(response.status).toBe(403);
@@ -178,9 +183,8 @@ describe("System Analytics API", () => {
       }
     );
 
-    const request = new NextRequest(
-      "http://localhost:3000/api/analytics/system"
-    );
+    const request = new NextRequest("http://localhost:3000/api/analytics/system"
+    , { headers: { authorization: "Bearer test-token" } });
     const response = await GET(request);
 
     expect(response.status).toBe(200);
@@ -215,9 +219,8 @@ describe("System Analytics API", () => {
       limit: jest.fn().mockReturnThis(),
     }));
 
-    const request = new NextRequest(
-      "http://localhost:3000/api/analytics/system"
-    );
+    const request = new NextRequest("http://localhost:3000/api/analytics/system"
+    , { headers: { authorization: "Bearer test-token" } });
     const response = await GET(request);
 
     expect(response.status).toBe(200);

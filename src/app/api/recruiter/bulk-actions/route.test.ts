@@ -3,6 +3,31 @@
 import { NextRequest } from "next/server";
 import { POST, GET } from "./route";
 
+/**
+ * Helper to add auth headers to requests
+ */
+const withAuth = (init?: RequestInit): RequestInit => ({
+  ...init,
+  headers: { authorization: "Bearer test-token", ...(init?.headers || {}) },
+});
+// Mock api-helpers
+jest.mock("@/lib/utils/api-helpers", () => ({
+  getAuthenticatedUserId: jest
+    .fn()
+    .mockResolvedValue({ userId: "test-user-id" }),
+  handleApiError: jest.fn((error, message, status = 500) => {
+    const details =
+      error instanceof Error
+        ? error.message
+        : error
+        ? String(error)
+        : undefined;
+    return {
+      status,
+      json: async () => ({ error: message, ...(details ? { details } : {}) }),
+    };
+  }),
+}));
 // Mock firebase-admin
 jest.mock("@/lib/firebase-admin", () => {
   const mockData = new Map<string, any>();
@@ -47,19 +72,33 @@ jest.mock("@/lib/firebase-admin", () => {
 
   return {
     adminDb: {
-      collection: jest.fn().mockImplementation(() => ({
-        doc: jest.fn().mockImplementation((id: string) => mockDocRef(id)),
-        orderBy: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockReturnThis(),
-        get: jest.fn().mockResolvedValue({
-          docs: Array.from(mockData.entries()).map(([id, data]) => ({
-            id,
-            data: () => data,
-            exists: true,
-          })),
-        }),
-      })),
+      collection: jest.fn().mockImplementation((collectionName: string) => {
+        // Handle users collection for role verification
+        if (collectionName === "users") {
+          return {
+            doc: jest.fn().mockImplementation((userId: string) => ({
+              get: jest.fn().mockResolvedValue({
+                exists: true,
+                data: () => ({ role: "recruiter" }),
+              }),
+            })),
+          };
+        }
+
+        return {
+          doc: jest.fn().mockImplementation((id: string) => mockDocRef(id)),
+          orderBy: jest.fn().mockReturnThis(),
+          where: jest.fn().mockReturnThis(),
+          limit: jest.fn().mockReturnThis(),
+          get: jest.fn().mockResolvedValue({
+            docs: Array.from(mockData.entries()).map(([id, data]) => ({
+              id,
+              data: () => data,
+              exists: true,
+            })),
+          }),
+        };
+      }),
       _mockData: mockData, // Expose for test setup
     },
   };
@@ -109,6 +148,7 @@ describe("POST /api/recruiter/bulk-actions", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/bulk-actions",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "create",
@@ -142,6 +182,7 @@ describe("POST /api/recruiter/bulk-actions", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/bulk-actions",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "create",
@@ -164,6 +205,7 @@ describe("POST /api/recruiter/bulk-actions", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/bulk-actions",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "create",
@@ -187,6 +229,7 @@ describe("POST /api/recruiter/bulk-actions", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/bulk-actions",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "create",
@@ -223,6 +266,7 @@ describe("POST /api/recruiter/bulk-actions", () => {
       const createRequest = new NextRequest(
         "http://localhost:3000/api/recruiter/bulk-actions",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "create",
@@ -238,6 +282,7 @@ describe("POST /api/recruiter/bulk-actions", () => {
       const executeRequest = new NextRequest(
         "http://localhost:3000/api/recruiter/bulk-actions",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "execute",
@@ -261,6 +306,7 @@ describe("POST /api/recruiter/bulk-actions", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/bulk-actions",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "execute",
@@ -292,6 +338,7 @@ describe("POST /api/recruiter/bulk-actions", () => {
       const createRequest = new NextRequest(
         "http://localhost:3000/api/recruiter/bulk-actions",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "create",
@@ -307,6 +354,7 @@ describe("POST /api/recruiter/bulk-actions", () => {
       const executeRequest = new NextRequest(
         "http://localhost:3000/api/recruiter/bulk-actions",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "execute",
@@ -340,6 +388,7 @@ describe("POST /api/recruiter/bulk-actions", () => {
       const createRequest = new NextRequest(
         "http://localhost:3000/api/recruiter/bulk-actions",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "create",
@@ -355,6 +404,7 @@ describe("POST /api/recruiter/bulk-actions", () => {
       const cancelRequest = new NextRequest(
         "http://localhost:3000/api/recruiter/bulk-actions",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "cancel",
@@ -377,6 +427,7 @@ describe("POST /api/recruiter/bulk-actions", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/bulk-actions",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "cancel",
@@ -408,6 +459,7 @@ describe("POST /api/recruiter/bulk-actions", () => {
       const createRequest = new NextRequest(
         "http://localhost:3000/api/recruiter/bulk-actions",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "create",
@@ -423,6 +475,7 @@ describe("POST /api/recruiter/bulk-actions", () => {
       const cancelRequest = new NextRequest(
         "http://localhost:3000/api/recruiter/bulk-actions",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "cancel",
@@ -444,6 +497,7 @@ describe("POST /api/recruiter/bulk-actions", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/bulk-actions",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "invalid-action",
@@ -487,6 +541,7 @@ describe("GET /api/recruiter/bulk-actions", () => {
     const createRequest = new NextRequest(
       "http://localhost:3000/api/recruiter/bulk-actions",
       {
+        headers: { authorization: "Bearer test-token" },
         method: "POST",
         body: JSON.stringify({
           action: "create",
@@ -536,6 +591,7 @@ describe("GET /api/recruiter/bulk-actions", () => {
     const createRequest1 = new NextRequest(
       "http://localhost:3000/api/recruiter/bulk-actions",
       {
+        headers: { authorization: "Bearer test-token" },
         method: "POST",
         body: JSON.stringify({
           action: "create",
@@ -556,6 +612,7 @@ describe("GET /api/recruiter/bulk-actions", () => {
     const createRequest2 = new NextRequest(
       "http://localhost:3000/api/recruiter/bulk-actions",
       {
+        headers: { authorization: "Bearer test-token" },
         method: "POST",
         body: JSON.stringify({
           action: "create",
@@ -603,6 +660,7 @@ describe("GET /api/recruiter/bulk-actions", () => {
     const createRequest1 = new NextRequest(
       "http://localhost:3000/api/recruiter/bulk-actions",
       {
+        headers: { authorization: "Bearer test-token" },
         method: "POST",
         body: JSON.stringify({
           action: "create",
@@ -615,6 +673,7 @@ describe("GET /api/recruiter/bulk-actions", () => {
     const createRequest2 = new NextRequest(
       "http://localhost:3000/api/recruiter/bulk-actions",
       {
+        headers: { authorization: "Bearer test-token" },
         method: "POST",
         body: JSON.stringify({
           action: "create",

@@ -83,6 +83,15 @@ describe("User Settings API", () => {
         isRecruiter: true,
         displayName: "John Doe",
         companyName: "Tech Corp",
+        notifications: {
+          marketing: true,
+          security: true,
+          activity: false,
+        },
+        privacy: {
+          profilePublic: true,
+          searchable: true,
+        },
         updatedAt: "2024-01-15T10:30:00Z",
       });
       expect(mockCollection).toHaveBeenCalledWith("users");

@@ -78,9 +78,21 @@ jest.mock("@/lib/firebase-admin", () => {
 
   return {
     adminDb: {
-      collection: jest.fn().mockImplementation(() => ({
-        doc: jest.fn().mockImplementation((id: string) => mockDocRef(id)),
-      })),
+      collection: jest.fn().mockImplementation((collectionName: string) => {
+        if (collectionName === "users") {
+          return {
+            doc: jest.fn().mockImplementation((userId: string) => ({
+              get: jest.fn().mockResolvedValue({
+                exists: true,
+                data: () => ({ role: "recruiter" }),
+              }),
+            })),
+          };
+        }
+        return {
+          doc: jest.fn().mockImplementation((id: string) => mockDocRef(id)),
+        };
+      }),
     },
     _mockData: mockFirestoreData,
     _mockSubcollections: mockSubcollections,
@@ -94,12 +106,26 @@ const {
 
 // Mock api-helpers
 jest.mock("@/lib/utils/api-helpers", () => ({
+  getAuthenticatedUserId: jest
+    .fn()
+    .mockResolvedValue({ userId: "test-user-id", error: null }),
   handleApiError: jest.fn((error, message, status = 500) => {
+    const details =
+      error instanceof Error
+        ? error.message
+        : error
+        ? String(error)
+        : undefined;
     return {
       status,
-      json: async () => ({ error: message }),
+      json: async () => ({
+        error: message,
+        ...(details !== undefined ? { details } : {}),
+      }),
     };
   }),
+  verifyRecruiterRole: jest.fn().mockResolvedValue(null),
+  verifyAdminRole: jest.fn().mockResolvedValue(null),
 }));
 
 jest.mock("@/lib/recruiterPipelineHelpers", () => ({
@@ -145,6 +171,7 @@ describe("POST /api/recruiter/pipeline", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/pipeline",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "initialize",
@@ -169,6 +196,7 @@ describe("POST /api/recruiter/pipeline", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/pipeline",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "initialize",
@@ -212,6 +240,7 @@ describe("POST /api/recruiter/pipeline", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/pipeline",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "add-candidate",
@@ -243,6 +272,7 @@ describe("POST /api/recruiter/pipeline", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/pipeline",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "add-candidate",
@@ -289,6 +319,7 @@ describe("POST /api/recruiter/pipeline", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/pipeline",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "move-candidate",
@@ -314,6 +345,7 @@ describe("POST /api/recruiter/pipeline", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/pipeline",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "move-candidate",
@@ -342,6 +374,7 @@ describe("POST /api/recruiter/pipeline", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/pipeline",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "move-candidate",
@@ -387,6 +420,7 @@ describe("POST /api/recruiter/pipeline", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/pipeline",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "get-stage",
@@ -410,6 +444,7 @@ describe("POST /api/recruiter/pipeline", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/pipeline",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "get-stage",
@@ -432,6 +467,7 @@ describe("POST /api/recruiter/pipeline", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/pipeline",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "invalid-action",
@@ -456,13 +492,17 @@ describe("POST /api/recruiter/pipeline", () => {
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data).toEqual({ error: "Internal server error" });
+      expect(data).toEqual({
+        error: "Internal server error",
+        details: "Invalid JSON",
+      });
     });
 
     it("should handle missing action field", async () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/pipeline",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             jobId: "job-123",

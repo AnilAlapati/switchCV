@@ -5,6 +5,19 @@
 import { POST } from "@/app/api/admin/migrate-resume-ids/route";
 import { adminDb } from "@/lib/firebase-admin";
 import { mapResumeId } from "@/lib/resumeIdMapping";
+import { NextRequest } from "next/server";
+
+// Mock api-helpers
+jest.mock("@/lib/utils/api-helpers", () => ({
+  getAuthenticatedUserId: jest.fn().mockResolvedValue({ userId: "admin-user" }),
+  handleApiError: jest.fn((error, message, status = 500) => {
+    const details = error instanceof Error ? error.message : String(error);
+    return {
+      status,
+      json: async () => ({ error: message, details }),
+    };
+  }),
+}));
 
 // Mock Firebase admin
 jest.mock("@/lib/firebase-admin", () => ({
@@ -67,19 +80,39 @@ describe("POST /api/admin/migrate-resume-ids", () => {
       doc: jest.fn().mockReturnValue(mockCounterRef),
     };
 
+    // Mock users collection for admin role verification
+    const mockUsersCollection = {
+      doc: jest.fn().mockReturnValue({
+        get: jest.fn().mockResolvedValue({
+          exists: true,
+          data: () => ({ role: "admin" }),
+        }),
+      }),
+    };
+
     // Mock adminDb.collection to return different objects based on collection name
     (adminDb.collection as jest.Mock).mockImplementation((collectionName) => {
       if (collectionName === "resumes") {
         return mockResumesQuery;
       } else if (collectionName === "system") {
         return mockSystemCollection;
+      } else if (collectionName === "users") {
+        return mockUsersCollection;
       }
       return {};
     });
 
     (mapResumeId as jest.Mock).mockResolvedValue(undefined);
 
-    const response = await POST();
+    const request = new NextRequest(
+      "http://localhost:3000/api/admin/migrate-resume-ids",
+      {
+        method: "POST",
+        headers: { authorization: "Bearer test-token" },
+      }
+    );
+
+    const response = await POST(request);
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -145,19 +178,39 @@ describe("POST /api/admin/migrate-resume-ids", () => {
       doc: jest.fn().mockReturnValue(mockCounterRef),
     };
 
+    // Mock users collection for admin role verification
+    const mockUsersCollection = {
+      doc: jest.fn().mockReturnValue({
+        get: jest.fn().mockResolvedValue({
+          exists: true,
+          data: () => ({ role: "admin" }),
+        }),
+      }),
+    };
+
     // Mock adminDb.collection to return different objects based on collection name
     (adminDb.collection as jest.Mock).mockImplementation((collectionName) => {
       if (collectionName === "resumes") {
         return mockResumesQuery;
       } else if (collectionName === "system") {
         return mockSystemCollection;
+      } else if (collectionName === "users") {
+        return mockUsersCollection;
       }
       return {};
     });
 
     (mapResumeId as jest.Mock).mockResolvedValue(undefined);
 
-    const response = await POST();
+    const request = new NextRequest(
+      "http://localhost:3000/api/admin/migrate-resume-ids",
+      {
+        method: "POST",
+        headers: { authorization: "Bearer test-token" },
+      }
+    );
+
+    const response = await POST(request);
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -213,12 +266,24 @@ describe("POST /api/admin/migrate-resume-ids", () => {
       doc: jest.fn().mockReturnValue(mockCounterRef),
     };
 
+    // Mock users collection for admin role verification
+    const mockUsersCollection = {
+      doc: jest.fn().mockReturnValue({
+        get: jest.fn().mockResolvedValue({
+          exists: true,
+          data: () => ({ role: "admin" }),
+        }),
+      }),
+    };
+
     // Mock adminDb.collection to return different objects based on collection name
     (adminDb.collection as jest.Mock).mockImplementation((collectionName) => {
       if (collectionName === "resumes") {
         return mockResumesQuery;
       } else if (collectionName === "system") {
         return mockSystemCollection;
+      } else if (collectionName === "users") {
+        return mockUsersCollection;
       }
       return {};
     });
@@ -228,7 +293,15 @@ describe("POST /api/admin/migrate-resume-ids", () => {
       .mockResolvedValueOnce(undefined)
       .mockRejectedValueOnce(new Error("Mapping failed"));
 
-    const response = await POST();
+    const request = new NextRequest(
+      "http://localhost:3000/api/admin/migrate-resume-ids",
+      {
+        method: "POST",
+        headers: { authorization: "Bearer test-token" },
+      }
+    );
+
+    const response = await POST(request);
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -267,17 +340,37 @@ describe("POST /api/admin/migrate-resume-ids", () => {
       doc: jest.fn().mockReturnValue(mockCounterRef),
     };
 
+    // Mock users collection for admin role verification
+    const mockUsersCollection = {
+      doc: jest.fn().mockReturnValue({
+        get: jest.fn().mockResolvedValue({
+          exists: true,
+          data: () => ({ role: "admin" }),
+        }),
+      }),
+    };
+
     // Mock adminDb.collection to return different objects based on collection name
     (adminDb.collection as jest.Mock).mockImplementation((collectionName) => {
       if (collectionName === "resumes") {
         return mockResumesQuery;
       } else if (collectionName === "system") {
         return mockSystemCollection;
+      } else if (collectionName === "users") {
+        return mockUsersCollection;
       }
       return {};
     });
 
-    const response = await POST();
+    const request = new NextRequest(
+      "http://localhost:3000/api/admin/migrate-resume-ids",
+      {
+        method: "POST",
+        headers: { authorization: "Bearer test-token" },
+      }
+    );
+
+    const response = await POST(request);
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -292,11 +385,33 @@ describe("POST /api/admin/migrate-resume-ids", () => {
 
   it("should handle database error", async () => {
     const mockError = new Error("Database connection failed");
-    (adminDb.collection as jest.Mock).mockImplementation(() => {
+
+    // First, mock collection to return users collection (for role verification)
+    const mockUsersCollection = {
+      doc: jest.fn().mockReturnValue({
+        get: jest.fn().mockResolvedValue({
+          exists: true,
+          data: () => ({ role: "admin" }),
+        }),
+      }),
+    };
+
+    (adminDb.collection as jest.Mock).mockImplementation((collectionName) => {
+      if (collectionName === "users") {
+        return mockUsersCollection;
+      }
       throw mockError;
     });
 
-    const response = await POST();
+    const request = new NextRequest(
+      "http://localhost:3000/api/admin/migrate-resume-ids",
+      {
+        method: "POST",
+        headers: { authorization: "Bearer test-token" },
+      }
+    );
+
+    const response = await POST(request);
     const data = await response.json();
 
     expect(response.status).toBe(500);
@@ -305,11 +420,32 @@ describe("POST /api/admin/migrate-resume-ids", () => {
   });
 
   it("should handle unknown error", async () => {
-    (adminDb.collection as jest.Mock).mockImplementation(() => {
+    // First, mock collection to return users collection (for role verification)
+    const mockUsersCollection = {
+      doc: jest.fn().mockReturnValue({
+        get: jest.fn().mockResolvedValue({
+          exists: true,
+          data: () => ({ role: "admin" }),
+        }),
+      }),
+    };
+
+    (adminDb.collection as jest.Mock).mockImplementation((collectionName) => {
+      if (collectionName === "users") {
+        return mockUsersCollection;
+      }
       throw "Unknown error";
     });
 
-    const response = await POST();
+    const request = new NextRequest(
+      "http://localhost:3000/api/admin/migrate-resume-ids",
+      {
+        method: "POST",
+        headers: { authorization: "Bearer test-token" },
+      }
+    );
+
+    const response = await POST(request);
     const data = await response.json();
 
     expect(response.status).toBe(500);

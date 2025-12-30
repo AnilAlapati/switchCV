@@ -60,7 +60,12 @@ describe("POST /api/recruiter/search-resumes", () => {
       RATE_LIMITS: { SEARCH_REQUESTS_PER_MINUTE: 10 },
     });
     mockCreateDistributedRateLimiter.mockReturnValue(mockRateLimiter);
-    mockRateLimiter.mockResolvedValue({ allowed: true });
+    mockRateLimiter.mockResolvedValue({
+      allowed: true,
+      limit: 10,
+      remaining: 9,
+      resetIn: 60000,
+    });
     mockBuildAccessStatusMap.mockResolvedValue({});
     mockPerformBasicSearch.mockResolvedValue({ results: [] });
     mockPerformPremiumSearch.mockResolvedValue({ results: [] });
@@ -98,6 +103,12 @@ describe("POST /api/recruiter/search-resumes", () => {
     expect(res.status).toBe(400);
     const data = await res.json();
     expect(data.error).toContain("Invalid search parameters");
+  });
+
+  it("should return 403 if recruiterId does not match logged in user", async () => {
+    const req = createRequest({ recruiterId: "other-recruiter", userId: "user-1" });
+    const res = await POST(req);
+    expect(res.status).toBe(403);
   });
 
   it("should return 403 if user is not a recruiter or admin", async () => {

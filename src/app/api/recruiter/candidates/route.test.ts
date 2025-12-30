@@ -10,6 +10,14 @@ import {
   PipelineStage,
 } from "@/lib/recruiterDashboard.types";
 
+/**
+ * Helper to add auth headers to requests
+ */
+const withAuth = (init?: RequestInit): RequestInit => ({
+  ...init,
+  headers: { authorization: "Bearer test-token", ...(init?.headers || {}) },
+});
+
 // Mock firebase-admin
 jest.mock("@/lib/firebase-admin", () => {
   const mockFirestoreData = new Map<string, any>();
@@ -93,18 +101,32 @@ jest.mock("@/lib/firebase-admin", () => {
 
   return {
     adminDb: {
-      collection: jest.fn().mockImplementation(() => ({
-        doc: jest.fn().mockImplementation((id: string) => mockDocRef(id)),
-        orderBy: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockReturnThis(),
-        get: jest.fn().mockResolvedValue({
-          docs: Array.from(mockFirestoreData.entries()).map(([id, data]) => ({
-            id,
-            data: () => data,
-            exists: true,
-          })),
-        }),
-      })),
+      collection: jest.fn().mockImplementation((collectionName: string) => {
+        // Handle users collection for role verification
+        if (collectionName === "users") {
+          return {
+            doc: jest.fn().mockImplementation((userId: string) => ({
+              get: jest.fn().mockResolvedValue({
+                exists: true,
+                data: () => ({ role: "recruiter" }),
+              }),
+            })),
+          };
+        }
+
+        return {
+          doc: jest.fn().mockImplementation((id: string) => mockDocRef(id)),
+          orderBy: jest.fn().mockReturnThis(),
+          limit: jest.fn().mockReturnThis(),
+          get: jest.fn().mockResolvedValue({
+            docs: Array.from(mockFirestoreData.entries()).map(([id, data]) => ({
+              id,
+              data: () => data,
+              exists: true,
+            })),
+          }),
+        };
+      }),
     },
     _mockData: mockFirestoreData,
     _mockSubcollections: mockSubcollections,
@@ -115,6 +137,25 @@ const {
   _mockData: mockFirestoreData,
   _mockSubcollections: mockSubcollections,
 } = require("@/lib/firebase-admin");
+
+// Mock api-helpers
+jest.mock("@/lib/utils/api-helpers", () => ({
+  getAuthenticatedUserId: jest
+    .fn()
+    .mockResolvedValue({ userId: "test-user-id" }),
+  handleApiError: jest.fn((error, message, status = 500) => {
+    const details =
+      error instanceof Error
+        ? error.message
+        : error
+        ? String(error)
+        : undefined;
+    return {
+      status,
+      json: async () => ({ error: message, ...(details ? { details } : {}) }),
+    };
+  }),
+}));
 
 // Mock the recruiterPipeline functions
 jest.mock("@/lib/recruiterPipeline", () => ({
@@ -166,6 +207,7 @@ describe("POST /api/recruiter/candidates", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/candidates",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "create",
@@ -211,6 +253,7 @@ describe("POST /api/recruiter/candidates", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/candidates",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "create",
@@ -232,6 +275,7 @@ describe("POST /api/recruiter/candidates", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/candidates",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "create",
@@ -276,6 +320,7 @@ describe("POST /api/recruiter/candidates", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/candidates",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "update-priority",
@@ -306,6 +351,7 @@ describe("POST /api/recruiter/candidates", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/candidates",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "update-priority",
@@ -340,7 +386,7 @@ describe("POST /api/recruiter/candidates", () => {
       const mockNote = {
         id: "note-123",
         candidateId: "cand-123",
-        userId: "user-456",
+        userId: "test-user-id",
         content: "Great technical skills",
         category: "technical",
         isPrivate: false,
@@ -354,6 +400,7 @@ describe("POST /api/recruiter/candidates", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/candidates",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "add-note",
@@ -373,7 +420,7 @@ describe("POST /api/recruiter/candidates", () => {
       expect(data.success).toBe(true);
       expect(data.note.id).toBe("note-123");
       expect(data.note.candidateId).toBe("cand-123");
-      expect(data.note.userId).toBe("user-456");
+      expect(data.note.userId).toBe("test-user-id");
       expect(data.note.content).toBe("Great technical skills");
       expect(data.note.category).toBe("technical");
       expect(data.note.isPrivate).toBe(false);
@@ -381,7 +428,7 @@ describe("POST /api/recruiter/candidates", () => {
       expect(data.message).toBe("Note added successfully");
       expect(addCandidateNote).toHaveBeenCalledWith(
         "cand-123",
-        "user-456",
+        "test-user-id",
         "Great technical skills",
         "technical",
         false
@@ -412,6 +459,7 @@ describe("POST /api/recruiter/candidates", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/candidates",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "add-note",
@@ -425,9 +473,7 @@ describe("POST /api/recruiter/candidates", () => {
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.error).toBe(
-        "Missing required fields: candidateId, userId, content"
-      );
+      expect(data.error).toBe("Missing required fields: candidateId, content");
       expect(addCandidateNote).not.toHaveBeenCalled();
     });
 
@@ -435,6 +481,7 @@ describe("POST /api/recruiter/candidates", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/candidates",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "add-note",
@@ -459,6 +506,7 @@ describe("POST /api/recruiter/candidates", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/candidates",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "invalid-action",
@@ -477,6 +525,7 @@ describe("POST /api/recruiter/candidates", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/candidates",
         {
+          headers: { authorization: "Bearer test-token" },
           method: "POST",
           body: "invalid json",
         }
