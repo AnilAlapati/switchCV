@@ -92,8 +92,8 @@ export function AccessRequestsCard() {
           </div>
           <div className="ml-5 w-0 flex-1">
             <dl>
-              <dt className="text-sm font-bold text-[#2C4A3B]/60 truncate transition-colors">
-                Pending Requests
+              <dt className="text-sm font-bold text-[#2C4A3B]/60 transition-colors">
+                Access Inquiries
               </dt>
               <dd className="text-2xl font-bold text-[#1A2F25]">
                 {loadingState ? "-" : pendingCount}

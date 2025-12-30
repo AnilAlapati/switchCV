@@ -25,7 +25,7 @@ export function MarketPulseCard() {
           <div className="p-2 bg-white/20 rounded-lg backdrop-blur-md">
             <Zap className="h-5 w-5 text-yellow-300" />
           </div>
-          <h3 className="text-xl font-bold tracking-tight">Market Pulse</h3>
+          <h3 className="text-xl font-bold tracking-tight">AI Market Trends</h3>
         </div>
 
         <div className="space-y-6">
@@ -99,7 +99,7 @@ export function MarketPulseCard() {
   if (isBasic) {
     return (
       <PremiumFeatureLock
-        featureName="Market Pulse"
+        featureName="AI Market Trends"
         description={TIER_RESTRICTION_MESSAGES.PRIORITY_ACTIONS}
         className="h-full"
       >

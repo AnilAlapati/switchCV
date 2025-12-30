@@ -95,8 +95,8 @@ export function AvailableResumesCard() {
           </div>
           <div className="ml-5 w-0 flex-1">
             <dl>
-              <dt className="text-sm font-bold text-gray-900 truncate transition-colors group-hover:text-cyan-700">
-                Available Resumes
+              <dt className="text-sm font-bold text-gray-900 transition-colors group-hover:text-cyan-700">
+                Unlocked Talent Profiles
               </dt>
               <dd className="text-3xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">
                 {loadingState ? "-" : availableCount}
@@ -109,9 +109,8 @@ export function AvailableResumesCard() {
             {loadingState
               ? "Loading..."
               : availableCount === 0
-              ? "No active grants"
-              : `${availableCount} resume${
-                  availableCount !== 1 ? "s" : ""
+                ? "No active grants"
+                : `${availableCount} resume${availableCount !== 1 ? "s" : ""
                 } unlocked`}
           </p>
           <div className="opacity-0 transform translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">

@@ -93,7 +93,7 @@ export function RecruiterSearchForm({
 
   const helperCopy =
     searchMode === "basic"
-      ? "Use Basic mode when you already have a unique candidate ID from your pipeline."
+      ? "Directly retrieve a professional profile using a specific Resume ID."
       : searchMode === "ai"
         ? "Describe your ideal candidate in natural language. Our AI will find the best matches."
         : "Combine skills and location to surface up to 50 curated resumes in one pass.";
@@ -235,7 +235,7 @@ export function RecruiterSearchForm({
               </span>
               <p className={`mt-1.5 text-xs leading-relaxed ${searchMode === "basic" ? "text-emerald-100" : "text-slate-500"
                 }`}>
-                Quick candidate retrieval using resume ID or user ID
+                Quickly retrieve a Specific candidate using their Resume ID
               </p>
             </div>
           </button>
@@ -413,7 +413,7 @@ export function RecruiterSearchForm({
           <div className="space-y-4">
             <label className="flex items-center gap-2.5 text-sm font-semibold text-[#1A2F25]">
               <span className="h-1.5 w-1.5 rounded-full bg-[#2C4A3B]"></span>
-              Resume ID or User ID
+              Resume ID
             </label>
             <div className="relative group">
               <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-slate-400 transition-colors group-focus-within:text-[#2C4A3B]">
@@ -471,7 +471,7 @@ export function RecruiterSearchForm({
                   clipRule="evenodd"
                 />
               </svg>
-              Enter the ID found in the resume URL (e.g., /resumes/2)
+              Enter the unique ID found in the resume URL
             </p>
           </div>
         ) : (
@@ -613,22 +613,6 @@ export function RecruiterSearchForm({
           </div>
         )}
 
-        <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 transition-colors hover:bg-slate-50">
-          <div className="flex items-start gap-3">
-            <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-600">
-              <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fillRule="evenodd"
-                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </span>
-            <p className="text-[13px] leading-relaxed text-slate-600">
-              {helperCopy}
-            </p>
-          </div>
-        </div>
 
       </form>
     </div>

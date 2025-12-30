@@ -52,7 +52,7 @@ export const checkSequentialAccess = async (
         entry.count++;
         entry.lastId = numericId;
 
-        if (entry.count >= MAX_SEQUENTIAL_ATTEMPTS) {
+        if (entry.count + 1 >= MAX_SEQUENTIAL_ATTEMPTS) {
             entry.blockedUntil = now + BLOCK_DURATION_MS;
             logger.warn(
                 { identifier, count: entry.count, resumeId },

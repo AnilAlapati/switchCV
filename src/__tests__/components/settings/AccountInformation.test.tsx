@@ -7,7 +7,7 @@ describe("AccountInformation", () => {
     resumeId: "12345",
     hasResume: true,
     isRecruiter: false,
-    saving: false,
+    savingRecruiter: false,
     onRecruiterToggle: jest.fn(),
     onCopy: jest.fn(),
   };
@@ -65,7 +65,7 @@ describe("AccountInformation", () => {
   });
 
   it("disables toggle when saving is true", () => {
-    render(<AccountInformation {...mockProps} saving={true} />);
+    render(<AccountInformation {...mockProps} savingRecruiter={true} />);
     const buttons = screen.getAllByRole("button");
     const toggleButton = buttons.find(
       (b) => !b.getAttribute("title")?.includes("Copy")

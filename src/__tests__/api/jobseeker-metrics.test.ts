@@ -17,15 +17,25 @@ jest.mock("@/lib/firebase-admin", () => ({
 }));
 
 jest.mock("@/lib/utils/api-helpers", () => ({
+  getAuthenticatedUserId: jest.fn(),
   handleApiError: jest.fn((err, msg, status) => ({
     status: status || 500,
     json: async () => ({ error: msg }),
   })),
 }));
 
+jest.mock("firebase-admin/firestore", () => ({
+  FieldValue: {
+    increment: jest.fn(),
+    serverTimestamp: jest.fn(),
+  },
+}));
+
 describe("JobSeeker Metrics API", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    const { getAuthenticatedUserId } = require("@/lib/utils/api-helpers");
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: "user-123", error: null });
   });
 
   const createRequest = (userId?: string) => {
@@ -38,6 +48,9 @@ describe("JobSeeker Metrics API", () => {
   };
 
   it("should return 400 if userId is missing", async () => {
+    const { getAuthenticatedUserId } = require("@/lib/utils/api-helpers");
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: "user-123", error: null });
+
     const req = createRequest();
     const response = await GET(req);
     expect(response.status).toBe(400);

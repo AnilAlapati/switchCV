@@ -9,9 +9,27 @@ import {
 } from "@/lib/utils/api-helpers";
 import { getUserTier } from "@/lib/services/userService";
 import { getResumeEditingAllowed } from "@/lib/config.server";
+import { checkRateLimit } from "@/lib/utils/rateLimit";
+import { checkSequentialAccess } from "@/lib/security/accessMonitor";
+import { FieldValue } from "firebase-admin/firestore";
 
 // Mock dependencies
 jest.mock("@/lib/logger");
+jest.mock("@/lib/utils/rateLimit");
+jest.mock("@/lib/security/accessMonitor");
+jest.mock("firebase-admin/firestore", () => ({
+  FieldValue: {
+    increment: jest.fn(),
+    serverTimestamp: jest.fn(),
+  },
+}));
+
+jest.mock("firebase-admin/firestore", () => ({
+  FieldValue: {
+    increment: jest.fn(),
+    serverTimestamp: jest.fn(),
+  },
+}));
 
 const mockDoc = {
   get: jest.fn(),
@@ -67,9 +85,11 @@ describe("Resume ID API Route Coverage", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockDoc.get.mockReset();
-    mockDoc.get.mockResolvedValue({ data: () => ({}) });
+    mockDoc.get.mockResolvedValue({ exists: true, data: () => ({}) });
     mockCollection.get.mockReset();
     mockCollection.get.mockResolvedValue({ size: 0, docs: [] });
+    (checkRateLimit as jest.Mock).mockResolvedValue({ allowed: true });
+    (checkSequentialAccess as jest.Mock).mockResolvedValue(true);
   });
 
   describe("GET", () => {
@@ -108,7 +128,7 @@ describe("Resume ID API Route Coverage", () => {
       const mockData = { userId: "other-user", title: "Other Resume" };
       (fetchResumeDocument as jest.Mock).mockResolvedValue({ data: mockData });
       (maybeGetAuthenticatedUserId as jest.Mock).mockResolvedValue("admin-user");
-      
+
       mockDoc.get.mockResolvedValue({ data: () => ({ role: "admin" }) });
 
       const req = new NextRequest("http://localhost/api/resumes/" + mockResumeId);
@@ -121,7 +141,7 @@ describe("Resume ID API Route Coverage", () => {
       const mockData = { userId: "jobseeker-1", title: "JobSeeker Resume" };
       (fetchResumeDocument as jest.Mock).mockResolvedValue({ data: mockData });
       (maybeGetAuthenticatedUserId as jest.Mock).mockResolvedValue("recruiter-1");
-      
+
       mockDoc.get
         .mockResolvedValueOnce({ data: () => ({ role: "recruiter" }) })
         .mockResolvedValueOnce({
@@ -139,7 +159,7 @@ describe("Resume ID API Route Coverage", () => {
       const mockData = { userId: "jobseeker-1", title: "JobSeeker Resume" };
       (fetchResumeDocument as jest.Mock).mockResolvedValue({ data: mockData });
       (maybeGetAuthenticatedUserId as jest.Mock).mockResolvedValue("recruiter-1");
-      
+
       mockDoc.get
         .mockResolvedValueOnce({ data: () => ({ role: "recruiter" }) })
         .mockResolvedValueOnce({
@@ -218,7 +238,7 @@ describe("Resume ID API Route Coverage", () => {
       });
       (getUserTier as jest.Mock).mockResolvedValue("premium");
       (getResumeEditingAllowed as jest.Mock).mockResolvedValue({ premium: true });
-      
+
       mockDoc.get.mockResolvedValue({ data: () => ({ title: "Updated" }) });
 
       const req = new NextRequest("http://localhost/api/resumes/" + mockResumeId, {

@@ -31,7 +31,7 @@ export function PriorityActionsCard({
   headline,
   items,
   loading,
-  emptyMessage = "All caught up. Circle back tomorrow for new suggestions.",
+  emptyMessage = "AI has no urgent suggestions. Circle back tomorrow for a fresh analysis.",
 }: PriorityActionsCardProps) {
   const { tier } = useUserProfile();
   const isBasic = tier === "basic";

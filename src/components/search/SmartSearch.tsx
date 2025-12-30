@@ -123,7 +123,7 @@ export function SmartSearch({ onResultSelect }: SmartSearchProps) {
     return (
       <div className="glass-panel p-6">
         <h3 className="text-xl font-bold text-[#1A2F25] mb-4">
-          🔮 AI-Powered Smart Search
+          🔮 Intelligent Talent Discovery
         </h3>
         <p className="text-[#1A2F25]/70 mb-4">
           Sign in to use our AI-powered search that understands what you&apos;re
@@ -140,12 +140,12 @@ export function SmartSearch({ onResultSelect }: SmartSearchProps) {
   }
 
   return (
-    <div className="glass-panel p-6">
+    <div className="glass-panel p-6" data-testid="smart-search">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-xl font-bold text-[#1A2F25] flex items-center gap-2">
           <span>🔮</span>
-          <span>AI-Powered Smart Search</span>
+          <span>Intelligent Talent Discovery</span>
           <span className="ml-2 px-2 py-1 bg-gradient-to-r from-[#2C4A3B] to-emerald-600 text-white text-xs rounded-full">
             Premium
           </span>
@@ -194,12 +194,12 @@ export function SmartSearch({ onResultSelect }: SmartSearchProps) {
         {searching ? (
           <>
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-            <span>Searching with AI...</span>
+            <span>Analyzing with AI Intelligence...</span>
           </>
         ) : (
           <>
             <span>✨</span>
-            <span>Smart Search</span>
+            <span>Analyze with AI</span>
           </>
         )}
       </button>

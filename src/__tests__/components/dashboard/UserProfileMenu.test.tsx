@@ -12,6 +12,13 @@ jest.mock("next/link", () => ({
   ),
 }));
 
+// Mock useUserProfile hook
+jest.mock("@/hooks/useUserProfile", () => ({
+  useUserProfile: jest.fn(() => ({
+    role: "recruiter", // Default to recruiter for tests
+  })),
+}));
+
 describe("UserProfileMenu", () => {
   const mockOnLogout = jest.fn();
 

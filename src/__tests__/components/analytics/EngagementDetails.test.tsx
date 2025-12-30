@@ -27,9 +27,8 @@ describe("EngagementDetails", () => {
   it("renders engagement details with views by source", () => {
     render(<EngagementDetails engagement={mockEngagement} />);
 
-    expect(screen.getByText("📊")).toBeInTheDocument();
-    expect(screen.getByText("Engagement Details")).toBeInTheDocument();
-    expect(screen.getByText("Views by Source")).toBeInTheDocument();
+    expect(screen.getByText("Engagement Distribution")).toBeInTheDocument();
+    expect(screen.getByText("Traffic Acquisition")).toBeInTheDocument();
   });
 
   it("displays all source categories with correct counts", () => {
@@ -54,17 +53,17 @@ describe("EngagementDetails", () => {
   it("renders source cards with correct styling", () => {
     render(<EngagementDetails engagement={mockEngagement} />);
 
-    const sourceCards = screen
-      .getAllByText(/\d+/)
-      .filter((element) => element.closest(".bg-gray-700"));
+    // Find progress bars by looking for the themed progress bar pattern
+    const progressBars = screen.getAllByText(/\d+%/).filter((element) => {
+      const parent = element.closest(".group");
+      return parent && parent.querySelector(".h-1\\.5");
+    });
 
-    expect(sourceCards).toHaveLength(5); // 5 source categories
+    expect(progressBars).toHaveLength(5); // 5 source categories
 
-    sourceCards.forEach((card) => {
-      expect(card.closest(".bg-gray-700")).toBeInTheDocument();
-      expect(card.closest(".rounded-lg")).toBeInTheDocument();
-      expect(card.closest(".p-3")).toBeInTheDocument();
-      expect(card.closest(".text-center")).toBeInTheDocument();
+    progressBars.forEach((progressBar) => {
+      const group = progressBar.closest(".group");
+      expect(group?.querySelector(".rounded-full")).toBeInTheDocument();
     });
   });
 
@@ -94,13 +93,9 @@ describe("EngagementDetails", () => {
   it("applies correct container styling", () => {
     render(<EngagementDetails engagement={mockEngagement} />);
 
-    const container = screen.getByText("Engagement Details").closest("div");
-    expect(container).toHaveClass(
-      "bg-gray-800",
-      "rounded-lg",
-      "border",
-      "border-gray-700",
-      "p-6"
-    );
+    const container = screen
+      .getByText("Engagement Distribution")
+      .closest(".p-8");
+    expect(container).toHaveClass("p-8");
   });
 });

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const searchResumesSchema = z.object({
-  recruiterId: z.string().min(1),
+  recruiterId: z.string(),
   userId: z.string().optional(),
   skills: z.array(z.string()).optional(),
   location: z.string().optional(),

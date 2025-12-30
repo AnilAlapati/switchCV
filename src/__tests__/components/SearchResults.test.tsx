@@ -49,7 +49,7 @@ describe("SearchResults", () => {
       <SearchResults results={mockResults} isLoading={false} query="engineer" />
     );
 
-    expect(screen.getByText("Already Approved")).toBeInTheDocument();
+    expect(screen.getByText("✓ Approved")).toBeInTheDocument();
   });
 
   it("displays skills as badges", () => {

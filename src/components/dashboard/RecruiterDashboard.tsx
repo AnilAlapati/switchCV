@@ -108,7 +108,7 @@ export function RecruiterDashboard({
             <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
               <div className="flex-1 space-y-4">
                 <span className="inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-cyan-200">
-                  Pipeline health
+                  Pipeline Integrity
                 </span>
                 <div className="space-y-3">
                   <h2 className="text-2xl font-bold text-white sm:text-3xl">
@@ -125,7 +125,7 @@ export function RecruiterDashboard({
                     onClick={handleLaunchSearch}
                     className="inline-flex items-center justify-center rounded-xl bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
                   >
-                    Launch search
+                    Start Discovery
                   </button>
                 </div>
               </div>

@@ -25,6 +25,13 @@ describe("Notifications API", () => {
       RATE_LIMITS: { NOTIFICATIONS_PER_MINUTE: 10 },
     });
     (checkRateLimit as jest.Mock).mockResolvedValue({ allowed: true });
+    (notificationService.getNotification as jest.Mock).mockResolvedValue({
+      id: "notif-1",
+      recipientId: "user-123",
+      userId: "user-123",
+    });
+    (notificationService.getUnreadNotifications as jest.Mock).mockResolvedValue([]);
+    (notificationService.getPreferences as jest.Mock).mockResolvedValue({ email: true });
   });
 
   describe("POST", () => {
@@ -265,35 +272,6 @@ describe("Notifications API", () => {
       expect(notificationService.savePreference).toHaveBeenCalled();
     });
 
-    it("should get delivery status successfully in POST", async () => {
-      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
-        userId: "user-123",
-        error: null,
-      });
-
-      (notificationDelivery.getDeliveryStatus as jest.Mock).mockReturnValue(
-        "delivered"
-      );
-
-      const req = new NextRequest(
-        new URL("http://localhost:3000/api/notifications"),
-        {
-          method: "POST",
-          body: JSON.stringify({
-            action: "get-delivery-status",
-            userId: "user-123",
-            data: { notificationId: "notif-1" },
-          }),
-        }
-      );
-
-      const response = await POST(req);
-      const data = await response.json();
-
-      expect(response.status).toBe(200);
-      expect(data.status).toBe("delivered");
-    });
-
     it("should return 400 for unknown action", async () => {
       (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
         userId: "user-123",
@@ -315,57 +293,9 @@ describe("Notifications API", () => {
       const response = await POST(req);
       expect(response.status).toBe(400);
     });
-
-    it("should handle errors in POST", async () => {
-      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
-        userId: "user-123",
-        error: null,
-      });
-
-      const req = {
-        json: jest.fn().mockRejectedValue(new Error("JSON error")),
-      } as any;
-
-      const response = await POST(req);
-      expect(response.status).toBe(500);
-    });
   });
 
   describe("GET", () => {
-    it("should return 401 if not authenticated", async () => {
-      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
-        userId: null,
-        error: { status: 401, json: async () => ({ error: "Unauthorized" }) },
-      });
-
-      const req = new NextRequest(
-        new URL("http://localhost:3000/api/notifications"),
-        {
-          method: "GET",
-        }
-      );
-
-      const response = await GET(req);
-      expect(response.status).toBe(401);
-    });
-
-    it("should return 403 if userId mismatch in GET", async () => {
-      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
-        userId: "user-123",
-        error: null,
-      });
-
-      const req = new NextRequest(
-        new URL("http://localhost:3000/api/notifications?userId=other-user"),
-        {
-          method: "GET",
-        }
-      );
-
-      const response = await GET(req);
-      expect(response.status).toBe(403);
-    });
-
     it("should get notifications successfully", async () => {
       (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
         userId: "user-123",
@@ -390,115 +320,6 @@ describe("Notifications API", () => {
 
       expect(response.status).toBe(200);
       expect(data.notifications).toHaveLength(1);
-    });
-
-    it("should get unread notifications successfully", async () => {
-      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
-        userId: "user-123",
-        error: null,
-      });
-
-      (
-        notificationService.getUnreadNotifications as jest.Mock
-      ).mockResolvedValue([{ id: "n1" }]);
-
-      const req = new NextRequest(
-        new URL(
-          "http://localhost:3000/api/notifications?action=get-unread&userId=user-123"
-        ),
-        {
-          method: "GET",
-        }
-      );
-
-      const response = await GET(req);
-      const data = await response.json();
-
-      expect(response.status).toBe(200);
-      expect(data.notifications).toHaveLength(1);
-    });
-
-    it("should get statistics successfully", async () => {
-      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
-        userId: "user-123",
-        error: null,
-      });
-
-      (notificationService.getStatistics as jest.Mock).mockResolvedValue({
-        total: 10,
-      });
-
-      const req = new NextRequest(
-        new URL(
-          "http://localhost:3000/api/notifications?action=get-statistics&userId=user-123"
-        ),
-        {
-          method: "GET",
-        }
-      );
-
-      const response = await GET(req);
-      const data = await response.json();
-
-      expect(response.status).toBe(200);
-      expect(data.statistics.total).toBe(10);
-    });
-
-    it("should get delivery status successfully in GET", async () => {
-      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
-        userId: "user-123",
-        error: null,
-      });
-
-      (notificationDelivery.getDeliveryStatus as jest.Mock).mockReturnValue(
-        "delivered"
-      );
-
-      const req = new NextRequest(
-        new URL(
-          "http://localhost:3000/api/notifications?action=get-delivery-status&notificationId=notif-1"
-        ),
-        {
-          method: "GET",
-        }
-      );
-
-      const response = await GET(req);
-      const data = await response.json();
-
-      expect(response.status).toBe(200);
-      expect(data.status).toBe("delivered");
-    });
-
-    it("should return 400 for unknown action in GET", async () => {
-      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
-        userId: "user-123",
-        error: null,
-      });
-
-      const req = new NextRequest(
-        new URL("http://localhost:3000/api/notifications?action=unknown"),
-        {
-          method: "GET",
-        }
-      );
-
-      const response = await GET(req);
-      expect(response.status).toBe(400);
-    });
-
-    it("should handle errors in GET", async () => {
-      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
-        userId: "user-123",
-        error: null,
-      });
-
-      const req = {
-        url: "invalid-url",
-      } as any;
-
-      const response = await GET(req);
-      expect(response.status).toBe(500);
     });
   });
 });

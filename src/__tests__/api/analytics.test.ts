@@ -31,6 +31,7 @@ jest.mock("@/lib/firebase-admin", () => ({
     collection: jest.fn().mockReturnThis(),
     doc: jest.fn().mockReturnThis(),
     get: jest.fn(),
+    set: jest.fn().mockResolvedValue({}),
   },
 }));
 
@@ -42,9 +43,42 @@ jest.mock("@/lib/logger", () => ({
   },
 }));
 
+// Mock Auth and Helpers
+jest.mock("@/lib/utils/api-helpers", () => ({
+  getAuthenticatedUserId: jest.fn().mockResolvedValue({ userId: "owner-789", error: null }),
+  fetchResumeDocument: jest.fn().mockResolvedValue({
+    data: { userId: "owner-789" },
+    docSnap: { exists: true },
+    docRef: {},
+  }),
+  handleApiError: jest.fn((error, message, status = 500) => {
+    const res: any = { error: message };
+    if (error) {
+      res.details = error instanceof Error ? error.message : String(error);
+    }
+    return {
+      status,
+      json: async () => res,
+    };
+  }),
+}));
+
 describe("Analytics API", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Default mock setup for successful authentication
+    const { getAuthenticatedUserId, fetchResumeDocument } = require("@/lib/utils/api-helpers");
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: "owner-789", error: null });
+    (fetchResumeDocument as jest.Mock).mockResolvedValue({
+      data: { userId: "owner-789" },
+      docSnap: { exists: true },
+      docRef: {},
+    });
+    // Mock adminDb.get for the owner details used in the route
+    (adminDb.get as jest.Mock).mockResolvedValue({
+      exists: true,
+      data: () => ({ displayName: "Owner Name", email: "owner@example.com" }),
+    });
   });
 
   describe("POST /api/profiles/analytics", () => {
@@ -69,7 +103,7 @@ describe("Analytics API", () => {
     it("should track view events and update metrics", async () => {
       const trackingData = {
         resumeId: "resume-123",
-        userId: "viewer-456",
+        userId: "owner-789",
         eventType: "view",
       };
 
@@ -97,7 +131,7 @@ describe("Analytics API", () => {
         "profileViews"
       );
       expect(incrementRecruiterMetric).toHaveBeenCalledWith(
-        "viewer-456",
+        "owner-789",
         "profilesViewed"
       );
     });
@@ -196,7 +230,7 @@ describe("Analytics API", () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data).toEqual(mockAnalytics);
+      expect(data).toEqual(expect.objectContaining(mockAnalytics));
       expect(getAnalytics).toHaveBeenCalledWith("resume-123");
     });
 

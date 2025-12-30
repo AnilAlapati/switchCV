@@ -63,7 +63,13 @@ describe("Recruiter Search Resumes API", () => {
       },
     });
     (createDistributedRateLimiter as jest.Mock).mockReturnValue(
-      jest.fn().mockResolvedValue({ allowed: true })
+      jest.fn().mockResolvedValue({
+        allowed: true,
+        limit: 10,
+        remaining: 9,
+        resetIn: 60000,
+        reset: Date.now() + 60000,
+      })
     );
   });
 
@@ -77,7 +83,7 @@ describe("Recruiter Search Resumes API", () => {
       "http://localhost/api/recruiter/search-resumes",
       {
         method: "POST",
-        body: JSON.stringify({ userId: "user-1" }),
+        body: JSON.stringify({ recruiterId: mockRecruiterId, userId: "user-1", searchMode: "basic" }),
       }
     );
 
@@ -95,7 +101,7 @@ describe("Recruiter Search Resumes API", () => {
       "http://localhost/api/recruiter/search-resumes",
       {
         method: "POST",
-        body: JSON.stringify({ userId: "user-1" }),
+        body: JSON.stringify({ recruiterId: mockRecruiterId, userId: "user-1", searchMode: "basic" }),
       }
     );
 
@@ -123,7 +129,7 @@ describe("Recruiter Search Resumes API", () => {
       "http://localhost/api/recruiter/search-resumes",
       {
         method: "POST",
-        body: JSON.stringify({ userId: "user-1" }),
+        body: JSON.stringify({ recruiterId: mockRecruiterId, userId: "user-1", searchMode: "basic" }),
       }
     );
 
@@ -207,7 +213,7 @@ describe("Recruiter Search Resumes API", () => {
       "http://localhost/api/recruiter/search-resumes",
       {
         method: "POST",
-        body: JSON.stringify({ userId: "user-1" }),
+        body: JSON.stringify({ recruiterId: mockRecruiterId, userId: "user-1", searchMode: "basic" }),
       }
     );
 
@@ -292,7 +298,7 @@ describe("Recruiter Search Resumes API", () => {
       "http://localhost/api/recruiter/search-resumes",
       {
         method: "POST",
-        body: JSON.stringify({ skills: ["React"], location: "New York" }),
+        body: JSON.stringify({ recruiterId: mockRecruiterId, skills: ["React"], location: "New York", searchMode: "premium" }),
       }
     );
 
@@ -315,14 +321,14 @@ describe("Recruiter Search Resumes API", () => {
       "http://localhost/api/recruiter/search-resumes",
       {
         method: "POST",
-        body: JSON.stringify({ skills: ["React"] }),
+        body: JSON.stringify({ recruiterId: mockRecruiterId, skills: ["React"], searchMode: "premium" }),
       }
     );
 
     const res = await POST(req);
     expect(res.status).toBe(403);
     const data = await res.json();
-    expect(data.message).toContain(
+    expect(data.error).toContain(
       "Premium or enterprise subscription required"
     );
   });
@@ -339,7 +345,7 @@ describe("Recruiter Search Resumes API", () => {
       {
         method: "POST",
         // Empty body or missing required fields
-        body: JSON.stringify({}),
+        body: JSON.stringify({ recruiterId: mockRecruiterId }),
       }
     );
 

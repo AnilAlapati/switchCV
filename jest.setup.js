@@ -146,8 +146,8 @@ jest.mock('@/lib/firebase-admin', () => ({
   adminDb: {
     collection: jest.fn(() => ({
       doc: jest.fn(() => ({
-        get: jest.fn().mockResolvedValue({ 
-          exists: true, 
+        get: jest.fn().mockResolvedValue({
+          exists: true,
           data: jest.fn(() => ({
             maintenance: { isActive: false, message: '', blocking: false },
             auth: { registrationClosed: false, loginDisabled: false },
@@ -257,9 +257,9 @@ jest.mock('firebase/auth', () => {
     constructor() {
       this.providerId = 'google.com';
     }
-    setCustomParameters() {}
+    setCustomParameters() { }
   };
-  
+
   return {
     getAuth: jest.fn(() => ({ currentUser: null })),
     onAuthStateChanged: jest.fn(),

@@ -3,13 +3,13 @@ import { NextRequest } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import * as analyticsService from "@/lib/services/analyticsService";
 import * as metricsService from "@/lib/services/metricsService";
-import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
+import { getAuthenticatedUserId, fetchResumeDocument } from "@/lib/utils/api-helpers";
 
 jest.mock("@/lib/firebase-admin", () => ({
   adminDb: {
     collection: jest.fn().mockReturnThis(),
     doc: jest.fn().mockReturnThis(),
-    get: jest.fn(),
+    get: jest.fn() as any,
   },
 }));
 
@@ -21,6 +21,7 @@ jest.mock("@/lib/utils/api-helpers", () => ({
     status: status || 500,
     json: async () => ({ error: msg }),
   })),
+  fetchResumeDocument: jest.fn(),
 }));
 
 describe("Profiles Analytics API", () => {
@@ -60,7 +61,7 @@ describe("Profiles Analytics API", () => {
         userId: "user-1",
         error: null,
       });
-      (adminDb.get as jest.Mock).mockResolvedValue({ exists: false });
+      (fetchResumeDocument as jest.Mock).mockResolvedValue(null);
 
       const req = new NextRequest(
         new URL("http://localhost:3000/api/profiles/analytics?resumeId=res-1")
@@ -74,15 +75,13 @@ describe("Profiles Analytics API", () => {
         userId: "user-1",
         error: null,
       });
-      (adminDb.get as jest.Mock)
-        .mockResolvedValueOnce({
-          exists: true,
-          data: () => ({ userId: "other-user" }),
-        }) // Resume
-        .mockResolvedValueOnce({
-          exists: true,
-          data: () => ({ role: "jobseeker" }),
-        }); // User
+      (adminDb.get as jest.Mock).mockResolvedValue({
+        exists: true,
+        data: () => ({ role: "jobseeker" }),
+      });
+      (fetchResumeDocument as jest.Mock).mockResolvedValue({
+        data: { userId: "other-user" },
+      });
 
       const req = new NextRequest(
         new URL("http://localhost:3000/api/profiles/analytics?resumeId=res-1")
@@ -96,9 +95,8 @@ describe("Profiles Analytics API", () => {
         userId: "user-1",
         error: null,
       });
-      (adminDb.get as jest.Mock).mockResolvedValue({
-        exists: true,
-        data: () => ({ userId: "user-1" }),
+      (fetchResumeDocument as jest.Mock).mockResolvedValue({
+        data: { userId: "user-1" },
       });
       (analyticsService.getAnalytics as jest.Mock).mockResolvedValue({
         views: 10,
@@ -119,15 +117,13 @@ describe("Profiles Analytics API", () => {
         userId: "admin-1",
         error: null,
       });
-      (adminDb.get as jest.Mock)
-        .mockResolvedValueOnce({
-          exists: true,
-          data: () => ({ userId: "user-1" }),
-        }) // Resume
-        .mockResolvedValueOnce({
-          exists: true,
-          data: () => ({ role: "admin" }),
-        }); // User
+      (adminDb.get as jest.Mock).mockResolvedValue({
+        exists: true,
+        data: () => ({ role: "admin" }),
+      });
+      (fetchResumeDocument as jest.Mock).mockResolvedValue({
+        data: { userId: "user-1" },
+      });
       (analyticsService.getAnalytics as jest.Mock).mockResolvedValue({
         views: 10,
       });
@@ -144,7 +140,7 @@ describe("Profiles Analytics API", () => {
         userId: "user-1",
         error: null,
       });
-      (adminDb.get as jest.Mock).mockRejectedValue(
+      (fetchResumeDocument as jest.Mock).mockRejectedValue(
         new Error("Firestore error")
       );
 

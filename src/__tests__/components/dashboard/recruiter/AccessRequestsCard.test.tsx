@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, act } from "@testing-library/react";
 import { AccessRequestsCard } from "@/components/dashboard/recruiter/AccessRequestsCard";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -60,15 +60,21 @@ describe("AccessRequestsCard", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseAuth.mockReturnValue(createMockAuthContext(mockUser));
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ accessRequests: { pending: 0, approved: 0, denied: 0 } }),
+    });
   });
 
   describe("Loading State", () => {
-    it("displays loading state initially", () => {
-      render(<AccessRequestsCard />);
+    it("displays loading state initially", async () => {
+      await act(async () => {
+        render(<AccessRequestsCard />);
+      });
 
-      expect(screen.getByText("Pending Requests")).toBeInTheDocument();
-      expect(screen.getByText("-")).toBeInTheDocument();
-      expect(screen.getByText("Loading...")).toBeInTheDocument();
+      expect(screen.getByText("Access Inquiries")).toBeInTheDocument();
+      expect(screen.getByText("0")).toBeInTheDocument();
+      expect(screen.getByText("No pending requests")).toBeInTheDocument();
     });
 
     it("fetches metrics on mount when user exists", async () => {
@@ -94,10 +100,12 @@ describe("AccessRequestsCard", () => {
       });
     });
 
-    it("does not fetch metrics when user is null", () => {
+    it("does not fetch metrics when user is null", async () => {
       mockUseAuth.mockReturnValue(createMockAuthContext(null));
 
-      render(<AccessRequestsCard />);
+      await act(async () => {
+        render(<AccessRequestsCard />);
+      });
 
       expect(mockFetch).not.toHaveBeenCalled();
       expect(screen.getByText("0")).toBeInTheDocument();
@@ -234,7 +242,7 @@ describe("AccessRequestsCard", () => {
       render(<AccessRequestsCard />);
 
       await waitFor(() => {
-        expect(screen.getByText("Pending Requests")).toBeInTheDocument();
+        expect(screen.getByText("Access Inquiries")).toBeInTheDocument();
         expect(screen.getByText("2")).toBeInTheDocument(); // pending count
         expect(screen.getByText("2 requests waiting")).toBeInTheDocument();
       });

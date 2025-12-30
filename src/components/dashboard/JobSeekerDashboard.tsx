@@ -34,7 +34,7 @@ interface JobSeekerDashboardProps {
 function ProTips() {
   return (
     <div className="glass-panel rounded-3xl p-8 bg-gradient-to-br from-indigo-500/5 to-cyan-500/5 border-indigo-500/10 h-full">
-      <h3 className="text-xl font-bold text-[#1A2F25] mb-6">Pro Tips</h3>
+      <h3 className="text-xl font-bold text-[#1A2F25] mb-6">AI Insights</h3>
       <div className="space-y-6">
         <div className="flex gap-4">
           <div className="h-6 w-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0 text-xs font-bold">
@@ -201,7 +201,7 @@ export function JobSeekerDashboard({
           {(tier === "premium" || tier === "enterprise") && (
             <div className="md:col-span-2">
               <OpportunityInsightsCard
-                title="Your Market Reach"
+                title="Global Market Reach"
                 subtitle="How your profile is performing"
                 insights={opportunityInsights}
               />
@@ -211,7 +211,7 @@ export function JobSeekerDashboard({
 
         <div className="space-y-8">
           <PriorityActionsCard
-            headline="Growth Path"
+            headline="Career Co-pilot"
             items={actionItems}
             loading={metricsLoading}
             emptyMessage="You're crushing it! No urgent actions."
@@ -225,7 +225,7 @@ export function JobSeekerDashboard({
 
         <div className="grid gap-8 md:grid-cols-2">
           <ResourceLinksCard
-            title="Career Growth"
+            title="Professional Toolkit"
             caption="Resources to help you level up"
             links={careerResources}
             lockForBasic={true}
@@ -234,7 +234,7 @@ export function JobSeekerDashboard({
           <div className="h-full">
             {tier === "basic" ? (
               <PremiumFeatureLock
-                featureName="Pro Tips"
+                featureName="AI Insights"
                 description={TIER_RESTRICTION_MESSAGES.PRIORITY_ACTIONS}
                 className="h-full"
               >

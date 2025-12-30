@@ -125,8 +125,8 @@ export function CandidatesSearchedCard() {
           </div>
           <div className="ml-5 w-0 flex-1">
             <dl>
-              <dt className="text-sm font-bold text-primary/60 truncate transition-colors">
-                Searches (last 7 days)
+              <dt className="text-sm font-bold text-primary/60 transition-colors">
+                Search Intelligence
               </dt>
               <dd className="text-2xl font-bold text-foreground">
                 {loadingState ? "-" : recentSearches}
@@ -141,7 +141,7 @@ export function CandidatesSearchedCard() {
               : totalSearches === 0
                 ? "Start searching for candidates"
                 : isBasic
-                  ? `${totalSearches} / ${RECRUITER_SEARCH_LIMITS.basic} searches used`
+                  ? `${totalSearches} / ${RECRUITER_SEARCH_LIMITS.basic} analyses used`
                   : `${totalSearches} all-time · ${uniqueRecent} unique candidates`}
           </p>
           {!loadingState && (

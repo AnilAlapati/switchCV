@@ -7,7 +7,8 @@ describe("ProfileDetails", () => {
     companyName: "Acme Corp",
     updatedAt: "2023-01-01T12:00:00Z",
     showCompanyInput: true,
-    saving: false,
+    savingDisplayName: false,
+    savingCompanyName: false,
     onDisplayNameChange: jest.fn(),
     onCompanyNameChange: jest.fn(),
     onSaveDisplayName: jest.fn(),
@@ -61,7 +62,7 @@ describe("ProfileDetails", () => {
   });
 
   it("disables inputs and buttons when saving is true", () => {
-    render(<ProfileDetails {...mockProps} saving={true} />);
+    render(<ProfileDetails {...mockProps} savingDisplayName={true} savingCompanyName={true} />);
 
     const inputs = screen.getAllByRole("textbox");
     inputs.forEach((input) => expect(input).toBeDisabled());

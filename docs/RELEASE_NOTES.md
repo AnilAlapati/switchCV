@@ -1,5 +1,9 @@
 # Release Notes
 
+## [AI.0.0.134] - 2025-12-30
+### Changed
+- Automated version increment.
+
 ## [AI.0.0.133] - 2025-12-27
 ### Changed
 - Automated version increment.
