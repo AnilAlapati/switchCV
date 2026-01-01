@@ -34,6 +34,7 @@ export interface AuthPageActions {
   handleResend: () => Promise<void>;
   handleRefreshVerification: () => Promise<void>;
   handleUseSuggestion: () => void;
+  logout: () => Promise<void>;
 }
 
 export interface UseAuthPageReturn {

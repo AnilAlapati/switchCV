@@ -20,13 +20,13 @@ interface HomeHeroProps {
 
 const CREATION_STEPS = [
   {
-    title: "Tell us about you",
-    description: "Answer guided prompts or describe your experience in your own words.",
+    title: "Strategic Consultation",
+    description: "Describe your experience or goals and let your agent plan the narrative.",
     accent: "from-cyan-500/20 to-transparent",
   },
   {
-    title: "Let AI refine",
-    description: "Polish each bullet with AI feedback focused on clarity, metrics, and tone.",
+    title: "Agentic Optimization",
+    description: "Your agent refines every detail for clarity, metrics, and industry impact.",
     accent: "from-purple-500/20 to-transparent",
   },
   {
@@ -62,7 +62,7 @@ export function HomeHero({ stats, highlights }: HomeHeroProps) {
           </motion.div>
           <div>
             <p className="text-base font-bold text-[#1A2F25]">SwitchCV</p>
-            <p className="text-sm text-[#2C4A3B]/80 font-medium">Live resume intelligence</p>
+            <p className="text-sm text-[#2C4A3B]/80 font-medium">Autonomous Career Agent</p>
           </div>
         </div>
 
@@ -77,17 +77,17 @@ export function HomeHero({ stats, highlights }: HomeHeroProps) {
         </motion.div>
 
         <h1 className="text-5xl sm:text-6xl xl:text-7xl font-bold leading-[1.1] text-[#1A2F25] tracking-tight">
-          Ship a <span className="text-[#2C4A3B] relative italic">living resume
+          Launch an AI <span className="text-[#2C4A3B] relative italic">Agent
             <svg className="absolute -bottom-2 left-0 w-full h-2 text-[#2C4A3B]/20" viewBox="0 0 100 10" preserveAspectRatio="none">
               <path d="M0 5 Q 25 0 50 5 T 100 5" fill="none" stroke="currentColor" strokeWidth="2" />
             </svg>
-          </span> <br className="hidden sm:block" /> with real-time signals.
+          </span> <br className="hidden sm:block" /> to build your career story.
         </h1>
 
         <p className="text-xl text-slate-600 max-w-2xl leading-relaxed">
-          Tell your career story with AI assistance. SwitchCV helps you create
-          professional resumes through guided conversations, track who views
-          your resume, and control access.
+          SwitchCV isn't just a builder—it's your career agent. Through guided
+          reasoning and autonomous optimization, it builds, tracks, and
+          protects your professional identity.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 pt-2">

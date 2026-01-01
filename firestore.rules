@@ -432,5 +432,13 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.token.role in ['recruiter', 'admin'];
       allow write: if false; // Only backend can write
     }
+
+    // Email Verification Tokens
+    // These are managed entirely by Cloud Functions/API routes using Admin SDK
+    // No client access needed
+    match /verificationTokens/{tokenId} {
+      allow read: if false;  // Admin SDK only
+      allow write: if false; // Admin SDK only
+    }
   }
 }

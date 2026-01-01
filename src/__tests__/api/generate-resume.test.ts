@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { POST } from "@/app/api/ai/generate-resume/route";
 import { generateText } from "@/lib/services/aiGenerationService";
-import { handleApiError } from "@/lib/utils/api-helpers";
 
 jest.mock("@/lib/services/aiGenerationService");
 jest.mock("@/lib/logger");
@@ -12,7 +11,15 @@ jest.mock("@/lib/utils/api-helpers", () => ({
       { status: status || 500 }
     )
   ),
+  getAuthenticatedUserId: jest.fn(),
 }));
+
+jest.mock("@/lib/utils/distributedRateLimit", () => ({
+  checkDistributedRateLimit: jest.fn(),
+}));
+
+import { getAuthenticatedUserId, handleApiError } from "@/lib/utils/api-helpers";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 
 describe("Generate Resume API", () => {
   const mockResumeData = {
@@ -27,6 +34,8 @@ describe("Generate Resume API", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: "test-user" });
+    (checkDistributedRateLimit as jest.Mock).mockResolvedValue({ allowed: true });
   });
 
   it("should return 400 if resumeData is missing", async () => {

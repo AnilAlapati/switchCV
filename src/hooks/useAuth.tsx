@@ -21,7 +21,8 @@ import {
   sendEmailVerification,
   type ActionCodeSettings,
 } from "firebase/auth";
-import { auth, db } from "@/lib/firebase";
+import { auth, db, functions } from "@/lib/firebase";
+import { httpsCallable } from "firebase/functions";
 import { doc, getDoc, serverTimestamp } from "firebase/firestore";
 import {
   createAuthProfileHelpers,
@@ -135,7 +136,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     if (!firebaseReady) {
       throw new Error(
         connectivityIssue ||
-          "Authentication service is temporarily unavailable. Please try again later."
+        "Authentication service is temporarily unavailable. Please try again later."
       );
     }
   };
@@ -144,7 +145,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     if (!firebaseReady) {
       setConnectivityIssue(
         firebaseConnectivity?.error ||
-          "Firebase configuration is incomplete. Please contact support."
+        "Firebase configuration is incomplete. Please contact support."
       );
       setLoading(false);
       return;
@@ -172,9 +173,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     if (!activeUser) {
       throw new Error("No signed-in user to verify.");
     }
-    await sendEmailVerification(activeUser, getActionCodeSettings());
-    setVerificationEmail(activeUser.email ?? null);
+
+    // Use Cloud Function to send branded email via custom SMTP
+    try {
+      const resendVerificationEmail = httpsCallable(functions, "resendVerificationEmail");
+      await resendVerificationEmail();
+      setVerificationEmail(activeUser.email ?? null);
+    } catch (error) {
+      console.error("Failed to resend verification email:", error);
+      throw error;
+    }
   };
+
 
   const signIn = async (email: string, password: string) => {
     ensureAuthAvailable();
@@ -231,24 +241,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       // This prevents race condition where checkNeedsUsername() is called before Firestore write propagates
       setNeedsUsername(false);
 
-      if (!credential.user.emailVerified && !skipEmailVerification) {
-        try {
-          await sendVerification(credential.user);
-        } catch (verificationError) {
-          // Don't fail signup if verification email fails (rate limiting, etc.)
-          // User can resend from the verification banner
-          // Only log to console (no reportError) to avoid UI noise for non-critical errors
-          const verifyErr = verificationError as { code?: string };
-          logger.warn(
-            {
-              err: verificationError,
-              code: verifyErr.code,
-              source: "useAuth.signUp.sendVerification",
-            },
-            "Verification email send failed but signup succeeded - user can resend from banner"
-          );
-        }
-      }
+      setNeedsUsername(false);
+
+      // We rely on the 'onUserCreated' Cloud Function to send the welcome/verification email
+      // This ensures we use our custom SMTP and branded template instead of Firebase's default
+      // If the cloud function fails, the user can use the "Resend" button in the dashboard
+
     } catch (error) {
       // Only rollback if the error is NOT a permission error that might resolve
       // (permission errors are now retried in reserveUsername with backoff)

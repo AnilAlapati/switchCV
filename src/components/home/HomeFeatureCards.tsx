@@ -10,9 +10,9 @@ const FEATURE_CARDS = [
       "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z",
   },
   {
-    title: "AI Resume Builder",
+    title: "Autonomous Resume Agent",
     description:
-      "Create polished resumes with AI that helps craft impactful bullet points.",
+      "Hire an agent to strategize and craft impactful bullet points for your industry.",
     accent: "from-purple-500/10 to-pink-500/5",
     iconPath:
       "M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z",
@@ -26,9 +26,9 @@ const FEATURE_CARDS = [
       "M8.684 13.342A3 3 0 118.684 9m0 4.342l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z",
   },
   {
-    title: "AI-Powered Search",
+    title: "Agentic Talent Discovery",
     description:
-      "Recruiters can find candidates using natural language AI search.",
+      "Recruiters can deploy agents to find candidates using natural language intent.",
     accent: "from-indigo-500/10 to-cyan-500/5",
     iconPath: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z",
   },

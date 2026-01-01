@@ -57,6 +57,11 @@ export function initializeFirebaseAdmin(): void {
     const projectId =
       process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT;
 
+    // Set GOOGLE_CLOUD_PROJECT for ADC quota project (required for identitytoolkit.googleapis.com)
+    if (!process.env.GOOGLE_CLOUD_PROJECT && projectId) {
+      process.env.GOOGLE_CLOUD_PROJECT = projectId;
+    }
+
     // Try to get service account from environment variable first
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
       const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);

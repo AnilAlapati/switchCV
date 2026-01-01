@@ -6,11 +6,21 @@ import type { AuditLogEntry } from "./types";
  * Base audit logger for core logging operations
  */
 export class BaseAuditLogger {
-  protected db: FirebaseFirestore.Firestore;
+  private _db?: FirebaseFirestore.Firestore;
   protected collectionName = "auditLogs";
 
-  constructor(db: FirebaseFirestore.Firestore = admin.firestore()) {
-    this.db = db;
+  constructor(db?: FirebaseFirestore.Firestore) {
+    this._db = db;
+  }
+
+  protected get db(): FirebaseFirestore.Firestore {
+    if (!this._db) {
+      if (!admin.apps.length) {
+        admin.initializeApp();
+      }
+      this._db = admin.firestore();
+    }
+    return this._db;
   }
 
   /**

@@ -61,6 +61,36 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Enforce Quantity Limit for Basic Users
+    if (userTier === "basic") {
+      const resumesSnapshot = await adminDb
+        .collection("resumes")
+        .where("userId", "==", userId)
+        .count()
+        .get();
+
+      const resumeCount = resumesSnapshot.data().count;
+
+      if (resumeCount >= 1) {
+        // Check if user is trying to regenerate/edit an existing one (which is allowed if supported)
+        // But this is the CREATE endpoint.
+        // Basic users can't create a 2nd resume.
+        logger.warn(
+          { userId, resumeCount },
+          "⛔ Basic user attempted to create 2nd resume"
+        );
+        return NextResponse.json(
+          {
+            response:
+              "You have reached the limit of 1 resume for the Basic plan. Please upgrade to Premium to create more resumes.",
+            model: "system",
+            error: "LIMIT_REACHED",
+          },
+          { status: 403 }
+        );
+      }
+    }
+
     if (!message) {
       return handleApiError(
         new Error("Message is required"),

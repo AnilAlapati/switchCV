@@ -64,7 +64,7 @@ const BASE_LIMIT = Math.max(
   )
 );
 const PLAN_MULTIPLIER: Record<string, number> = {
-  basic: 0.3,
+  basic: 1,
   premium: 1,
   enterprise: 2,
 };
@@ -148,11 +148,9 @@ async function getEntitlement(userId: string): Promise<Entitlement> {
 }
 
 function enforceEntitlement(entitlement: Entitlement): void {
-  if (entitlement.plan === "basic") {
-    throw new EntitlementError(
-      "AI text generation requires a premium or enterprise plan."
-    );
-  }
+  // No explicit plan restrictions - all tiers can generate text
+  // Limits are handled by Rate Limiting per plan
+  return;
 }
 
 async function enforceRateLimit(userId: string, plan: string) {

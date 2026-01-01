@@ -26,9 +26,9 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://switchcv.com"),
-  title: "SwitchCV - Privacy-First Living Resume Platform",
+  title: "SwitchCV - The Autonomous Career Agent Platform",
   description:
-    "Create and share your professional resume with privacy controls and AI-powered polishing.",
+    "Hire an AI agent to build, optimize, and track your living resume. Privacy-first career growth powered by agentic intelligence.",
 };
 
 export default function RootLayout({

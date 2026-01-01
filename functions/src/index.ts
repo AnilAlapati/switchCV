@@ -1,4 +1,11 @@
 import * as functions from "firebase-functions/v1";
+import * as admin from "firebase-admin";
+
+// Initialize the Firebase Admin SDK once at the top level
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
+
 
 // ==================== JOB MATCHING ====================
 
@@ -21,6 +28,7 @@ export const generateJobMatchSuggestions = functions
   });
 
 // ==================== EMAIL NOTIFICATIONS ====================
+// SMTP credentials are loaded from .env files, not Secret Manager
 
 export const onUserCreated = functions.auth.user().onCreate(async (user) => {
   const { onUserCreatedHandler } = await import("./emailFunctions");
@@ -59,6 +67,13 @@ export const notifyAdminSuspiciousActivity = functions.https.onCall(
       "./emailFunctions"
     );
     return notifyAdminSuspiciousActivityHandler(data, context);
+  }
+);
+
+export const resendVerificationEmail = functions.https.onCall(
+  async (data, context) => {
+    const { resendVerificationEmailHandler } = await import("./emailFunctions");
+    return resendVerificationEmailHandler(data, context);
   }
 );
 

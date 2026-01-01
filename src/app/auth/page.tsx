@@ -85,6 +85,7 @@ function AuthContent() {
               email={verificationEmail}
               onResend={handleResend}
               onRefresh={handleRefreshVerification}
+              onSignOut={actions.logout}
               resending={resending}
               refreshing={refreshing}
             />
@@ -100,8 +101,8 @@ function AuthContent() {
                   ? "Registration is currently closed for maintenance"
                   : "Create your account to get started"
                 : loginDisabled
-                ? "Login is currently disabled for maintenance"
-                : "Sign in to access your dashboard"}
+                  ? "Login is currently disabled for maintenance"
+                  : "Sign in to access your dashboard"}
             </p>
           </div>
 
@@ -154,20 +155,20 @@ function AuthContent() {
 
           {((!isSignUp && !loginDisabled) ||
             (isSignUp && !registrationClosed)) && (
-            <div className="mt-6">
-              <div className="flex items-center gap-3 mb-4">
-                <span className="flex-1 h-px bg-[#2C4A3B]/10"></span>
-                <span className="text-xs uppercase tracking-[0.3em] text-[#2C4A3B]/40 font-bold">
-                  or
-                </span>
-                <span className="flex-1 h-px bg-[#2C4A3B]/10"></span>
+              <div className="mt-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="flex-1 h-px bg-[#2C4A3B]/10"></span>
+                  <span className="text-xs uppercase tracking-[0.3em] text-[#2C4A3B]/40 font-bold">
+                    or
+                  </span>
+                  <span className="flex-1 h-px bg-[#2C4A3B]/10"></span>
+                </div>
+                <GoogleSignInButton
+                  onClick={handleGoogleSignIn}
+                  disabled={loading}
+                />
               </div>
-              <GoogleSignInButton
-                onClick={handleGoogleSignIn}
-                disabled={loading}
-              />
-            </div>
-          )}
+            )}
 
           <div className="mt-8 pt-6 border-t border-white/40">
             <p className="text-xs text-[#1A2F25]/60 text-center">

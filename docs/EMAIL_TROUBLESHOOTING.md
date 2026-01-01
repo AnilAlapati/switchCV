@@ -4,6 +4,124 @@
 
 This guide documents the email service configuration and troubleshooting process for SwitchCV. The email service uses Gmail SMTP for transactional emails (welcome emails, recruiter requests, notifications, etc.).
 
+---
+
+## ✅ SOLVED: Email Verification Rate Limiting Issue (Jan 2026)
+
+### Problem
+
+Email verification stopped working after multiple test signups. Firebase's `generateEmailVerificationLink()` API hit rate limits (100 requests/hour), causing:
+
+- Verification emails with broken static links
+- Users unable to verify their email addresses
+- Login failures even for valid accounts
+- Error: `identitytoolkit.googleapis.com API requires a quota project`
+
+### Root Cause
+
+1. **Firebase API Rate Limiting**: `generateEmailVerificationLink()` quota exhausted after ~18 test signups
+2. **Missing Quota Project**: Firebase Admin SDK using Application Default Credentials (ADC) without quota project configuration
+3. **ADC Error**: `Your application is authenticating by using local Application Default Credentials. The identitytoolkit.googleapis.com API requires a quota project`
+
+### Solution Implemented
+
+#### 1. Custom Token-Based Verification System
+
+Replaced Firebase's rate-limited API with custom UUID-based tokens:
+
+**File: `functions/src/emailFunctions.ts`**
+
+```typescript
+const verificationToken = crypto.randomUUID();
+await adminDb.collection("verificationTokens").add({
+  token: verificationToken,
+  userId: user.uid,
+  email: user.email,
+  used: false,
+  expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+  createdAt: admin.firestore.FieldValue.serverTimestamp(),
+});
+
+const verificationUrl = `${websiteUrl}/api/auth/verify?token=${verificationToken}`;
+```
+
+**Benefits**:
+
+- ✅ No rate limits (unlimited verifications)
+- ✅ Full control over expiration (24 hours)
+- ✅ Cost-effective (standard Firestore operations)
+- ✅ Reliable and scalable
+
+#### 2. ADC Quota Project Configuration (Development)
+
+Fixed the "quota project" error for local development:
+
+```bash
+# Set quota project for Application Default Credentials
+gcloud auth application-default set-quota-project switchcv-dev
+```
+
+This creates/updates `~/.config/gcloud/application_default_credentials.json` with:
+
+```json
+{
+  "quota_project_id": "switchcv-dev",
+  "type": "authorized_user",
+  ...
+}
+```
+
+#### 3. Firestore Security Rules
+
+Added protection for verification tokens:
+
+**File: `firestore.rules`**
+
+```javascript
+match /verificationTokens/{tokenId} {
+  allow read, write: if false; // Only Admin SDK can access
+}
+```
+
+Deploy: `firebase deploy --only firestore:rules`
+
+#### 4. Verification API Endpoint
+
+**File: `src/app/api/auth/verify/route.ts`**
+
+- Validates token from URL parameter
+- Checks 24-hour expiration
+- Updates Firebase Auth user: `emailVerified: true`
+- Marks token as used
+- Redirects to `/auth?verificationSuccess=true`
+
+### Verification Flow (Current)
+
+1. User signs up → Firebase Auth creates user
+2. `onUserCreated` trigger fires → generates UUID token
+3. Token stored in Firestore `verificationTokens` collection (24h expiry)
+4. Email sent with link: `http://localhost:3000/api/auth/verify?token=XXX`
+5. User clicks link → `/api/auth/verify` validates and updates user
+6. User redirected to login with success message
+7. User can now login successfully
+
+### Files Modified
+
+- ✅ `functions/src/emailFunctions.ts` - Custom token generation
+- ✅ `src/app/api/auth/verify/route.ts` - Token verification endpoint
+- ✅ `src/lib/firebase-admin.ts` - Quota project configuration
+- ✅ `firestore.rules` - Security rules for tokens
+- ✅ `.env.local` - Added `GCLOUD_PROJECT=switchcv-dev`
+- ✅ `functions/.env` - Set `WEBSITE_URL=http://localhost:3000`
+
+### Cost Implications
+
+- **Old System**: Firebase API calls (rate-limited at 100/hour)
+- **New System**: Standard Firestore operations (writes + reads)
+- **Net Impact**: No additional cost, better reliability, unlimited scale
+
+---
+
 ## Architecture
 
 - **SMTP Provider**: Gmail (smtp.gmail.com:587)

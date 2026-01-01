@@ -1,5 +1,6 @@
 import * as admin from "firebase-admin";
 import * as functions from "firebase-functions/v1";
+import { randomUUID } from "crypto";
 import { emailService } from "./services/emailService";
 import { auditLogger, AuditAction, ResourceType } from "./services/auditLogger";
 
@@ -27,6 +28,29 @@ const buildVerificationLink = (): string => {
   return `${baseUrl}${path}`;
 };
 
+const generateCustomVerificationToken = async (
+  userId: string
+): Promise<string> => {
+  const token = randomUUID();
+  const expiresAt = admin.firestore.Timestamp.fromMillis(
+    Date.now() + 24 * 60 * 60 * 1000
+  ); // 24h
+
+  // Store token
+  await admin.firestore().collection("verificationTokens").add({
+    userId,
+    token,
+    expiresAt,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    used: false,
+  });
+
+  const baseUrl = normalizeBase(
+    process.env.WEBSITE_URL || "https://switchcv.com"
+  );
+  return `${baseUrl}/api/auth/verify?token=${token}`;
+};
+
 // ==================== EMAIL FUNCTIONS ====================
 
 // ==================== HANDLERS ====================
@@ -40,62 +64,79 @@ const onUserCreatedHandler = async (user: admin.auth.UserRecord) => {
       .get();
     const userData = userDoc.data();
 
-    // Generate email verification link
+    // Generate email verification link with improved error handling
     let verificationLink = buildVerificationLink();
+    let verificationMethod = "static";
+
     if (user.email) {
+      // Try custom token first (more reliable than Firebase's rate-limited API)
       try {
-        // Try to generate link with redirect to dashboard
-        const actionCodeSettings = {
-          url: `${process.env.WEBSITE_URL}/dashboard`,
-          handleCodeInApp: false,
-        };
-        verificationLink = await admin
-          .auth()
-          .generateEmailVerificationLink(user.email, actionCodeSettings);
-      } catch (e) {
+        verificationLink = await generateCustomVerificationToken(user.uid);
+        verificationMethod = "custom_token";
+        console.log(`Generated custom verification token for ${user.email}`);
+      } catch (customTokenError) {
         console.warn(
-          "Error generating verification link with redirect, trying without redirect:",
-          e
+          "Custom token generation failed, trying Firebase API:",
+          customTokenError
         );
+
+        // Fallback to Firebase's built-in verification link
         try {
-          // Fallback: Try generating link without redirect (standard Firebase handler)
-          // This handles cases where the domain might not be authorized
+          const actionCodeSettings = {
+            url: `${
+              process.env.WEBSITE_URL || "https://switchcv.com"
+            }/dashboard`,
+            handleCodeInApp: false,
+          };
           verificationLink = await admin
             .auth()
-            .generateEmailVerificationLink(user.email);
-        } catch (e2) {
-          console.error("Error generating verification link (fallback):", e2);
-          // verificationLink remains the manual fallback
+            .generateEmailVerificationLink(user.email, actionCodeSettings);
+          verificationMethod = "firebase_with_redirect";
+          console.log(`Generated Firebase verification link for ${user.email}`);
+        } catch (e) {
+          const firebaseError = e as { code?: string; message?: string };
+
+          // Check if it's a rate limit error
+          if (firebaseError.message?.includes("TOO_MANY_ATTEMPTS")) {
+            console.warn(
+              "Firebase rate limit hit, will use custom token on next signup"
+            );
+            // Keep the static link as fallback
+            verificationMethod = "static_fallback";
+          } else {
+            console.warn("Error generating Firebase verification link:", e);
+          }
         }
       }
     }
 
-    const result = await emailService.sendEmail({
-      to: user.email || "",
-      template: "welcomeEmail" as any,
-      data: {
-        firstName: userData?.firstName || user.displayName || "User",
-        onboardingUrl: `${process.env.WEBSITE_URL}/onboarding`,
-        verificationUrl: verificationLink,
-      },
-    });
+    const firstName = userData?.firstName || user.displayName || "User";
+    const websiteUrl = process.env.WEBSITE_URL || "https://switchcv.com";
 
-    if (result.success) {
-      await auditLogger.logEmailSent(
-        user.uid,
-        user.email || "",
-        "welcomeEmail",
-        true
-      );
-    } else {
-      await auditLogger.logEmailSent(
-        user.uid,
-        user.email || "",
-        "welcomeEmail",
-        false,
-        result.error
-      );
-    }
+    // Use Firebase Trigger Email Extension (same as feedback emails)
+    await admin
+      .firestore()
+      .collection("mail")
+      .add({
+        to: user.email,
+        message: {
+          subject: "Welcome to SwitchCV - Verify Your Email",
+          html: buildWelcomeEmailHtml(firstName, verificationLink, websiteUrl),
+          text: buildWelcomeEmailText(firstName, verificationLink, websiteUrl),
+        },
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+    await auditLogger.logEmailSent(
+      user.uid,
+      user.email || "",
+      "welcomeEmail",
+      true
+    );
+
+    console.log(
+      `Welcome email sent to ${user.email} with verification method: ${verificationMethod}`
+    );
   } catch (error) {
     console.error("Error sending welcome email:", error);
     await auditLogger.log({
@@ -103,12 +144,83 @@ const onUserCreatedHandler = async (user: admin.auth.UserRecord) => {
       action: AuditAction.EMAIL_FAILED,
       resourceType: ResourceType.EMAIL,
       resourceId: user.email || "",
-      details: `Welcome email failed: ${error instanceof Error ? error.message : "Unknown error"
-        }`,
+      details: `Welcome email failed: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`,
       status: "failure",
     });
   }
 };
+
+// Helper functions for email templates
+function buildWelcomeEmailHtml(
+  firstName: string,
+  verificationUrl: string,
+  websiteUrl: string
+): string {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5;">
+  <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; padding: 40px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+    <h1 style="color: #1A2F25; margin-bottom: 24px;">Welcome to SwitchCV!</h1>
+    <p style="color: #4a5568; font-size: 16px; line-height: 1.6;">Hi ${firstName},</p>
+    <p style="color: #4a5568; font-size: 16px; line-height: 1.6;">
+      Thank you for joining SwitchCV. We're excited to help you showcase your skills and connect with opportunities.
+    </p>
+    <p style="color: #4a5568; font-size: 16px; line-height: 1.6;">Please verify your email address to get started:</p>
+    <div style="text-align: center; margin: 32px 0;">
+      <a href="${verificationUrl}" style="background: linear-gradient(135deg, #D4A853 0%, #C4973F 100%); color: #1A2F25; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">
+        Verify Email
+      </a>
+    </div>
+    <p style="color: #4a5568; font-size: 14px; line-height: 1.6;"><strong>Here's what you can do next:</strong></p>
+    <ul style="color: #4a5568; font-size: 14px; line-height: 1.8;">
+      <li>Create your professional profile</li>
+      <li>Upload and manage your resumes</li>
+      <li>View profile analytics and recruiter interest</li>
+      <li>Control access to your information</li>
+    </ul>
+    <p style="margin-top: 24px;">
+      <a href="${websiteUrl}/dashboard" style="color: #D4A853; text-decoration: none;">Go to Dashboard →</a>
+    </p>
+    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+    <p style="color: #a0aec0; font-size: 12px;">
+      If you didn't create an account with SwitchCV, you can safely ignore this email.
+    </p>
+  </div>
+</body>
+</html>`;
+}
+
+function buildWelcomeEmailText(
+  firstName: string,
+  verificationUrl: string,
+  websiteUrl: string
+): string {
+  return `Welcome to SwitchCV!
+
+Hi ${firstName},
+
+Thank you for joining SwitchCV. We're excited to help you showcase your skills and connect with opportunities.
+
+Please verify your email address to get started:
+${verificationUrl}
+
+Here's what you can do next:
+- Create your professional profile
+- Upload and manage your resumes
+- View profile analytics and recruiter interest
+- Control access to your information
+
+Go to Dashboard: ${websiteUrl}/dashboard
+
+If you didn't create an account with SwitchCV, you can safely ignore this email.`;
+}
 
 const onRecruiterRequestCreatedHandler = async (
   snap: functions.firestore.QueryDocumentSnapshot,
@@ -161,8 +273,9 @@ const onRecruiterRequestCreatedHandler = async (
       action: AuditAction.EMAIL_FAILED,
       resourceType: ResourceType.RECRUITER_REQUEST,
       resourceId: context.params.requestId,
-      details: `Failed to send recruiter request email: ${error instanceof Error ? error.message : "Unknown error"
-        }`,
+      details: `Failed to send recruiter request email: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`,
       status: "failure",
     });
   }
@@ -254,14 +367,17 @@ const onRecruiterRequestApprovedHandler = async (
       action: AuditAction.EMAIL_FAILED,
       resourceType: ResourceType.RECRUITER_REQUEST,
       resourceId: context.params.requestId,
-      details: `Failed to send status update email: ${error instanceof Error ? error.message : "Unknown error"
-        }`,
+      details: `Failed to send status update email: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`,
       status: "failure",
     });
   }
 };
 
-const sendProfileViewDigestHandler = async (context: functions.EventContext) => {
+const sendProfileViewDigestHandler = async (
+  context: functions.EventContext
+) => {
   try {
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
@@ -349,8 +465,9 @@ const sendProfileViewDigestHandler = async (context: functions.EventContext) => 
       action: AuditAction.EMAIL_FAILED,
       resourceType: ResourceType.SYSTEM,
       resourceId: "digest",
-      details: `Failed to send profile view digest: ${error instanceof Error ? error.message : "Unknown error"
-        }`,
+      details: `Failed to send profile view digest: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`,
       status: "failure",
     });
   }
@@ -386,24 +503,17 @@ const notifyAdminSuspiciousActivityHandler = async (
       .filter(Boolean);
 
     // Send emails to admins
-    await emailService.sendBulkEmails(
-      adminEmails,
-      "adminNotification" as any,
-      {
-        alertType: activityType,
-        details,
-        timestamp: new Date().toISOString(),
-        adminUrl: `${process.env.WEBSITE_URL}/admin/security`,
-      }
-    );
+    await emailService.sendBulkEmails(adminEmails, "adminNotification" as any, {
+      alertType: activityType,
+      details,
+      timestamp: new Date().toISOString(),
+      adminUrl: `${process.env.WEBSITE_URL}/admin/security`,
+    });
 
     return { success: true, message: "Admins notified" };
   } catch (error) {
     console.error("Error notifying admins:", error);
-    throw new functions.https.HttpsError(
-      "internal",
-      "Failed to notify admins"
-    );
+    throw new functions.https.HttpsError("internal", "Failed to notify admins");
   }
 };
 
@@ -416,6 +526,108 @@ const cleanupAuditLogsHandler = async (context: functions.EventContext) => {
   }
 };
 
+const resendVerificationEmailHandler = async (
+  data: any,
+  context: functions.https.CallableContext
+) => {
+  try {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "Authentication required"
+      );
+    }
+
+    const userId = context.auth.uid;
+    const user = await admin.auth().getUser(userId);
+    const email = user.email;
+
+    if (!email) {
+      throw new functions.https.HttpsError(
+        "failed-precondition",
+        "User has no email address"
+      );
+    }
+
+    if (user.emailVerified) {
+      return { success: false, message: "Email already verified" };
+    }
+
+    // Get user data for personalization
+    const userDoc = await admin
+      .firestore()
+      .collection("users")
+      .doc(userId)
+      .get();
+    const userData = userDoc.data();
+
+    // Generate verification link with multiple fallbacks
+    let verificationLink = buildVerificationLink(); // Start with manual fallback
+    try {
+      // Try Firebase's link with redirect
+      verificationLink = await admin
+        .auth()
+        .generateEmailVerificationLink(email, {
+          url: `${process.env.WEBSITE_URL || "https://switchcv.com"}/dashboard`,
+          handleCodeInApp: false,
+        });
+    } catch (e1) {
+      console.warn(
+        "Failed to generate link with redirect, trying simple link:",
+        e1
+      );
+      try {
+        // Try Firebase's simple link (no redirect)
+        verificationLink = await admin
+          .auth()
+          .generateEmailVerificationLink(email);
+      } catch (e2) {
+        // Both Firebase methods failed - use manual fallback
+        // This handles rate limiting, domain issues, etc.
+        console.warn(
+          "Firebase link generation failed, using manual fallback:",
+          e2
+        );
+
+        try {
+          verificationLink = await generateCustomVerificationToken(userId);
+          console.log(
+            "Generated custom verification token as fallback for resend"
+          );
+        } catch (e3) {
+          console.error("Failed to generate custom token for resend:", e3);
+        }
+      }
+    }
+
+    const firstName = userData?.firstName || user.displayName || "User";
+    const websiteUrl = process.env.WEBSITE_URL || "https://switchcv.com";
+
+    // Use Firebase Trigger Email Extension (same as feedback emails)
+    await admin
+      .firestore()
+      .collection("mail")
+      .add({
+        to: email,
+        message: {
+          subject: "SwitchCV - Verify Your Email",
+          html: buildWelcomeEmailHtml(firstName, verificationLink, websiteUrl),
+          text: buildWelcomeEmailText(firstName, verificationLink, websiteUrl),
+        },
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+    await auditLogger.logEmailSent(userId, email, "verificationResend", true);
+    return { success: true };
+  } catch (error) {
+    console.error("Error resending verification email:", error);
+    throw new functions.https.HttpsError(
+      "internal",
+      "Failed to send verification email"
+    );
+  }
+};
+
 export {
   onUserCreatedHandler,
   onRecruiterRequestCreatedHandler,
@@ -423,6 +635,7 @@ export {
   sendProfileViewDigestHandler,
   notifyAdminSuspiciousActivityHandler,
   cleanupAuditLogsHandler,
+  resendVerificationEmailHandler,
 };
 
 // ==================== EMAIL FUNCTIONS ====================
@@ -430,7 +643,9 @@ export {
 /**
  * Send welcome email to new users
  */
-export const onUserCreated = functions.auth.user().onCreate(onUserCreatedHandler);
+export const onUserCreated = functions.auth
+  .user()
+  .onCreate(onUserCreatedHandler);
 
 /**
  * Send email when recruiter request is created

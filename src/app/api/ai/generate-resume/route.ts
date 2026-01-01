@@ -1,7 +1,8 @@
 import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { generateText } from "@/lib/services/aiGenerationService";
-import { handleApiError } from "@/lib/utils/api-helpers";
+import { handleApiError, getAuthenticatedUserId } from "@/lib/utils/api-helpers";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 
 interface GenerateResumeRequest {
   resumeData: {
@@ -54,8 +55,32 @@ export async function POST(
   NextResponse<GenerateResumeResponse | { error: string; details?: string }>
 > {
   try {
+    // 1. Verify Authentication
+    const { userId } = await getAuthenticatedUserId(request);
+    if (!userId) {
+      return handleApiError(new Error("Unauthorized"), "Unauthorized", 401);
+    }
+
+    // 2. Check Rate Limit (Reuse general AI check or specific)
+    // We'll use the existing distributed rate limiter
+    const rateLimitResult = await checkDistributedRateLimit(userId, {
+      limit: 10, // Consistent with the new "Relaxed" Basic limit (10/min)
+      windowMs: 60 * 1000,
+      scope: "ai_generation",
+    });
+
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429 }
+      );
+    }
+
     const body = (await request.json()) as GenerateResumeRequest;
     const { resumeData, tone = "professional" } = body;
+
+    // 3. User Tier Check (Optional - enforcing basic limits via rate limit above is a good start)
+    // We can add detailed tier logic later if needed, but rate limit protects the bill.
 
     if (!resumeData) {
       return handleApiError(
@@ -69,6 +94,7 @@ export async function POST(
     const prompt = createResumeEnhancementPrompt(resumeData, tone);
 
     logger.info({
+      userId,
       name: resumeData.personalInfo.name,
       tone,
       skillCount: (resumeData.skills || []).length,
@@ -79,6 +105,7 @@ export async function POST(
     const { text, model, provider } = await generateText(prompt, 2000, 0.7);
 
     logger.info({
+      userId,
       model,
       provider,
       responseLength: text.length,
@@ -131,11 +158,10 @@ ${experienceText}
 SKILLS: ${(skills || []).join(", ") || "Skills not provided"}
 
 EDUCATION:
-${
-  (education || [])
-    .map((edu: any) => `${edu.degree} from ${edu.institution} (${edu.year})`)
-    .join("\n") || "No education provided"
-}
+${(education || [])
+      .map((edu: any) => `${edu.degree} from ${edu.institution} (${edu.year})`)
+      .join("\n") || "No education provided"
+    }
 
 TONE: ${tone}
 
@@ -176,8 +202,7 @@ function parseAIResponse(aiText: string, resumeData: any): any {
     return {
       enhancedSummary:
         parsed.enhancedSummary ||
-        `Professional ${
-          resumeData.personalInfo.name
+        `Professional ${resumeData.personalInfo.name
         } with expertise in ${resumeData.skills.slice(0, 2).join(" and ")}.`,
       enhancedExperience: (
         parsed.enhancedExperience || resumeData.experience
@@ -217,11 +242,9 @@ function parseAIResponse(aiText: string, resumeData: any): any {
  */
 function generateFallbackEnhancement(resumeData: any): any {
   return {
-    enhancedSummary: `Results-driven professional with ${
-      resumeData.experience.length
-    }+ years of experience in ${
-      resumeData.skills[0] || "leadership"
-    }. Proven track record of delivering high-impact solutions and driving organizational success.`,
+    enhancedSummary: `Results-driven professional with ${resumeData.experience.length
+      }+ years of experience in ${resumeData.skills[0] || "leadership"
+      }. Proven track record of delivering high-impact solutions and driving organizational success.`,
     enhancedExperience: resumeData.experience.map((exp: any) => ({
       title: exp.title,
       company: exp.company,

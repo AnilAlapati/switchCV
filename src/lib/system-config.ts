@@ -74,15 +74,15 @@ export const defaultSystemConfig: SystemConfig = {
   rateLimits: {
     api: {
       windowMs: 60000,
-      maxRequests: 20,
+      maxRequests: 60,
     },
     search: {
-      perMinute: 10,
+      perMinute: 20,
     },
     aiEnhancement: {
       basic: {
-        perHour: 2,
-        perDay: 5,
+        perHour: 5,
+        perDay: 10,
       },
       premium: {
         perHour: 10,

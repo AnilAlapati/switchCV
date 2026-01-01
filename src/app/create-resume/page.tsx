@@ -422,12 +422,12 @@ export default function CreateResume() {
                 </div>
               </div>
               <h2 className="text-2xl font-bold mb-3 text-foreground">
-                Let's Build Your Perfect Resume
+                Your Career Agent is Ready
               </h2>
               <p className="text-muted-foreground max-w-md mx-auto text-lg leading-relaxed">
-                Tell me about your experience, skills, education, or what kind
-                of job you're targeting. I'll help you create a professional
-                resume.
+                I'm your autonomous career agent. Tell me what you're targeting,
+                and I'll strategize the best way to frame your experience for
+                maximum impact.
               </p>
             </div>
           ) : (
@@ -435,9 +435,8 @@ export default function CreateResume() {
               {messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex items-end gap-3 ${
-                    message.isUser ? "justify-end" : "justify-start"
-                  }`}
+                  className={`flex items-end gap-3 ${message.isUser ? "justify-end" : "justify-start"
+                    }`}
                 >
                   {!message.isUser && (
                     <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 border border-primary/20">
@@ -446,21 +445,19 @@ export default function CreateResume() {
                   )}
 
                   <div
-                    className={`max-w-[80%] p-5 rounded-2xl shadow-sm ${
-                      message.isUser
+                    className={`max-w-[80%] p-5 rounded-2xl shadow-sm ${message.isUser
                         ? "bg-primary text-primary-foreground rounded-br-none"
                         : "bg-white/60 backdrop-blur-sm text-foreground border border-white/40 rounded-bl-none"
-                    }`}
+                      }`}
                   >
                     <p className="whitespace-pre-wrap leading-relaxed">
                       {message.content}
                     </p>
                     <p
-                      className={`text-[10px] mt-2 ${
-                        message.isUser
+                      className={`text-[10px] mt-2 ${message.isUser
                           ? "text-primary-foreground/70"
                           : "text-muted-foreground"
-                      }`}
+                        }`}
                     >
                       {message.timestamp.toLocaleTimeString([], {
                         hour: "2-digit",

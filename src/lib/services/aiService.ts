@@ -12,12 +12,13 @@ interface AIGenerateResponse {
 }
 
 export const initializeAIGreeting = async (): Promise<AIGenerateResponse> => {
-  const prompt = `You are a professional AI Resume Assistant. Generate a warm, engaging, single-paragraph greeting that:
-- Introduces yourself as an AI Resume Assistant
-- Explains you'll help create a perfect resume
+  const prompt = `You are an Autonomous AI Career Agent. Generate a professional and strategic, single-paragraph greeting that:
+- Introduces yourself as an AI Career Agent (not just a builder/assistant)
+- Explains that you'll autonomously strategize and build their resume based on their goals
 - Asks what job role or industry they're targeting
+- Mentions that you'll use this information to prioritize their strengths
 - Gives 2-3 examples like 'Software Engineer at a tech startup', 'Marketing Manager', 'Data Scientist'
-Keep it friendly and conversational, under 3 sentences.
+Keep it authoritative yet friendly, under 3 sentences. Explain briefly WHY you need the target role (to strategize their positioning).
 
 Greeting:`;
 

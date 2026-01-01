@@ -15,7 +15,7 @@ const HERO_HIGHLIGHTS = [
   {
     title: "Resume view tracking",
     description:
-      "See how many times your resume has been viewed and track recruiter interest.",
+      "See how many times your agent-built resume has been viewed and track recruiter interest.",
   },
   {
     title: "Privacy-first sharing",
@@ -23,9 +23,9 @@ const HERO_HIGHLIGHTS = [
       "Share secure links and control who can see your contact information.",
   },
   {
-    title: "AI-powered resume builder",
+    title: "Autonomous Career Agent",
     description:
-      "Create professional resumes with AI that helps polish every bullet point.",
+      "Your agent builds professional resumes through guided reasoning and strategic optimization.",
   },
 ];
 

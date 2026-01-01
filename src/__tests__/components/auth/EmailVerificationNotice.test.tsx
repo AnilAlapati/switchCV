@@ -19,11 +19,14 @@ describe("EmailVerificationNotice", () => {
     );
 
     expect(
-      screen.getByText("Confirm your email to continue")
+      screen.getByText("Verify your email")
     ).toBeInTheDocument();
     expect(screen.getByText("your inbox")).toBeInTheDocument();
     expect(screen.getByText("Resend link")).toBeInTheDocument();
-    expect(screen.getByText("I verified already")).toBeInTheDocument();
+    expect(screen.getByText("I verified my email")).toBeInTheDocument();
+    expect(
+      screen.getByText("Remember to check your spam folder.")
+    ).toBeInTheDocument();
   });
 
   it("renders with provided email", () => {
@@ -37,11 +40,17 @@ describe("EmailVerificationNotice", () => {
     );
 
     expect(screen.getByText(email)).toBeInTheDocument();
+    expect(
+      screen.getByText("Verify your email")
+    ).toBeInTheDocument();
+    expect(screen.queryByText("your inbox")).not.toBeInTheDocument();
+    expect(screen.getByText("Resend link")).toBeInTheDocument();
   });
 
-  it("calls onResend when Resend link button is clicked", () => {
+  it("calls onResend when resend button is clicked", () => {
     render(
       <EmailVerificationNotice
+        email="test@example.com"
         onResend={mockOnResend}
         onRefresh={mockOnRefresh}
       />
@@ -54,12 +63,13 @@ describe("EmailVerificationNotice", () => {
   it("calls onRefresh when I verified already button is clicked", () => {
     render(
       <EmailVerificationNotice
+        email="test@example.com"
         onResend={mockOnResend}
         onRefresh={mockOnRefresh}
       />
     );
 
-    fireEvent.click(screen.getByText("I verified already"));
+    fireEvent.click(screen.getByText("I verified my email"));
     expect(mockOnRefresh).toHaveBeenCalledTimes(1);
   });
 

@@ -3,6 +3,23 @@ import { NextRequest } from "next/server";
 import { generateText } from "@/lib/services/aiGenerationService";
 
 jest.mock("@/lib/services/aiGenerationService");
+jest.mock("@/lib/utils/api-helpers", () => ({
+  handleApiError: jest.fn((error, message, status) => {
+    const { NextResponse } = require("next/server");
+    return NextResponse.json(
+      { error: message, details: error.message },
+      { status: status || 500 }
+    );
+  }),
+  getAuthenticatedUserId: jest.fn(),
+}));
+
+jest.mock("@/lib/utils/distributedRateLimit", () => ({
+  checkDistributedRateLimit: jest.fn(),
+}));
+
+import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 
 describe("POST /api/ai/generate-resume", () => {
   const mockResumeData = {
@@ -31,6 +48,8 @@ describe("POST /api/ai/generate-resume", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: "test-user" });
+    (checkDistributedRateLimit as jest.Mock).mockResolvedValue({ allowed: true });
   });
 
   it("should return 400 if resume data is missing", async () => {
@@ -43,8 +62,31 @@ describe("POST /api/ai/generate-resume", () => {
     const data = await res.json();
 
     expect(res.status).toBe(400);
-    // expect(data.success).toBe(false);
     expect(data.error).toBe("Missing resume data");
+  });
+
+  it("should return 401 if user is not authenticated", async () => {
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: null });
+
+    const req = new NextRequest("http://localhost/api/ai/generate-resume", {
+      method: "POST",
+      body: JSON.stringify({ resumeData: mockResumeData }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(401);
+  });
+
+  it("should return 429 if rate limit exceeded", async () => {
+    (checkDistributedRateLimit as jest.Mock).mockResolvedValue({ allowed: false });
+
+    const req = new NextRequest("http://localhost/api/ai/generate-resume", {
+      method: "POST",
+      body: JSON.stringify({ resumeData: mockResumeData }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(429);
   });
 
   it("should generate enhanced resume successfully", async () => {

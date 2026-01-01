@@ -78,11 +78,20 @@ export function useAuthPage(): UseAuthPageReturn {
     }
   }, [searchParams]);
 
-  // Handle email verification link
+  // Handle email verification link and custom verification success
   useEffect(() => {
     const handleEmailVerification = async () => {
       const mode = searchParams.get("mode");
       const oobCode = searchParams.get("oobCode");
+      const isCustomSuccess = searchParams.get("verificationSuccess") === "true";
+
+      if (isCustomSuccess && !verificationAttempted.current) {
+        verificationAttempted.current = true;
+        setVerificationSuccess(true);
+        // Refresh user to update UI state
+        await refreshUser();
+        return;
+      }
 
       if (
         (mode === "verifyEmail" || mode === "verify-email") &&
@@ -118,7 +127,7 @@ export function useAuthPage(): UseAuthPageReturn {
           } else {
             setError(
               firebaseError.message ||
-                "Failed to verify email. Please try again."
+              "Failed to verify email. Please try again."
             );
           }
         } finally {
@@ -237,18 +246,35 @@ export function useAuthPage(): UseAuthPageReturn {
 
   const handleRefreshVerification = useCallback(async () => {
     setRefreshing(true);
+    setError(""); // Clear previous errors
     try {
       await refreshUser();
+
+      // Check if verification status changed
+      if (auth.currentUser && !auth.currentUser.emailVerified) {
+        setError("Email is not verified yet. Please check your inbox and try again.");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to refresh status");
     } finally {
-      setRefreshing(false);
+      // Small delay to prevent button flickering/spamming
+      setTimeout(() => {
+        setRefreshing(false);
+      }, 500);
     }
   }, [refreshUser]);
 
   const handleUseSuggestion = useCallback(() => {
     setUsername(usernameSuggestion);
   }, [usernameSuggestion]);
+
+  const handleLogout = useCallback(async () => {
+    try {
+      await useAuth().logout();
+    } catch (e) {
+      console.error("Logout failed", e);
+    }
+  }, []);
 
   return {
     state: {
@@ -278,6 +304,7 @@ export function useAuthPage(): UseAuthPageReturn {
       handleResend,
       handleRefreshVerification,
       handleUseSuggestion,
+      logout: useAuth().logout, // Export logout
     },
     authContext: { needsEmailVerification, verificationEmail },
     isCheckingUsername,

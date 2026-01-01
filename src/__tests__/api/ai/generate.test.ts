@@ -293,13 +293,17 @@ describe("/api/ai/generate route", () => {
 
     const request = createRequest({ prompt: "Test" });
 
+    mockedGenerateText.mockResolvedValueOnce({
+      text: "Basic tier response",
+      model: "gemini-1.5-flash",
+      provider: "google",
+    });
+
     const response = await POST(request);
     const data = await response.json();
 
-    expect(response.status).toBe(403);
-    expect(data.error).toBe(
-      "AI text generation requires a premium or enterprise plan."
-    );
+    expect(response.status).toBe(200);
+    expect(mockedGenerateText).toHaveBeenCalled();
   });
 
   it("should default to basic plan if user not found and return 403", async () => {
@@ -308,15 +312,19 @@ describe("/api/ai/generate route", () => {
       data: () => undefined,
     });
 
+    mockedGenerateText.mockResolvedValueOnce({
+      text: "Anonymous/Basic response",
+      model: "gemini-1.5-flash",
+      provider: "google",
+    });
+
     const request = createRequest({ prompt: "Test" });
 
     const response = await POST(request);
     const data = await response.json();
 
-    expect(response.status).toBe(403);
-    expect(data.error).toBe(
-      "AI text generation requires a premium or enterprise plan."
-    );
+    expect(response.status).toBe(200);
+    expect(mockedGenerateText).toHaveBeenCalled();
   });
 
   it("should return 429 error when rate limit is exceeded", async () => {

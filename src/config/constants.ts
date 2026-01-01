@@ -196,13 +196,12 @@ export type ReservedUsername = (typeof RESERVED_USERNAMES)[number];
  */
 export const USERNAME_CONFIG = {
   /** Debounce delay for availability check in ms */
-  CHECK_DEBOUNCE_MS: 400,
+  CHECK_DEBOUNCE_MS: 1000,
   /** Minimum username length */
   MIN_LENGTH: 3,
   /** Maximum username length */
   MAX_LENGTH: 30,
-  /** Rate limit for username availability checks per minute */
-  CHECK_RATE_LIMIT_PER_MINUTE: 10,
+  CHECK_RATE_LIMIT_PER_MINUTE: 30,
 } as const;
 
 /**
