@@ -105,9 +105,7 @@ describe("CreateResume Page", () => {
     render(<CreateResume />);
 
     expect(screen.getByTestId("create-resume-header")).toBeInTheDocument();
-    expect(
-      screen.getByText("Let's Build Your Perfect Resume")
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Your Career Agent is Ready/i)).toBeInTheDocument();
     expect(screen.getByTestId("input-form")).toBeInTheDocument();
   });
 
