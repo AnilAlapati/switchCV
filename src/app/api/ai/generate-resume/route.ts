@@ -1,7 +1,10 @@
 import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { generateText } from "@/lib/services/aiGenerationService";
-import { handleApiError, getAuthenticatedUserId } from "@/lib/utils/api-helpers";
+import {
+  handleApiError,
+  getAuthenticatedUserId,
+} from "@/lib/utils/api-helpers";
 import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 import { runAgenticWorkflow } from "@/lib/services/agentOrchestrator";
 import { adminDb } from "@/lib/firebase-admin";
@@ -81,6 +84,15 @@ export async function POST(
     const body = (await request.json()) as GenerateResumeRequest;
     const { resumeData, tone = "professional" } = body;
 
+    // Validate resumeData
+    if (!resumeData) {
+      return handleApiError(
+        new Error("Missing resume data"),
+        "Missing resume data",
+        400
+      );
+    }
+
     // 3. PROPOSED: Agentic Workflow Logic (replaces standard flow if enabled)
 
     // Fetch user for subscription tier
@@ -92,13 +104,10 @@ export async function POST(
     let aiProvider = "";
 
     // Try Agentic Workflow
-    const agenticResult = await runAgenticWorkflow(
-      userId,
-      userRole,
-      {
-        userResume: JSON.stringify(resumeData),
-        jobDescription: "", // Not provided in current API schema
-        outputFormatInstruction: `
+    const agenticResult = await runAgenticWorkflow(userId, userRole, {
+      userResume: JSON.stringify(resumeData),
+      jobDescription: "", // Not provided in current API schema
+      outputFormatInstruction: `
                 Please provide enhancements in the following JSON format (IMPORTANT - respond ONLY with valid JSON):
                 {
                     "enhancedSummary": "...",
@@ -106,9 +115,8 @@ export async function POST(
                     "skillSuggestions": [...],
                     "improvementTips": [...]
                 }
-             `
-      }
-    );
+             `,
+    });
 
     if (agenticResult) {
       aiResponseText = agenticResult;
@@ -120,13 +128,16 @@ export async function POST(
       // Create prompt for AI
       const prompt = createResumeEnhancementPrompt(resumeData, tone);
 
-      logger.info({
-        userId,
-        name: resumeData.personalInfo.name,
-        tone,
-        skillCount: (resumeData.skills || []).length,
-        experienceCount: (resumeData.experience || []).length,
-      }, "🤖 Starting AI resume enhancement (Standard Flow)...");
+      logger.info(
+        {
+          userId,
+          name: resumeData.personalInfo.name,
+          tone,
+          skillCount: (resumeData.skills || []).length,
+          experienceCount: (resumeData.experience || []).length,
+        },
+        "🤖 Starting AI resume enhancement (Standard Flow)..."
+      );
 
       // Call AI service
       const result = await generateText(prompt, 2000, 0.7);
@@ -143,12 +154,15 @@ export async function POST(
        // const { text, model, provider } = await generateText(prompt, 2000, 0.7);
     */
 
-    logger.info({
-      userId,
-      model: aiModel,
-      provider: aiProvider,
-      responseLength: aiResponseText.length,
-    }, "✅ AI generation successful");
+    logger.info(
+      {
+        userId,
+        model: aiModel,
+        provider: aiProvider,
+        responseLength: aiResponseText.length,
+      },
+      "✅ AI generation successful"
+    );
 
     // Parse AI response
     const enhancedContent = parseAIResponse(aiResponseText, resumeData);
@@ -197,10 +211,11 @@ ${experienceText}
 SKILLS: ${(skills || []).join(", ") || "Skills not provided"}
 
 EDUCATION:
-${(education || [])
-      .map((edu: any) => `${edu.degree} from ${edu.institution} (${edu.year})`)
-      .join("\n") || "No education provided"
-    }
+${
+  (education || [])
+    .map((edu: any) => `${edu.degree} from ${edu.institution} (${edu.year})`)
+    .join("\n") || "No education provided"
+}
 
 TONE: ${tone}
 
@@ -241,7 +256,8 @@ function parseAIResponse(aiText: string, resumeData: any): any {
     return {
       enhancedSummary:
         parsed.enhancedSummary ||
-        `Professional ${resumeData.personalInfo.name
+        `Professional ${
+          resumeData.personalInfo.name
         } with expertise in ${resumeData.skills.slice(0, 2).join(" and ")}.`,
       enhancedExperience: (
         parsed.enhancedExperience || resumeData.experience
@@ -281,9 +297,11 @@ function parseAIResponse(aiText: string, resumeData: any): any {
  */
 function generateFallbackEnhancement(resumeData: any): any {
   return {
-    enhancedSummary: `Results-driven professional with ${resumeData.experience.length
-      }+ years of experience in ${resumeData.skills[0] || "leadership"
-      }. Proven track record of delivering high-impact solutions and driving organizational success.`,
+    enhancedSummary: `Results-driven professional with ${
+      resumeData.experience.length
+    }+ years of experience in ${
+      resumeData.skills[0] || "leadership"
+    }. Proven track record of delivering high-impact solutions and driving organizational success.`,
     enhancedExperience: resumeData.experience.map((exp: any) => ({
       title: exp.title,
       company: exp.company,

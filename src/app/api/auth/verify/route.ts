@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { NextRequest, NextResponse } from "next/server";
 import admin, { adminDb, adminAuth } from "@/lib/firebase-admin";
 

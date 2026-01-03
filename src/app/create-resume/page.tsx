@@ -258,7 +258,6 @@ export default function CreateResume() {
 
     try {
       const idToken = await user.getIdToken();
-      console.log("🔑 Got ID token, making API request...");
       const response = await fetch("/api/resume/generate", {
         method: "POST",
         headers: {
@@ -273,11 +272,9 @@ export default function CreateResume() {
         }),
       });
 
-      console.log("📡 API Response status:", response.status);
-
       if (!response.ok) {
         let errorDetail = response.statusText;
-        let errorStatus = response.status;
+        const errorStatus = response.status;
         try {
           const errorData = await response.json();
           if (errorData.error) errorDetail = errorData.error;
