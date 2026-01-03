@@ -485,6 +485,42 @@ async function generateWithHuggingFace(
   throw new Error("Unexpected HuggingFace response format");
 }
 
+// Circuit Breaker System
+class CircuitBreaker {
+  private failures = 0;
+  private lastFailure = 0;
+  private readonly threshold = 3;
+  private readonly timeout = 60000; // 1 minute open state
+
+  isOpen(): boolean {
+    if (this.failures >= this.threshold) {
+      const now = Date.now();
+      if (now - this.lastFailure > this.timeout) {
+        // Half-open: try once
+        return false;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  recordFailure(): void {
+    this.failures++;
+    this.lastFailure = Date.now();
+  }
+
+  recordSuccess(): void {
+    this.failures = 0;
+  }
+}
+
+const breakers = {
+  google: new CircuitBreaker(),
+  openai: new CircuitBreaker(),
+  groq: new CircuitBreaker(),
+  huggingface: new CircuitBreaker(),
+};
+
 /**
  * Generate text with fallback to multiple providers
  */
@@ -497,69 +533,94 @@ export async function generateText(
   const errors: Record<string, string> = {};
 
   // Try Gemini first
-  try {
-    logger.info("Trying Gemini API...");
-    const result = await generateWithGemini(prompt, maxTokens, temperature, model);
-    logger.info({ model: result.model }, "Gemini API success");
-    return {
-      text: result.text,
-      model: result.model,
-      provider: "google",
-    };
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : "Unknown error";
-    errors.gemini = errorMsg;
-    logger.error({ err: error }, "Gemini failed");
+  if (!breakers.google.isOpen()) {
+    try {
+      logger.info("Trying Gemini API...");
+      const result = await generateWithGemini(prompt, maxTokens, temperature, model);
+      logger.info({ model: result.model }, "Gemini API success");
+      breakers.google.recordSuccess();
+      return {
+        text: result.text,
+        model: result.model,
+        provider: "google",
+      };
+    } catch (error) {
+      breakers.google.recordFailure();
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
+      errors.gemini = errorMsg;
+      logger.error({ err: error }, "Gemini failed");
+    }
+  } else {
+    logger.warn("Gemini Circuit Breaker OPEN - Skipping");
   }
 
   // Try OpenAI as second fallback
-  try {
-    logger.info("Trying OpenAI API...");
-    const result = await generateWithOpenAI(prompt, maxTokens, temperature);
-    logger.info({ model: result.model }, "OpenAI API success");
-    return {
-      text: result.text,
-      model: result.model,
-      provider: "openai",
-    };
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : "Unknown error";
-    errors.openai = errorMsg;
-    logger.error({ err: error }, "OpenAI failed");
+  if (!breakers.openai.isOpen()) {
+    try {
+      logger.info("Trying OpenAI API...");
+      const result = await generateWithOpenAI(prompt, maxTokens, temperature);
+      logger.info({ model: result.model }, "OpenAI API success");
+      breakers.openai.recordSuccess();
+      return {
+        text: result.text,
+        model: result.model,
+        provider: "openai",
+      };
+    } catch (error) {
+      breakers.openai.recordFailure();
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
+      errors.openai = errorMsg;
+      logger.error({ err: error }, "OpenAI failed");
+    }
+  } else {
+    logger.warn("OpenAI Circuit Breaker OPEN - Skipping");
   }
 
+
   // Try Groq as third fallback (fast & free)
-  try {
-    logger.info("Trying Groq API...");
-    const result = await generateWithGroq(prompt, maxTokens, temperature);
-    logger.info({ model: result.model }, "Groq API success");
-    return {
-      text: result.text,
-      model: result.model,
-      provider: "groq",
-    };
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : "Unknown error";
-    errors.groq = errorMsg;
-    logger.error({ err: error }, "Groq failed");
+  if (!breakers.groq.isOpen()) {
+    try {
+      logger.info("Trying Groq API...");
+      const result = await generateWithGroq(prompt, maxTokens, temperature);
+      logger.info({ model: result.model }, "Groq API success");
+      breakers.groq.recordSuccess();
+      return {
+        text: result.text,
+        model: result.model,
+        provider: "groq",
+      };
+    } catch (error) {
+      breakers.groq.recordFailure();
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
+      errors.groq = errorMsg;
+      logger.error({ err: error }, "Groq failed");
+    }
+  } else {
+    logger.warn("Groq Circuit Breaker OPEN - Skipping");
   }
 
   // Try HuggingFace as last fallback
-  try {
-    logger.info("Trying HuggingFace API...");
-    const text = await generateWithHuggingFace(prompt, maxTokens, temperature);
-    logger.info("HuggingFace API success");
-    return {
-      text,
-      model: "FLAN-T5 Base",
-      provider: "huggingface",
-    };
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : "Unknown error";
-    errors.huggingface = errorMsg;
-    logger.error({ err: error }, "HuggingFace failed");
+  if (!breakers.huggingface.isOpen()) {
+    try {
+      logger.info("Trying HuggingFace API...");
+      const text = await generateWithHuggingFace(prompt, maxTokens, temperature);
+      logger.info("HuggingFace API success");
+      breakers.huggingface.recordSuccess();
+      return {
+        text,
+        model: "FLAN-T5 Base",
+        provider: "huggingface",
+      };
+    } catch (error) {
+      breakers.huggingface.recordFailure();
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
+      errors.huggingface = errorMsg;
+      logger.error({ err: error }, "HuggingFace failed");
+    }
+  } else {
+    logger.warn("HuggingFace Circuit Breaker OPEN - Skipping");
   }
 
   // All providers failed
-  throw new Error(`All AI providers failed: ${JSON.stringify(errors)}`);
+  throw new Error(`All AI providers failed or blocked: ${JSON.stringify(errors)}`);
 }

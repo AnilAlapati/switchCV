@@ -11,8 +11,23 @@ import { logger } from "@/lib/logger";
 import { DRAFT_CONFIG } from "@/config/constants";
 import { getNextResumeId } from "@/lib/resumeIdMapping";
 import { getDraft } from "@/lib/services/draftService";
+import { deduplicateRequest, resumeCache } from "@/lib/utils/cache";
 
 export const fetchResumeBySlug = async (
+  slug: string
+): Promise<ResumeProfile | null> => {
+  return deduplicateRequest(`resume:${slug}`, async () => {
+    const cached = resumeCache.get(`resume:${slug}`);
+    if (cached) return cached;
+
+    const result = await _fetchResumeBySlugInternal(slug);
+    if (result) resumeCache.set(`resume:${slug}`, result, 5 * 60 * 1000); // 5 min cache
+
+    return result;
+  });
+};
+
+const _fetchResumeBySlugInternal = async (
   slug: string
 ): Promise<ResumeProfile | null> => {
   try {
@@ -145,8 +160,7 @@ export async function publishDraft(
     // Note: In production, consider using a saga pattern or two-phase commit
     // for more robust error recovery
     throw new Error(
-      `Failed to publish draft: ${
-        error instanceof Error ? error.message : "Unknown error"
+      `Failed to publish draft: ${error instanceof Error ? error.message : "Unknown error"
       }. Please try again.`
     );
   }
@@ -213,7 +227,7 @@ export async function unpublishResume(
   if (publishedResume.isBeingEdited) {
     throw new Error(
       `Resume ${resumeId} is already being edited. ` +
-        `Draft ID: ${publishedResume.editingDraftId}`
+      `Draft ID: ${publishedResume.editingDraftId}`
     );
   }
 
@@ -274,8 +288,7 @@ export async function unpublishResume(
     }
 
     throw new Error(
-      `Failed to unpublish resume: ${
-        error instanceof Error ? error.message : "Unknown error"
+      `Failed to unpublish resume: ${error instanceof Error ? error.message : "Unknown error"
       }. Please try again.`
     );
   }

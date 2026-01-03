@@ -89,8 +89,8 @@ describe("durationHelpers", () => {
   describe("validateDuration", () => {
     const mockRequest = {
       requestedDuration: {
-        preset: "1_week" as const,
-        durationHours: 168,
+        preset: "1_month" as const,
+        durationHours: 720, // 30 days
         isCustom: false,
       },
     } as DashboardAccessRequest;

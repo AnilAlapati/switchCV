@@ -1,5 +1,6 @@
 import { getSystemConfig } from "./lib/getSystemConfig";
-import { checkBudget, trackCost } from "./lib/costControlService";
+import { checkBudget } from "./lib/costControlService";
+import { billingService } from "./services/billingService";
 import * as functions from "firebase-functions";
 
 // We need to call resumeService's generation logic or AI logic from here.
@@ -117,7 +118,9 @@ export async function runAgenticWorkflow(
 
         // --- TRACK COST ---
         if (isFreeTier) {
-            trackCost(ESTIMATED_COST_PER_RUN).catch(err => functions.logger.error("Failed to track cost", err));
+            // trackCost(ESTIMATED_COST_PER_RUN).catch(err => functions.logger.error("Failed to track cost", err));
+            billingService.trackUsage(userId, ESTIMATED_COST_PER_RUN, "agentic_workflow")
+                .catch(err => functions.logger.error("Failed to track billing usage", err));
         }
 
         // --- TRACK USAGE ---

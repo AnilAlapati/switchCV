@@ -17,7 +17,15 @@ import { db } from "@/lib/firebase";
 import { collection, doc, getDoc, getDocs, query } from "firebase/firestore";
 
 jest.mock("@/lib/firebase");
-jest.mock("firebase/firestore");
+jest.mock("firebase/firestore", () => ({
+  collection: jest.fn(),
+  doc: jest.fn(),
+  getDoc: jest.fn(),
+  getDocs: jest.fn(),
+  limit: jest.fn(),
+  query: jest.fn(),
+  where: jest.fn(),
+}));
 jest.mock("@/app/api/profiles/search/search-utils", () => ({
   includesAllSkills: jest.fn(),
   mapProfileResult: jest.fn(),
@@ -29,6 +37,8 @@ jest.mock("@/app/api/profiles/search/search-utils", () => ({
 describe("searchQuery", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Set default mock return values
+    (normalizeSkills as jest.Mock).mockReturnValue([]);
   });
 
   describe("buildNormalizedFilters", () => {

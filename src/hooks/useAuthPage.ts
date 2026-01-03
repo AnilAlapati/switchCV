@@ -83,7 +83,8 @@ export function useAuthPage(): UseAuthPageReturn {
     const handleEmailVerification = async () => {
       const mode = searchParams.get("mode");
       const oobCode = searchParams.get("oobCode");
-      const isCustomSuccess = searchParams.get("verificationSuccess") === "true";
+      const isCustomSuccess =
+        searchParams.get("verificationSuccess") === "true";
 
       if (isCustomSuccess && !verificationAttempted.current) {
         verificationAttempted.current = true;
@@ -127,7 +128,7 @@ export function useAuthPage(): UseAuthPageReturn {
           } else {
             setError(
               firebaseError.message ||
-              "Failed to verify email. Please try again."
+                "Failed to verify email. Please try again."
             );
           }
         } finally {
@@ -252,7 +253,9 @@ export function useAuthPage(): UseAuthPageReturn {
 
       // Check if verification status changed
       if (auth.currentUser && !auth.currentUser.emailVerified) {
-        setError("Email is not verified yet. Please check your inbox and try again.");
+        setError(
+          "Email is not verified yet. Please check your inbox and try again."
+        );
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to refresh status");
@@ -268,13 +271,15 @@ export function useAuthPage(): UseAuthPageReturn {
     setUsername(usernameSuggestion);
   }, [usernameSuggestion]);
 
+  const { logout } = useAuth();
+
   const handleLogout = useCallback(async () => {
     try {
-      await useAuth().logout();
+      await logout();
     } catch (e) {
-      console.error("Logout failed", e);
+      // Silently fail - logout error is non-critical
     }
-  }, []);
+  }, [logout]);
 
   return {
     state: {
@@ -304,7 +309,7 @@ export function useAuthPage(): UseAuthPageReturn {
       handleResend,
       handleRefreshVerification,
       handleUseSuggestion,
-      logout: useAuth().logout, // Export logout
+      logout: handleLogout,
     },
     authContext: { needsEmailVerification, verificationEmail },
     isCheckingUsername,

@@ -136,7 +136,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     if (!firebaseReady) {
       throw new Error(
         connectivityIssue ||
-        "Authentication service is temporarily unavailable. Please try again later."
+          "Authentication service is temporarily unavailable. Please try again later."
       );
     }
   };
@@ -145,7 +145,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     if (!firebaseReady) {
       setConnectivityIssue(
         firebaseConnectivity?.error ||
-        "Firebase configuration is incomplete. Please contact support."
+          "Firebase configuration is incomplete. Please contact support."
       );
       setLoading(false);
       return;
@@ -176,15 +176,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     // Use Cloud Function to send branded email via custom SMTP
     try {
-      const resendVerificationEmail = httpsCallable(functions, "resendVerificationEmail");
+      const resendVerificationEmail = httpsCallable(
+        functions,
+        "resendVerificationEmail"
+      );
       await resendVerificationEmail();
       setVerificationEmail(activeUser.email ?? null);
     } catch (error) {
-      console.error("Failed to resend verification email:", error);
+      // Silently fail - verification resend error is non-critical
       throw error;
     }
   };
-
 
   const signIn = async (email: string, password: string) => {
     ensureAuthAvailable();
@@ -246,7 +248,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       // We rely on the 'onUserCreated' Cloud Function to send the welcome/verification email
       // This ensures we use our custom SMTP and branded template instead of Firebase's default
       // If the cloud function fails, the user can use the "Resend" button in the dashboard
-
     } catch (error) {
       // Only rollback if the error is NOT a permission error that might resolve
       // (permission errors are now retried in reserveUsername with backoff)
@@ -297,14 +298,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const logout = async () => {
     ensureAuthAvailable();
-    
+
     // Clear all user-specific localStorage data
     if (user?.uid) {
       const SESSION_KEY = `resume_creation_session_${user.uid}`;
       localStorage.removeItem(SESSION_KEY);
       logger.info({ userId: user.uid }, "Cleared resume session on logout");
     }
-    
+
     await signOut(auth);
   };
 
