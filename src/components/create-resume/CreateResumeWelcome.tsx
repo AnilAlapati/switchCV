@@ -1,6 +1,13 @@
 "use client";
 
-import { Bot, Sparkles, FileText, Target, Zap } from "lucide-react";
+import {
+  Bot,
+  Brain,
+  FileCheck,
+  MessageSquare,
+  Sparkles,
+  Users,
+} from "lucide-react";
 
 interface CreateResumeWelcomeProps {
   onSuggestionClick: (suggestion: string) => void;
@@ -9,64 +16,100 @@ interface CreateResumeWelcomeProps {
 export function CreateResumeWelcome({
   onSuggestionClick,
 }: CreateResumeWelcomeProps) {
-  const suggestions = [
+  const agents = [
+    {
+      icon: <MessageSquare className="w-5 h-5 text-blue-500" />,
+      title: "Conversational Agent",
+      description:
+        "Interviews you naturally to understand your experience, skills, and career goals through friendly conversation.",
+      role: "Information Gathering",
+    },
+    {
+      icon: <Brain className="w-5 h-5 text-purple-500" />,
+      title: "Strategy Agent",
+      description:
+        "Analyzes your background and target roles to determine the best resume structure, tone, and positioning strategy.",
+      role: "Strategic Planning",
+    },
     {
       icon: <Sparkles className="w-5 h-5 text-amber-500" />,
-      title: "Build from scratch",
+      title: "Content Agent",
       description:
-        "I'll guide you through every section to create a winning resume.",
-      text: "I want to build a new resume from scratch. Can you help me?",
+        "Crafts compelling, ATS-optimized content with powerful action verbs and quantified achievements that stand out.",
+      role: "Content Creation",
     },
     {
-      icon: <Target className="w-5 h-5 text-blue-500" />,
-      title: "Target a specific job",
+      icon: <FileCheck className="w-5 h-5 text-emerald-500" />,
+      title: "Quality Agent",
       description:
-        "Paste a job description and I'll tailor your resume to match.",
-      text: "I have a job description and I want to tailor my resume for it.",
-    },
-    {
-      icon: <Zap className="w-5 h-5 text-emerald-500" />,
-      title: "Quick optimization",
-      description: "Improve your existing bullet points for better impact.",
-      text: "I want to optimize my existing resume bullet points.",
+        "Reviews and refines every section for clarity, impact, consistency, and alignment with industry best practices.",
+      role: "Quality Assurance",
     },
   ];
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[40vh] px-4 py-8 text-center animate-in fade-in zoom-in duration-700">
-      <div className="mb-6 relative">
-        <div className="absolute inset-0 bg-primary/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="relative inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-primary to-emerald-600 rounded-3xl shadow-2xl mb-4 transform -rotate-6 transition-transform hover:rotate-0 duration-500">
-          <Bot className="w-10 h-10 text-white" />
+    <div className="flex flex-col items-center justify-center min-h-[32vh] px-4 pt-6 pb-4 text-center animate-in fade-in zoom-in duration-700">
+      <div className="flex flex-col items-center gap-3 mb-4">
+        <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl shadow-md flex items-center justify-center">
+          <Bot className="w-7 h-7 text-white" />
+        </div>
+        <h1 className="text-3xl md:text-[34px] font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70 tracking-tight">
+          Your AI Career Agent
+        </h1>
+        <p className="text-base md:text-lg text-muted-foreground max-w-3xl leading-relaxed">
+          Powered by an{" "}
+          <span className="font-semibold text-foreground">
+            Agentic AI System
+          </span>{" "}
+          — a team of specialized AI agents working together to create your
+          perfect resume.
+        </p>
+        <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 rounded-full text-sm font-medium text-primary shadow-sm">
+          <Users className="w-4 h-4" />
+          <span>4 AI Agents • Collaborative Intelligence</span>
         </div>
       </div>
 
-      <h1 className="text-3xl md:text-4xl font-extrabold mb-3 bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70 tracking-tight">
-        Your AI Career Agent
-      </h1>
-      <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8 leading-relaxed">
-        I'm here to help you build a professional, high-impact resume that gets
-        you noticed. What would you like to do today?
-      </p>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-5xl w-full mb-8">
-        {suggestions.map((suggestion, index) => (
-          <button
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl w-full mb-6">
+        {agents.map((agent, index) => (
+          <div
             key={index}
-            onClick={() => onSuggestionClick(suggestion.text)}
-            className="group flex flex-col items-start p-6 bg-card/50 backdrop-blur-sm border border-white/20 rounded-2xl text-left transition-all hover:bg-card hover:border-primary/50 hover:shadow-xl hover:-translate-y-1"
+            className="group flex flex-col items-start p-5 bg-card/50 backdrop-blur-sm border border-white/20 rounded-2xl text-left transition-all hover:bg-card hover:border-primary/30 hover:shadow-lg"
           >
-            <div className="p-3 bg-white/10 rounded-xl mb-4 group-hover:scale-110 transition-transform">
-              {suggestion.icon}
+            <div className="flex items-start justify-between w-full mb-4">
+              <div className="p-3 bg-white/10 rounded-xl group-hover:scale-110 transition-transform">
+                {agent.icon}
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 bg-muted/50 px-2 py-1 rounded-full">
+                {agent.role}
+              </span>
             </div>
-            <h3 className="text-lg font-bold mb-2 text-foreground group-hover:text-primary transition-colors">
-              {suggestion.title}
+            <h3 className="text-lg font-bold mb-2 text-foreground">
+              {agent.title}
             </h3>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              {suggestion.description}
+              {agent.description}
             </p>
-          </button>
+          </div>
         ))}
+      </div>
+
+      <div className="mt-8 text-center">
+        <p className="text-sm text-muted-foreground mb-4">
+          Ready to get started?
+        </p>
+        <button
+          onClick={() =>
+            onSuggestionClick(
+              "I want to create a professional resume. Let's get started!"
+            )
+          }
+          className="group inline-flex items-center gap-2 px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-full shadow-lg transition-all hover:scale-105 hover:shadow-emerald-600/25"
+        >
+          <Bot className="w-5 h-5" />
+          <span>Start Building Your Resume</span>
+          <Sparkles className="w-4 h-4 group-hover:rotate-12 transition-transform" />
+        </button>
       </div>
     </div>
   );

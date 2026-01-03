@@ -14,6 +14,7 @@ import { CreateResumeInputForm } from "@/components/create-resume/CreateResumeIn
 import { CreateResumeWelcome } from "@/components/create-resume/CreateResumeWelcome";
 import { AILoadingState } from "@/components/create-resume/AILoadingState";
 import { ResumeProgress } from "@/components/create-resume/ResumeProgress";
+import { SessionRestoreDialog } from "@/components/create-resume/SessionRestoreDialog";
 import { getVerificationRoute } from "@/lib/config";
 import { Bot, User, ArrowLeft } from "lucide-react";
 
@@ -32,6 +33,7 @@ interface SessionData {
   stage: "input" | "generating" | "complete";
   sessionData: any;
   progress: number;
+  lastActivity?: string;
 }
 
 export default function CreateResume() {
@@ -63,11 +65,16 @@ export default function CreateResume() {
     }>
   >([]);
   const [selectedModelId, setSelectedModelId] = useState<string | undefined>();
+  const [showRestoreDialog, setShowRestoreDialog] = useState(false);
+  const [pendingSession, setPendingSession] = useState<SessionData | null>(
+    null
+  );
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const previousMessageCount = useRef(0);
 
   const loading = authLoading || profileLoading;
 
-  // Load session on mount - ONLY if it belongs to current user
+  // Load session on mount - show dialog if session exists
   useEffect(() => {
     if (!user?.uid) return;
 
@@ -95,24 +102,53 @@ export default function CreateResume() {
           return;
         }
 
-        // Restore validated session
-        if (parsed.messages) {
-          setMessages(
-            parsed.messages.map((m: any) => ({
-              ...m,
-              timestamp: new Date(m.timestamp),
-            }))
-          );
+        // Show dialog instead of auto-restoring
+        if (parsed.messages && parsed.messages.length > 0) {
+          setPendingSession(parsed);
+          setShowRestoreDialog(true);
         }
-        if (parsed.stage) setStage(parsed.stage);
-        if (parsed.sessionData) setSessionData(parsed.sessionData);
-        if (parsed.progress) setProgress(parsed.progress);
       } catch (error) {
         logger.error({ err: error }, "Failed to restore session");
         localStorage.removeItem(SESSION_KEY);
       }
     }
   }, [user?.uid]);
+
+  const handleContinueSession = () => {
+    if (!pendingSession) return;
+
+    // Restore the session
+    setMessages(
+      pendingSession.messages.map((m: any) => ({
+        ...m,
+        timestamp: new Date(m.timestamp),
+      }))
+    );
+    if (pendingSession.stage) setStage(pendingSession.stage);
+    if (pendingSession.sessionData) setSessionData(pendingSession.sessionData);
+    if (pendingSession.progress) setProgress(pendingSession.progress);
+
+    setShowRestoreDialog(false);
+    setPendingSession(null);
+    logger.info("✅ Session restored from previous conversation");
+  };
+
+  const handleStartFresh = () => {
+    if (!user?.uid) return;
+
+    const SESSION_KEY = `resume_creation_session_${user.uid}`;
+    localStorage.removeItem(SESSION_KEY);
+
+    // Reset all state to fresh
+    setMessages([]);
+    setStage("input");
+    setProgress(0);
+    setSessionData(null);
+    setShowRestoreDialog(false);
+    setPendingSession(null);
+
+    logger.info("🆕 Started fresh resume creation");
+  };
 
   // Save session on change - with userId validation
   useEffect(() => {
@@ -126,22 +162,35 @@ export default function CreateResume() {
         stage,
         sessionData,
         progress,
+        lastActivity: new Date().toISOString(),
       };
       localStorage.setItem(SESSION_KEY, JSON.stringify(sessionToSave));
     }
   }, [messages, stage, sessionData, progress, user?.uid]);
 
-  const scrollToBottom = () => {
+  const scrollToBottom = (preferInstant = false) => {
     // Guard against environments (like some test runners) where
     // `scrollIntoView` may not be implemented on the DOM node.
     const el = messagesEndRef.current as HTMLElement | null;
     if (el && typeof el.scrollIntoView === "function") {
-      el.scrollIntoView({ behavior: "smooth" });
+      el.scrollIntoView({ behavior: preferInstant ? "auto" : "smooth" });
     }
   };
 
   useEffect(() => {
-    scrollToBottom();
+    // Avoid jumping the page when the very first AI flow is started from the welcome CTA
+    if (messages.length === 0) {
+      previousMessageCount.current = 0;
+      return;
+    }
+
+    if (previousMessageCount.current > 0) {
+      // Use instant scroll for the first auto-scroll to avoid any perceived jump
+      const preferInstant = previousMessageCount.current === 1;
+      scrollToBottom(preferInstant);
+    }
+
+    previousMessageCount.current = messages.length;
   }, [messages]);
 
   useEffect(() => {
@@ -481,70 +530,78 @@ export default function CreateResume() {
 
   return (
     <DashboardBackground>
-      <CreateResumeHeader aiConnectionStatus={aiConnectionStatus} />
+      <div className="flex flex-col h-screen w-screen overflow-hidden bg-background">
+        {/* Fixed Header */}
+        <div className="flex-none z-10 border-b border-border/50 bg-background/95 backdrop-blur-sm">
+          <CreateResumeHeader aiConnectionStatus={aiConnectionStatus} />
 
-      {isPremiumOrHigher && availableModels.length > 0 && (
-        <div className="max-w-4xl mx-auto px-4 mt-4 flex justify-end">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>Model:</span>
-            <select
-              value={selectedModelId || ""}
-              onChange={(e) => setSelectedModelId(e.target.value || undefined)}
-              className="bg-card border border-border text-sm rounded-md px-3 py-1 text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">Auto (recommended)</option>
-              {availableModels.map((model) => (
-                <option key={model.id} value={model.id}>
-                  {model.name} · {model.provider} · ${model.costPer1MTokens}/1M
-                </option>
-              ))}
-            </select>
-          </div>
+          {isPremiumOrHigher && availableModels.length > 0 && (
+            <div className="max-w-4xl mx-auto px-4 py-2 flex justify-end">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card/50 backdrop-blur px-3 py-1 rounded-full border border-border/50">
+                <span>Model:</span>
+                <select
+                  value={selectedModelId || ""}
+                  onChange={(e) =>
+                    setSelectedModelId(e.target.value || undefined)
+                  }
+                  className="bg-transparent text-sm text-foreground focus:outline-none cursor-pointer"
+                >
+                  <option value="">Auto (recommended)</option>
+                  {availableModels.map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {model.name} · {model.provider} · ${model.costPer1MTokens}
+                      /1M
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
         </div>
-      )}
 
-      {shouldShowProgress && (
-        <div className="hidden lg:flex fixed top-28 right-10 z-20 justify-end pointer-events-none">
-          <div className="pointer-events-auto">
-            <ResumeProgress
-              {...resumeProgressProps}
-              className="border-primary/30 shadow-lg bg-card/80 backdrop-blur-md"
-            />
-          </div>
-        </div>
-      )}
+        {showRestoreDialog && pendingSession && (
+          <SessionRestoreDialog
+            onContinue={handleContinueSession}
+            onStartFresh={handleStartFresh}
+            messageCount={pendingSession.messages.length}
+            lastActivity={
+              pendingSession.lastActivity
+                ? new Date(pendingSession.lastActivity)
+                : undefined
+            }
+          />
+        )}
 
-      {shouldShowProgress && (
-        <div className="lg:hidden mx-auto mt-4 w-full max-w-4xl px-4">
-          <ResumeProgress {...resumeProgressProps} />
-        </div>
-      )}
-
-      <div className="max-w-4xl mx-auto p-4">
-        {messages.length === 0 ? (
-          <div className="flex flex-col items-center animate-in fade-in slide-in-from-bottom-8 duration-1000">
-            <CreateResumeWelcome
-              onSuggestionClick={(text) => handleSubmit(undefined, text)}
-            />
-            <div className="w-full max-w-3xl -mt-12 relative z-10">
-              <CreateResumeInputForm
-                currentInput={currentInput}
-                onInputChange={setCurrentInput}
-                onSubmit={handleSubmit}
-                stage={stage}
+        {shouldShowProgress && (
+          <div className="hidden lg:flex fixed top-32 right-10 z-20 justify-end pointer-events-none">
+            <div className="pointer-events-auto">
+              <ResumeProgress
+                {...resumeProgressProps}
+                className="border-primary/30 shadow-lg bg-card/80 backdrop-blur-md"
               />
             </div>
           </div>
-        ) : (
-          <>
-            <div
-              className="bg-card/50 backdrop-blur-md rounded-3xl shadow-xl border border-white/20 mb-6 min-h-[500px] max-h-[650px] overflow-y-auto p-6 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary/50"
-              tabIndex={0}
-              role="log"
-              aria-live="polite"
-              aria-label="Chat history"
-            >
-              <div className="space-y-6">
+        )}
+
+        {/* Main Container with Fixed Chat and Input */}
+        <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full relative overflow-hidden">
+          {/* Scrollable Chat Area - takes remaining space; padded for fixed input bar */}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden scroll-smooth px-4 pt-4 pb-20">
+            {/* Progress Bar for Mobile */}
+            {shouldShowProgress && (
+              <div className="lg:hidden mb-6">
+                <ResumeProgress {...resumeProgressProps} />
+              </div>
+            )}
+
+            {messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center min-h-[60vh] animate-in fade-in slide-in-from-bottom-8 duration-1000">
+                <CreateResumeWelcome
+                  onSuggestionClick={(text) => handleSubmit(undefined, text)}
+                />
+              </div>
+            ) : (
+              <div className="space-y-6 pb-2">
                 {messages.map((message) => (
                   <div
                     key={message.id}
@@ -559,7 +616,7 @@ export default function CreateResume() {
                     )}
 
                     <div
-                      className={`max-w-[80%] p-5 rounded-2xl shadow-sm ${
+                      className={`max-w-[85%] sm:max-w-[75%] p-5 rounded-2xl shadow-sm ${
                         message.isUser
                           ? "bg-primary text-primary-foreground rounded-br-none"
                           : "bg-white/60 backdrop-blur-sm text-foreground border border-white/40 rounded-bl-none"
@@ -589,31 +646,42 @@ export default function CreateResume() {
                     )}
                   </div>
                 ))}
-                <AILoadingState aiLoading={aiLoading} aiError={aiError} />
-                <div ref={messagesEndRef} />
-              </div>
-            </div>
 
-            {progress >= 60 && stage !== "complete" && !aiLoading && (
-              <div className="flex justify-center mb-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <button
-                  onClick={handleForceCreate}
-                  aria-label="Create resume now"
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-full shadow-lg font-semibold flex items-center gap-2 transition-all hover:scale-105 text-sm border border-emerald-500/50"
-                >
-                  <span>✨ Create Resume Now</span>
-                </button>
+                <AILoadingState aiLoading={aiLoading} aiError={aiError} />
+
+                {/* Scroll Anchor */}
+                <div ref={messagesEndRef} className="h-1" />
               </div>
             )}
+          </div>
 
-            <CreateResumeInputForm
-              currentInput={currentInput}
-              onInputChange={setCurrentInput}
-              onSubmit={handleSubmit}
-              stage={stage}
-            />
-          </>
-        )}
+          {/* Fixed Bottom Input Area - consistent height */}
+          <div className="flex-none w-full border-t border-border/50 bg-gradient-to-t from-background to-background/95 backdrop-blur-sm">
+            <div className="px-4 pt-4 pb-6">
+              {messages.length > 0 &&
+                progress >= 60 &&
+                stage !== "complete" &&
+                !aiLoading && (
+                  <div className="flex justify-center mb-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <button
+                      onClick={handleForceCreate}
+                      aria-label="Create resume now"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-full shadow-lg font-semibold flex items-center gap-2 transition-all hover:scale-105 text-sm border border-emerald-500/50"
+                    >
+                      <span>✨ Create Resume Now</span>
+                    </button>
+                  </div>
+                )}
+
+              <CreateResumeInputForm
+                currentInput={currentInput}
+                onInputChange={setCurrentInput}
+                onSubmit={handleSubmit}
+                stage={stage}
+              />
+            </div>
+          </div>
+        </div>
       </div>
     </DashboardBackground>
   );
