@@ -42,7 +42,7 @@ export async function getUserTier(userId: string): Promise<SubscriptionTier> {
   }
 
   // Cache result
-  userTierCache.set(userId, result);
+  userTierCache.set(userId, result, 5 * 60 * 1000); // 5 minutes TTL
   return result;
 }
 
@@ -77,6 +77,6 @@ export async function getUserRole(userId: string): Promise<UserRole> {
   }
 
   // Cache result
-  userRoleCache.set(userId, result);
+  userRoleCache.set(userId, result, 5 * 60 * 1000); // 5 minutes TTL
   return result;
 }
