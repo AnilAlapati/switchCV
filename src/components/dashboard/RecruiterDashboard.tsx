@@ -224,11 +224,11 @@ export function RecruiterDashboard({
       </div>
 
       <PremiumFeatureLock
-        featureName="Signals from your pipeline"
+        featureName="Agentic Pipeline Signals"
         description={TIER_RESTRICTION_MESSAGES.ANALYTICS_DASHBOARD}
       >
         <OpportunityInsightsCard
-          title="Signals from your pipeline"
+          title="Agentic Pipeline Signals"
           insights={insights}
         />
       </PremiumFeatureLock>

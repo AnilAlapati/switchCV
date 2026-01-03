@@ -31,7 +31,7 @@ export function PriorityActionsCard({
   headline,
   items,
   loading,
-  emptyMessage = "AI has no urgent suggestions. Circle back tomorrow for a fresh analysis.",
+  emptyMessage = "Your agent has no urgent suggestions. Circle back tomorrow for a fresh analysis.",
 }: PriorityActionsCardProps) {
   const { tier } = useUserProfile();
   const isBasic = tier === "basic";
@@ -99,8 +99,9 @@ export function PriorityActionsCard({
           items.map((item) => {
             const StatusTag = (
               <span
-                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border ${statusStyles[item.status]
-                  }`}
+                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border ${
+                  statusStyles[item.status]
+                }`}
               >
                 {item.status === "blocked" && "Blocked"}
                 {item.status === "notStarted" && "To Do"}
@@ -111,7 +112,10 @@ export function PriorityActionsCard({
 
             const CTAButton = item.cta ? (
               item.cta.disabled ? (
-                <Tooltip content={item.cta.tooltip || "Feature unavailable"} position="left">
+                <Tooltip
+                  content={item.cta.tooltip || "Feature unavailable"}
+                  position="left"
+                >
                   <button
                     disabled
                     className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 p-2 text-xs font-bold text-slate-400 cursor-not-allowed border border-slate-200"

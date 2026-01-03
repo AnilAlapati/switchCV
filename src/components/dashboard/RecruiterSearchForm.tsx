@@ -95,8 +95,8 @@ export function RecruiterSearchForm({
     searchMode === "basic"
       ? "Directly retrieve a professional profile using a specific Resume ID."
       : searchMode === "ai"
-        ? "Describe your ideal candidate in natural language. Our AI will find the best matches."
-        : "Combine skills and location to surface up to 50 curated resumes in one pass.";
+      ? "Describe your ideal candidate in natural language. Our autonomous agent will find the best matches."
+      : "Combine skills and location to surface up to 50 curated resumes in one pass.";
 
   return (
     <div className="space-y-6">
@@ -125,7 +125,7 @@ export function RecruiterSearchForm({
                     <Lock className="h-6 w-6 text-indigo-600" />
                   </div>
                   <h3 className="mb-1 text-sm font-bold text-[#1A2F25]">
-                    AI Search
+                    Agent Search
                   </h3>
                   <p className="mb-4 text-xs text-[#1A2F25]/60">
                     Unlock with Premium or Enterprise
@@ -144,13 +144,13 @@ export function RecruiterSearchForm({
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-xl text-slate-500">
                       ✨
                     </div>
-                    <span className="rounded-full bg-[#2C4A3B] px-2.5 py-1 text-[10px] font-bold text-white shadow-sm">
-                      NEW
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[#2C4A3B]/40">
+                      Agentic
                     </span>
                   </div>
                   <div>
                     <span className="block font-bold text-[#1A2F25]">
-                      AI Search
+                      Agent Search
                     </span>
                     <p className="mt-1 text-xs leading-relaxed text-slate-500">
                       Requires Premium or Enterprise
@@ -162,43 +162,50 @@ export function RecruiterSearchForm({
               <button
                 type="button"
                 onClick={() => handleModeSwitch("ai")}
-                className={`group relative flex h-full flex-col justify-between gap-4 rounded-2xl border-2 p-5 text-left transition-all duration-300 ${searchMode === "ai"
-                  ? "border-[#2C4A3B] bg-[#2C4A3B] text-white shadow-lg shadow-[#2C4A3B]/20"
-                  : "border-slate-200/80 bg-white/80 hover:border-[#2C4A3B]/50 hover:bg-[#2C4A3B]/5 hover:shadow-md hover:scale-[1.01]"
-                  }`}
+                className={`group relative flex h-full flex-col justify-between gap-4 rounded-2xl border-2 p-5 text-left transition-all duration-300 ${
+                  searchMode === "ai"
+                    ? "border-[#2C4A3B] bg-[#2C4A3B] text-white shadow-lg shadow-[#2C4A3B]/20"
+                    : "border-slate-200/80 bg-white/80 hover:border-[#2C4A3B]/50 hover:bg-[#2C4A3B]/5 hover:shadow-md hover:scale-[1.01]"
+                }`}
               >
                 <div className="flex w-full items-start justify-between">
                   <div
-                    className={`flex h-12 w-12 items-center justify-center rounded-xl text-xl transition-all duration-300 ${searchMode === "ai"
-                      ? "bg-white/20 text-white"
-                      : "bg-slate-100 text-slate-500 group-hover:bg-[#2C4A3B]/10 group-hover:text-[#2C4A3B]"
-                      }`}
+                    className={`flex h-12 w-12 items-center justify-center rounded-xl text-xl transition-all duration-300 ${
+                      searchMode === "ai"
+                        ? "bg-white/20 text-white"
+                        : "bg-slate-100 text-slate-500 group-hover:bg-[#2C4A3B]/10 group-hover:text-[#2C4A3B]"
+                    }`}
                   >
                     ✨
                   </div>
                   <span
-                    className={`rounded-full px-2.5 py-1 text-[10px] font-bold shadow-sm ${searchMode === "ai"
-                      ? "bg-white/20 text-white"
-                      : "bg-[#2C4A3B] text-white"
-                      }`}
+                    className={`text-[10px] font-black uppercase tracking-widest ${
+                      searchMode === "ai"
+                        ? "text-white/60"
+                        : "text-[#2C4A3B]/40"
+                    }`}
                   >
-                    NEW
+                    Agentic
                   </span>
                 </div>
                 <div>
                   <span
-                    className={`block font-bold ${searchMode === "ai"
-                      ? "text-white"
-                      : "text-[#1A2F25] group-hover:text-[#2C4A3B]"
-                      }`}
+                    className={`block font-bold ${
+                      searchMode === "ai"
+                        ? "text-white"
+                        : "text-[#1A2F25] group-hover:text-[#2C4A3B]"
+                    }`}
                   >
-                    AI Search
+                    Agent Search
                   </span>
                   <p
-                    className={`mt-1 text-xs leading-relaxed ${searchMode === "ai" ? "text-emerald-100" : "text-slate-500"
-                      }`}
+                    className={`mt-1 text-xs leading-relaxed ${
+                      searchMode === "ai"
+                        ? "text-emerald-100"
+                        : "text-slate-500"
+                    }`}
                   >
-                    Natural language search powered by AI
+                    Natural language search powered by autonomous agents
                   </p>
                 </div>
               </button>
@@ -209,32 +216,38 @@ export function RecruiterSearchForm({
           <button
             type="button"
             onClick={() => handleModeSwitch("basic")}
-            className={`group relative flex h-full flex-col justify-between gap-4 rounded-2xl border-2 p-5 text-left transition-all duration-300 ${searchMode === "basic"
-              ? "border-[#2C4A3B] bg-[#2C4A3B] text-white shadow-lg shadow-[#2C4A3B]/20"
-              : "border-slate-200/80 bg-white/80 hover:border-[#2C4A3B]/50 hover:bg-[#2C4A3B]/5 hover:shadow-md hover:scale-[1.01]"
-              }`}
+            className={`group relative flex h-full flex-col justify-between gap-4 rounded-2xl border-2 p-5 text-left transition-all duration-300 ${
+              searchMode === "basic"
+                ? "border-[#2C4A3B] bg-[#2C4A3B] text-white shadow-lg shadow-[#2C4A3B]/20"
+                : "border-slate-200/80 bg-white/80 hover:border-[#2C4A3B]/50 hover:bg-[#2C4A3B]/5 hover:shadow-md hover:scale-[1.01]"
+            }`}
           >
             <div className="flex w-full items-start justify-between">
               <div
-                className={`flex h-12 w-12 items-center justify-center rounded-xl text-base font-black transition-all duration-300 ${searchMode === "basic"
-                  ? "bg-white/20 text-white"
-                  : "bg-slate-100 text-slate-500 group-hover:bg-[#2C4A3B]/10 group-hover:text-[#2C4A3B]"
-                  }`}
+                className={`flex h-12 w-12 items-center justify-center rounded-xl text-base font-black transition-all duration-300 ${
+                  searchMode === "basic"
+                    ? "bg-white/20 text-white"
+                    : "bg-slate-100 text-slate-500 group-hover:bg-[#2C4A3B]/10 group-hover:text-[#2C4A3B]"
+                }`}
               >
                 ID
               </div>
             </div>
             <div>
               <span
-                className={`block text-base font-bold transition-colors ${searchMode === "basic"
-                  ? "text-white"
-                  : "text-[#1A2F25] group-hover:text-[#2C4A3B]"
-                  }`}
+                className={`block text-base font-bold transition-colors ${
+                  searchMode === "basic"
+                    ? "text-white"
+                    : "text-[#1A2F25] group-hover:text-[#2C4A3B]"
+                }`}
               >
                 Basic Lookup
               </span>
-              <p className={`mt-1.5 text-xs leading-relaxed ${searchMode === "basic" ? "text-emerald-100" : "text-slate-500"
-                }`}>
+              <p
+                className={`mt-1.5 text-xs leading-relaxed ${
+                  searchMode === "basic" ? "text-emerald-100" : "text-slate-500"
+                }`}
+              >
                 Quickly retrieve a Specific candidate using their Resume ID
               </p>
             </div>
@@ -287,33 +300,39 @@ export function RecruiterSearchForm({
               <button
                 type="button"
                 onClick={() => handleModeSwitch("premium")}
-                className={`group relative flex h-full flex-col justify-between gap-4 rounded-2xl border-2 p-5 text-left transition-all duration-300 ${searchMode === "premium"
-                  ? "border-[#2C4A3B] bg-[#2C4A3B] text-white shadow-lg shadow-[#2C4A3B]/20"
-                  : "border-slate-200/80 bg-white/80 hover:border-[#2C4A3B]/50 hover:bg-[#2C4A3B]/5 hover:shadow-md hover:scale-[1.01]"
-                  }`}
+                className={`group relative flex h-full flex-col justify-between gap-4 rounded-2xl border-2 p-5 text-left transition-all duration-300 ${
+                  searchMode === "premium"
+                    ? "border-[#2C4A3B] bg-[#2C4A3B] text-white shadow-lg shadow-[#2C4A3B]/20"
+                    : "border-slate-200/80 bg-white/80 hover:border-[#2C4A3B]/50 hover:bg-[#2C4A3B]/5 hover:shadow-md hover:scale-[1.01]"
+                }`}
               >
                 <div className="flex w-full items-start justify-between">
                   <div
-                    className={`flex h-12 w-12 items-center justify-center rounded-xl text-lg transition-all duration-300 ${searchMode === "premium"
-                      ? "bg-white/20 text-white"
-                      : "bg-slate-100 text-slate-500 group-hover:bg-[#2C4A3B]/10 group-hover:text-[#2C4A3B]"
-                      }`}
+                    className={`flex h-12 w-12 items-center justify-center rounded-xl text-lg transition-all duration-300 ${
+                      searchMode === "premium"
+                        ? "bg-white/20 text-white"
+                        : "bg-slate-100 text-slate-500 group-hover:bg-[#2C4A3B]/10 group-hover:text-[#2C4A3B]"
+                    }`}
                   >
                     ★
                   </div>
                 </div>
                 <div>
                   <span
-                    className={`block text-base font-bold transition-colors ${searchMode === "premium"
-                      ? "text-white"
-                      : "text-[#1A2F25] group-hover:text-[#2C4A3B]"
-                      }`}
+                    className={`block text-base font-bold transition-colors ${
+                      searchMode === "premium"
+                        ? "text-white"
+                        : "text-[#1A2F25] group-hover:text-[#2C4A3B]"
+                    }`}
                   >
                     Premium Filters
                   </span>
                   <p
-                    className={`mt-1.5 text-xs leading-relaxed ${searchMode === "premium" ? "text-emerald-100" : "text-slate-500"
-                      }`}
+                    className={`mt-1.5 text-xs leading-relaxed ${
+                      searchMode === "premium"
+                        ? "text-emerald-100"
+                        : "text-slate-500"
+                    }`}
                   >
                     Advanced search with skills and location filters
                   </p>
@@ -322,16 +341,15 @@ export function RecruiterSearchForm({
             )}
           </div>
         </div>
-
       </div>
 
       <form
         onSubmit={
           searchMode === "ai"
             ? (e) => {
-              e.preventDefault();
-              onAiSearch?.();
-            }
+                e.preventDefault();
+                onAiSearch?.();
+              }
             : onSearch
         }
         className="space-y-5"
@@ -394,9 +412,24 @@ export function RecruiterSearchForm({
               >
                 {loading || aiSearching ? (
                   <>
-                    <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    <svg
+                      className="h-4 w-4 animate-spin"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
                     </svg>
                     Searching...
                   </>
@@ -446,13 +479,38 @@ export function RecruiterSearchForm({
                   className="h-full rounded-xl bg-[#2C4A3B] px-4 font-bold text-white shadow-md transition-all hover:bg-[#20362B] hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   {loading ? (
-                    <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    <svg
+                      className="h-4 w-4 animate-spin"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
                     </svg>
                   ) : (
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    <svg
+                      className="h-5 w-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
                     </svg>
                   )}
                   Search
@@ -584,9 +642,24 @@ export function RecruiterSearchForm({
               >
                 {loading ? (
                   <>
-                    <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    <svg
+                      className="h-4 w-4 animate-spin"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
                     </svg>
                     Searching...
                   </>
@@ -612,8 +685,6 @@ export function RecruiterSearchForm({
             </div>
           </div>
         )}
-
-
       </form>
     </div>
   );

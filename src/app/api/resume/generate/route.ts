@@ -33,32 +33,29 @@ interface GenerateResumeRequest {
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify authentication (optional - log but don't block)
-    let userId = "anonymous";
-    const { userId: authenticatedUserId } = await getAuthenticatedUserId(
-      request
-    );
+    // CRITICAL: Authentication is REQUIRED - no anonymous access
+    const { userId: rawUserId, error } = await getAuthenticatedUserId(request);
 
-    if (authenticatedUserId) {
-      userId = authenticatedUserId;
-      logger.info({ data: userId }, "✅ Authenticated user:");
-    } else {
-      logger.warn("⚠️ No valid token, proceeding as anonymous");
+    if (error) {
+      logger.warn("🚨 SECURITY: Unauthenticated resume generation attempt");
+      return error; // Return 401 Unauthorized
     }
+
+    const userId = rawUserId!; // Assert non-null after error check
+
+    logger.info({ userId }, "✅ Authenticated user generating resume:");
 
     const body: GenerateResumeRequest = await request.json();
     const { message, conversationHistory, sessionData, modelId } = body;
 
     let userTier: SubscriptionTier = "basic";
-    if (authenticatedUserId) {
-      try {
-        userTier = await getUserTier(authenticatedUserId);
-      } catch (tierError) {
-        logger.warn(
-          { err: tierError, userId: authenticatedUserId },
-          "Failed to load user tier, defaulting to basic"
-        );
-      }
+    try {
+      userTier = await getUserTier(userId);
+    } catch (tierError) {
+      logger.warn(
+        { err: tierError, userId },
+        "Failed to load user tier, defaulting to basic"
+      );
     }
 
     // Enforce Quantity Limit for Basic Users

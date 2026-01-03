@@ -34,7 +34,7 @@ interface JobSeekerDashboardProps {
 function ProTips() {
   return (
     <div className="glass-panel rounded-3xl p-8 bg-gradient-to-br from-indigo-500/5 to-cyan-500/5 border-indigo-500/10 h-full">
-      <h3 className="text-xl font-bold text-[#1A2F25] mb-6">AI Insights</h3>
+      <h3 className="text-xl font-bold text-[#1A2F25] mb-6">Agent Insights</h3>
       <div className="space-y-6">
         <div className="flex gap-4">
           <div className="h-6 w-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0 text-xs font-bold">
@@ -154,7 +154,6 @@ export function JobSeekerDashboard({
     () => buildJobSeekerInsights(metrics),
     [metrics]
   );
-
 
   const careerResources = useMemo(
     () => [

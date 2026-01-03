@@ -56,37 +56,33 @@ export function DashboardHeader({
               <div className="flex items-center gap-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <p className="text-xs font-bold uppercase tracking-wider text-blue-600">
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-600">
                       SwitchCV
                     </p>
-                    <span className="rounded-full bg-blue-600/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-tighter text-blue-600">
-                      Beta
+                    <span className="h-1 w-1 rounded-full bg-slate-300" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-500">
+                      Agentic
                     </span>
                   </div>
                   <h1 className="text-2xl font-bold tracking-tight text-[#1A2F25]">
-                    Dashboard
+                    {roleInfo?.label || "Career"}{" "}
+                    <span className="text-indigo-600">Agent</span>
                   </h1>
                 </div>
-                {roleInfo && (
-                  <span
-                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-bold ${roleInfo.color}`}
-                  >
-                    <span className="h-1.5 w-1.5 rounded-full bg-current opacity-60" />
-                    {roleInfo.label}
-                  </span>
-                )}
               </div>
               <p className="max-w-xl text-sm text-[#1A2F25]/70">
-                Surface the most actionable signals so you can respond faster.
+                Harnessing autonomous intelligence to surface your next big
+                move.
               </p>
-              <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-[#2C4A3B]/60 pt-2">
-                <span className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-blue-700">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-600" />
-                  Live momentum insights synced
-                </span>
-                <span className="hidden sm:inline-flex items-center gap-2 rounded-full border border-white/40 bg-white/30 px-3 py-1 text-[#2C4A3B]/70">
+              <div className="flex flex-wrap items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-[#2C4A3B]/40 pt-3">
+                <div className="flex items-center gap-2">
+                  <span className="h-1 w-1 animate-pulse rounded-full bg-blue-600" />
+                  Live Momentum
+                </div>
+                <div className="h-3 w-[1px] bg-slate-200" />
+                <div className="flex items-center gap-2">
                   <svg
-                    className="h-3.5 w-3.5 text-[#2C4A3B]/50"
+                    className="h-3 w-3 opacity-50"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -99,7 +95,7 @@ export function DashboardHeader({
                     />
                   </svg>
                   {formattedDate}
-                </span>
+                </div>
               </div>
             </div>
           </div>

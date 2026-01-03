@@ -25,7 +25,9 @@ export function MarketPulseCard() {
           <div className="p-2 bg-white/20 rounded-lg backdrop-blur-md">
             <Zap className="h-5 w-5 text-yellow-300" />
           </div>
-          <h3 className="text-xl font-bold tracking-tight">AI Market Trends</h3>
+          <h3 className="text-xl font-bold tracking-tight">
+            Autonomous Market Pulse
+          </h3>
         </div>
 
         <div className="space-y-6">

@@ -297,6 +297,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const logout = async () => {
     ensureAuthAvailable();
+    
+    // Clear all user-specific localStorage data
+    if (user?.uid) {
+      const SESSION_KEY = `resume_creation_session_${user.uid}`;
+      localStorage.removeItem(SESSION_KEY);
+      logger.info({ userId: user.uid }, "Cleared resume session on logout");
+    }
+    
     await signOut(auth);
   };
 

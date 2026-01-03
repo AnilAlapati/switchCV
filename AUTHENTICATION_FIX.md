@@ -93,7 +93,7 @@ Choose one of these approaches:
    ```
 
 4. **Gmail App Password**:
-   - Ensure app password is still valid
+   - Ensure `nnycdedpbgvaccxh` is still valid
    - Check if 2FA is enabled on switchcvs@gmail.com
    - Generate new app-specific password if needed
 

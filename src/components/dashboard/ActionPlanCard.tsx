@@ -27,7 +27,7 @@ export function ActionPlanCard({
   headline,
   items,
   loading,
-  emptyMessage = "All caught up. Circle back tomorrow for new suggestions.",
+  emptyMessage = "Your agent has no urgent suggestions. Circle back tomorrow for new suggestions.",
 }: ActionPlanCardProps) {
   return (
     <section className="glass-panel rounded-2xl p-6">
@@ -60,8 +60,9 @@ export function ActionPlanCard({
           items.map((item) => {
             const StatusTag = (
               <span
-                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyles[item.status]
-                  }`}
+                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                  statusStyles[item.status]
+                }`}
               >
                 {item.status === "blocked" && "Start here"}
                 {item.status === "notStarted" && "Next step"}
@@ -132,8 +133,9 @@ export function ActionPlanCard({
                     <div className="flex items-center gap-2">
                       {StatusTag}
                       <span
-                        className={`text-xs uppercase ${priorityAccent[item.priority]
-                          }`}
+                        className={`text-xs uppercase ${
+                          priorityAccent[item.priority]
+                        }`}
                       >
                         {item.priority} priority
                       </span>

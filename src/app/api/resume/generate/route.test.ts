@@ -1,7 +1,6 @@
 /* eslint-disable max-lines */
 import { POST } from "./route";
 import { NextRequest } from "next/server";
-import { getAuth } from "firebase-admin/auth";
 import { generateText } from "@/lib/services/aiGenerationService";
 import { ResumeDataExtractor } from "@/lib/services/resumeDataExtractor";
 import { ConversationManager } from "@/lib/services/conversationManager";
@@ -13,10 +12,6 @@ import {
   isCompletionResponse,
 } from "@/lib/services/resumePrompts";
 import { getActiveConfig } from "@/lib/services/conversationConfig";
-
-jest.mock("firebase-admin/auth", () => ({
-  getAuth: jest.fn(),
-}));
 
 jest.mock("firebase-admin/app", () => ({
   initializeApp: jest.fn(),
@@ -36,9 +31,50 @@ jest.mock("@/lib/services/resumePrompts", () => ({
   isCompletionResponse: jest.fn(),
 }));
 jest.mock("@/lib/numericIdGenerator");
+jest.mock("@/lib/services/userService", () => ({
+  getUserTier: jest.fn().mockResolvedValue("premium"),
+}));
 jest.mock("@/lib/firebase-admin", () => ({
   adminDb: {
-    collection: jest.fn(),
+    collection: jest.fn(() => ({
+      doc: jest.fn(() => ({
+        get: jest.fn().mockResolvedValue({
+          exists: true,
+          data: jest.fn(() => ({
+            userId: "test-user",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          })),
+        }),
+        set: jest.fn().mockResolvedValue({}),
+        update: jest.fn().mockResolvedValue({}),
+        delete: jest.fn().mockResolvedValue({}),
+      })),
+      where: jest.fn(() => ({
+        count: jest.fn(() => ({
+          get: jest
+            .fn()
+            .mockResolvedValue({ data: jest.fn(() => ({ count: 0 })) }),
+        })),
+        get: jest.fn().mockResolvedValue({ docs: [] }),
+      })),
+      add: jest.fn().mockResolvedValue({ id: "test-id" }),
+      get: jest.fn().mockResolvedValue({ docs: [] }),
+    })),
+    batch: jest.fn(() => ({
+      set: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+      commit: jest.fn().mockResolvedValue(undefined),
+    })),
+  },
+  adminAuth: {
+    verifyIdToken: jest.fn(async () => ({
+      uid: "test-user-id",
+      email: "test@example.com",
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    })),
   },
 }));
 
@@ -63,21 +99,19 @@ function setupMockConversationManager(overrides: any = {}) {
 describe("POST /api/resume/generate", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (getAuth as jest.Mock).mockReturnValue({
-      verifyIdToken: jest.fn().mockResolvedValue({ uid: "user123" }),
-    });
   });
 
   it("should return 400 if message is missing", async () => {
     const req = new NextRequest("http://localhost/api/resume/generate", {
       method: "POST",
       body: JSON.stringify({ resumeId: "1" }),
+      headers: { authorization: "Bearer test-token" },
     });
 
     const res = await POST(req);
     const data = await res.json();
 
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(400);
   });
 
   it("should process conversation and return response", async () => {
@@ -116,15 +150,13 @@ describe("POST /api/resume/generate", () => {
       body: JSON.stringify({
         message: "Create my resume",
       }),
+      headers: { authorization: "Bearer test-token" },
     });
     const res = await POST(req);
     expect(res.status).toBe(500);
   });
 
   it("should handle authenticated requests correctly", async () => {
-    (getAuth as jest.Mock).mockReturnValue({
-      verifyIdToken: jest.fn().mockResolvedValue({ uid: "authenticated_user" }),
-    });
     const req = new NextRequest("http://localhost/api/resume/generate", {
       method: "POST",
       headers: { authorization: "Bearer valid_token" },
@@ -139,9 +171,12 @@ describe("POST /api/resume/generate", () => {
   });
 
   it("should handle invalid auth token gracefully", async () => {
-    (getAuth as jest.Mock).mockReturnValue({
-      verifyIdToken: jest.fn().mockRejectedValue(new Error("Invalid token")),
-    });
+    // Mock adminAuth to reject token verification
+    const mockAdminAuth = require("@/lib/firebase-admin").adminAuth;
+    mockAdminAuth.verifyIdToken.mockRejectedValueOnce(
+      new Error("Invalid token")
+    );
+
     const req = new NextRequest("http://localhost/api/resume/generate", {
       method: "POST",
       headers: { authorization: "Bearer invalid_token" },
@@ -152,7 +187,7 @@ describe("POST /api/resume/generate", () => {
       model: "gpt-4",
     });
     const res = await POST(req);
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(401);
   });
 
   it("should update config when user specifies question limit", async () => {
@@ -162,6 +197,7 @@ describe("POST /api/resume/generate", () => {
         message: "I want only 5 questions",
         conversationHistory: [],
       }),
+      headers: { authorization: "Bearer test-token" },
     });
     (generateText as jest.Mock).mockResolvedValue({
       text: "Response",
@@ -193,6 +229,7 @@ describe("POST /api/resume/generate", () => {
         message: "Create my resume",
         conversationHistory: [],
       }),
+      headers: { authorization: "Bearer test-token" },
     });
     const res = await POST(req);
     expect(res.status).toBe(500);
@@ -220,6 +257,7 @@ describe("POST /api/resume/generate", () => {
         message: "Here is my info",
         conversationHistory: [],
       }),
+      headers: { authorization: "Bearer test-token" },
     });
     const res = await POST(req);
     expect(res.status).toBe(500);
@@ -244,6 +282,7 @@ describe("POST /api/resume/generate", () => {
     const req = new NextRequest("http://localhost/api/resume/generate", {
       method: "POST",
       body: JSON.stringify({ message: "Create it", conversationHistory: [] }),
+      headers: { authorization: "Bearer test-token" },
     });
     const res = await POST(req);
     expect(res.status).toBe(500);
@@ -273,6 +312,7 @@ describe("POST /api/resume/generate", () => {
         message: "Create my resume",
         conversationHistory: [],
       }),
+      headers: { authorization: "Bearer test-token" },
     });
     const res = await POST(req);
     const data = await res.json();
@@ -285,6 +325,7 @@ describe("POST /api/resume/generate", () => {
     const req = new NextRequest("http://localhost/api/resume/generate", {
       method: "POST",
       body: JSON.stringify({ message: "Hello", conversationHistory: [] }),
+      headers: { authorization: "Bearer test-token" },
     });
     const res = await POST(req);
     const data = await res.json();
@@ -311,6 +352,7 @@ describe("POST /api/resume/generate", () => {
     const req = new NextRequest("http://localhost/api/resume/generate", {
       method: "POST",
       body: JSON.stringify({ message: "Create", conversationHistory: [] }),
+      headers: { authorization: "Bearer test-token" },
     });
     const res = await POST(req);
     expect(res.status).toBe(500);
@@ -362,6 +404,7 @@ describe("POST /api/resume/generate", () => {
         message: "only 5 questions",
         conversationHistory: [],
       }),
+      headers: { authorization: "Bearer test-token" },
     });
     const res = await POST(req);
     expect(res.status).toBe(500);

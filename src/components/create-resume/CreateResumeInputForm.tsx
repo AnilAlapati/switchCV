@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
+import { Send, Sparkles, Command, Zap, Brain } from "lucide-react";
 
 interface CreateResumeInputFormProps {
   currentInput: string;
@@ -16,6 +17,7 @@ export function CreateResumeInputForm({
   stage,
 }: CreateResumeInputFormProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isFocused, setIsFocused] = useState(false);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -32,7 +34,7 @@ export function CreateResumeInputForm({
   };
 
   const handleFocus = () => {
-    // Small delay to allow keyboard to appear
+    setIsFocused(true);
     setTimeout(() => {
       if (textareaRef.current) {
         textareaRef.current.scrollIntoView({
@@ -43,77 +45,109 @@ export function CreateResumeInputForm({
     }, 300);
   };
 
+  const isGenerating = stage === "generating";
+  const isComplete = stage === "complete";
+
   return (
-    <div className="p-4 border-t border-white/20 bg-card/50 backdrop-blur-md rounded-b-3xl">
-      <form onSubmit={onSubmit} className="flex space-x-3 items-end">
-        <textarea
-          ref={textareaRef}
-          value={currentInput}
-          onChange={(e) => onInputChange(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onFocus={handleFocus}
-          aria-label="Message input"
-          placeholder={
-            stage === "generating"
-              ? "✨ Generating your resume..."
-              : stage === "complete"
-              ? "✓ Resume ready! Check above."
-              : "Tell me about your experience, skills, or job goals..."
-          }
-          className="flex-1 p-4 bg-white/50 border border-white/40 rounded-2xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all resize-none min-h-[80px] max-h-[200px] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/40"
-          disabled={stage === "generating" || stage === "complete"}
-          rows={3}
-        />
+    <div className="relative max-w-4xl mx-auto w-full px-4 pb-8">
+      {/* Unique "Thinking" Aura */}
+      {isFocused && currentInput.length > 0 && !isGenerating && (
+        <div className="absolute -top-12 left-1/2 -translate-x-1/2 flex gap-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <div className="px-3 py-1 bg-primary/10 backdrop-blur-md border border-primary/20 rounded-full text-[10px] font-bold text-primary uppercase tracking-tighter flex items-center gap-1">
+            <Brain className="w-3 h-3" />
+            Analyzing Intent
+          </div>
+          <div className="px-3 py-1 bg-emerald-500/10 backdrop-blur-md border border-emerald-500/20 rounded-full text-[10px] font-bold text-emerald-600 uppercase tracking-tighter flex items-center gap-1">
+            <Zap className="w-3 h-3" />
+            Strategy Mode
+          </div>
+        </div>
+      )}
+
+      <form
+        onSubmit={onSubmit}
+        className={`relative flex items-end gap-2 bg-card/80 backdrop-blur-2xl border rounded-[2rem] p-2 shadow-2xl transition-all duration-500 ${
+          isFocused
+            ? "border-primary/40 ring-8 ring-primary/5 scale-[1.02]"
+            : "border-white/20"
+        }`}
+      >
+        {/* Unique Icon Core */}
+        <div
+          className={`hidden md:flex items-center justify-center w-12 h-12 rounded-2xl ml-2 transition-all duration-500 ${
+            isFocused
+              ? "bg-primary text-white rotate-0"
+              : "bg-muted text-muted-foreground -rotate-12"
+          }`}
+        >
+          {isGenerating ? (
+            <Sparkles className="w-6 h-6 animate-pulse" />
+          ) : (
+            <Command className="w-6 h-6" />
+          )}
+        </div>
+
+        <div className="flex-1 relative">
+          <textarea
+            ref={textareaRef}
+            value={currentInput}
+            onChange={(e) => onInputChange(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onFocus={handleFocus}
+            onBlur={() => setIsFocused(false)}
+            aria-label="Message input"
+            placeholder={
+              isGenerating
+                ? "✨ Strategizing your career path..."
+                : isComplete
+                ? "✓ Strategy locked. View below."
+                : "Describe your dream role or paste your experience..."
+            }
+            className="w-full p-4 bg-transparent border-none text-foreground placeholder-muted-foreground/60 focus:outline-none resize-none min-h-[60px] max-h-[200px] overflow-y-auto text-lg leading-relaxed font-medium"
+            disabled={isGenerating || isComplete}
+            rows={1}
+          />
+        </div>
+
         <button
           type="submit"
           aria-label="Send message"
-          className="px-8 py-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-2xl font-semibold shadow-lg hover:shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98] h-[80px]"
-          disabled={
-            !currentInput.trim() ||
-            stage === "generating" ||
-            stage === "complete"
-          }
+          className={`group relative p-4 rounded-2xl font-semibold shadow-lg transition-all transform active:scale-95 flex items-center justify-center min-w-[60px] h-[60px] overflow-hidden ${
+            !currentInput.trim() || isGenerating || isComplete
+              ? "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
+              : "bg-gradient-to-br from-primary to-emerald-600 text-white hover:shadow-primary/25 hover:-translate-y-0.5"
+          }`}
+          disabled={!currentInput.trim() || isGenerating || isComplete}
         >
-          {stage === "generating" ? (
-            <span className="flex items-center gap-2">
-              <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                  fill="none"
-                ></circle>
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
-              Processing
-            </span>
+          {isGenerating ? (
+            <div className="flex gap-1">
+              <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce [animation-delay:-0.3s]" />
+              <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce [animation-delay:-0.15s]" />
+              <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" />
+            </div>
           ) : (
-            <span className="flex items-center gap-2">
-              Send
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M14 5l7 7m0 0l-7 7m7-7H3"
-                />
-              </svg>
-            </span>
+            <>
+              <Send className="w-6 h-6 relative z-10 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+              <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+            </>
           )}
         </button>
       </form>
+
+      <div className="mt-4 flex justify-center gap-6 text-[10px] uppercase tracking-[0.2em] text-muted-foreground/40 font-black">
+        <span className="flex items-center gap-1.5 hover:text-primary transition-colors cursor-default">
+          <div className="w-1 h-1 bg-primary rounded-full" />
+          Neural Engine
+        </span>
+        <span className="flex items-center gap-1.5 hover:text-emerald-500 transition-colors cursor-default">
+          <div className="w-1 h-1 bg-emerald-500 rounded-full" />
+          ATS Intelligence
+        </span>
+        <span className="flex items-center gap-1.5 hover:text-amber-500 transition-colors cursor-default">
+          <div className="w-1 h-1 bg-amber-500 rounded-full" />
+          Semantic Match
+        </span>
+      </div>
     </div>
   );
 }

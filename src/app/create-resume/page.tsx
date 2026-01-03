@@ -11,19 +11,27 @@ import { useRouter } from "next/navigation";
 import { DashboardBackground } from "@/components/dashboard/DashboardBackground";
 import { CreateResumeHeader } from "@/components/create-resume/CreateResumeHeader";
 import { CreateResumeInputForm } from "@/components/create-resume/CreateResumeInputForm";
+import { CreateResumeWelcome } from "@/components/create-resume/CreateResumeWelcome";
 import { AILoadingState } from "@/components/create-resume/AILoadingState";
 import { ResumeProgress } from "@/components/create-resume/ResumeProgress";
 import { getVerificationRoute } from "@/lib/config";
-import { Bot, User } from "lucide-react";
+import { Bot, User, ArrowLeft } from "lucide-react";
 
 const VERIFICATION_ROUTE = getVerificationRoute();
-const SESSION_KEY = "resume_creation_session";
 
 interface Message {
   id: string;
   content: string;
   isUser: boolean;
   timestamp: Date;
+}
+
+interface SessionData {
+  userId: string;
+  messages: Message[];
+  stage: "input" | "generating" | "complete";
+  sessionData: any;
+  progress: number;
 }
 
 export default function CreateResume() {
@@ -59,12 +67,35 @@ export default function CreateResume() {
 
   const loading = authLoading || profileLoading;
 
-  // Load session on mount
+  // Load session on mount - ONLY if it belongs to current user
   useEffect(() => {
+    if (!user?.uid) return;
+
+    // Clean up old non-user-specific session (one-time migration)
+    const OLD_SESSION_KEY = "resume_creation_session";
+    if (localStorage.getItem(OLD_SESSION_KEY)) {
+      logger.warn("🧹 Cleaning up old non-user-specific session data");
+      localStorage.removeItem(OLD_SESSION_KEY);
+    }
+
+    const SESSION_KEY = `resume_creation_session_${user.uid}`;
     const savedSession = localStorage.getItem(SESSION_KEY);
+
     if (savedSession) {
       try {
-        const parsed = JSON.parse(savedSession);
+        const parsed: SessionData = JSON.parse(savedSession);
+
+        // CRITICAL: Verify session belongs to current user
+        if (parsed.userId !== user.uid) {
+          logger.warn(
+            { sessionUserId: parsed.userId, currentUserId: user.uid },
+            "🚨 SECURITY: Session mismatch detected, clearing old session"
+          );
+          localStorage.removeItem(SESSION_KEY);
+          return;
+        }
+
+        // Restore validated session
         if (parsed.messages) {
           setMessages(
             parsed.messages.map((m: any) => ({
@@ -76,16 +107,21 @@ export default function CreateResume() {
         if (parsed.stage) setStage(parsed.stage);
         if (parsed.sessionData) setSessionData(parsed.sessionData);
         if (parsed.progress) setProgress(parsed.progress);
-      } catch {
-        // Failed to restore session, continue with defaults
+      } catch (error) {
+        logger.error({ err: error }, "Failed to restore session");
+        localStorage.removeItem(SESSION_KEY);
       }
     }
-  }, []);
+  }, [user?.uid]);
 
-  // Save session on change
+  // Save session on change - with userId validation
   useEffect(() => {
+    if (!user?.uid) return;
+
     if (messages.length > 0 || stage !== "input" || progress > 0) {
-      const sessionToSave = {
+      const SESSION_KEY = `resume_creation_session_${user.uid}`;
+      const sessionToSave: SessionData = {
+        userId: user.uid, // CRITICAL: Include userId for validation
         messages,
         stage,
         sessionData,
@@ -93,7 +129,7 @@ export default function CreateResume() {
       };
       localStorage.setItem(SESSION_KEY, JSON.stringify(sessionToSave));
     }
-  }, [messages, stage, sessionData, progress]);
+  }, [messages, stage, sessionData, progress, user?.uid]);
 
   const scrollToBottom = () => {
     // Guard against environments (like some test runners) where
@@ -153,13 +189,14 @@ export default function CreateResume() {
     loadModels();
   }, [isPremiumOrHigher]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentInput.trim() || !user) return;
+  const handleSubmit = async (e?: React.FormEvent, overrideInput?: string) => {
+    if (e) e.preventDefault();
+    const input = overrideInput || currentInput;
+    if (!input.trim() || !user) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
-      content: currentInput,
+      content: input,
       isUser: true,
       timestamp: new Date(),
     };
@@ -172,6 +209,7 @@ export default function CreateResume() {
 
     try {
       const idToken = await user.getIdToken();
+      console.log("🔑 Got ID token, making API request...");
       const response = await fetch("/api/resume/generate", {
         method: "POST",
         headers: {
@@ -179,15 +217,79 @@ export default function CreateResume() {
           Authorization: `Bearer ${idToken}`,
         },
         body: JSON.stringify({
-          message: currentInput,
+          message: input,
           conversationHistory: messages,
           sessionData,
           modelId: selectedModelId,
         }),
       });
 
+      console.log("📡 API Response status:", response.status);
+
       if (!response.ok) {
-        throw new Error(`Failed to generate resume: ${response.statusText}`);
+        let errorDetail = response.statusText;
+        let errorStatus = response.status;
+        try {
+          const errorData = await response.json();
+          if (errorData.error) errorDetail = errorData.error;
+          if (errorData.details)
+            errorDetail = `${errorDetail}: ${errorData.details}`;
+        } catch {
+          // Ignore if not JSON
+        }
+
+        // If 401, try to force refresh token once
+        if (errorStatus === 401) {
+          logger.warn("Got 401, attempting token refresh...");
+          try {
+            const freshToken = await user.getIdToken(true); // force refresh
+            const retryResponse = await fetch("/api/resume/generate", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${freshToken}`,
+              },
+              body: JSON.stringify({
+                message: input,
+                conversationHistory: messages,
+                sessionData,
+                modelId: selectedModelId,
+              }),
+            });
+
+            if (retryResponse.ok) {
+              const data = await retryResponse.json();
+              const aiMessage: Message = {
+                id: (Date.now() + 1).toString(),
+                content: data.response || "Resume generated successfully!",
+                isUser: false,
+                timestamp: new Date(),
+              };
+              setMessages((prev) => [...prev, aiMessage]);
+              if (data.sessionData) setSessionData(data.sessionData);
+              if (data.progress !== undefined) setProgress(data.progress);
+              if (data.resumeId) {
+                setStage("complete");
+                if (user?.uid) {
+                  const SESSION_KEY = `resume_creation_session_${user.uid}`;
+                  localStorage.removeItem(SESSION_KEY);
+                }
+                setTimeout(() => {
+                  router.push(`/resumes/${data.resumeId}`);
+                }, 2000);
+              } else {
+                setStage("input");
+              }
+              return; // Success after retry
+            }
+          } catch (refreshError) {
+            logger.error({ err: refreshError }, "Token refresh failed");
+          }
+        }
+
+        throw new Error(
+          `Failed to generate resume (${errorStatus}): ${errorDetail}`
+        );
       }
 
       const data = await response.json();
@@ -212,7 +314,10 @@ export default function CreateResume() {
 
       if (data.resumeId) {
         setStage("complete");
-        localStorage.removeItem(SESSION_KEY);
+        if (user?.uid) {
+          const SESSION_KEY = `resume_creation_session_${user.uid}`;
+          localStorage.removeItem(SESSION_KEY);
+        }
         // Show success message and redirect after a moment
         setTimeout(() => {
           // Redirect to singular `/resumes/:id` route (legacy/test expectation)
@@ -223,25 +328,33 @@ export default function CreateResume() {
         setStage("input");
       }
     } catch (error) {
-      logger.error({ err: error }, "Error generating resume:");
+      // Log detailed error info
+      logger.error(
+        {
+          err: error,
+          errorType: error?.constructor?.name,
+          errorString: String(error),
+        },
+        "Error generating resume:"
+      );
+
       let errorMessage = "An unexpected error occurred. Please try again.";
-      if (error instanceof Error) {
-        if (error.message.includes("401"))
-          errorMessage = "Your session has expired. Please refresh the page.";
-        else if (error.message.includes("429"))
-          errorMessage =
-            "You're sending messages too fast. Please wait a moment.";
-        else if (error.message.includes("500"))
-          errorMessage =
-            "Our AI service is having a hiccup. Please try again in a minute.";
-        else if (
-          error.message.includes("fetch") ||
-          error.message.includes("Network")
-        )
-          errorMessage =
-            "Network error. Please check your internet connection.";
-        else errorMessage = error.message;
+      const errorStr = error instanceof Error ? error.message : String(error);
+
+      if (errorStr.includes("401")) {
+        errorMessage = "Your session has expired. Please refresh the page.";
+      } else if (errorStr.includes("429")) {
+        errorMessage =
+          "You're sending messages too fast. Please wait a moment.";
+      } else if (errorStr.includes("500")) {
+        errorMessage =
+          "Our AI service is having a hiccup. Please try again in a minute.";
+      } else if (errorStr.includes("fetch") || errorStr.includes("Network")) {
+        errorMessage = "Network error. Please check your internet connection.";
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
       }
+
       setAiError(errorMessage);
       setStage("input");
     } finally {
@@ -306,7 +419,10 @@ export default function CreateResume() {
 
       if (data.resumeId) {
         setStage("complete");
-        localStorage.removeItem(SESSION_KEY);
+        if (user?.uid) {
+          const SESSION_KEY = `resume_creation_session_${user.uid}`;
+          localStorage.removeItem(SESSION_KEY);
+        }
         setTimeout(() => {
           router.push(`/resumes/${data.resumeId}`);
         }, 2000);
@@ -405,98 +521,99 @@ export default function CreateResume() {
       )}
 
       <div className="max-w-4xl mx-auto p-4">
-        {/* Messages/Chat History */}
-        <div
-          className="bg-card/50 backdrop-blur-md rounded-3xl shadow-xl border border-white/20 mb-6 min-h-[500px] max-h-[650px] overflow-y-auto p-6 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary/50"
-          tabIndex={0}
-          role="log"
-          aria-live="polite"
-          aria-label="Chat history"
-        >
-          {messages.length === 0 ? (
-            <div className="text-center text-muted-foreground py-16 flex flex-col items-center justify-center h-full">
-              <div className="mb-8 relative">
-                <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse"></div>
-                <div className="relative inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-primary to-emerald-600 rounded-2xl shadow-lg mb-4 transform rotate-3 transition-transform hover:rotate-0 duration-300">
-                  <Bot className="w-10 h-10 text-white" />
-                </div>
-              </div>
-              <h2 className="text-2xl font-bold mb-3 text-foreground">
-                Your Career Agent is Ready
-              </h2>
-              <p className="text-muted-foreground max-w-md mx-auto text-lg leading-relaxed">
-                I'm your autonomous career agent. Tell me what you're targeting,
-                and I'll strategize the best way to frame your experience for
-                maximum impact.
-              </p>
+        {messages.length === 0 ? (
+          <div className="flex flex-col items-center animate-in fade-in slide-in-from-bottom-8 duration-1000">
+            <CreateResumeWelcome
+              onSuggestionClick={(text) => handleSubmit(undefined, text)}
+            />
+            <div className="w-full max-w-3xl -mt-12 relative z-10">
+              <CreateResumeInputForm
+                currentInput={currentInput}
+                onInputChange={setCurrentInput}
+                onSubmit={handleSubmit}
+                stage={stage}
+              />
             </div>
-          ) : (
-            <div className="space-y-6">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex items-end gap-3 ${message.isUser ? "justify-end" : "justify-start"
-                    }`}
-                >
-                  {!message.isUser && (
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 border border-primary/20">
-                      <Bot className="w-5 h-5 text-primary" />
-                    </div>
-                  )}
-
-                  <div
-                    className={`max-w-[80%] p-5 rounded-2xl shadow-sm ${message.isUser
-                        ? "bg-primary text-primary-foreground rounded-br-none"
-                        : "bg-white/60 backdrop-blur-sm text-foreground border border-white/40 rounded-bl-none"
-                      }`}
-                  >
-                    <p className="whitespace-pre-wrap leading-relaxed">
-                      {message.content}
-                    </p>
-                    <p
-                      className={`text-[10px] mt-2 ${message.isUser
-                          ? "text-primary-foreground/70"
-                          : "text-muted-foreground"
-                        }`}
-                    >
-                      {message.timestamp.toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  </div>
-
-                  {message.isUser && (
-                    <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center flex-shrink-0 border border-emerald-500/20">
-                      <User className="w-5 h-5 text-emerald-600" />
-                    </div>
-                  )}
-                </div>
-              ))}
-              <AILoadingState aiLoading={aiLoading} aiError={aiError} />
-              <div ref={messagesEndRef} />
-            </div>
-          )}
-        </div>
-
-        {progress >= 60 && stage !== "complete" && !aiLoading && (
-          <div className="flex justify-center mb-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <button
-              onClick={handleForceCreate}
-              aria-label="Create resume now"
-              className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-full shadow-lg font-semibold flex items-center gap-2 transition-all hover:scale-105 text-sm border border-emerald-500/50"
-            >
-              <span>✨ Create Resume Now</span>
-            </button>
           </div>
-        )}
+        ) : (
+          <>
+            <div
+              className="bg-card/50 backdrop-blur-md rounded-3xl shadow-xl border border-white/20 mb-6 min-h-[500px] max-h-[650px] overflow-y-auto p-6 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary/50"
+              tabIndex={0}
+              role="log"
+              aria-live="polite"
+              aria-label="Chat history"
+            >
+              <div className="space-y-6">
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex items-end gap-3 ${
+                      message.isUser ? "justify-end" : "justify-start"
+                    }`}
+                  >
+                    {!message.isUser && (
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 border border-primary/20">
+                        <Bot className="w-5 h-5 text-primary" />
+                      </div>
+                    )}
 
-        <CreateResumeInputForm
-          currentInput={currentInput}
-          onInputChange={setCurrentInput}
-          onSubmit={handleSubmit}
-          stage={stage}
-        />
+                    <div
+                      className={`max-w-[80%] p-5 rounded-2xl shadow-sm ${
+                        message.isUser
+                          ? "bg-primary text-primary-foreground rounded-br-none"
+                          : "bg-white/60 backdrop-blur-sm text-foreground border border-white/40 rounded-bl-none"
+                      }`}
+                    >
+                      <p className="whitespace-pre-wrap leading-relaxed">
+                        {message.content}
+                      </p>
+                      <p
+                        className={`text-[10px] mt-2 ${
+                          message.isUser
+                            ? "text-primary-foreground/70"
+                            : "text-muted-foreground"
+                        }`}
+                      >
+                        {message.timestamp.toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    </div>
+
+                    {message.isUser && (
+                      <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center flex-shrink-0 border border-emerald-500/20">
+                        <User className="w-5 h-5 text-emerald-600" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+                <AILoadingState aiLoading={aiLoading} aiError={aiError} />
+                <div ref={messagesEndRef} />
+              </div>
+            </div>
+
+            {progress >= 60 && stage !== "complete" && !aiLoading && (
+              <div className="flex justify-center mb-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <button
+                  onClick={handleForceCreate}
+                  aria-label="Create resume now"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-full shadow-lg font-semibold flex items-center gap-2 transition-all hover:scale-105 text-sm border border-emerald-500/50"
+                >
+                  <span>✨ Create Resume Now</span>
+                </button>
+              </div>
+            )}
+
+            <CreateResumeInputForm
+              currentInput={currentInput}
+              onInputChange={setCurrentInput}
+              onSubmit={handleSubmit}
+              stage={stage}
+            />
+          </>
+        )}
       </div>
     </DashboardBackground>
   );

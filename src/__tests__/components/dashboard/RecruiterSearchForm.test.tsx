@@ -41,7 +41,7 @@ describe("RecruiterSearchForm", () => {
   it("renders basic search mode by default", () => {
     render(<RecruiterSearchForm {...mockProps} />);
 
-    expect(screen.getByText("AI Search")).toBeInTheDocument();
+    expect(screen.getByText("Agent Search")).toBeInTheDocument();
     expect(screen.getByText("Basic Lookup")).toBeInTheDocument();
     expect(screen.getByText("Premium Filters")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("e.g., 2")).toBeInTheDocument();
@@ -283,9 +283,7 @@ describe("RecruiterSearchForm", () => {
     render(<RecruiterSearchForm {...mockProps} />);
 
     expect(
-      screen.getByText(
-        /retrieve a Specific candidate/i
-      )
+      screen.getByText(/retrieve a Specific candidate/i)
     ).toBeInTheDocument();
   });
 
@@ -293,9 +291,7 @@ describe("RecruiterSearchForm", () => {
     render(<RecruiterSearchForm {...mockProps} searchMode="premium" />);
 
     expect(
-      screen.getByText(
-        /Advanced search with skills and location filters/
-      )
+      screen.getByText(/Advanced search with skills and location filters/)
     ).toBeInTheDocument();
   });
 
@@ -325,10 +321,7 @@ describe("RecruiterSearchForm", () => {
     );
 
     const skillTag = screen.getByText("React").closest("span");
-    expect(skillTag).toHaveClass(
-      "bg-purple-50",
-      "text-purple-700"
-    );
+    expect(skillTag).toHaveClass("bg-purple-50", "text-purple-700");
   });
 
   it("renders remove buttons in skill tags", () => {

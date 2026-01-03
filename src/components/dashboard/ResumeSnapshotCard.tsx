@@ -4,7 +4,7 @@ import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { RestrictedFeature } from "@/components/ui/RestrictedFeature";
 import { useUserProfile } from "@/hooks/useUserProfile";
-import { Edit3, Eye, Trash2 } from "lucide-react";
+import { Edit3, Eye, Trash2, Sparkles, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import type { JobSeekerMetrics } from "@/types/dashboard";
 import { DeleteResumeDialog } from "./DeleteResumeDialog";
@@ -83,21 +83,34 @@ export function ResumeSnapshotCard({
 
   if (!hasResume) {
     return (
-      <div className="glass-panel relative overflow-hidden rounded-3xl p-8 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 border-indigo-500/10">
-        <div className="relative z-10">
-          <h2 className="text-2xl font-bold text-[#1A2F25] mb-2">
-            Build Your Spotlight
-          </h2>
-          <p className="text-[#1A2F25]/70 mb-6 max-w-lg">
-            Create a professional, AI-powered resume and get discovered by top
-            recruiters.
-          </p>
+      <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1A2F25] to-[#2C4A3B] p-8 text-white shadow-xl transition-all hover:shadow-2xl">
+        {/* Decorative background elements */}
+        <div className="absolute top-0 right-0 -mt-16 -mr-16 h-64 w-64 rounded-full bg-white/5 blur-3xl transition-all duration-500 group-hover:bg-white/10"></div>
+        <div className="absolute bottom-0 left-0 -mb-16 -ml-16 h-64 w-64 rounded-full bg-emerald-500/20 blur-3xl"></div>
+
+        <div className="relative z-10 flex flex-col items-start gap-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="max-w-lg space-y-3">
+            <div className="flex items-center gap-2 text-emerald-400">
+              <Sparkles className="h-5 w-5" />
+              <span className="text-sm font-semibold uppercase tracking-wider">
+                AI-Powered Resume
+              </span>
+            </div>
+            <h2 className="text-3xl font-bold tracking-tight text-white">
+              Build Your Spotlight
+            </h2>
+            <p className="text-lg text-slate-300">
+              Create a professional resume in minutes and get discovered by top
+              recruiters.
+            </p>
+          </div>
+
           <Link
             href="/create-resume"
-            className="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 transition-all hover:bg-indigo-700 hover:scale-[1.02]"
+            className="group/btn relative inline-flex items-center justify-center overflow-hidden rounded-2xl bg-white px-8 py-4 font-bold text-[#1A2F25] shadow-lg transition-all hover:scale-105 hover:shadow-xl"
           >
-            <Edit3 className="mr-2 h-4 w-4" />
-            Start Building
+            <span className="mr-2">Start Building</span>
+            <ArrowRight className="h-5 w-5 transition-transform group-hover/btn:translate-x-1" />
           </Link>
         </div>
       </div>
@@ -117,14 +130,16 @@ export function ResumeSnapshotCard({
             <div className="flex items-center gap-3 mb-4">
               <div className="group relative">
                 <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border cursor-help ${isPublished
-                    ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                    : "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                    }`}
+                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border cursor-help ${
+                    isPublished
+                      ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                      : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                  }`}
                 >
                   <span
-                    className={`mr-1.5 h-1.5 w-1.5 rounded-full ${isPublished ? "bg-emerald-500" : "bg-amber-500"
-                      }`}
+                    className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
+                      isPublished ? "bg-emerald-500" : "bg-amber-500"
+                    }`}
                   ></span>
                   {isPublished ? "Public" : "Private"}
                 </span>
@@ -282,8 +297,8 @@ export function ResumeSnapshotCard({
                   ? metrics.quality > 75
                     ? "High"
                     : metrics.quality > 40
-                      ? "Medium"
-                      : "Developing"
+                    ? "Medium"
+                    : "Developing"
                   : "Not analyzed"}
               </span>
             </div>

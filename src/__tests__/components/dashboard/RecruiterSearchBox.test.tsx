@@ -47,8 +47,7 @@ describe("RecruiterSearchBox", () => {
   it("renders the search box with header and form", () => {
     render(<RecruiterSearchBox />);
 
-    expect(screen.getByText("Resume Search")).toBeInTheDocument();
-    expect(screen.getByText("AI Search")).toBeInTheDocument();
+    expect(screen.getByText("Agent Search")).toBeInTheDocument();
     expect(screen.getByText("Basic Lookup")).toBeInTheDocument();
     expect(screen.getByText("Premium Filters")).toBeInTheDocument();
   });
@@ -109,7 +108,7 @@ describe("RecruiterSearchBox", () => {
     await userEvent.click(basicButton);
 
     // Switch back to AI
-    const aiButton = screen.getByText("AI Search");
+    const aiButton = screen.getByText("Agent Search");
     await userEvent.click(aiButton);
 
     // AI mode textarea should be visible again

@@ -34,7 +34,42 @@ const mirrorToConsole = (
   return (...args: unknown[]) => {
     pinoMethod(...args);
     if (shouldMirrorConsole) {
-      consoleMethod(...args);
+      // Better console logging for Error objects inside wrapper objects
+      const processedArgs = args.map((arg) => {
+        if (arg && typeof arg === "object" && "err" in arg) {
+          const err = arg.err;
+          // Handle Error objects
+          if (err instanceof Error) {
+            const { message, stack, name, ...otherProps } = err;
+            return {
+              ...arg,
+              err: {
+                message,
+                stack,
+                name,
+                ...otherProps,
+              },
+            };
+          }
+          // Handle non-Error objects (could be Response, plain object, etc.)
+          if (err && typeof err === "object") {
+            return {
+              ...arg,
+              err: {
+                type: err.constructor?.name || "Object",
+                ...err,
+              },
+            };
+          }
+          // Handle primitives or null/undefined
+          return {
+            ...arg,
+            err: String(err),
+          };
+        }
+        return arg;
+      });
+      consoleMethod(...processedArgs);
     }
   };
 };

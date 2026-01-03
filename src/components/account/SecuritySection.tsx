@@ -1,15 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
-import {
-  getAuth,
-  sendPasswordResetEmail,
-  GoogleAuthProvider,
-  linkWithPopup,
-  unlink,
-} from "firebase/auth";
 
 export function SecuritySection() {
   const { user } = useAuth();
@@ -23,11 +15,22 @@ export function SecuritySection() {
     if (!user?.email) return;
     setLoading(true);
     try {
-      const auth = getAuth();
-      await sendPasswordResetEmail(auth, user.email);
+      // Use custom password reset endpoint to ensure emails use Gmail SMTP
+      const response = await fetch("/api/auth/request-password-reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: user.email }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to send reset email");
+      }
+
       setMessage({
         type: "success",
-        text: "Password reset email sent! Check your inbox.",
+        text: "Password reset email sent! Check your inbox at " + user.email,
       });
     } catch (error) {
       setMessage({ type: "error", text: (error as Error).message });
@@ -37,33 +40,7 @@ export function SecuritySection() {
   };
 
   const providers = user?.providerData.map((p) => p.providerId) || [];
-  const isGoogleLinked = providers.includes("google.com");
   const isEmailLinked = providers.includes("password");
-
-  const toggleGoogleLink = async () => {
-    if (!user) return;
-    setLoading(true);
-    try {
-      if (isGoogleLinked) {
-        await unlink(user, "google.com");
-        setMessage({ type: "success", text: "Google account unlinked." });
-      } else {
-        const provider = new GoogleAuthProvider();
-        await linkWithPopup(user, provider);
-        setMessage({
-          type: "success",
-          text: "Google account linked successfully.",
-        });
-      }
-    } catch (error) {
-      setMessage({
-        type: "error",
-        text: "Failed to update Google link: " + (error as Error).message,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="glass-panel rounded-3xl overflow-hidden transition-all duration-300 hover:shadow-2xl">
@@ -111,43 +88,13 @@ export function SecuritySection() {
             </div>
           )}
 
-          <div className="flex items-center justify-between p-4 bg-muted rounded-xl">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 flex items-center justify-center bg-white rounded-full p-1.5">
-                <Image
-                  src="https://www.google.com/favicon.ico"
-                  alt="Google"
-                  width={16}
-                  height={16}
-                  className="w-full h-full"
-                />
-              </div>
-              <div>
-                <h3 className="font-bold text-foreground">Google</h3>
-                <p className="text-xs text-foreground/60">
-                  {isGoogleLinked ? "Linked" : "Not linked"}
-                </p>
-              </div>
-            </div>
-
-            {/* Only allow unlinking if there is another method (simplified check) */}
-            {(providers.length > 1 || !isGoogleLinked) && (
-              <button
-                onClick={toggleGoogleLink}
-                disabled={loading}
-                className="px-4 py-2 bg-white text-primary text-sm font-bold rounded-lg border border-primary/10 hover:bg-primary hover:text-white transition-all disabled:opacity-50"
-              >
-                {isGoogleLinked ? "Unlink" : "Connect"}
-              </button>
-            )}
-          </div>
-
           {message && (
             <div
-              className={`p-3 rounded-lg text-sm ${message.type === "success"
+              className={`p-3 rounded-lg text-sm ${
+                message.type === "success"
                   ? "bg-green-100 text-green-800"
                   : "bg-red-100 text-red-800"
-                }`}
+              }`}
             >
               {message.text}
             </div>

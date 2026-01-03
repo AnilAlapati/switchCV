@@ -7,7 +7,7 @@
   "etags": {
     "switchcv-e5136": {
       "extensionInstances": {
-        "firestore-send-email": "8b40c449c7c7ba240b9fb193bb23ffcf2c12c2840019c7622cfd650dce6769c7"
+        "firestore-send-email": "e8dcb9e6c5ea887187e236ab45279931848a96dd5cc7c6a1e11cd21b915a5158"
       }
     },
     "switchcv-dev": {

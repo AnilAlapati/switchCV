@@ -440,5 +440,13 @@ service cloud.firestore {
       allow read: if false;  // Admin SDK only
       allow write: if false; // Admin SDK only
     }
+
+    // Password Reset Tokens
+    // These are managed entirely by Cloud Functions/API routes using Admin SDK
+    // No client access needed
+    match /passwordResetTokens/{tokenId} {
+      allow read: if false;  // Admin SDK only
+      allow write: if false; // Admin SDK only
+    }
   }
 }

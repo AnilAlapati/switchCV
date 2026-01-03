@@ -6,6 +6,17 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
+/**
+ * Determines if the current environment is production.
+ * Schedulers should only run in production to avoid dev costs.
+ */
+function isProductionEnvironment(): boolean {
+  const nodeEnv = process.env.NODE_ENV;
+  const gcpProject = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT;
+
+  // Production if NODE_ENV is explicitly "production" OR project ID is prod
+  return nodeEnv === "production" || gcpProject === "switchcv-e5136";
+}
 
 // ==================== JOB MATCHING ====================
 
@@ -57,6 +68,12 @@ export const sendProfileViewDigest = functions.pubsub
   .schedule("every monday 09:00")
   .timeZone("America/New_York")
   .onRun(async (context) => {
+    if (!isProductionEnvironment()) {
+      functions.logger.info(
+        "[COST GUARD] sendProfileViewDigest blocked in dev environment"
+      );
+      return { skipped: true, reason: "dev environment" };
+    }
     const { sendProfileViewDigestHandler } = await import("./emailFunctions");
     return sendProfileViewDigestHandler(context);
   });
@@ -81,6 +98,12 @@ export const cleanupAuditLogs = functions.pubsub
   .schedule("every day 02:00")
   .timeZone("America/New_York")
   .onRun(async (context) => {
+    if (!isProductionEnvironment()) {
+      functions.logger.info(
+        "[COST GUARD] cleanupAuditLogs blocked in dev environment"
+      );
+      return { skipped: true, reason: "dev environment" };
+    }
     const { cleanupAuditLogsHandler } = await import("./emailFunctions");
     return cleanupAuditLogsHandler(context);
   });
@@ -164,10 +187,16 @@ export const generateResumeContent = functions
 // ==================== ANALYTICS ====================
 
 export const aggregateGlobalStats = functions
-  .runWith({ timeoutSeconds: 60, memory: "1GB" })
+  .runWith({ timeoutSeconds: 60, memory: "256MB" })
   .pubsub.schedule("0 * * * *")
   .timeZone("UTC")
   .onRun(async (context) => {
+    if (!isProductionEnvironment()) {
+      functions.logger.info(
+        "[COST GUARD] aggregateGlobalStats blocked in dev environment"
+      );
+      return { skipped: true, reason: "dev environment" };
+    }
     const { aggregateGlobalStatsHandler } = await import("./statsService");
     return aggregateGlobalStatsHandler(context);
   });
@@ -176,6 +205,12 @@ export const aggregateAnalyticsDaily = functions.pubsub
   .schedule("0 1 * * *")
   .timeZone("UTC")
   .onRun(async (context) => {
+    if (!isProductionEnvironment()) {
+      functions.logger.info(
+        "[COST GUARD] aggregateAnalyticsDaily blocked in dev environment"
+      );
+      return { skipped: true, reason: "dev environment" };
+    }
     const { aggregateAnalyticsDailyHandler } = await import(
       "./analyticsService"
     );
@@ -186,6 +221,12 @@ export const cleanupAnalyticsEvents = functions.pubsub
   .schedule("0 2 * * 0")
   .timeZone("UTC")
   .onRun(async (context) => {
+    if (!isProductionEnvironment()) {
+      functions.logger.info(
+        "[COST GUARD] cleanupAnalyticsEvents blocked in dev environment"
+      );
+      return { skipped: true, reason: "dev environment" };
+    }
     const { cleanupAnalyticsEventsHandler } = await import(
       "./analyticsService"
     );
@@ -198,6 +239,12 @@ export const cleanupExpiredResumes = functions.pubsub
   .schedule("10 2 * * *")
   .timeZone("UTC")
   .onRun(async (context) => {
+    if (!isProductionEnvironment()) {
+      functions.logger.info(
+        "[COST GUARD] cleanupExpiredResumes blocked in dev environment"
+      );
+      return { skipped: true, reason: "dev environment" };
+    }
     const { cleanupExpiredResumesHandler } = await import(
       "./resumeCleanupService"
     );
@@ -208,6 +255,12 @@ export const cleanupRateLimits = functions.pubsub
   .schedule("every 24 hours")
   .timeZone("UTC")
   .onRun(async (context) => {
+    if (!isProductionEnvironment()) {
+      functions.logger.info(
+        "[COST GUARD] cleanupRateLimits blocked in dev environment"
+      );
+      return { skipped: true, reason: "dev environment" };
+    }
     const { cleanupRateLimitsHandler } = await import(
       "./rateLimitCleanupService"
     );
@@ -218,6 +271,12 @@ export const cleanupRecruiterSearchHistory = functions.pubsub
   .schedule("0 3 * * *")
   .timeZone("UTC")
   .onRun(async (context) => {
+    if (!isProductionEnvironment()) {
+      functions.logger.info(
+        "[COST GUARD] cleanupRecruiterSearchHistory blocked in dev environment"
+      );
+      return { skipped: true, reason: "dev environment" };
+    }
     const { cleanupRecruiterSearchHistoryHandler } = await import(
       "./recruiterService"
     );
