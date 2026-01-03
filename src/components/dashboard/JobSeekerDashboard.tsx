@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ResumeSnapshotCard } from "@/components/dashboard/ResumeSnapshotCard";
+import { AgentStatus } from "@/components/dashboard/AgentStatus";
 import { MarketPulseCard } from "@/components/dashboard/MarketPulseCard";
 import { ActivityTimeline } from "@/components/dashboard/ActivityTimeline";
 import { PriorityActionsCard } from "@/components/dashboard/PriorityActionsCard";
@@ -209,6 +210,7 @@ export function JobSeekerDashboard({
         </div>
 
         <div className="space-y-8">
+          <AgentStatus />
           <PriorityActionsCard
             headline="Career Co-pilot"
             items={actionItems}

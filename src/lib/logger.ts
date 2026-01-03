@@ -51,13 +51,66 @@ const mirrorToConsole = (
               },
             };
           }
-          // Handle non-Error objects (could be Response, plain object, etc.)
+          // Handle Response objects
+          if (
+            err &&
+            typeof err === "object" &&
+            "status" in err &&
+            "statusText" in err
+          ) {
+            return {
+              ...arg,
+              err: {
+                type: "Response",
+                status: (err as Response).status,
+                statusText: (err as Response).statusText,
+                url: (err as Response).url,
+              },
+            };
+          }
+          // Handle non-Error objects (could be plain object, etc.)
           if (err && typeof err === "object") {
+            // Try to extract enumerable properties
+            const enumerableProps = Object.keys(err).reduce((acc, key) => {
+              acc[key] = (err as Record<string, unknown>)[key];
+              return acc;
+            }, {} as Record<string, unknown>);
+
+            // If no enumerable properties, try common error-like properties
+            if (Object.keys(enumerableProps).length === 0) {
+              const errorLikeProps: Record<string, unknown> = {
+                type: err.constructor?.name || "Object",
+              };
+
+              // Try to get common properties that might not be enumerable
+              const commonProps = [
+                "message",
+                "code",
+                "status",
+                "statusCode",
+                "name",
+                "reason",
+              ];
+              for (const prop of commonProps) {
+                if (prop in err) {
+                  errorLikeProps[prop] = (err as Record<string, unknown>)[prop];
+                }
+              }
+
+              return {
+                ...arg,
+                err:
+                  Object.keys(errorLikeProps).length > 1
+                    ? errorLikeProps
+                    : String(err),
+              };
+            }
+
             return {
               ...arg,
               err: {
                 type: err.constructor?.name || "Object",
-                ...err,
+                ...enumerableProps,
               },
             };
           }

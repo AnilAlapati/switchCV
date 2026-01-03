@@ -19,6 +19,10 @@ interface UserProfile {
   role: UserRole;
   createdAt?: string;
   lastLoginAt?: string;
+  agentic?: {
+    usageCount: number;
+    lastRunAt: string;
+  };
 }
 
 interface UseUserProfileResult {
@@ -74,18 +78,18 @@ export function useUserProfile(): UseUserProfileResult {
   // Construct effective profile
   const effectiveProfile: UserProfile | null = data
     ? {
-        ...data,
-        subscriptionTier: effectiveTier,
-        role: effectiveRole as UserRole,
-      }
+      ...data,
+      subscriptionTier: effectiveTier,
+      role: effectiveRole as UserRole,
+    }
     : user
-    ? {
+      ? {
         uid: user.uid,
         email: user.email || "",
         subscriptionTier: effectiveTier,
         role: effectiveRole as UserRole,
       }
-    : null;
+      : null;
 
   return {
     profile: effectiveProfile,

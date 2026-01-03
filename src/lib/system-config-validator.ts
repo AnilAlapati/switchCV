@@ -112,6 +112,15 @@ export const SystemConfigSchema = z.object({
     tierCacheTtlMs: z.number().min(60000).max(604800000),
     aiCacheTtlMs: z.number().min(60000).max(604800000),
   }),
+  agentic: z.object({
+    enabled: z.boolean(),
+    budgetCap: z.number().min(0),
+    monthlySoftCap: z.number().min(0),
+  }),
+  registrations: z.object({
+    enabled: z.boolean(),
+    waitlistMode: z.boolean(),
+  }),
 });
 
 // =============================================================================

@@ -148,6 +148,11 @@ export interface User {
     publicProfile: boolean;
     defaultPIIVisibility: Visibility;
   };
+  subscriptionTier?: "basic" | "premium" | "enterprise";
+  agentic?: {
+    usageCount: number;
+    lastRunAt: string;
+  };
 }
 
 export interface RecruiterRequest {

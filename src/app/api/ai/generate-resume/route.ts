@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateText } from "@/lib/services/aiGenerationService";
 import { handleApiError, getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
+import { runAgenticWorkflow } from "@/lib/services/agentOrchestrator";
+import { adminDb } from "@/lib/firebase-admin";
 
 interface GenerateResumeRequest {
   resumeData: {
@@ -79,46 +81,83 @@ export async function POST(
     const body = (await request.json()) as GenerateResumeRequest;
     const { resumeData, tone = "professional" } = body;
 
-    // 3. User Tier Check (Optional - enforcing basic limits via rate limit above is a good start)
-    // We can add detailed tier logic later if needed, but rate limit protects the bill.
+    // 3. PROPOSED: Agentic Workflow Logic (replaces standard flow if enabled)
 
-    if (!resumeData) {
-      return handleApiError(
-        new Error("Missing resume data"),
-        "Missing resume data",
-        400
-      );
+    // Fetch user for subscription tier
+    const userSnapshot = await adminDb.collection("users").doc(userId).get();
+    const userRole = userSnapshot.data()?.subscriptionTier || "basic";
+
+    let aiResponseText = "";
+    let aiModel = "";
+    let aiProvider = "";
+
+    // Try Agentic Workflow
+    const agenticResult = await runAgenticWorkflow(
+      userId,
+      userRole,
+      {
+        userResume: JSON.stringify(resumeData),
+        jobDescription: "", // Not provided in current API schema
+        outputFormatInstruction: `
+                Please provide enhancements in the following JSON format (IMPORTANT - respond ONLY with valid JSON):
+                {
+                    "enhancedSummary": "...",
+                    "enhancedExperience": [...],
+                    "skillSuggestions": [...],
+                    "improvementTips": [...]
+                }
+             `
+      }
+    );
+
+    if (agenticResult) {
+      aiResponseText = agenticResult;
+      aiModel = "agentic-workflow";
+      aiProvider = "google"; // Assumed primary provider for agentic
+      logger.info({ userId }, "🚀 Agentic Workflow Executed Successfully");
+    } else {
+      // Fallback to standard flow
+      // Create prompt for AI
+      const prompt = createResumeEnhancementPrompt(resumeData, tone);
+
+      logger.info({
+        userId,
+        name: resumeData.personalInfo.name,
+        tone,
+        skillCount: (resumeData.skills || []).length,
+        experienceCount: (resumeData.experience || []).length,
+      }, "🤖 Starting AI resume enhancement (Standard Flow)...");
+
+      // Call AI service
+      const result = await generateText(prompt, 2000, 0.7);
+      aiResponseText = result.text;
+      aiModel = result.model;
+      aiProvider = result.provider;
     }
 
-    // Create prompt for AI
-    const prompt = createResumeEnhancementPrompt(resumeData, tone);
+    /* 
+       ORIGINAL CODE REPLACED ABOVE BY THE IF/ELSE BLOCK 
+       // Create prompt for AI
+       // const prompt = createResumeEnhancementPrompt(resumeData, tone);
+       // ...
+       // const { text, model, provider } = await generateText(prompt, 2000, 0.7);
+    */
 
     logger.info({
       userId,
-      name: resumeData.personalInfo.name,
-      tone,
-      skillCount: (resumeData.skills || []).length,
-      experienceCount: (resumeData.experience || []).length,
-    }, "🤖 Starting AI resume enhancement...");
-
-    // Call AI service
-    const { text, model, provider } = await generateText(prompt, 2000, 0.7);
-
-    logger.info({
-      userId,
-      model,
-      provider,
-      responseLength: text.length,
+      model: aiModel,
+      provider: aiProvider,
+      responseLength: aiResponseText.length,
     }, "✅ AI generation successful");
 
     // Parse AI response
-    const enhancedContent = parseAIResponse(text, resumeData);
+    const enhancedContent = parseAIResponse(aiResponseText, resumeData);
 
     return NextResponse.json({
       success: true,
       data: enhancedContent,
-      model,
-      provider,
+      model: aiModel,
+      provider: aiProvider,
     });
   } catch (error) {
     return handleApiError(error, "Failed to generate resume enhancement");
