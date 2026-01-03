@@ -231,3 +231,5 @@ export const RECRUITER_SEARCH_LIMITS: Record<SubscriptionTier, number> = {
   premium: 9999,
   enterprise: 9999,
 };
+
+export const FREE_TIER_AGENT_LIMIT = 5;

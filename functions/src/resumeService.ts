@@ -275,7 +275,9 @@ const generateResumeContentHandler = async (
         const enhancedContent = await enhanceResumeWithAI(
           resumeData,
           tone,
-          normalizedModelId
+          normalizedModelId,
+          userId,
+          subscriptionTier
         );
 
         // Store the generated content
@@ -316,13 +318,17 @@ export const generateResumeContent = functions
   })
   .https.onRequest(generateResumeContentHandler);
 
+import { runAgenticWorkflow } from "./agentOrchestrator";
+
 /**
  * Enhance resume with AI suggestions
  */
 export async function enhanceResumeWithAI(
   resumeData: ResumeData,
   tone: string,
-  modelId: string
+  modelId: string,
+  userId?: string,
+  userTier?: string
 ): Promise<EnhancedResumeContent> {
   const startTime = Date.now();
   console.log("🤖 AI ENHANCEMENT STARTING", {
@@ -338,76 +344,147 @@ export async function enhanceResumeWithAI(
     const useHuggingFace = !isGemini && HUGGINGFACE_TOKEN;
     const randomProvider = Math.random() < 0.5 ? "gemini" : "huggingface";
 
+    // Helper to execute AI calls (passed to orchestrator)
+    const aiExecutor = async (promptText: string, specificModel: string): Promise<string> => {
+      const isGeminiExec = specificModel.startsWith("gemini-");
+
+      if (isGeminiExec && GEMINI_API_KEY) {
+        const client = await getGenAIClient();
+        if (!client) throw new Error("Gemini client initialization failed");
+
+        return resilientCall(
+          async () => {
+            const model = client.getGenerativeModel({ model: specificModel });
+            const result = await model.generateContent(promptText);
+            const response = await result.response;
+            return response.text();
+          },
+          {
+            retryOptions: aiRetryOptions,
+            circuitBreaker: geminiCircuitBreaker,
+            timeoutMs: 30000,
+            operationName: "gemini-api-call-agentic",
+          }
+        );
+      } else if (HUGGINGFACE_TOKEN) {
+        const client = await getHfClient();
+        return resilientCall(
+          async () => {
+            const apiResult: any = await client.textGeneration({
+              model: specificModel,
+              inputs: promptText,
+              parameters: {
+                max_new_tokens: 300,
+                temperature: 0.7,
+                do_sample: true,
+                top_p: 0.9,
+              },
+            });
+            return apiResult.generated_text || "";
+          },
+          {
+            retryOptions: aiRetryOptions,
+            circuitBreaker: huggingFaceCircuitBreaker,
+            timeoutMs: 30000,
+            operationName: "hf-api-call-agentic"
+          }
+        );
+      }
+      throw new Error(`No provider for model ${specificModel}`);
+    };
+
     let enhancedText = "";
     let actualProvider = "";
 
-    if (useGemini || (randomProvider === "gemini" && GEMINI_API_KEY)) {
-      actualProvider = "Google Gemini";
-      const actualModel = modelId || "gemini-1.5-flash";
-      console.log(`✨ Using ${actualProvider}: ${actualModel}`);
-      console.log("📡 Calling Gemini API...");
-
-      const client = await getGenAIClient();
-      if (!client) throw new Error("Gemini client initialization failed");
-
-      enhancedText = await resilientCall(
-        async () => {
-          const model = client.getGenerativeModel({
-            model: actualModel,
-          });
-          const result = await model.generateContent(prompt);
-          const response = await result.response;
-          return response.text();
-        },
+    // 1. Try Agentic Workflow first if user details provided
+    if (userId && userTier) {
+      const agenticResult = await runAgenticWorkflow(
+        userId,
+        userTier,
         {
-          retryOptions: aiRetryOptions,
-          circuitBreaker: geminiCircuitBreaker,
-          timeoutMs: 30000,
-          operationName: "gemini-api-call",
-        }
+          userResume: JSON.stringify(resumeData),
+          instructions: `Tone: ${tone}`,
+        },
+        aiExecutor
       );
 
-      console.log("✅ Gemini API Response Received", {
-        responseLength: enhancedText.length,
-        duration: `${Date.now() - startTime}ms`,
-      });
-    } else if (useHuggingFace || HUGGINGFACE_TOKEN) {
-      actualProvider = "Hugging Face";
-      const actualModel = modelId || "mistralai/Mistral-7B-Instruct-v0.3";
-      console.log(`✨ Using ${actualProvider}: ${actualModel}`);
-      console.log("📡 Calling Hugging Face API...");
+      if (agenticResult) {
+        enhancedText = agenticResult;
+        console.log("🚀 Agentic Workflow Execution Successful");
+        actualProvider = "Agentic Workflow";
+      }
+    }
 
-      const isMistral = actualModel === "mistralai/Mistral-7B-Instruct-v0.3";
-      const client = await getHfClient();
+    // 2. If Agentic didn't run or returned null (fallback), use Standard Flow
+    if (!enhancedText) {
+      if (useGemini || (randomProvider === "gemini" && GEMINI_API_KEY)) {
+        actualProvider = "Google Gemini";
+        const actualModel = modelId || "gemini-1.5-flash";
+        console.log(`✨ Using ${actualProvider}: ${actualModel}`);
+        console.log("📡 Calling Gemini API...");
 
-      const response = await resilientCall(
-        async () => {
-          return client.textGeneration({
-            model: actualModel,
-            inputs: prompt,
-            parameters: {
-              max_new_tokens: isMistral ? 500 : 300,
-              temperature: isMistral ? 0.6 : 0.7,
-              do_sample: true,
-              top_p: 0.9,
-            },
-          });
-        },
-        {
-          retryOptions: aiRetryOptions,
-          circuitBreaker: huggingFaceCircuitBreaker,
-          timeoutMs: 30000,
-          operationName: "huggingface-api-call",
-        }
-      );
-      enhancedText = response.generated_text || "";
+        const client = await getGenAIClient();
+        if (!client) throw new Error("Gemini client initialization failed");
 
-      console.log("✅ Hugging Face API Response Received", {
-        responseLength: enhancedText.length,
-        duration: `${Date.now() - startTime}ms`,
-      });
-    } else {
-      throw new Error("No AI provider available");
+        enhancedText = await resilientCall(
+          async () => {
+            const model = client.getGenerativeModel({
+              model: actualModel,
+            });
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            return response.text();
+          },
+          {
+            retryOptions: aiRetryOptions,
+            circuitBreaker: geminiCircuitBreaker,
+            timeoutMs: 30000,
+            operationName: "gemini-api-call",
+          }
+        );
+
+        console.log("✅ Gemini API Response Received", {
+          responseLength: enhancedText.length,
+          duration: `${Date.now() - startTime}ms`,
+        });
+      } else if (useHuggingFace || HUGGINGFACE_TOKEN) {
+        actualProvider = "Hugging Face";
+        const actualModel = modelId || "mistralai/Mistral-7B-Instruct-v0.3";
+        console.log(`✨ Using ${actualProvider}: ${actualModel}`);
+        console.log("📡 Calling Hugging Face API...");
+
+        const isMistral = actualModel === "mistralai/Mistral-7B-Instruct-v0.3";
+        const client = await getHfClient();
+
+        const response = await resilientCall(
+          async () => {
+            return client.textGeneration({
+              model: actualModel,
+              inputs: prompt,
+              parameters: {
+                max_new_tokens: isMistral ? 500 : 300,
+                temperature: isMistral ? 0.6 : 0.7,
+                do_sample: true,
+                top_p: 0.9,
+              },
+            });
+          },
+          {
+            retryOptions: aiRetryOptions,
+            circuitBreaker: huggingFaceCircuitBreaker,
+            timeoutMs: 30000,
+            operationName: "huggingface-api-call",
+          }
+        );
+        enhancedText = response.generated_text || "";
+
+        console.log("✅ Hugging Face API Response Received", {
+          responseLength: enhancedText.length,
+          duration: `${Date.now() - startTime}ms`,
+        });
+      } else {
+        throw new Error("No AI provider available");
+      }
     }
 
     console.log("🎯 AI Enhancement Complete", {

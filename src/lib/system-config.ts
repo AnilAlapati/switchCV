@@ -181,6 +181,15 @@ export const defaultSystemConfig: SystemConfig = {
     tierCacheTtlMs: 86400000,
     aiCacheTtlMs: 86400000,
   },
+  agentic: {
+    enabled: false,
+    budgetCap: 70, // Hard cap
+    monthlySoftCap: 30, // Soft cap
+  },
+  registrations: {
+    enabled: true,
+    waitlistMode: false,
+  },
 };
 
 // =============================================================================
@@ -274,4 +283,9 @@ export const mergeWithDefaultConfig = (
     aiCacheTtlMs:
       partial?.cache?.aiCacheTtlMs ?? defaultSystemConfig.cache.aiCacheTtlMs,
   },
+  agentic: deepMerge(defaultSystemConfig.agentic, partial?.agentic),
+  registrations: deepMerge(
+    defaultSystemConfig.registrations,
+    partial?.registrations
+  ),
 });

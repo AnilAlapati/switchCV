@@ -168,6 +168,13 @@ export const setUserRole = functions.https.onCall(async (data, context) => {
   return setUserRoleHandler(data, context);
 });
 
+export const syncAdminWhitelist = functions.firestore
+  .document("system/admins/whitelist/{email}")
+  .onWrite(async (change, context) => {
+    const { syncAdminWhitelistHandler } = await import("./adminService");
+    return syncAdminWhitelistHandler(change, context);
+  });
+
 // ==================== RESUME GENERATION ====================
 
 export const generateResumeContent = functions
@@ -281,4 +288,15 @@ export const cleanupRecruiterSearchHistory = functions.pubsub
       "./recruiterService"
     );
     return cleanupRecruiterSearchHistoryHandler(context);
+  });
+
+// ==================== BILLING ====================
+
+export const aggregateBilling = functions.pubsub
+  .schedule("every 5 minutes")
+  .timeZone("UTC")
+  .onRun(async (context) => {
+    // Billing aggregation should run in all environments to track costs
+    const { aggregateBillingHandler } = await import("./billingService");
+    return aggregateBillingHandler(context);
   });

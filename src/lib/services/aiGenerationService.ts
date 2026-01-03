@@ -199,7 +199,8 @@ async function selectBestModel(availableModels: string[]): Promise<string> {
 async function generateWithGemini(
   prompt: string,
   maxTokens: number = 150,
-  temperature: number = 0.9
+  temperature: number = 0.9,
+  model?: string
 ): Promise<{ text: string; model: string }> {
   const apiKey = process.env.GEMINI_API_KEY;
 
@@ -212,9 +213,19 @@ async function generateWithGemini(
   let lastError: Error | null = null;
   let selection = await loadModelSelection(apiKey);
 
+  // If a specific model is requested, override the selection logic
+  if (model) {
+    logger.info({ model }, "Using requested Gemini model override");
+    // We construct a single-item pool
+    selection = {
+      models: [model],
+      usingFallback: false
+    };
+  }
+
   while (selection.models.length) {
     const candidatePool = selection.models.filter(
-      (model) => !attemptedModels.has(model)
+      (m) => !attemptedModels.has(m)
     );
 
     if (!candidatePool.length) {
@@ -240,7 +251,7 @@ async function generateWithGemini(
       continue;
     }
 
-    const modelName = await selectBestModel(candidatePool);
+    const modelName = model || await selectBestModel(candidatePool);
     logger.info({ model: modelName }, "Using Gemini model");
 
     let response: Response;
@@ -480,14 +491,15 @@ async function generateWithHuggingFace(
 export async function generateText(
   prompt: string,
   maxTokens: number = 150,
-  temperature: number = 0.9
+  temperature: number = 0.9,
+  model?: string
 ): Promise<{ text: string; model: string; provider: string }> {
   const errors: Record<string, string> = {};
 
   // Try Gemini first
   try {
     logger.info("Trying Gemini API...");
-    const result = await generateWithGemini(prompt, maxTokens, temperature);
+    const result = await generateWithGemini(prompt, maxTokens, temperature, model);
     logger.info({ model: result.model }, "Gemini API success");
     return {
       text: result.text,

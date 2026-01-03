@@ -130,6 +130,20 @@ export type CacheConfig = {
 };
 
 // =============================================================================
+// AGENTIC & VIRAL DEFENSE CONFIGURATION
+// =============================================================================
+export type AgenticConfig = {
+  enabled: boolean;
+  budgetCap: number;
+  monthlySoftCap: number;
+};
+
+export type RegistrationConfig = {
+  enabled: boolean;
+  waitlistMode: boolean;
+};
+
+// =============================================================================
 // MASTER SYSTEM CONFIGURATION TYPE
 // =============================================================================
 export type SystemConfig = {
@@ -146,4 +160,6 @@ export type SystemConfig = {
   ai: AIConfig;
   validation: ValidationConfig;
   cache: CacheConfig;
+  agentic: AgenticConfig;
+  registrations: RegistrationConfig;
 };
