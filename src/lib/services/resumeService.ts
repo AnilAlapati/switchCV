@@ -17,7 +17,7 @@ export const fetchResumeBySlug = async (
   slug: string
 ): Promise<ResumeProfile | null> => {
   return deduplicateRequest(`resume:${slug}`, async () => {
-    const cached = resumeCache.get(`resume:${slug}`);
+    const cached = resumeCache.get(`resume:${slug}`) as ResumeProfile | null;
     if (cached) return cached;
 
     const result = await _fetchResumeBySlugInternal(slug);

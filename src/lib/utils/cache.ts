@@ -77,3 +77,5 @@ export async function deduplicateRequest<T>(
 
 // Global instances for common use cases
 export const resumeCache = new InMemoryCache<unknown>(50); // Store up to 50 resumes
+export const userTierCache = new InMemoryCache<string>(100); // Cache user tier info (5 min TTL)
+export const userRoleCache = new InMemoryCache<string>(100); // Cache user role info (5 min TTL)
