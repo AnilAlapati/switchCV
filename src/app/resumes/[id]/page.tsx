@@ -20,6 +20,8 @@ import { PrivacyMenu } from "@/components/resume/PrivacyMenu";
 import { RequestAccessDialog } from "@/components/RequestAccessDialog";
 import { ResumeTemplate } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
+import { useResumeData } from "@/hooks/useResumeData";
+import { ResumeViewSkeleton } from "@/components/resume/ResumeViewSkeleton";
 
 type DeletionCountdownNotice = {
   label: string;
@@ -57,15 +59,10 @@ const formatDuration = (ms: number) => {
 
 export default function ResumeView() {
   const { id } = useParams();
-  const { user, loading: authLoading } = useAuth();
-  const [resume, setResume] = useState<any>(null);
-  const [template, setTemplate] = useState<ResumeTemplate | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
+  const { resume, template, accessBlock, error, loading, mutateResume } = useResumeData(id);
 
   const [isUpdating, setIsUpdating] = useState(false);
-  const [accessBlock, setAccessBlock] =
-    useState<ResumeAccessBlockConfig | null>(null);
   const [toast, setToast] = useState<ResumeToast | null>(null);
   const [showPrivacyMenu, setShowPrivacyMenu] = useState(false);
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
@@ -76,6 +73,7 @@ export default function ResumeView() {
   const viewerIsOwner = Boolean(viewerAccess?.isOwner);
   const isPublicPreview = viewerAccess?.scope === "public-preview";
   const isBeingEdited = Boolean(resume?.isBeingEdited);
+
   const countdownBanner =
     viewerIsOwner && deletionNotice ? (
       <DeletionCountdownBanner notice={deletionNotice} />
@@ -89,8 +87,9 @@ export default function ResumeView() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
+  // Deletion notice logic - depends on resume data
   useEffect(() => {
-    if (!viewerIsOwner) {
+    if (!resume || !viewerIsOwner) {
       setDeletionNotice(null);
       return;
     }
@@ -142,7 +141,9 @@ export default function ResumeView() {
   }, [resume, viewerIsOwner]);
 
   const toggleVisibility = async () => {
-    if (!resume || !user || isUpdating) return;
+    // Determine current ID safely
+    const resumeId = Array.isArray(id) ? id[0] : id;
+    if (!resume || !user || isUpdating || !resumeId) return;
 
     if (!viewerIsOwner) {
       setToast({
@@ -157,7 +158,7 @@ export default function ResumeView() {
 
     try {
       const token = await user.getIdToken();
-      const response = await fetch(`/api/resumes/${id}`, {
+      const response = await fetch(`/api/resumes/${resumeId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -170,23 +171,28 @@ export default function ResumeView() {
         throw new Error("Failed to update visibility");
       }
 
-      setResume((prev: any) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          isPublic: newVisibility,
-          visibility: newVisibility ? "public" : "private",
-          viewerAccess: {
-            ...(prev.viewerAccess ?? {}),
-            scope: "owner",
-            isOwner: true,
-          },
-        };
-      });
-
       const visibilityMessage = newVisibility
         ? "Resume is now public. Recruiters can discover it, but contact details stay masked until you approve access."
         : "Resume is now private. Only you can view this resume.";
+
+      // Update local SWR data immediately
+      mutateResume((current: any) => {
+        if (!current?.resume) return current;
+        return {
+          ...current,
+          resume: {
+            ...current.resume,
+            isPublic: newVisibility,
+            visibility: newVisibility ? "public" : "private",
+            viewerAccess: {
+              ...current.resume.viewerAccess,
+              scope: "owner",
+              isOwner: true,
+            }
+          }
+        };
+      }, { revalidate: false });
+
       setToast({ tone: "success", message: visibilityMessage });
     } catch (error) {
       logger.error({ err: error }, "Error updating visibility:");
@@ -199,111 +205,9 @@ export default function ResumeView() {
     }
   };
 
-  useEffect(() => {
-    const fetchResumeAndTemplate = async () => {
-      if (!id || authLoading) return;
-
-      let handledAccess = false;
-      try {
-        logger.info({ data: id }, "Fetching resume");
-        if (user) {
-          logger.info("User is authenticated, attaching token.");
-        } else {
-          logger.info("User is NOT authenticated.");
-        }
-        setAccessBlock(null);
-        setError(null);
-
-        // Use API route instead of direct Firestore access to bypass client-side rule issues
-        const headers: HeadersInit = {};
-        if (user) {
-          const token = await user.getIdToken();
-          headers["Authorization"] = `Bearer ${token}`;
-        }
-
-        const response = await fetch(`/api/resumes/${id}`, {
-          headers,
-        });
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            handledAccess = true;
-            setAccessBlock({
-              title: "This resume is private",
-              description:
-                "The owner has restricted access. Sign in or create an account to view the full resume or request access.",
-              primaryAction: {
-                label: "Sign in to SwitchCV",
-                href: `/auth?redirect=/resumes/${id}`,
-              },
-            });
-            setResume(null);
-            setTemplate(null);
-            return;
-          }
-
-          if (response.status === 403) {
-            const errorData = await response.json();
-            if (errorData.error === "Reserved System ID") {
-              throw new Error(errorData.message);
-            }
-            handledAccess = true;
-            setAccessBlock({
-              title: "You do not have permission to view this resume",
-              description:
-                "Ask the owner to share access or request the details you need from your dashboard.",
-              primaryAction: {
-                label: "Go back to Dashboard",
-                href: "/dashboard",
-              },
-            });
-            setResume(null);
-            setTemplate(null);
-            return;
-          }
-
-          if (response.status === 404) {
-            throw new Error("Resume not found");
-          }
-
-          throw new Error("Failed to fetch resume");
-        }
-
-        const resumeData = await response.json();
-        setResume(resumeData);
-
-        // Fetch template if ID exists, otherwise default to masonry
-        const templateId = resumeData.templateId || "masonry-v1";
-        const fetchedTemplate = await templateService.getTemplateById(
-          templateId
-        );
-        setTemplate(fetchedTemplate);
-      } catch (error: any) {
-        logger.error({ err: error }, "Error fetching resume:");
-        if (!handledAccess) {
-          setError(error.message || "Error loading resume");
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchResumeAndTemplate();
-  }, [id, authLoading, user]);
-
-  if (authLoading)
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
-        Checking authentication...
-      </div>
-    );
-
-  if (loading)
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
-        Loading resume...
-      </div>
-    );
+  if (loading && !resume && !accessBlock && !error) {
+    return <ResumeViewSkeleton />;
+  }
 
   if (accessBlock) {
     return <ResumeAccessBlock config={accessBlock} />;
@@ -318,12 +222,13 @@ export default function ResumeView() {
     );
   }
 
-  if (!resume)
+  if (!resume) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
         Resume not found
       </div>
     );
+  }
 
   // Use the new TemplateRenderer if a template is loaded
   if (template) {
@@ -354,7 +259,7 @@ export default function ResumeView() {
           isOpen={requestDialogOpen}
           onClose={() => setRequestDialogOpen(false)}
           profileName={resume.personalInfo?.name || resume.title || "Candidate"}
-          profileId={id as string}
+          profileId={Array.isArray(id) ? id[0] : id as string}
           onSuccess={() => {
             setToast({
               tone: "success",

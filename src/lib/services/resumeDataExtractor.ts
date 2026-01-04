@@ -14,6 +14,14 @@ import {
   EducationEntry,
 } from "./conversationManager";
 
+// Helper for title casing names
+const toTitleCase = (str: string) => {
+  return str.replace(
+    /\w\S*/g,
+    (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
+  );
+};
+
 export interface ExtractionResult {
   /** Successfully extracted data */
   data: Partial<ResumeDataRequirements>;
@@ -186,17 +194,21 @@ export class ResumeDataExtractor {
     const fullText = history ? `${history}\n${trimmedText}` : trimmedText;
 
     // Extract name
+    // Extract name - Case insensitive and auto-capitalized
+    // Extract name - Case insensitive and auto-capitalized
+    // Prevent capturing "and", "with", "but" as part of the name using negative lookahead
     const namePatterns = [
-      /(?:[Mm]y name is|[Ii]'m|[Ii] am|[Cc]all me)\s+([A-Z][a-z]+(?:\s+(?:[A-Z][a-z]+|[A-Z]\.?)){0,3})(?=\s|$|[.,])/,
-      /[Nn]ame:\s*([A-Z][a-z]+(?:\s+(?:[A-Z][a-z]+|[A-Z]\.?)){0,3})(?=\s|$|[.,])/,
-      // Fallback for just the name if it looks like a name (2-3 capitalized words or initials)
-      /^([A-Z][a-z]+(?:\s+(?:[A-Z][a-z]+|[A-Z]\.?)){1,3})$/,
+      /(?:[Mm]y name is|[Ii]'m|[Ii] am|[Cc]all me)\s+([a-zA-Z]+(?:\s+(?!and\b|with\b|but\b)[a-zA-Z]+|[a-zA-Z]\.?){0,3})(?=\s|$|[.,])/i,
+      /[Nn]ame:\s*([a-zA-Z]+(?:\s+(?!and\b|with\b|but\b)[a-zA-Z]+|[a-zA-Z]\.?){0,3})(?=\s|$|[.,])/i,
+      // Fallback: 2-3 words that look like a name. Stricter than above to avoid false positives.
+      /^([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})$/,
     ];
 
     for (const pattern of namePatterns) {
       const match = trimmedText.match(pattern) || fullText.match(pattern);
       if (match && match[1]) {
-        data.name = match[1].trim();
+        // Fix capitalization
+        data.name = toTitleCase(match[1].trim());
         break;
       }
     }
@@ -209,23 +221,31 @@ export class ResumeDataExtractor {
     }
 
     // Extract phone
+    // Extract phone - Support international formats
+    // Allow +Prefix, spaces, dots, dashes. Min 7 digits, Max 15.
     const phoneRegex =
-      /\b(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})\b/;
+      /(?:\+?\d{1,4}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}/;
     const phoneMatch = fullText.match(phoneRegex);
     if (phoneMatch) {
-      data.phone = phoneMatch[0];
+      // Validate length to avoid picking up years like "2020-2021"
+      const digits = phoneMatch[0].replace(/\D/g, "");
+      if (digits.length >= 7 && digits.length <= 15) {
+        data.phone = phoneMatch[0].trim();
+      }
     }
 
-    // Extract location (city, state)
+    // Extract location (city, state/country) - Supports international
     const locationPatterns = [
-      /(?:located in|based in|live in)\s+([a-z]+(?: [a-z]+)?(?:,?\s+[a-z]{2})?)/i,
-      /location:\s*([a-z]+(?: [a-z]+)?(?:,?\s+[a-z]{2})?)/i,
-      // "from" requires strict City, State format to avoid "from University"
-      /from\s+([a-z]+(?: [a-z]+)?,\s*[a-z]{2})/i,
-      // City, State format (e.g. New York, NY) - relaxed case
-      /([a-z]+(?: [a-z]+)?,\s*([a-z]{2}))/i,
+      /(?:located in|based in|live in)\s+([a-zA-Z]+(?: [a-zA-Z]+)?(?:,?\s+[a-zA-Z]+(?:\s+[a-zA-Z]+)?))/i,
+      /location:\s*([a-zA-Z]+(?: [a-zA-Z]+)?(?:,?\s+[a-zA-Z]+(?:\s+[a-zA-Z]+)?))/i,
+      // "from" requires strict City, State/Country
+      /from\s+([a-zA-Z]+(?: [a-zA-Z]+)?,\s*[a-zA-Z]+(?:\s+[a-zA-Z]+)?)/i,
+      // City, State/Country format (generic)
+      /([a-zA-Z]+(?: [a-zA-Z]+)?,\s*([a-zA-Z]{2,}))/i,
     ];
 
+    // Removed strict US State code check to support international locations
+    // We still do validation below but less strict
     const US_STATE_CODES = new Set([
       "AL",
       "AK",
@@ -283,13 +303,11 @@ export class ResumeDataExtractor {
     for (const pattern of locationPatterns) {
       const match = fullText.match(pattern);
       if (match) {
-        // For the last pattern (generic City, State), validate the state code
-        if (pattern.source.includes("([a-z]{2}))")) {
-          const stateCode = match[2].toUpperCase();
-          if (US_STATE_CODES.has(stateCode)) {
-            data.location = match[1].trim();
-            break;
-          }
+        // For the last pattern (generic City, Region), just ensure the region is 2+ chars
+        if (pattern.source.includes("([a-zA-Z]{2,}))")) {
+          // We accept it if it looks like City, Region
+          data.location = match[1].trim();
+          break;
         } else if (match[1]) {
           data.location = match[1].trim();
           break;
@@ -297,12 +315,28 @@ export class ResumeDataExtractor {
       }
     }
 
+    // Extract Summary - NEW
+    const summaryPatterns = [
+      /(?:summary|professional summary|objective|about me):\s*(.+)(?:\n|$)/i,
+      /^Summary:\s*(.+)/m,
+    ];
+
+    for (const pattern of summaryPatterns) {
+      const match = fullText.match(pattern);
+      if (match && match[1]) {
+        data.summary = match[1].trim();
+        break;
+      }
+    }
+
     // Extract skills (comma or bullet separated lists)
+    // Updated to allow dots in skill names (e.g. Node.js, .NET) but stop at newline
     const skillsPatterns = [
-      /skills?:\s*([^.\n]+(?:,\s*[^.\n]+)*)/i,
-      /proficient in:\s*([^.\n]+(?:,\s*[^.\n]+)*)/i,
-      /technologies?:\s*([^.\n]+(?:,\s*[^.\n]+)*)/i,
-      /(?:I know|I use|experience with)\s+([^.\n]+(?:,\s*[^.\n]+)*)/i,
+      /skills?:\s*([^\n]+)/i,
+      // Support "proficient in" with or without colon
+      /(?:proficient|skilled|experienced|competent)\s+(?:in|with)(?::|)\s+([^\n]+)/i,
+      /technologies?:\s*([^\n]+)/i,
+      /(?:I know|I use|experience with)\s+([^\n]+)/i,
     ];
 
     // 1. Try explicit patterns first
@@ -311,7 +345,7 @@ export class ResumeDataExtractor {
       if (match && match[1]) {
         const skillsList = match[1]
           .split(/,|;|\n|\s+and\s+/)
-          .map((s) => s.trim())
+          .map((s) => s.trim().replace(/\.$/, "")) // Remove trailing dot
           .filter((s) => s.length > 0 && s.length < 50);
 
         if (skillsList.length > 0) {
@@ -345,6 +379,38 @@ export class ResumeDataExtractor {
         "Agile",
         "Scrum",
         "JavaScript",
+        "Svelte",
+        "Vue",
+        "Nuxt",
+        "Next.js",
+        "Tailwind",
+        "Bootstrap",
+        "Sass",
+        "Less",
+        "GraphQL",
+        "MongoDB",
+        "PostgreSQL",
+        "Firebase",
+        "Supabase",
+        "Flutter",
+        "React Native",
+        "Swift",
+        "Kotlin",
+        "PHP",
+        "Ruby",
+        "Rails",
+        "Laravel",
+        "Django",
+        "Flask",
+        "FastAPI",
+        "Spring",
+        ".NET",
+        "Azure",
+        "GCP",
+        "Linux",
+        "Bash",
+        "Redis",
+        "Elasticsearch",
       ];
       const lines = fullText.split("\n");
       const foundSkills: string[] = [];
@@ -356,8 +422,11 @@ export class ResumeDataExtractor {
         );
         if (keywordsInLine.length >= 1) {
           // Split by comma or space if no commas
+          // Also handle "and" as a separator to fix "andNext.js" issues
           const hasComma = line.includes(",");
-          const parts = hasComma ? line.split(/,|;/) : line.split(/\s+/);
+          const parts = hasComma
+            ? line.split(/,|;|\s+and\s+/)
+            : line.split(/\s+and\s+|\s+/);
 
           parts.forEach((p) => {
             const clean = p.trim().replace(/[^a-zA-Z0-9+#.]/g, ""); // Clean punctuation
@@ -389,6 +458,12 @@ export class ResumeDataExtractor {
       "worked as",
       "work as",
       "current role",
+      "currently working",
+      "i'm a",
+      "i am a",
+      "i'm working",
+      "i am working",
+      "working as",
       "senior software engineer", // Common job titles as keywords
       "software engineer",
       "developer",
@@ -399,27 +474,63 @@ export class ResumeDataExtractor {
       fullText.toLowerCase().includes(kw)
     );
 
-    if (hasExperience || /@/.test(fullText)) {
+    // Context-aware Experience Section Extraction
+    // Look for headers like "Professional Experience" followed by content
+    const experienceSectionRegex =
+      /(?:Professional Experience|Work History|Experience|Employment History)(?::|)\s*([\s\S]+?)(?=(?:\n\s*(?:Education|Skills|Projects|Reference)|$))/i;
+    const sectionMatch = fullText.match(experienceSectionRegex);
+
+    // If we find a section, prioritize extracting from it
+    const textToSearch = sectionMatch ? sectionMatch[1] : fullText;
+
+    if (hasExperience || /@/.test(textToSearch) || sectionMatch) {
       // @ often used for "Title @ Company"
       // Extract company and title
       const expPatterns = [
+        // Bullet point format: "- Title at Company" or "- Title | Company"
+        // Group 1: Title, Group 2: Company
+        /(?:^|\n)\s*[-•]\s*([A-Za-z0-9\s]+?)\s+(?:at|\||@)\s+([A-Za-z0-9\s]+)(?=\n|$)/,
+
+        // Standard "Title at Company"
+        // Group 1: Title, Group 2: Company
         /(?:worked|work|employed|position|job|role)\s+(?:as|at)\s+((?:(?! at ).)+)(?:\s+at\s+([^,.\n]+))?/i,
+
         // "Title @ Company"
+        // Group 1: Title, Group 2: Company
         /([A-Za-z\s]+)\s+@\s+([A-Za-z\s]+)/,
+
         // "I spent X years at Company"
+        // Group 1: Company
         /(?:spent|worked)\s+(?:.*?)\s+at\s+([A-Za-z\s]+)/i,
+
+        // Block format in section: "Title [newline] Company"
+        // Group 1: Title, Group 2: Company
+        // Prevent capturing "Professional Experience" itself by ensuring Title doesn't look like a header
+        /(?:^|\n)(?!Professional Experience|Work History|Experience)([A-Z][a-zA-Z0-9\s]+?)\s*\n\s*(?:at\s+)?([A-Z][a-zA-Z0-9\s]+?)(?=\s*\n|\s+\d{4})/,
+
+        // Single line "Title at Company" within a section (fallback if bullets miss it)
+        // Group 1: Title, Group 2: Company
+        /(?:^|\n)([A-Za-z0-9\s]+?)\s+(?:at|@)\s+([A-Za-z0-9\s]+?)(?=\s*\n|$)/,
       ];
 
       for (const pattern of expPatterns) {
-        const expMatch = fullText.match(pattern);
+        const expMatch = textToSearch.match(pattern);
         if (expMatch) {
+          let title = "Professional";
+          let company = "Company";
+
+          if (pattern.source.includes("spent")) {
+            // For "spent ... at", group 1 is company
+            company = expMatch[1].trim();
+          } else {
+            // Standard: 1=Title, 2=Company
+            title = expMatch[1]?.trim() || "Professional";
+            company = expMatch[2]?.trim() || "Company";
+          }
+
           const experience: ExperienceEntry = {
-            title: expMatch[1]?.trim() || "Professional",
-            company:
-              expMatch[2]?.trim() ||
-              (pattern.source.includes("spent")
-                ? expMatch[1].trim()
-                : "Company"),
+            title,
+            company,
             duration: "Present",
             description: "Contributed to various projects and initiatives",
           };
@@ -435,6 +546,11 @@ export class ResumeDataExtractor {
       "degree",
       "graduated",
       "studied at",
+      "went to",
+      "attending",
+      "enrolled at",
+      "i'm at",
+      "i am at",
       "university",
       "college",
       "bachelor",

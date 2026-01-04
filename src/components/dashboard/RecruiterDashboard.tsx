@@ -10,6 +10,7 @@ import { AvailableResumesCard } from "@/components/dashboard/recruiter/Available
 import { AccessRequestsCard } from "@/components/dashboard/recruiter/AccessRequestsCard";
 import { CandidatesInteractedCard } from "@/components/dashboard/recruiter/CandidatesInteractedCard";
 import { ResumeList } from "@/components/dashboard/ResumeList";
+import { RecruiterDashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { ENABLE_SEEDING_AND_DEBUG_LISTS } from "@/lib/config";
 import {
   buildRecruiterActionPlan,
@@ -19,7 +20,6 @@ import {
   pipelineLabel,
 } from "@/lib/dashboard/recruiterInsights";
 import { PremiumFeatureLock } from "@/components/ui/PremiumFeatureLock";
-import { useUserProfile } from "@/hooks/useUserProfile";
 import { TIER_RESTRICTION_MESSAGES } from "@/lib/utils/tier-restrictions";
 import type { RecruiterMetrics } from "@/types/dashboard";
 
@@ -95,6 +95,11 @@ export function RecruiterDashboard({
       onLaunchSearch();
     }
   };
+
+  // Show skeleton while initial data is loading
+  if (metricsLoading && !metrics) {
+    return <RecruiterDashboardSkeleton />;
+  }
 
   return (
     <div className="space-y-8">

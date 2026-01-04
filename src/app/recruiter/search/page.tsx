@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   SearchInterface,
   RecruiterSearchFilters,
@@ -17,24 +17,38 @@ type SearchMode = "ai" | "basic";
 
 const VERIFICATION_ROUTE = getVerificationRoute();
 
+import { useRecruiterSearch } from "@/hooks/useRecruiterSearch";
+
 export default function RecruiterSearchPage() {
   const { user, loading: authLoading, needsEmailVerification } = useAuth();
   const { role, tier, loading: profileLoading } = useUserProfile();
   const router = useRouter();
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  const [activeFilters, setActiveFilters] =
+    useState<RecruiterSearchFilters | null>(null);
+  // Use SWR hook for search results
+  const {
+    results,
+    loading: searchLoading,
+    error: searchError,
+  } = useRecruiterSearch(activeFilters);
+
+  // Initialize search mode based on tier
   const [searchMode, setSearchMode] = useState<SearchMode>("basic");
   const [hasInitializedMode, setHasInitializedMode] = useState(false);
+
+  // Combine error sources
+  const error = searchError;
 
   const loading = authLoading || profileLoading;
   const isBasicTier = tier === "basic";
 
-  useEffect(() => {
+  // Initialize search mode when tier is available (avoiding setState in effect)
+  React.useEffect(() => {
     if (!loading && tier && !hasInitializedMode) {
-      if (tier !== "basic") {
-        setSearchMode("ai");
-      }
+      // Only set mode once during initialization
+      const initialMode = tier !== "basic" ? "ai" : "basic";
+      setSearchMode(initialMode);
       setHasInitializedMode(true);
     }
   }, [loading, tier, hasInitializedMode]);
@@ -74,50 +88,8 @@ export default function RecruiterSearchPage() {
   }
 
   const handleSearch = async (filters: RecruiterSearchFilters) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      // Build query string from filters
-      const params = new URLSearchParams();
-
-      if (filters.query) {
-        params.append("q", filters.query);
-      }
-      if (filters.location) {
-        params.append("location", filters.location);
-      }
-      if (filters.skills && filters.skills.length > 0) {
-        params.append("skills", filters.skills.join(","));
-      }
-      if (filters.targetRole) {
-        params.append("targetRole", filters.targetRole);
-      }
-      if (filters.sortBy) {
-        params.append("sortBy", filters.sortBy);
-      }
-
-      const response = await fetch(
-        `/api/recruiter/search?${params.toString()}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Search failed");
-      }
-
-      const data = await response.json();
-      setResults(data.results || []);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setIsLoading(false);
-    }
+    setActiveFilters(filters);
+    // State update triggers re-render -> hook runs -> data fetched
   };
 
   return (
@@ -136,12 +108,13 @@ export default function RecruiterSearchPage() {
           <button
             onClick={() => !isBasicTier && setSearchMode("ai")}
             disabled={isBasicTier}
-            className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${isBasicTier
-              ? "glass-panel opacity-50 cursor-not-allowed text-[#1A2F25]/40"
-              : searchMode === "ai"
+            className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+              isBasicTier
+                ? "glass-panel opacity-50 cursor-not-allowed text-[#1A2F25]/40"
+                : searchMode === "ai"
                 ? "bg-gradient-to-r from-[#2C4A3B] to-emerald-600 text-white shadow-lg"
                 : "glass-panel hover:bg-white/60 text-[#1A2F25]/70 hover:text-[#1A2F25]"
-              }`}
+            }`}
           >
             <span>✨</span>
             AI Search
@@ -151,10 +124,11 @@ export default function RecruiterSearchPage() {
           </button>
           <button
             onClick={() => setSearchMode("basic")}
-            className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${searchMode === "basic"
-              ? "bg-[#2C4A3B] text-white shadow-lg"
-              : "glass-panel hover:bg-white/60 text-[#1A2F25]/70 hover:text-[#1A2F25]"
-              }`}
+            className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+              searchMode === "basic"
+                ? "bg-[#2C4A3B] text-white shadow-lg"
+                : "glass-panel hover:bg-white/60 text-[#1A2F25]/70 hover:text-[#1A2F25]"
+            }`}
           >
             <span>🔍</span>
             Basic Search
@@ -201,7 +175,7 @@ export default function RecruiterSearchPage() {
           <SearchInterface
             onSearch={handleSearch}
             results={results}
-            isLoading={isLoading}
+            isLoading={searchLoading}
             error={error}
           />
         )}

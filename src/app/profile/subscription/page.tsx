@@ -9,6 +9,7 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { WillingnessToPaySurvey } from "@/components/subscription/WillingnessToPaySurvey";
+import { SubscriptionSkeleton } from "@/components/subscription/SubscriptionSkeleton";
 
 function SparklesIcon({ className }: { className?: string }) {
   return (
@@ -37,12 +38,10 @@ export default function SubscriptionPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <BackgroundBlobs />
-        <div className="relative z-10">
-          <div className="h-16 w-16 rounded-full border-t-2 border-b-2 border-[#2C4A3B] animate-spin"></div>
-        </div>
-      </div>
+      <DashboardBackground>
+        <DashboardHeader userEmail={user?.email} onLogout={() => { }} />
+        <SubscriptionSkeleton />
+      </DashboardBackground>
     );
   }
 

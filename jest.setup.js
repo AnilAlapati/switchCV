@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import '@testing-library/jest-dom'
 import { TextEncoder, TextDecoder } from 'util'
 

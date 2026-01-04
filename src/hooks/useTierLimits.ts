@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import useSWR from "swr";
 import { SubscriptionTier } from "@/lib/config";
 
 interface TierLimits {
@@ -21,95 +21,77 @@ interface UseTierLimitsResult {
   refetch: () => Promise<void>;
 }
 
-/**
- * Hook to get tier limits and configuration for subscription display.
- *
- * Fetches dynamic tier configuration from Firebase via API.
- */
+const defaultLimits: Record<SubscriptionTier, TierLimits> = {
+  basic: {
+    resumeCreationLimit: 1,
+    resumeEditingAllowed: false,
+    resumeRetentionDays: 7,
+    recruiterSearchLimit: 2,
+    recruiterContactLimit: { amount: 2, interval: "lifetime" },
+  },
+  premium: {
+    resumeCreationLimit: 50,
+    resumeEditingAllowed: true,
+    resumeRetentionDays: null,
+    recruiterSearchLimit: 9999,
+    recruiterContactLimit: { amount: 50, interval: "month" },
+  },
+  enterprise: {
+    resumeCreationLimit: 9999,
+    resumeEditingAllowed: true,
+    resumeRetentionDays: null,
+    recruiterSearchLimit: 9999,
+    recruiterContactLimit: { amount: 9999, interval: "month" },
+  },
+};
+
+const fetcher = async (url: string) => {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch tier limits: ${response.status}`);
+  }
+  return response.json();
+};
+
 export function useTierLimits(): UseTierLimitsResult {
-  const [limits, setLimits] = useState<Record<SubscriptionTier, TierLimits>>({
-    basic: {
-      resumeCreationLimit: 1,
-      resumeEditingAllowed: false,
-      resumeRetentionDays: 7,
-      recruiterSearchLimit: 2,
-      recruiterContactLimit: { amount: 2, interval: "lifetime" },
-    },
-    premium: {
-      resumeCreationLimit: 50,
-      resumeEditingAllowed: true,
-      resumeRetentionDays: null,
-      recruiterSearchLimit: 9999,
-      recruiterContactLimit: { amount: 50, interval: "month" },
-    },
-    enterprise: {
-      resumeCreationLimit: 9999,
-      resumeEditingAllowed: true,
-      resumeRetentionDays: null,
-      recruiterSearchLimit: 9999,
-      recruiterContactLimit: { amount: 9999, interval: "month" },
-    },
+  const { data, error, isLoading, mutate } = useSWR("/api/system-config", fetcher, {
+    dedupingInterval: 300000, // 5 minutes
+    revalidateOnFocus: false,
   });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const fetchLimits = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  let limits = defaultLimits;
 
-      // Fetch tier configuration from API
-      const response = await fetch("/api/system-config");
-      if (!response.ok) {
-        throw new Error(`Failed to fetch tier limits: ${response.status}`);
-      }
-
-      const { config } = await response.json();
-      const tierConfig = config.tiers;
-
-      // Transform the data to match our interface
-      const transformedLimits: Record<SubscriptionTier, TierLimits> = {
-        basic: {
-          resumeCreationLimit: tierConfig.basic.resumeLimit,
-          resumeEditingAllowed: tierConfig.basic.canEdit,
-          resumeRetentionDays: 7, // Static for now
-          recruiterSearchLimit: 2, // Static for now
-          recruiterContactLimit: { amount: 2, interval: "lifetime" }, // Static for now
-        },
-        premium: {
-          resumeCreationLimit: tierConfig.premium.resumeLimit,
-          resumeEditingAllowed: tierConfig.premium.canEdit,
-          resumeRetentionDays: null,
-          recruiterSearchLimit: 9999,
-          recruiterContactLimit: { amount: 50, interval: "month" },
-        },
-        enterprise: {
-          resumeCreationLimit: tierConfig.enterprise.resumeLimit,
-          resumeEditingAllowed: tierConfig.enterprise.canEdit,
-          resumeRetentionDays: null,
-          recruiterSearchLimit: 9999,
-          recruiterContactLimit: { amount: 9999, interval: "month" },
-        },
-      };
-
-      setLimits(transformedLimits);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to fetch tier limits"
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchLimits();
-  }, []);
+  if (data?.config?.tiers) {
+    const tierConfig = data.config.tiers;
+    limits = {
+      basic: {
+        resumeCreationLimit: tierConfig.basic.resumeLimit,
+        resumeEditingAllowed: tierConfig.basic.canEdit,
+        resumeRetentionDays: 7,
+        recruiterSearchLimit: 2,
+        recruiterContactLimit: { amount: 2, interval: "lifetime" },
+      },
+      premium: {
+        resumeCreationLimit: tierConfig.premium.resumeLimit,
+        resumeEditingAllowed: tierConfig.premium.canEdit,
+        resumeRetentionDays: null,
+        recruiterSearchLimit: 9999,
+        recruiterContactLimit: { amount: 50, interval: "month" },
+      },
+      enterprise: {
+        resumeCreationLimit: tierConfig.enterprise.resumeLimit,
+        resumeEditingAllowed: tierConfig.enterprise.canEdit,
+        resumeRetentionDays: null,
+        recruiterSearchLimit: 9999,
+        recruiterContactLimit: { amount: 9999, interval: "month" },
+      },
+    };
+  }
 
   return {
     limits,
-    loading,
-    error,
-    refetch: fetchLimits,
+    loading: isLoading,
+    error: error ? (error instanceof Error ? error.message : "Failed to fetch tier limits") : null,
+    refetch: async () => { await mutate(); },
   };
 }

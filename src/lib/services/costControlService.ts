@@ -1,5 +1,6 @@
 import { adminDb } from "@/lib/firebase-admin";
 import * as admin from "firebase-admin";
+import { logger } from "@/lib/logger";
 
 const NUM_SHARDS = 10;
 const SHARD_COLLECTION = "system/billing/shards";
@@ -10,21 +11,49 @@ const AGGREGATE_DOC = "system/billing";
  *
  * @param cost The cost in USD to track.
  */
-export async function trackCost(cost: number): Promise<void> {
+export async function trackCost(
+  userId: string,
+  cost: number,
+  operation: string = "agentic_workflow"
+): Promise<void> {
   const shardId = Math.floor(Math.random() * NUM_SHARDS);
   const shardRef = adminDb.doc(`${SHARD_COLLECTION}/${shardId}`);
 
   try {
-    await shardRef.set(
+    const batch = adminDb.batch();
+
+    // 1. Sharded System Cost
+    batch.set(
+      shardRef,
       {
         monthCost: admin.firestore.FieldValue.increment(cost),
         lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
       },
       { merge: true }
     );
-  } catch (error) {
+
+    // 2. User Cost (Direct update, assumed lower contention per user)
+    const userBillingRef = adminDb
+      .collection("users")
+      .doc(userId)
+      .collection("billing")
+      .doc("current_month");
+
+    batch.set(
+      userBillingRef,
+      {
+        totalCost: admin.firestore.FieldValue.increment(cost),
+        [`usage.${operation}`]: admin.firestore.FieldValue.increment(1),
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    await batch.commit();
+  } catch (err) {
     // Don't throw, we don't want to fail the user request just because billing tracking failed
-    // Logging is handled by Cloud Functions error reporting
+    // Use logger for proper error tracking
+    logger.error({ err, userId, cost, operation }, "Billing tracking failed");
   }
 }
 
@@ -47,7 +76,7 @@ export async function checkBudget(cap: number): Promise<boolean> {
     const totalCost = data?.totalCost || 0;
 
     return totalCost < cap;
-  } catch (error) {
+  } catch {
     // Fail safe: If we can't check budget, we should probably be conservative.
     // However, to avoid blocking legitimate usage on transient errors,
     // we allow the request but rely on Cloud Functions error reporting and alerting.

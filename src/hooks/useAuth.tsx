@@ -18,8 +18,6 @@ import {
   signOut,
   GoogleAuthProvider,
   signInWithPopup,
-  sendEmailVerification,
-  type ActionCodeSettings,
 } from "firebase/auth";
 import { auth, db, functions } from "@/lib/firebase";
 import { httpsCallable } from "firebase/functions";
@@ -37,7 +35,6 @@ import {
   getSignUpErrorMessage,
   getGoogleSignInErrorMessage,
 } from "./useAuth.errors";
-import { getVerificationUrl } from "@/lib/config.client";
 import { logger } from "@/lib/logger";
 
 const googleProvider =
@@ -45,35 +42,6 @@ const googleProvider =
 if (googleProvider) {
   googleProvider.setCustomParameters({ prompt: "select_account" });
 }
-
-const getActionCodeSettings = (): ActionCodeSettings => {
-  const origin =
-    typeof window !== "undefined" ? window.location.origin : undefined;
-
-  if (origin && /^(http:\/\/)?(localhost|127\.0\.0\.1)/.test(origin)) {
-    if (!process.env.NEXT_PUBLIC_AUTH_VERIFICATION_URL) {
-      logger.warn(
-        {
-          source: "useAuth.getActionCodeSettings",
-        },
-        "NEXT_PUBLIC_AUTH_VERIFICATION_URL not set; using origin fallback for localhost"
-      );
-    }
-  }
-
-  const verificationUrl = getVerificationUrl(origin);
-
-  if (!verificationUrl) {
-    throw new Error(
-      "Unable to resolve verification URL. Configure NEXT_PUBLIC_AUTH_VERIFICATION_URL or NEXT_PUBLIC_BASE_URL."
-    );
-  }
-
-  return {
-    url: verificationUrl,
-    handleCodeInApp: true,
-  };
-};
 
 interface AuthContextType {
   user: User | null;

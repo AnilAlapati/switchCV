@@ -14,14 +14,18 @@ export async function POST(request: NextRequest) {
     const { email } = body;
 
     if (!email || typeof email !== "string") {
-      return NextResponse.json({ error: "Email is required" }, { status: 400 });
+      return handleApiError(
+        new Error("Email is required"),
+        "Email is required",
+        400
+      );
     }
 
     // Check if user exists
     let user;
     try {
       user = await adminAuth.getUserByEmail(email);
-    } catch (error: any) {
+    } catch {
       // For security, don't reveal if email exists or not
       // Return success even if user doesn't exist
       return NextResponse.json({

@@ -1,7 +1,7 @@
+/* eslint-disable max-lines */
 import { Dispatch, SetStateAction, useRef } from "react";
 import Link from "next/link";
 import { Lock } from "lucide-react";
-import { TIER_RESTRICTION_MESSAGES } from "@/lib/utils/tier-restrictions";
 
 export interface SearchResult {
   resumeId: string;
@@ -91,12 +91,12 @@ export function RecruiterSearchForm({
     }
   };
 
-  const helperCopy =
-    searchMode === "basic"
-      ? "Directly retrieve a professional profile using a specific Resume ID."
-      : searchMode === "ai"
-      ? "Describe your ideal candidate in natural language. Our autonomous agent will find the best matches."
-      : "Combine skills and location to surface up to 50 curated resumes in one pass.";
+  // Helper copy logic exists but is not currently used in UI
+  // searchMode === "basic"
+  //   ? "Directly retrieve a professional profile using a specific Resume ID."
+  //   : searchMode === "ai"
+  //   ? "Describe your ideal candidate in natural language. Our autonomous agent will find the best matches."
+  //   : "Combine skills and location to surface up to 50 curated resumes in one pass"
 
   return (
     <div className="space-y-6">

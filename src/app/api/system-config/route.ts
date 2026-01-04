@@ -32,6 +32,10 @@ export async function GET() {
     return NextResponse.json({
       config,
       fetchedAt: new Date().toISOString(),
+    }, {
+      headers: {
+        'Cache-Control': 'public, max-age=300, stale-while-revalidate=600',
+      },
     });
   } catch (error) {
     return handleApiError(error, "Unable to fetch system configuration");

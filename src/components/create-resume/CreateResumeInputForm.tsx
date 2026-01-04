@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState } from "react";
-import { Send, Sparkles, Command, Zap, Brain } from "lucide-react";
+import { Send, Sparkles, Command } from "lucide-react";
 
 interface CreateResumeInputFormProps {
   currentInput: string;

@@ -46,7 +46,7 @@ export function WillingnessToPaySurvey() {
         // Show survey after a small delay for better UX
         const timer = setTimeout(() => setIsVisible(true), 1000);
         return () => clearTimeout(timer);
-      } catch (error) {
+      } catch {
         // Silently fail - survey visibility is non-critical
       }
     }
@@ -79,7 +79,7 @@ export function WillingnessToPaySurvey() {
       localStorage.removeItem(STORAGE_KEY);
 
       setIsVisible(false);
-    } catch (error) {
+    } catch {
       // Silently fail - survey response is non-critical
     } finally {
       setIsSubmitting(false);

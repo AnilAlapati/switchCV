@@ -76,14 +76,10 @@ export async function POST(request: NextRequest) {
           { userId, resumeCount },
           "⛔ Basic user attempted to create 2nd resume"
         );
-        return NextResponse.json(
-          {
-            response:
-              "You have reached the limit of 1 resume for the Basic plan. Please upgrade to Premium to create more resumes.",
-            model: "system",
-            error: "LIMIT_REACHED",
-          },
-          { status: 403 }
+        return handleApiError(
+          new Error("Resume limit reached"),
+          "You have reached the limit of 1 resume for the Basic plan. Please upgrade to Premium to create more resumes.",
+          403
         );
       }
     }

@@ -1,75 +1,45 @@
-import { logger } from "@/lib/logger";
-import { useEffect, useState } from "react";
-import { db } from "@/lib/firebase";
-import { collection, query, onSnapshot, orderBy } from "firebase/firestore";
-import type { AccessRequest, AccessGrant } from "@/types/profileSearch";
+"use client";
+
+import useSWR from "swr";
 import { useAuth } from "@/hooks/useAuth";
+import { DashboardAccessRequest } from "@/app/dashboard/access-requests/types";
+
+// Defining fetcher
+const fetcher = async (url: string, token: string) => {
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    // If 401/403, might handle globally, but throw basic error here
+    throw new Error(`Failed to fetch requests: ${res.status}`);
+  }
+  return res.json();
+};
 
 export function useAccessRequests() {
-  const { user, loading: authLoading } = useAuth();
-  const [pendingRequests, setPendingRequests] = useState<AccessRequest[]>([]);
-  const [activeGrants, setActiveGrants] = useState<AccessGrant[]>([]);
-  const [deniedRequests, setDeniedRequests] = useState<AccessRequest[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
-  useEffect(() => {
-    if (!user || authLoading) return;
+  const key = user
+    ? [`/api/jobseeker/access-requests?userId=${user.uid}`, user]
+    : null;
 
-    try {
-      const requestsRef = collection(db, "resumes", user.uid, "accessRequests");
-      const q = query(requestsRef, orderBy("timestamp", "desc"));
-
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const docs = snapshot.docs.map(
-          (doc) =>
-            ({
-              requestId: doc.id,
-              ...doc.data(),
-              timestamp: doc.data().timestamp?.toDate(),
-            } as AccessRequest)
-        );
-
-        setPendingRequests(docs.filter((r) => r.status === "pending"));
-        setDeniedRequests(docs.filter((r) => r.status === "denied"));
-        setLoading(false);
-      });
-
-      return () => unsubscribe();
-    } catch (err) {
-      logger.error({ err: err }, "Error setting up requests listener:");
-      // Avoid synchronous state update in effect
-      setTimeout(() => setLoading(false), 0);
+  const { data, error, isLoading, mutate } = useSWR(
+    key,
+    ([url, u]: [string, any]) => u.getIdToken().then((token: string) => fetcher(url, token)),
+    {
+      dedupingInterval: 60000, // 1 minute cache
+      revalidateOnFocus: true, // Revalidate when returning to tab
     }
-  }, [user, authLoading]);
+  );
 
-  useEffect(() => {
-    if (!user || authLoading) return;
-
-    try {
-      const grantsRef = collection(db, "resumes", user.uid, "accessGrants");
-      const q = query(grantsRef, orderBy("grantedAt", "desc"));
-
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const docs = snapshot.docs.map(
-          (doc) =>
-            ({
-              grantId: doc.id,
-              ...doc.data(),
-              grantedAt: doc.data().grantedAt?.toDate(),
-              expiresAt: doc.data().expiresAt?.toDate(),
-            } as AccessGrant)
-        );
-
-        const now = new Date();
-        const active = docs.filter((g) => !g.expiresAt || g.expiresAt > now);
-        setActiveGrants(active);
-      });
-
-      return () => unsubscribe();
-    } catch (err) {
-      logger.error({ err: err }, "Error setting up grants listener:");
-    }
-  }, [user, authLoading]);
-
-  return { pendingRequests, activeGrants, deniedRequests, loading } as const;
+  return {
+    requests: (data?.requests || []) as DashboardAccessRequest[],
+    loading: isLoading,
+    error: error
+      ? error instanceof Error
+        ? error.message
+        : "Failed to load requests"
+      : null,
+    mutate,
+  };
 }

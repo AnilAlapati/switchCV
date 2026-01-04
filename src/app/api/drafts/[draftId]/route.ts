@@ -44,7 +44,11 @@ export async function GET(
       return handleApiError(null, "Forbidden", 403);
     }
 
-    return NextResponse.json(draftData);
+    return NextResponse.json(draftData, {
+      headers: {
+        "Cache-Control": "private, max-age=60, stale-while-revalidate=300",
+      },
+    });
   } catch (error) {
     return handleApiError(error, "Failed to fetch draft");
   }

@@ -75,9 +75,10 @@ export async function POST(
     });
 
     if (!rateLimitResult.allowed) {
-      return NextResponse.json(
-        { error: "Too many requests. Please try again later." },
-        { status: 429 }
+      return handleApiError(
+        new Error("Too many requests"),
+        "Too many requests. Please try again later.",
+        429
       );
     }
 
@@ -220,10 +221,11 @@ ${experienceText}
 SKILLS: ${(skills || []).join(", ") || "Skills not provided"}
 
 EDUCATION:
-${(education || [])
-      .map((edu: any) => `${edu.degree} from ${edu.institution} (${edu.year})`)
-      .join("\n") || "No education provided"
-    }
+${
+  (education || [])
+    .map((edu: any) => `${edu.degree} from ${edu.institution} (${edu.year})`)
+    .join("\n") || "No education provided"
+}
 
 TONE: ${tone}
 
@@ -264,7 +266,8 @@ function parseAIResponse(aiText: string, resumeData: any): any {
     return {
       enhancedSummary:
         parsed.enhancedSummary ||
-        `Professional ${resumeData.personalInfo.name
+        `Professional ${
+          resumeData.personalInfo.name
         } with expertise in ${resumeData.skills.slice(0, 2).join(" and ")}.`,
       enhancedExperience: (
         parsed.enhancedExperience || resumeData.experience
@@ -304,9 +307,11 @@ function parseAIResponse(aiText: string, resumeData: any): any {
  */
 function generateFallbackEnhancement(resumeData: any): any {
   return {
-    enhancedSummary: `Results-driven professional with ${resumeData.experience.length
-      }+ years of experience in ${resumeData.skills[0] || "leadership"
-      }. Proven track record of delivering high-impact solutions and driving organizational success.`,
+    enhancedSummary: `Results-driven professional with ${
+      resumeData.experience.length
+    }+ years of experience in ${
+      resumeData.skills[0] || "leadership"
+    }. Proven track record of delivering high-impact solutions and driving organizational success.`,
     enhancedExperience: resumeData.experience.map((exp: any) => ({
       title: exp.title,
       company: exp.company,

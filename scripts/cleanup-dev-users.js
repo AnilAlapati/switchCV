@@ -16,8 +16,6 @@ const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'switchcv-dev';
 console.log(`🔄 Initializing Firebase Admin for project: ${projectId}`);
 
 // Check if service account is available
-const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT ? null : path.join(process.env.HOME, '.config/gcloud/application_default_credentials.json');
-
 if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
     admin.initializeApp({

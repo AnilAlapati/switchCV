@@ -23,6 +23,9 @@ interface UserSettings {
   updatedAt: string;
 }
 
+import { useUserSettings } from "@/hooks/useUserSettings";
+import { ProfileSettingsSkeleton } from "@/components/settings/ProfileSettingsSkeleton";
+
 export default function SettingsPage() {
   const {
     user,
@@ -32,12 +35,18 @@ export default function SettingsPage() {
   } = useAuth();
   const { resumeId, hasResume } = useResume();
   const router = useRouter();
+
+  // SWR Hook
+  const { settings: fetchedSettings, loading: settingsLoading, mutate: mutateSettings } = useUserSettings();
+  const { mutate: mutateProfile } = useUserProfile();
+
   const [settings, setSettings] = useState<UserSettings>({
     isRecruiter: false,
     displayName: "",
     companyName: "",
     updatedAt: new Date().toISOString(),
   });
+
   const [savingDisplayName, setSavingDisplayName] = useState(false);
   const [savingCompanyName, setSavingCompanyName] = useState(false);
   const [savingRecruiter, setSavingRecruiter] = useState(false);
@@ -46,6 +55,14 @@ export default function SettingsPage() {
     type: "success" | "error";
     text: string;
   } | null>(null);
+
+  // Sync fetched settings to local state
+  useEffect(() => {
+    if (fetchedSettings) {
+      setSettings(fetchedSettings);
+      setShowCompanyInput(fetchedSettings.isRecruiter);
+    }
+  }, [fetchedSettings]);
 
   const handleLogout = useCallback(async () => {
     try {
@@ -57,42 +74,12 @@ export default function SettingsPage() {
     }
   }, [logout, router]);
 
-  const fetchSettings = useCallback(async () => {
-    try {
-      if (!user) return;
-
-      const idToken = await user.getIdToken();
-      const response = await fetch(`/api/user/settings?userId=${user.uid}`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${idToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch settings");
-      }
-
-      const data = await response.json();
-      setSettings(data);
-      setShowCompanyInput(data.isRecruiter);
-    } catch (err) {
-      logger.error({ err: err }, "Error fetching settings:");
-    }
-  }, [user]);
-
   useEffect(() => {
     if (!authLoading && (!user || needsEmailVerification)) {
       router.push(VERIFICATION_ROUTE);
       return;
     }
-
-    if (user && !needsEmailVerification) {
-      fetchSettings();
-    }
-  }, [user, needsEmailVerification, authLoading, router, fetchSettings]);
-
-  const { mutate } = useUserProfile();
+  }, [user, needsEmailVerification, authLoading, router]);
 
   const handleRecruiterToggle = async (checked: boolean) => {
     if (!user?.uid) {
@@ -120,8 +107,8 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
-        await fetchSettings(); // Re-fetch to get the latest data
-        await mutate(); // Force re-fetch of global user profile to update dashboard role state
+        await mutateSettings(); // Re-fetch specific user settings
+        await mutateProfile(); // Force re-fetch of global user profile
         setShowCompanyInput(checked);
         setMessage({ type: "success", text: "Account type updated!" });
         setTimeout(() => setMessage(null), 3000);
@@ -168,7 +155,7 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
-        await fetchSettings(); // Re-fetch to get the latest data
+        await mutateSettings();
         setMessage({ type: "success", text: "Display name saved!" });
         setTimeout(() => setMessage(null), 3000);
       } else {
@@ -214,7 +201,7 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
-        await fetchSettings(); // Re-fetch to get the latest data
+        await mutateSettings();
         setMessage({ type: "success", text: "Company name saved!" });
         setTimeout(() => setMessage(null), 3000);
       } else {
@@ -241,17 +228,8 @@ export default function SettingsPage() {
     }
   };
 
-  if (authLoading) {
-    return (
-      <DashboardBackground>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-16 h-16 border-4 border-[#2C4A3B]/20 border-t-[#2C4A3B] rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-[#1A2F25]/70 text-lg">Loading settings...</p>
-          </div>
-        </div>
-      </DashboardBackground>
-    );
+  if (settingsLoading && !fetchedSettings) {
+    return <ProfileSettingsSkeleton />;
   }
 
   if (!user || needsEmailVerification) {

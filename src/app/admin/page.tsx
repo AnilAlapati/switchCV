@@ -1,16 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useRouter } from "next/navigation";
+import { useAdminStats } from "@/hooks/useAdminStats";
+import { AdminDashboardSkeleton } from "@/components/admin/AdminDashboardSkeleton";
+import { useEffect } from "react";
 
 export default function AdminDashboard() {
     const { user, loading: authLoading } = useAuth();
     const { role, loading: profileLoading } = useUserProfile();
     const router = useRouter();
-    const [stats, setStats] = useState<any>(null);
-    const [error, setError] = useState("");
+
+    const { stats, loading: statsLoading, error: statsError } = useAdminStats();
 
     const loading = authLoading || profileLoading;
 
@@ -24,19 +26,7 @@ export default function AdminDashboard() {
         }
     }, [user, role, loading, router]);
 
-    useEffect(() => {
-        if (user && role === "admin") {
-            fetch("/api/admin/stats")
-                .then(async (res) => {
-                    if (!res.ok) throw new Error("Unauthorized or Failed");
-                    return res.json();
-                })
-                .then(setStats)
-                .catch((err) => setError(err.message));
-        }
-    }, [user, role]);
-
-    if (loading) return <div className="p-8">Loading...</div>;
+    if (loading || (statsLoading && !stats)) return <AdminDashboardSkeleton />;
     if (!user || role !== "admin") return null;
 
     return (
@@ -44,9 +34,9 @@ export default function AdminDashboard() {
             <div className="max-w-4xl mx-auto space-y-8">
                 <h1 className="text-3xl font-bold text-slate-900">Admin Dashboard</h1>
 
-                {error && (
+                {statsError && (
                     <div className="bg-red-50 text-red-600 p-4 rounded-lg border border-red-200">
-                        {error}
+                        {statsError}
                     </div>
                 )}
 

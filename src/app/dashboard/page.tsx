@@ -109,7 +109,8 @@ export default function Dashboard() {
 
   const isPostBootLoading = authLoading || (user && profileLoading);
 
-  if (isPostBootLoading) {
+  // Don't show anything while checking auth
+  if (authLoading) {
     return (
       <DashboardBackground>
         <div className="relative z-20 flex min-h-screen items-center justify-center">

@@ -190,7 +190,11 @@ export async function GET(request: NextRequest) {
       "System analytics fetched"
     );
 
-    return NextResponse.json(analytics);
+    return NextResponse.json(analytics, {
+      headers: {
+        'Cache-Control': 'private, max-age=300, stale-while-revalidate=60',
+      },
+    });
   } catch (error) {
     logger.error({ err: error, userId }, "Failed to fetch system analytics");
     return handleApiError(error, "Failed to fetch system analytics");

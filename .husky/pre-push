@@ -16,4 +16,11 @@ fi
 # Remove lock files
 rm -f .git/*.lock 2>/dev/null || true
 
+# Run Performance Audit
+echo "🛡️ Running Performance Standards Audit..."
+if ! npm run audit:perf; then
+    echo "❌ Performance Audit Failed. Please fix violations before pushing."
+    exit 1
+fi
+
 echo "✅ Safe to push"

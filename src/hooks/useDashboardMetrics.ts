@@ -41,8 +41,10 @@ export function useDashboardMetrics(): UseDashboardMetricsResult {
     isLoading: jobLoading,
     mutate: mutateJob,
   } = useSWR(jobMetricsKey, (url) => apiClient(url), {
-    dedupingInterval: 60000, // 1 minute
+    dedupingInterval: 300000, // 5 minutes - metrics don't change frequently
     fallbackData: DEFAULT_JOB_METRICS,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
   });
 
   // Recruiter Metrics SWR
@@ -57,8 +59,10 @@ export function useDashboardMetrics(): UseDashboardMetricsResult {
     isLoading: recruiterLoading,
     mutate: mutateRecruiter,
   } = useSWR(recruiterMetricsKey, (url) => apiClient(url), {
-    dedupingInterval: 60000, // 1 minute
+    dedupingInterval: 300000, // 5 minutes - metrics don't change frequently
     fallbackData: DEFAULT_RECRUITER_METRICS,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
   });
 
   return {

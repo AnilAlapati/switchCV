@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
     const { prompt, maxTokens, temperature } = validationResult.data;
 
     const entitlement = await getEntitlement(userId!);
-    enforceEntitlement(entitlement);
+    enforceEntitlement();
 
     const rateLimit = await enforceRateLimit(userId!, entitlement.plan);
 
@@ -147,7 +147,7 @@ async function getEntitlement(userId: string): Promise<Entitlement> {
   };
 }
 
-function enforceEntitlement(entitlement: Entitlement): void {
+function enforceEntitlement(): void {
   // No explicit plan restrictions - all tiers can generate text
   // Limits are handled by Rate Limiting per plan
   return;

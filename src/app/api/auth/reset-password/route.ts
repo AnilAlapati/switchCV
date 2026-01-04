@@ -13,23 +13,26 @@ export async function POST(request: NextRequest) {
     const { token, newPassword } = body;
 
     if (!token || typeof token !== "string") {
-      return NextResponse.json(
-        { error: "Reset token is required" },
-        { status: 400 }
+      return handleApiError(
+        new Error("Reset token is required"),
+        "Reset token is required",
+        400
       );
     }
 
     if (!newPassword || typeof newPassword !== "string") {
-      return NextResponse.json(
-        { error: "New password is required" },
-        { status: 400 }
+      return handleApiError(
+        new Error("New password is required"),
+        "New password is required",
+        400
       );
     }
 
     if (newPassword.length < 6) {
-      return NextResponse.json(
-        { error: "Password must be at least 6 characters" },
-        { status: 400 }
+      return handleApiError(
+        new Error("Password must be at least 6 characters"),
+        "Password must be at least 6 characters",
+        400
       );
     }
 
@@ -42,9 +45,10 @@ export async function POST(request: NextRequest) {
       .get();
 
     if (snapshot.empty) {
-      return NextResponse.json(
-        { error: "Invalid or expired reset token" },
-        { status: 400 }
+      return handleApiError(
+        new Error("Invalid or expired reset token"),
+        "Invalid or expired reset token",
+        400
       );
     }
 
@@ -58,9 +62,10 @@ export async function POST(request: NextRequest) {
       : new Date(data.expiresAt).getTime();
 
     if (now > expiresAt) {
-      return NextResponse.json(
-        { error: "Reset token has expired" },
-        { status: 400 }
+      return handleApiError(
+        new Error("Reset token has expired"),
+        "Reset token has expired",
+        400
       );
     }
 

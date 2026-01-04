@@ -1,7 +1,6 @@
 "use client";
 
 import { logger } from "@/lib/logger";
-
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { DashboardBackground } from "@/components/dashboard/DashboardBackground";
@@ -13,18 +12,21 @@ import type { DashboardAccessRequest, DurationFormState } from "./types";
 import { buildDefaultDurationState, validateDuration } from "./durationHelpers";
 import { useRouter } from "next/navigation";
 import { useOptionalDashboardMetricsContext } from "@/context/DashboardMetricsContext";
+import { useAccessRequests } from "@/hooks/useAccessRequests";
 
 export default function AccessRequestsPage() {
   const { user, logout } = useAuth();
   const router = useRouter();
   const metricsContext = useOptionalDashboardMetricsContext();
-  const [requests, setRequests] = useState<DashboardAccessRequest[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+
+  // Use SWR Hook
+  const { requests, loading, error, mutate } = useAccessRequests();
+
   const [activeTab, setActiveTab] = useState<"pending" | "history">("pending");
   const [durationOverrides, setDurationOverrides] = useState<
     Record<string, DurationFormState>
   >({});
+
   const timezone = useMemo(
     () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
     []
@@ -40,38 +42,20 @@ export default function AccessRequestsPage() {
     }
   }, [logout, router]);
 
-  const fetchRequests = useCallback(async () => {
-    if (!user) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const token = await user?.getIdToken();
-      const response = await fetch(
-        `/api/jobseeker/access-requests?userId=${user?.uid}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setRequests(data.requests);
-      } else {
-        setError("Failed to load requests. Please try again later.");
-      }
-    } catch (error) {
-      logger.error({ err: error }, "Failed to fetch requests");
-      setError("An error occurred while loading requests.");
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
-
+  // Handle duration state initialization when requests load
   useEffect(() => {
-    if (!user) return;
-    fetchRequests();
-  }, [user, fetchRequests]);
+    setDurationOverrides((prev) => {
+      const next = { ...prev };
+      requests.forEach((request) => {
+        if (!next[request.id]) {
+          next[request.id] = buildDefaultDurationState(
+            request.requestedDuration
+          );
+        }
+      });
+      return next;
+    });
+  }, [requests]);
 
   const updateDurationState = (
     requestId: string,
@@ -121,8 +105,8 @@ export default function AccessRequestsPage() {
           action: "deny",
         }),
       });
-      fetchRequests(); // Refresh list
-      // Refresh dashboard metrics if available
+      await mutate(); // Refresh SWR
+
       if (metricsContext?.refreshJobSeekerMetrics) {
         await metricsContext.refreshJobSeekerMetrics();
       }
@@ -166,8 +150,8 @@ export default function AccessRequestsPage() {
           timezone,
         }),
       });
-      fetchRequests();
-      // Refresh dashboard metrics if available
+      await mutate(); // Refresh SWR
+
       if (metricsContext?.refreshJobSeekerMetrics) {
         await metricsContext.refreshJobSeekerMetrics();
       }
@@ -175,20 +159,6 @@ export default function AccessRequestsPage() {
       logger.error({ err: error }, "Failed to approve");
     }
   };
-
-  useEffect(() => {
-    setDurationOverrides((prev) => {
-      const next = { ...prev };
-      requests.forEach((request) => {
-        if (!next[request.id]) {
-          next[request.id] = buildDefaultDurationState(
-            request.requestedDuration
-          );
-        }
-      });
-      return next;
-    });
-  }, [requests]);
 
   const pendingRequests = requests.filter((r) => r.status === "pending");
   const historyRequests = requests.filter((r) => r.status !== "pending");
@@ -201,13 +171,12 @@ export default function AccessRequestsPage() {
       <main className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-bold text-[#1A2F25] mb-8">Access Requests</h1>
 
-        {/* Tabs */}
         <div className="flex space-x-4 mb-6 border-b border-[#1A2F25]/10">
           <button
             onClick={() => setActiveTab("pending")}
             className={`pb-2 px-4 text-sm font-medium transition-colors ${activeTab === "pending"
-                ? "text-[#2C4A3B] border-b-2 border-[#2C4A3B]"
-                : "text-[#1A2F25]/60 hover:text-[#1A2F25]"
+              ? "text-[#2C4A3B] border-b-2 border-[#2C4A3B]"
+              : "text-[#1A2F25]/60 hover:text-[#1A2F25]"
               }`}
           >
             Pending ({pendingRequests.length})
@@ -215,8 +184,8 @@ export default function AccessRequestsPage() {
           <button
             onClick={() => setActiveTab("history")}
             className={`pb-2 px-4 text-sm font-medium transition-colors ${activeTab === "history"
-                ? "text-[#2C4A3B] border-b-2 border-[#2C4A3B]"
-                : "text-[#1A2F25]/60 hover:text-[#1A2F25]"
+              ? "text-[#2C4A3B] border-b-2 border-[#2C4A3B]"
+              : "text-[#1A2F25]/60 hover:text-[#1A2F25]"
               }`}
           >
             History ({historyRequests.length})
@@ -224,7 +193,7 @@ export default function AccessRequestsPage() {
         </div>
 
         {loading ? (
-          <div className="text-center text-[#1A2F25]/60">Loading requests...</div>
+          <div className="text-center text-[#1A2F25]/60 animation-pulse">Loading requests...</div>
         ) : error ? (
           <div className="text-center text-red-600 bg-red-50 p-8 rounded-xl border border-red-200">
             {error}
@@ -251,7 +220,7 @@ export default function AccessRequestsPage() {
                   request={request}
                   activeTab={activeTab}
                   ownerTimezone={timezone}
-                  loading={loading}
+                  loading={false}
                   durationState={durationState}
                   durationError={durationOverrides[request.id]?.error}
                   maxHours={maxHours}

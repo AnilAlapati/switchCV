@@ -73,7 +73,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(userDoc.data());
+    return NextResponse.json(userDoc.data(), {
+      headers: {
+        'Cache-Control': 'private, max-age=300, stale-while-revalidate=60',
+      },
+    });
   } catch (error) {
     logger.error({ err: error }, "Error fetching user profile:");
     return handleApiError(error, "Failed to fetch user profile");

@@ -203,6 +203,10 @@ export async function GET(
           scope: "owner",
           isOwner: true,
         },
+      }, {
+        headers: {
+          'Cache-Control': 'private, max-age=300, stale-while-revalidate=60',
+        }
       });
     }
 
@@ -228,6 +232,10 @@ export async function GET(
           isOwner: false,
           isMasked: false,
         },
+      }, {
+        headers: {
+          'Cache-Control': 'private, max-age=300, stale-while-revalidate=60',
+        }
       });
     }
 
@@ -262,6 +270,10 @@ export async function GET(
           isOwner: false,
           isMasked: false,
         },
+      }, {
+        headers: {
+          'Cache-Control': 'private, max-age=300, stale-while-revalidate=60',
+        }
       });
     }
 

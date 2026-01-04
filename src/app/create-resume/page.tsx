@@ -16,7 +16,7 @@ import { AILoadingState } from "@/components/create-resume/AILoadingState";
 import { ResumeProgress } from "@/components/create-resume/ResumeProgress";
 import { SessionRestoreDialog } from "@/components/create-resume/SessionRestoreDialog";
 import { getVerificationRoute } from "@/lib/config";
-import { Bot, User, ArrowLeft } from "lucide-react";
+import { Bot, User } from "lucide-react";
 
 const VERIFICATION_ROUTE = getVerificationRoute();
 
@@ -173,7 +173,8 @@ export default function CreateResume() {
     // `scrollIntoView` may not be implemented on the DOM node.
     const el = messagesEndRef.current as HTMLElement | null;
     if (el && typeof el.scrollIntoView === "function") {
-      el.scrollIntoView({ behavior: preferInstant ? "auto" : "smooth" });
+      // Always use instant scroll to prevent jarring movement
+      el.scrollIntoView({ behavior: "auto", block: "end" });
     }
   };
 
@@ -184,10 +185,10 @@ export default function CreateResume() {
       return;
     }
 
+    // Scroll immediately when new messages arrive
     if (previousMessageCount.current > 0) {
-      // Use instant scroll for the first auto-scroll to avoid any perceived jump
-      const preferInstant = previousMessageCount.current === 1;
-      scrollToBottom(preferInstant);
+      // Use requestAnimationFrame to ensure DOM is updated
+      requestAnimationFrame(() => scrollToBottom(true));
     }
 
     previousMessageCount.current = messages.length;
@@ -375,11 +376,19 @@ export default function CreateResume() {
       }
     } catch (error) {
       // Log detailed error info
+      const errorDetails =
+        error instanceof Error
+          ? {
+              message: error.message,
+              stack: error.stack,
+              name: error.name,
+            }
+          : { error: String(error) };
+
       logger.error(
         {
-          err: error,
+          ...errorDetails,
           errorType: error?.constructor?.name,
-          errorString: String(error),
         },
         "Error generating resume:"
       );
@@ -583,7 +592,7 @@ export default function CreateResume() {
         {/* Main Container with Fixed Chat and Input */}
         <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full relative overflow-hidden">
           {/* Scrollable Chat Area - takes remaining space; padded for fixed input bar */}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden scroll-smooth px-4 pt-4 pb-20">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 pt-4 pb-4">
             {/* Progress Bar for Mobile */}
             {shouldShowProgress && (
               <div className="lg:hidden mb-6">
@@ -646,14 +655,14 @@ export default function CreateResume() {
 
                 <AILoadingState aiLoading={aiLoading} aiError={aiError} />
 
-                {/* Scroll Anchor */}
-                <div ref={messagesEndRef} className="h-1" />
+                {/* Scroll Anchor with extra spacing */}
+                <div ref={messagesEndRef} className="h-32" />
               </div>
             )}
           </div>
 
-          {/* Fixed Bottom Input Area - consistent height */}
-          <div className="flex-none w-full border-t border-border/50 bg-gradient-to-t from-background to-background/95 backdrop-blur-sm">
+          {/* Fixed Bottom Input Area - consistent height, absolute positioning */}
+          <div className="absolute bottom-0 left-0 right-0 border-t border-border/50 bg-gradient-to-t from-background via-background to-background/95 backdrop-blur-sm shadow-2xl">
             <div className="px-4 pt-4 pb-6">
               {messages.length > 0 &&
                 progress >= 60 &&

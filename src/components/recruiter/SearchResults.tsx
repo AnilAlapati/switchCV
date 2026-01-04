@@ -77,6 +77,8 @@ function CandidateCard({ result, onSelect }: CandidateCardProps) {
   );
 }
 
+import { SearchResultsSkeleton } from "@/components/recruiter/SearchResultsSkeleton";
+
 interface SearchResultsProps {
   results: SearchResult[];
   isLoading: boolean;
@@ -92,14 +94,7 @@ export function SearchResults({
 }: SearchResultsProps) {
   return (
     <div className="space-y-4">
-      {isLoading && (
-        <div className="glass-panel text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-10 w-10 border-4 border-[#2C4A3B]/20 border-t-emerald-600"></div>
-          <p className="mt-4 text-[#1A2F25]/70 font-medium">
-            Searching candidates...
-          </p>
-        </div>
-      )}
+      {isLoading && <SearchResultsSkeleton />}
 
       {!isLoading && results.length === 0 && query && (
         <div className="glass-panel text-center py-12">

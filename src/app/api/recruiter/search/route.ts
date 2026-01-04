@@ -234,6 +234,10 @@ export async function GET(request: NextRequest) {
         results: uniqueResults.slice(0, constants.AI_SEARCH.MAX_RESULTS),
         count: uniqueResults.length,
         query: searchQuery,
+      }, {
+        headers: {
+          'Cache-Control': 'private, max-age=60, stale-while-revalidate=600',
+        }
       });
     } catch (error) {
       return handleApiError(error, "Search failed");

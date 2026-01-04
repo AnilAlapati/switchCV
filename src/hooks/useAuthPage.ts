@@ -276,7 +276,7 @@ export function useAuthPage(): UseAuthPageReturn {
   const handleLogout = useCallback(async () => {
     try {
       await logout();
-    } catch (e) {
+    } catch {
       // Silently fail - logout error is non-critical
     }
   }, [logout]);

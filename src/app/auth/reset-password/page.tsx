@@ -2,7 +2,6 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import { Eye, EyeOff } from "lucide-react";
 
 function ResetPasswordForm() {
@@ -16,7 +15,6 @@ function ResetPasswordForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [email, setEmail] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) {
@@ -54,7 +52,6 @@ function ResetPasswordForm() {
       }
 
       setSuccess(true);
-      setEmail(data.email);
 
       // Redirect to login after 3 seconds
       setTimeout(() => {

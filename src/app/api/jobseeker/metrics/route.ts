@@ -42,44 +42,10 @@ export async function GET(request: NextRequest) {
     const metricsDoc = await metricsRef.get();
     const metrics = metricsDoc.exists ? metricsDoc.data() : {};
 
-    let contactRequests = metrics?.contactRequests;
-
-    // Lazy Migration: If contactRequests is missing, calculate and save it
-    if (typeof contactRequests !== "number") {
-      const resumesSnapshot = await adminDb
-        .collection("resumes")
-        .where("userId", "==", userId)
-        .get();
-
-      let calculatedRequests = 0;
-
-      if (!resumesSnapshot.empty) {
-        const countPromises = resumesSnapshot.docs.map((doc) =>
-          doc.ref
-            .collection("accessRequests")
-            .where("status", "==", "pending")
-            .count()
-            .get()
-        );
-
-        const countSnapshots = await Promise.all(countPromises);
-        calculatedRequests = countSnapshots.reduce(
-          (acc, snap) => acc + snap.data().count,
-          0
-        );
-      }
-
-      contactRequests = calculatedRequests;
-
-      // Save back to Firestore
-      await metricsRef.set(
-        {
-          contactRequests: calculatedRequests,
-          lastUpdated: FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
-    }
+    // Return cached metrics immediately - no expensive calculations on the hot path
+    // If contactRequests is missing, return 0 instead of calculating
+    // A background job or admin script should handle backfilling missing data
+    const contactRequests = metrics?.contactRequests ?? 0;
 
     return NextResponse.json({
       profileViews: metrics?.profileViews || 0,
@@ -87,6 +53,10 @@ export async function GET(request: NextRequest) {
       downloads: metrics?.downloads || 0,
       quality: metrics?.quality || 0,
       lastUpdated: metrics?.lastUpdated || null,
+    }, {
+      headers: {
+        'Cache-Control': 'private, max-age=300, stale-while-revalidate=60',
+      },
     });
   } catch (error) {
     return handleApiError(error, "Failed to fetch job seeker metrics");

@@ -1,5 +1,31 @@
 import pino, { LoggerOptions } from "pino";
 
+/**
+ * Properly serialize unknown errors for JSON logging
+ */
+export const serializeError = (error: unknown): Record<string, unknown> => {
+  if (error instanceof Error) {
+    const serialized: Record<string, unknown> = {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    };
+    if (error.cause) {
+      serialized.cause = String(error.cause);
+    }
+    return serialized;
+  }
+
+  if (error && typeof error === "object") {
+    return Object.entries(error).reduce((acc, [key, value]) => {
+      acc[key] = value instanceof Error ? String(value) : value;
+      return acc;
+    }, {} as Record<string, unknown>);
+  }
+
+  return { error: String(error) };
+};
+
 const env = process.env.NODE_ENV || "development";
 const logLevel = process.env.LOG_LEVEL || "info";
 const isProd = env === "production";
@@ -9,12 +35,12 @@ const shouldMirrorConsole = !isProd;
 const transport: LoggerOptions["transport"] =
   !isProd && !isTestRuntime
     ? {
-        target: "pino-pretty",
-        options: {
-          colorize: true,
-          translateTime: "SYS:standard",
-        },
-      }
+      target: "pino-pretty",
+      options: {
+        colorize: true,
+        translateTime: "SYS:standard",
+      },
+    }
     : undefined;
 
 const baseLogger = pino({
@@ -138,11 +164,7 @@ logger.warn = mirrorToConsole(console.warn, boundWarn);
 logger.error = mirrorToConsole(console.error, boundError);
 
 export const logError = (error: unknown, context?: string) => {
-  if (error instanceof Error) {
-    logger.error({ err: error, context }, error.message);
-  } else {
-    logger.error({ err: error, context }, "Unknown error occurred");
-  }
+  logger.error({ ...serializeError(error), context }, "Error occurred");
 };
 
 export { logger };

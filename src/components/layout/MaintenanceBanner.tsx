@@ -10,7 +10,6 @@ export const MaintenanceBanner = (): React.JSX.Element | null => {
     config: { maintenance },
     loading,
   } = useSystemConfig();
-  const [manualDismissId, setManualDismissId] = useState<string | null>(null);
 
   const bannerId = useMemo(() => {
     const suffix = maintenance.message?.trim() || "system-maintenance";
@@ -76,7 +75,6 @@ export const MaintenanceBanner = (): React.JSX.Element | null => {
       // Ignore storage failures and still hide banner for the session.
     }
 
-    setManualDismissId(bannerId);
     setIsDismissed(true);
   };
 

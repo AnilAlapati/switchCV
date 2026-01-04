@@ -90,7 +90,11 @@ export async function GET(request: NextRequest) {
     }
 
     logger.info(`Total requests returning: ${requests.length}`);
-    return NextResponse.json({ requests });
+    return NextResponse.json({ requests }, {
+      headers: {
+        "Cache-Control": "private, max-age=60, stale-while-revalidate=300",
+      },
+    });
   } catch (error) {
     return handleApiError(error, "Failed to fetch requests");
   }

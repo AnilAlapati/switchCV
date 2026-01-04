@@ -59,10 +59,14 @@ export function useUserProfile(): UseUserProfileResult {
     key,
     ([url]) => user!.getIdToken().then((token) => fetcher(url, token)),
     {
-      // Keep data fresh for 5 minutes
-      dedupingInterval: 300000,
+      // Keep data fresh for 30 seconds (reduced from 5 minutes for better balance)
+      dedupingInterval: 30000,
       // Don't retry on 404s (profile doesn't exist yet)
       shouldRetryOnError: false,
+      // Don't revalidate on focus to reduce unnecessary API calls
+      revalidateOnFocus: false,
+      // Don't revalidate on reconnect
+      revalidateOnReconnect: false,
     }
   );
 

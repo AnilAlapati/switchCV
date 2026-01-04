@@ -56,16 +56,32 @@ async function getBestGeminiModel(apiKey: string): Promise<string> {
 
 export async function GET() {
   try {
-    // Check if AI services are configured
+    // Check what AI providers are actually available
+    const hasGroq = !!process.env.GROQ_API_KEY;
     const hasGemini = !!process.env.GEMINI_API_KEY;
+    const hasOpenAI = !!process.env.OPENAI_API_KEY;
     const hasHuggingFace = !!process.env.HUGGINGFACE_TOKEN;
 
-    if (hasGemini) {
+    // Tier-based model selection (matches actual usage in aiProviderService)
+    // Basic tier uses Groq (cheapest), Premium+ uses Gemini
+    if (hasGroq) {
+      return NextResponse.json({
+        connected: true,
+        model: "llama-3.1-8b-instant",
+        provider: "Groq (Basic Tier Default)",
+      });
+    } else if (hasGemini) {
       const bestModel = await getBestGeminiModel(process.env.GEMINI_API_KEY!);
       return NextResponse.json({
         connected: true,
         model: bestModel,
         provider: "Google Gemini",
+      });
+    } else if (hasOpenAI) {
+      return NextResponse.json({
+        connected: true,
+        model: "gpt-4o-mini",
+        provider: "OpenAI",
       });
     } else if (hasHuggingFace) {
       return NextResponse.json({

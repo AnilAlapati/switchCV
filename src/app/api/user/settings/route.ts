@@ -68,7 +68,11 @@ export async function GET(request: NextRequest) {
       updatedAt: userData?.settingsUpdatedAt || new Date().toISOString(),
     };
 
-    return NextResponse.json(settings);
+    return NextResponse.json(settings, {
+      headers: {
+        'Cache-Control': 'private, max-age=60, stale-while-revalidate=300',
+      },
+    });
   } catch (error) {
     logger.error({ err: error }, "Error fetching user settings:");
     return handleApiError(error, "Failed to fetch settings");

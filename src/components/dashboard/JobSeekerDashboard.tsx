@@ -9,6 +9,7 @@ import { PriorityActionsCard } from "@/components/dashboard/PriorityActionsCard"
 import { OpportunityInsightsCard } from "@/components/dashboard/OpportunityInsightsCard";
 import { ResourceLinksCard } from "@/components/dashboard/ResourceLinksCard";
 import { ResumeList } from "@/components/dashboard/ResumeList";
+import { JobSeekerDashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { PremiumFeatureLock } from "@/components/ui/PremiumFeatureLock";
 import { TIER_RESTRICTION_MESSAGES } from "@/lib/utils/tier-restrictions";
 import {
@@ -180,6 +181,11 @@ export function JobSeekerDashboard({
     ],
     []
   );
+
+  // Show skeleton while initial data is loading
+  if (metricsLoading && !metrics) {
+    return <JobSeekerDashboardSkeleton />;
+  }
 
   return (
     <div className="space-y-10 animate-in fade-in duration-700">
