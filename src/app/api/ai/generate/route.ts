@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from "next/server";
 import { createHash, randomUUID } from "crypto";
 import { z } from "zod";
@@ -9,6 +10,8 @@ import {
   safeParseBody,
 } from "@/lib/utils/api-helpers";
 import { logger } from "@/lib/logger";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
+import { BillingService } from "@/lib/services/billingService";
 
 /**
  * Zod schema for AI generation request validation
@@ -51,24 +54,6 @@ class EntitlementError extends Error {
   }
 }
 
-const RATE_LIMIT_WINDOW_MS = Number(
-  process.env.AI_RATE_LIMIT_WINDOW_MS || 60_000
-);
-
-const BASE_LIMIT = Math.max(
-  1,
-  Number(
-    process.env.RATE_LIMIT_AI_GENERATION ||
-    process.env.NEXT_PUBLIC_RATE_LIMIT_AI_GENERATION ||
-    10
-  )
-);
-const PLAN_MULTIPLIER: Record<string, number> = {
-  basic: 1,
-  premium: 1,
-  enterprise: 2,
-};
-
 const AUDIT_LOG_TTL_DAYS = Number(process.env.AI_AUDIT_LOG_TTL_DAYS || 30);
 const AUDIT_LOG_TTL_MS = AUDIT_LOG_TTL_DAYS * 24 * 60 * 60 * 1000;
 
@@ -103,11 +88,34 @@ export async function POST(request: NextRequest) {
     const { prompt, maxTokens, temperature } = validationResult.data;
 
     const entitlement = await getEntitlement(userId!);
-    enforceEntitlement();
 
-    const rateLimit = await enforceRateLimit(userId!, entitlement.plan);
+    // Unified Rate Limiting
+    const rateLimit = await checkDistributedRateLimit(userId!, {
+      tier: entitlement.plan as any,
+      scope: "ai_generation",
+    } as any);
+
+    if (!rateLimit.allowed) {
+      throw new RateLimitError(Math.ceil((rateLimit.resetIn || 60000) / 1000));
+    }
+
+    // Billing & Budget Check
+    const budgetAllowed = await BillingService.checkBudget(userId!, entitlement.plan as any);
+    if (!budgetAllowed) {
+      return handleApiError(
+        new Error("Budget exceeded"),
+        "Monthly usage limit reached. Please upgrade your plan.",
+        402
+      );
+    }
 
     const result = await generateText(prompt, maxTokens, temperature);
+
+    // Track Billing
+    await BillingService.trackUsage(userId!, result.model, {
+      input: Math.ceil(prompt.length / 4),
+      output: Math.ceil(result.text.length / 4)
+    });
 
     await Promise.all([
       logUsage({
@@ -147,88 +155,18 @@ async function getEntitlement(userId: string): Promise<Entitlement> {
   };
 }
 
-function enforceEntitlement(): void {
-  // No explicit plan restrictions - all tiers can generate text
-  // Limits are handled by Rate Limiting per plan
-  return;
-}
-
-async function enforceRateLimit(userId: string, plan: string) {
-  const planLimit = Math.max(
-    1,
-    Math.round(BASE_LIMIT * (PLAN_MULTIPLIER[plan] ?? PLAN_MULTIPLIER.basic))
-  );
-  const windowStartThreshold = Date.now() - RATE_LIMIT_WINDOW_MS;
-  const docRef = adminDb
-    .collection("rateLimits")
-    .doc(`ai_generation_${userId}`);
-
-  const { remaining, resetTime } = await adminDb.runTransaction(async (tx) => {
-    const doc = await tx.get(docRef);
-    let count = 0;
-    let windowStart = Date.now();
-
-    if (doc.exists) {
-      const data = doc.data();
-      const storedWindowStart =
-        data?.windowStart instanceof admin.firestore.Timestamp
-          ? data.windowStart.toMillis()
-          : typeof data?.windowStart === "number"
-            ? data.windowStart
-            : windowStart;
-
-      if (storedWindowStart > windowStartThreshold) {
-        windowStart = storedWindowStart;
-        count = data?.count || 0;
-      } else {
-        windowStart = Date.now();
-        count = 0;
-      }
-    }
-
-    if (count >= planLimit) {
-      const retryAfterSeconds = Math.max(
-        1,
-        Math.ceil((windowStart + RATE_LIMIT_WINDOW_MS - Date.now()) / 1000)
-      );
-      throw new RateLimitError(retryAfterSeconds);
-    }
-
-    tx.set(
-      docRef,
-      {
-        userId,
-        scope: "ai_generation",
-        plan,
-        count: count + 1,
-        windowStart: admin.firestore.Timestamp.fromMillis(windowStart),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        expiresAt: admin.firestore.Timestamp.fromMillis(
-          windowStart + RATE_LIMIT_WINDOW_MS * 2
-        ),
-      },
-      { merge: true }
-    );
-
-    return {
-      remaining: Math.max(0, planLimit - (count + 1)),
-      resetTime: windowStart + RATE_LIMIT_WINDOW_MS,
-    };
-  });
-
-  return { remaining, resetTime, limit: planLimit };
-}
-
 function attachRateLimitHeaders(
   response: NextResponse,
-  data: { remaining: number; resetTime: number; limit: number }
+  data: { remaining: number; resetIn?: number; limit: number }
 ) {
   response.headers.set("X-RateLimit-Limit", data.limit.toString());
   response.headers.set("X-RateLimit-Remaining", data.remaining.toString());
-  response.headers.set(
-    "X-RateLimit-Reset",
-    Math.floor(data.resetTime / 1000).toString()
-  );
+  if (data.resetIn) {
+    response.headers.set(
+      "X-RateLimit-Reset",
+      Math.floor(Date.now() / 1000 + data.resetIn / 1000).toString()
+    );
+  }
 }
 
 async function logUsage(params: {

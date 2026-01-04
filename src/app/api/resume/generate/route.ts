@@ -1,7 +1,9 @@
 import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { generateText } from "@/lib/services/aiGenerationService";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 import { generateTextWithTier } from "@/lib/services/aiProviderService";
+import { BillingService } from "@/lib/services/billingService";
 import { ConversationManager } from "@/lib/services/conversationManager";
 import { ResumeDataExtractor } from "@/lib/services/resumeDataExtractor";
 import {
@@ -44,6 +46,32 @@ export async function POST(request: NextRequest) {
     const userId = rawUserId!; // Assert non-null after error check
 
     logger.info({ userId }, "✅ Authenticated user generating resume:");
+
+    const userSnapshot = await adminDb.collection("users").doc(userId).get();
+    const userRole = (userSnapshot.data()?.subscriptionTier || "basic") as any;
+
+    const rateLimit = await checkDistributedRateLimit(userId, {
+      tier: userRole,
+      scope: "ai_generation",
+    } as any);
+
+    if (!rateLimit.allowed) {
+      return handleApiError(
+        new Error("Too many requests"),
+        "Too many requests. Please try again later.",
+        429
+      );
+    }
+
+    // Billing & Budget Check
+    const budgetAllowed = await BillingService.checkBudget(userId, userRole);
+    if (!budgetAllowed) {
+      return handleApiError(
+        new Error("Budget exceeded"),
+        "Monthly usage limit reached. Please upgrade your plan.",
+        402
+      );
+    }
 
     const body: GenerateResumeRequest = await request.json();
     const { message, conversationHistory, sessionData, modelId } = body;
@@ -193,6 +221,12 @@ export async function POST(request: NextRequest) {
       aiResponse = await generateText(prompt, 4000, 0.7);
     }
     const responseText = aiResponse.text;
+
+    // Track Billing
+    await BillingService.trackUsage(userId, aiResponse.model || "default", {
+      input: Math.ceil(prompt.length / 4),
+      output: Math.ceil(responseText.length / 4)
+    });
 
     // Step 5: Check if AI indicates completion or if we have enough data
     const aiIndicatesCompletion = isCompletionResponse(responseText);

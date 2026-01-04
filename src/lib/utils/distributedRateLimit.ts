@@ -59,20 +59,65 @@ const RATE_LIMIT_COLLECTION = "rateLimits";
  * }
  * ```
  */
+
+import { TIER_RATE_LIMITS, RateLimitScope } from "@/lib/config/rateLimits";
+import { getUserTier } from "@/lib/services/userService";
+
+// ... existing interfaces ...
+
+/**
+ * Check and update distributed rate limit using Firestore transaction.
+ * This works across serverless instances unlike in-memory rate limiting.
+ * 
+ * Updated to automatically enforce tier-based limits if tier lookup is enabled.
+ */
 export async function checkDistributedRateLimit(
   identifier: string,
   options: DistributedRateLimitOptions = {}
 ): Promise<DistributedRateLimitResult> {
-  const constants = await getConstants();
-  const {
-    limit = constants.RATE_LIMITS.API_REQUESTS_PER_MINUTE,
-    windowMs = 60 * 1000, // 1 minute default
+  let {
+    limit,
+    windowMs,
     scope = "default",
   } = options;
+
+  // If specific limits aren't provided, try to resolve from tier
+  // Note: We need a way to know if 'limit' was explicitly passed or just default.
+  // In this implementation, we prioritize tier-based config if we can find the user's tier.
+  // Ideally, the caller should pass the tier if they already have it to avoid double-fetching.
+
+  // However, `options` doesn't currently accept `tier`. Let's assume for now the caller 
+  // might rely on defaults or pass explicit values. 
+  // TO FIX: We need to allow passing `tier` or fetching it.
+  // Let's modify the signature or logic in a follow-up if needed, but for now, 
+  // we will respect explicit options if provided, otherwise default to a safe fallback.
+
+  // ACTUALLY: The best way is to allow specific limits to be overridden by the caller
+  // BUT the caller usually wants to ENFORCE the tier limit.
+  // So we should verify if the caller passed the tier-limit logic.
+
+  // Let's keep this function low-level. It just enforces what it is told.
+  // The CALLER (route handler) is responsible for looking up the correct limit 
+  // from TIER_RATE_LIMITS and passing it here.
+
+  // Wait, the plan said: "Update checkDistributedRateLimit to optionally accept a User Tier"
+  // Let's add that to the options.
+
+  if ((options as any).tier) {
+    const tier = (options as any).tier as keyof typeof TIER_RATE_LIMITS;
+    const config = TIER_RATE_LIMITS[tier]?.[scope as RateLimitScope] || TIER_RATE_LIMITS[tier]?.default || TIER_RATE_LIMITS.basic.default;
+    limit = config.limit;
+    windowMs = config.windowMs;
+  }
+
+  // Fallbacks if still undefined (shouldn't happen if tier is passed or defaults used)
+  limit = limit ?? 10;
+  windowMs = windowMs ?? 60000;
 
   const now = Date.now();
   const docId = `${scope}:${identifier}`.replace(/[/\\]/g, "_");
   const rateLimitRef = adminDb.collection(RATE_LIMIT_COLLECTION).doc(docId);
+
 
   try {
     const result = await adminDb.runTransaction(async (transaction) => {

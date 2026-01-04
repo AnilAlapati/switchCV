@@ -182,7 +182,7 @@ export const defaultSystemConfig: SystemConfig = {
     aiCacheTtlMs: 86400000,
   },
   agentic: {
-    enabled: false,
+    enabled: true,
     budgetCap: 70, // Hard cap
     monthlySoftCap: 30, // Soft cap
   },

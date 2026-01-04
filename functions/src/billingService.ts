@@ -19,19 +19,27 @@ export const aggregateBillingHandler = async (context: functions.EventContext) =
     try {
         const shardsSnapshot = await db.collection(SHARD_COLLECTION).get();
         let totalCost = 0;
+        const updates: Promise<any>[] = [];
 
         shardsSnapshot.forEach((doc) => {
             const data = doc.data();
             totalCost += (data.monthCost || 0);
+            // Optional: Reset shards to avoid double counting if determining delta, 
+            // but for simple running total aggregation we might just read.
+            // However, "monthCost" in shard implies it accumulates. 
+            // If we want a global "current month total", we just sum them up.
         });
 
-        // Write aggregated total
-        await db.doc(AGGREGATE_DOC).set({
+        const date = new Date();
+        const billingKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+
+        // Write aggregated total to a central dashboard doc
+        await db.doc(`${AGGREGATE_DOC}/dashboard/${billingKey}`).set({
             totalCost: totalCost,
             lastAggregated: admin.firestore.FieldValue.serverTimestamp(),
         }, { merge: true });
 
-        console.log(`Aggregated total cost: $${totalCost}`);
+        console.log(`Aggregated total cost for ${billingKey}: $${totalCost}`);
     } catch (error) {
         console.error("Error aggregating billing:", error);
         throw error;

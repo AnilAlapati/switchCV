@@ -34,28 +34,7 @@ export type {
  * All available models sorted by cost (cheapest first)
  */
 export const AI_MODELS: AIModelConfig[] = [
-  // FREE TIER - Groq (free tier available)
-  {
-    id: "llama-3.1-8b-instant",
-    name: "Llama 3.1 8B Instant",
-    provider: "groq",
-    costPer1MTokens: 0.05, // Almost free
-    quality: 6,
-    speed: 10,
-    maxTokens: 8192,
-    tier: "free",
-  },
-  {
-    id: "gemma2-9b-it",
-    name: "Gemma 2 9B",
-    provider: "groq",
-    costPer1MTokens: 0.1,
-    quality: 6,
-    speed: 10,
-    maxTokens: 8192,
-    tier: "free",
-  },
-  // CHEAP TIER - Gemini Flash, Groq larger models
+  // CHEAP TIER - Gemini Flash
   {
     id: "gemini-2.0-flash",
     name: "Gemini 2.0 Flash",
@@ -64,16 +43,6 @@ export const AI_MODELS: AIModelConfig[] = [
     quality: 7,
     speed: 9,
     maxTokens: 8192,
-    tier: "cheap",
-  },
-  {
-    id: "llama-3.3-70b-versatile",
-    name: "Llama 3.3 70B",
-    provider: "groq",
-    costPer1MTokens: 0.59,
-    quality: 8,
-    speed: 9,
-    maxTokens: 32768,
     tier: "cheap",
   },
   // STANDARD TIER - GPT-4o-mini, Gemini Flash
@@ -138,6 +107,16 @@ export const AI_MODELS: AIModelConfig[] = [
     maxTokens: 8192,
     tier: "premium",
   },
+  {
+    id: "grok-beta",
+    name: "Grok Beta",
+    provider: "xai",
+    costPer1MTokens: 5.0,
+    quality: 9,
+    speed: 8,
+    maxTokens: 32768,
+    tier: "premium",
+  },
 ];
 
 // ==================== TIER CONFIGURATION ====================
@@ -155,49 +134,22 @@ const TIER_ACCESS: Record<UserTier, string[]> = {
  * Define provider priority for each tier (try in this order)
  */
 const TIER_PROVIDER_PRIORITY: Record<UserTier, string[]> = {
-  basic: ["groq", "google"], // Groq first (free), then Gemini Flash
-  premium: ["google", "openai", "groq"], // Gemini, then GPT, then Groq fallback
-  enterprise: ["openai", "google", "anthropic", "groq"], // Best first
+  basic: ["google"], // Gemini Flash
+  premium: ["google", "openai"], // Gemini, then GPT
+  enterprise: ["openai", "google", "anthropic"], // Best first
+};
+
+import { CircuitBreaker } from "@/lib/utils/CircuitBreaker";
+
+const breakers = {
+  google: new CircuitBreaker("google"),
+  openai: new CircuitBreaker("openai"),
+  anthropic: new CircuitBreaker("anthropic"),
+  xai: new CircuitBreaker("xai"),
 };
 
 // ==================== PROVIDER IMPLEMENTATIONS ====================
 
-async function callGroq(
-  modelId: string,
-  prompt: string,
-  maxTokens: number,
-  temperature: number
-): Promise<{ text: string; model: string }> {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) throw new Error("Groq API key not configured");
-
-  const response = await withRetry(() =>
-    fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: modelId,
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: maxTokens,
-        temperature,
-      }),
-    })
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Groq API error (${response.status}): ${errorText}`);
-  }
-
-  const data = await response.json();
-  const text = data.choices?.[0]?.message?.content;
-  if (!text) throw new Error("No text generated from Groq");
-
-  return { text: text.trim(), model: modelId };
-}
 
 async function callOpenAI(
   modelId: string,
@@ -312,6 +264,43 @@ async function callAnthropic(
   return { text: text.trim(), model: modelId };
 }
 
+async function callXAI(
+  modelId: string,
+  prompt: string,
+  maxTokens: number,
+  temperature: number
+): Promise<{ text: string; model: string }> {
+  const apiKey = process.env.XAI_API_KEY;
+  if (!apiKey) throw new Error("xAI API key not configured");
+
+  const response = await withRetry(() =>
+    fetch("https://api.x.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: modelId,
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: maxTokens,
+        temperature,
+      }),
+    })
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`xAI API error (${response.status}): ${errorText}`);
+  }
+
+  const data = await response.json();
+  const text = data.choices?.[0]?.message?.content;
+  if (!text) throw new Error("No text generated from xAI");
+
+  return { text: text.trim(), model: modelId };
+}
+
 // ==================== MAIN FUNCTION ====================
 
 /**
@@ -357,24 +346,6 @@ export function getSelectableModels(userTier: UserTier): SelectableModel[] {
 }
 
 /**
- * Check if a provider has a valid API key configured
- */
-function isProviderConfigured(provider: string): boolean {
-  switch (provider) {
-    case "groq":
-      return !!process.env.GROQ_API_KEY;
-    case "openai":
-      return !!process.env.OPENAI_API_KEY;
-    case "google":
-      return !!process.env.GEMINI_API_KEY;
-    case "anthropic":
-      return !!process.env.ANTHROPIC_API_KEY;
-    default:
-      return false;
-  }
-}
-
-/**
  * Call the appropriate provider
  */
 async function callProvider(
@@ -384,16 +355,34 @@ async function callProvider(
   temperature: number
 ): Promise<{ text: string; model: string }> {
   switch (model.provider) {
-    case "groq":
-      return callGroq(model.id, prompt, maxTokens, temperature);
     case "openai":
       return callOpenAI(model.id, prompt, maxTokens, temperature);
     case "google":
       return callGemini(model.id, prompt, maxTokens, temperature);
     case "anthropic":
       return callAnthropic(model.id, prompt, maxTokens, temperature);
+    case "xai":
+      return callXAI(model.id, prompt, maxTokens, temperature);
     default:
       throw new Error(`Unknown provider: ${model.provider}`);
+  }
+}
+
+/**
+ * Check if a provider has a valid API key configured
+ */
+function isProviderConfigured(provider: string): boolean {
+  switch (provider) {
+    case "openai":
+      return !!process.env.OPENAI_API_KEY;
+    case "google":
+      return !!process.env.GEMINI_API_KEY;
+    case "anthropic":
+      return !!process.env.ANTHROPIC_API_KEY;
+    case "xai":
+      return !!process.env.XAI_API_KEY;
+    default:
+      return false;
   }
 }
 
@@ -460,6 +449,13 @@ export async function generateTextWithTier(
 
   // Try each model in order (cheapest/best based on tier)
   for (const model of availableModels) {
+    const breaker = breakers[model.provider as keyof typeof breakers];
+
+    if (breaker && breaker.isOpen()) {
+      logger.warn({ model: model.id, provider: model.provider }, "🚫 Circuit Breaker OPEN - Skipping");
+      continue;
+    }
+
     try {
       logger.info(
         { model: model.id, provider: model.provider, tier: userTier },
@@ -467,6 +463,8 @@ export async function generateTextWithTier(
       );
 
       const result = await callProvider(model, prompt, maxTokens, temperature);
+
+      if (breaker) breaker.recordSuccess();
 
       // Estimate cost (rough: assume ~500 tokens for a resume generation)
       const estimatedTokens = prompt.length / 4 + result.text.length / 4;
@@ -488,6 +486,9 @@ export async function generateTextWithTier(
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Unknown error";
       errors[model.id] = errorMsg;
+
+      if (breaker) breaker.recordFailure();
+
       logger.warn(
         { model: model.id, error: errorMsg },
         `${model.name} failed, trying next...`
@@ -505,37 +506,4 @@ export async function generateTextWithTier(
 
   // For premium/enterprise, give details
   throw new Error(`All AI providers failed. Errors: ${JSON.stringify(errors)}`);
-}
-
-/**
- * Get the cheapest available model for basic tier testing
- */
-export function getCheapestModel(): AIModelConfig | undefined {
-  return AI_MODELS.filter((m) => isProviderConfigured(m.provider)).sort(
-    (a, b) => a.costPer1MTokens - b.costPer1MTokens
-  )[0];
-}
-
-/**
- * Get the best available model for enterprise tier
- */
-export function getBestModel(): AIModelConfig | undefined {
-  // Use the same ordering logic as enterprise tier
-  return getModelsForTier("enterprise").filter((m) =>
-    isProviderConfigured(m.provider)
-  )[0];
-}
-
-/**
- * Estimate cost for generating a resume
- */
-export function estimateResumeCost(userTier: UserTier): number {
-  const models = getModelsForTier(userTier);
-  if (models.length === 0) return 0;
-
-  // Assume ~4000 tokens for a full resume generation
-  const estimatedTokens = 4000;
-  const model = models[0]; // First model (will be used)
-
-  return (estimatedTokens / 1_000_000) * model.costPer1MTokens;
 }

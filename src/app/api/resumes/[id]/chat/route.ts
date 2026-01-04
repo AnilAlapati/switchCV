@@ -2,6 +2,8 @@ import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { generateText } from "@/lib/services/aiGenerationService";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
+import { BillingService } from "@/lib/services/billingService";
 import {
   buildResumeEditPrompt,
   extractResumeEditJSON,
@@ -61,6 +63,23 @@ export async function GET(
     const { userId: requestUserId, error: authError } =
       await getAuthenticatedUserId(request);
     if (authError) return authError;
+
+    // Unified Rate Limiting
+    const userSnapshot = await adminDb.collection("users").doc(requestUserId!).get();
+    const userRole = (userSnapshot.data()?.subscriptionTier || "basic") as any;
+
+    const rateLimitResult = await checkDistributedRateLimit(requestUserId!, {
+      tier: userRole,
+      scope: "chat",
+    } as any);
+
+    if (!rateLimitResult.allowed) {
+      return handleApiError(
+        new Error("Too many requests"),
+        "Too many requests. Please try again later.",
+        429
+      );
+    }
 
     const { docRef, snapshot } = await getResumeDocument(id);
     if (!snapshot.exists) {
@@ -168,6 +187,12 @@ export async function POST(
 
     const aiResult = await generateText(prompt, 2600, 0.6);
     const responseText = aiResult.text;
+
+    // Track Billing
+    await BillingService.trackUsage(requestUserId!, aiResult.model || "default", {
+      input: Math.ceil(prompt.length / 4),
+      output: Math.ceil(responseText.length / 4),
+    });
 
     const completionPayload = extractResumeEditJSON(responseText);
     const isComplete =

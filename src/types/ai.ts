@@ -5,7 +5,8 @@ export type AIProvider =
   | "openai"
   | "groq"
   | "anthropic"
-  | "huggingface";
+  | "huggingface"
+  | "xai";
 
 export interface AIModelConfig {
   id: string;

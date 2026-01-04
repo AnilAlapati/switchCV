@@ -1,6 +1,7 @@
 import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { generateText } from "@/lib/services/aiGenerationService";
+import { BillingService } from "@/lib/services/billingService";
 import {
   handleApiError,
   getAuthenticatedUserId,
@@ -66,19 +67,33 @@ export async function POST(
       return handleApiError(new Error("Unauthorized"), "Unauthorized", 401);
     }
 
-    // 2. Check Rate Limit (Reuse general AI check or specific)
-    // We'll use the existing distributed rate limiter
+
+
+    // 2. Check Rate Limit
+    // Fetch user for subscription tier
+    const userSnapshot = await adminDb.collection("users").doc(userId).get();
+    const userRole = (userSnapshot.data()?.subscriptionTier || "basic") as any;
+
     const rateLimitResult = await checkDistributedRateLimit(userId, {
-      limit: 10, // Consistent with the new "Relaxed" Basic limit (10/min)
-      windowMs: 60 * 1000,
+      tier: userRole,
       scope: "ai_generation",
-    });
+    } as any);
 
     if (!rateLimitResult.allowed) {
       return handleApiError(
         new Error("Too many requests"),
         "Too many requests. Please try again later.",
         429
+      );
+    }
+
+    // 3. Billing & Budget Check
+    const budgetAllowed = await BillingService.checkBudget(userId, userRole);
+    if (!budgetAllowed) {
+      return handleApiError(
+        new Error("Budget exceeded"),
+        "Monthly usage limit reached. Please upgrade your plan.",
+        402
       );
     }
 
@@ -105,9 +120,9 @@ export async function POST(
 
     // 3. PROPOSED: Agentic Workflow Logic (replaces standard flow if enabled)
 
-    // Fetch user for subscription tier
-    const userSnapshot = await adminDb.collection("users").doc(userId).get();
-    const userRole = userSnapshot.data()?.subscriptionTier || "basic";
+    // Fetch user for subscription tier (already fetched above)
+    // const userSnapshot = await adminDb.collection("users").doc(userId).get();
+    // const userRole = userSnapshot.data()?.subscriptionTier || "basic";
 
     let aiResponseText = "";
     let aiModel = "";
@@ -174,6 +189,16 @@ export async function POST(
       "✅ AI generation successful"
     );
 
+    // Track Billing
+    // Estimate tokens (1 char ~= 0.25 tokens for simple estimation if provider doesn't return usage)
+    const estimatedInputTokens = Math.ceil(JSON.stringify(resumeData).length / 4);
+    const estimatedOutputTokens = Math.ceil(aiResponseText.length / 4);
+
+    await BillingService.trackUsage(userId, aiModel || "default", {
+      input: estimatedInputTokens,
+      output: estimatedOutputTokens,
+    });
+
     // Parse AI response
     const enhancedContent = parseAIResponse(aiResponseText, resumeData);
 
@@ -221,11 +246,10 @@ ${experienceText}
 SKILLS: ${(skills || []).join(", ") || "Skills not provided"}
 
 EDUCATION:
-${
-  (education || [])
-    .map((edu: any) => `${edu.degree} from ${edu.institution} (${edu.year})`)
-    .join("\n") || "No education provided"
-}
+${(education || [])
+      .map((edu: any) => `${edu.degree} from ${edu.institution} (${edu.year})`)
+      .join("\n") || "No education provided"
+    }
 
 TONE: ${tone}
 
@@ -266,8 +290,7 @@ function parseAIResponse(aiText: string, resumeData: any): any {
     return {
       enhancedSummary:
         parsed.enhancedSummary ||
-        `Professional ${
-          resumeData.personalInfo.name
+        `Professional ${resumeData.personalInfo.name
         } with expertise in ${resumeData.skills.slice(0, 2).join(" and ")}.`,
       enhancedExperience: (
         parsed.enhancedExperience || resumeData.experience
@@ -307,11 +330,9 @@ function parseAIResponse(aiText: string, resumeData: any): any {
  */
 function generateFallbackEnhancement(resumeData: any): any {
   return {
-    enhancedSummary: `Results-driven professional with ${
-      resumeData.experience.length
-    }+ years of experience in ${
-      resumeData.skills[0] || "leadership"
-    }. Proven track record of delivering high-impact solutions and driving organizational success.`,
+    enhancedSummary: `Results-driven professional with ${resumeData.experience.length
+      }+ years of experience in ${resumeData.skills[0] || "leadership"
+      }. Proven track record of delivering high-impact solutions and driving organizational success.`,
     enhancedExperience: resumeData.experience.map((exp: any) => ({
       title: exp.title,
       company: exp.company,

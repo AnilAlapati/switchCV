@@ -1,4 +1,5 @@
 import admin, { adminDb } from "@/lib/firebase-admin";
+import { quotaCache, coalesce } from "@/lib/utils/cache";
 
 export type QuotaPeriod = "daily" | "monthly" | "lifetime";
 
@@ -184,5 +185,44 @@ export async function refundQuota(
       refunded: true,
       currentCount: newCount,
     };
+  });
+}
+
+
+
+
+/**
+ * Get current quota usage with caching.
+ * Reduces Firestore reads for high-frequency checks.
+ */
+export async function getQuotaUsage(
+  subjectId: string,
+  scope: string,
+  period: QuotaPeriod
+): Promise<number> {
+  const now = new Date();
+  const { key } = getPeriodMetadata(period, now);
+  const cacheKey = `quota:${scope}:${subjectId}:${key}`;
+
+  // 1. Check Cache
+  const cached = quotaCache.get(cacheKey);
+  if (cached !== null) {
+    return cached;
+  }
+
+  // 2. Coalesced Fetch
+  return coalesce(cacheKey, async () => {
+    const docId = `${scope}_${subjectId}_${key}`;
+    const snapshot = await adminDb.collection(COLLECTION_NAME).doc(docId).get();
+
+    // If no doc exists, usage is 0. 
+    // Careful: if periodKey doesn't match, it's a new period, so 0.
+    const data = snapshot.data();
+    const storedKey = data?.periodKey;
+    const count = storedKey === key ? Number(data?.count || 0) : 0;
+
+    // Cache it
+    quotaCache.set(cacheKey, count);
+    return count;
   });
 }

@@ -314,6 +314,7 @@ export const generateResumeContent = functions
       "GEMINI_API_KEY",
       "GROQ_API_KEY",
       "OPENAI_API_KEY",
+      "XAI_API_KEY",
     ],
   })
   .https.onRequest(generateResumeContentHandler);

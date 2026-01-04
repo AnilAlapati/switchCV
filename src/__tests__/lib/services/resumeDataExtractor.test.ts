@@ -264,6 +264,73 @@ describe("ResumeDataExtractor", () => {
 
       expect(merged.education).toHaveLength(2);
     });
+
+    it("should deduplicate experience items", () => {
+      const existing = {
+        experience: [
+          {
+            title: "Developer",
+            company: "Corp A",
+            duration: "2020",
+            description: "Work",
+          },
+        ],
+      };
+      const extracted = {
+        experience: [
+          {
+            title: "Developer",
+            company: "Corp A", // Same company/title
+            duration: "2021", // Different duration/desc shouldn't matter for dedupe if title/company match
+            description: "Updated description",
+          },
+          {
+            title: "Manager",
+            company: "Corp B",
+            duration: "2022",
+            description: "New job",
+          },
+        ],
+      };
+
+      const merged = ResumeDataExtractor.mergeData(existing, extracted);
+
+      expect(merged.experience).toHaveLength(2); // Should have "Developer @ Corp A" (existing) and "Manager @ Corp B" (new)
+      expect(merged.experience?.[0].company).toBe("Corp A");
+      expect(merged.experience?.[1].company).toBe("Corp B");
+    });
+
+    it("should deduplicate education items", () => {
+      const existing = {
+        education: [
+          {
+            degree: "BS",
+            institution: "Univ A",
+            year: "2020",
+          },
+        ],
+      };
+      const extracted = {
+        education: [
+          {
+            degree: "BS",
+            institution: "Univ A", // Same degree/inst
+            year: "2020",
+          },
+          {
+            degree: "MS",
+            institution: "Univ A", // Different degree
+            year: "2022",
+          },
+        ],
+      };
+
+      const merged = ResumeDataExtractor.mergeData(existing, extracted);
+
+      expect(merged.education).toHaveLength(2); // BS (existing) + MS (new)
+      expect(merged.education?.[0].degree).toBe("BS");
+      expect(merged.education?.[1].degree).toBe("MS");
+    });
   });
 
   describe("pattern extraction", () => {

@@ -486,39 +486,13 @@ async function generateWithHuggingFace(
 }
 
 // Circuit Breaker System
-class CircuitBreaker {
-  private failures = 0;
-  private lastFailure = 0;
-  private readonly threshold = 3;
-  private readonly timeout = 60000; // 1 minute open state
-
-  isOpen(): boolean {
-    if (this.failures >= this.threshold) {
-      const now = Date.now();
-      if (now - this.lastFailure > this.timeout) {
-        // Half-open: try once
-        return false;
-      }
-      return true;
-    }
-    return false;
-  }
-
-  recordFailure(): void {
-    this.failures++;
-    this.lastFailure = Date.now();
-  }
-
-  recordSuccess(): void {
-    this.failures = 0;
-  }
-}
+import { CircuitBreaker } from "@/lib/utils/CircuitBreaker";
 
 const breakers = {
-  google: new CircuitBreaker(),
-  openai: new CircuitBreaker(),
-  groq: new CircuitBreaker(),
-  huggingface: new CircuitBreaker(),
+  google: new CircuitBreaker("google", { failureThreshold: 3, resetTimeoutMs: 60000 }),
+  openai: new CircuitBreaker("openai", { failureThreshold: 3, resetTimeoutMs: 60000 }),
+  groq: new CircuitBreaker("groq", { failureThreshold: 3, resetTimeoutMs: 60000 }),
+  huggingface: new CircuitBreaker("huggingface", { failureThreshold: 3, resetTimeoutMs: 60000 }),
 };
 
 /**
