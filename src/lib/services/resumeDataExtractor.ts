@@ -678,18 +678,33 @@ export class ResumeDataExtractor {
     if (extracted.summary) merged.summary = extracted.summary;
 
     // Merge arrays (experience, education, skills)
+    // Merge arrays (experience, education, skills) - with deduplication
     if (extracted.experience) {
-      merged.experience = [
-        ...(existing.experience || []),
-        ...extracted.experience,
-      ];
+      const existingExp = existing.experience || [];
+      const newExp = extracted.experience.filter(
+        (newItem) =>
+          !existingExp.some(
+            (existingItem) =>
+              existingItem.company.toLowerCase() ===
+              newItem.company.toLowerCase() &&
+              existingItem.title.toLowerCase() === newItem.title.toLowerCase()
+          )
+      );
+      merged.experience = [...existingExp, ...newExp];
     }
 
     if (extracted.education) {
-      merged.education = [
-        ...(existing.education || []),
-        ...extracted.education,
-      ];
+      const existingEdu = existing.education || [];
+      const newEdu = extracted.education.filter(
+        (newItem) =>
+          !existingEdu.some(
+            (existingItem) =>
+              existingItem.institution.toLowerCase() ===
+              newItem.institution.toLowerCase() &&
+              existingItem.degree.toLowerCase() === newItem.degree.toLowerCase()
+          )
+      );
+      merged.education = [...existingEdu, ...newEdu];
     }
 
     if (extracted.skills) {
@@ -721,7 +736,7 @@ export class ResumeDataExtractor {
     // Extract from each AI response
     for (const message of messages) {
       if (!message.isUser) {
-        const result = this.extract(message.content, conversationText);
+        const result = this.extract(message.content);
         aggregatedData = this.mergeData(aggregatedData, result.data);
         maxConfidence = Math.max(maxConfidence, result.confidence);
         isComplete = isComplete || result.isComplete;

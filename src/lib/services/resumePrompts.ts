@@ -222,11 +222,17 @@ INSTRUCTION: Stop asking questions. Generate the "RESUME_COMPLETE" response with
           )}\n`;
         } else {
           prompt += `BETA MODE: Maximum questions reached (${activeConfig.maxBetaQuestions}). Offer to create resume.\n`;
-          prompt += `MISSING INFO: ${missing.join(", ")}\n`;
+          prompt += `STATUS: The following fields are NOT yet structured: ${missing.join(
+            ", "
+          )}\n`;
+          prompt += `INSTRUCTION: Check the "Previous conversation" carefully. If the user has already mentioned details relevant to these fields (even if informal), DO NOT ask for them again. Instead, confirm what you understood and ask for specific details to formalize it (e.g. "You mentioned building X, what was your role there?"). Only ask for the field if it is completely missing.\n`;
           prompt += `Ask: "I have good information. Shall I create your resume now, or add more details?"\n`;
         }
       } else {
-        prompt += `MISSING INFO: ${missing.join(", ")}\n`;
+        prompt += `STATUS: The following fields are NOT yet structured: ${missing.join(
+          ", "
+        )}\n`;
+        prompt += `INSTRUCTION: Check the "Previous conversation" carefully. If the user has already mentioned details relevant to these fields (even if informal), DO NOT ask for them again. Instead, confirm what you understood and ask for specific details to formalize it (e.g. "You mentioned building X, what was your role there?"). Only ask for the field if it is completely missing.\n`;
       }
     } else {
       prompt += `INFO COMPLETE: All required information collected. You can now create the resume.\n`;

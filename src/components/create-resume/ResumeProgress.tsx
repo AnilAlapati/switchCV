@@ -15,7 +15,7 @@ export function ResumeProgress({
   missingFields = [],
   className,
 }: ResumeProgressProps) {
-  const [isMinimized, setIsMinimized] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(true);
   const clampedProgress = Math.min(100, Math.max(0, progress));
 
   if (clampedProgress === 0) return null;
@@ -87,8 +87,9 @@ export function ResumeProgress({
     >
       <button
         onClick={() => setIsMinimized(true)}
-        className="absolute top-2 right-2 z-20 rounded-full p-1 text-muted-foreground hover:bg-black/5 hover:text-foreground transition-colors"
+        className="absolute top-2 right-2 z-20 rounded-full p-2 text-primary bg-primary/10 hover:bg-primary/20 hover:scale-110 transition-all shadow-md border border-primary/30 animate-pulse"
         aria-label="Minimize"
+        title="Minimize progress tracker"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -97,7 +98,7 @@ export function ResumeProgress({
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          strokeWidth="2"
+          strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"
         >

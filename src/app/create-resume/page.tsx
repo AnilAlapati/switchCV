@@ -607,7 +607,7 @@ export default function CreateResume() {
                 />
               </div>
             ) : (
-              <div className="space-y-6 pb-2">
+              <div className="space-y-6 pb-2 pl-2">
                 {messages.map((message) => (
                   <div
                     key={message.id}
@@ -655,8 +655,8 @@ export default function CreateResume() {
 
                 <AILoadingState aiLoading={aiLoading} aiError={aiError} />
 
-                {/* Scroll Anchor with extra spacing */}
-                <div ref={messagesEndRef} className="h-32" />
+                {/* Scroll Anchor with extra spacing to prevent last message from being hidden behind expanding input */}
+                <div ref={messagesEndRef} className="h-64" />
               </div>
             )}
           </div>

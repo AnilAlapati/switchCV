@@ -52,7 +52,7 @@ export function CreateResumeInputForm({
       >
         {/* Unique Icon Core */}
         <div
-          className={`hidden md:flex items-center justify-center w-10 h-10 rounded-xl ml-2 mb-1 transition-all duration-500 ${
+          className={`hidden md:flex items-center justify-center w-10 h-10 rounded-xl ml-2 self-end mb-3 transition-all duration-500 ${
             isFocused
               ? "bg-primary text-white rotate-0"
               : "bg-muted text-muted-foreground -rotate-12"
@@ -81,7 +81,7 @@ export function CreateResumeInputForm({
                 ? "✓ Strategy locked. View below."
                 : "Describe your dream role or paste your experience..."
             }
-            className="w-full p-3.5 bg-transparent border-none text-foreground placeholder-muted-foreground/60 focus:outline-none resize-none min-h-[52px] max-h-[200px] overflow-y-auto text-base leading-relaxed font-medium"
+            className="w-full p-3.5 bg-transparent border-none text-foreground placeholder-muted-foreground/60 focus:outline-none resize-none min-h-[52px] max-h-[120px] overflow-y-auto text-base leading-relaxed font-medium scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent"
             disabled={isGenerating || isComplete}
             rows={1}
           />
@@ -90,7 +90,7 @@ export function CreateResumeInputForm({
         <button
           type="submit"
           aria-label="Send message"
-          className={`group relative rounded-2xl font-semibold shadow-lg transition-all transform active:scale-95 flex items-center justify-center w-[52px] h-[52px] overflow-hidden ${
+          className={`group relative rounded-2xl font-semibold shadow-lg transition-all transform active:scale-95 flex items-center justify-center w-[52px] h-[52px] overflow-hidden self-end mb-1 ${
             !currentInput.trim() || isGenerating || isComplete
               ? "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
               : "bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-emerald-600/25"
