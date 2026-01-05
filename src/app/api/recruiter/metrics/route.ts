@@ -1,6 +1,8 @@
 import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
+// eslint-disable-next-line no-restricted-imports
 import { FieldValue } from "firebase-admin/firestore";
 import { getRecruiterSearchBreakdown } from "@/lib/recruiterSearchHistory";
 import {

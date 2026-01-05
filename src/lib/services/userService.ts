@@ -8,6 +8,21 @@ import {
 } from "@/lib/config";
 import { logger } from "@/lib/logger";
 import { userTierCache, userRoleCache } from "@/lib/utils/cache";
+import { User } from "@/types";
+import { z } from "zod";
+
+const userProfileSchema = z.object({
+  uid: z.string().min(1, "UID is required"),
+  email: z.string().email("Invalid email address"),
+  displayName: z.string().optional(),
+  companyName: z.string().optional(),
+});
+
+const updateProfileSchema = z.object({
+  uid: z.string().min(1, "UID is required"),
+  displayName: z.string().optional(),
+  companyName: z.string().optional(),
+});
 
 /**
  * Get user's subscription tier.
@@ -79,4 +94,78 @@ export async function getUserRole(userId: string): Promise<UserRole> {
   // Cache result
   userRoleCache.set(userId, result, 5 * 60 * 1000); // 5 minutes TTL
   return result;
+}
+
+/**
+ * Fetch full user profile data.
+ */
+export async function getUserProfile(userId: string) {
+  const doc = await adminDb.collection("users").doc(userId).get();
+  if (!doc.exists) return null;
+  return doc.data();
+}
+
+/**
+ * Creates a new user profile.
+ * Enforces server-controlled fields like role and tier.
+ */
+export async function createUserProfile(data: any): Promise<Partial<User>> {
+  // Validate input
+  const validation = userProfileSchema.safeParse(data);
+  if (!validation.success) {
+    throw new Error(`Validation failed: ${validation.error.message}`);
+  }
+
+  const { uid, email, displayName, companyName } = validation.data;
+  const now = new Date().toISOString();
+
+  // Default data structure
+  const userProfileData = {
+    uid,
+    email,
+    displayName: displayName || "",
+    // Standardize on "role" string to match getUserRole logic
+    role: "jobseeker",
+    isRecruiter: false, // Keep for backward compatibility if needed
+    companyName: companyName || "",
+    subscriptionTier: "basic",
+    createdAt: now,
+    updatedAt: now,
+    profileSlug: uid, // Default slug
+    settings: {
+      publicProfile: false,
+      defaultPIIVisibility: "masked"
+    }
+  };
+
+  await adminDb
+    .collection("users")
+    .doc(uid)
+    .set(userProfileData, { merge: true });
+
+  return userProfileData as unknown as Partial<User>;
+}
+
+/**
+ * Updates a user profile.
+ * Restricts updates to allowed fields (displayName, companyName).
+ */
+export async function updateUserProfile(uid: string, data: any) {
+  const validation = updateProfileSchema.safeParse({ ...data, uid });
+  if (!validation.success) {
+    throw new Error(`Validation failed: ${validation.error.message}`);
+  }
+
+  const { displayName, companyName } = validation.data;
+
+  const updateData: any = {
+    updatedAt: new Date().toISOString(),
+  };
+
+  if (displayName !== undefined) updateData.displayName = displayName;
+  if (companyName !== undefined) updateData.companyName = companyName;
+
+  await adminDb.collection("users").doc(uid).set(updateData, { merge: true });
+
+  return updateData;
 }

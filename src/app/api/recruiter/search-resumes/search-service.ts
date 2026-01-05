@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 import { getDocumentIdFromResumeId } from "@/lib/resumeIdMapping";
 import { AccessStatusMap, getAccessStatus } from "./access-status";

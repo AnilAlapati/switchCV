@@ -1,5 +1,6 @@
 // src/app/api/profiles/search/route.ts
 import { NextRequest, NextResponse } from "next/server";
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 import type { ProfileSearchResult } from "@/types/profileSearch";
 import {

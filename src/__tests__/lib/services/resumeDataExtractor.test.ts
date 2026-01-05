@@ -14,6 +14,20 @@ describe("ResumeDataExtractor", () => {
       expect(result.extractedFields).toContain("name");
     });
 
+    it("should NOT extract name from 'I'm starting to...' phrase", () => {
+      const text = "I'm starting to get a hang of this";
+      const result = ResumeDataExtractor.extract(text);
+
+      expect(result.data.name).toBeUndefined();
+    });
+
+    it("should NOT extract name from 'I'm looking for...' phrase", () => {
+      const text = "I'm looking for a job in tech";
+      const result = ResumeDataExtractor.extract(text);
+
+      expect(result.data.name).toBeUndefined();
+    });
+
     it("should extract email from text", () => {
       const text = "You can reach me at john.doe@example.com";
       const result = ResumeDataExtractor.extract(text);

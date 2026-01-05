@@ -2,110 +2,27 @@ import { logger } from "@/lib/logger";
 import { z } from "zod";
 /* eslint-disable max-lines */
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase-admin";
-import { sanitizeResumePayload } from "@/lib/utils/resumeEditor";
-import { FieldValue } from "firebase-admin/firestore";
 import {
-  fetchResumeDocument,
   handleApiError,
   maybeGetAuthenticatedUserId,
-  verifyResumeOwnership,
+  getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
-import { sanitizeResumeForPublicView } from "@/lib/utils/resumeVisibility";
-import { getUserTier } from "@/lib/services/userService";
-import { getResumeEditingAllowed } from "@/lib/config.server";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
 import { checkSequentialAccess } from "@/lib/security/accessMonitor";
-import { addDeletedIdToPool } from "@/lib/resumeIdRecycler";
+import {
+  getResume,
+  updateResume,
+  deleteResume,
+  trackResumeView,
+} from "@/lib/services/resumeService";
+import { getUserTier } from "@/lib/services/userService";
+import { getResumeEditingAllowed } from "@/lib/config.server";
 
-type AccessGrantType = "request" | "grant";
-
-function resolveExpiryTimestamp(value: any): Date | null {
-  if (!value) {
-    return null;
+// Helper to track views based on access type
+async function trackViews(access: string, userId: string, ownerId?: string) {
+  if (access === "granted") {
+    // Recruiter view logic would go here if needed, or delegated to service
   }
-
-  if (typeof value.toDate === "function") {
-    return value.toDate();
-  }
-
-  if (value instanceof Date) {
-    return value;
-  }
-
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
-async function checkPrivateResumeAccess(
-  resumeId: string,
-  viewerId: string
-): Promise<AccessGrantType | null> {
-  try {
-    const resumeRef = adminDb.collection("resumes").doc(resumeId);
-    // Only check grants for valid access. Requests are for history/status tracking.
-    const grantsSnap = await resumeRef
-      .collection("accessGrants")
-      .where("toUserId", "==", viewerId)
-      .get();
-
-    logger.info(
-      `[ResumeAPI] Found ${grantsSnap.size} grants for user ${viewerId}.`
-    );
-
-    const now = new Date();
-
-    const hasValidGrant = grantsSnap.docs.some((doc) => {
-      const data = doc.data();
-      // Double check toUserId just in case, though query handles it
-      if (data.toUserId !== viewerId) {
-        return false;
-      }
-
-      const expiresAt = resolveExpiryTimestamp(data.expiresAt);
-      return !expiresAt || expiresAt > now;
-    });
-
-    if (hasValidGrant) {
-      return "grant";
-    }
-  } catch (error) {
-    logger.error({ err: error }, "Error checking authenticated user access:");
-  }
-
-  return null;
-}
-
-async function trackRecruiterProfileView(userId: string) {
-  return adminDb
-    .collection("recruiterMetrics")
-    .doc(userId)
-    .set(
-      {
-        totalProfileViews: FieldValue.increment(1),
-        lastActivityAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    )
-    .catch((err) =>
-      logger.error({ err: err }, "Failed to track profile view:")
-    );
-}
-
-async function trackJobSeekerProfileView(userId: string) {
-  return adminDb
-    .collection("jobSeekerMetrics")
-    .doc(userId)
-    .set(
-      {
-        profileViews: FieldValue.increment(1),
-        lastUpdated: FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    )
-    .catch((err) =>
-      logger.error({ err: err }, "Failed to track job seeker profile view:")
-    );
 }
 
 export async function GET(
@@ -166,35 +83,21 @@ export async function GET(
       );
     }
 
-    const resumeDoc = await fetchResumeDocument(id);
+    // Use Service Layer
+    const { resume: resumeData, access } = await getResume(id, optionalUserId || undefined);
 
-    if (!resumeDoc) {
+    if (!resumeData || access === "none") {
       return handleApiError(
-        new Error("Resume not found"),
-        "Resume not found",
+        new Error("Resume not found or access denied"),
+        "Resume not found or access denied",
         404
       );
     }
 
-    const { data: resumeData } = resumeDoc;
-    const isPublic =
-      resumeData?.isPublic ||
-      resumeData?.visibility === "public" ||
-      resumeData?.published === true;
     const isBeingEdited = resumeData?.isBeingEdited ?? false;
 
-    const ownerId = resumeData?.userId ?? null;
-    // optionalUserId is already defined above for rate limiting
-    logger.info(
-      `[ResumeAPI] Fetching resume ${id}. AuthUser: ${optionalUserId}`
-    );
-
-    const isOwner = Boolean(
-      optionalUserId && ownerId && optionalUserId === ownerId
-    );
-
     // 1. Owner Access
-    if (isOwner) {
+    if (access === "owner") {
       logger.info(`[ResumeAPI] User is owner.`);
       return NextResponse.json({
         ...resumeData,
@@ -210,19 +113,8 @@ export async function GET(
       });
     }
 
-    const viewMode = request.nextUrl.searchParams.get("view");
-    const forceFullAccessCheck = viewMode === "full";
-
-    let viewerData: Record<string, any> | null = null;
-    if (optionalUserId) {
-      const userDoc = await adminDb
-        .collection("users")
-        .doc(optionalUserId)
-        .get();
-      viewerData = userDoc.data() || null;
-    }
-
-    if (viewerData?.role === "admin") {
+    // 2. Admin Access
+    if (access === "admin") {
       logger.info(`[ResumeAPI] User is admin.`);
       return NextResponse.json({
         ...resumeData,
@@ -239,29 +131,12 @@ export async function GET(
       });
     }
 
-    // 2. Check for explicit access grant (Recruiter)
-    let hasGrantedAccess = false;
-    if (optionalUserId) {
-      logger.info(
-        `[ResumeAPI] Checking private access for user ${optionalUserId} on resume ${id}`
-      );
-      const accessGrantType = await checkPrivateResumeAccess(
-        id,
-        optionalUserId
-      );
+    // 3. Explicit Grant (Recruiter)
+    if (access === "granted") {
+      logger.info(`[ResumeAPI] Access granted via explicit grant.`);
+      // Track view could be moved to service ideally
+      await trackResumeView(id);
 
-      if (accessGrantType) {
-        hasGrantedAccess = true;
-        logger.info(`[ResumeAPI] Access granted via ${accessGrantType}.`);
-        await trackRecruiterProfileView(optionalUserId);
-      }
-    }
-
-    // 3. Return Full Access if granted
-    if (hasGrantedAccess) {
-      if (ownerId) {
-        trackJobSeekerProfileView(ownerId);
-      }
       return NextResponse.json({
         ...resumeData,
         isBeingEdited,
@@ -277,16 +152,14 @@ export async function GET(
       });
     }
 
-    // 4. Public Snapshot Fallback
-    // If public and NO grant, return snapshot
-    if (isPublic && !forceFullAccessCheck) {
+    // 4. Public Snapshot
+    if (access === "public_snapshot") {
       logger.info(`[ResumeAPI] Returning public snapshot.`);
-      if (ownerId) {
-        trackJobSeekerProfileView(ownerId);
-      }
-      const sanitized = sanitizeResumeForPublicView(resumeData);
+      // Track view
+      await trackResumeView(id);
+
       return NextResponse.json(
-        { ...sanitized, isBeingEdited },
+        { ...resumeData, isBeingEdited },
         {
           headers: {
             "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
@@ -295,16 +168,13 @@ export async function GET(
       );
     }
 
-    if (!optionalUserId) {
-      return handleApiError(new Error("Unauthorized"), "Unauthorized", 401);
-    }
-
-    // If we got here: Not Owner, Not Admin, Not Granted, Not Public (or forced full check failed)
+    // Default Deny
     return handleApiError(
       new Error("Permission denied"),
       "Permission denied",
       403
     );
+
   } catch (error) {
     return handleApiError(error, "Error fetching resume");
   }
@@ -319,6 +189,9 @@ export async function PATCH(
     const body = await request.json();
     const { isPublic } = body;
 
+    const { userId, error } = await getAuthenticatedUserId(request);
+    if (error || !userId) return error;
+
     if (typeof isPublic !== "boolean") {
       return handleApiError(
         new Error("Invalid visibility state"),
@@ -327,19 +200,19 @@ export async function PATCH(
       );
     }
 
-    const verification = await verifyResumeOwnership(request, id);
-    if (!verification.success) {
-      return verification.error;
+    // Check ownership via service
+    const { access } = await getResume(id, userId);
+    if (access !== "owner") {
+      return handleApiError(new Error("Unauthorized"), "Unauthorized", 403);
     }
 
-    const { docRef } = verification;
-
-    // Update Visibility
-    await docRef.update({
+    // Update Visibility using service (we reuse updateResume or need a specific one? 
+    // updateResume takes 'any' data so it should work if we pass partial)
+    // Actually updateResume in service does a set with merge: true.
+    await updateResume(id, userId, {
       isPublic: isPublic,
       visibility: isPublic ? "public" : "private",
       published: isPublic,
-      updatedAt: new Date().toISOString(),
     });
 
     return NextResponse.json({ success: true, isPublic });
@@ -362,15 +235,17 @@ export async function PUT(
       );
     }
 
-    const verification = await verifyResumeOwnership(request, id);
-    if (!verification.success) {
-      return verification.error;
+    const { userId, error } = await getAuthenticatedUserId(request);
+    if (error || !userId) return error;
+
+    // Check Ownership
+    const { access, resume } = await getResume(id, userId);
+    if (access !== "owner") {
+      return handleApiError(new Error("Unauthorized"), "Unauthorized", 403);
     }
 
-    const { userId: requestUserId, docRef } = verification;
-
     // Check Editing Permissions
-    const tier = await getUserTier(requestUserId!);
+    const tier = await getUserTier(userId);
     const editingAllowed = await getResumeEditingAllowed();
     const canEdit = editingAllowed[tier];
 
@@ -410,25 +285,15 @@ export async function PUT(
 
     const resumePayload = result.data.resume;
 
-    const sanitizedResume = sanitizeResumePayload(resumePayload);
-    const timestamp = new Date().toISOString();
+    // Use Service
+    await updateResume(id, userId, resumePayload);
 
-    await docRef.set(
-      {
-        ...sanitizedResume,
-        updatedAt: timestamp,
-        lastUpdatedAt: timestamp,
-      },
-      { merge: true }
-    );
-
-    const refreshedSnap = await docRef.get();
-    const refreshedData = refreshedSnap.data() ?? {};
-
+    // Return the updated data (simplification: merge payload with existing for response)
     return NextResponse.json({
       success: true,
       resume: {
-        ...refreshedData,
+        ...resume, // old data
+        ...resumePayload, // new data
         id,
       },
     });
@@ -451,26 +316,13 @@ export async function DELETE(
       );
     }
 
-    // Verify ownership
-    const verification = await verifyResumeOwnership(request, id);
-    if (!verification.success) {
-      return verification.error;
-    }
+    const { userId, error } = await getAuthenticatedUserId(request);
+    if (error || !userId) return error;
 
-    const { docRef } = verification;
+    // Service handles ownership check inside deleteResume too, but we can double check or rely on service.
+    // The service implementation I wrote checks: if (doc.data()?.userId !== userId) throw new Error("Unauthorized");
 
-    // Delete the document
-    await docRef.delete();
-
-    // Recycle the numeric ID
-    // We assume 'id' here is numeric based on previous logic, but check to be safe
-    const numericId = parseInt(id, 10);
-    if (!isNaN(numericId)) {
-      // Async (fire & forget) to not block response
-      addDeletedIdToPool(numericId).catch((err) =>
-        logger.error({ err, numericId }, "Failed to recycle resume ID")
-      );
-    }
+    await deleteResume(id, userId);
 
     logger.info(`[ResumeAPI] Deleted resume ${id}.`);
 
@@ -479,6 +331,10 @@ export async function DELETE(
       message: "Resume deleted successfully",
     });
   } catch (error) {
+    // Check if it's our service error
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return handleApiError(error, "Unauthorized", 403);
+    }
     return handleApiError(error, "Error deleting resume");
   }
 }

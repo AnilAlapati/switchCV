@@ -6,6 +6,7 @@
 
 import { NextRequest } from "next/server";
 import { GET, PUT } from "@/app/api/user/settings/route";
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 

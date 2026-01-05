@@ -3,6 +3,7 @@
  */
 
 import { POST } from "@/app/api/admin/migrate-resume-ids/route";
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 import { mapResumeId } from "@/lib/resumeIdMapping";
 import { NextRequest } from "next/server";

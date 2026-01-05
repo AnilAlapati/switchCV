@@ -24,6 +24,7 @@ jest.mock("@/lib/firebase-admin", () => ({
   },
 }));
 
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 
 const mockCollection = adminDb.collection as jest.Mock;

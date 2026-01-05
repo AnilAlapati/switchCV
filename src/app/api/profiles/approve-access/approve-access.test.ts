@@ -34,6 +34,7 @@ jest.mock("@/lib/utils/api-helpers", () => ({
 
 import { POST } from "@/app/api/profiles/approve-access/route";
 import { NextRequest } from "next/server";
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 import {
   getAuthenticatedUserId,

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase-admin";
 import { generateNumericResumeId } from "@/lib/numericIdGenerator";
 import {
   getAuthenticatedUserId,
@@ -9,6 +8,7 @@ import {
 import { checkRateLimit } from "@/lib/utils/rateLimit";
 import { getConstants } from "@/lib/getSystemConfig";
 import { createResumeSchema } from "@/lib/validations/resume";
+import { createResume } from "@/lib/services/resumeService";
 
 export async function POST(request: NextRequest) {
   try {
@@ -51,27 +51,8 @@ export async function POST(request: NextRequest) {
     }
     const validatedBody = validationResult.data;
 
-    // 3. Generate ID
-    const numericId = await generateNumericResumeId();
-    const resumeId = numericId.toString();
-
-    // 4. Prepare Resume Document
-    const resumeData = {
-      ...validatedBody,
-      id: resumeId,
-      userId,
-      numericId,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      isPublic: false, // Default to private
-      published: false,
-      status: "draft",
-    };
-
-    // 5. Save to Firestore.
-    // Derived indexes (user + global) are handled by the fan-out Cloud Function
-    // listening to the `resumes/{id}` collection.
-    await adminDb.collection("resumes").doc(resumeId).set(resumeData);
+    // 3. Delegate to Service
+    const { resumeId, numericId } = await createResume(userId, validatedBody);
 
     return NextResponse.json({
       success: true,

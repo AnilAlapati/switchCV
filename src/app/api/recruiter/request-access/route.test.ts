@@ -5,6 +5,7 @@ import { POST } from "./route";
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 import { getUserTier } from "@/lib/services/userService";
 import { consumeQuota, QuotaExceededError } from "@/lib/services/quotaService";
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 
 // Mock dependencies

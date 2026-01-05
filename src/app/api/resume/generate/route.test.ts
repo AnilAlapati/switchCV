@@ -5,6 +5,7 @@ import { generateText } from "@/lib/services/aiGenerationService";
 import { ResumeDataExtractor } from "@/lib/services/resumeDataExtractor";
 import { ConversationManager } from "@/lib/services/conversationManager";
 import { generateNumericResumeId } from "@/lib/numericIdGenerator";
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 import {
   buildConversationalPrompt,

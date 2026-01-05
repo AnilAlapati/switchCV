@@ -8,6 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
 import { RESERVED_USERNAMES, USERNAME_CONFIG } from "@/config/constants";

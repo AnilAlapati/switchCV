@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { POST } from "./route";
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 import { createNotification } from "@/lib/notificationService";
 

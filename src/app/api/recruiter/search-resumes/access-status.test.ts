@@ -1,4 +1,5 @@
 import { buildAccessStatusMap, getAccessStatus } from "./access-status";
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 
 jest.mock("@/lib/firebase-admin", () => ({

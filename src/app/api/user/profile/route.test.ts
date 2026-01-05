@@ -2,6 +2,7 @@
 // src/app/api/user/profile/route.test.ts
 import { GET, POST, PUT } from "@/app/api/user/profile/route";
 import { NextRequest } from "next/server";
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 

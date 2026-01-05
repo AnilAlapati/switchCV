@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+// eslint-disable-next-line no-restricted-imports
 import { adminDb, adminAuth } from "@/lib/firebase-admin";
 import { handleApiError } from "@/lib/utils/api-helpers";
 import { randomBytes } from "crypto";
+// eslint-disable-next-line no-restricted-imports
 import admin from "firebase-admin";
 
 /**

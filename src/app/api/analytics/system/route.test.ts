@@ -2,6 +2,7 @@
 
 import { NextRequest } from "next/server";
 import { GET } from "./route";
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 
 // Mock Firebase Admin

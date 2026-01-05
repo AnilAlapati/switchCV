@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import { generateNumericResumeId } from "@/lib/numericIdGenerator";
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 import { getUserTier } from "@/lib/services/userService";
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 
 // Mock api-helpers

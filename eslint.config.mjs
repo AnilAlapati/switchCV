@@ -62,6 +62,25 @@ const eslintConfig = [
       ],
       // API routes frequently handle Firestore errors and dynamic data
       "@typescript-eslint/no-explicit-any": "off",
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@/lib/firebase-admin",
+              message: "Direct DB access is forbidden in API routes. Move logic to a Service in src/lib/services/.",
+            },
+            {
+              name: "firebase-admin",
+              message: "Direct DB access is forbidden in API routes. Move logic to a Service in src/lib/services/.",
+            },
+            {
+              name: "@/lib/firebase",
+              message: "Direct DB access is forbidden in API routes. Move logic to a Service in src/lib/services/.",
+            },
+          ],
+        },
+      ],
     },
   },
   {

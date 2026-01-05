@@ -3,7 +3,7 @@ import {
   getAuthenticatedUserId,
   handleApiError,
 } from "@/lib/utils/api-helpers";
-import { adminDb } from "@/lib/firebase-admin";
+import { verifyAdminAccess, getSystemStats } from "@/lib/services/adminService";
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,31 +11,15 @@ export async function GET(request: NextRequest) {
     if (error) return error;
 
     // Verify Admin Role
-    const userDoc = await adminDb.collection("users").doc(userId!).get();
-    const userData = userDoc.data();
-
-    if (userData?.role !== "admin") {
+    const isAdmin = await verifyAdminAccess(userId!);
+    if (!isAdmin) {
       return handleApiError(new Error("Forbidden"), "Forbidden", 403);
     }
 
-    // Fetch Billing Stats
-    const billingDoc = await adminDb.doc("system/billing").get();
-    const billingData = billingDoc.data() || {
-      totalCost: 0,
-      currentMonthCost: 0,
-    };
+    // Fetch Stats
+    const stats = await getSystemStats();
 
-    // Fetch Config for limits
-    const configDoc = await adminDb.doc("config/system").get();
-    const configData = configDoc.data() || {};
-    const budgetCap = configData.agentic?.budgetCap || 0;
-
-    return NextResponse.json({
-      totalCost: billingData.totalCost || 0,
-      budgetCap,
-      usagePercent:
-        budgetCap > 0 ? ((billingData.totalCost || 0) / budgetCap) * 100 : 0,
-    }, {
+    return NextResponse.json(stats, {
       headers: {
         'Cache-Control': 'private, max-age=60, stale-while-revalidate=300',
       },

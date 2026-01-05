@@ -12,14 +12,13 @@ import {
   isCompletionResponse,
 } from "@/lib/services/resumePrompts";
 import { getActiveConfig } from "@/lib/services/conversationConfig";
-import { generateNumericResumeId } from "@/lib/numericIdGenerator";
-import { adminDb } from "@/lib/firebase-admin";
 import {
   handleApiError,
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
 import { getUserTier } from "@/lib/services/userService";
 import type { SubscriptionTier } from "@/lib/config";
+import { getResumeCount, saveGeneratedResume } from "@/lib/services/resumeService";
 
 interface GenerateResumeRequest {
   message: string;
@@ -47,8 +46,8 @@ export async function POST(request: NextRequest) {
 
     logger.info({ userId }, "✅ Authenticated user generating resume:");
 
-    const userSnapshot = await adminDb.collection("users").doc(userId).get();
-    const userRole = (userSnapshot.data()?.subscriptionTier || "basic") as any;
+    // Use centralized service for tier info
+    const userRole = await getUserTier(userId);
 
     const rateLimit = await checkDistributedRateLimit(userId, {
       tier: userRole,
@@ -88,13 +87,7 @@ export async function POST(request: NextRequest) {
 
     // Enforce Quantity Limit for Basic Users
     if (userTier === "basic") {
-      const resumesSnapshot = await adminDb
-        .collection("resumes")
-        .where("userId", "==", userId)
-        .count()
-        .get();
-
-      const resumeCount = resumesSnapshot.data().count;
+      const resumeCount = await getResumeCount(userId);
 
       if (resumeCount >= 1) {
         // Check if user is trying to regenerate/edit an existing one (which is allowed if supported)
@@ -297,52 +290,10 @@ export async function POST(request: NextRequest) {
           });
         }
 
-        // Generate numeric ID
-        const numericId = await generateNumericResumeId();
-        const resumeId = numericId.toString();
+        logger.info("✨ Creating generated resume via Service");
 
-        logger.info({ data: resumeId }, "✨ Creating resume with ID:");
-
-        // Prepare resume document
-        const resumeDocument = {
-          id: resumeId,
-          userId,
-          numericId,
-          title:
-            `${resumeData.name || "User"}'s Resume` || "AI Generated Resume",
-          personalInfo: {
-            name: resumeData.name || "",
-            email: resumeData.email || "",
-            phone: resumeData.phone || "",
-            location: resumeData.location || "",
-          },
-          summary: resumeData.summary || "",
-          experience: resumeData.experience || [],
-          education: resumeData.education || [],
-          skills: resumeData.skills || [],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          createdVia: "ai-conversation",
-          isPublic: false,
-          status: "draft",
-        };
-
-        // Save to Firestore
-        await adminDb.collection("resumes").doc(resumeId).set(resumeDocument);
-
-        // Also save to user's subcollection
-        await adminDb
-          .collection("users")
-          .doc(userId)
-          .collection("userResumes")
-          .doc(resumeId)
-          .set({
-            id: resumeId,
-            title: resumeDocument.title,
-            createdAt: resumeDocument.createdAt,
-            updatedAt: resumeDocument.updatedAt,
-            numericId,
-          });
+        // Delegate to Service
+        const { resumeId, numericId } = await saveGeneratedResume(userId, resumeData);
 
         logger.info({ data: resumeId }, "✅ Resume created successfully:");
 

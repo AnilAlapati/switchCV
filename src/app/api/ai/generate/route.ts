@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHash, randomUUID } from "crypto";
 import { z } from "zod";
 import { generateText } from "@/lib/services/aiGenerationService";
+// eslint-disable-next-line no-restricted-imports
 import admin, { adminDb } from "@/lib/firebase-admin";
 import {
   getAuthenticatedUserId,

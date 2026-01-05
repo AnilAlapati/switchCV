@@ -15,6 +15,7 @@ import {
 } from "./search-service";
 import { recordRecruiterSearchEvent } from "@/lib/recruiterSearchHistory";
 import { getConstants } from "@/lib/getSystemConfig";
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 
 // Mock dependencies

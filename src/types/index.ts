@@ -280,3 +280,19 @@ export interface AuditLog {
   timestamp: string;
   meta: Record<string, unknown>;
 }
+
+export interface SystemAnalytics {
+  totalUsers: number;
+  totalResumes: number;
+  activeRecruiters: number;
+  totalViews: number;
+  totalContactRequests: number;
+  averageAttractiveness: number;
+  topIndustries: Array<{ name: string; count: number }>;
+  recentActivity: Array<{ type: string; timestamp: Date; description: string }>;
+  subscriptionDistribution: {
+    basic: number;
+    premium: number;
+    enterprise: number;
+  };
+}

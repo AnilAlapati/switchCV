@@ -15,6 +15,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+// eslint-disable-next-line no-restricted-imports
 import admin, { adminDb } from "@/lib/firebase-admin";
 import { generateText } from "@/lib/services/aiGenerationService";
 import {

@@ -26,6 +26,7 @@ jest.mock("@/lib/notificationService", () => ({
   createNotification: jest.fn(),
 }));
 
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 

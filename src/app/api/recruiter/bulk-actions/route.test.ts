@@ -119,6 +119,7 @@ jest.mock("@/lib/logger", () => ({
 }));
 
 import { createBulkAction } from "@/lib/recruiterPipelineHelpers";
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 
 const mockCreateBulkAction = createBulkAction as jest.MockedFunction<

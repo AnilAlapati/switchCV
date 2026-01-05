@@ -8,7 +8,7 @@ import {
 } from "@/lib/utils/api-helpers";
 import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 import { runAgenticWorkflow } from "@/lib/services/agentOrchestrator";
-import { adminDb } from "@/lib/firebase-admin";
+import { getUserTier } from "@/lib/services/userService";
 
 interface GenerateResumeRequest {
   resumeData: {
@@ -71,8 +71,9 @@ export async function POST(
 
     // 2. Check Rate Limit
     // Fetch user for subscription tier
-    const userSnapshot = await adminDb.collection("users").doc(userId).get();
-    const userRole = (userSnapshot.data()?.subscriptionTier || "basic") as any;
+    // 2. Check Rate Limit
+    // Fetch user for subscription tier
+    const userRole = (await getUserTier(userId)) as any;
 
     const rateLimitResult = await checkDistributedRateLimit(userId, {
       tier: userRole,

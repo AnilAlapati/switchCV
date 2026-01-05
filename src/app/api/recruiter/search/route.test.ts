@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-restricted-imports
 import type { FirebaseFirestore } from "firebase-admin";
 import { NextRequest, NextResponse } from "next/server";
 import { GET } from "./route";
