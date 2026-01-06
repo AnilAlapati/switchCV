@@ -29,6 +29,9 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error: any) {
+    if (error.message === "User not found") {
+      return handleApiError(null, "User not found", 404);
+    }
     if (error.message === "Unauthorized") {
       return handleApiError(error, "Unauthorized. Only admins and recruiters can access system analytics.", 403);
     }

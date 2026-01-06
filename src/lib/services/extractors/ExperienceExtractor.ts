@@ -3,7 +3,7 @@ import { ResumeDataRequirements, ExperienceEntry } from "../../conversationManag
 import { IExtractor } from "./IExtractor";
 
 export class ExperienceExtractor implements IExtractor {
-    extract(text: string): Partial<ResumeDataRequirements> {
+    extract(text: string, context?: "education" | "experience" | "skills" | "contact" | null): Partial<ResumeDataRequirements> {
         const data: Partial<ResumeDataRequirements> = {};
         const fullText = text;
 
@@ -16,7 +16,7 @@ export class ExperienceExtractor implements IExtractor {
         ];
 
         // Check if we should even run this (optimization)
-        const hasExperience = experienceKeywords.some((kw) =>
+        const hasExperience = context === "experience" || experienceKeywords.some((kw) =>
             fullText.toLowerCase().includes(kw)
         );
 
@@ -26,7 +26,7 @@ export class ExperienceExtractor implements IExtractor {
         const sectionMatch = fullText.match(experienceSectionRegex);
         const textToSearch = sectionMatch ? sectionMatch[1] : fullText;
 
-        if (hasExperience || /@/.test(textToSearch) || sectionMatch) {
+        if (hasExperience || /@/.test(textToSearch) || sectionMatch || context === "experience") {
             const expPatterns = [
                 // Bullet: "- Title at Company"
                 /(?:^|\n)\s*[-•]\s*([A-Za-z0-9\s]+?)\s+(?:at|\||@)\s+([A-Za-z0-9\s]+)(?=\n|$)/,

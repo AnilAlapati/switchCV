@@ -35,8 +35,7 @@ export async function GET(
     const draft = await getDraft(draftId, userId!);
 
     if (!draft) {
-      // getDraft returns null if not found OR not owned by user
-      // We return 404 to avoid leaking existence of drafts
+      // getDraft returns null if not found
       return handleApiError(null, "Draft not found", 404);
     }
 
@@ -46,6 +45,9 @@ export async function GET(
       },
     });
   } catch (error) {
+    if (error.message?.includes("Forbidden")) {
+      return handleApiError(error, "Forbidden", 403);
+    }
     return handleApiError(error, "Failed to fetch draft");
   }
 }
@@ -106,9 +108,11 @@ export async function PATCH(
       if (error.message.includes("Draft not found")) {
         return handleApiError(null, "Draft not found", 404);
       }
+      if (error.message.includes("Forbidden")) {
+        return handleApiError(error, "Forbidden", 403);
+      }
       throw error;
     }
-
   } catch (error) {
     return handleApiError(error, "Failed to update draft");
   }
@@ -131,9 +135,11 @@ export async function DELETE(
       if (error.message.includes("Draft not found")) {
         return handleApiError(null, "Draft not found", 404);
       }
+      if (error.message.includes("Forbidden")) {
+        return handleApiError(error, "Forbidden", 403);
+      }
       throw error;
     }
-
   } catch (error) {
     return handleApiError(error, "Failed to delete draft");
   }

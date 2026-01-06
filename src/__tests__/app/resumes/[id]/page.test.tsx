@@ -12,6 +12,12 @@ jest.mock("next/navigation", () => ({
 }));
 jest.mock("@/lib/services/templateService");
 
+jest.mock("@/hooks/useResumeData", () => ({
+  useResumeData: jest.fn(),
+}));
+
+import { useResumeData } from "@/hooks/useResumeData";
+
 // Mock components
 jest.mock("@/components/resume/TemplateRenderer", () => ({
   TemplateRenderer: () => <div data-testid="template-renderer" />,
@@ -53,28 +59,34 @@ describe("ResumeView", () => {
       loading: false,
     });
 
-    (templateService.getTemplateById as jest.Mock).mockResolvedValue({
-      id: "standard-v1",
-      name: "Standard",
-    });
-
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: jest.fn().mockResolvedValue({
+    (useResumeData as jest.Mock).mockReturnValue({
+      resume: {
         id: "resume123",
         templateId: "standard-v1",
         isPublic: true,
         viewerAccess: { isOwner: true, scope: "owner" },
-      }),
+      },
+      template: {
+        id: "standard-v1",
+        name: "Standard",
+      },
+      accessBlock: null,
+      error: null,
+      loading: false,
+      mutateResume: jest.fn(),
     });
   });
 
   it("renders loading state initially", () => {
-    (useAuth as jest.Mock).mockReturnValue({
+    (useResumeData as jest.Mock).mockReturnValue({
+      resume: null,
+      template: null,
+      accessBlock: null,
+      error: null,
       loading: true,
     });
-    render(<ResumeView />);
-    expect(screen.getByText("Checking authentication...")).toBeInTheDocument();
+    const { container } = render(<ResumeView />);
+    expect(container.querySelector(".animate-pulse")).toBeInTheDocument();
   });
 
   it("renders resume when fetched successfully", async () => {
@@ -85,10 +97,16 @@ describe("ResumeView", () => {
     });
   });
 
-  it("renders access block on 401", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: false,
-      status: 401,
+  it("renders access block on 401/403", async () => {
+    (useResumeData as jest.Mock).mockReturnValue({
+      resume: null,
+      template: null,
+      accessBlock: {
+        title: "This resume is private",
+        description: "The owner has restricted access.",
+      },
+      error: null,
+      loading: false,
     });
 
     render(<ResumeView />);
@@ -100,26 +118,13 @@ describe("ResumeView", () => {
     });
   });
 
-  it("renders access block on 403", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: false,
-      status: 403,
-      json: jest.fn().mockResolvedValue({}),
-    });
-
-    render(<ResumeView />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId("access-block")).toHaveTextContent(
-        "You do not have permission to view this resume"
-      );
-    });
-  });
-
-  it("renders error on 404", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: false,
-      status: 404,
+  it("renders error state", async () => {
+    (useResumeData as jest.Mock).mockReturnValue({
+      resume: null,
+      template: null,
+      accessBlock: null,
+      error: "Resume not found",
+      loading: false,
     });
 
     render(<ResumeView />);
@@ -158,15 +163,18 @@ describe("ResumeView", () => {
     const futureDate = new Date();
     futureDate.setHours(futureDate.getHours() + 1);
 
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: jest.fn().mockResolvedValue({
+    (useResumeData as jest.Mock).mockReturnValue({
+      resume: {
         id: "resume123",
         templateId: "standard-v1",
         viewerAccess: { isOwner: true },
         deletionScheduledAt: futureDate.toISOString(),
         countdownStartsAt: new Date().toISOString(),
-      }),
+      },
+      template: { id: "standard-v1" },
+      accessBlock: null,
+      error: null,
+      loading: false,
     });
 
     render(<ResumeView />);

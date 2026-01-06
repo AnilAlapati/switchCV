@@ -7,18 +7,21 @@ import { NextRequest } from "next/server";
 import { generateText } from "@/lib/services/aiGenerationService";
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
+import { BillingService } from "@/lib/services/billingService";
+
 // Mock api-helpers
 jest.mock("@/lib/utils/api-helpers", () => ({
   getAuthenticatedUserId: jest.fn(),
   safeParseBody: jest.fn(async (req) => req.json()),
   handleApiError: jest.fn((error, message, status = 500) => {
-    return {
-      status: status,
-      json: async () => ({
+    return Response.json(
+      {
         error: message || "Internal server error",
         details: error instanceof Error ? error.message : "Unknown error",
-      }),
-    };
+      },
+      { status: status }
+    );
   }),
 }));
 
@@ -67,6 +70,19 @@ jest.mock("@/lib/logger", () => ({
   },
 }));
 
+// Mock Rate Limit
+jest.mock("@/lib/utils/distributedRateLimit", () => ({
+  checkDistributedRateLimit: jest.fn(),
+}));
+
+// Mock Billing
+jest.mock("@/lib/services/billingService", () => ({
+  BillingService: {
+    checkBudget: jest.fn(),
+    trackUsage: jest.fn(),
+  },
+}));
+
 const createRequest = (body: any) => {
   return new NextRequest("http://localhost:3000/api/ai/generate", {
     method: "POST",
@@ -95,6 +111,13 @@ describe("POST /api/ai/generate", () => {
       remaining: 10,
       resetTime: Date.now() + 60000,
     });
+    (checkDistributedRateLimit as jest.Mock).mockResolvedValue({
+      allowed: true,
+      remaining: 10,
+      limit: 100
+    });
+    (BillingService.checkBudget as jest.Mock).mockResolvedValue(true);
+    (BillingService.trackUsage as jest.Mock).mockResolvedValue(undefined);
   });
 
   it("should successfully generate text with valid prompt", async () => {

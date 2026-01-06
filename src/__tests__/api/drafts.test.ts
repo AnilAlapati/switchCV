@@ -8,6 +8,11 @@ import {
 } from "@/lib/utils/api-helpers";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
 import { getConstants } from "@/lib/getSystemConfig";
+import {
+  getDraft,
+  updateDraft,
+  deleteDraft,
+} from "@/lib/services/draftService";
 import { getDraftProfileUpdateSchema } from "@/lib/schemas/draftSchema";
 
 jest.mock("@/lib/firebase-admin", () => {
@@ -39,7 +44,14 @@ jest.mock("@/lib/utils/api-helpers", () => ({
 }));
 jest.mock("@/lib/utils/rateLimit");
 jest.mock("@/lib/getSystemConfig");
-jest.mock("@/lib/schemas/draftSchema");
+jest.mock("@/lib/services/draftService", () => ({
+  getDraft: jest.fn(),
+  updateDraft: jest.fn(),
+  deleteDraft: jest.fn(),
+}));
+jest.mock("@/lib/schemas/draftSchema", () => ({
+  getDraftProfileUpdateSchema: jest.fn(),
+}));
 
 describe("Drafts API", () => {
   const mockDraftId = "draft-123";
@@ -69,26 +81,26 @@ describe("Drafts API", () => {
     });
 
     it("should return 404 if draft not found", async () => {
-      (adminDb.get as jest.Mock).mockResolvedValue({ exists: false });
+      (getDraft as jest.Mock).mockResolvedValue(null);
       await GET(new NextRequest("http://localhost"), { params: mockParams });
       expect(handleApiError).toHaveBeenCalledWith(null, "Draft not found", 404);
     });
 
     it("should return 403 if not owner", async () => {
-      (adminDb.get as jest.Mock).mockResolvedValue({
-        exists: true,
-        data: () => ({ userId: "other-user" }),
-      });
+      (getDraft as jest.Mock).mockRejectedValue(
+        new Error("Forbidden: Not the owner of this draft")
+      );
       await GET(new NextRequest("http://localhost"), { params: mockParams });
-      expect(handleApiError).toHaveBeenCalledWith(null, "Forbidden", 403);
+      expect(handleApiError).toHaveBeenCalledWith(
+        new Error("Forbidden: Not the owner of this draft"),
+        "Forbidden",
+        403
+      );
     });
 
     it("should return draft data if owner", async () => {
       const mockData = { userId: mockUserId, content: "test" };
-      (adminDb.get as jest.Mock).mockResolvedValue({
-        exists: true,
-        data: () => mockData,
-      });
+      (getDraft as jest.Mock).mockResolvedValue(mockData);
       const response = await GET(new NextRequest("http://localhost"), {
         params: mockParams,
       });
@@ -134,35 +146,29 @@ describe("Drafts API", () => {
           safeParse: () => ({ success: true, data: updates }),
         },
       });
-      (adminDb.get as jest.Mock).mockResolvedValue({
-        exists: true,
-        data: () => ({ userId: mockUserId, profile: {} }),
+      (updateDraft as jest.Mock).mockResolvedValue({
+        profile: { firstName: "John" },
       });
-      (adminDb.update as jest.Mock).mockResolvedValue({ writeTime: {} });
 
       const response = await PATCH(new NextRequest("http://localhost"), {
         params: mockParams,
       });
       const data = await response.json();
       expect(data.profile.firstName).toBe("John");
-      expect(adminDb.update).toHaveBeenCalled();
+      expect(updateDraft).toHaveBeenCalled();
     });
   });
 
   describe("DELETE", () => {
     it("should delete draft if owner", async () => {
-      (adminDb.get as jest.Mock).mockResolvedValue({
-        exists: true,
-        data: () => ({ userId: mockUserId }),
-      });
+      (deleteDraft as jest.Mock).mockResolvedValue(true);
 
       const response = await DELETE(new NextRequest("http://localhost"), {
         params: mockParams,
       });
       const data = await response.json();
       expect(data.success).toBe(true);
-      // Verify batch was used
-      expect(adminDb.batch).toHaveBeenCalled();
+      expect(deleteDraft).toHaveBeenCalled();
     });
   });
 });

@@ -438,7 +438,7 @@ export async function getResume(
   id: string,
   userId?: string
 ): Promise<{ resume: any | null; access: "owner" | "admin" | "granted" | "public_snapshot" | "none" }> {
-  let doc = await adminDb.collection("resumes").doc(id).get();
+  const doc = await adminDb.collection("resumes").doc(id).get();
 
   // If not found, it might be a slug or legacy ID - for now assume direct ID lookup primarily
   if (!doc.exists) {

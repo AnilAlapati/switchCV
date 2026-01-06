@@ -19,6 +19,11 @@ jest.mock("firebase/firestore", () => ({
   serverTimestamp: jest.fn(),
 }));
 
+// Mock useJobSeekerProfile
+jest.mock("@/hooks/useJobSeekerProfile", () => ({
+  useJobSeekerProfile: jest.fn(),
+}));
+
 // Mock useAuth
 jest.mock("@/hooks/useAuth", () => ({
   useAuth: jest.fn(() => ({
@@ -27,9 +32,23 @@ jest.mock("@/hooks/useAuth", () => ({
   })),
 }));
 
+import { useJobSeekerProfile } from "@/hooks/useJobSeekerProfile";
+
 describe("ProfileEditor", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (useJobSeekerProfile as jest.Mock).mockReturnValue({
+      profile: {
+        title: "Software Engineer",
+        summary: "Full-stack developer",
+        contact: {
+          email: { value: "test@example.com", visibility: "public" },
+          phone: { value: "1234567890", visibility: "public" },
+        },
+      },
+      loading: false,
+      mutate: jest.fn(),
+    });
   });
 
   it("should render the profile editor page", () => {
@@ -100,6 +119,12 @@ describe("ProfileEditor", () => {
   });
 
   it("should call logger.info when save button is clicked", async () => {
+    // Mock fetch for the save call
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true }),
+    });
+
     render(<ProfileEditor />);
 
     const saveButton = screen.getByText("Save Changes");
@@ -108,7 +133,7 @@ describe("ProfileEditor", () => {
     await waitFor(() => {
       expect(logger.info).toHaveBeenCalledWith(
         { userId: "test-user" },
-        "Profile saved to Firestore"
+        "Profile saved successfully"
       );
     });
   });

@@ -64,17 +64,17 @@ function AuthContent() {
             <div className="mb-6 rounded-2xl border border-blue-400/40 bg-blue-400/10 p-4 text-center">
               <div className="flex items-center justify-center">
                 <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mr-2"></div>
-                <p className="text-sm text-blue-100">Verifying your email...</p>
+                <p className="text-sm text-blue-800 font-medium">Verifying your email...</p>
               </div>
             </div>
           )}
 
           {verificationSuccess && !verificationProcessing && (
             <div className="mb-6 rounded-2xl border border-green-400/40 bg-green-400/10 p-4 text-center">
-              <p className="text-sm text-green-100 font-semibold">
+              <p className="text-sm text-green-800 font-semibold">
                 ✓ Email verified successfully!
               </p>
-              <p className="text-xs text-green-200/80 mt-1">
+              <p className="text-xs text-green-900/80 mt-1">
                 You can now sign in to your account.
               </p>
             </div>

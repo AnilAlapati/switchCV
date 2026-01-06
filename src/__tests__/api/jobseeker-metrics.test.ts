@@ -35,7 +35,10 @@ describe("JobSeeker Metrics API", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     const { getAuthenticatedUserId } = require("@/lib/utils/api-helpers");
-    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: "user-123", error: null });
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "user-123",
+      error: null,
+    });
   });
 
   const createRequest = (userId?: string) => {
@@ -49,7 +52,10 @@ describe("JobSeeker Metrics API", () => {
 
   it("should return 400 if userId is missing", async () => {
     const { getAuthenticatedUserId } = require("@/lib/utils/api-helpers");
-    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: "user-123", error: null });
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "user-123",
+      error: null,
+    });
 
     const req = createRequest();
     const response = await GET(req);
@@ -139,6 +145,7 @@ describe("JobSeeker Metrics API", () => {
           where: jest.fn(() => ({
             get: jest.fn().mockResolvedValue({
               empty: true,
+              docs: [],
             }),
           })),
         };

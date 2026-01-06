@@ -25,7 +25,10 @@ export async function GET(request: NextRequest) {
     const result = await AccessService.checkAccessStatus(currentUserId, resumeId);
     return NextResponse.json(result);
 
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message?.toLowerCase().includes("not found")) {
+      return handleApiError(error, "Resume not found", 404);
+    }
     return handleApiError(error, "Failed to check access");
   }
 }

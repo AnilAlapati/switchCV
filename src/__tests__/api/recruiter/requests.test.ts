@@ -11,7 +11,16 @@ import {
 import { NextRequest } from "next/server";
 
 jest.mock("@/lib/firebase-admin");
-jest.mock("@/lib/utils/api-helpers");
+jest.mock("@/lib/utils/api-helpers", () => ({
+  getAuthenticatedUserId: jest.fn(),
+  handleApiError: jest.fn((err, msg, status) => {
+    const { NextResponse } = require("next/server");
+    return NextResponse.json(
+      { error: msg || "Internal Server Error" },
+      { status: status || 500 }
+    );
+  }),
+}));
 jest.mock("@/lib/services/metricsService");
 jest.mock("@/lib/logger");
 
@@ -29,9 +38,10 @@ describe("Recruiter Requests API", () => {
 
   describe("GET /api/recruiter/requests", () => {
     it("should return 401 when user is not authenticated", async () => {
+      const { NextResponse } = require("next/server");
       (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
         userId: null,
-        error: new Response("Unauthorized", { status: 401 }),
+        error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
       });
 
       const response = await GET(mockRequest);
@@ -147,9 +157,10 @@ describe("Recruiter Requests API", () => {
 
   describe("POST /api/recruiter/requests", () => {
     it("should reject when request is not authenticated", async () => {
+      const { NextResponse } = require("next/server");
       (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
         userId: null,
-        error: new Response("Unauthorized", { status: 401 }),
+        error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
       });
 
       const response = await POST(mockRequest);
@@ -168,9 +179,10 @@ describe("Recruiter Requests API", () => {
 
   describe("DELETE /api/recruiter/requests/:requestId", () => {
     it("should require authentication", async () => {
+      const { NextResponse } = require("next/server");
       (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
         userId: null,
-        error: new Response("Unauthorized", { status: 401 }),
+        error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
       });
 
       const response = await DELETE(mockRequest);

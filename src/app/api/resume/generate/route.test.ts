@@ -35,6 +35,12 @@ jest.mock("@/lib/numericIdGenerator");
 jest.mock("@/lib/services/userService", () => ({
   getUserTier: jest.fn().mockResolvedValue("premium"),
 }));
+jest.mock("@/lib/services/billingService", () => ({
+  BillingService: {
+    checkBudget: jest.fn().mockResolvedValue(true),
+    trackUsage: jest.fn().mockResolvedValue(undefined),
+  },
+}));
 jest.mock("@/lib/firebase-admin", () => ({
   adminDb: {
     collection: jest.fn(() => ({
@@ -50,6 +56,12 @@ jest.mock("@/lib/firebase-admin", () => ({
         set: jest.fn().mockResolvedValue({}),
         update: jest.fn().mockResolvedValue({}),
         delete: jest.fn().mockResolvedValue({}),
+        collection: jest.fn(() => ({
+          doc: jest.fn(() => ({
+            get: jest.fn().mockResolvedValue({ exists: false }),
+            set: jest.fn().mockResolvedValue({}),
+          })),
+        })),
       })),
       where: jest.fn(() => ({
         count: jest.fn(() => ({
@@ -68,6 +80,18 @@ jest.mock("@/lib/firebase-admin", () => ({
       delete: jest.fn(),
       commit: jest.fn().mockResolvedValue(undefined),
     })),
+    runTransaction: jest.fn(async (fn) => {
+      const mockTransaction = {
+        get: jest.fn().mockResolvedValue({ 
+          exists: false, 
+          data: jest.fn(() => undefined) 
+        }),
+        set: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+      };
+      return fn(mockTransaction);
+    }),
   },
   adminAuth: {
     verifyIdToken: jest.fn(async () => ({

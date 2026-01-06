@@ -11,6 +11,12 @@ jest.mock("next/navigation", () => ({
   useRouter: jest.fn(),
 }));
 
+// Mock useRecruiterSearch hook with configurable values
+const mockUseRecruiterSearch = jest.fn();
+jest.mock("@/hooks/useRecruiterSearch", () => ({
+  useRecruiterSearch: (filters: any) => mockUseRecruiterSearch(filters),
+}));
+
 // Mock SearchInterface component
 jest.mock("@/components/recruiter/SearchInterface", () => ({
   SearchInterface: ({ onSearch, results, isLoading, error }: any) => (
@@ -19,7 +25,9 @@ jest.mock("@/components/recruiter/SearchInterface", () => ({
         Basic Search Button
       </button>
       {isLoading && <div>Loading results...</div>}
-      {error && <div>Error: {error}</div>}
+      {error && (
+        <div>Error: {typeof error === "string" ? error : error.message}</div>
+      )}
       {results.map((r: any) => (
         <div key={r.id}>{r.name}</div>
       ))}
@@ -44,7 +52,14 @@ describe("RecruiterSearchPage", () => {
     });
     jest.clearAllMocks();
     (useRouter as jest.Mock).mockReturnValue(mockRouter);
-    global.fetch = jest.fn();
+
+    // Default: no active search, return empty results
+    mockUseRecruiterSearch.mockReturnValue({
+      results: [],
+      count: 0,
+      loading: false,
+      error: null,
+    });
   });
 
   it("should show loading state initially", () => {
@@ -114,9 +129,27 @@ describe("RecruiterSearchPage", () => {
       user: { uid: "123" },
       loading: false,
     });
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: async () => ({ results: [{ id: "1", name: "Candidate 1" }] }),
+
+    // Track state changes through the mock
+    let hasSearched = false;
+    mockUseRecruiterSearch.mockImplementation((filters: any) => {
+      if (filters?.query) {
+        hasSearched = true;
+      }
+      if (hasSearched) {
+        return {
+          results: [{ id: "1", name: "Candidate 1" }],
+          count: 1,
+          loading: false,
+          error: null,
+        };
+      }
+      return {
+        results: [],
+        count: 0,
+        loading: filters?.query ? true : false,
+        error: null,
+      };
     });
 
     render(<RecruiterSearchPage />);
@@ -124,9 +157,8 @@ describe("RecruiterSearchPage", () => {
     // Switch to basic search mode first
     fireEvent.click(screen.getByText("Basic Search"));
 
+    // Trigger search
     fireEvent.click(screen.getByText("Basic Search Button"));
-
-    expect(screen.getByText("Loading results...")).toBeInTheDocument();
 
     await waitFor(() => {
       expect(screen.getByText("Candidate 1")).toBeInTheDocument();
@@ -138,7 +170,24 @@ describe("RecruiterSearchPage", () => {
       user: { uid: "123" },
       loading: false,
     });
-    (global.fetch as jest.Mock).mockRejectedValue(new Error("Search failed"));
+
+    // Mock to return error when a query is made
+    mockUseRecruiterSearch.mockImplementation((filters: any) => {
+      if (filters?.query) {
+        return {
+          results: [],
+          count: 0,
+          loading: false,
+          error: "Search failed",
+        };
+      }
+      return {
+        results: [],
+        count: 0,
+        loading: false,
+        error: null,
+      };
+    });
 
     render(<RecruiterSearchPage />);
 

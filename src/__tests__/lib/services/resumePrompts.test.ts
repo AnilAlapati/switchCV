@@ -87,7 +87,10 @@ describe("resumePrompts", () => {
         hasSkills: true,
       };
       const prompt = buildConversationalPrompt("msg", [], progress);
-      expect(prompt).toContain("MISSING INFO: email, work experience");
+      // New format uses "STATUS: The following fields are NOT yet structured:"
+      expect(prompt).toContain(
+        "STATUS: The following fields are NOT yet structured: email, work experience"
+      );
     });
 
     it("should indicate completion when all info is present", () => {

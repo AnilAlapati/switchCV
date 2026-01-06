@@ -40,7 +40,11 @@ export async function POST(request: NextRequest) {
     try {
       normalizedDuration = normalizeDuration(duration, timezone || "UTC");
     } catch (durationError: any) {
-      return handleApiError(durationError, durationError.message || "Invalid duration", 400);
+      return handleApiError(
+        durationError,
+        durationError.message || "Invalid duration",
+        400
+      );
     }
 
     // Call service
@@ -50,7 +54,9 @@ export async function POST(request: NextRequest) {
       resumeId,
       message,
       durationLabel: normalizedDuration.label,
-      durationDays: Math.ceil(normalizedDuration.durationMs / (24 * 60 * 60 * 1000))
+      durationDays: Math.ceil(
+        normalizedDuration.durationMs / (24 * 60 * 60 * 1000)
+      ),
     });
 
     return NextResponse.json({
@@ -58,13 +64,27 @@ export async function POST(request: NextRequest) {
       requestId: result.requestId,
       message: "Request sent! The resume owner will review it soon.",
     });
-
   } catch (error: any) {
-    if (error.message?.includes("Limit reached") || error.message?.includes("Company name is required")) {
+    if (
+      error.message?.includes("Limit reached") ||
+      error.message?.includes("Company name is required")
+    ) {
       return handleApiError(error, error.message, 403);
     }
-    if (error.message?.includes("Already have access") || error.message?.includes("Pending request")) {
+    if (
+      error.message?.includes("Already have access") ||
+      error.message?.includes("Pending request")
+    ) {
       return handleApiError(error, error.message, 409);
+    }
+    if (
+      error.message?.includes("Resume not found") ||
+      error.message?.includes("User not found")
+    ) {
+      return handleApiError(error, "Not found", 404);
+    }
+    if (error.message?.includes("own resume")) {
+      return handleApiError(error, error.message, 400);
     }
     return handleApiError(error, "Failed to create access request");
   }

@@ -96,12 +96,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const analytics = {
       resumeId,
       userId,
-      viewCount: result.analytics.views.count,
-      uniqueViewCount: result.analytics.views.uniqueViewers,
+      viewCount: result.analytics.views?.count || 0,
+      uniqueViewCount: result.analytics.views?.uniqueViewers || 0,
       downloadCount: (result.analytics as any).downloads || 0,
       shareCount: (result.analytics as any).shares || 0,
       attractivenessScore: result.analytics.attractivenessScore || 0,
-      lastViewedAt: result.analytics.views.lastViewedAt,
+      lastViewedAt: result.analytics.views?.lastViewedAt || null,
       createdAt: result.analytics.lastUpdatedAt, // Approximate
       updatedAt: result.analytics.lastUpdatedAt,
     };

@@ -2,16 +2,10 @@ import { GET, POST } from "./route";
 import { NextRequest, NextResponse } from "next/server";
 
 // Mock the analytics service
-jest.mock("@/lib/analytics.service", () => ({
-  AnalyticsService: {
-    generateHeatmap: jest.fn(),
-    aggregateToDashboard: jest.fn(),
-  },
-}));
-
-// Mock the analytics types
-jest.mock("@/lib/analytics.types", () => ({
-  // Mock types as needed
+jest.mock("@/lib/services/analyticsService", () => ({
+  getDashboardAnalytics: jest.fn(),
+  getAnalytics: jest.fn(),
+  aggregateToDashboard: jest.fn(),
 }));
 
 // Mock firebase-admin
@@ -47,7 +41,11 @@ jest.mock("@/lib/firebase-admin", () => ({
   },
 }));
 
-import { AnalyticsService } from "@/lib/analytics.service";
+import {
+  getDashboardAnalytics,
+  getAnalytics,
+  aggregateToDashboard
+} from "@/lib/services/analyticsService";
 
 // Mock auth helpers
 jest.mock("@/lib/utils/api-helpers", () => ({
@@ -93,26 +91,42 @@ describe("GET /api/analytics/dashboard", () => {
     originalEnv = process.env;
     process.env = { ...originalEnv };
 
+    // Set up default mock for getAnalytics
+    (getAnalytics as jest.Mock).mockResolvedValue({
+      analytics: {
+        views: {
+          count: 15,
+          uniqueViewers: 8,
+          lastViewedAt: new Date().toISOString(),
+        },
+        attractivenessScore: 75,
+        lastUpdatedAt: new Date().toISOString(),
+        downloads: 5,
+        shares: 2,
+      },
+    });
+
     // Set up default mock for aggregateToDashboard
-    (AnalyticsService.aggregateToDashboard as jest.Mock).mockImplementation(
+    (aggregateToDashboard as jest.Mock).mockImplementation(
       (analytics, heatmaps, recruiters, benchmark) => ({
-        resumeId: analytics.resumeId,
-        userId: analytics.userId,
-        totalViews: analytics.viewCount,
-        uniqueViews: analytics.uniqueViewCount,
-        attractivenessScore: analytics.attractivenessScore,
-        topSections: heatmaps || [],
-        topRecruiters: recruiters || [],
-        benchmark: benchmark
-          ? {
-              ...benchmark,
-              benchmarkDate:
-                benchmark.benchmarkDate?.toISOString() ||
-                new Date().toISOString(),
-            }
-          : null,
+        summary: {
+          totalViews: analytics.viewCount || analytics.views?.count || 0,
+          uniqueViews: analytics.uniqueViewCount || analytics.views?.uniqueViewers || 0,
+          conversionRate: 0,
+          avgTimeOnResume: 45,
+        },
+        trends: [],
+        heatmaps: heatmaps || [],
+        recruiterActivity: recruiters || [],
+        benchmark: benchmark || null,
       })
     );
+
+    // Set up default mock for getDashboardAnalytics
+    (getDashboardAnalytics as jest.Mock).mockImplementation(async (resumeId) => {
+      const analytics = { viewCount: 15, uniqueViewCount: 8, attractivenessScore: 75 };
+      return aggregateToDashboard(analytics, [], [], { industry: "Technology" });
+    });
   });
 
   afterEach(() => {
@@ -247,24 +261,26 @@ describe("GET /api/analytics/dashboard", () => {
   describe("POST endpoint", () => {
     it("should return dashboard analytics for valid request", async () => {
       const mockDashboard = {
-        resumeId: "test-resume",
-        userId: "test-user",
-        totalViews: 100,
-        uniqueViews: 50,
-        attractivenessScore: 75,
-        topSections: [],
-        topRecruiters: [],
+        summary: {
+          totalViews: 100,
+          uniqueViews: 50,
+          conversionRate: 0,
+          avgTimeOnResume: 45
+        },
+        trends: [],
+        heatmaps: [],
+        recruiterActivity: [],
         benchmark: {
           industry: "Technology",
           avgAttractivenessScore: 62,
           avgViewCount: 45,
           avgDownloadCount: 12,
           topSkills: ["TypeScript", "React", "Node.js"],
-          benchmarkDate: new Date().toISOString(), // Convert to string to match JSON serialization
+          benchmarkDate: new Date().toISOString(),
         },
       };
 
-      (AnalyticsService.aggregateToDashboard as jest.Mock).mockReturnValue(
+      (getDashboardAnalytics as jest.Mock).mockResolvedValue(
         mockDashboard
       );
 
@@ -287,7 +303,7 @@ describe("GET /api/analytics/dashboard", () => {
       expect(data.success).toBe(true);
       expect(data.data).toEqual(mockDashboard);
       expect(data.timestamp).toBeDefined();
-      expect(AnalyticsService.aggregateToDashboard).toHaveBeenCalled();
+      expect(getDashboardAnalytics).toHaveBeenCalled();
     });
 
     it("should return 400 when resumeId is missing from body", async () => {
@@ -308,7 +324,7 @@ describe("GET /api/analytics/dashboard", () => {
       expect(response.status).toBe(400);
       expect(data.success).toBe(false);
       expect(data.message).toBe("Missing resumeId or userId");
-      expect(AnalyticsService.aggregateToDashboard).not.toHaveBeenCalled();
+      expect(aggregateToDashboard).not.toHaveBeenCalled();
     });
 
     it("should return 400 when userId is missing from body", async () => {
@@ -337,7 +353,7 @@ describe("GET /api/analytics/dashboard", () => {
       const response = await POST(request);
 
       expect(response.status).toBe(401);
-      expect(AnalyticsService.aggregateToDashboard).not.toHaveBeenCalled();
+      expect(aggregateToDashboard).not.toHaveBeenCalled();
     });
 
     it("should handle missing or invalid request body", async () => {
@@ -370,11 +386,11 @@ describe("GET /api/analytics/dashboard", () => {
 
       const response2 = await POST(request2);
       expect(response2.status).toBe(400);
-      expect(AnalyticsService.aggregateToDashboard).not.toHaveBeenCalled();
+      expect(aggregateToDashboard).not.toHaveBeenCalled();
     });
 
     it("should handle errors during dashboard aggregation", async () => {
-      (AnalyticsService.aggregateToDashboard as jest.Mock).mockImplementation(
+      (getDashboardAnalytics as jest.Mock).mockImplementation(
         () => {
           throw new Error("Aggregation failed");
         }

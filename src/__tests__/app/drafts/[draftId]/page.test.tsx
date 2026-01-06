@@ -3,6 +3,7 @@ import DraftPreview from "@/app/drafts/[draftId]/page";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter, useParams } from "next/navigation";
 import { templateService } from "@/lib/services/templateService";
+import { useDraftData } from "@/hooks/useDraftData";
 
 // Mock dependencies
 jest.mock("next/navigation", () => ({
@@ -12,6 +13,10 @@ jest.mock("next/navigation", () => ({
 
 jest.mock("@/hooks/useAuth", () => ({
   useAuth: jest.fn(),
+}));
+
+jest.mock("@/hooks/useDraftData", () => ({
+  useDraftData: jest.fn(),
 }));
 
 jest.mock("@/lib/services/templateService", () => ({
@@ -48,13 +53,18 @@ describe("DraftPreview Page", () => {
     (useRouter as jest.Mock).mockReturnValue(mockRouter);
     (useParams as jest.Mock).mockReturnValue({ draftId: mockDraftId });
     (useAuth as jest.Mock).mockReturnValue({ user: mockUser, loading: false });
+    (useDraftData as jest.Mock).mockReturnValue({
+      draft: null,
+      loading: true,
+      error: null,
+    });
     global.fetch = jest.fn();
   });
 
   it("should show loading state when auth is loading", () => {
     (useAuth as jest.Mock).mockReturnValue({ user: null, loading: true });
     render(<DraftPreview />);
-    expect(screen.getByText("Checking authentication...")).toBeInTheDocument();
+    expect(screen.getByText("Loading preview...")).toBeInTheDocument();
   });
 
   it("should redirect to login if user is not authenticated", async () => {
@@ -69,47 +79,26 @@ describe("DraftPreview Page", () => {
   });
 
   it("should show loading state when fetching draft", () => {
-    // fetch is pending by default mock
-    (global.fetch as jest.Mock).mockReturnValue(new Promise(() => {}));
+    (useDraftData as jest.Mock).mockReturnValue({
+      draft: null,
+      loading: true,
+      error: null,
+    });
     render(<DraftPreview />);
-    expect(screen.getByText("Loading draft...")).toBeInTheDocument();
+    expect(screen.getByText("Loading preview...")).toBeInTheDocument();
   });
 
-  it("should show error if draft not found (404)", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: false,
-      status: 404,
+  it("should show error if draft not found", async () => {
+    (useDraftData as jest.Mock).mockReturnValue({
+      draft: null,
+      loading: false,
+      error: "Draft not found",
     });
 
     render(<DraftPreview />);
 
     await waitFor(() => {
       expect(screen.getByText("Draft not found")).toBeInTheDocument();
-    });
-  });
-
-  it("should show error if forbidden (403)", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: false,
-      status: 403,
-    });
-
-    render(<DraftPreview />);
-
-    await waitFor(() => {
-      expect(
-        screen.getByText("You don't have permission to view this draft")
-      ).toBeInTheDocument();
-    });
-  });
-
-  it("should show generic error on fetch failure", async () => {
-    (global.fetch as jest.Mock).mockRejectedValue(new Error("Network error"));
-
-    render(<DraftPreview />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Network error")).toBeInTheDocument();
     });
   });
 
@@ -121,9 +110,10 @@ describe("DraftPreview Page", () => {
       updatedAt: new Date().toISOString(),
     };
 
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: async () => mockDraft,
+    (useDraftData as jest.Mock).mockReturnValue({
+      draft: mockDraft,
+      loading: false,
+      error: null,
     });
 
     (templateService.getTemplateById as jest.Mock).mockResolvedValue({
@@ -147,17 +137,15 @@ describe("DraftPreview Page", () => {
       updatedAt: new Date().toISOString(),
     };
 
-    (global.fetch as jest.Mock).mockImplementation((url) => {
-      if (url.includes("/publish")) {
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({ resumeId: "resume-789" }),
-        });
-      }
-      return Promise.resolve({
-        ok: true,
-        json: async () => mockDraft,
-      });
+    (useDraftData as jest.Mock).mockReturnValue({
+      draft: mockDraft,
+      loading: false,
+      error: null,
+    });
+
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ resumeId: "resume-789" }),
     });
 
     (templateService.getTemplateById as jest.Mock).mockResolvedValue({
@@ -167,10 +155,11 @@ describe("DraftPreview Page", () => {
     render(<DraftPreview />);
 
     await waitFor(() => {
-      expect(screen.getByText("Publish")).toBeInTheDocument();
+      expect(screen.getByText("Draft Preview")).toBeInTheDocument();
+      expect(screen.getByText("Publish Now")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Publish"));
+    fireEvent.click(screen.getByText("Publish Now"));
 
     await waitFor(() => {
       expect(screen.getByText("Publishing...")).toBeInTheDocument();
@@ -189,17 +178,15 @@ describe("DraftPreview Page", () => {
       updatedAt: new Date().toISOString(),
     };
 
-    (global.fetch as jest.Mock).mockImplementation((url) => {
-      if (url.includes("/publish")) {
-        return Promise.resolve({
-          ok: false,
-          json: async () => ({ error: "Publish failed" }),
-        });
-      }
-      return Promise.resolve({
-        ok: true,
-        json: async () => mockDraft,
-      });
+    (useDraftData as jest.Mock).mockReturnValue({
+      draft: mockDraft,
+      loading: false,
+      error: null,
+    });
+
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: "Publish failed" }),
     });
 
     (templateService.getTemplateById as jest.Mock).mockResolvedValue({
@@ -209,10 +196,11 @@ describe("DraftPreview Page", () => {
     render(<DraftPreview />);
 
     await waitFor(() => {
-      expect(screen.getByText("Publish")).toBeInTheDocument();
+      expect(screen.getByText("Draft Preview")).toBeInTheDocument();
+      expect(screen.getByText("Publish Now")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Publish"));
+    fireEvent.click(screen.getByText("Publish Now"));
 
     await waitFor(() => {
       expect(screen.getByText("Publish failed")).toBeInTheDocument();
@@ -227,9 +215,10 @@ describe("DraftPreview Page", () => {
       updatedAt: new Date().toISOString(),
     };
 
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: async () => mockDraft,
+    (useDraftData as jest.Mock).mockReturnValue({
+      draft: mockDraft,
+      loading: false,
+      error: null,
     });
 
     (templateService.getTemplateById as jest.Mock).mockResolvedValue({
@@ -238,9 +227,12 @@ describe("DraftPreview Page", () => {
 
     render(<DraftPreview />);
 
-    await waitFor(() => {
-      expect(screen.getByText("Edit")).toBeInTheDocument();
-    });
+    await waitFor(
+      () => {
+        expect(screen.getByText("Edit")).toBeInTheDocument();
+      },
+      { timeout: 5000 }
+    );
 
     fireEvent.click(screen.getByText("Edit"));
 

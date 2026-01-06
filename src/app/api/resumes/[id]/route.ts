@@ -1,6 +1,5 @@
 import { logger } from "@/lib/logger";
 import { z } from "zod";
-/* eslint-disable max-lines */
 import { NextRequest, NextResponse } from "next/server";
 import {
   handleApiError,
@@ -16,14 +15,6 @@ import {
   trackResumeView,
 } from "@/lib/services/resumeService";
 import { getUserTier } from "@/lib/services/userService";
-import { getResumeEditingAllowed } from "@/lib/config.server";
-
-// Helper to track views based on access type
-async function trackViews(access: string, userId: string, ownerId?: string) {
-  if (access === "granted") {
-    // Recruiter view logic would go here if needed, or delegated to service
-  }
-}
 
 export async function GET(
   request: NextRequest,
@@ -244,15 +235,14 @@ export async function PUT(
       return handleApiError(new Error("Unauthorized"), "Unauthorized", 403);
     }
 
-    // Check Editing Permissions
+    // Check Editing Permissions (Only Premium/Enterprise/etc can edit)
     const tier = await getUserTier(userId);
-    const editingAllowed = await getResumeEditingAllowed();
-    const canEdit = editingAllowed[tier];
+    const isBasicTier = tier === "basic";
 
-    if (!canEdit) {
+    if (isBasicTier) {
       return handleApiError(
         new Error("Editing restricted"),
-        `Editing is not allowed on the ${tier} plan. Please upgrade to edit your resume.`,
+        "Editing is not allowed on the Basic tier. Please upgrade to Premium to edit your resume.",
         403
       );
     }

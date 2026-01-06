@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GET, POST } from "./route";
 import { generateText } from "@/lib/services/aiGenerationService";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
+import { BillingService } from "@/lib/services/billingService";
 import {
   buildResumeEditPrompt,
   extractResumeEditJSON,
@@ -32,7 +34,28 @@ jest.mock("next/server", () => ({
   NextResponse: { json: jest.fn((body, init) => ({ body, init })) },
 }));
 jest.mock("@/lib/firebase-admin", () => ({
-  adminDb: { collection: jest.fn(() => mockCollection) },
+  adminDb: {
+    collection: jest.fn((name) => {
+      if (name === "users") {
+        return {
+          doc: jest.fn(() => ({
+            get: jest.fn().mockResolvedValue({
+              exists: true,
+              data: () => ({ subscriptionTier: "premium" }),
+            }),
+          })),
+        };
+      }
+      return mockCollection;
+    }),
+  },
+}));
+jest.mock("@/lib/utils/distributedRateLimit");
+jest.mock("@/lib/services/billingService", () => ({
+  BillingService: {
+    checkBudget: jest.fn(),
+    trackUsage: jest.fn(),
+  },
 }));
 jest.mock("@/lib/services/aiGenerationService", () => ({
   generateText: jest.fn(),
@@ -64,6 +87,14 @@ describe("Resume Chat API", () => {
     (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
       userId: mockUserId,
     });
+    (checkDistributedRateLimit as jest.Mock).mockResolvedValue({
+      allowed: true,
+      current: 1,
+      limit: 10,
+      resetIn: 60000,
+      remaining: 9,
+    });
+    (BillingService.checkBudget as jest.Mock).mockResolvedValue(true);
     (handleApiError as jest.Mock).mockImplementation(
       (error, message, status) => ({ error, message, status })
     );

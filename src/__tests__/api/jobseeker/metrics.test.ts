@@ -10,6 +10,10 @@ jest.mock("@/lib/firebase-admin");
 jest.mock("@/lib/utils/api-helpers");
 jest.mock("@/lib/logger");
 
+(handleApiError as jest.Mock).mockImplementation((error, message, status = 500) => {
+  return Response.json({ error: message }, { status });
+});
+
 describe("GET /api/jobseeker/metrics", () => {
   const mockUserId = "user-123";
   const mockRequest = (userId: string) =>
@@ -19,6 +23,13 @@ describe("GET /api/jobseeker/metrics", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (adminDb.collection as jest.Mock).mockImplementation(() => ({
+      doc: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      get: jest.fn().mockResolvedValue({ exists: false, data: () => ({}), docs: [] }),
+      set: jest.fn().mockResolvedValue({}),
+      count: jest.fn().mockReturnThis(),
+    }));
   });
 
   it("should return 401 when user is not authenticated", async () => {
@@ -67,25 +78,35 @@ describe("GET /api/jobseeker/metrics", () => {
     const mockMetricsDoc = {
       exists: true,
       data: jest.fn().mockReturnValue({
-        viewCount: 42,
+        profileViews: 42,
         contactRequests: 5,
-        lastViewedAt: new Date(),
-        topReferrers: ["Google", "LinkedIn"],
+        lastUpdated: new Date(),
+        downloads: 10,
+        quality: 85,
       }),
     };
 
-    (adminDb.collection as jest.Mock).mockReturnValue({
-      doc: jest.fn().mockReturnValue({
-        get: jest.fn().mockResolvedValue(mockMetricsDoc),
-      }),
+    (adminDb.collection as jest.Mock).mockImplementation((name) => {
+      if (name === "jobSeekerMetrics") {
+        return {
+          doc: jest.fn().mockReturnValue({
+            get: jest.fn().mockResolvedValue(mockMetricsDoc),
+            set: jest.fn().mockResolvedValue({}),
+          }),
+        };
+      }
+      return {
+        where: jest.fn().mockReturnThis(),
+        get: jest.fn().mockResolvedValue({ docs: [] }),
+      };
     });
 
     const response = await GET(mockRequest(mockUserId));
 
     expect(response.status).toBe(200);
     const data = await response.json();
-    expect(data.metrics).toBeDefined();
-    expect(data.metrics.viewCount).toBe(42);
+    expect(data.profileViews).toBe(42);
+    expect(data.contactRequests).toBe(5);
   });
 
   it("should return empty metrics when user has no data", async () => {
@@ -99,10 +120,19 @@ describe("GET /api/jobseeker/metrics", () => {
       data: jest.fn(),
     };
 
-    (adminDb.collection as jest.Mock).mockReturnValue({
-      doc: jest.fn().mockReturnValue({
-        get: jest.fn().mockResolvedValue(mockMetricsDoc),
-      }),
+    (adminDb.collection as jest.Mock).mockImplementation((name) => {
+      if (name === "jobSeekerMetrics") {
+        return {
+          doc: jest.fn().mockReturnValue({
+            get: jest.fn().mockResolvedValue(mockMetricsDoc),
+            set: jest.fn().mockResolvedValue({}),
+          }),
+        };
+      }
+      return {
+        where: jest.fn().mockReturnThis(),
+        get: jest.fn().mockResolvedValue({ docs: [] }),
+      };
     });
 
     const response = await GET(mockRequest(mockUserId));

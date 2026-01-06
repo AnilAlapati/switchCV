@@ -37,7 +37,7 @@ export async function createDraft(
   if (existingDraft) {
     throw new Error(
       `User already has an active draft: ${existingDraft.draftId}. ` +
-        `Please publish or delete it before creating a new one.`
+      `Please publish or delete it before creating a new one.`
     );
   }
 
@@ -89,7 +89,7 @@ export async function getDraft(
 
   // Verify ownership
   if (draft.userId !== userId) {
-    return null;
+    throw new Error("Forbidden: Not the owner of this draft");
   }
 
   return draft;
@@ -157,7 +157,10 @@ export async function updateDraft(
   await adminDb
     .collection(DRAFT_CONFIG.COLLECTION)
     .doc(draftId)
-    .set(updatedDraft);
+    .update({
+      profile: updatedProfile,
+      updatedAt: now,
+    });
 
   return updatedDraft;
 }

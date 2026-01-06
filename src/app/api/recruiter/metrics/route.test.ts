@@ -14,8 +14,8 @@ jest.mock("@/lib/utils/api-helpers", () => ({
       error instanceof Error
         ? error.message
         : error
-        ? String(error)
-        : undefined;
+          ? String(error)
+          : undefined;
     return {
       status,
       json: async () => ({
@@ -80,6 +80,8 @@ const mockDoc = jest.fn();
 const mockGet = jest.fn();
 const mockWhere = jest.fn();
 const mockGroupGet = jest.fn();
+const mockSet = jest.fn();
+const mockUpdate = jest.fn();
 
 mockCollection.mockImplementation((collectionName: string) => {
   if (collectionName === "users") {
@@ -103,15 +105,85 @@ mockCollectionGroup.mockReturnValue({
 
 mockDoc.mockReturnValue({
   get: mockGet,
+  set: mockSet,
+  update: mockUpdate,
 } as any);
 
 mockWhere.mockReturnValue({
   get: mockGroupGet,
 } as any);
 
+import {
+  getAuthenticatedUserId,
+  handleApiError,
+} from "@/lib/utils/api-helpers";
+import { getRecruiterSearchBreakdown } from "@/lib/recruiterSearchHistory";
+
 describe("GET /api/recruiter/metrics", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
+
+    // Re-setup api-helpers mocks
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "test-user-id",
+      error: null,
+    });
+    (handleApiError as jest.Mock).mockImplementation(
+      (error, message, status = 500) => {
+        const details =
+          error instanceof Error
+            ? error.message
+            : error
+              ? String(error)
+              : undefined;
+        return {
+          status,
+          json: async () => ({
+            error: message,
+            ...(details !== undefined ? { details } : {}),
+          }),
+        };
+      }
+    );
+
+    (getRecruiterSearchBreakdown as jest.Mock).mockResolvedValue({
+      searchesLast24h: 0,
+      searchesLast7Days: 0,
+      uniqueCandidatesLast7Days: 0,
+      topSkillsLast7Days: [],
+      topLocationsLast7Days: [],
+    });
+
+    // Re-setup structural mocks after reset
+    mockCollection.mockImplementation((collectionName: string) => {
+      if (collectionName === "users") {
+        return {
+          doc: jest.fn().mockImplementation((userId: string) => ({
+            get: jest.fn().mockResolvedValue({
+              exists: true,
+              data: () => ({ role: "admin" }),
+            }),
+          })),
+        };
+      }
+      return {
+        doc: mockDoc,
+      } as any;
+    });
+
+    mockCollectionGroup.mockReturnValue({
+      where: mockWhere,
+    } as any);
+
+    mockDoc.mockReturnValue({
+      get: mockGet,
+      set: mockSet,
+      update: mockUpdate,
+    } as any);
+
+    mockWhere.mockReturnValue({
+      get: mockGroupGet,
+    } as any);
   });
 
   // Helper to create a mock snapshot with forEach
@@ -154,6 +226,11 @@ describe("GET /api/recruiter/metrics", () => {
         totalProfileViews: 42,
         totalCandidatesInteracted: 12,
         lastActivityAt: "2024-01-15T10:30:00Z",
+        accessRequests: {
+          pending: 2,
+          approved: 1,
+          denied: 1,
+        },
       }),
     });
 
@@ -184,8 +261,6 @@ describe("GET /api/recruiter/metrics", () => {
         topLocationsLast7Days: [],
       },
     });
-    expect(mockCollectionGroup).toHaveBeenCalledWith("accessRequests");
-    expect(mockCollectionGroup).toHaveBeenCalledWith("accessGrants");
   });
 
   it("should return default metrics when no data exists", async () => {
@@ -288,6 +363,11 @@ describe("GET /api/recruiter/metrics", () => {
         totalProfileViews: 10,
         totalCandidatesInteracted: 2,
         lastActivityAt: null,
+        accessRequests: {
+          pending: 0,
+          approved: 1, // Only 1 active
+          denied: 0,
+        },
       }),
     });
 

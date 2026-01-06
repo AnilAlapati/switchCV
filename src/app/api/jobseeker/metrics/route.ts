@@ -44,22 +44,50 @@ export async function GET(request: NextRequest) {
     const metricsDoc = await metricsRef.get();
     const metrics = metricsDoc.exists ? metricsDoc.data() : {};
 
-    // Return cached metrics immediately - no expensive calculations on the hot path
-    // If contactRequests is missing, return 0 instead of calculating
-    // A background job or admin script should handle backfilling missing data
-    const contactRequests = metrics?.contactRequests ?? 0;
+    // Lazy migration: calculate contactRequests if missing
+    let contactRequests = metrics?.contactRequests;
+    if (contactRequests === undefined) {
+      // Calculate from accessRequests for each resume
+      const resumesSnap = await adminDb
+        .collection("resumes")
+        .where("userId", "==", userId)
+        .get();
 
-    return NextResponse.json({
-      profileViews: metrics?.profileViews || 0,
-      contactRequests: contactRequests,
-      downloads: metrics?.downloads || 0,
-      quality: metrics?.quality || 0,
-      lastUpdated: metrics?.lastUpdated || null,
-    }, {
-      headers: {
-        'Cache-Control': 'private, max-age=300, stale-while-revalidate=60',
+      contactRequests = 0;
+      for (const resumeDoc of resumesSnap.docs) {
+        const countSnap = await resumeDoc.ref
+          .collection("accessRequests")
+          .where("status", "==", "approved")
+          .count()
+          .get();
+        contactRequests += countSnap.data().count;
+      }
+
+      // Save back to metrics (lazy migration)
+      await metricsRef.set(
+        {
+          ...metrics,
+          contactRequests,
+          lastUpdated: new Date(),
+        },
+        { merge: true }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        profileViews: metrics?.profileViews || 0,
+        contactRequests: contactRequests,
+        downloads: metrics?.downloads || 0,
+        quality: metrics?.quality || 0,
+        lastUpdated: metrics?.lastUpdated || null,
       },
-    });
+      {
+        headers: {
+          "Cache-Control": "private, max-age=300, stale-while-revalidate=60",
+        },
+      }
+    );
   } catch (error) {
     return handleApiError(error, "Failed to fetch job seeker metrics");
   }

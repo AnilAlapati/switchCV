@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { POST } from "@/app/api/ai/generate-resume/route";
 import { generateText } from "@/lib/services/aiGenerationService";
+import { runAgenticWorkflow } from "@/lib/services/agentOrchestrator";
 
 jest.mock("@/lib/services/aiGenerationService");
+jest.mock("@/lib/services/agentOrchestrator");
 jest.mock("@/lib/logger");
 jest.mock("@/lib/utils/api-helpers", () => ({
   handleApiError: jest.fn((err, msg, status) =>
@@ -53,8 +55,8 @@ describe("Generate Resume API", () => {
   });
 
   it("should return enhanced resume on success", async () => {
-    (generateText as jest.Mock).mockResolvedValue({
-      text: JSON.stringify({
+    (runAgenticWorkflow as jest.Mock).mockResolvedValue(
+      JSON.stringify({
         enhancedSummary: "New summary",
         enhancedExperience: [
           {
@@ -68,10 +70,8 @@ describe("Generate Resume API", () => {
         ],
         skillSuggestions: ["Node"],
         improvementTips: ["Tip"],
-      }),
-      model: "gemini-pro",
-      provider: "google",
-    });
+      })
+    );
 
     const req = new NextRequest("http://localhost", {
       method: "POST",
@@ -82,10 +82,11 @@ describe("Generate Resume API", () => {
 
     expect(data.success).toBe(true);
     expect(data.data.enhancedSummary).toBe("New summary");
-    expect(data.model).toBe("gemini-pro");
+    expect(data.model).toBe("agentic-workflow");
   });
 
   it("should use fallback if AI response is invalid JSON", async () => {
+    (runAgenticWorkflow as jest.Mock).mockResolvedValue(null);
     (generateText as jest.Mock).mockResolvedValue({
       text: "Not JSON",
       model: "gemini-pro",
@@ -104,6 +105,7 @@ describe("Generate Resume API", () => {
   });
 
   it("should handle AI service errors", async () => {
+    (runAgenticWorkflow as jest.Mock).mockResolvedValue(null);
     (generateText as jest.Mock).mockRejectedValue(new Error("AI Failed"));
 
     const req = new NextRequest("http://localhost", {

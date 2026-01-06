@@ -60,13 +60,58 @@ export async function GET(request: NextRequest) {
     const metrics = metricsDoc.exists ? metricsDoc.data() : {};
 
     // Return cached metrics immediately - no expensive calculations on the hot path
-    // If accessRequests is missing, return default structure instead of calculating
-    // A background job or admin script should handle backfilling missing data
-    const accessRequests = metrics?.accessRequests || {
-      pending: 0,
-      approved: 0,
-      denied: 0,
-    };
+    // If accessRequests is missing, perform a lazy migration by counting them
+    let accessRequests = metrics?.accessRequests;
+
+    if (!accessRequests) {
+      try {
+        logger.info({ userId }, "Performing lazy migration for recruiter access metrics");
+
+        // Count requests from collection group
+        const requestsSnapshot = await adminDb
+          .collectionGroup("accessRequests")
+          .where("fromUserId", "==", userId)
+          .get();
+
+        accessRequests = {
+          pending: 0,
+          approved: 0,
+          denied: 0
+        };
+
+        if (requestsSnapshot && typeof (requestsSnapshot as any).forEach === "function") {
+          requestsSnapshot.forEach((doc) => {
+            const data = doc.data();
+            if (data.status === "pending") accessRequests.pending++;
+            else if (data.status === "approved") accessRequests.approved++;
+            else if (data.status === "denied") accessRequests.denied++;
+          });
+        }
+
+        // Also count active grants from accessGrants collection
+        const grantsSnapshot = await adminDb
+          .collectionGroup("accessGrants")
+          .where("toUserId", "==", userId)
+          .get();
+
+        if (grantsSnapshot && typeof (grantsSnapshot as any).forEach === "function") {
+          grantsSnapshot.forEach(() => {
+            accessRequests.approved++;
+          });
+        }
+
+        // Update metrics document with calculated counts
+        await metricsRef.set({ accessRequests }, { merge: true });
+      } catch (migrationError) {
+        logger.error({ userId, error: migrationError }, "Failed to perform lazy migration for recruiter metrics");
+        // Fallback to empty metrics if migration fails
+        accessRequests = {
+          pending: 0,
+          approved: 0,
+          denied: 0
+        };
+      }
+    }
 
     const searchBreakdown = await getRecruiterSearchBreakdown(userId);
 

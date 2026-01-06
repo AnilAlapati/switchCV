@@ -43,17 +43,24 @@ export default function AccessRequestsPage() {
   }, [logout, router]);
 
   // Handle duration state initialization when requests load
+  // We use a separate effect to track which IDs we've already initialized to avoid infinite loops
   useEffect(() => {
+    if (!requests || requests.length === 0) return;
+
     setDurationOverrides((prev) => {
+      let hasChanges = false;
       const next = { ...prev };
+
       requests.forEach((request) => {
         if (!next[request.id]) {
           next[request.id] = buildDefaultDurationState(
             request.requestedDuration
           );
+          hasChanges = true;
         }
       });
-      return next;
+
+      return hasChanges ? next : prev;
     });
   }, [requests]);
 

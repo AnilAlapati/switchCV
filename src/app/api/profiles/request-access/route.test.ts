@@ -113,24 +113,27 @@ describe("POST /api/profiles/request-access", () => {
             get: jest.fn().mockResolvedValue(resumeDoc),
             collection: jest.fn((subCollection: string) => {
               if (subCollection === "accessRequests") {
-                return {
-                  where: jest.fn(() => ({
-                    get: jest.fn().mockResolvedValue(pendingRequestsSnapshot),
-                  })),
+                const query = {
+                  where: jest.fn().mockReturnThis(),
+                  get: jest.fn().mockResolvedValue(pendingRequestsSnapshot),
                   add: mockAdd,
                 };
+                return query;
               } else if (subCollection === "accessGrants") {
-                return {
-                  where: jest.fn(() => ({
-                    get: jest.fn().mockResolvedValue(grantsSnapshot),
-                  })),
+                const query = {
+                  where: jest.fn().mockReturnThis(),
+                  get: jest.fn().mockResolvedValue(grantsSnapshot),
                 };
+                return query;
               }
               return {};
             }),
           })),
         } as any;
-      } else if (collectionName === "jobSeekerMetrics") {
+      } else if (
+        collectionName === "jobSeekerMetrics" ||
+        collectionName === "recruiterMetrics"
+      ) {
         return {
           doc: jest.fn(() => ({
             set: jest.fn().mockResolvedValue(undefined),
@@ -213,20 +216,29 @@ describe("POST /api/profiles/request-access", () => {
             get: jest.fn().mockResolvedValue(resumeDoc),
             collection: jest.fn((subCollection: string) => {
               if (subCollection === "accessRequests") {
-                return {
-                  where: jest.fn(() => ({
-                    get: jest.fn().mockResolvedValue(pendingRequestsSnapshot),
-                  })),
+                const query = {
+                  where: jest.fn().mockReturnThis(),
+                  get: jest.fn().mockResolvedValue(pendingRequestsSnapshot),
                 };
+                return query;
               } else if (subCollection === "accessGrants") {
-                return {
-                  where: jest.fn(() => ({
-                    get: jest.fn().mockResolvedValue(grantsSnapshot),
-                  })),
+                const query = {
+                  where: jest.fn().mockReturnThis(),
+                  get: jest.fn().mockResolvedValue(grantsSnapshot),
                 };
+                return query;
               }
               return {};
             }),
+          })),
+        } as any;
+      } else if (
+        collectionName === "jobSeekerMetrics" ||
+        collectionName === "recruiterMetrics"
+      ) {
+        return {
+          doc: jest.fn(() => ({
+            set: jest.fn().mockResolvedValue(undefined),
           })),
         } as any;
       }
@@ -249,6 +261,6 @@ describe("POST /api/profiles/request-access", () => {
     const data = await response.json();
 
     expect(response.status).toBe(409);
-    expect(data.error).toBe("You already have access to this resume");
+    expect(data.error).toBe("Already have access");
   });
 });

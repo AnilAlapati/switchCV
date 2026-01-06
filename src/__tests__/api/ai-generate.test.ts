@@ -3,6 +3,8 @@ import { POST } from "@/app/api/ai/generate/route";
 import { adminDb } from "@/lib/firebase-admin";
 import admin from "@/lib/firebase-admin";
 import { generateText } from "@/lib/services/aiGenerationService";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
+import { BillingService } from "@/lib/services/billingService";
 import {
   getAuthenticatedUserId,
   handleApiError,
@@ -51,6 +53,13 @@ jest.mock("@/lib/firebase-admin", () => {
 
 jest.mock("@/lib/services/aiGenerationService");
 jest.mock("@/lib/logger");
+jest.mock("@/lib/utils/distributedRateLimit");
+jest.mock("@/lib/services/billingService", () => ({
+  BillingService: {
+    checkBudget: jest.fn(),
+    trackUsage: jest.fn(),
+  },
+}));
 jest.mock("@/lib/utils/api-helpers", () => ({
   getAuthenticatedUserId: jest.fn(),
   handleApiError: jest.fn((err, msg, status) =>
@@ -70,6 +79,14 @@ describe("AI Generate API", () => {
     (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
       userId: mockUserId,
     });
+    (checkDistributedRateLimit as jest.Mock).mockResolvedValue({
+      allowed: true,
+      current: 1,
+      limit: 10,
+      resetIn: 60000,
+      remaining: 9,
+    });
+    (BillingService.checkBudget as jest.Mock).mockResolvedValue(true);
   });
 
   it("should return 400 if validation fails", async () => {
@@ -103,19 +120,12 @@ describe("AI Generate API", () => {
       }),
     });
 
-    // Mock transaction to throw RateLimitError
-    (adminDb.runTransaction as jest.Mock).mockImplementation(async (cb) => {
-      const tx = {
-        get: jest.fn().mockResolvedValue({
-          exists: true,
-          data: () => ({
-            count: 100,
-            windowStart: admin.firestore.Timestamp.fromMillis(Date.now()),
-          }),
-        }),
-        set: jest.fn(),
-      };
-      return cb(tx);
+    (checkDistributedRateLimit as jest.Mock).mockResolvedValue({
+      allowed: false,
+      current: 10,
+      limit: 10,
+      resetIn: 60000,
+      remaining: 0,
     });
 
     const req = new NextRequest("http://localhost", { method: "POST" });
@@ -133,13 +143,6 @@ describe("AI Generate API", () => {
         exists: true,
         data: () => ({ subscriptionTier: "premium" }),
       }),
-    });
-
-    // Mock transaction success
-    (adminDb.runTransaction as jest.Mock).mockResolvedValue({
-      remaining: 5,
-      resetTime: Date.now() + 60000,
-      limit: 10,
     });
 
     (generateText as jest.Mock).mockResolvedValue({

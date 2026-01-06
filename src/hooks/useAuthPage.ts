@@ -128,7 +128,7 @@ export function useAuthPage(): UseAuthPageReturn {
           } else {
             setError(
               firebaseError.message ||
-                "Failed to verify email. Please try again."
+              "Failed to verify email. Please try again."
             );
           }
         } finally {
@@ -143,12 +143,16 @@ export function useAuthPage(): UseAuthPageReturn {
   // Redirect authenticated users
   useEffect(() => {
     if (!authLoading && user && !needsEmailVerification) {
-      if (needsUsername) {
-        router.push("/auth/choose-username");
+      const target = needsUsername ? "/auth/choose-username" : "/dashboard";
+
+      // If we just verified the email, show the success message for 2.5 seconds
+      if (verificationSuccess) {
+        const timer = setTimeout(() => {
+          router.push(target);
+        }, 2500);
+        return () => clearTimeout(timer);
       } else {
-        checkNeedsUsername().then((needs) => {
-          router.push(needs ? "/auth/choose-username" : "/dashboard");
-        });
+        router.push(target);
       }
     }
   }, [
@@ -158,6 +162,7 @@ export function useAuthPage(): UseAuthPageReturn {
     authLoading,
     router,
     checkNeedsUsername,
+    verificationSuccess,
   ]);
 
   // Action handlers

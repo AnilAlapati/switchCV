@@ -126,6 +126,24 @@ function calculateExpiryState(expiresAtIso: string | null) {
   };
 }
 
+export async function POST(request: NextRequest) {
+  try {
+    const { userId, error } = await getAuthenticatedUserId(request);
+    if (error) return error;
+    if (!userId) return handleApiError(null, "Unauthorized", 401);
+
+    if (!(await verifyRecruiterRole(userId))) {
+      return handleApiError(null, "Forbidden: Recruiter role required", 403);
+    }
+
+    // This route could be used for bulk requests or other recruiter-specific POST actions
+    // For now, we'll just return a 405 or handle simple ping
+    return handleApiError(null, "Method not allowed", 405);
+  } catch (error) {
+    return handleApiError(error, "Failed to process recruiter request");
+  }
+}
+
 export async function DELETE(request: NextRequest) {
   try {
     const { userId, error } = await getAuthenticatedUserId(request);

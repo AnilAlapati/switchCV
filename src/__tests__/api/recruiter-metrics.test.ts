@@ -7,8 +7,17 @@ import { getRecruiterSearchBreakdown } from "@/lib/recruiterSearchHistory";
 // Mock dependencies
 jest.mock("@/lib/firebase-admin", () => ({
   adminDb: {
-    collection: jest.fn(),
-    collectionGroup: jest.fn(),
+    collection: jest.fn().mockReturnThis(),
+    collectionGroup: jest.fn().mockReturnThis(),
+    doc: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    get: jest.fn().mockResolvedValue({
+      exists: false,
+      docs: [],
+      forEach: jest.fn(),
+    }),
+    set: jest.fn().mockResolvedValue({}),
   },
 }));
 
@@ -162,6 +171,7 @@ describe("Recruiter Metrics API", () => {
           exists: true,
           data: () => ({ totalSearches: 10 }),
         }),
+        set: jest.fn().mockResolvedValue({}),
       };
     });
 

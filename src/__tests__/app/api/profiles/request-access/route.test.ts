@@ -77,18 +77,14 @@ describe("POST /api/profiles/request-access", () => {
     };
 
     const accessRequestsCollectionMock = {
-      where: jest.fn().mockReturnValue({
-        get: jest.fn().mockResolvedValue({ docs: [] }),
-      }),
-      get: jest.fn(),
+      where: jest.fn().mockReturnThis(),
+      get: jest.fn().mockResolvedValue({ docs: [], empty: true }),
       add: jest.fn().mockResolvedValue(mockRequestRef),
     };
 
     const accessGrantsCollectionMock = {
-      where: jest.fn().mockReturnValue({
-        get: jest.fn().mockResolvedValue({ docs: [] }),
-      }),
-      get: jest.fn(),
+      where: jest.fn().mockReturnThis(),
+      get: jest.fn().mockResolvedValue({ docs: [], empty: true }),
     };
 
     const collectionGroupMock = adminDb.collectionGroup as jest.Mock;
@@ -188,18 +184,14 @@ describe("POST /api/profiles/request-access", () => {
     };
 
     const accessRequestsCollectionMock = {
-      where: jest.fn().mockReturnValue({
-        get: jest.fn().mockResolvedValue({ docs: [] }),
-      }),
-      get: jest.fn(),
+      where: jest.fn().mockReturnThis(),
+      get: jest.fn().mockResolvedValue({ docs: [], empty: true }),
       add: jest.fn().mockResolvedValue(mockRequestRef),
     };
 
     const accessGrantsCollectionMock = {
-      where: jest.fn().mockReturnValue({
-        get: jest.fn().mockResolvedValue({ docs: [] }),
-      }),
-      get: jest.fn(),
+      where: jest.fn().mockReturnThis(),
+      get: jest.fn().mockResolvedValue({ docs: [], empty: true }),
     };
 
     const collectionGroupMock = adminDb.collectionGroup as jest.Mock;
@@ -382,21 +374,25 @@ describe("POST /api/profiles/request-access", () => {
       },
     ];
 
-    const whereGetMock = jest.fn().mockRejectedValue(failedPreconditionError);
-    const fallbackGetMock = jest.fn().mockResolvedValue({ docs: fallbackDocs });
+    const fallbackGetMock = jest
+      .fn()
+      .mockRejectedValueOnce(failedPreconditionError)
+      .mockResolvedValueOnce({
+        docs: fallbackDocs,
+        empty: fallbackDocs.length === 0,
+        size: fallbackDocs.length,
+      });
     const addMock = jest.fn().mockResolvedValue({ id: "request-999" });
 
     const accessRequestsCollectionMock = {
-      where: jest.fn().mockReturnValue({ get: whereGetMock }),
+      where: jest.fn().mockReturnThis(),
       get: fallbackGetMock,
       add: addMock,
     };
 
     const accessGrantsCollectionMock = {
-      where: jest.fn().mockReturnValue({
-        get: jest.fn().mockResolvedValue({ docs: [] }),
-      }),
-      get: jest.fn(),
+      where: jest.fn().mockReturnThis(),
+      get: jest.fn().mockResolvedValue({ docs: [], empty: true }),
     };
 
     const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
@@ -469,7 +465,8 @@ describe("POST /api/profiles/request-access", () => {
     expect(fallbackGetMock).toHaveBeenCalled();
     expect(addMock).toHaveBeenCalled();
     expect(logger.warn).toHaveBeenCalledWith(
-      expect.stringContaining("Missing Firestore index")
+      expect.stringContaining("Missing Firestore index"),
+      expect.any(Object)
     );
   });
 });

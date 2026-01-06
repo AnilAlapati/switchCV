@@ -32,18 +32,20 @@ export interface ExtractionResult {
  * Uses Strategy Pattern with specialized extractors.
  */
 export class ResumeDataExtractor {
-
   /**
    * Extract resume data from AI response text
    */
   static extract(
     responseText: string,
-    conversationHistory?: string
+    context?: "education" | "experience" | "skills" | "contact" | null
   ): ExtractionResult {
     const data: Partial<ResumeDataRequirements> = {};
     const extractedFields: string[] = [];
     let confidence = 0.5; // Base confidence
     let isComplete = false;
+
+    // Detect context if not provided
+    const localContext = context || this.detectContext(responseText);
 
     // 1. JSON Strategy (Highest Confidence)
     const jsonExtractor = new JSONExtractor();
@@ -63,17 +65,15 @@ export class ResumeDataExtractor {
     // We run these even if JSON was found, to catch things the AI might have mentioned in text but missed in JSON
     // or if JSON extraction failed.
 
-    const context = this.detectContext(responseText);
-
     const extractors = [
       new ContactExtractor(),
       new SkillsExtractor(),
       new ExperienceExtractor(),
-      new EducationExtractor()
+      new EducationExtractor(),
     ];
 
     for (const extractor of extractors) {
-      const result = extractor.extract(responseText, context as any);
+      const result = extractor.extract(responseText, localContext as any);
       // Only merge if we found something new (simple merge logic)
       // ideally we would use deep merge, but shallow merge of sections is fine for now
       this.mergeData(data, result);
@@ -104,25 +104,41 @@ export class ResumeDataExtractor {
   ): "education" | "experience" | "skills" | "contact" | null {
     const lower = text.toLowerCase();
     if (
-      lower.includes("education") || lower.includes("degree") || lower.includes("university") ||
-      lower.includes("school") || lower.includes("college") || lower.includes("major") ||
+      lower.includes("education") ||
+      lower.includes("degree") ||
+      lower.includes("university") ||
+      lower.includes("school") ||
+      lower.includes("college") ||
+      lower.includes("major") ||
       lower.includes("graduate")
-    ) return "education";
+    )
+      return "education";
 
     if (
-      lower.includes("experience") || lower.includes("work") || lower.includes("job") ||
-      lower.includes("company") || lower.includes("role") || lower.includes("position")
-    ) return "experience";
+      lower.includes("experience") ||
+      lower.includes("work") ||
+      lower.includes("job") ||
+      lower.includes("company") ||
+      lower.includes("role") ||
+      lower.includes("position")
+    )
+      return "experience";
 
     if (
-      lower.includes("skill") || lower.includes("technology") ||
-      lower.includes("technologies") || lower.includes("proficient")
-    ) return "skills";
+      lower.includes("skill") ||
+      lower.includes("technology") ||
+      lower.includes("technologies") ||
+      lower.includes("proficient")
+    )
+      return "skills";
 
     if (
-      lower.includes("email") || lower.includes("phone") ||
-      lower.includes("contact") || lower.includes("name")
-    ) return "contact";
+      lower.includes("email") ||
+      lower.includes("phone") ||
+      lower.includes("contact") ||
+      lower.includes("name")
+    )
+      return "contact";
 
     return null;
   }
@@ -152,7 +168,6 @@ export class ResumeDataExtractor {
     existing: Partial<ResumeDataRequirements>,
     extracted: Partial<ResumeDataRequirements>
   ): Partial<ResumeDataRequirements> {
-
     // Merge simple fields (strings) - Overwrite if present in extracted
     if (extracted.name) existing.name = extracted.name;
     if (extracted.email) existing.email = extracted.email;
@@ -169,7 +184,8 @@ export class ResumeDataExtractor {
         (newItem) =>
           !existingExp.some(
             (existingItem) =>
-              existingItem.company.toLowerCase() === newItem.company.toLowerCase() &&
+              existingItem.company.toLowerCase() ===
+                newItem.company.toLowerCase() &&
               existingItem.title.toLowerCase() === newItem.title.toLowerCase()
           )
       );
@@ -183,7 +199,8 @@ export class ResumeDataExtractor {
         (newItem) =>
           !existingEdu.some(
             (existingItem) =>
-              existingItem.institution.toLowerCase() === newItem.institution.toLowerCase() &&
+              existingItem.institution.toLowerCase() ===
+                newItem.institution.toLowerCase() &&
               existingItem.degree.toLowerCase() === newItem.degree.toLowerCase()
           )
       );
@@ -209,11 +226,26 @@ export class ResumeDataExtractor {
     let maxConfidence = 0;
     let isComplete = false;
 
+    // Track current context across the conversation
+    let currentContext:
+      | "education"
+      | "experience"
+      | "skills"
+      | "contact"
+      | null = null;
+
     // Extract from each message sequentially
     for (const message of messages) {
+      // Detect context from the message (usually from AI question)
+      const detectedContext = this.detectContext(message.content);
+      if (detectedContext) {
+        currentContext = detectedContext;
+      }
+
       // We treat User and AI messages similarly now, as the context detector works on both
       // and extractors are robust.
-      const result = this.extract(message.content);
+      // Pass the current context to ensure generic answers are parsed correctly
+      const result = this.extract(message.content, currentContext);
 
       // Merge into aggregated state
       aggregatedData = this.mergeData(aggregatedData, result.data);

@@ -15,6 +15,8 @@ export class ContactExtractor implements IExtractor {
             ),
             /[Nn]ame:\s*([a-zA-Z]+(?:\s+(?!and\b|with\b|but\b)[a-zA-Z]+|[a-zA-Z]\.?){0,3})(?=\s|$|[.,])/i,
             /^([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})$/,
+            /^[A-Z][a-z]+$/i,
+            /^([a-z]+(?:\s+[a-z]+){1,2})$/i,
         ];
 
         for (const pattern of namePatterns) {

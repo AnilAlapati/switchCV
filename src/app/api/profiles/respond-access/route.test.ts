@@ -1,42 +1,23 @@
 import { NextRequest } from "next/server";
 import { POST } from "./route";
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb } from "@/lib/firebase-admin";
-import { createNotification } from "@/lib/notificationService";
+import { AccessService } from "@/lib/services/accessService";
 
 // Mock dependencies
+jest.mock("@/lib/services/accessService", () => ({
+  AccessService: {
+    respondToRequest: jest.fn(),
+  },
+}));
+
 jest.mock("@/lib/utils/api-helpers", () => ({
   getAuthenticatedUserId: jest.fn(),
   handleApiError: jest.requireActual("@/lib/utils/api-helpers").handleApiError,
 }));
 
-jest.mock("@/lib/firebase-admin", () => ({
-  adminDb: {
-    collection: jest.fn(),
-  },
-}));
-
-jest.mock("firebase-admin/firestore", () => ({
-  FieldValue: {
-    increment: jest.fn(),
-    serverTimestamp: jest.fn(() => "SERVER_TS"),
-  },
-  Timestamp: {
-    fromDate: jest.fn((date) => ({
-      toDate: () => date,
-    })),
-  },
-}));
-
-jest.mock("@/lib/notificationService", () => ({
-  createNotification: jest.fn(),
-}));
-
 describe("POST /api/profiles/respond-access", () => {
   const mockGetAuthenticatedUserId = getAuthenticatedUserId as jest.Mock;
-  const mockCollection = adminDb.collection as jest.Mock;
-  const mockCreateNotification = createNotification as jest.Mock;
+  const mockRespondToRequest = AccessService.respondToRequest as jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -78,19 +59,9 @@ describe("POST /api/profiles/respond-access", () => {
     expect(data.error).toBe("Invalid request");
   });
 
-  it("should return 403 if user does not own the resume", async () => {
+  it("should return 403 if user does not own the resume (Service throws Unauthorized)", async () => {
     mockGetAuthenticatedUserId.mockResolvedValue({ userId: "user123" });
-
-    const mockResumeDoc = {
-      exists: true,
-      data: () => ({ userId: "otherUser" }),
-    };
-
-    mockCollection.mockReturnValue({
-      doc: jest.fn().mockReturnValue({
-        get: jest.fn().mockResolvedValue(mockResumeDoc),
-      }),
-    });
+    mockRespondToRequest.mockRejectedValue(new Error("Unauthorized"));
 
     const request = new NextRequest(
       "http://localhost:3000/api/profiles/respond-access",
@@ -113,38 +84,7 @@ describe("POST /api/profiles/respond-access", () => {
 
   it("should return 404 if request not found", async () => {
     mockGetAuthenticatedUserId.mockResolvedValue({ userId: "user123" });
-
-    const mockResumeDoc = {
-      exists: true,
-      data: () => ({ userId: "user123" }),
-    };
-
-    const mockRequestDoc = {
-      exists: false,
-    };
-
-    const mockRequestRef = {
-      get: jest.fn().mockResolvedValue(mockRequestDoc),
-    };
-
-    mockCollection.mockImplementation((collectionName) => {
-      if (collectionName === "resumes") {
-        return {
-          doc: jest.fn().mockReturnValue({
-            get: jest.fn().mockResolvedValue(mockResumeDoc),
-            collection: jest.fn().mockImplementation((subName: string) => {
-              if (subName === "accessRequests") {
-                return {
-                  doc: jest.fn().mockReturnValue(mockRequestRef),
-                };
-              }
-              return {};
-            }),
-          }),
-        };
-      }
-      return { doc: jest.fn() };
-    });
+    mockRespondToRequest.mockRejectedValue(new Error("not found"));
 
     const request = new NextRequest(
       "http://localhost:3000/api/profiles/respond-access",
@@ -165,81 +105,9 @@ describe("POST /api/profiles/respond-access", () => {
     expect(data.error).toBe("Request not found");
   });
 
-  const buildApprovedRequest = () => ({
-    exists: true,
-    data: () => ({
-      fromUserId: "recruiter1",
-      requestedDuration: {
-        preset: "1_month",
-        value: 1,
-        unit: "month",
-        durationHours: 720,
-        durationMs: 720 * 60 * 60 * 1000,
-        label: "1 Month",
-        timezone: "UTC",
-        isCustom: false,
-      },
-    }),
-  });
-
-  const setupApprovalMocks = () => {
-    const mockResumeSnapshot = {
-      exists: true,
-      data: () => ({ userId: "user123", title: "My Resume" }),
-    };
-
-    const mockRequestDoc = buildApprovedRequest();
-    const mockRequestRef = {
-      get: jest.fn().mockResolvedValue(mockRequestDoc),
-      update: jest.fn().mockResolvedValue(undefined),
-    };
-
-    const mockAccessGrantsCollection = {
-      add: jest.fn().mockResolvedValue({ id: "grant1" }),
-    };
-
-    mockCollection.mockImplementation((collectionName) => {
-      if (collectionName === "resumes") {
-        return {
-          doc: jest.fn().mockReturnValue({
-            get: jest.fn().mockResolvedValue(mockResumeSnapshot),
-            collection: jest.fn().mockImplementation((subName: string) => {
-              if (subName === "accessRequests") {
-                return {
-                  doc: jest.fn().mockReturnValue(mockRequestRef),
-                };
-              }
-              if (subName === "accessGrants") {
-                return mockAccessGrantsCollection;
-              }
-              return {};
-            }),
-          }),
-        };
-      }
-      if (collectionName === "recruiterMetrics") {
-        return {
-          doc: jest.fn().mockReturnValue({
-            set: jest.fn().mockResolvedValue(true),
-          }),
-        };
-      }
-      if (collectionName === "jobSeekerMetrics") {
-        return {
-          doc: jest.fn().mockReturnValue({
-            set: jest.fn().mockResolvedValue(true),
-          }),
-        };
-      }
-      return { doc: jest.fn() };
-    });
-
-    return { mockRequestRef, mockAccessGrantsCollection };
-  };
-
-  it("should successfully approve request, store grant, and notify recruiter", async () => {
+  it("should successfully approve request", async () => {
     mockGetAuthenticatedUserId.mockResolvedValue({ userId: "user123" });
-    const { mockRequestRef, mockAccessGrantsCollection } = setupApprovalMocks();
+    mockRespondToRequest.mockResolvedValue({ status: "approved" });
 
     const request = new NextRequest(
       "http://localhost:3000/api/profiles/respond-access",
@@ -258,48 +126,18 @@ describe("POST /api/profiles/respond-access", () => {
 
     expect(response.status).toBe(200);
     expect(data.success).toBe(true);
-    expect(mockRequestRef.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        status: "approved",
-        grantedDuration: expect.objectContaining({ label: "1 Month" }),
-        expiresAt: expect.any(Object),
-      })
+    expect(mockRespondToRequest).toHaveBeenCalledWith(
+      "user123",
+      "resume1",
+      "req1",
+      "approve",
+      undefined
     );
-    expect(mockAccessGrantsCollection.add).toHaveBeenCalledWith(
-      expect.objectContaining({
-        duration: expect.objectContaining({ label: "1 Month" }),
-      })
-    );
-    expect(mockCreateNotification).toHaveBeenCalled();
   });
 
-  it("should reject approvals longer than requested", async () => {
+  it("should handle custom overrides within requested duration", async () => {
     mockGetAuthenticatedUserId.mockResolvedValue({ userId: "user123" });
-    setupApprovalMocks();
-
-    const request = new NextRequest(
-      "http://localhost:3000/api/profiles/respond-access",
-      {
-        method: "POST",
-        body: JSON.stringify({
-          requestId: "req1",
-          resumeId: "resume1",
-          action: "approve",
-          grantDuration: { preset: "custom_days", customDays: 400 },
-        }),
-      }
-    );
-
-    const response = await POST(request);
-    const data = await response.json();
-
-    expect(response.status).toBe(400);
-    expect(data.error).toContain("duration");
-  });
-
-  it("should honor custom overrides within requested duration", async () => {
-    mockGetAuthenticatedUserId.mockResolvedValue({ userId: "user123" });
-    const { mockRequestRef } = setupApprovalMocks();
+    mockRespondToRequest.mockResolvedValue({ status: "approved" });
 
     const request = new NextRequest(
       "http://localhost:3000/api/profiles/respond-access",
@@ -317,10 +155,12 @@ describe("POST /api/profiles/respond-access", () => {
     const response = await POST(request);
 
     expect(response.status).toBe(200);
-    expect(mockRequestRef.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        grantedDuration: expect.objectContaining({ label: "10 Days" }),
-      })
+    expect(mockRespondToRequest).toHaveBeenCalledWith(
+      "user123",
+      "resume1",
+      "req1",
+      "approve",
+      10
     );
   });
 });

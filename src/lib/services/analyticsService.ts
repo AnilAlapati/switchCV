@@ -591,14 +591,14 @@ export function generateHeatmap(events: ViewEvent[], resumeId: string, sections:
 export function aggregateToDashboard(analytics: any, heatmaps: any[], recruiters: any[], benchmark: any) {
   return {
     summary: {
-      totalViews: analytics.viewCount,
-      uniqueViews: analytics.uniqueViewCount || analytics.viewCount,
+      totalViews: analytics.viewCount || analytics.views?.count || 0,
+      uniqueViews: analytics.uniqueViews || analytics.uniqueViewCount || analytics.views?.uniqueViewers || analytics.viewCount || 0,
       conversionRate: 0,
       avgTimeOnResume: 45 // seconds
     },
     trends: [], // would map from viewEvents
     heatmaps,
     recruiterActivity: recruiters,
-    benchmarks: benchmark
+    benchmark
   };
 }

@@ -5,6 +5,7 @@ import {
   unpublishResume,
   getPublishedResume,
   getResumeEditingStatus,
+  getResume,
   createResume,
   saveGeneratedResume,
   getResumeCount,
@@ -126,8 +127,6 @@ describe("resumeService", () => {
       expect(where).toHaveBeenCalledWith("slug", "==", mockSlug);
       expect(result).toEqual({ id: mockResumeId, ...mockData });
     });
-
-
 
     it("should return null when not found", async () => {
       const dbMock = require("firebase/firestore");
@@ -445,6 +444,32 @@ describe("resumeService", () => {
 
       expect(count).toBe(mockCount);
       expect(mockWhere).toHaveBeenCalledWith("userId", "==", "user-count");
+    });
+  });
+
+  describe("getResume", () => {
+    it("should fetch user doc if userId is provided and not the owner", async () => {
+      const mockResumeData = { userId: "other-user", isPublic: false };
+      const resDoc = {
+        exists: true,
+        data: () => mockResumeData,
+      };
+
+      const userDoc = {
+        exists: true,
+        data: () => ({ role: "admin" }),
+      };
+
+      const chain = mockAdminDbChain();
+      chain
+        .doc()
+        .get.mockResolvedValueOnce(resDoc) // First call for resume
+        .mockResolvedValueOnce(userDoc); // Second call for user
+
+      (adminDb.collection as jest.Mock).mockReturnValue(chain);
+
+      const result = await getResume("res-1", "user-1");
+      expect(result.access).toBe("admin");
     });
   });
 });

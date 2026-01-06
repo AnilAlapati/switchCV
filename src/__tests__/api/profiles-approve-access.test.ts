@@ -1,34 +1,29 @@
 import { POST } from "@/app/api/profiles/approve-access/route";
 import { NextRequest } from "next/server";
-import { adminDb } from "@/lib/firebase-admin";
-import {
-  getAuthenticatedUserId,
-  verifyResumeOwnership,
-} from "@/lib/utils/api-helpers";
-
-jest.mock("@/lib/firebase-admin", () => ({
-  adminDb: {
-    collection: jest.fn().mockReturnThis(),
-    doc: jest.fn().mockReturnThis(),
-    get: jest.fn(),
-    update: jest.fn(),
-    add: jest.fn(),
-  },
-}));
+import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
+import { AccessService } from "@/lib/services/accessService";
 
 jest.mock("@/lib/utils/api-helpers", () => ({
   getAuthenticatedUserId: jest.fn(),
-  verifyResumeOwnership: jest.fn(),
-  handleApiError: jest.fn((err, msg, status) => ({
-    status: status || 500,
-    json: async () => ({ error: msg }),
-  })),
+  handleApiError: jest.requireActual("@/lib/utils/api-helpers").handleApiError,
 }));
 
-describe("Profiles Approve Access API", () => {
+jest.mock("@/lib/services/accessService", () => ({
+  AccessService: {
+    respondToRequest: jest.fn(),
+  },
+}));
+
+describe("Profiles Approve Access API Integration", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
+
+  const basePayload = {
+    requestId: "req-1",
+    resumeId: "res-1",
+    duration: "1day",
+  };
 
   it("should return 401 if not authenticated", async () => {
     (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
@@ -82,87 +77,51 @@ describe("Profiles Approve Access API", () => {
     expect(response.status).toBe(400);
   });
 
-  it("should return error if ownership verification fails", async () => {
+  it("should return 403 if ownership verification fails", async () => {
     (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
       userId: "user-1",
     });
-    (verifyResumeOwnership as jest.Mock).mockResolvedValue({
-      success: false,
-      error: { status: 403, json: async () => ({ error: "Forbidden" }) },
-    });
+    (AccessService.respondToRequest as jest.Mock).mockRejectedValue(new Error("Unauthorized"));
 
     const req = new NextRequest(
       new URL("http://localhost:3000/api/profiles/approve-access"),
       {
         method: "POST",
-        body: JSON.stringify({
-          requestId: "req-1",
-          resumeId: "res-1",
-          duration: "1day",
-        }),
+        body: JSON.stringify(basePayload),
       }
     );
     const response = await POST(req);
     expect(response.status).toBe(403);
   });
 
-  it("should return 404 if request not found", async () => {
+  it("should return 404 if resume or request not found", async () => {
     (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
       userId: "user-1",
     });
-    const mockDocRef = {
-      collection: jest.fn().mockReturnThis(),
-      doc: jest.fn().mockReturnThis(),
-      get: jest.fn().mockResolvedValue({ exists: false }),
-    };
-    (verifyResumeOwnership as jest.Mock).mockResolvedValue({
-      success: true,
-      docRef: mockDocRef,
-    });
+    (AccessService.respondToRequest as jest.Mock).mockRejectedValue(new Error("not found"));
 
     const req = new NextRequest(
       new URL("http://localhost:3000/api/profiles/approve-access"),
       {
         method: "POST",
-        body: JSON.stringify({
-          requestId: "req-1",
-          resumeId: "res-1",
-          duration: "1day",
-        }),
+        body: JSON.stringify(basePayload),
       }
     );
     const response = await POST(req);
     expect(response.status).toBe(404);
   });
 
-  it("should approve access successfully for 1hour", async () => {
+  it("should approve access successfully", async () => {
     (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
       userId: "user-1",
     });
-    const mockDocRef = {
-      collection: jest.fn().mockReturnThis(),
-      doc: jest.fn().mockReturnThis(),
-      get: jest.fn().mockResolvedValue({
-        exists: true,
-        data: () => ({ fromUserId: "requester-1", fromUserName: "Requester" }),
-      }),
-      update: jest.fn().mockResolvedValue({}),
-      add: jest.fn().mockResolvedValue({ id: "grant-1" }),
-    };
-    (verifyResumeOwnership as jest.Mock).mockResolvedValue({
-      success: true,
-      docRef: mockDocRef,
-    });
+    (AccessService.respondToRequest as jest.Mock).mockResolvedValue({});
 
     const req = new NextRequest(
       new URL("http://localhost:3000/api/profiles/approve-access"),
       {
         method: "POST",
-        body: JSON.stringify({
-          requestId: "req-1",
-          resumeId: "res-1",
-          duration: "1hour",
-        }),
+        body: JSON.stringify(basePayload),
       }
     );
     const response = await POST(req);
@@ -170,71 +129,22 @@ describe("Profiles Approve Access API", () => {
 
     expect(response.status).toBe(200);
     expect(data.success).toBe(true);
-    expect(mockDocRef.update).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "approved" })
-    );
-    expect(mockDocRef.add).toHaveBeenCalledWith(
-      expect.objectContaining({ duration: "1hour" })
-    );
   });
 
-  it("should approve access successfully for forever", async () => {
+  it("should return 400 if service throws 'already processed'", async () => {
     (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
       userId: "user-1",
     });
-    const mockDocRef = {
-      collection: jest.fn().mockReturnThis(),
-      doc: jest.fn().mockReturnThis(),
-      get: jest.fn().mockResolvedValue({
-        exists: true,
-        data: () => ({ fromUserId: "requester-1", fromUserName: "Requester" }),
-      }),
-      update: jest.fn().mockResolvedValue({}),
-      add: jest.fn().mockResolvedValue({ id: "grant-1" }),
-    };
-    (verifyResumeOwnership as jest.Mock).mockResolvedValue({
-      success: true,
-      docRef: mockDocRef,
-    });
+    (AccessService.respondToRequest as jest.Mock).mockRejectedValue(new Error("already processed"));
 
     const req = new NextRequest(
       new URL("http://localhost:3000/api/profiles/approve-access"),
       {
         method: "POST",
-        body: JSON.stringify({
-          requestId: "req-1",
-          resumeId: "res-1",
-          duration: "forever",
-        }),
+        body: JSON.stringify(basePayload),
       }
     );
     const response = await POST(req);
-    expect(response.status).toBe(200);
-    expect(mockDocRef.add).toHaveBeenCalledWith(
-      expect.objectContaining({ duration: "forever", expiresAt: null })
-    );
-  });
-
-  it("should handle errors in POST", async () => {
-    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
-      userId: "user-1",
-    });
-    (verifyResumeOwnership as jest.Mock).mockRejectedValue(
-      new Error("Verification error")
-    );
-
-    const req = new NextRequest(
-      new URL("http://localhost:3000/api/profiles/approve-access"),
-      {
-        method: "POST",
-        body: JSON.stringify({
-          requestId: "req-1",
-          resumeId: "res-1",
-          duration: "1day",
-        }),
-      }
-    );
-    const response = await POST(req);
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(400);
   });
 });

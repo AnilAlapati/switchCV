@@ -70,7 +70,50 @@ if (typeof globalThis.NextRequest === 'undefined') {
   };
 }
 
-// Polyfill Response if not available
+// Polyfill Headers if not available
+if (typeof globalThis.Headers === 'undefined') {
+  globalThis.Headers = class Headers {
+    constructor(init = {}) {
+      this._headers = new Map();
+      if (init) {
+        if (init instanceof Headers) {
+          init.forEach((value, name) => this.append(name, value));
+        } else if (Array.isArray(init)) {
+          init.forEach(([name, value]) => this.append(name, value));
+        } else {
+          Object.entries(init).forEach(([name, value]) => this.set(name, value));
+        }
+      }
+    }
+    append(name, value) {
+      const lowName = name.toLowerCase();
+      const old = this._headers.get(lowName);
+      this._headers.set(lowName, old ? `${old}, ${value}` : value);
+    }
+    delete(name) { this._headers.delete(name.toLowerCase()); }
+    get(name) { return this._headers.get(name.toLowerCase()) || null; }
+    has(name) { return this._headers.has(name.toLowerCase()); }
+    set(name, value) { this._headers.set(name.toLowerCase(), value); }
+    forEach(callback) { this._headers.forEach(callback); }
+    entries() { return this._headers.entries(); }
+  };
+}
+
+// Polyfill Request if not available
+if (typeof globalThis.Request === 'undefined') {
+  globalThis.Request = class Request {
+    constructor(input, init = {}) {
+      this.url = typeof input === 'string' ? input : input.url;
+      this.method = init.method || 'GET';
+      this.headers = new Headers(init.headers || {});
+      this.body = init.body || null;
+    }
+    async json() { return JSON.parse(this.body); }
+    async text() { return this.body; }
+  };
+}
+
+// Polyfill Response if not available or lacks static json
 if (typeof globalThis.Response === 'undefined') {
   globalThis.Response = class Response {
     constructor(body = '', init = {}) {
@@ -83,34 +126,25 @@ if (typeof globalThis.Response === 'undefined') {
 
     async json() {
       try {
-        return JSON.parse(this.body);
+        return typeof this.body === 'string' ? JSON.parse(this.body) : this.body;
       } catch {
         return {};
       }
     }
 
-    async text() {
-      return this.body || '';
-    }
-
-    async blob() {
-      return new Blob([this.body]);
-    }
-
-    clone() {
-      return new Response(this.body, {
-        status: this.status,
-        statusText: this.statusText,
-        headers: Object.fromEntries(this.headers.entries()),
-      });
-    }
-
     static json(data, init = {}) {
       return new Response(JSON.stringify(data), {
         status: init.status || 200,
-        headers: { 'Content-Type': 'application/json', ...init.headers },
+        headers: { 'Content-Type': 'application/json', ...(init.headers || {}) },
       });
     }
+  };
+} else if (!globalThis.Response.json) {
+  globalThis.Response.json = function (data, init = {}) {
+    return new globalThis.Response(JSON.stringify(data), {
+      status: init.status || 200,
+      headers: { 'Content-Type': 'application/json', ...(init.headers || {}) },
+    });
   };
 }
 
@@ -144,102 +178,132 @@ jest.mock('@/lib/firebase-admin', () => ({
       },
     },
   },
-  adminDb: {
-    collection: jest.fn(() => ({
-      doc: jest.fn(() => ({
-        get: jest.fn().mockResolvedValue({
-          exists: true,
-          data: jest.fn(() => ({
-            maintenance: { isActive: false, message: '', blocking: false },
-            auth: { registrationClosed: false, loginDisabled: false },
-            features: { enableAnalytics: false, enableMockData: true },
-            rateLimits: {
-              api: { windowMs: 60000, maxRequests: 100 },
-              search: { perMinute: 50 },
-              aiEnhancement: {
-                basic: { perHour: 10, perDay: 100 },
-                premium: { perHour: 50, perDay: 500 },
-                enterprise: { perHour: 200, perDay: 2000 }
-              },
-              usernameCheck: { maxRequests: 50, windowMs: 60000 },
-              supportFeedback: { maxPerHour: 20, windowMs: 3600000 }
+  adminDb: (() => {
+    const mockDoc = (id) => ({
+      get: jest.fn().mockResolvedValue({
+        exists: true,
+        id,
+        data: jest.fn(() => ({
+          maintenance: { isActive: false, message: '', blocking: false },
+          auth: { registrationClosed: false, loginDisabled: false },
+          features: { enableAnalytics: false, enableMockData: true },
+          rateLimits: {
+            api: { windowMs: 60000, maxRequests: 100 },
+            search: { perMinute: 50 },
+            aiEnhancement: {
+              basic: { perHour: 10, perDay: 100 },
+              premium: { perHour: 50, perDay: 500 },
+              enterprise: { perHour: 200, perDay: 2000 }
             },
-            tiers: {
-              basic: {
-                resumeLimit: 5,
-                canEdit: true,
-                retentionDays: null,
-                deletionGracePeriodDays: null,
-                expiryWarningHours: null,
-                recruiterContacts: { total: 100 },
-                recruiterSearches: 9999
-              },
-              premium: {
-                resumeLimit: 50,
-                canEdit: true,
-                retentionDays: null,
-                deletionGracePeriodDays: null,
-                expiryWarningHours: null,
-                recruiterContacts: { perMonth: 50 },
-                recruiterSearches: 9999
-              },
-              enterprise: {
-                resumeLimit: 9999,
-                canEdit: true,
-                retentionDays: null,
-                deletionGracePeriodDays: null,
-                expiryWarningHours: null,
-                recruiterContacts: { perMonth: 9999 },
-                recruiterSearches: 9999
-              }
+            usernameCheck: { maxRequests: 50, windowMs: 60000 },
+            supportFeedback: { maxPerHour: 20, windowMs: 3600000 }
+          },
+          tiers: {
+            basic: {
+              resumeLimit: 5,
+              canEdit: true,
+              retentionDays: null,
+              deletionGracePeriodDays: null,
+              expiryWarningHours: null,
+              recruiterContacts: { total: 100 },
+              recruiterSearches: 9999
             },
-            search: {
-              basicQuota: 9999,
-              premiumQuota: 999999,
-              similarityThreshold: 0.3,
-              maxResults: 50,
-              costPerSearch: 0.5
+            premium: {
+              resumeLimit: 50,
+              canEdit: true,
+              retentionDays: null,
+              deletionGracePeriodDays: null,
+              expiryWarningHours: null,
+              recruiterContacts: { perMonth: 50 },
+              recruiterSearches: 9999
             },
-            ai: {
-              defaultModel: 'gemini-2.0-flash-lite',
-              embeddingModel: 'text-embedding-004',
-              embeddingDimension: 768,
-              maxRetries: 3,
-              timeoutMs: 30000,
-              maxTokens: 4096,
-              preferredModels: ['gemini-2.0-flash-lite', 'gemini-2.5-flash', 'gpt-4o-mini', 'groq/llama-3.1-8b'],
-              enableCostWarnings: true
-            },
-            validation: {
-              username: { minLength: 3, maxLength: 30 },
-              fields: { maxLength: 200, maxDescriptionLength: 2000 },
-              resume: { maxSkills: 50, maxExperiences: 20, maxEducations: 10, maxProjects: 20 }
-            },
-            cache: {
-              systemConfigTtlMs: 3600000,
-              templateCacheTtlMs: 1800000,
-              tierCacheTtlMs: 86400000,
-              aiCacheTtlMs: 86400000
+            enterprise: {
+              resumeLimit: 9999,
+              canEdit: true,
+              retentionDays: null,
+              deletionGracePeriodDays: null,
+              expiryWarningHours: null,
+              recruiterContacts: { perMonth: 9999 },
+              recruiterSearches: 9999
             }
-          }))
+          },
+          search: {
+            basicQuota: 9999,
+            premiumQuota: 999999,
+            similarityThreshold: 0.3,
+            maxResults: 50,
+            costPerSearch: 0.5
+          },
+          ai: {
+            defaultModel: 'gemini-2.0-flash-lite',
+            embeddingModel: 'text-embedding-004',
+            embeddingDimension: 768,
+            maxRetries: 3,
+            timeoutMs: 30000,
+            maxTokens: 4096,
+            preferredModels: ['gemini-2.0-flash-lite', 'gemini-2.5-flash', 'gpt-4o-mini', 'groq/llama-3.1-8b'],
+            enableCostWarnings: true
+          },
+          validation: {
+            username: { minLength: 3, maxLength: 30 },
+            fields: { maxLength: 200, maxDescriptionLength: 2000 },
+            resume: { maxSkills: 50, maxExperiences: 20, maxEducations: 10, maxProjects: 20 }
+          },
+          cache: {
+            systemConfigTtlMs: 3600000,
+            templateCacheTtlMs: 1800000,
+            tierCacheTtlMs: 86400000,
+            aiCacheTtlMs: 86400000
+          }
+        }))
+      }),
+      set: jest.fn().mockResolvedValue({}),
+      update: jest.fn().mockResolvedValue({}),
+      delete: jest.fn().mockResolvedValue({}),
+      collection: jest.fn((name) => mockCollection(name)),
+    });
+
+    const createMockQuery = (name) => {
+      const query = {
+        doc: jest.fn((id) => mockDoc(id)),
+        where: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        get: jest.fn().mockResolvedValue({ 
+          docs: [], 
+          empty: true, 
+          size: 0,
+          forEach: jest.fn((cb) => [])
         }),
-        set: jest.fn().mockResolvedValue({}),
-        update: jest.fn().mockResolvedValue({}),
-        delete: jest.fn().mockResolvedValue({}),
+        add: jest.fn().mockResolvedValue({ id: 'test-id' }),
+        count: jest.fn().mockReturnThis(),
+      };
+      return query;
+    };
+
+    const mockCollection = (name) => createMockQuery(name);
+
+    return {
+      collection: jest.fn((name) => mockCollection(name)),
+      doc: jest.fn((path) => mockDoc(path)),
+      batch: jest.fn(() => ({
+        set: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+        commit: jest.fn().mockResolvedValue(undefined),
       })),
-      where: jest.fn(() => ({
-        get: jest.fn().mockResolvedValue({ docs: [] }),
-      })),
-      add: jest.fn().mockResolvedValue({ id: 'test-id' }),
-      get: jest.fn().mockResolvedValue({ docs: [] }),
-    })),
-    batch: jest.fn(() => ({
-      set: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-      commit: jest.fn().mockResolvedValue(undefined),
-    })),
-  },
+      runTransaction: jest.fn(async (fn) => {
+        const mockTransaction = {
+          get: jest.fn().mockResolvedValue({ exists: true, data: jest.fn(() => ({})) }),
+          set: jest.fn(),
+          update: jest.fn(),
+          delete: jest.fn(),
+        };
+        return fn(mockTransaction);
+      }),
+      collectionGroup: jest.fn((name) => mockCollection(name)),
+    };
+  })(),
   adminAuth: {
     verifyIdToken: jest.fn(async () => ({
       uid: 'test-user-id',

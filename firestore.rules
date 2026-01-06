@@ -26,12 +26,12 @@ service cloud.firestore {
     
     // Extracted: Role transition validation
     function roleTransitionAllowed() {
+      // Allow any role change as long as the new role is valid
+      // This enables users to switch roles during onboarding/settings without restriction
       let noRoleChange = !('role' in request.resource.data);
-      let newUserRole = resource == null && request.resource.data.role in ['jobseeker', 'recruiter'];
-      let firstRoleSelection = resource != null && !('role' in resource.data) && request.resource.data.role in ['jobseeker', 'recruiter'];
-      let onboardingRoleChange = resource != null && 'role' in resource.data && !('roleSelectedAt' in resource.data) && request.resource.data.role in ['jobseeker', 'recruiter'];
-      let roleUnchanged = resource != null && 'role' in resource.data && request.resource.data.role == resource.data.role;
-      return noRoleChange || newUserRole || firstRoleSelection || onboardingRoleChange || roleUnchanged;
+      let validRoleUpdate = 'role' in request.resource.data && request.resource.data.role in ['jobseeker', 'recruiter'];
+      
+      return noRoleChange || validRoleUpdate;
     }
 
     // Extracted: Tier transition validation

@@ -68,6 +68,7 @@ describe("AI Status API", () => {
 
   it("should return Hugging Face status when only HUGGINGFACE_TOKEN is set", async () => {
     delete process.env.GEMINI_API_KEY;
+    delete process.env.OPENAI_API_KEY;
     process.env.HUGGINGFACE_TOKEN = "test-token";
 
     const response = await GET();
@@ -81,6 +82,7 @@ describe("AI Status API", () => {
 
   it("should return disconnected status when no keys are set", async () => {
     delete process.env.GEMINI_API_KEY;
+    delete process.env.OPENAI_API_KEY;
     delete process.env.HUGGINGFACE_TOKEN;
 
     const response = await GET();

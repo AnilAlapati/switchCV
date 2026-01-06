@@ -42,6 +42,7 @@ describe("GET /api/ai/status", () => {
 
   it("should return HuggingFace status when Gemini is missing but HF is present", async () => {
     delete process.env.GEMINI_API_KEY;
+    delete process.env.OPENAI_API_KEY;
     process.env.HUGGINGFACE_TOKEN = "test-token";
 
     const res = await GET();
@@ -53,6 +54,7 @@ describe("GET /api/ai/status", () => {
 
   it("should return disconnected when no provider is configured", async () => {
     delete process.env.GEMINI_API_KEY;
+    delete process.env.OPENAI_API_KEY;
     delete process.env.HUGGINGFACE_TOKEN;
 
     const res = await GET();
