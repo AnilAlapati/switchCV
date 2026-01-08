@@ -1,6 +1,6 @@
-/* eslint-disable no-console */
 import { NextRequest, NextResponse } from "next/server";
 import { verifyEmailToken } from "@/lib/services/authService";
+import { logger } from "@/lib/logger";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -13,12 +13,12 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    console.log("[VERIFY] Starting verification for token:", token);
+    logger.info({ token: token.substring(0, 8) + "..." }, "Starting email verification");
 
     const result = await verifyEmailToken(token);
 
     if (!result.success) {
-      console.log(`[VERIFY] Verification failed: ${result.error}`);
+      logger.warn({ error: result.error }, "Email verification failed");
       if (result.error === "invalid-token") {
         return NextResponse.redirect(new URL("/auth?error=invalid-token", request.url));
       }
@@ -29,12 +29,12 @@ export async function GET(request: NextRequest) {
     }
 
     // 5. Redirect to success
-    console.log("[VERIFY] Verification successful, redirecting...");
+    logger.info("Email verification successful, redirecting");
     return NextResponse.redirect(
       new URL("/auth?verificationSuccess=true", request.url)
     );
   } catch (error) {
-    console.error("[VERIFY] Verification error:", error);
+    logger.error({ err: error }, "Email verification error");
     return NextResponse.redirect(
       new URL("/auth?error=verification-failed", request.url)
     );

@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
       });
     } catch (e: any) {
       if (e.message.startsWith("Validation failed")) {
-        return handleApiError(e, e.message, 400);
+        return handleApiError(e, "Invalid profile data", 400);
       }
       throw e;
     }
@@ -139,7 +139,7 @@ export async function PUT(request: NextRequest) {
       });
     } catch (e: any) {
       if (e.message.startsWith("Validation failed")) {
-        return handleApiError(e, e.message, 400);
+        return handleApiError(e, "Invalid profile data", 400);
       }
       throw e;
     }

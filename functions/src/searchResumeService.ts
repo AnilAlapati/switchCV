@@ -16,6 +16,11 @@ import {
 } from "./searchProviders";
 import type { SearchFilters } from "./searchProviders/types";
 import { config } from "./config";
+import {
+  containsPromptInjection,
+  sanitizeForPrompt,
+  QUERY_LIMITS,
+} from "./utils/promptSafety";
 
 // Constants (loaded from config)
 const searchConfig = config.get("search");
@@ -181,12 +186,45 @@ const searchResumesAIHandler = async (
 
   const { query, filters, limit = AI_SEARCH.MAX_RESULTS } = data;
 
-  if (!query || query.trim().length < 3) {
+  // Security: Basic query validation
+  if (!query || typeof query !== "string") {
     throw new functions.https.HttpsError(
       "invalid-argument",
-      "Query must be at least 3 characters"
+      "Query string is required"
     );
   }
+
+  const trimmedQuery = query.trim();
+
+  // Security: Query length validation
+  if (trimmedQuery.length < QUERY_LIMITS.MIN_LENGTH) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      `Query must be at least ${QUERY_LIMITS.MIN_LENGTH} characters`
+    );
+  }
+
+  if (trimmedQuery.length > QUERY_LIMITS.MAX_LENGTH) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      `Query must be at most ${QUERY_LIMITS.MAX_LENGTH} characters`
+    );
+  }
+
+  // Security: Prompt injection detection
+  if (containsPromptInjection(trimmedQuery)) {
+    functions.logger.warn(
+      `[SECURITY] Prompt injection attempt detected from user ${context.auth.uid}`,
+      { query: trimmedQuery.slice(0, 50) }
+    );
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "Invalid query content"
+    );
+  }
+
+  // Security: Sanitize query before embedding generation
+  const sanitizedQuery = sanitizeForPrompt(trimmedQuery, QUERY_LIMITS.MAX_LENGTH);
 
   const userId = context.auth.uid;
   const devBypass = isDevBypassEnabled();
@@ -230,14 +268,14 @@ const searchResumesAIHandler = async (
     quotaRemaining = quotaCheck.remaining;
   }
 
-  functions.logger.info(`AI search by ${userId}: "${query}"`, {
+  functions.logger.info(`AI search by ${userId}: "${sanitizedQuery}"`, {
     tier,
     remaining: quotaRemaining,
     devBypass,
   });
 
   try {
-    const queryEmbedding = await generateQueryEmbedding(query);
+    const queryEmbedding = await generateQueryEmbedding(sanitizedQuery);
 
     let providerResult;
     try {

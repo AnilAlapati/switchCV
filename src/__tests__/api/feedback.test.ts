@@ -159,7 +159,11 @@ describe("Feedback API", () => {
     (sendSupportFeedback as jest.Mock).mockRejectedValue(error);
 
     await POST(mockRequest);
-    expect(handleApiError).toHaveBeenCalledWith(error, "Service down", 503);
+    expect(handleApiError).toHaveBeenCalledWith(
+      error,
+      "Unable to process feedback submission",
+      503
+    );
   });
 
   it("should handle generic error", async () => {

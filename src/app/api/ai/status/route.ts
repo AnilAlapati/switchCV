@@ -1,6 +1,7 @@
 import { logger } from "@/lib/logger";
 import { NextResponse } from "next/server";
 import { handleApiError } from "@/lib/utils/api-helpers";
+import { AI_ENDPOINTS } from "@/config/aiEndpoints";
 
 // Model preferences (in order of preference)
 const MODEL_PREFERENCES = [
@@ -20,7 +21,7 @@ const MODEL_PREFERENCES = [
 async function getBestGeminiModel(apiKey: string): Promise<string> {
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`,
+      AI_ENDPOINTS.GEMINI.MODELS(apiKey),
       { next: { revalidate: 3600 } } // Cache for 1 hour
     );
 

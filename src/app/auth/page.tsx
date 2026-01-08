@@ -52,11 +52,11 @@ function AuthContent() {
   const { needsEmailVerification, verificationEmail } = authContext;
 
   return (
-    <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4">
+    <div className="min-h-screen relative flex p-4">
       {/* Animated Blobs Background */}
       <BackgroundBlobs />
 
-      <div className="relative z-10 w-full max-w-md">
+      <div className="relative z-10 w-full max-w-md m-auto">
         <AuthBrand />
 
         <div className="glass-panel rounded-[2rem] p-8 sm:p-10">

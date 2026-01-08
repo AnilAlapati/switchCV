@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
 
       if (status === 403) {
         if (errorMessage.includes("QUOTA_EXCEEDED")) {
-          return handleApiError(new Error("Quota exceeded"), errorMessage, 403);
+          return handleApiError(new Error("Quota exceeded"), "Search quota exceeded", 403);
         }
         if (
           errorMessage.includes("not allowed") ||
@@ -110,13 +110,13 @@ export async function POST(request: NextRequest) {
         ) {
           return handleApiError(
             new Error("Tier not allowed"),
-            errorMessage,
+            "AI search not available for your subscription tier",
             403
           );
         }
         return handleApiError(
           new Error("Permission denied"),
-          errorMessage,
+          "Permission denied for AI search",
           403
         );
       }
@@ -130,12 +130,12 @@ export async function POST(request: NextRequest) {
       }
 
       if (status === 400) {
-        return handleApiError(new Error(errorMessage), errorMessage, 400);
+        return handleApiError(new Error(errorMessage), "Invalid search request", 400);
       }
 
       return handleApiError(
         new Error(errorMessage),
-        errorMessage,
+        "Search service error",
         status || 500
       );
     }
@@ -157,12 +157,12 @@ export async function POST(request: NextRequest) {
       if (code === "functions/permission-denied") {
         // Check for specific error types in the message
         if (message.includes("QUOTA_EXCEEDED")) {
-          return handleApiError(new Error("Quota exceeded"), message, 403);
+          return handleApiError(new Error("Quota exceeded"), "Search quota exceeded", 403);
         }
         if (message.includes("not allowed") || message.includes("tier")) {
-          return handleApiError(new Error("Tier not allowed"), message, 403);
+          return handleApiError(new Error("Tier not allowed"), "AI search not available for your subscription tier", 403);
         }
-        return handleApiError(new Error("Permission denied"), message, 403);
+        return handleApiError(new Error("Permission denied"), "Permission denied for AI search", 403);
       }
 
       if (code === "functions/unauthenticated") {
@@ -174,7 +174,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (code === "functions/invalid-argument") {
-        return handleApiError(new Error(message), message, 400);
+        return handleApiError(new Error(message), "Invalid search request", 400);
       }
     }
 

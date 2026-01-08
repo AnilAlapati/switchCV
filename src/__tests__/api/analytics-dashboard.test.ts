@@ -38,13 +38,19 @@ jest.mock("@/lib/utils/api-helpers", () => ({
   getAuthenticatedUserId: jest.fn(),
   handleApiError: jest.fn((error, message, status = 500) => {
     return Response.json(
-      { error: message, details: error instanceof Error ? error.message : String(error) },
+      {
+        error: message,
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status }
     );
   }),
 }));
 
-import { getDashboardAnalytics, getAnalytics } from "@/lib/services/analyticsService";
+import {
+  getDashboardAnalytics,
+  getAnalytics,
+} from "@/lib/services/analyticsService";
 
 describe("Analytics Dashboard API", () => {
   beforeEach(() => {
@@ -101,7 +107,9 @@ describe("Analytics Dashboard API", () => {
         error: null,
       });
 
-      (getDashboardAnalytics as jest.Mock).mockRejectedValue(new Error("POST error"));
+      (getDashboardAnalytics as jest.Mock).mockRejectedValue(
+        new Error("POST error")
+      );
 
       const req = new NextRequest(
         new URL("http://localhost:3000/api/analytics/dashboard"),
@@ -115,8 +123,7 @@ describe("Analytics Dashboard API", () => {
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.success).toBe(false);
-      expect(data.message).toBe("POST error");
+      expect(data.error).toBe("Failed to retrieve analytics dashboard");
     });
   });
 
@@ -147,8 +154,8 @@ describe("Analytics Dashboard API", () => {
       const mockResult = {
         analytics: {
           views: { count: 5, uniqueViewers: 3 },
-          lastUpdatedAt: new Date().toISOString()
-        }
+          lastUpdatedAt: new Date().toISOString(),
+        },
       };
       (getAnalytics as jest.Mock).mockResolvedValue(mockResult);
 
@@ -187,8 +194,7 @@ describe("Analytics Dashboard API", () => {
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.success).toBe(false);
-      expect(data.message).toBe("GET error");
+      expect(data.error).toBe("Failed to retrieve analytics");
     });
   });
 });

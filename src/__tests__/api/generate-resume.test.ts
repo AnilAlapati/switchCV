@@ -14,13 +14,17 @@ jest.mock("@/lib/utils/api-helpers", () => ({
     )
   ),
   getAuthenticatedUserId: jest.fn(),
+  validateCorsRequest: jest.fn(() => null),
 }));
 
 jest.mock("@/lib/utils/distributedRateLimit", () => ({
   checkDistributedRateLimit: jest.fn(),
 }));
 
-import { getAuthenticatedUserId, handleApiError } from "@/lib/utils/api-helpers";
+import {
+  getAuthenticatedUserId,
+  handleApiError,
+} from "@/lib/utils/api-helpers";
 import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 
 describe("Generate Resume API", () => {
@@ -36,8 +40,12 @@ describe("Generate Resume API", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: "test-user" });
-    (checkDistributedRateLimit as jest.Mock).mockResolvedValue({ allowed: true });
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "test-user",
+    });
+    (checkDistributedRateLimit as jest.Mock).mockResolvedValue({
+      allowed: true,
+    });
   });
 
   it("should return 400 if resumeData is missing", async () => {
@@ -50,7 +58,8 @@ describe("Generate Resume API", () => {
     expect(handleApiError).toHaveBeenCalledWith(
       expect.any(Error),
       "Missing resume data",
-      400
+      400,
+      expect.any(NextRequest)
     );
   });
 
@@ -116,7 +125,9 @@ describe("Generate Resume API", () => {
     expect(response.status).toBe(500);
     expect(handleApiError).toHaveBeenCalledWith(
       expect.any(Error),
-      "Failed to generate resume enhancement"
+      "Failed to generate resume enhancement",
+      500,
+      expect.any(NextRequest)
     );
   });
 });

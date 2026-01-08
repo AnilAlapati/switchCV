@@ -17,10 +17,12 @@ jest.mock("@/lib/services/billingService", () => ({
 }));
 
 jest.mock("@/lib/services/aiGenerationService", () => ({
-  generateText: jest.fn()
+  generateText: jest.fn(),
 }));
 
 jest.mock("@/lib/utils/api-helpers", () => ({
+  ...jest.requireActual("@/lib/utils/api-helpers"),
+  validateCorsRequest: jest.fn(() => null),
   handleApiError: jest.fn((error, message, status) => {
     return Response.json(
       { error: message, details: error?.message },
@@ -67,8 +69,12 @@ describe("POST /api/ai/generate-resume", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: "test-user" });
-    (checkDistributedRateLimit as jest.Mock).mockResolvedValue({ allowed: true });
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "test-user",
+    });
+    (checkDistributedRateLimit as jest.Mock).mockResolvedValue({
+      allowed: true,
+    });
     (getUserTier as jest.Mock).mockResolvedValue("premium");
   });
 
@@ -98,7 +104,9 @@ describe("POST /api/ai/generate-resume", () => {
   });
 
   it("should return 429 if rate limit exceeded", async () => {
-    (checkDistributedRateLimit as jest.Mock).mockResolvedValue({ allowed: false });
+    (checkDistributedRateLimit as jest.Mock).mockResolvedValue({
+      allowed: false,
+    });
 
     const req = new NextRequest("http://localhost/api/ai/generate-resume", {
       method: "POST",
@@ -165,7 +173,9 @@ describe("POST /api/ai/generate-resume", () => {
 
   it("should use fallback if AI response is invalid JSON", async () => {
     (runAgenticWorkflow as jest.Mock).mockResolvedValue(
-      JSON.stringify({ enhancedSummary: "Results-driven professional with enhanced summary" })
+      JSON.stringify({
+        enhancedSummary: "Results-driven professional with enhanced summary",
+      })
     );
 
     const req = new NextRequest("http://localhost/api/ai/generate-resume", {

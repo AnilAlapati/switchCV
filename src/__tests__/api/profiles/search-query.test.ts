@@ -1,11 +1,13 @@
 import {
-  buildBaseConstraints,
   buildNormalizedFilters,
-  getCursorSnapshot,
   matchesAllFilters,
-  searchBySlug,
+} from "@/app/api/profiles/search/search-utils";
+import {
+  buildProfileSearchQuery as buildBaseConstraints,
+  getProfileCursorSnapshot as getCursorSnapshot,
+  searchProfilesBySlug as searchBySlug,
   type NormalizedFilters,
-} from "@/app/api/profiles/search/search-query";
+} from "@/lib/services/profileSearchService";
 import {
   includesAllSkills,
   mapProfileResult,
@@ -13,20 +15,32 @@ import {
   normalizeSkills,
   extractProfileSkills,
 } from "@/app/api/profiles/search/search-utils";
-import { db } from "@/lib/firebase";
-import { collection, doc, getDoc, getDocs, query } from "firebase/firestore";
+import { adminDb as db } from "@/lib/firebase-admin";
 
-jest.mock("@/lib/firebase");
-jest.mock("firebase/firestore", () => ({
-  collection: jest.fn(),
-  doc: jest.fn(),
-  getDoc: jest.fn(),
-  getDocs: jest.fn(),
-  limit: jest.fn(),
-  query: jest.fn(),
-  where: jest.fn(),
+// Mock adminDb
+const mockWhere = jest.fn().mockReturnThis();
+const mockLimit = jest.fn().mockReturnThis();
+const mockGet = jest.fn();
+const mockDocGet = jest.fn();
+const mockDoc = {
+  get: mockDocGet,
+};
+
+const mockCollection = {
+  where: mockWhere,
+  limit: mockLimit,
+  get: mockGet,
+  doc: jest.fn().mockReturnValue(mockDoc),
+};
+
+jest.mock("@/lib/firebase-admin", () => ({
+  adminDb: {
+    collection: jest.fn(() => mockCollection),
+  },
 }));
+
 jest.mock("@/app/api/profiles/search/search-utils", () => ({
+  ...jest.requireActual("@/app/api/profiles/search/search-utils"),
   includesAllSkills: jest.fn(),
   mapProfileResult: jest.fn(),
   matchesQuery: jest.fn(),
@@ -39,6 +53,9 @@ describe("searchQuery", () => {
     jest.clearAllMocks();
     // Set default mock return values
     (normalizeSkills as jest.Mock).mockReturnValue([]);
+    mockWhere.mockReturnThis();
+    mockLimit.mockReturnThis();
+    mockDocGet.mockResolvedValue({ exists: false });
   });
 
   describe("buildNormalizedFilters", () => {
@@ -82,18 +99,11 @@ describe("searchQuery", () => {
     });
 
     it("should normalize skills", () => {
-      (normalizeSkills as jest.Mock).mockReturnValue([
-        "JavaScript",
-        "React",
-        "TypeScript",
-      ]);
-
       const filters = { skills: ["JavaScript", "react", "TypeScript"] };
 
       const result = buildNormalizedFilters(filters);
 
-      expect(normalizeSkills).toHaveBeenCalledWith(filters.skills);
-      expect(result.skills).toHaveLength(3);
+      expect(result.skills).toEqual(["JavaScript", "react", "TypeScript"]);
     });
 
     it("should limit skills to 10 items", () => {
@@ -122,9 +132,13 @@ describe("searchQuery", () => {
     it("should always include visible profile constraint", () => {
       const filters: NormalizedFilters = { skills: [] };
 
-      const constraints = buildBaseConstraints(filters);
+      buildBaseConstraints(filters);
 
-      expect(constraints.length).toBeGreaterThan(0);
+      expect(mockWhere).toHaveBeenCalledWith(
+        "publicProfile.visible",
+        "==",
+        true
+      );
     });
 
     it("should add role constraint when provided", () => {
@@ -133,9 +147,13 @@ describe("searchQuery", () => {
         skills: [],
       };
 
-      const constraints = buildBaseConstraints(filters);
+      buildBaseConstraints(filters);
 
-      expect(constraints.length).toBeGreaterThan(1);
+      expect(mockWhere).toHaveBeenCalledWith(
+        "publicProfile.role",
+        "==",
+        "Engineer"
+      );
     });
 
     it("should add location constraint when provided", () => {
@@ -144,9 +162,13 @@ describe("searchQuery", () => {
         skills: [],
       };
 
-      const constraints = buildBaseConstraints(filters);
+      buildBaseConstraints(filters);
 
-      expect(constraints.length).toBeGreaterThan(1);
+      expect(mockWhere).toHaveBeenCalledWith(
+        "publicProfile.location",
+        "==",
+        "New York"
+      );
     });
 
     it("should add array-contains for single skill", () => {
@@ -154,9 +176,13 @@ describe("searchQuery", () => {
         skills: ["JavaScript"],
       };
 
-      const constraints = buildBaseConstraints(filters);
+      buildBaseConstraints(filters);
 
-      expect(constraints.length).toBeGreaterThan(1);
+      expect(mockWhere).toHaveBeenCalledWith(
+        "publicProfile.skills",
+        "array-contains",
+        "JavaScript"
+      );
     });
 
     it("should add array-contains-any for multiple skills", () => {
@@ -164,19 +190,27 @@ describe("searchQuery", () => {
         skills: ["JavaScript", "React", "TypeScript"],
       };
 
-      const constraints = buildBaseConstraints(filters);
+      buildBaseConstraints(filters);
 
-      expect(constraints.length).toBeGreaterThan(1);
+      expect(mockWhere).toHaveBeenCalledWith(
+        "publicProfile.skills",
+        "array-contains-any",
+        ["JavaScript", "React", "TypeScript"]
+      );
     });
 
     it("should limit skills to 10 in array-contains-any", () => {
       const skills = Array.from({ length: 15 }, (_, i) => `Skill${i}`);
       const filters: NormalizedFilters = { skills };
 
-      const constraints = buildBaseConstraints(filters);
+      buildBaseConstraints(filters);
 
       // Should limit to 10 skills
-      expect(constraints.length).toBeGreaterThan(1);
+      expect(mockWhere).toHaveBeenCalledWith(
+        "publicProfile.skills",
+        "array-contains-any",
+        skills.slice(0, 10)
+      );
     });
 
     it("should add slug constraint when provided", () => {
@@ -185,39 +219,39 @@ describe("searchQuery", () => {
         skills: [],
       };
 
-      const constraints = buildBaseConstraints(filters);
+      buildBaseConstraints(filters);
 
-      expect(constraints.length).toBeGreaterThan(1);
+      expect(mockWhere).toHaveBeenCalledWith("profileSlug", "==", "john-doe");
     });
   });
 
   describe("getCursorSnapshot", () => {
     it("should return null for undefined cursorId", async () => {
+      // @ts-expect-error - testing invalid input
       const result = await getCursorSnapshot();
-
       expect(result).toBeNull();
     });
 
     it("should return snapshot for valid cursorId", async () => {
       const mockSnapshot = {
-        exists: () => true,
+        exists: true,
         data: () => ({ id: "user-123" }),
       };
 
-      (getDoc as jest.Mock).mockResolvedValue(mockSnapshot);
+      mockDocGet.mockResolvedValue(mockSnapshot);
 
       const result = await getCursorSnapshot("user-123");
 
       expect(result).not.toBeNull();
-      expect(getDoc).toHaveBeenCalled();
+      expect(mockDocGet).toHaveBeenCalled();
     });
 
     it("should return null when cursor document does not exist", async () => {
       const mockSnapshot = {
-        exists: () => false,
+        exists: false,
       };
 
-      (getDoc as jest.Mock).mockResolvedValue(mockSnapshot);
+      mockDocGet.mockResolvedValue(mockSnapshot);
 
       const result = await getCursorSnapshot("nonexistent");
 
@@ -289,13 +323,12 @@ describe("searchQuery", () => {
     });
 
     it("should match search query in displayName", () => {
-      (matchesQuery as jest.Mock).mockReturnValue(true);
       (extractProfileSkills as jest.Mock).mockReturnValue([]);
       (includesAllSkills as jest.Mock).mockReturnValue(true);
 
       const result = matchesAllFilters(mockUserData, { skills: [] }, "John");
 
-      expect(matchesQuery).toHaveBeenCalled();
+      expect(result).toBe(true);
     });
 
     it("should work without searchQuery", () => {
@@ -309,10 +342,10 @@ describe("searchQuery", () => {
   });
 
   describe("searchBySlug", () => {
-    it("should return empty array when slug is not provided", async () => {
-      const filters: NormalizedFilters = { skills: [] };
+    it("should return empty array when slug is not found", async () => {
+      mockGet.mockResolvedValue({ empty: true, docs: [] });
 
-      const result = await searchBySlug(filters);
+      const result = await searchBySlug("nonexistent");
 
       expect(result).toEqual([]);
     });
@@ -329,36 +362,17 @@ describe("searchQuery", () => {
         ],
       };
 
-      (getDocs as jest.Mock).mockResolvedValue(mockSnapshot);
+      mockGet.mockResolvedValue(mockSnapshot);
       (mapProfileResult as jest.Mock).mockReturnValue({
         id: "user-123",
         name: "John Doe",
       });
 
-      const filters: NormalizedFilters = {
-        slug: "john-doe",
-        skills: [],
-      };
-
-      const result = await searchBySlug(filters);
+      const result = await searchBySlug("john-doe");
 
       expect(result).toHaveLength(1);
       expect(mapProfileResult).toHaveBeenCalledWith("user-123", mockProfile);
-    });
-
-    it("should return empty array when no matching slug found", async () => {
-      const mockSnapshot = { empty: true, docs: [] };
-
-      (getDocs as jest.Mock).mockResolvedValue(mockSnapshot);
-
-      const filters: NormalizedFilters = {
-        slug: "nonexistent",
-        skills: [],
-      };
-
-      const result = await searchBySlug(filters);
-
-      expect(result).toEqual([]);
+      expect(mockWhere).toHaveBeenCalledWith("profileSlug", "==", "john-doe");
     });
   });
 });

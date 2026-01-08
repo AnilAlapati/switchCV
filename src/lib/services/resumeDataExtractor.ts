@@ -1,4 +1,3 @@
-/* eslint-disable max-lines */
 /**
  * Resume Data Extractor Service (Refactored)
  *
@@ -55,7 +54,7 @@ export class ResumeDataExtractor {
       Object.assign(data, jsonData);
       if (jsonData.isComplete) isComplete = true;
       // Clean up isComplete from data object if it leaked there
-      delete (data as any).isComplete;
+      delete (data as Record<string, unknown>).isComplete;
 
       confidence = 0.95;
       extractedFields.push(...Object.keys(jsonData));
@@ -73,7 +72,7 @@ export class ResumeDataExtractor {
     ];
 
     for (const extractor of extractors) {
-      const result = extractor.extract(responseText, localContext as any);
+      const result = extractor.extract(responseText, localContext as string);
       // Only merge if we found something new (simple merge logic)
       // ideally we would use deep merge, but shallow merge of sections is fine for now
       this.mergeData(data, result);

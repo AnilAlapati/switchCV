@@ -182,7 +182,7 @@ describe("POST /api/profiles/request-access", () => {
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data.error).toContain("Custom duration");
+    expect(data.error).toContain("Invalid duration selection");
   });
 
   it("should return 409 if pending request already exists", async () => {
@@ -196,7 +196,7 @@ describe("POST /api/profiles/request-access", () => {
     const data = await response.json();
 
     expect(response.status).toBe(409);
-    expect(data.error).toContain("Pending request");
+    expect(data.error).toContain("Access already requested or granted");
   });
 
   it("should handle unexpected errors gracefully", async () => {

@@ -76,7 +76,7 @@ describe("CandidatesInteractedCard", () => {
     it("displays loading state initially", async () => {
       // Mock fetch to never resolve - this keeps the component in loading state
       fetchSpy.mockImplementation(
-        () => new Promise(() => {}) // Never resolves
+        () => new Promise(() => { }) // Never resolves
       );
 
       await act(async () => {
@@ -116,7 +116,10 @@ describe("CandidatesInteractedCard", () => {
 
       await waitFor(() => {
         expect(fetchSpy).toHaveBeenCalledWith(
-          `/api/recruiter/metrics?userId=${mockUser.uid}`
+          `/api/recruiter/metrics?userId=${mockUser.uid}`,
+          expect.objectContaining({
+            signal: expect.any(Object),
+          })
         );
       });
     });

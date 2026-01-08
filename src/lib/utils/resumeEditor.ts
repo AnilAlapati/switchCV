@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 /**
  * Resume Editor Utilities
  *
@@ -43,9 +44,10 @@ const ensureVisibility = (value: unknown): Visibility => {
 const normalizeSkills = (skills: unknown): Skill[] => {
   if (!Array.isArray(skills)) return [];
 
-  return skills.map((skill) => {
+  return skills.map((skill, index) => {
     if (typeof skill === "string") {
       return {
+        id: `skill-legacy-${index}`,
         name: skill,
         level: DEFAULT_SKILL_LEVEL,
         visibility: DEFAULT_VISIBILITY,
@@ -55,6 +57,7 @@ const normalizeSkills = (skills: unknown): Skill[] => {
     if (skill && typeof skill === "object") {
       const skillObj = skill as Partial<Skill> & Record<string, any>;
       return {
+        id: skillObj.id || `skill-legacy-${index}`,
         name: skillObj.name ?? "",
         level: skillObj.level ?? DEFAULT_SKILL_LEVEL,
         visibility: ensureVisibility(skillObj.visibility),
@@ -62,6 +65,7 @@ const normalizeSkills = (skills: unknown): Skill[] => {
     }
 
     return {
+      id: `skill-legacy-${index}`,
       name: "",
       level: DEFAULT_SKILL_LEVEL,
       visibility: DEFAULT_VISIBILITY,
@@ -72,9 +76,10 @@ const normalizeSkills = (skills: unknown): Skill[] => {
 const normalizeExperience = (experience: unknown): Experience[] => {
   if (!Array.isArray(experience)) return [];
 
-  return experience.map((exp) => {
+  return experience.map((exp, index) => {
     if (!exp || typeof exp !== "object") {
       return {
+        id: `exp-legacy-${index}`,
         company: "",
         role: "",
         startDate: "",
@@ -86,6 +91,7 @@ const normalizeExperience = (experience: unknown): Experience[] => {
     const expObj = exp as Partial<Experience> & Record<string, any>;
 
     return {
+      id: expObj.id || `exp-legacy-${index}`,
       company: expObj.company ?? "",
       role: expObj.role ?? expObj.title ?? "",
       startDate: expObj.startDate ?? expObj.from ?? "",
@@ -99,9 +105,10 @@ const normalizeExperience = (experience: unknown): Experience[] => {
 const normalizeEducation = (education: unknown): Education[] => {
   if (!Array.isArray(education)) return [];
 
-  return education.map((edu) => {
+  return education.map((edu, index) => {
     if (!edu || typeof edu !== "object") {
       return {
+        id: `edu-legacy-${index}`,
         institution: "",
         degree: "",
         startDate: "",
@@ -112,6 +119,7 @@ const normalizeEducation = (education: unknown): Education[] => {
     const eduObj = edu as Partial<Education> & Record<string, any>;
 
     return {
+      id: eduObj.id || `edu-legacy-${index}`,
       institution: eduObj.institution ?? "",
       degree: eduObj.degree ?? eduObj.title ?? "",
       startDate: eduObj.startDate ?? eduObj.from ?? "",
@@ -125,9 +133,10 @@ const normalizeEducation = (education: unknown): Education[] => {
 const normalizeProjects = (projects: unknown): Project[] => {
   if (!Array.isArray(projects)) return [];
 
-  return projects.map((project) => {
+  return projects.map((project, index) => {
     if (!project || typeof project !== "object") {
       return {
+        id: `proj-legacy-${index}`,
         name: "",
         description: "",
         visibility: DEFAULT_VISIBILITY,
@@ -137,6 +146,7 @@ const normalizeProjects = (projects: unknown): Project[] => {
     const projectObj = project as Partial<Project> & Record<string, any>;
 
     return {
+      id: projectObj.id || `proj-legacy-${index}`,
       name: projectObj.name ?? projectObj.title ?? "",
       url: projectObj.url,
       description: projectObj.description ?? "",

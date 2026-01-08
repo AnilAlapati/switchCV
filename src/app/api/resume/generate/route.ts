@@ -19,6 +19,10 @@ import {
 import { getUserTier } from "@/lib/services/userService";
 import type { SubscriptionTier } from "@/lib/config";
 import { getResumeCount, saveGeneratedResume } from "@/lib/services/resumeService";
+import { createGenerationJob } from "@/lib/services/resumeGenerationQueue";
+
+// Cloud Functions URL for async processing (configured per environment)
+const ASYNC_PROCESSOR_URL = process.env.ASYNC_RESUME_PROCESSOR_URL;
 
 interface GenerateResumeRequest {
   message: string;
@@ -30,6 +34,7 @@ interface GenerateResumeRequest {
   }>;
   sessionData?: any; // Optional stored session data
   modelId?: string;
+  async?: boolean; // If true, queue for background processing
 }
 
 export async function POST(request: NextRequest) {
@@ -73,7 +78,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: GenerateResumeRequest = await request.json();
-    const { message, conversationHistory, sessionData, modelId } = body;
+    const { message, conversationHistory, sessionData, modelId, async: asyncMode } = body;
 
     let userTier: SubscriptionTier = "basic";
     try {
@@ -112,6 +117,47 @@ export async function POST(request: NextRequest) {
         400
       );
     }
+
+    // ASYNC MODE: Queue the job for background processing
+    if (asyncMode) {
+      logger.info({ userId }, "🔄 Async mode: Queueing resume generation job");
+
+      // Create job in Firestore
+      const { jobId } = await createGenerationJob(userId, {
+        message,
+        conversationHistory: conversationHistory || [],
+        sessionData,
+        modelId,
+        userTier,
+      });
+
+      // Trigger Cloud Task to process the job
+      if (ASYNC_PROCESSOR_URL) {
+        try {
+          // Fire-and-forget: don't await the processing
+          fetch(ASYNC_PROCESSOR_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ jobId }),
+          }).catch((err) => {
+            logger.error({ err, jobId }, "Failed to trigger async processor");
+          });
+        } catch (triggerError) {
+          logger.error({ err: triggerError, jobId }, "Error triggering async processor");
+        }
+      } else {
+        logger.warn("ASYNC_RESUME_PROCESSOR_URL not configured, job will wait for manual processing");
+      }
+
+      // Return immediately with job ID
+      return NextResponse.json({
+        jobId,
+        status: "pending",
+        message: "Resume generation queued. Poll /api/resume/generate/status/{jobId} for updates.",
+      });
+    }
+
+    // SYNC MODE: Original synchronous processing (for backward compatibility)
 
     // Step 1: Extract data from conversation history
     const extractionResult = ResumeDataExtractor.extractFromConversation([

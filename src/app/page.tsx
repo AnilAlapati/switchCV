@@ -10,6 +10,7 @@ import { HomeTestimonials } from "@/components/home/HomeTestimonials";
 import { HomeWorkflow } from "@/components/home/HomeWorkflow";
 import { useGlobalStats } from "@/hooks/useGlobalStats";
 import { BackgroundBlobs } from "@/components/ui/BackgroundBlobs";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 const HERO_HIGHLIGHTS = [
   {
@@ -61,6 +62,10 @@ export default function Home() {
     <div className="min-h-screen relative overflow-hidden text-[#1A2F25] selection:bg-[#2C4A3B]/20 selection:text-[#1A2F25]">
       <div className="fixed inset-0 z-0 pointer-events-none">
         <BackgroundBlobs />
+      </div>
+
+      <div className="fixed top-4 right-4 z-50">
+        <LanguageSwitcher />
       </div>
 
       <div className="relative z-10 min-h-screen">

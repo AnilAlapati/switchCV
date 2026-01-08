@@ -299,7 +299,9 @@ describe("POST /api/profiles/request-access", () => {
     const data = await response.json();
 
     expect(response.status).toBe(403);
-    expect(data.error).toContain("Company name is required");
+    expect(data.error).toContain(
+      "Access request limit reached or missing company info"
+    );
   });
 
   it("should return 403 when company name is empty string", async () => {
@@ -340,7 +342,9 @@ describe("POST /api/profiles/request-access", () => {
     const data = await response.json();
 
     expect(response.status).toBe(403);
-    expect(data.error).toContain("Company name is required");
+    expect(data.error).toContain(
+      "Access request limit reached or missing company info"
+    );
   });
 
   it("falls back to collection scan when Firestore index is missing", async () => {

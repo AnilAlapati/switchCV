@@ -43,11 +43,15 @@ export function CandidatesInteractedCard() {
       return;
     }
 
+    const abortController = new AbortController();
+
     const fetchMetrics = async () => {
       try {
         const response = await fetch(
-          `/api/recruiter/metrics?userId=${user?.uid}`
+          `/api/recruiter/metrics?userId=${user?.uid}`,
+          { signal: abortController.signal }
         );
+        if (abortController.signal.aborted) return;
         if (response.ok) {
           const data = await response.json();
           const requests = data.accessRequests || {};
@@ -58,13 +62,20 @@ export function CandidatesInteractedCard() {
           });
         }
       } catch (error) {
+        if (abortController.signal.aborted) return;
         logger.error({ err: error }, "Failed to fetch interaction metrics:");
       } finally {
-        setLoading(false);
+        if (!abortController.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchMetrics();
+
+    return () => {
+      abortController.abort();
+    };
   }, [user, usingContext]);
 
   const displayMetrics = usingContext
@@ -111,12 +122,11 @@ export function CandidatesInteractedCard() {
             {loadingState
               ? "Loading..."
               : totalContacted === 0
-              ? "No candidates contacted yet"
-              : isBasic
-              ? `${totalContacted} / ${RECRUITER_CONTACT_LIMITS.basic.amount} contacts used`
-              : `${totalContacted} candidate${
-                  totalContacted !== 1 ? "s" : ""
-                } contacted`}
+                ? "No candidates contacted yet"
+                : isBasic
+                  ? `${totalContacted} / ${RECRUITER_CONTACT_LIMITS.basic.amount} contacts used`
+                  : `${totalContacted} candidate${totalContacted !== 1 ? "s" : ""
+                  } contacted`}
           </p>
           {isBasic && !loadingState && (
             <p className="text-xs text-emerald-600/50 font-medium">

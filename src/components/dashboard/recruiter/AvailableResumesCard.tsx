@@ -38,11 +38,15 @@ export function AvailableResumesCard() {
       return;
     }
 
+    const abortController = new AbortController();
+
     const fetchMetrics = async () => {
       try {
         const response = await fetch(
-          `/api/recruiter/metrics?userId=${user?.uid}`
+          `/api/recruiter/metrics?userId=${user?.uid}`,
+          { signal: abortController.signal }
         );
+        if (abortController.signal.aborted) return;
         if (response.ok) {
           const data = await response.json();
           const requests = data.accessRequests || {};
@@ -53,16 +57,23 @@ export function AvailableResumesCard() {
           });
         }
       } catch (error) {
+        if (abortController.signal.aborted) return;
         logger.error(
           { err: error },
           "Failed to fetch metrics for available resumes:"
         );
       } finally {
-        setLoading(false);
+        if (!abortController.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchMetrics();
+
+    return () => {
+      abortController.abort();
+    };
   }, [user, usingContext]);
 
   const displayMetrics = usingContext

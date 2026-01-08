@@ -13,6 +13,7 @@ import "server-only";
 
 import { withRetry } from "@/lib/utils/retry";
 import { logger } from "@/lib/logger";
+import { AI_ENDPOINTS, DEFAULT_STOP_SEQUENCES } from "@/config/aiEndpoints";
 import type {
   AIModelConfig,
   GenerateOptions,
@@ -161,7 +162,7 @@ async function callOpenAI(
   if (!apiKey) throw new Error("OpenAI API key not configured");
 
   const response = await withRetry(() =>
-    fetch("https://api.openai.com/v1/chat/completions", {
+    fetch(AI_ENDPOINTS.OPENAI.CHAT_COMPLETIONS, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -172,6 +173,7 @@ async function callOpenAI(
         messages: [{ role: "user", content: prompt }],
         max_tokens: maxTokens,
         temperature,
+        stop: [...DEFAULT_STOP_SEQUENCES],
       }),
     })
   );
@@ -199,7 +201,7 @@ async function callGemini(
 
   const response = await withRetry(() =>
     fetch(
-      `https://generativelanguage.googleapis.com/v1/models/${modelId}:generateContent?key=${apiKey}`,
+      AI_ENDPOINTS.GEMINI.GENERATE(modelId, apiKey),
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -208,6 +210,7 @@ async function callGemini(
           generationConfig: {
             temperature,
             maxOutputTokens: maxTokens,
+            stopSequences: [...DEFAULT_STOP_SEQUENCES],
           },
         }),
       }
@@ -236,7 +239,7 @@ async function callAnthropic(
   if (!apiKey) throw new Error("Anthropic API key not configured");
 
   const response = await withRetry(() =>
-    fetch("https://api.anthropic.com/v1/messages", {
+    fetch(AI_ENDPOINTS.ANTHROPIC.MESSAGES, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -248,6 +251,7 @@ async function callAnthropic(
         max_tokens: maxTokens,
         temperature,
         messages: [{ role: "user", content: prompt }],
+        stop_sequences: [...DEFAULT_STOP_SEQUENCES],
       }),
     })
   );
@@ -274,7 +278,7 @@ async function callXAI(
   if (!apiKey) throw new Error("xAI API key not configured");
 
   const response = await withRetry(() =>
-    fetch("https://api.x.ai/v1/chat/completions", {
+    fetch(AI_ENDPOINTS.XAI.CHAT_COMPLETIONS, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -285,6 +289,7 @@ async function callXAI(
         messages: [{ role: "user", content: prompt }],
         max_tokens: maxTokens,
         temperature,
+        stop: [...DEFAULT_STOP_SEQUENCES],
       }),
     })
   );

@@ -12,7 +12,7 @@ import {
   performBasicSearch,
   performPremiumSearch,
 } from "./search-service";
-// eslint-disable-next-line no-restricted-imports
+ 
 import { FieldValue } from "firebase-admin/firestore";
 import { recordRecruiterSearchEvent } from "@/lib/recruiterSearchHistory";
 import { getUserRole, getUserTier } from "@/lib/services/userService";

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 // src/lib/services/analyticsService.ts
 import { adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
@@ -6,7 +7,7 @@ import {
   EngagementMetrics,
   RequestStatistics,
   AnalyticsEvent,
-  SystemAnalytics
+  SystemAnalytics,
 } from "@/types";
 import { logger } from "@/lib/logger";
 
@@ -140,7 +141,10 @@ export async function trackAnalyticsEvent(request: TrackingRequest) {
   };
 
   try {
-    const eventsRef = adminDb.collection("analytics").doc(resumeId).collection("events");
+    const eventsRef = adminDb
+      .collection("analytics")
+      .doc(resumeId)
+      .collection("events");
     await eventsRef.doc(eventId).set(eventData);
 
     // Update main analytics
@@ -167,7 +171,10 @@ export async function trackAnalyticsEvent(request: TrackingRequest) {
       resumeId,
     };
   } catch (error) {
-    logger.error({ err: error, resumeId, eventType }, "Error tracking analytics event");
+    logger.error(
+      { err: error, resumeId, eventType },
+      "Error tracking analytics event"
+    );
     throw error;
   }
 }
@@ -187,7 +194,7 @@ async function updateAnalyticsMetrics(
 
   if (!analyticsSnap.exists) {
     // Create new analytics document
-    const newAnalytics: any = {
+    const newAnalytics: Analytics = {
       slug: "",
       resumeId,
       userId: userId || "",
@@ -215,7 +222,7 @@ async function updateAnalyticsMetrics(
     await analyticsRef.set(newAnalytics);
   } else {
     // Update existing analytics
-    const updates: Record<string, any> = {
+    const updates: Record<string, FieldValue | string | number> = {
       lastUpdatedAt: timestamp,
       totalInteractions: FieldValue.increment(1),
     };
@@ -227,7 +234,8 @@ async function updateAnalyticsMetrics(
 
       // Update top referrers
       if (metadata?.referrer) {
-        updates[`views.topReferrers.${metadata.referrer.replace(/\./g, '_')}`] = FieldValue.increment(1);
+        updates[`views.topReferrers.${metadata.referrer.replace(/\./g, "_")}`] =
+          FieldValue.increment(1);
       }
     }
 
@@ -235,7 +243,8 @@ async function updateAnalyticsMetrics(
       updates["downloads"] = FieldValue.increment(1);
       updates["lastDownloadedAt"] = timestamp;
       if (metadata?.downloadFormat) {
-        updates[`downloadsByFormat.${metadata.downloadFormat}`] = FieldValue.increment(1);
+        updates[`downloadsByFormat.${metadata.downloadFormat}`] =
+          FieldValue.increment(1);
       }
     }
 
@@ -271,11 +280,14 @@ async function trackSessionDuration(
       .collection("engagement")
       .doc("current");
 
-    await engagementRef.set({
-      resumeId,
-      totalTimeSpent: FieldValue.increment(sessionDuration),
-      totalSessions: FieldValue.increment(1),
-    }, { merge: true });
+    await engagementRef.set(
+      {
+        resumeId,
+        totalTimeSpent: FieldValue.increment(sessionDuration),
+        totalSessions: FieldValue.increment(1),
+      },
+      { merge: true }
+    );
   } catch (error) {
     logger.error(
       { err: error, resumeId, sessionDuration },
@@ -348,7 +360,10 @@ export async function getRecentEvents(
   limitCount: number = 10
 ): Promise<AnalyticsEvent[]> {
   try {
-    const eventsRef = adminDb.collection("analytics").doc(resumeId).collection("events");
+    const eventsRef = adminDb
+      .collection("analytics")
+      .doc(resumeId)
+      .collection("events");
     const querySnap = await eventsRef
       .orderBy("timestamp", "desc")
       .limit(limitCount)
@@ -367,7 +382,9 @@ export async function getRecentEvents(
 /**
  * Get system-wide analytics (Admin/Recruiter only)
  */
-export async function getSystemAnalytics(requestingUserId: string): Promise<SystemAnalytics> {
+export async function getSystemAnalytics(
+  requestingUserId: string
+): Promise<SystemAnalytics> {
   // Check permission
   const userDoc = await adminDb.collection("users").doc(requestingUserId).get();
   if (!userDoc.exists) throw new Error("User not found");
@@ -377,59 +394,49 @@ export async function getSystemAnalytics(requestingUserId: string): Promise<Syst
     throw new Error("Unauthorized");
   }
 
-  // Fetch analytics data from Firestore
-  const [
-    usersSnapshot,
-    resumesSnapshot,
-    analyticsSnapshot,
-    contactRequestsSnapshot,
-  ] = await Promise.all([
-    adminDb.collection("users").get(),
-    adminDb.collection("resumes").get(),
-    adminDb.collection("analytics").get(),
-    adminDb.collection("contactRequests").get(),
-  ]);
-
-  // Count active recruiters
+  // 1. Aggregations (Fast & Bounded)
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  let activeRecruiters = 0;
-  const subscriptionDistribution = { basic: 0, premium: 0, enterprise: 0 };
+  const { AggregateField } = await import("firebase-admin/firestore");
+
+  const [
+    totalUsersSnap,
+    totalResumesSnap,
+    totalRequestsSnap,
+    activeRecruitersSnap,
+    analyticsAggSnap,
+    basicSubsSnap,
+    premiumSubsSnap,
+    entSubsSnap,
+    recentResumesForInd,
+  ] = await Promise.all([
+    adminDb.collection("users").count().get(),
+    adminDb.collection("resumes").count().get(),
+    adminDb.collection("contactRequests").count().get(),
+    adminDb
+      .collection("users")
+      .where("role", "in", ["recruiter", "admin"])
+      .where("lastLoginAt", ">=", thirtyDaysAgo)
+      .count()
+      .get(),
+    adminDb
+      .collection("analytics")
+      .aggregate({
+        totalViews: AggregateField.sum("views.count"),
+        avgAttract: AggregateField.average("attractivenessScore"),
+      })
+      .get(),
+    adminDb.collection("users").where("tier", "==", "basic").count().get(),
+    adminDb.collection("users").where("tier", "==", "premium").count().get(),
+    adminDb.collection("users").where("tier", "==", "enterprise").count().get(),
+    // Sample last 500 resumes for industry trends instead of scanning all
+    adminDb.collection("resumes").orderBy("createdAt", "desc").limit(500).get(),
+  ]);
+
+  // Process Industries (Sampled)
   const industriesCounts: Record<string, number> = {};
-
-  usersSnapshot.forEach((doc) => {
-    const data = doc.data();
-    if (data.role === "recruiter" || data.role === "admin") {
-      const lastLogin = data.lastLoginAt?.toDate?.() ||
-        (typeof data.lastLoginAt?.toDate === "function" ? data.lastLoginAt.toDate() : null);
-
-      if (lastLogin && lastLogin >= thirtyDaysAgo) {
-        activeRecruiters++;
-      }
-    }
-
-    const tier = data.tier || "basic";
-    if (tier === "basic") subscriptionDistribution.basic++;
-    else if (tier === "premium") subscriptionDistribution.premium++;
-    else if (tier === "enterprise") subscriptionDistribution.enterprise++;
-  });
-
-  let totalViews = 0;
-  let totalAttractiveness = 0;
-  let resumeCount = 0;
-
-  analyticsSnapshot.forEach((doc) => {
-    const data = doc.data();
-    totalViews += data.viewCount || 0;
-    totalAttractiveness += data.attractivenessScore || 0;
-    resumeCount++;
-  });
-
-  const averageAttractiveness =
-    resumeCount > 0 ? Math.round(totalAttractiveness / resumeCount) : 0;
-
-  resumesSnapshot.forEach((doc) => {
+  recentResumesForInd.forEach((doc) => {
     const data = doc.data();
     const industry = data.industry || data.targetIndustry || "Other";
     industriesCounts[industry] = (industriesCounts[industry] || 0) + 1;
@@ -447,8 +454,12 @@ export async function getSystemAnalytics(requestingUserId: string): Promise<Syst
     description: string;
   }> = [];
 
-  const recentResumes = await adminDb.collection("resumes")
-    .orderBy("createdAt", "desc").limit(5).get();
+  // Reuse logic for recent items, but ensuring limits
+  const recentResumes = await adminDb
+    .collection("resumes")
+    .orderBy("createdAt", "desc")
+    .limit(5)
+    .get();
 
   recentResumes.forEach((doc) => {
     const data = doc.data();
@@ -459,8 +470,11 @@ export async function getSystemAnalytics(requestingUserId: string): Promise<Syst
     });
   });
 
-  const recentRequests = await adminDb.collection("contactRequests")
-    .orderBy("createdAt", "desc").limit(5).get();
+  const recentRequests = await adminDb
+    .collection("contactRequests")
+    .orderBy("createdAt", "desc")
+    .limit(5)
+    .get();
 
   recentRequests.forEach((doc) => {
     const data = doc.data();
@@ -474,15 +488,19 @@ export async function getSystemAnalytics(requestingUserId: string): Promise<Syst
   recentActivity.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
   return {
-    totalUsers: usersSnapshot.size,
-    totalResumes: resumesSnapshot.size,
-    activeRecruiters,
-    totalViews,
-    totalContactRequests: contactRequestsSnapshot.size,
-    averageAttractiveness,
+    totalUsers: totalUsersSnap.data().count,
+    totalResumes: totalResumesSnap.data().count,
+    activeRecruiters: activeRecruitersSnap.data().count,
+    totalViews: analyticsAggSnap.data().totalViews || 0,
+    averageAttractiveness: Math.round(analyticsAggSnap.data().avgAttract || 0),
+    totalContactRequests: totalRequestsSnap.data().count,
     topIndustries,
     recentActivity: recentActivity.slice(0, 10),
-    subscriptionDistribution,
+    subscriptionDistribution: {
+      basic: basicSubsSnap.data().count,
+      premium: premiumSubsSnap.data().count,
+      enterprise: entSubsSnap.data().count,
+    },
   };
 }
 
@@ -505,7 +523,7 @@ export async function getDashboardAnalytics(resumeId: string) {
       shareCount: 0,
       attractivenessScore: 0,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
     await analyticsRef.set(analyticsData);
   } else {
@@ -514,20 +532,30 @@ export async function getDashboardAnalytics(resumeId: string) {
       ...d,
       lastViewedAt: d.lastViewedAt?.toDate(),
       createdAt: d.createdAt?.toDate(),
-      updatedAt: d.updatedAt?.toDate()
+      updatedAt: d.updatedAt?.toDate(),
     };
   }
 
   // 2. Fetch sub-collections
   const [viewEventsSnap, heatmapsSnap, recruitersSnap] = await Promise.all([
-    adminDb.collection("analytics").doc(resumeId).collection("viewEvents")
-      .orderBy("viewedAt", "desc").limit(100).get(),
+    adminDb
+      .collection("analytics")
+      .doc(resumeId)
+      .collection("viewEvents")
+      .orderBy("viewedAt", "desc")
+      .limit(100)
+      .get(),
     adminDb.collection("analytics").doc(resumeId).collection("heatmaps").get(),
-    adminDb.collection("analytics").doc(resumeId).collection("recruiterEngagement")
-      .orderBy("lastInteractedAt", "desc").limit(50).get()
+    adminDb
+      .collection("analytics")
+      .doc(resumeId)
+      .collection("recruiterEngagement")
+      .orderBy("lastInteractedAt", "desc")
+      .limit(50)
+      .get(),
   ]);
 
-  const viewEvents: ViewEvent[] = viewEventsSnap.docs.map(doc => {
+  const viewEvents: ViewEvent[] = viewEventsSnap.docs.map((doc) => {
     const d = doc.data();
     return {
       id: doc.id,
@@ -536,69 +564,105 @@ export async function getDashboardAnalytics(resumeId: string) {
       viewedAt: d.viewedAt?.toDate(),
       duration: d.duration || 0,
       sourceType: d.sourceType,
-      metadata: d.metadata || {}
+      metadata: d.metadata || {},
     } as ViewEvent;
   });
 
-  const heatmaps: SectionHeatmap[] = heatmapsSnap.docs.map(doc => ({
-    ...doc.data(),
-    sectionName: doc.data().sectionName || doc.id
-  } as SectionHeatmap));
+  const heatmaps: SectionHeatmap[] = heatmapsSnap.docs.map(
+    (doc) =>
+      ({
+        ...doc.data(),
+        sectionName: doc.data().sectionName || doc.id,
+      } as SectionHeatmap)
+  );
 
-  const recruiters: RecruiterEngagement[] = recruitersSnap.docs.map(doc => {
+  const recruiters: RecruiterEngagement[] = recruitersSnap.docs.map((doc) => {
     const d = doc.data();
     return {
       ...d,
-      lastInteractedAt: d.lastInteractedAt?.toDate()
+      lastInteractedAt: d.lastInteractedAt?.toDate(),
     } as RecruiterEngagement;
   });
 
   // 3. Generate missing heatmaps if needed
-  const finalHeatmaps = heatmaps.length > 0 ? heatmaps :
-    generateHeatmap(viewEvents, resumeId, ["summary", "experience", "skills", "education", "projects"]);
+  const finalHeatmaps =
+    heatmaps.length > 0
+      ? heatmaps
+      : generateHeatmap(viewEvents, resumeId, [
+          "summary",
+          "experience",
+          "skills",
+          "education",
+          "projects",
+        ]);
 
   // 4. Get Benchmark (defaulting to Technology for now, could be dynamic)
   const benchmarkRef = adminDb.collection("benchmarks").doc("technology");
   const benchDoc = await benchmarkRef.get();
   let benchmark: IndustryBenchmark = {
     industry: "Technology",
-    avgAttractivenessScore: 50, avgViewCount: 30, avgDownloadCount: 5,
-    topSkills: [], benchmarkDate: new Date()
+    avgAttractivenessScore: 50,
+    avgViewCount: 30,
+    avgDownloadCount: 5,
+    topSkills: [],
+    benchmarkDate: new Date(),
   };
 
   if (benchDoc.exists) {
     const d = benchDoc.data()!;
-    benchmark = { ...d, benchmarkDate: d.benchmarkDate?.toDate() } as IndustryBenchmark;
+    benchmark = {
+      ...d,
+      benchmarkDate: d.benchmarkDate?.toDate(),
+    } as IndustryBenchmark;
   }
 
-  return aggregateToDashboard(analyticsData as any, finalHeatmaps, recruiters, benchmark);
+  return aggregateToDashboard(
+    analyticsData as any,
+    finalHeatmaps,
+    recruiters,
+    benchmark
+  );
 }
 
 // ... internal helpers ...
 
-export function generateHeatmap(events: ViewEvent[], resumeId: string, sections: string[]): SectionHeatmap[] {
+export function generateHeatmap(
+  events: ViewEvent[],
+  resumeId: string,
+  sections: string[]
+): SectionHeatmap[] {
   // stub implementation - simplistic logic
-  return sections.map(section => ({
+  return sections.map((section) => ({
     resumeId,
     sectionName: section,
     viewCount: Math.floor(Math.random() * 10), // Placeholder logic would go here
     avgTimeSpent: 10,
     clickCount: 0,
-    engagementScore: 50
+    engagementScore: 50,
   }));
 }
 
-export function aggregateToDashboard(analytics: any, heatmaps: any[], recruiters: any[], benchmark: any) {
+export function aggregateToDashboard(
+  analytics: Partial<Analytics> & { viewCount?: number },
+  heatmaps: SectionHeatmap[],
+  recruiters: RecruiterEngagement[],
+  benchmark: IndustryBenchmark
+) {
   return {
     summary: {
       totalViews: analytics.viewCount || analytics.views?.count || 0,
-      uniqueViews: analytics.uniqueViews || analytics.uniqueViewCount || analytics.views?.uniqueViewers || analytics.viewCount || 0,
+      uniqueViews:
+        analytics.uniqueViews ||
+        analytics.uniqueViewCount ||
+        analytics.views?.uniqueViewers ||
+        analytics.viewCount ||
+        0,
       conversionRate: 0,
-      avgTimeOnResume: 45 // seconds
+      avgTimeOnResume: 45, // seconds
     },
     trends: [], // would map from viewEvents
     heatmaps,
     recruiterActivity: recruiters,
-    benchmark
+    benchmark,
   };
 }

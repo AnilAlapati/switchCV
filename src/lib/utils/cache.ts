@@ -1,6 +1,3 @@
-
-import { logger } from "@/lib/logger";
-
 interface CacheEntry<T> {
   value: T;
   expiry: number;
@@ -10,13 +7,13 @@ interface CacheEntry<T> {
  * Simple in-memory cache with TTL.
  * Useful for caching high-frequency, low-volatility data in a serverless instance.
  */
-export class MemoryCache<T = any> {
+export class MemoryCache<T = unknown> {
   private cache = new Map<string, CacheEntry<T>>();
 
   /**
    * @param defaultTtlMs Default TTL in milliseconds (default: 1 minute)
    */
-  constructor(private readonly defaultTtlMs: number = 60 * 1000) { }
+  constructor(private readonly defaultTtlMs: number = 60 * 1000) {}
 
   set(key: string, value: T, ttlMs?: number): void {
     const expiry = Date.now() + (ttlMs || this.defaultTtlMs);
@@ -45,7 +42,7 @@ export class MemoryCache<T = any> {
 }
 
 // Request Coalescing Map
-const pendingRequests = new Map<string, Promise<any>>();
+const pendingRequests = new Map<string, Promise<unknown>>();
 
 /**
  * Coalesce multiple concurrent requests for the same key into a single execution.
@@ -78,7 +75,7 @@ export async function coalesce<T>(
 export const userTierCache = new MemoryCache<string>(5 * 60 * 1000); // 5 min
 export const userRoleCache = new MemoryCache<string>(5 * 60 * 1000); // 5 min
 export const quotaCache = new MemoryCache<number>(60 * 1000); // 1 min (shorter for quotas)
-export const resumeCache = new MemoryCache<any>(5 * 60 * 1000); // 5 min
+export const resumeCache = new MemoryCache<unknown>(5 * 60 * 1000); // 5 min
 
 // Alias for backward compatibility
 export const deduplicateRequest = coalesce;

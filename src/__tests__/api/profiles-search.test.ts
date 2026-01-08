@@ -19,6 +19,7 @@ jest.mock("@/lib/firebase-admin", () => ({
 }));
 
 jest.mock("@/lib/utils/api-helpers", () => ({
+  validateCorsRequest: jest.fn(() => null),
   getAuthenticatedUserId: jest.fn(),
   handleApiError: jest.fn((err, msg, status) => ({
     status: status || 500,

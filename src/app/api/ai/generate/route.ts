@@ -13,6 +13,15 @@ import {
 import { logger } from "@/lib/logger";
 import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 import { BillingService } from "@/lib/services/billingService";
+import {
+  getIdempotencyKey,
+  checkIdempotency,
+  markProcessing,
+  storeIdempotencyResponse,
+  clearIdempotencyKey,
+  createCachedResponse,
+  createProcessingResponse,
+} from "@/lib/utils/idempotency";
 
 /**
  * Zod schema for AI generation request validation
@@ -33,8 +42,11 @@ const GenerateRequestSchema = z.object({
     .number()
     .min(0, "Temperature must be between 0 and 2")
     .max(2, "Temperature must be between 0 and 2")
+    .optional(),
+  task: z
+    .enum(["creative", "balanced", "structured", "precise"])
     .optional()
-    .default(0.9),
+    .default("creative"),
 });
 
 interface Entitlement {
@@ -64,11 +76,30 @@ function hashPrompt(prompt: string): string {
 
 export async function POST(request: NextRequest) {
   const requestId = randomUUID();
+  const idempotencyKey = getIdempotencyKey(request);
 
   try {
     const { userId, error: authError } = await getAuthenticatedUserId(request);
     if (authError) {
       return authError;
+    }
+
+    // Idempotency check (if key provided)
+    if (idempotencyKey && userId) {
+      const idempotencyCheck = await checkIdempotency(idempotencyKey, userId);
+
+      if (idempotencyCheck.status === "cached" && idempotencyCheck.data) {
+        logger.info({ userId, requestId, idempotencyKey }, "Returning cached idempotent response");
+        return createCachedResponse(idempotencyCheck.data);
+      }
+
+      if (idempotencyCheck.status === "processing") {
+        logger.warn({ userId, requestId, idempotencyKey }, "Duplicate request still processing");
+        return createProcessingResponse();
+      }
+
+      // Mark as processing to prevent concurrent duplicates
+      await markProcessing(idempotencyKey, userId);
     }
 
     // Parse and validate request body using Zod
@@ -86,7 +117,17 @@ export async function POST(request: NextRequest) {
       return handleApiError(null, errorMessage, 400);
     }
 
-    const { prompt, maxTokens, temperature } = validationResult.data;
+    const { prompt, maxTokens, temperature: userTemp, task } = validationResult.data;
+
+    // Task-specific temperature defaults
+    const defaultTemps = {
+      creative: 0.9,
+      balanced: 0.7,
+      structured: 0.3, // Recommended for data extraction
+      precise: 0.1,    // Determinisitic
+    };
+
+    const temperature = userTemp ?? defaultTemps[task] ?? 0.7;
 
     const entitlement = await getEntitlement(userId!);
 
@@ -112,11 +153,16 @@ export async function POST(request: NextRequest) {
 
     const result = await generateText(prompt, maxTokens, temperature);
 
-    // Track Billing
-    await BillingService.trackUsage(userId!, result.model, {
+    // Track Billing - use actual token counts when available, fallback to heuristic
+    const tokenUsage = result.usage ? {
+      input: result.usage.promptTokens,
+      output: result.usage.completionTokens
+    } : {
+      // Fallback heuristic for providers that don't return usage (e.g., HuggingFace)
       input: Math.ceil(prompt.length / 4),
       output: Math.ceil(result.text.length / 4)
-    });
+    };
+    await BillingService.trackUsage(userId!, result.model, tokenUsage);
 
     await Promise.all([
       logUsage({
@@ -126,6 +172,7 @@ export async function POST(request: NextRequest) {
         plan: entitlement.plan,
         maxTokens,
         temperature,
+        task,
       }),
       logAuditEvent({
         userId: userId!,
@@ -142,8 +189,21 @@ export async function POST(request: NextRequest) {
       { userId, model: result.model, plan: entitlement.plan, requestId },
       "AI text generation succeeded"
     );
+
+    // Store idempotent response for future duplicate requests
+    if (idempotencyKey && userId) {
+      await storeIdempotencyResponse(idempotencyKey, userId, result);
+    }
+
     return response;
   } catch (error) {
+    // Clear idempotency key on error to allow retry
+    if (idempotencyKey) {
+      const { userId } = await getAuthenticatedUserId(request);
+      if (userId) {
+        await clearIdempotencyKey(idempotencyKey, userId);
+      }
+    }
     return handleRouteError(error);
   }
 }
@@ -177,11 +237,13 @@ async function logUsage(params: {
   plan: string;
   maxTokens: number;
   temperature: number;
+  task?: string;
 }) {
   await adminDb.collection("aiUsageLogs").add({
     userId: params.userId,
     plan: params.plan,
     scope: "ai_generation",
+    task: params.task || "unknown",
     promptChars: params.prompt.length,
     requestedTokens: params.maxTokens,
     temperature: params.temperature,
@@ -226,7 +288,7 @@ function handleRouteError(error: unknown) {
   }
 
   if (error instanceof EntitlementError) {
-    return handleApiError(error, error.message, 403);
+    return handleApiError(error, "Access denied - insufficient entitlement", 403);
   }
 
   return handleApiError(error, "AI text generation failed");

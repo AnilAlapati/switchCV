@@ -55,7 +55,10 @@ describe("POST /api/search/ai", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    process.env = { ...originalEnv, NEXT_PUBLIC_FIREBASE_PROJECT_ID: "test-project" };
+    process.env = {
+      ...originalEnv,
+      NEXT_PUBLIC_FIREBASE_PROJECT_ID: "test-project",
+    };
 
     // Default successful auth
     mockGetAuthenticatedUserId.mockResolvedValue({
@@ -175,7 +178,9 @@ describe("POST /api/search/ai", () => {
       "https://us-central1-test-project.cloudfunctions.net/searchResumesAI",
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({ data: { query: "experienced software engineer", limit: 10 } }),
+        body: JSON.stringify({
+          data: { query: "experienced software engineer", limit: 10 },
+        }),
       })
     );
     expect(response.status).toBe(200);
@@ -202,7 +207,7 @@ describe("POST /api/search/ai", () => {
     expect(response.status).toBe(403);
     expect(mockHandleApiError).toHaveBeenCalledWith(
       expect.any(Error),
-      expect.stringContaining("QUOTA_EXCEEDED"),
+      "Search quota exceeded",
       403
     );
   });
@@ -222,7 +227,7 @@ describe("POST /api/search/ai", () => {
     expect(response.status).toBe(403);
     expect(mockHandleApiError).toHaveBeenCalledWith(
       expect.any(Error),
-      expect.stringContaining("Tier not allowed"),
+      "AI search not available for your subscription tier",
       403
     );
   });
@@ -262,7 +267,7 @@ describe("POST /api/search/ai", () => {
     expect(response.status).toBe(400);
     expect(mockHandleApiError).toHaveBeenCalledWith(
       expect.any(Error),
-      "Invalid arguments",
+      "Invalid search request",
       400
     );
   });

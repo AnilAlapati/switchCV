@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 // eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 import nodemailer from "nodemailer";
+import { AI_ENDPOINTS } from "@/config/aiEndpoints";
 
 type ServiceStatus = {
   status: "ok" | "error";
@@ -43,7 +44,7 @@ async function checkGemini(): Promise<ServiceStatus> {
   const start = Date.now();
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`,
+      AI_ENDPOINTS.GEMINI.MODELS(apiKey),
       {
         method: "GET",
         next: { revalidate: 0 },

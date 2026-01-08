@@ -168,7 +168,7 @@ export default function CreateResume() {
     }
   }, [messages, stage, sessionData, progress, user?.uid]);
 
-  const scrollToBottom = (preferInstant = false) => {
+  const scrollToBottom = () => {
     // Guard against environments (like some test runners) where
     // `scrollIntoView` may not be implemented on the DOM node.
     const el = messagesEndRef.current as HTMLElement | null;

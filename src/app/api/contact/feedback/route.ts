@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
       return handleApiError(error, "Invalid JSON payload", 400);
     }
     if (error instanceof SupportFeedbackError) {
-      return handleApiError(error, error.message, error.statusCode);
+      return handleApiError(error, "Unable to process feedback submission", error.statusCode);
     }
 
     return handleApiError(error, "Unable to send feedback right now");

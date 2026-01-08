@@ -4,7 +4,6 @@ import React, { useEffect, useState } from "react";
 import {
   SearchInterface,
   RecruiterSearchFilters,
-  SearchResult,
 } from "@/components/recruiter/SearchInterface";
 import { SmartSearch } from "@/components/search/SmartSearch";
 import { useAuth } from "@/hooks/useAuth";

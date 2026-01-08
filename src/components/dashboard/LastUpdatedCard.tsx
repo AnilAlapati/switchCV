@@ -60,23 +60,34 @@ export function LastUpdatedCard({ hasResume }: LastUpdatedCardProps) {
       return;
     }
 
+    const abortController = new AbortController();
+
     const fetchMetrics = async () => {
       try {
         const response = await fetch(
-          `/api/jobseeker/metrics?userId=${user?.uid}`
+          `/api/jobseeker/metrics?userId=${user?.uid}`,
+          { signal: abortController.signal }
         );
+        if (abortController.signal.aborted) return;
         if (response.ok) {
           const data = await response.json();
           setMetrics({ lastUpdated: data.lastUpdated || null });
         }
       } catch (error) {
+        if (abortController.signal.aborted) return;
         logger.error({ err: error }, "Failed to fetch last updated:");
       } finally {
-        setLoading(false);
+        if (!abortController.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchMetrics();
+
+    return () => {
+      abortController.abort();
+    };
   }, [user, usingContext]);
 
   return (

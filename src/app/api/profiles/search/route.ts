@@ -6,10 +6,18 @@ import type { ProfileSearchResult } from "@/types/profileSearch";
 import {
   handleApiError,
   getAuthenticatedUserId,
+  validateCorsRequest,
 } from "@/lib/utils/api-helpers";
+import {
+  createCorsHeaders,
+  handleCorsPreflightRequest,
+} from "@/lib/utils/cors";
 import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
-import { buildNormalizedFilters, matchesAllFilters } from "./search-query";
-import { mapProfileResult } from "./search-utils";
+import {
+  buildNormalizedFilters,
+  matchesAllFilters,
+  mapProfileResult,
+} from "./search-utils";
 import { logger } from "@/lib/logger";
 
 interface SearchRequest {
@@ -29,7 +37,18 @@ const MAX_PAGE_LIMIT = 50;
 const MAX_FETCH_ROUNDS = 5;
 const SEARCH_RATE_LIMIT = 30; // 30 searches per minute per user
 
+/**
+ * Handle CORS preflight requests
+ */
+export async function OPTIONS(request: NextRequest) {
+  return handleCorsPreflightRequest(request);
+}
+
 export async function POST(request: NextRequest) {
+  // SECURITY: Validate CORS origin
+  const corsError = validateCorsRequest(request);
+  if (corsError) return corsError;
+
   // SECURITY: Require authentication for profile search
   const { userId, error: authError } = await getAuthenticatedUserId(request);
   if (authError) return authError;
@@ -86,7 +105,8 @@ export async function POST(request: NextRequest) {
       return handleApiError(
         null,
         "Either search query or filters are required",
-        400
+        400,
+        request
       );
     }
 
@@ -103,24 +123,35 @@ export async function POST(request: NextRequest) {
         (docSnap) => mapProfileResult(docSnap.id, docSnap.data())
       );
 
-      return NextResponse.json({
-        results: slugResults,
-        count: slugResults.length,
-        total: slugResults.length,
-        query: sanitizedQuery,
-        filters,
-        offset: 0,
-        hasMore: false,
-      });
+      return NextResponse.json(
+        {
+          results: slugResults,
+          count: slugResults.length,
+          total: slugResults.length,
+          query: sanitizedQuery,
+          filters,
+          offset: 0,
+          hasMore: false,
+        },
+        {
+          headers: createCorsHeaders(request),
+        }
+      );
     }
 
     // Direct ID search optimization: If the query looks like a Firestore ID (20 or 28 chars alphanumeric typical)
     // and no other filters are present, try a direct document get.
     const isLikelyId = /^[a-zA-Z0-9]{20,28}$/.test(sanitizedQuery);
-    const hasMinimalFilters = !normalizedFilters.role && !normalizedFilters.location && normalizedFilters.skills.length === 0;
+    const hasMinimalFilters =
+      !normalizedFilters.role &&
+      !normalizedFilters.location &&
+      normalizedFilters.skills.length === 0;
 
     if (isLikelyId && hasMinimalFilters) {
-      const directDoc = await adminDb.collection("users").doc(sanitizedQuery).get();
+      const directDoc = await adminDb
+        .collection("users")
+        .doc(sanitizedQuery)
+        .get();
       if (directDoc.exists) {
         const userData = directDoc.data();
         if (userData?.publicProfile?.visible) {
@@ -247,17 +278,22 @@ export async function POST(request: NextRequest) {
       "Profile search completed"
     );
 
-    return NextResponse.json({
-      results: trimmedResults,
-      count: trimmedResults.length,
-      total: trimmedResults.length,
-      query: sanitizedQuery,
-      filters,
-      cursor: nextCursor,
-      offset: cursor ? undefined : offset,
-      hasMore: exposeHasMore,
-    });
+    return NextResponse.json(
+      {
+        results: trimmedResults,
+        count: trimmedResults.length,
+        total: trimmedResults.length,
+        query: sanitizedQuery,
+        filters,
+        cursor: nextCursor,
+        offset: cursor ? undefined : offset,
+        hasMore: exposeHasMore,
+      },
+      {
+        headers: createCorsHeaders(request),
+      }
+    );
   } catch (error) {
-    return handleApiError(error, "Search failed");
+    return handleApiError(error, "Search failed", 500, request);
   }
 }

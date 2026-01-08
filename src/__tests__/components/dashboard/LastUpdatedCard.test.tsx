@@ -32,7 +32,6 @@ const createMockAuthContext = (user: any) => ({
   refreshUser: jest.fn(),
 });
 
-
 describe("LastUpdatedCard", () => {
   const mockUser = {
     uid: "test-user-id",
@@ -95,7 +94,8 @@ describe("LastUpdatedCard", () => {
 
       await waitFor(() => {
         expect(mockFetch).toHaveBeenCalledWith(
-          `/api/jobseeker/metrics?userId=${mockUser.uid}`
+          `/api/jobseeker/metrics?userId=${mockUser.uid}`,
+          expect.objectContaining({ signal: expect.any(AbortSignal) })
         );
       });
     });

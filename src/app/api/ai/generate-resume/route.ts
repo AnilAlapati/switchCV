@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { generateText } from "@/lib/services/aiGenerationService";
@@ -5,7 +6,12 @@ import { BillingService } from "@/lib/services/billingService";
 import {
   handleApiError,
   getAuthenticatedUserId,
+  validateCorsRequest,
 } from "@/lib/utils/api-helpers";
+import {
+  createCorsHeaders,
+  handleCorsPreflightRequest,
+} from "@/lib/utils/cors";
 import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 import { runAgenticWorkflow } from "@/lib/services/agentOrchestrator";
 import { getUserTier } from "@/lib/services/userService";
@@ -55,19 +61,33 @@ interface GenerateResumeResponse {
   provider?: string;
 }
 
+/**
+ * Handle CORS preflight requests
+ */
+export async function OPTIONS(request: NextRequest) {
+  return handleCorsPreflightRequest(request);
+}
+
 export async function POST(
   request: NextRequest
 ): Promise<
   NextResponse<GenerateResumeResponse | { error: string; details?: string }>
 > {
   try {
+    // 0. Validate CORS origin
+    const corsError = validateCorsRequest(request);
+    if (corsError) return corsError;
+
     // 1. Verify Authentication
     const { userId } = await getAuthenticatedUserId(request);
     if (!userId) {
-      return handleApiError(new Error("Unauthorized"), "Unauthorized", 401);
+      return handleApiError(
+        new Error("Unauthorized"),
+        "Unauthorized",
+        401,
+        request
+      );
     }
-
-
 
     // 2. Check Rate Limit
     // Fetch user for subscription tier
@@ -84,7 +104,8 @@ export async function POST(
       return handleApiError(
         new Error("Too many requests"),
         "Too many requests. Please try again later.",
-        429
+        429,
+        request
       );
     }
 
@@ -94,7 +115,8 @@ export async function POST(
       return handleApiError(
         new Error("Budget exceeded"),
         "Monthly usage limit reached. Please upgrade your plan.",
-        402
+        402,
+        request
       );
     }
 
@@ -105,7 +127,8 @@ export async function POST(
       return handleApiError(
         new Error("Invalid JSON body"),
         "Invalid JSON body",
-        400
+        400,
+        request
       );
     }
     const { resumeData, tone = "professional" } = body;
@@ -115,7 +138,8 @@ export async function POST(
       return handleApiError(
         new Error("Missing resume data"),
         "Missing resume data",
-        400
+        400,
+        request
       );
     }
 
@@ -192,7 +216,9 @@ export async function POST(
 
     // Track Billing
     // Estimate tokens (1 char ~= 0.25 tokens for simple estimation if provider doesn't return usage)
-    const estimatedInputTokens = Math.ceil(JSON.stringify(resumeData).length / 4);
+    const estimatedInputTokens = Math.ceil(
+      JSON.stringify(resumeData).length / 4
+    );
     const estimatedOutputTokens = Math.ceil(aiResponseText.length / 4);
 
     await BillingService.trackUsage(userId, aiModel || "default", {
@@ -203,14 +229,24 @@ export async function POST(
     // Parse AI response
     const enhancedContent = parseAIResponse(aiResponseText, resumeData);
 
-    return NextResponse.json({
-      success: true,
-      data: enhancedContent,
-      model: aiModel,
-      provider: aiProvider,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        data: enhancedContent,
+        model: aiModel,
+        provider: aiProvider,
+      },
+      {
+        headers: createCorsHeaders(request),
+      }
+    );
   } catch (error) {
-    return handleApiError(error, "Failed to generate resume enhancement");
+    return handleApiError(
+      error,
+      "Failed to generate resume enhancement",
+      500,
+      request
+    );
   }
 }
 
@@ -247,10 +283,11 @@ ${experienceText}
 SKILLS: ${(skills || []).join(", ") || "Skills not provided"}
 
 EDUCATION:
-${(education || [])
-      .map((edu: any) => `${edu.degree} from ${edu.institution} (${edu.year})`)
-      .join("\n") || "No education provided"
-    }
+${
+  (education || [])
+    .map((edu: any) => `${edu.degree} from ${edu.institution} (${edu.year})`)
+    .join("\n") || "No education provided"
+}
 
 TONE: ${tone}
 
@@ -291,7 +328,8 @@ function parseAIResponse(aiText: string, resumeData: any): any {
     return {
       enhancedSummary:
         parsed.enhancedSummary ||
-        `Professional ${resumeData.personalInfo.name
+        `Professional ${
+          resumeData.personalInfo.name
         } with expertise in ${resumeData.skills.slice(0, 2).join(" and ")}.`,
       enhancedExperience: (
         parsed.enhancedExperience || resumeData.experience
@@ -331,9 +369,11 @@ function parseAIResponse(aiText: string, resumeData: any): any {
  */
 function generateFallbackEnhancement(resumeData: any): any {
   return {
-    enhancedSummary: `Results-driven professional with ${resumeData.experience.length
-      }+ years of experience in ${resumeData.skills[0] || "leadership"
-      }. Proven track record of delivering high-impact solutions and driving organizational success.`,
+    enhancedSummary: `Results-driven professional with ${
+      resumeData.experience.length
+    }+ years of experience in ${
+      resumeData.skills[0] || "leadership"
+    }. Proven track record of delivering high-impact solutions and driving organizational success.`,
     enhancedExperience: resumeData.experience.map((exp: any) => ({
       title: exp.title,
       company: exp.company,

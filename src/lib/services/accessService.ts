@@ -93,8 +93,9 @@ export class AccessService {
         .where("fromUserId", "==", requesterId)
         .where("status", "==", "pending")
         .get();
-    } catch (e: any) {
-      if (e.code === 9 || e.message?.toLowerCase().includes("index")) {
+    } catch (e: unknown) {
+      const err = e as { code?: number; message?: string };
+      if (err.code === 9 || err.message?.toLowerCase().includes("index")) {
         logger.warn(
           "Missing Firestore index for accessRequests, falling back to full collection scan",
           { resumeId, requesterId }
@@ -110,7 +111,7 @@ export class AccessService {
           size: filteredDocs.length,
         };
       } else {
-        throw e;
+        throw err;
       }
     }
 
@@ -123,8 +124,9 @@ export class AccessService {
         .collection("accessGrants")
         .where("toUserId", "==", requesterId)
         .get();
-    } catch (e: any) {
-      if (e.code === 9 || e.message?.toLowerCase().includes("index")) {
+    } catch (e: unknown) {
+      const err = e as { code?: number; message?: string };
+      if (err.code === 9 || err.message?.toLowerCase().includes("index")) {
         logger.warn(
           "Missing Firestore index for accessGrants, falling back to full collection scan",
           { resumeId, requesterId }
@@ -139,7 +141,7 @@ export class AccessService {
           size: filteredDocs.length,
         };
       } else {
-        throw e;
+        throw err;
       }
     }
 

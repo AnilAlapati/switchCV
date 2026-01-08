@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 /**
  * API Helpers Module
  *
@@ -31,6 +32,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import type { ResumeProfile, Visibility } from "@/types";
 import { checkRateLimit, RateLimitResult } from "@/lib/utils/rateLimit";
+import { validateCorsOrigin, createCorsHeaders } from "@/lib/utils/cors";
 
 /**
  * Resume document data as stored in Firestore.
@@ -48,7 +50,47 @@ export interface ResumeDocumentData extends Partial<ResumeProfile> {
   isPublic?: boolean;
   visibility?: Visibility;
 }
-import { logger } from "@/lib/logger";
+import { logger, sanitizeForLogging } from "@/lib/logger";
+
+/**alidates CORS origin for the request.
+ * Returns an error response if the origin is not allowed.
+ *
+ * @param request - The incoming Next.js request
+ * @returns Error NextResponse if origin not allowed, undefined if allowed
+ *
+ * @example
+ * ```typescript
+ * const corsError = validateCorsRequest(request);
+ * if (corsError) return corsError; // Returns 403 response
+ * ```
+ */
+export function validateCorsRequest(
+  request: NextRequest
+): NextResponse | undefined {
+  const corsValidation = validateCorsOrigin(request);
+
+  if (!corsValidation.allowed) {
+    logger.warn(
+      {
+        origin: request.headers.get("origin"),
+        path: request.nextUrl.pathname,
+        method: request.method,
+        reason: corsValidation.reason,
+      },
+      "CORS validation failed"
+    );
+
+    return NextResponse.json(
+      { error: "Origin not allowed" },
+      {
+        status: 403,
+        headers: createCorsHeaders(request),
+      }
+    );
+  }
+
+  return undefined;
+}
 
 /**
  * Verifies the authentication token from the request headers.
@@ -70,7 +112,13 @@ export async function getAuthenticatedUserId(
   const authHeader = request.headers.get("authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return {
-      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+      error: NextResponse.json(
+        { error: "Unauthorized" },
+        {
+          status: 401,
+          headers: createCorsHeaders(request),
+        }
+      ),
     };
   }
 
@@ -110,34 +158,45 @@ export async function maybeGetAuthenticatedUserId(
 
 /**
  * Fetches a resume document by ID, checking both 'resumes' and 'resumeProfiles' collections.
+ * Uses parallel queries for better performance - eliminates sequential fallback pattern.
  * Returns the document reference, snapshot, and data if found, or null if not.
  */
 export async function fetchResumeDocument(id: string) {
-  // 1. Try to fetch from 'resumes' collection (new system)
-  let docRef = adminDb.collection("resumes").doc(id);
-  let docSnap = await docRef.get();
+  // Fetch from both collections in parallel to avoid sequential N+1-like pattern
+  const resumesRef = adminDb.collection("resumes").doc(id);
+  const legacyRef = adminDb.collection("resumeProfiles").doc(id);
 
-  // 2. Fallback to 'resumeProfiles' (legacy)
-  if (!docSnap.exists) {
-    docRef = adminDb.collection("resumeProfiles").doc(id);
-    docSnap = await docRef.get();
+  const [resumesSnap, legacySnap] = await Promise.all([
+    resumesRef.get(),
+    legacyRef.get(),
+  ]);
+
+  // Prefer 'resumes' collection (new system), fallback to 'resumeProfiles' (legacy)
+  if (resumesSnap.exists) {
+    return {
+      docRef: resumesRef,
+      docSnap: resumesSnap,
+      data: resumesSnap.data(),
+    };
   }
 
-  if (!docSnap.exists) {
-    return null;
+  if (legacySnap.exists) {
+    return { docRef: legacyRef, docSnap: legacySnap, data: legacySnap.data() };
   }
 
-  return { docRef, docSnap, data: docSnap.data() };
+  return null;
 }
 
 /**
  * Standardized API error handler.
  * Logs the error and returns a JSON response with the appropriate status code.
+ * Automatically includes CORS headers in the response.
  */
 export function handleApiError(
   error: unknown,
   message = "Internal server error",
-  status = 500
+  status = 500,
+  request?: NextRequest
 ) {
   if (status >= 500) {
     logger.error({ err: error, status }, `API Error: ${message}`);
@@ -145,17 +204,24 @@ export function handleApiError(
     logger.warn({ err: error, status }, `API Warning: ${message}`);
   }
 
+  // Only include raw error details in development to prevent information leakage
+  const includeDetails = process.env.NODE_ENV === "development";
+
+  const headers = request ? createCorsHeaders(request) : {};
+
   return NextResponse.json(
     {
       error: message,
-      details:
-        error instanceof Error
-          ? error.message
-          : error
-          ? String(error)
-          : undefined,
+      ...(includeDetails && {
+        details:
+          error instanceof Error
+            ? error.message
+            : error
+            ? String(error)
+            : undefined,
+      }),
     },
-    { status }
+    { status, headers }
   );
 }
 
@@ -186,7 +252,13 @@ export async function verifyResumeOwnership(
   if (!resumeDoc) {
     return {
       success: false,
-      error: NextResponse.json({ error: "Resume not found" }, { status: 404 }),
+      error: NextResponse.json(
+        { error: "Resume not found" },
+        {
+          status: 404,
+          headers: createCorsHeaders(request),
+        }
+      ),
     };
   }
 
@@ -197,7 +269,13 @@ export async function verifyResumeOwnership(
     // Optional: Check for admin role here if needed, but for now strict ownership
     return {
       success: false,
-      error: NextResponse.json({ error: "Permission denied" }, { status: 403 }),
+      error: NextResponse.json(
+        { error: "Permission denied" },
+        {
+          status: 403,
+          headers: createCorsHeaders(request),
+        }
+      ),
     };
   }
 
@@ -375,19 +453,19 @@ export function handleSecureApiError(
     errorMsg = String(error);
   }
 
-  // Log detailed error server-side (for debugging)
+  // Log detailed error server-side with PII redaction
   if (logDetails) {
-    logger.error(
-      {
-        errorType,
-        errorMsg,
-        stack,
-        userId,
-        endpoint,
-        status,
-      },
-      "API Error - Detailed Log"
-    );
+    // Sanitize error message and stack to prevent PII leakage
+    const sanitizedData = sanitizeForLogging({
+      errorType,
+      errorMsg,
+      stack,
+      userId, // Safe - just a UUID
+      endpoint,
+      status,
+    });
+
+    logger.error(sanitizedData, "API Error - Detailed Log");
   }
 
   // Return generic message to client (prevent info leakage)

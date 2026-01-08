@@ -44,8 +44,8 @@ export async function GET(
         "Cache-Control": "private, max-age=60, stale-while-revalidate=300",
       },
     });
-  } catch (error) {
-    if (error.message?.includes("Forbidden")) {
+  } catch (error: any) {
+    if (error?.message?.includes("Forbidden")) {
       return handleApiError(error, "Forbidden", 403);
     }
     return handleApiError(error, "Failed to fetch draft");

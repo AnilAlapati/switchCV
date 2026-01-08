@@ -25,6 +25,7 @@ const PROMPT_INJECTION_PATTERNS = [
   /system\s*:/i,
   /\[system\]/i,
   /<<\s*sys/i,
+  /system\s+override/i,
   // Role manipulation
   /you\s+are\s+(now|a)/i,
   /act\s+as\s+/i,

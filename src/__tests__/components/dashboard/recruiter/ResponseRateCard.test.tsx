@@ -35,7 +35,6 @@ const createMockAuthContext = (user: any) => ({
   refreshUser: jest.fn(),
 });
 
-
 describe("ResponseRateCard", () => {
   const mockUser = {
     uid: "test-user-id",
@@ -92,7 +91,8 @@ describe("ResponseRateCard", () => {
 
       await waitFor(() => {
         expect(fetchSpy).toHaveBeenCalledWith(
-          `/api/recruiter/metrics?userId=${mockUser.uid}`
+          `/api/recruiter/metrics?userId=${mockUser.uid}`,
+          expect.objectContaining({ signal: expect.any(AbortSignal) })
         );
       });
     });

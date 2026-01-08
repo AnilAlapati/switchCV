@@ -261,6 +261,6 @@ describe("POST /api/profiles/request-access", () => {
     const data = await response.json();
 
     expect(response.status).toBe(409);
-    expect(data.error).toBe("Already have access");
+    expect(data.error).toBe("Access already requested or granted");
   });
 });

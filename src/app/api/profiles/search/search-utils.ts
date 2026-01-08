@@ -1,5 +1,12 @@
 import type { ProfileSearchResult } from "@/types/profileSearch";
 
+export interface NormalizedFilters {
+  role?: string;
+  location?: string;
+  skills: string[];
+  slug?: string;
+}
+
 export function normalizeSkills(skills?: string[]): string[] {
   if (!Array.isArray(skills)) {
     return [];
@@ -61,5 +68,58 @@ export function mapProfileResult(
     skills: skills.length > 0 ? skills : undefined,
     hasApproval: false,
     approvalExpiresAt: undefined,
+  };
+}
+
+export function matchesAllFilters(
+  userData: Record<string, any>,
+  normalizedFilters: NormalizedFilters,
+  searchQuery?: string
+): boolean {
+  const displayName = userData.displayName || "";
+  const username = userData.publicProfile?.username || "";
+  const slug = userData.profileSlug || "";
+  const bio = userData.publicProfile?.aiSelectedBio || "";
+  const role = userData.publicProfile?.role || "";
+  const location = userData.publicProfile?.location || "";
+  const skills = extractProfileSkills(userData);
+
+  const matchesSearch =
+    !searchQuery ||
+    matchesQuery(displayName, searchQuery) ||
+    matchesQuery(username, searchQuery) ||
+    matchesQuery(bio, searchQuery) ||
+    matchesQuery(role, searchQuery);
+
+  const matchesRole =
+    !normalizedFilters.role ||
+    role.toLowerCase() === normalizedFilters.role.toLowerCase();
+
+  const matchesLocation =
+    !normalizedFilters.location ||
+    location.toLowerCase().includes(normalizedFilters.location.toLowerCase());
+
+  const matchesSkills = includesAllSkills(skills, normalizedFilters.skills);
+
+  const matchesSlug =
+    !normalizedFilters.slug || slug === normalizedFilters.slug;
+
+  return (
+    matchesSearch &&
+    matchesRole &&
+    matchesLocation &&
+    matchesSkills &&
+    matchesSlug
+  );
+}
+
+export function buildNormalizedFilters(
+  filters?: Record<string, any>
+): NormalizedFilters {
+  return {
+    role: filters?.role?.trim() || undefined,
+    location: filters?.location?.trim() || undefined,
+    skills: normalizeSkills(filters?.skills).slice(0, 10),
+    slug: filters?.slug?.trim() || undefined,
   };
 }

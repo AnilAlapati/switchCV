@@ -38,11 +38,15 @@ export function ResponseRateCard() {
       return;
     }
 
+    const abortController = new AbortController();
+
     const fetchMetrics = async () => {
       try {
         const response = await fetch(
-          `/api/recruiter/metrics?userId=${user?.uid}`
+          `/api/recruiter/metrics?userId=${user?.uid}`,
+          { signal: abortController.signal }
         );
+        if (abortController.signal.aborted) return;
         if (response.ok) {
           const data = await response.json();
           const requests = data.accessRequests || {};
@@ -53,16 +57,23 @@ export function ResponseRateCard() {
           });
         }
       } catch (error) {
+        if (abortController.signal.aborted) return;
         logger.error(
           { err: error },
           "Failed to fetch metrics for response rate:"
         );
       } finally {
-        setLoading(false);
+        if (!abortController.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchMetrics();
+
+    return () => {
+      abortController.abort();
+    };
   }, [user, usingContext]);
 
   const displayMetrics = usingContext
@@ -115,8 +126,8 @@ export function ResponseRateCard() {
             {loadingState
               ? "Loading..."
               : totalProcessed === 0
-              ? "No requests processed yet"
-              : `${displayMetrics.approved} approved / ${totalProcessed} total`}
+                ? "No requests processed yet"
+                : `${displayMetrics.approved} approved / ${totalProcessed} total`}
           </p>
           <div className="opacity-0 transform translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
             <svg

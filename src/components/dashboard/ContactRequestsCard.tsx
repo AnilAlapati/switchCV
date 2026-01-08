@@ -33,23 +33,34 @@ export function ContactRequestsCard() {
       return;
     }
 
+    const abortController = new AbortController();
+
     const fetchMetrics = async () => {
       try {
         const response = await fetch(
-          `/api/jobseeker/metrics?userId=${user?.uid}`
+          `/api/jobseeker/metrics?userId=${user?.uid}`,
+          { signal: abortController.signal }
         );
+        if (abortController.signal.aborted) return;
         if (response.ok) {
           const data = await response.json();
           setMetrics({ contactRequests: data.contactRequests || 0 });
         }
       } catch (error) {
+        if (abortController.signal.aborted) return;
         logger.error({ err: error }, "Failed to fetch contact requests:");
       } finally {
-        setLoading(false);
+        if (!abortController.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchMetrics();
+
+    return () => {
+      abortController.abort();
+    };
   }, [user, usingContext]);
   const displayValue = usingContext
     ? contextMetrics?.contactRequests ?? 0

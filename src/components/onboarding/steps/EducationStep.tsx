@@ -39,7 +39,7 @@ export function EducationStep({
         <div className="space-y-4">
           {education.map((edu, index) => (
             <EducationCard
-              key={index}
+              key={edu.id || `edu-${index}`}
               index={index}
               education={edu}
               onUpdate={(updates) => onUpdate(index, updates)}

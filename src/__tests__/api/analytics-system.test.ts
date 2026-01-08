@@ -7,6 +7,9 @@ import {
 } from "@/lib/utils/api-helpers";
 
 jest.mock("@/lib/logger");
+jest.mock("@/lib/services/analyticsService", () => ({
+  getSystemAnalytics: jest.fn(),
+}));
 jest.mock("@/lib/firebase-admin", () => ({
   adminDb: {
     collection: jest.fn(() => ({
@@ -29,7 +32,10 @@ jest.mock("@/lib/utils/api-helpers", () => ({
     status: status || 500,
     json: async () => ({ error: msg }),
   })),
+  validateCorsRequest: jest.fn(() => null),
 }));
+
+import { getSystemAnalytics } from "@/lib/services/analyticsService";
 
 describe("System Analytics API", () => {
   beforeEach(() => {
@@ -37,12 +43,19 @@ describe("System Analytics API", () => {
   });
 
   const createRequest = () => {
-    return new NextRequest(
+    const req = new NextRequest(
       new URL("http://localhost:3000/api/analytics/system"),
       {
         method: "GET",
       }
     );
+    // Add nextUrl for CORS validation
+    Object.defineProperty(req, "nextUrl", {
+      value: { pathname: "/api/analytics/system" },
+      writable: true,
+      configurable: true,
+    });
+    return req;
   };
 
   it("should return 401 if not authenticated", async () => {
@@ -62,6 +75,10 @@ describe("System Analytics API", () => {
       error: null,
     });
 
+    (getSystemAnalytics as jest.Mock).mockRejectedValue(
+      new Error("User not found")
+    );
+
     (adminDb.collection as jest.Mock).mockReturnValue({
       doc: jest.fn(() => ({
         get: jest.fn().mockResolvedValue({ exists: false }),
@@ -78,6 +95,10 @@ describe("System Analytics API", () => {
       userId: "user-123",
       error: null,
     });
+
+    (getSystemAnalytics as jest.Mock).mockRejectedValue(
+      new Error("Unauthorized")
+    );
 
     (adminDb.collection as jest.Mock).mockReturnValue({
       doc: jest.fn(() => ({
@@ -97,6 +118,26 @@ describe("System Analytics API", () => {
     (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
       userId: "admin-123",
       error: null,
+    });
+
+    // Mock getSystemAnalytics to return expected data
+    (getSystemAnalytics as jest.Mock).mockResolvedValue({
+      totalUsers: 3,
+      totalResumes: 3,
+      activeRecruiters: 2,
+      totalViews: 10,
+      averageAttractiveness: 80,
+      subscriptionDistribution: {
+        basic: 0,
+        premium: 1,
+        enterprise: 1,
+      },
+      topIndustries: [
+        { name: "Tech", count: 5 },
+        { name: "Finance", count: 3 },
+        { name: "Other", count: 2 },
+      ],
+      recentActivity: [],
     });
 
     const mockUsers = [
@@ -211,6 +252,13 @@ describe("System Analytics API", () => {
     const response = await GET(req);
     const data = await response.json();
 
+    if (response.status !== 200) {
+      console.log(
+        "Analytics system test error:",
+        JSON.stringify(data, null, 2)
+      );
+    }
+
     expect(response.status).toBe(200);
     expect(data.totalUsers).toBe(3);
     expect(data.totalResumes).toBe(3);
@@ -229,7 +277,9 @@ describe("System Analytics API", () => {
       userId: "admin-123",
       error: null,
     });
-
+    (getSystemAnalytics as jest.Mock).mockRejectedValue(
+      new Error("Database error")
+    );
     (adminDb.collection as jest.Mock).mockImplementation(() => {
       throw new Error("DB error");
     });

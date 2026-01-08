@@ -3,7 +3,6 @@
 import { useTier } from "@/hooks/useTier";
 import { useTierLimits } from "@/hooks/useTierLimits";
 import { SubscriptionTier } from "@/lib/config";
-import { BackgroundBlobs } from "@/components/ui/BackgroundBlobs";
 import { DashboardBackground } from "@/components/dashboard/DashboardBackground";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { useAuth } from "@/hooks/useAuth";
@@ -39,7 +38,7 @@ export default function SubscriptionPage() {
   if (loading) {
     return (
       <DashboardBackground>
-        <DashboardHeader userEmail={user?.email} onLogout={() => { }} />
+        <DashboardHeader userEmail={user?.email} onLogout={() => {}} />
         <SubscriptionSkeleton />
       </DashboardBackground>
     );
@@ -53,54 +52,55 @@ export default function SubscriptionPage() {
     features: string[];
     highlight?: boolean;
   }[] = [
-      {
-        id: "basic",
-        name: "Basic",
-        price: "Free",
-        description: "Essential features for job seekers starting their journey.",
-        features: [
-          `${limits.basic.resumeCreationLimit} Active Resume`,
-          limits.basic.resumeEditingAllowed
-            ? "Resume Editing"
-            : "No Resume Editing",
-          `${limits.basic.resumeRetentionDays || "Forever"
-          } Days Resume Retention`,
-          limits.basic.recruiterSearchLimit > 0
-            ? `${limits.basic.recruiterSearchLimit} AI Searches (Recruiter)`
-            : "AI Search not available",
-          `${limits.basic.recruiterContactLimit.amount} Contact Requests (${limits.basic.recruiterContactLimit.interval})`,
-        ],
-      },
-      {
-        id: "premium",
-        name: "Premium",
-        price: "",
-        description: "Advanced AI tools for serious candidates and recruiters.",
-        highlight: true,
-        features: [
-          `${limits.premium.resumeCreationLimit} Tailored Resume Versions`,
-          limits.premium.resumeEditingAllowed
-            ? "Unlimited Resume Editing"
-            : "No Resume Editing",
-          "Forever Resume Retention",
-          `${limits.premium.recruiterSearchLimit} AI Searches (Recruiter)`,
-          `${limits.premium.recruiterContactLimit.amount} Contact Requests (${limits.premium.recruiterContactLimit.interval})`,
-        ],
-      },
-      {
-        id: "enterprise",
-        name: "Enterprise",
-        price: "Custom",
-        description: "Complete solution for high-volume recruitment agencies.",
-        features: [
-          "Unlimited Resume Management",
-          "Unlimited Resume Editing",
-          "Forever Resume Retention",
-          "Unlimited AI Searches",
-          "Unlimited Contact Requests",
-        ],
-      },
-    ];
+    {
+      id: "basic",
+      name: "Basic",
+      price: "Free",
+      description: "Essential features for job seekers starting their journey.",
+      features: [
+        `${limits.basic.resumeCreationLimit} Active Resume`,
+        limits.basic.resumeEditingAllowed
+          ? "Resume Editing"
+          : "No Resume Editing",
+        `${
+          limits.basic.resumeRetentionDays || "Forever"
+        } Days Resume Retention`,
+        limits.basic.recruiterSearchLimit > 0
+          ? `${limits.basic.recruiterSearchLimit} AI Searches (Recruiter)`
+          : "AI Search not available",
+        `${limits.basic.recruiterContactLimit.amount} Contact Requests (${limits.basic.recruiterContactLimit.interval})`,
+      ],
+    },
+    {
+      id: "premium",
+      name: "Premium",
+      price: "",
+      description: "Advanced AI tools for serious candidates and recruiters.",
+      highlight: true,
+      features: [
+        `${limits.premium.resumeCreationLimit} Tailored Resume Versions`,
+        limits.premium.resumeEditingAllowed
+          ? "Unlimited Resume Editing"
+          : "No Resume Editing",
+        "Forever Resume Retention",
+        `${limits.premium.recruiterSearchLimit} AI Searches (Recruiter)`,
+        `${limits.premium.recruiterContactLimit.amount} Contact Requests (${limits.premium.recruiterContactLimit.interval})`,
+      ],
+    },
+    {
+      id: "enterprise",
+      name: "Enterprise",
+      price: "Custom",
+      description: "Complete solution for high-volume recruitment agencies.",
+      features: [
+        "Unlimited Resume Management",
+        "Unlimited Resume Editing",
+        "Forever Resume Retention",
+        "Unlimited AI Searches",
+        "Unlimited Contact Requests",
+      ],
+    },
+  ];
 
   return (
     <DashboardBackground>
@@ -162,15 +162,19 @@ export default function SubscriptionPage() {
               return (
                 <div
                   key={plan.id}
-                  className={`relative group flex flex-col h-full transition-all duration-500 rounded-3xl ${isCurrent ? "scale-105 z-10 shadow-2xl" : "hover:scale-105 z-0 hover:shadow-xl"
-                    }`}
+                  className={`relative group flex flex-col h-full transition-all duration-500 rounded-3xl ${
+                    isCurrent
+                      ? "scale-105 z-10 shadow-2xl"
+                      : "hover:scale-105 z-0 hover:shadow-xl"
+                  }`}
                 >
                   {/* Card Boarder/Background */}
                   <div
-                    className={`absolute inset-0 rounded-3xl border transition-colors duration-300 ${isCurrent
-                      ? "border-[#2C4A3B]/40 bg-white/60 backdrop-blur-xl"
-                      : "border-white/50 bg-white/40 backdrop-blur-md"
-                      }`}
+                    className={`absolute inset-0 rounded-3xl border transition-colors duration-300 ${
+                      isCurrent
+                        ? "border-[#2C4A3B]/40 bg-white/60 backdrop-blur-xl"
+                        : "border-white/50 bg-white/40 backdrop-blur-md"
+                    }`}
                   />
 
                   {/* Card Content */}
@@ -179,8 +183,9 @@ export default function SubscriptionPage() {
                     <div className="mb-8 border-b border-[#2C4A3B]/10 pb-6">
                       <div className="flex justify-between items-center mb-2">
                         <h3
-                          className={`font-bold text-sm uppercase tracking-[0.2em] ${isCurrent ? "text-[#2C4A3B]" : "text-[#1A2F25]/60"
-                            }`}
+                          className={`font-bold text-sm uppercase tracking-[0.2em] ${
+                            isCurrent ? "text-[#2C4A3B]" : "text-[#1A2F25]/60"
+                          }`}
                         >
                           {plan.name}
                         </h3>
@@ -214,10 +219,11 @@ export default function SubscriptionPage() {
                           className="flex items-start gap-3 group/item"
                         >
                           <span
-                            className={`mt-1.5 w-1.5 h-1.5 rounded-full ${isCurrent
-                              ? "bg-emerald-500"
-                              : "bg-[#2C4A3B]/40 group-hover/item:bg-[#2C4A3B]"
-                              } transition-colors`}
+                            className={`mt-1.5 w-1.5 h-1.5 rounded-full ${
+                              isCurrent
+                                ? "bg-emerald-500"
+                                : "bg-[#2C4A3B]/40 group-hover/item:bg-[#2C4A3B]"
+                            } transition-colors`}
                           />
                           <span className="text-sm text-[#1A2F25]/80 font-medium tracking-tight">
                             {feature}
@@ -229,10 +235,11 @@ export default function SubscriptionPage() {
                     {/* Action Button */}
                     <button
                       disabled={true}
-                      className={`w-full py-3 px-4 text-xs font-bold uppercase tracking-widest transition-all duration-300 rounded-xl border ${isCurrent
-                        ? "bg-[#2C4A3B]/10 border-[#2C4A3B] text-[#2C4A3B]"
-                        : "bg-transparent border-[#2C4A3B]/20 text-[#2C4A3B]/60"
-                        }`}
+                      className={`w-full py-3 px-4 text-xs font-bold uppercase tracking-widest transition-all duration-300 rounded-xl border ${
+                        isCurrent
+                          ? "bg-[#2C4A3B]/10 border-[#2C4A3B] text-[#2C4A3B]"
+                          : "bg-transparent border-[#2C4A3B]/20 text-[#2C4A3B]/60"
+                      }`}
                     >
                       {isCurrent ? "Active Plan" : "Select Plan"}
                     </button>

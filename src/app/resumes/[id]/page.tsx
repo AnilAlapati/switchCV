@@ -2,23 +2,17 @@
 
 import { logger } from "@/lib/logger";
 
-/* eslint-disable max-lines */
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { templateService } from "@/lib/services/templateService";
 import { TemplateRenderer } from "@/components/resume/TemplateRenderer";
 import { LegacyResumeRenderer } from "@/components/resume/LegacyResumeRenderer";
-import {
-  ResumeAccessBlock,
-  ResumeAccessBlockConfig,
-} from "@/components/resume/ResumeAccessBlock";
+import { ResumeAccessBlock } from "@/components/resume/ResumeAccessBlock";
 import {
   ResumeToast,
   ResumeToastOverlay,
 } from "@/components/resume/ResumeToastOverlay";
 import { PrivacyMenu } from "@/components/resume/PrivacyMenu";
 import { RequestAccessDialog } from "@/components/RequestAccessDialog";
-import { ResumeTemplate } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
 import { useResumeData } from "@/hooks/useResumeData";
 import { ResumeViewSkeleton } from "@/components/resume/ResumeViewSkeleton";
@@ -60,7 +54,8 @@ const formatDuration = (ms: number) => {
 export default function ResumeView() {
   const { id } = useParams();
   const { user } = useAuth();
-  const { resume, template, accessBlock, error, loading, mutateResume } = useResumeData(id);
+  const { resume, template, accessBlock, error, loading, mutateResume } =
+    useResumeData(id);
 
   const [isUpdating, setIsUpdating] = useState(false);
   const [toast, setToast] = useState<ResumeToast | null>(null);
@@ -176,22 +171,25 @@ export default function ResumeView() {
         : "Resume is now private. Only you can view this resume.";
 
       // Update local SWR data immediately
-      mutateResume((current: any) => {
-        if (!current?.resume) return current;
-        return {
-          ...current,
-          resume: {
-            ...current.resume,
-            isPublic: newVisibility,
-            visibility: newVisibility ? "public" : "private",
-            viewerAccess: {
-              ...current.resume.viewerAccess,
-              scope: "owner",
-              isOwner: true,
-            }
-          }
-        };
-      }, { revalidate: false });
+      mutateResume(
+        (current: any) => {
+          if (!current?.resume) return current;
+          return {
+            ...current,
+            resume: {
+              ...current.resume,
+              isPublic: newVisibility,
+              visibility: newVisibility ? "public" : "private",
+              viewerAccess: {
+                ...current.resume.viewerAccess,
+                scope: "owner",
+                isOwner: true,
+              },
+            },
+          };
+        },
+        { revalidate: false }
+      );
 
       setToast({ tone: "success", message: visibilityMessage });
     } catch (error) {
@@ -233,7 +231,11 @@ export default function ResumeView() {
   // Use the new TemplateRenderer if a template is loaded
   if (template) {
     return (
-      <div className={`min-h-screen ${template.id === 'masonry-v1' ? '' : 'bg-gray-900 text-white'} p-8 font-sans relative`}>
+      <div
+        className={`min-h-screen ${
+          template.id === "masonry-v1" ? "" : "bg-gray-900 text-white"
+        } p-8 font-sans relative`}
+      >
         <ResumeToastOverlay toast={toast} onDismiss={() => setToast(null)} />
         {countdownBanner}
         {editingBanner}
@@ -259,7 +261,7 @@ export default function ResumeView() {
           isOpen={requestDialogOpen}
           onClose={() => setRequestDialogOpen(false)}
           profileName={resume.personalInfo?.name || resume.title || "Candidate"}
-          profileId={Array.isArray(id) ? id[0] : id as string}
+          profileId={Array.isArray(id) ? id[0] : (id as string)}
           onSuccess={() => {
             setToast({
               tone: "success",
@@ -293,8 +295,9 @@ function DeletionCountdownBanner({
 }) {
   return (
     <div
-      className={`mb-4 rounded-lg border px-4 py-3 text-sm leading-relaxed ${bannerStyles[notice.severity]
-        }`}
+      className={`mb-4 rounded-lg border px-4 py-3 text-sm leading-relaxed ${
+        bannerStyles[notice.severity]
+      }`}
       role="status"
     >
       <p className="font-semibold text-base">

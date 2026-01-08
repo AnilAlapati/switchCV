@@ -36,9 +36,11 @@ describe("SelectRolePage", () => {
   const mockPush = jest.fn();
   const mockReplace = jest.fn();
   const mockMutate = jest.fn();
+  const mockGetIdToken = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
+    global.fetch = jest.fn();
     mockUseRouter.mockReturnValue({
       push: mockPush,
       replace: mockReplace,
@@ -72,7 +74,11 @@ describe("SelectRolePage", () => {
 
   it("should display role selection UI when user is authenticated", () => {
     mockUseAuth.mockReturnValue({
-      user: { uid: "user123", email: "test@example.com" },
+      user: {
+        uid: "user123",
+        email: "test@example.com",
+        getIdToken: mockGetIdToken,
+      },
       loading: false,
     } as any);
 
@@ -85,7 +91,11 @@ describe("SelectRolePage", () => {
 
   it("should highlight selected role when clicked", () => {
     mockUseAuth.mockReturnValue({
-      user: { uid: "user123", email: "test@example.com" },
+      user: {
+        uid: "user123",
+        email: "test@example.com",
+        getIdToken: mockGetIdToken,
+      },
       loading: false,
     } as any);
 
@@ -95,12 +105,16 @@ describe("SelectRolePage", () => {
     fireEvent.click(jobSeekerButton!);
 
     // The button should have active styling
-    expect(jobSeekerButton).toHaveClass("border-teal-400/50");
+    expect(jobSeekerButton).toHaveClass("border-teal-400");
   });
 
   it("should enable Continue button when role is selected", () => {
     mockUseAuth.mockReturnValue({
-      user: { uid: "user123", email: "test@example.com" },
+      user: {
+        uid: "user123",
+        email: "test@example.com",
+        getIdToken: mockGetIdToken,
+      },
       loading: false,
     } as any);
 
@@ -115,12 +129,21 @@ describe("SelectRolePage", () => {
 
   it("should submit jobseeker role and redirect to dashboard", async () => {
     mockUseAuth.mockReturnValue({
-      user: { uid: "user123", email: "test@example.com" },
+      user: {
+        uid: "user123",
+        email: "test@example.com",
+        getIdToken: mockGetIdToken,
+      },
       loading: false,
     } as any);
 
+    mockGetIdToken.mockResolvedValue("mock-token");
     mockDoc.mockReturnValue({} as any);
     mockSetDoc.mockResolvedValue(undefined);
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true }),
+    });
 
     render(<SelectRolePage />);
 
@@ -131,7 +154,7 @@ describe("SelectRolePage", () => {
     fireEvent.click(continueButton);
 
     await waitFor(() => {
-      expect(mockSetDoc).toHaveBeenCalledTimes(2); // User doc + stats doc
+      expect(mockSetDoc).toHaveBeenCalledTimes(1); // Only stats update, user doc is handled by API
       expect(mockMutate).toHaveBeenCalled();
       expect(mockPush).toHaveBeenCalledWith("/dashboard");
     });
@@ -139,12 +162,21 @@ describe("SelectRolePage", () => {
 
   it("should submit recruiter role and redirect to dashboard", async () => {
     mockUseAuth.mockReturnValue({
-      user: { uid: "user456", email: "recruiter@example.com" },
+      user: {
+        uid: "user456",
+        email: "recruiter@example.com",
+        getIdToken: mockGetIdToken,
+      },
       loading: false,
     } as any);
 
+    mockGetIdToken.mockResolvedValue("mock-token");
     mockDoc.mockReturnValue({} as any);
     mockSetDoc.mockResolvedValue(undefined);
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true }),
+    });
 
     render(<SelectRolePage />);
 
@@ -155,19 +187,28 @@ describe("SelectRolePage", () => {
     fireEvent.click(continueButton);
 
     await waitFor(() => {
-      expect(mockSetDoc).toHaveBeenCalledTimes(2);
+      expect(mockSetDoc).toHaveBeenCalledTimes(1);
       expect(mockPush).toHaveBeenCalledWith("/dashboard");
     });
   });
 
   it("should display error message when submission fails", async () => {
     mockUseAuth.mockReturnValue({
-      user: { uid: "user789", email: "test@example.com" },
+      user: {
+        uid: "user789",
+        email: "test@example.com",
+        getIdToken: mockGetIdToken,
+      },
       loading: false,
     } as any);
 
+    mockGetIdToken.mockResolvedValue("mock-token");
     mockDoc.mockReturnValue({} as any);
-    mockSetDoc.mockRejectedValue(new Error("Database error"));
+    mockSetDoc.mockResolvedValue(undefined);
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: "Something went wrong" }),
+    });
 
     render(<SelectRolePage />);
 
@@ -179,20 +220,38 @@ describe("SelectRolePage", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText("Something went wrong. Please try again.")
+        screen.getByText("Error: Something went wrong")
       ).toBeInTheDocument();
     });
   });
 
   it("should disable buttons during submission", async () => {
     mockUseAuth.mockReturnValue({
-      user: { uid: "user999", email: "test@example.com" },
+      user: {
+        uid: "user999",
+        email: "test@example.com",
+        getIdToken: mockGetIdToken,
+      },
       loading: false,
     } as any);
 
+    mockGetIdToken.mockResolvedValue("mock-token");
     mockDoc.mockReturnValue({} as any);
     mockSetDoc.mockImplementation(
       () => new Promise((resolve) => setTimeout(resolve, 100))
+    );
+    (global.fetch as jest.Mock).mockImplementation(
+      () =>
+        new Promise((resolve) =>
+          setTimeout(
+            () =>
+              resolve({
+                ok: true,
+                json: async () => ({ success: true }),
+              }),
+            100
+          )
+        )
     );
 
     render(<SelectRolePage />);
@@ -214,7 +273,11 @@ describe("SelectRolePage", () => {
 
   it("should show jobseeker features", () => {
     mockUseAuth.mockReturnValue({
-      user: { uid: "user123", email: "test@example.com" },
+      user: {
+        uid: "user123",
+        email: "test@example.com",
+        getIdToken: mockGetIdToken,
+      },
       loading: false,
     } as any);
 
@@ -229,7 +292,11 @@ describe("SelectRolePage", () => {
 
   it("should show recruiter features", () => {
     mockUseAuth.mockReturnValue({
-      user: { uid: "user123", email: "test@example.com" },
+      user: {
+        uid: "user123",
+        email: "test@example.com",
+        getIdToken: mockGetIdToken,
+      },
       loading: false,
     } as any);
 
@@ -242,7 +309,11 @@ describe("SelectRolePage", () => {
 
   it("should allow switching between roles before submission", () => {
     mockUseAuth.mockReturnValue({
-      user: { uid: "user123", email: "test@example.com" },
+      user: {
+        uid: "user123",
+        email: "test@example.com",
+        getIdToken: mockGetIdToken,
+      },
       loading: false,
     } as any);
 
@@ -252,15 +323,15 @@ describe("SelectRolePage", () => {
     const recruiterButton = screen.getByText("Recruiter").closest("button");
 
     fireEvent.click(jobSeekerButton!);
-    expect(jobSeekerButton).toHaveClass("border-teal-400/50");
+    expect(jobSeekerButton).toHaveClass("border-teal-400");
 
     fireEvent.click(recruiterButton!);
-    expect(recruiterButton).toHaveClass("border-blue-400/50");
+    expect(recruiterButton).toHaveClass("border-blue-400");
   });
 
   it("should not submit if no role is selected", async () => {
     mockUseAuth.mockReturnValue({
-      user: { uid: "user123" },
+      user: { uid: "user123", getIdToken: mockGetIdToken },
       loading: false,
     } as any);
 

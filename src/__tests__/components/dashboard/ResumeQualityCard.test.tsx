@@ -94,7 +94,8 @@ describe("ResumeQualityCard", () => {
 
       await waitFor(() => {
         expect(mockFetch).toHaveBeenCalledWith(
-          `/api/jobseeker/metrics?userId=${mockUser.uid}`
+          `/api/jobseeker/metrics?userId=${mockUser.uid}`,
+          expect.objectContaining({ signal: expect.any(AbortSignal) })
         );
       });
     });

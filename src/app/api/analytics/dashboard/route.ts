@@ -56,9 +56,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       timestamp: new Date(),
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    logger.error({ err: error }, "Analytics dashboard error");
-    return NextResponse.json({ success: false, message }, { status: 500 });
+    return handleApiError(error, "Failed to retrieve analytics dashboard");
   }
 }
 
@@ -112,8 +110,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       timestamp: new Date(),
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    logger.error({ err: error }, "Analytics GET error");
-    return NextResponse.json({ success: false, message }, { status: 500 });
+    return handleApiError(error, "Failed to retrieve analytics");
   }
 }

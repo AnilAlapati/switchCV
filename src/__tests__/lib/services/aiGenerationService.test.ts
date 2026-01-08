@@ -51,7 +51,7 @@ describe("aiGenerationService", () => {
       const result = await generateText("prompt");
 
       expect(result.text).toBe("Generated text");
-      expect(result.provider).toBe("google");
+      expect(result.provider).toBe("gemini");
       expect(result.model).toContain("gemini");
       expect(global.fetch).toHaveBeenCalledTimes(2);
     });

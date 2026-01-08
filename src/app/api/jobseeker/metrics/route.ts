@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb } from "@/lib/firebase-admin";
-// eslint-disable-next-line no-restricted-imports
-import { FieldValue } from "firebase-admin/firestore";
 import {
   handleApiError,
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
 import { logger } from "@/lib/logger";
+import { getJobSeekerMetrics } from "@/lib/services/metricsService";
 
 export async function GET(request: NextRequest) {
   try {
@@ -37,47 +34,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const userId = requestedUserId;
-
-    // Get metrics from jobSeekerMetrics collection
-    const metricsRef = adminDb.collection("jobSeekerMetrics").doc(userId);
-    const metricsDoc = await metricsRef.get();
-    const metrics = metricsDoc.exists ? metricsDoc.data() : {};
-
-    // Lazy migration: calculate contactRequests if missing
-    let contactRequests = metrics?.contactRequests;
-    if (contactRequests === undefined) {
-      // Calculate from accessRequests for each resume
-      const resumesSnap = await adminDb
-        .collection("resumes")
-        .where("userId", "==", userId)
-        .get();
-
-      contactRequests = 0;
-      for (const resumeDoc of resumesSnap.docs) {
-        const countSnap = await resumeDoc.ref
-          .collection("accessRequests")
-          .where("status", "==", "approved")
-          .count()
-          .get();
-        contactRequests += countSnap.data().count;
-      }
-
-      // Save back to metrics (lazy migration)
-      await metricsRef.set(
-        {
-          ...metrics,
-          contactRequests,
-          lastUpdated: new Date(),
-        },
-        { merge: true }
-      );
-    }
+    const metrics = await getJobSeekerMetrics(requestedUserId);
 
     return NextResponse.json(
       {
         profileViews: metrics?.profileViews || 0,
-        contactRequests: contactRequests,
+        contactRequests: metrics?.contactRequests || 0,
         downloads: metrics?.downloads || 0,
         quality: metrics?.quality || 0,
         lastUpdated: metrics?.lastUpdated || null,

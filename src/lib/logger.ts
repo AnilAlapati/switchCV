@@ -1,6 +1,130 @@
 import pino, { LoggerOptions } from "pino";
 
 /**
+ * PII Redaction - Patterns for sensitive data
+ * Prevents resume content, emails, phones, SSNs from appearing in logs
+ */
+const PII_PATTERNS = {
+  email: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
+  phone: /(?:\+?1[-\s.]?)?\(?\d{3}\)?[-\s.]?\d{3}[-\s.]?\d{4}\b/g,
+  ssn: /\b\d{3}-\d{2}-\d{4}\b/g,
+  creditCard: /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g,
+  // IP addresses (partial redaction - keep first 2 octets)
+  ipv4: /(\d{1,3}\.\d{1,3}\.)\d{1,3}\.\d{1,3}/g,
+} as const;
+
+/**
+ * Sensitive field names that should be redacted regardless of content
+ */
+const SENSITIVE_FIELDS = new Set([
+  "resumeContent",
+  "resumeData",
+  "content",
+  "personalStatement",
+  "summary",
+  "bio",
+  "description",
+  "skills",
+  "experience",
+  "education",
+  "certifications",
+  "password",
+  "token",
+  "apiKey",
+  "secret",
+  "authorization",
+  "phoneNumber",
+  "phone",
+  "address",
+  "streetAddress",
+  "postalCode",
+  "zipCode",
+  "ssn",
+  "creditCard",
+  "cvv",
+]);
+
+/**
+ * Redact PII from a string using regex patterns
+ */
+function redactPIIFromString(str: string): string {
+  let redacted = str;
+  // Process in order of specificity - more specific patterns first
+  redacted = redacted.replace(PII_PATTERNS.creditCard, "[CARD_REDACTED]");
+  redacted = redacted.replace(PII_PATTERNS.ssn, "[SSN_REDACTED]");
+  redacted = redacted.replace(PII_PATTERNS.email, "[EMAIL_REDACTED]");
+  redacted = redacted.replace(PII_PATTERNS.phone, "[PHONE_REDACTED]");
+  redacted = redacted.replace(PII_PATTERNS.ipv4, "$1***.***");
+  return redacted;
+}
+
+/**
+ * Recursively sanitize objects to remove PII
+ * @param obj - Object to sanitize
+ * @param depth - Current recursion depth (prevents infinite loops)
+ * @param maxDepth - Maximum recursion depth
+ * @returns Sanitized object safe for logging
+ */
+export function sanitizeForLogging(
+  obj: unknown,
+  depth: number = 0,
+  maxDepth: number = 5
+): unknown {
+  // Prevent infinite recursion
+  if (depth > maxDepth) {
+    return "[MAX_DEPTH_EXCEEDED]";
+  }
+
+  // Handle primitives
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+
+  if (typeof obj === "string") {
+    return redactPIIFromString(obj);
+  }
+
+  if (typeof obj === "number" || typeof obj === "boolean") {
+    return obj;
+  }
+
+  // Handle arrays
+  if (Array.isArray(obj)) {
+    return obj.map((item) => sanitizeForLogging(item, depth + 1, maxDepth));
+  }
+
+  // Handle Error objects
+  if (obj instanceof Error) {
+    return {
+      name: obj.name,
+      message: redactPIIFromString(obj.message),
+      stack: redactPIIFromString(obj.stack || ""),
+    };
+  }
+
+  // Handle objects
+  if (typeof obj === "object") {
+    const sanitized: Record<string, unknown> = {};
+
+    for (const [key, value] of Object.entries(obj)) {
+      // Redact sensitive fields entirely
+      if (SENSITIVE_FIELDS.has(key)) {
+        sanitized[key] = "[REDACTED]";
+        continue;
+      }
+
+      // Recursively sanitize nested objects
+      sanitized[key] = sanitizeForLogging(value, depth + 1, maxDepth);
+    }
+
+    return sanitized;
+  }
+
+  // Fallback for other types (functions, symbols, etc.)
+  return String(obj);
+}
+
+/**
  * Properly serialize unknown errors for JSON logging
  */
 export const serializeError = (error: unknown): Record<string, unknown> => {
@@ -35,12 +159,12 @@ const shouldMirrorConsole = !isProd;
 const transport: LoggerOptions["transport"] =
   !isProd && !isTestRuntime
     ? {
-      target: "pino-pretty",
-      options: {
-        colorize: true,
-        translateTime: "SYS:standard",
-      },
-    }
+        target: "pino-pretty",
+        options: {
+          colorize: true,
+          translateTime: "SYS:standard",
+        },
+      }
     : undefined;
 
 const baseLogger = pino({
@@ -158,13 +282,34 @@ const boundInfo = baseLogger.info.bind(baseLogger);
 const boundWarn = baseLogger.warn.bind(baseLogger);
 const boundError = baseLogger.error.bind(baseLogger);
 
-logger.log = mirrorToConsole(console.log, boundInfo);
-logger.info = mirrorToConsole(console.info, boundInfo);
-logger.warn = mirrorToConsole(console.warn, boundWarn);
-logger.error = mirrorToConsole(console.error, boundError);
+// Wrap logger methods with PII sanitization
+const sanitizeLogArgs = (...args: unknown[]): unknown[] => {
+  return args.map((arg) => sanitizeForLogging(arg));
+};
+
+logger.log = (...args: unknown[]) => {
+  const sanitized = sanitizeLogArgs(...args);
+  mirrorToConsole(console.log, boundInfo)(...sanitized);
+};
+
+logger.info = (...args: unknown[]) => {
+  const sanitized = sanitizeLogArgs(...args);
+  mirrorToConsole(console.info, boundInfo)(...sanitized);
+};
+
+logger.warn = (...args: unknown[]) => {
+  const sanitized = sanitizeLogArgs(...args);
+  mirrorToConsole(console.warn, boundWarn)(...sanitized);
+};
+
+logger.error = (...args: unknown[]) => {
+  const sanitized = sanitizeLogArgs(...args);
+  mirrorToConsole(console.error, boundError)(...sanitized);
+};
 
 export const logError = (error: unknown, context?: string) => {
-  logger.error({ ...serializeError(error), context }, "Error occurred");
+  const sanitizedError = sanitizeForLogging(serializeError(error));
+  logger.error({ ...sanitizedError, context }, "Error occurred");
 };
 
 export { logger };

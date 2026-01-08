@@ -12,6 +12,11 @@ jest.mock("@/lib/firebase-admin", () => ({
   },
 }));
 
+// Mock analytics service
+jest.mock("@/lib/services/analyticsService", () => ({
+  getSystemAnalytics: jest.fn(),
+}));
+
 // Mock auth helpers
 jest.mock("@/lib/utils/api-helpers", () => ({
   getAuthenticatedUserId: jest.fn(),
@@ -25,9 +30,11 @@ jest.mock("@/lib/utils/api-helpers", () => ({
       json: async () => res,
     };
   }),
+  validateCorsRequest: jest.fn(() => null),
 }));
 
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
+import { getSystemAnalytics } from "@/lib/services/analyticsService";
 
 const mockGetAuthenticatedUserId =
   getAuthenticatedUserId as jest.MockedFunction<typeof getAuthenticatedUserId>;
@@ -45,8 +52,10 @@ describe("System Analytics API", () => {
       }),
     });
 
-    const request = new NextRequest("http://localhost:3000/api/analytics/system"
-    , { headers: { authorization: "Bearer test-token" } });
+    const request = new NextRequest(
+      "http://localhost:3000/api/analytics/system",
+      { headers: { authorization: "Bearer test-token" } }
+    );
     const response = await GET(request);
 
     expect(response.status).toBe(401);
@@ -55,6 +64,10 @@ describe("System Analytics API", () => {
   it("should return 403 if user is not admin or recruiter", async () => {
     const userId = "user123";
     mockGetAuthenticatedUserId.mockResolvedValue({ userId, error: null });
+
+    (getSystemAnalytics as jest.Mock).mockRejectedValue(
+      new Error("Unauthorized")
+    );
 
     // Mock user doc with jobseeker role
     const mockUserDoc = {
@@ -68,8 +81,10 @@ describe("System Analytics API", () => {
       }),
     });
 
-    const request = new NextRequest("http://localhost:3000/api/analytics/system"
-    , { headers: { authorization: "Bearer test-token" } });
+    const request = new NextRequest(
+      "http://localhost:3000/api/analytics/system",
+      { headers: { authorization: "Bearer test-token" } }
+    );
     const response = await GET(request);
 
     expect(response.status).toBe(403);
@@ -80,6 +95,17 @@ describe("System Analytics API", () => {
   it("should return analytics data for admin user", async () => {
     const userId = "admin123";
     mockGetAuthenticatedUserId.mockResolvedValue({ userId, error: null });
+
+    // Mock getSystemAnalytics to return expected data
+    (getSystemAnalytics as jest.Mock).mockResolvedValue({
+      totalUsers: 10,
+      totalResumes: 15,
+      activeRecruiters: 3,
+      totalViews: 100,
+      topIndustries: [{ name: "Technology", count: 5 }],
+      recentActivity: [],
+      subscriptionDistribution: { basic: 5, premium: 3, enterprise: 2 },
+    });
 
     // Mock user doc with admin role
     const mockUserDoc = {
@@ -184,8 +210,15 @@ describe("System Analytics API", () => {
       }
     );
 
-    const request = new NextRequest("http://localhost:3000/api/analytics/system"
-    , { headers: { authorization: "Bearer test-token" } });
+    const request = new NextRequest(
+      "http://localhost:3000/api/analytics/system",
+      { headers: { authorization: "Bearer test-token" } }
+    );
+    Object.defineProperty(request, "nextUrl", {
+      value: { pathname: "/api/analytics/system" },
+      writable: true,
+      configurable: true,
+    });
     const response = await GET(request);
 
     expect(response.status).toBe(200);
@@ -204,6 +237,17 @@ describe("System Analytics API", () => {
     const userId = "recruiter123";
     mockGetAuthenticatedUserId.mockResolvedValue({ userId, error: null });
 
+    // Mock getSystemAnalytics to return expected data for recruiter
+    (getSystemAnalytics as jest.Mock).mockResolvedValue({
+      totalUsers: 10,
+      totalResumes: 15,
+      activeRecruiters: 3,
+      totalViews: 100,
+      topIndustries: [],
+      recentActivity: [],
+      subscriptionDistribution: { basic: 5, premium: 3, enterprise: 2 },
+    });
+
     // Mock user doc with recruiter role
     const mockUserDoc = {
       exists: true,
@@ -220,8 +264,15 @@ describe("System Analytics API", () => {
       limit: jest.fn().mockReturnThis(),
     }));
 
-    const request = new NextRequest("http://localhost:3000/api/analytics/system"
-    , { headers: { authorization: "Bearer test-token" } });
+    const request = new NextRequest(
+      "http://localhost:3000/api/analytics/system",
+      { headers: { authorization: "Bearer test-token" } }
+    );
+    Object.defineProperty(request, "nextUrl", {
+      value: { pathname: "/api/analytics/system" },
+      writable: true,
+      configurable: true,
+    });
     const response = await GET(request);
 
     expect(response.status).toBe(200);

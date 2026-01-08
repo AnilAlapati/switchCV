@@ -39,7 +39,7 @@ export function ExperienceStep({
         <div className="space-y-4">
           {experience.map((exp, index) => (
             <ExperienceCard
-              key={index}
+              key={exp.id || `exp-${index}`}
               index={index}
               experience={exp}
               onUpdate={(updates) => onUpdate(index, updates)}

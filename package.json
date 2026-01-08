@@ -1,6 +1,6 @@
 {
   "name": "switchcv",
-  "version": "0.0.168",
+  "version": "0.0.170",
   "private": true,
   "scripts": {
     "dev": "bash scripts/dev-with-secrets.sh",
@@ -30,6 +30,9 @@
     "secrets:sync": "bash scripts/sync-secrets-from-firebase.sh",
     "secrets:sync:dev": "bash scripts/sync-secrets-from-firebase.sh switchcv-dev",
     "secrets:sync:prod": "bash scripts/sync-secrets-from-firebase.sh switchcv-e5136",
+    "migrate": "tsx scripts/migrate.ts",
+    "test:rules": "jest security-rules.test.ts",
+    "emulator": "firebase emulators:start --only firestore",
     "health-check": "bash scripts/check-repo-health.sh",
     "release": "node scripts/increment-version.js"
   },
@@ -42,6 +45,7 @@
     "framer-motion": "^12.23.26",
     "lucide-react": "^0.561.0",
     "next": "16.0.10",
+    "next-intl": "^4.7.0",
     "nodemailer": "^7.0.11",
     "path-browserify": "^1.0.1",
     "pino": "^10.1.0",

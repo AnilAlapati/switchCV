@@ -107,8 +107,6 @@ export default function Dashboard() {
     ]
   );
 
-  const isPostBootLoading = authLoading || (user && profileLoading);
-
   // Don't show anything while checking auth
   if (authLoading) {
     return (

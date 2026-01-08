@@ -16,7 +16,10 @@ describe("resumeEditor Utilities", () => {
         numericId: 456,
         title: "Software Engineer",
         summary: "Experienced dev",
-        skills: ["React", { name: "Node", level: "expert", visibility: "public" }],
+        skills: [
+          "React",
+          { name: "Node", level: "expert", visibility: "public" },
+        ],
         experience: [
           {
             company: "Tech Corp",
@@ -58,6 +61,7 @@ describe("resumeEditor Utilities", () => {
       // Check skills normalization
       expect(profile.skills).toHaveLength(2);
       expect(profile.skills?.[0]).toEqual({
+        id: expect.stringMatching(/^skill-legacy-\d+$/),
         name: "React",
         level: "intermediate",
         visibility: "public",
@@ -87,7 +91,10 @@ describe("resumeEditor Utilities", () => {
     });
 
     it("should handle numericId when it is not a number but id is", () => {
-      const { meta } = normalizeResumeForEditor({ numericId: "not-a-number", id: 123 });
+      const { meta } = normalizeResumeForEditor({
+        numericId: "not-a-number",
+        id: 123,
+      });
       expect(meta.numericId).toBe(123);
     });
 
@@ -97,10 +104,14 @@ describe("resumeEditor Utilities", () => {
     });
 
     it("should handle isPublic mapping from visibility", () => {
-      const { meta: meta1 } = normalizeResumeForEditor({ visibility: "public" });
+      const { meta: meta1 } = normalizeResumeForEditor({
+        visibility: "public",
+      });
       expect(meta1.isPublic).toBe(true);
 
-      const { meta: meta2 } = normalizeResumeForEditor({ visibility: "private" });
+      const { meta: meta2 } = normalizeResumeForEditor({
+        visibility: "private",
+      });
       expect(meta2.isPublic).toBe(false);
     });
 
@@ -135,8 +146,8 @@ describe("resumeEditor Utilities", () => {
       const raw = {
         contact: {
           email: { visibility: "masked" },
-          phone: { visibility: "request" }
-        }
+          phone: { visibility: "request" },
+        },
       };
       const { profile } = normalizeResumeForEditor(raw);
       expect(profile.contact?.email.value).toBe("");
@@ -213,10 +224,29 @@ describe("resumeEditor Utilities", () => {
       const profile = {
         title: "New Title",
         summary: "New Summary",
-        skills: [{ name: "JS", level: "expert", visibility: "public" as const }],
-        experience: [{ company: "A", role: "B", startDate: "C", description: "D", visibility: "public" as const }],
-        education: [{ institution: "E", degree: "F", startDate: "G", visibility: "public" as const }],
-        projects: [{ name: "H", description: "I", visibility: "public" as const }],
+        skills: [
+          { name: "JS", level: "expert", visibility: "public" as const },
+        ],
+        experience: [
+          {
+            company: "A",
+            role: "B",
+            startDate: "C",
+            description: "D",
+            visibility: "public" as const,
+          },
+        ],
+        education: [
+          {
+            institution: "E",
+            degree: "F",
+            startDate: "G",
+            visibility: "public" as const,
+          },
+        ],
+        projects: [
+          { name: "H", description: "I", visibility: "public" as const },
+        ],
         personalInfo: { title: "Engineer" },
         contact: {
           email: { value: "new@test.com", visibility: "masked" as const },
@@ -245,7 +275,9 @@ describe("resumeEditor Utilities", () => {
 
     it("should handle partial profile updates", () => {
       const original = { title: "Old" };
-      const merged = mergeProfileIntoResume(original, { summary: "New Summary" });
+      const merged = mergeProfileIntoResume(original, {
+        summary: "New Summary",
+      });
       expect(merged.title).toBe("Old");
       expect(merged.summary).toBe("New Summary");
     });
@@ -255,12 +287,12 @@ describe("resumeEditor Utilities", () => {
         contact: {
           email: { value: "base@test.com", visibility: "public" },
           phone: { value: "123", visibility: "public" },
-        }
+        },
       };
       const profile = {
         contact: {
-          email: { value: "new@test.com" }
-        }
+          email: { value: "new@test.com" },
+        },
       };
       const merged = mergeProfileIntoResume(original, profile as any);
       expect(merged.contact.email.value).toBe("new@test.com");
@@ -273,8 +305,8 @@ describe("resumeEditor Utilities", () => {
       const original = {};
       const profile = {
         contact: {
-          email: { value: "new@test.com" }
-        }
+          email: { value: "new@test.com" },
+        },
       };
       const merged = mergeProfileIntoResume(original, profile as any);
       expect(merged.contact.email.value).toBe("new@test.com");
@@ -293,13 +325,13 @@ describe("resumeEditor Utilities", () => {
     it("should handle partial contact in profile (only phone)", () => {
       const original = {
         contact: {
-          email: { value: "email@test.com", visibility: "public" }
-        }
+          email: { value: "email@test.com", visibility: "public" },
+        },
       };
       const profile = {
         contact: {
-          phone: { value: "123", visibility: "request" as const }
-        }
+          phone: { value: "123", visibility: "request" as const },
+        },
       };
       const merged = mergeProfileIntoResume(original, profile as any);
       expect(merged.contact.email.value).toBe("email@test.com");
@@ -310,13 +342,13 @@ describe("resumeEditor Utilities", () => {
     it("should handle contact with empty values in profile", () => {
       const original = {
         contact: {
-          email: { value: "old@test.com", visibility: "public" }
-        }
+          email: { value: "old@test.com", visibility: "public" },
+        },
       };
       const profile = {
         contact: {
-          email: { value: "", visibility: "masked" as const }
-        }
+          email: { value: "", visibility: "masked" as const },
+        },
       };
       const merged = mergeProfileIntoResume(original, profile as any);
       expect(merged.contact.email.value).toBe("");

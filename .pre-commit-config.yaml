@@ -3,4 +3,4 @@ repos:
     rev: v1.4.0
     hooks:
       - id: detect-secrets
-        args: [--exclude-regex, "OPENAI_API_KEY|GEMINI_API_KEY|TOKEN_SECRET|HUGGINGFACE_TOKEN"]
+        args: [--exclude-lines, "OPENAI_API_KEY|GEMINI_API_KEY|TOKEN_SECRET|HUGGINGFACE_TOKEN"]

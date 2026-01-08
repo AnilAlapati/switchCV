@@ -2,6 +2,7 @@
 
 import useSWR from "swr";
 import { useAuth } from "@/hooks/useAuth";
+import { User } from "firebase/auth";
 import { DashboardAccessRequest } from "@/app/dashboard/access-requests/types";
 
 // Defining fetcher
@@ -25,7 +26,8 @@ export function useAccessRequests() {
 
   const { data, error, isLoading, mutate } = useSWR(
     key,
-    ([url, u]: [string, any]) => u.getIdToken().then((token: string) => fetcher(url, token)),
+    ([url, u]: [string, User]) =>
+      u.getIdToken().then((token: string) => fetcher(url, token)),
     {
       dedupingInterval: 60000, // 1 minute cache
       revalidateOnFocus: true, // Revalidate when returning to tab

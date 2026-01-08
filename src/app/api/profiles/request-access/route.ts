@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     } catch (durationError: any) {
       return handleApiError(
         durationError,
-        durationError.message || "Invalid duration",
+        "Invalid duration selection",
         400
       );
     }
@@ -69,13 +69,13 @@ export async function POST(request: NextRequest) {
       error.message?.includes("Limit reached") ||
       error.message?.includes("Company name is required")
     ) {
-      return handleApiError(error, error.message, 403);
+      return handleApiError(error, "Access request limit reached or missing company info", 403);
     }
     if (
       error.message?.includes("Already have access") ||
       error.message?.includes("Pending request")
     ) {
-      return handleApiError(error, error.message, 409);
+      return handleApiError(error, "Access already requested or granted", 409);
     }
     if (
       error.message?.includes("Resume not found") ||
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
       return handleApiError(error, "Not found", 404);
     }
     if (error.message?.includes("own resume")) {
-      return handleApiError(error, error.message, 400);
+      return handleApiError(error, "Cannot request access to your own resume", 400);
     }
     return handleApiError(error, "Failed to create access request");
   }

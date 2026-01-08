@@ -16,7 +16,7 @@ export const PreviewEducation = ({ profile }: PreviewEducationProps) => {
       </h3>
       <div className="space-y-4">
         {profile.education.map((edu, index) => (
-          <div key={index} className="border-l-4 border-purple-600 pl-4">
+          <div key={edu.id || `edu-${index}`} className="border-l-4 border-purple-600 pl-4">
             <div className="flex items-start justify-between gap-2 mb-1">
               <div>
                 <h4 className="font-semibold text-gray-900">{edu.degree}</h4>

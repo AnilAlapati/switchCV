@@ -1,23 +1,11 @@
-import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb } from "@/lib/firebase-admin";
-// eslint-disable-next-line no-restricted-imports
-import { FieldValue } from "firebase-admin/firestore";
 import { getRecruiterSearchBreakdown } from "@/lib/recruiterSearchHistory";
 import {
   getAuthenticatedUserId,
   handleApiError,
 } from "@/lib/utils/api-helpers";
-
-/**
- * Helper to verify recruiter role
- */
-async function verifyRecruiterRole(userId: string): Promise<boolean> {
-  const userSnap = await adminDb.collection("users").doc(userId).get();
-  const userData = userSnap.data();
-  return userData?.role === "recruiter" || userData?.role === "admin";
-}
+import { getRecruiterMetrics } from "@/lib/services/metricsService";
+import { getUserRole } from "@/lib/services/userService";
 
 export async function GET(request: NextRequest) {
   const { userId: authUserId, error: authError } = await getAuthenticatedUserId(
@@ -36,12 +24,8 @@ export async function GET(request: NextRequest) {
 
     // Security: Only allow users to see their own metrics, unless they are an admin
     if (userId !== authUserId) {
-      const authUserSnap = await adminDb
-        .collection("users")
-        .doc(authUserId)
-        .get();
-      const authUserData = authUserSnap.data();
-      if (authUserData?.role !== "admin") {
+      const authUserRole = await getUserRole(authUserId);
+      if (authUserRole !== "admin") {
         return handleApiError(
           null,
           "Forbidden: You can only access your own metrics",
@@ -50,83 +34,34 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    if (!(await verifyRecruiterRole(authUserId))) {
+    const authUserRole = await getUserRole(authUserId);
+    if (authUserRole !== "recruiter" && authUserRole !== "admin") {
       return handleApiError(null, "Forbidden: Recruiter role required", 403);
     }
 
-    // Get metrics from recruiterMetrics collection
-    const metricsRef = adminDb.collection("recruiterMetrics").doc(userId);
-    const metricsDoc = await metricsRef.get();
-    const metrics = metricsDoc.exists ? metricsDoc.data() : {};
-
-    // Return cached metrics immediately - no expensive calculations on the hot path
-    // If accessRequests is missing, perform a lazy migration by counting them
-    let accessRequests = metrics?.accessRequests;
-
-    if (!accessRequests) {
-      try {
-        logger.info({ userId }, "Performing lazy migration for recruiter access metrics");
-
-        // Count requests from collection group
-        const requestsSnapshot = await adminDb
-          .collectionGroup("accessRequests")
-          .where("fromUserId", "==", userId)
-          .get();
-
-        accessRequests = {
-          pending: 0,
-          approved: 0,
-          denied: 0
-        };
-
-        if (requestsSnapshot && typeof (requestsSnapshot as any).forEach === "function") {
-          requestsSnapshot.forEach((doc) => {
-            const data = doc.data();
-            if (data.status === "pending") accessRequests.pending++;
-            else if (data.status === "approved") accessRequests.approved++;
-            else if (data.status === "denied") accessRequests.denied++;
-          });
-        }
-
-        // Also count active grants from accessGrants collection
-        const grantsSnapshot = await adminDb
-          .collectionGroup("accessGrants")
-          .where("toUserId", "==", userId)
-          .get();
-
-        if (grantsSnapshot && typeof (grantsSnapshot as any).forEach === "function") {
-          grantsSnapshot.forEach(() => {
-            accessRequests.approved++;
-          });
-        }
-
-        // Update metrics document with calculated counts
-        await metricsRef.set({ accessRequests }, { merge: true });
-      } catch (migrationError) {
-        logger.error({ userId, error: migrationError }, "Failed to perform lazy migration for recruiter metrics");
-        // Fallback to empty metrics if migration fails
-        accessRequests = {
-          pending: 0,
-          approved: 0,
-          denied: 0
-        };
-      }
-    }
-
+    // Get metrics from Service
+    const metrics = await getRecruiterMetrics(userId);
     const searchBreakdown = await getRecruiterSearchBreakdown(userId);
 
-    return NextResponse.json({
-      totalSearches: metrics?.totalSearches || 0,
-      totalProfileViews: metrics?.totalProfileViews || 0,
-      accessRequests,
-      totalCandidatesInteracted: metrics?.totalCandidatesInteracted || 0,
-      lastActivityAt: metrics?.lastActivityAt || null,
-      searchBreakdown,
-    }, {
-      headers: {
-        'Cache-Control': 'private, max-age=300, stale-while-revalidate=60',
+    return NextResponse.json(
+      {
+        totalSearches: metrics?.totalSearches || 0,
+        totalProfileViews: metrics?.totalProfileViews || 0,
+        accessRequests: metrics?.accessRequests || {
+          pending: 0,
+          approved: 0,
+          denied: 0,
+        },
+        totalCandidatesInteracted: metrics?.totalCandidatesInteracted || 0,
+        lastActivityAt: metrics?.lastActivityAt || null,
+        searchBreakdown,
       },
-    });
+      {
+        headers: {
+          "Cache-Control": "private, max-age=300, stale-while-revalidate=60",
+        },
+      }
+    );
   } catch (error) {
     return handleApiError(error, "Failed to fetch recruiter metrics");
   }

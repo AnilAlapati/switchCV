@@ -38,7 +38,7 @@ export function ReviewStep({ profile }: ReviewStepProps) {
             content={
               experience.length > 0 ? (
                 experience.map((exp, i) => (
-                  <div key={i} className="ml-4 mb-2 text-sm text-gray-700">
+                  <div key={exp.id || `exp-${i}`} className="ml-4 mb-2 text-sm text-gray-700">
                     <p>
                       <strong>{exp.role}</strong> at {exp.company} (
                       {exp.startDate} - {exp.endDate || "Present"})
@@ -56,7 +56,7 @@ export function ReviewStep({ profile }: ReviewStepProps) {
             content={
               education.length > 0 ? (
                 education.map((edu, i) => (
-                  <div key={i} className="ml-4 mb-2 text-sm text-gray-700">
+                  <div key={edu.id || `edu-${i}`} className="ml-4 mb-2 text-sm text-gray-700">
                     <p>
                       <strong>{edu.degree}</strong> from {edu.institution} (
                       {edu.startDate})
@@ -87,7 +87,7 @@ export function ReviewStep({ profile }: ReviewStepProps) {
             content={
               projects.length > 0 ? (
                 projects.map((proj, i) => (
-                  <div key={i} className="ml-4 mb-2 text-sm text-gray-700">
+                  <div key={proj.id || `proj-${i}`} className="ml-4 mb-2 text-sm text-gray-700">
                     <p>
                       <strong>{proj.name}</strong>
                       {proj.url && ` - ${proj.url}`}

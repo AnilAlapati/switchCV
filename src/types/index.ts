@@ -8,12 +8,14 @@ export interface ContactInfo {
 }
 
 export interface Skill {
+  id?: string;
   name: string;
   level: string;
   visibility: Visibility;
 }
 
 export interface Experience {
+  id?: string;
   company: string;
   role: string;
   startDate: string;
@@ -23,6 +25,7 @@ export interface Experience {
 }
 
 export interface Education {
+  id?: string;
   institution: string;
   degree: string;
   startDate: string;
@@ -32,6 +35,7 @@ export interface Education {
 }
 
 export interface Project {
+  id?: string;
   name: string;
   url?: string;
   description: string;
@@ -259,6 +263,20 @@ export interface Analytics {
     topLocations: string[];
   };
   attractivenessScore?: number;
+
+  // Additional metrics tracked in service
+  downloads?: number;
+  lastDownloadedAt?: string;
+  downloadsByFormat?: Record<string, number>;
+  shares?: number;
+  lastSharedAt?: string;
+
+  // Legacy/Flat structure support
+  viewCount?: number;
+  uniqueViews?: number;
+  uniqueViewCount?: number;
+  downloadCount?: number;
+  shareCount?: number;
 }
 
 /**

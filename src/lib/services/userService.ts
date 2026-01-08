@@ -105,11 +105,16 @@ export async function getUserProfile(userId: string) {
   return doc.data();
 }
 
+/** Input for creating a user profile - validated via Zod schema */
+type CreateUserProfileInput = z.infer<typeof userProfileSchema>;
+
 /**
  * Creates a new user profile.
  * Enforces server-controlled fields like role and tier.
  */
-export async function createUserProfile(data: any): Promise<Partial<User>> {
+export async function createUserProfile(
+  data: CreateUserProfileInput
+): Promise<Partial<User>> {
   // Validate input
   const validation = userProfileSchema.safeParse(data);
   if (!validation.success) {
@@ -134,8 +139,8 @@ export async function createUserProfile(data: any): Promise<Partial<User>> {
     profileSlug: uid, // Default slug
     settings: {
       publicProfile: false,
-      defaultPIIVisibility: "masked"
-    }
+      defaultPIIVisibility: "masked",
+    },
   };
 
   await adminDb
@@ -146,11 +151,17 @@ export async function createUserProfile(data: any): Promise<Partial<User>> {
   return userProfileData as unknown as Partial<User>;
 }
 
+/** Input for updating a user profile - validated via Zod schema */
+type UpdateUserProfileInput = Omit<z.infer<typeof updateProfileSchema>, "uid">;
+
 /**
  * Updates a user profile.
  * Restricts updates to allowed fields (displayName, companyName).
  */
-export async function updateUserProfile(uid: string, data: any) {
+export async function updateUserProfile(
+  uid: string,
+  data: UpdateUserProfileInput
+) {
   const validation = updateProfileSchema.safeParse({ ...data, uid });
   if (!validation.success) {
     throw new Error(`Validation failed: ${validation.error.message}`);
@@ -158,7 +169,7 @@ export async function updateUserProfile(uid: string, data: any) {
 
   const { displayName, companyName } = validation.data;
 
-  const updateData: any = {
+  const updateData: Record<string, string | undefined> = {
     updatedAt: new Date().toISOString(),
   };
 
@@ -166,6 +177,30 @@ export async function updateUserProfile(uid: string, data: any) {
   if (companyName !== undefined) updateData.companyName = companyName;
 
   await adminDb.collection("users").doc(uid).set(updateData, { merge: true });
+
+  return updateData;
+}
+
+/**
+ * Sets the role for a user.
+ */
+export async function setUserRole(userId: string, role: UserRole) {
+  const isRecruiter = role === "recruiter";
+  const updateData = {
+    role,
+    isRecruiter,
+    roleSelectedAt: new Date().toISOString(),
+    roleUpdatedAt: new Date().toISOString(),
+    roleUpdatedBy: "user-selection",
+  };
+
+  await adminDb
+    .collection("users")
+    .doc(userId)
+    .set(updateData, { merge: true });
+
+  // Invalidate cache
+  userRoleCache.delete(userId);
 
   return updateData;
 }

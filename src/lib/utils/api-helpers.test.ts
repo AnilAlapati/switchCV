@@ -70,6 +70,8 @@ describe("api-helpers", () => {
         headers: {
           get: jest.fn().mockReturnValue("InvalidToken"),
         },
+        method: "POST",
+        nextUrl: { pathname: "/test" },
       } as unknown as NextRequest;
 
       const result = await getAuthenticatedUserId(req);
@@ -219,7 +221,6 @@ describe("api-helpers", () => {
       expect(response.status).toBe(500);
       expect(response.body).toEqual({
         error: "Internal server error",
-        details: "Test error",
       });
     });
 
@@ -229,7 +230,6 @@ describe("api-helpers", () => {
       expect(response.status).toBe(400);
       expect(response.body).toEqual({
         error: "Custom error",
-        details: "Some string error",
       });
     });
 
@@ -260,6 +260,7 @@ describe("api-helpers", () => {
         headers: {
           get: jest.fn().mockReturnValue("Bearer valid-token"),
         },
+        nextUrl: { pathname: "/test" },
       } as unknown as NextRequest;
 
       (adminAuth.verifyIdToken as jest.Mock).mockResolvedValue({
@@ -289,6 +290,7 @@ describe("api-helpers", () => {
         headers: {
           get: jest.fn().mockReturnValue("Bearer valid-token"),
         },
+        nextUrl: { pathname: "/test" },
       } as unknown as NextRequest;
 
       (adminAuth.verifyIdToken as jest.Mock).mockResolvedValue({

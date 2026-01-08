@@ -3,6 +3,21 @@ import type { ReactNode } from "react";
 import { render, screen, act } from "@/__tests__/__support__/testUtils";
 import Home from "../../app/page";
 
+// Mock use-intl before any component imports
+jest.mock("use-intl", () => ({
+  useLocale: () => "en",
+  useTranslations: () => (key: string) => key,
+  useFormatter: () => ({
+    dateTime: jest.fn(),
+    number: jest.fn(),
+  }),
+}));
+
+// Mock LanguageSwitcher component to avoid use-intl issues
+jest.mock("@/components/LanguageSwitcher", () => ({
+  LanguageSwitcher: () => <div data-testid="language-switcher">EN</div>,
+}));
+
 // Mock Next.js navigation
 const mockPush = jest.fn();
 jest.mock("next/navigation", () => ({
@@ -52,7 +67,7 @@ jest.mock("@/components/home/HomeHero", () => ({
       <p>Tell your career story with AI assistance</p>
       <div>{stats?.resumes} Resumes</div>
     </div>
-  )
+  ),
 }));
 jest.mock("@/components/home/HomeFeatureCards", () => ({
   HomeFeatureCards: () => (
@@ -62,10 +77,14 @@ jest.mock("@/components/home/HomeFeatureCards", () => ({
       <div>View Tracking</div>
       <div>AI-Powered Search</div>
     </div>
-  )
+  ),
 }));
-jest.mock("@/components/home/HomeWorkflow", () => ({ HomeWorkflow: () => <div>HomeWorkflow</div> }));
-jest.mock("@/components/home/HomeTestimonials", () => ({ HomeTestimonials: () => <div>HomeTestimonials</div> }));
+jest.mock("@/components/home/HomeWorkflow", () => ({
+  HomeWorkflow: () => <div>HomeWorkflow</div>,
+}));
+jest.mock("@/components/home/HomeTestimonials", () => ({
+  HomeTestimonials: () => <div>HomeTestimonials</div>,
+}));
 jest.mock("@/components/home/HomeFooterCta", () => ({
   HomeFooterCta: () => (
     <div>
@@ -73,9 +92,11 @@ jest.mock("@/components/home/HomeFooterCta", () => ({
       <a href="/auth">Sign In</a>
       <a href="/auth?mode=signup">Sign Up</a>
     </div>
-  )
+  ),
 }));
-jest.mock("@/components/ui/BackgroundBlobs", () => ({ BackgroundBlobs: () => <div>BackgroundBlobs</div> }));
+jest.mock("@/components/ui/BackgroundBlobs", () => ({
+  BackgroundBlobs: () => <div>BackgroundBlobs</div>,
+}));
 
 describe("Home", () => {
   beforeEach(() => {
@@ -104,7 +125,9 @@ describe("Home", () => {
     await act(async () => {
       render(<Home />);
     });
-    const getStartedButton = screen.getByRole("button", { name: /Get Started/i });
+    const getStartedButton = screen.getByRole("button", {
+      name: /Get Started/i,
+    });
     expect(getStartedButton).toBeDefined();
 
     const signupLink = screen.getByRole("link", { name: /Sign Up/i });

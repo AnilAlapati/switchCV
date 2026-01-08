@@ -50,6 +50,7 @@ describe("useProfileForm", () => {
 
       expect(result.current.profile.experience).toHaveLength(1);
       expect(result.current.profile.experience![0]).toEqual({
+        id: expect.any(String),
         company: "",
         role: "",
         startDate: "",

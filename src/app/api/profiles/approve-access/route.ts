@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line no-restricted-imports
+ 
 import {
   getAuthenticatedUserId,
   handleApiError,
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     if (error.message?.toLowerCase().includes("not found"))
       return handleApiError(error, "Not found", 404);
     if (error.message?.includes("already processed"))
-      return handleApiError(error, error.message, 400);
+      return handleApiError(error, "Request already processed", 400);
     return handleApiError(error, "Failed to approve access");
   }
 }

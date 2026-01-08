@@ -82,9 +82,9 @@ jest.mock("@/lib/firebase-admin", () => ({
     })),
     runTransaction: jest.fn(async (fn) => {
       const mockTransaction = {
-        get: jest.fn().mockResolvedValue({ 
-          exists: false, 
-          data: jest.fn(() => undefined) 
+        get: jest.fn().mockResolvedValue({
+          exists: false,
+          data: jest.fn(() => undefined),
         }),
         set: jest.fn(),
         update: jest.fn(),

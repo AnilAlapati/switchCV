@@ -9,7 +9,6 @@ import { logger } from "@/lib/logger";
  */
 
 import { adminDb } from "@/lib/firebase-admin";
-import { getConstants } from "@/lib/getSystemConfig";
 
 interface RateLimitEntry {
   count: number;
@@ -39,6 +38,8 @@ export interface DistributedRateLimitOptions {
   windowMs?: number;
   /** Scope for the rate limit (e.g., "ai-search", "api") */
   scope?: string;
+  /** User tier for automatic limit lookup */
+  tier?: string;
 }
 
 const RATE_LIMIT_COLLECTION = "rateLimits";
@@ -61,35 +62,31 @@ const RATE_LIMIT_COLLECTION = "rateLimits";
  */
 
 import { TIER_RATE_LIMITS, RateLimitScope } from "@/lib/config/rateLimits";
-import { getUserTier } from "@/lib/services/userService";
 
 // ... existing interfaces ...
 
 /**
  * Check and update distributed rate limit using Firestore transaction.
  * This works across serverless instances unlike in-memory rate limiting.
- * 
+ *
  * Updated to automatically enforce tier-based limits if tier lookup is enabled.
  */
 export async function checkDistributedRateLimit(
   identifier: string,
   options: DistributedRateLimitOptions = {}
 ): Promise<DistributedRateLimitResult> {
-  let {
-    limit,
-    windowMs,
-    scope = "default",
-  } = options;
+  const { scope = "default" } = options;
+  let { limit, windowMs } = options;
 
   // If specific limits aren't provided, try to resolve from tier
   // Note: We need a way to know if 'limit' was explicitly passed or just default.
   // In this implementation, we prioritize tier-based config if we can find the user's tier.
   // Ideally, the caller should pass the tier if they already have it to avoid double-fetching.
 
-  // However, `options` doesn't currently accept `tier`. Let's assume for now the caller 
-  // might rely on defaults or pass explicit values. 
+  // However, `options` doesn't currently accept `tier`. Let's assume for now the caller
+  // might rely on defaults or pass explicit values.
   // TO FIX: We need to allow passing `tier` or fetching it.
-  // Let's modify the signature or logic in a follow-up if needed, but for now, 
+  // Let's modify the signature or logic in a follow-up if needed, but for now,
   // we will respect explicit options if provided, otherwise default to a safe fallback.
 
   // ACTUALLY: The best way is to allow specific limits to be overridden by the caller
@@ -97,15 +94,18 @@ export async function checkDistributedRateLimit(
   // So we should verify if the caller passed the tier-limit logic.
 
   // Let's keep this function low-level. It just enforces what it is told.
-  // The CALLER (route handler) is responsible for looking up the correct limit 
+  // The CALLER (route handler) is responsible for looking up the correct limit
   // from TIER_RATE_LIMITS and passing it here.
 
   // Wait, the plan said: "Update checkDistributedRateLimit to optionally accept a User Tier"
   // Let's add that to the options.
 
-  if ((options as any).tier) {
-    const tier = (options as any).tier as keyof typeof TIER_RATE_LIMITS;
-    const config = TIER_RATE_LIMITS[tier]?.[scope as RateLimitScope] || TIER_RATE_LIMITS[tier]?.default || TIER_RATE_LIMITS.basic.default;
+  if (options.tier) {
+    const tier = options.tier as keyof typeof TIER_RATE_LIMITS;
+    const config =
+      TIER_RATE_LIMITS[tier]?.[scope as RateLimitScope] ||
+      TIER_RATE_LIMITS[tier]?.default ||
+      TIER_RATE_LIMITS.basic.default;
     limit = config.limit;
     windowMs = config.windowMs;
   }
@@ -117,7 +117,6 @@ export async function checkDistributedRateLimit(
   const now = Date.now();
   const docId = `${scope}:${identifier}`.replace(/[/\\]/g, "_");
   const rateLimitRef = adminDb.collection(RATE_LIMIT_COLLECTION).doc(docId);
-
 
   try {
     const result = await adminDb.runTransaction(async (transaction) => {

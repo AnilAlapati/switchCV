@@ -1,6 +1,7 @@
 /* eslint-disable max-lines */
-import { type ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { SearchResult, SearchModeType } from "./RecruiterSearchForm";
+import { AgentMessageModal } from "@/components/recruiter/AgentMessageModal";
 
 interface RecruiterSearchResultsProps {
   results: SearchResult[];
@@ -10,6 +11,8 @@ interface RecruiterSearchResultsProps {
   searchMode: SearchModeType;
   onViewResume: (resumeId: string) => void;
   onRequestAccess?: (resumeId: string, userName: string) => void;
+  // TODO: Pass in current user context/job context if available, or fetch from props
+  jobContext?: { title: string; description?: string };
 }
 
 const badgeStyles: Record<
@@ -24,14 +27,12 @@ const badgeStyles: Record<
   },
   pending: {
     label: "Pending",
-    classes:
-      "bg-amber-50 text-amber-700 border border-amber-200 shadow-sm",
+    classes: "bg-amber-50 text-amber-700 border border-amber-200 shadow-sm",
     helper: "You'll be notified when the candidate responds",
   },
   denied: {
     label: "Denied",
-    classes:
-      "bg-rose-50 text-rose-700 border border-rose-200 shadow-sm",
+    classes: "bg-rose-50 text-rose-700 border border-rose-200 shadow-sm",
     helper: "Consider personalizing your request and trying again",
   },
   none: {
@@ -50,10 +51,11 @@ const Callout = ({
 }) => (
   <section className="glass-panel p-6">
     <div
-      className={`flex items-center gap-3 rounded-2xl border px-5 py-4 font-bold shadow-sm ${variant === "error"
-        ? "border-rose-200 bg-rose-50 text-rose-700"
-        : "border-cyan-200 bg-cyan-50 text-cyan-700"
-        }`}
+      className={`flex items-center gap-3 rounded-2xl border px-5 py-4 font-bold shadow-sm ${
+        variant === "error"
+          ? "border-rose-200 bg-rose-50 text-rose-700"
+          : "border-cyan-200 bg-cyan-50 text-cyan-700"
+      }`}
     >
       <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-white/40 shadow-sm">
         {variant === "error" ? "!" : "i"}
@@ -71,7 +73,94 @@ export function RecruiterSearchResults({
   searchMode,
   onViewResume,
   onRequestAccess,
+  jobContext = {
+    title: "Software Engineer",
+    description:
+      "Looking for a skilled developer with React and Node.js experience.",
+  },
 }: RecruiterSearchResultsProps) {
+  const [draftingFor, setDraftingFor] = useState<string | null>(null);
+  const [analyzingFor, setAnalyzingFor] = useState<string | null>(null);
+  const [generatedMessage, setGeneratedMessage] = useState<string | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<Record<string, string>>(
+    {}
+  );
+  const [isAgentLoading, setIsAgentLoading] = useState(false);
+
+  const handleDraftMessage = async (result: SearchResult) => {
+    try {
+      setIsAgentLoading(true);
+      setDraftingFor(result.resumeId);
+
+      const response = await fetch("/api/recruiter/agent/outreach", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          candidate: {
+            name: result.userName,
+            title: result.title,
+            skills: result.skills,
+            experience: result.summary,
+          },
+          job: jobContext,
+          recruiter: { recruiterName: "Hiring Team" }, // This should come from auth/user context
+        }),
+      });
+
+      const data = await response.json();
+      if (data.message) {
+        setGeneratedMessage(data.message);
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("Agent failed", err);
+      // Optional: Show toast error
+    } finally {
+      setIsAgentLoading(false);
+    }
+  };
+
+  const handleAnalyzeMatch = async (result: SearchResult) => {
+    // Toggle off if already showing
+    if (analysisResult[result.resumeId]) {
+      setAnalysisResult((prev) => {
+        const next = { ...prev };
+        delete next[result.resumeId];
+        return next;
+      });
+      return;
+    }
+
+    try {
+      setAnalyzingFor(result.resumeId);
+      const response = await fetch("/api/recruiter/agent/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          candidate: {
+            title: result.title,
+            skills: result.skills,
+            experience: result.summary,
+          },
+          job: jobContext,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.analysis) {
+        setAnalysisResult((prev) => ({
+          ...prev,
+          [result.resumeId]: data.analysis,
+        }));
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("Analysis failed", err);
+    } finally {
+      setAnalyzingFor(null);
+    }
+  };
+
   if (error) {
     return <Callout variant="error">{error}</Callout>;
   }
@@ -85,6 +174,16 @@ export function RecruiterSearchResults({
   if (hasResults) {
     return (
       <section className="space-y-5">
+        {generatedMessage && (
+          <AgentMessageModal
+            message={generatedMessage}
+            onClose={() => {
+              setGeneratedMessage(null);
+              setDraftingFor(null);
+            }}
+          />
+        )}
+
         <div className="glass-panel flex flex-col gap-3 rounded-3xl px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="mb-1 flex items-center gap-2">
@@ -98,7 +197,7 @@ export function RecruiterSearchResults({
             </h3>
           </div>
           <p className="text-sm leading-relaxed text-[#2C4A3B]/70">
-            Results sorted by recency. Refine filters to narrow down.
+            ✨ Agent actions enabled for all results
           </p>
         </div>
 
@@ -107,6 +206,9 @@ export function RecruiterSearchResults({
             const status = result.accessStatus ?? "none";
             const badge = badgeStyles[status];
             const created = new Date(result.createdAt).toLocaleDateString();
+            const analysis = analysisResult[result.resumeId];
+            const isAnalyzing = analyzingFor === result.resumeId;
+            const isDrafting = draftingFor === result.resumeId;
 
             const actionArea = () => {
               if (status === "approved") {
@@ -175,49 +277,42 @@ export function RecruiterSearchResults({
                     className="group w-full rounded-xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-sm font-bold text-rose-100 transition-all hover:border-rose-400/60 hover:bg-rose-500/20 hover:shadow-lg hover:shadow-rose-500/20"
                   >
                     <span className="flex items-center justify-center gap-2">
-                      <svg
-                        className="h-4 w-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                        />
-                      </svg>
                       Request Again
                     </span>
                   </button>
                 );
               }
               return (
-                <button
-                  onClick={() =>
-                    onRequestAccess?.(result.resumeId, result.userName)
-                  }
-                  className="group relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-cyan-500/30 transition-all hover:shadow-xl hover:shadow-cyan-500/40"
-                >
-                  <span className="relative z-10 flex items-center justify-center gap-2">
-                    <svg
-                      className="h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+                <div className="space-y-3">
+                  <button
+                    onClick={() =>
+                      onRequestAccess?.(result.resumeId, result.userName)
+                    }
+                    className="group relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-cyan-500/30 transition-all hover:shadow-xl hover:shadow-cyan-500/40"
+                  >
+                    <span className="relative z-10 flex items-center justify-center gap-2">
+                      Request Access
+                    </span>
+                  </button>
+
+                  {/* AGENT ACTIONS */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleDraftMessage(result)}
+                      disabled={isDrafting || isAgentLoading}
+                      className="flex-1 rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-bold text-purple-700 hover:bg-purple-100 transition-colors disabled:opacity-50"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                      />
-                    </svg>
-                    Request Access
-                  </span>
-                  <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-500 group-hover:translate-x-full"></div>
-                </button>
+                      {isDrafting ? "Drafting..." : "✨ Draft Msg"}
+                    </button>
+                    <button
+                      onClick={() => handleAnalyzeMatch(result)}
+                      disabled={isAnalyzing}
+                      className="flex-1 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition-colors disabled:opacity-50"
+                    >
+                      {isAnalyzing ? "Thinking..." : "🧠 Analyze"}
+                    </button>
+                  </div>
+                </div>
               );
             };
 
@@ -271,6 +366,24 @@ export function RecruiterSearchResults({
                               {skill}
                             </span>
                           ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ANALYSIS RESULT AREA */}
+                    {analysis && (
+                      <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50/50 p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-indigo-600">🧠</span>
+                          <span className="text-xs font-bold text-indigo-800 uppercase tracking-wide">
+                            AI Analysis
+                          </span>
+                        </div>
+                        <div className="prose prose-sm prose-indigo max-w-none text-sm text-indigo-900/80">
+                          {/* Simple markdown rendering */}
+                          <pre className="whitespace-pre-wrap font-sans text-sm">
+                            {analysis}
+                          </pre>
                         </div>
                       </div>
                     )}

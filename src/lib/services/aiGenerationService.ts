@@ -1,6 +1,7 @@
 import { withRetry } from "@/lib/utils/retry";
 import { logger } from "@/lib/logger";
 import { getConstants } from "@/lib/getSystemConfig";
+import { AI_ENDPOINTS, DEFAULT_STOP_SEQUENCES } from "@/config/aiEndpoints";
 
 const AI_REQUEST_TIMEOUT = 30000; // 30 seconds
 
@@ -106,9 +107,7 @@ async function getAvailableGeminiModels(apiKey: string): Promise<string[]> {
     inflightModelFetch = (async () => {
       try {
         const response = await withRetry(() =>
-          fetchWithTimeout(
-            `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`
-          )
+          fetchWithTimeout(AI_ENDPOINTS.GEMINI.MODELS(apiKey))
         );
 
         if (!response.ok) {
@@ -159,6 +158,47 @@ async function loadModelSelection(apiKey: string): Promise<{
   };
 }
 
+// Token counting utility (Heuristic)
+const TOKENS_PER_CHAR = 0.25; // ~4 chars = 1 token
+const MAX_TOKENS_GEMINI = 30000; // Safe buffer
+const MAX_TOKENS_DEFAULT = 4000; // Standard window
+
+function estimateTokenCount(text: string): number {
+  return Math.ceil(text.length * TOKENS_PER_CHAR);
+}
+
+async function validateContextWindow(
+  prompt: string,
+  modelName: string = "default"
+): Promise<boolean> {
+  const tokenCount = estimateTokenCount(prompt);
+  let maxTokens = MAX_TOKENS_DEFAULT;
+
+  if (modelName.toLowerCase().includes("gemini")) {
+    maxTokens = MAX_TOKENS_GEMINI;
+  } else if (modelName.toLowerCase().includes("gpt-4")) {
+    maxTokens = 8000;
+  } else if (modelName.toLowerCase().includes("llama")) {
+    maxTokens = 8000;
+  } else if (modelName.toLowerCase().includes("t5")) {
+    maxTokens = 1000; // FLAN-T5 is small
+  }
+
+  if (tokenCount > maxTokens) {
+    logger.warn(
+      { tokenCount, maxTokens, modelName },
+      "Context window limit exceeded"
+    );
+    throw new Error(
+      `Prompt exceeds ${maxTokens} tokens (estimated: ${tokenCount}) for model ${modelName}`
+    );
+  }
+
+  // Log usage for monitoring
+  logger.info({ tokenCount, modelName }, "Token usage estimated");
+  return true;
+}
+
 /**
  * Select the best available model based on preferences
  */
@@ -194,14 +234,23 @@ async function selectBestModel(availableModels: string[]): Promise<string> {
 }
 
 /**
+ * Token usage information from LLM APIs
+ */
+export interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
+/**
  * Generate text using Gemini API
  */
 async function generateWithGemini(
   prompt: string,
   maxTokens: number = 150,
-  temperature: number = 0.9,
+  temperature: number = 0.7,
   model?: string
-): Promise<{ text: string; model: string }> {
+): Promise<{ text: string; model: string; usage?: TokenUsage }> {
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
@@ -219,7 +268,7 @@ async function generateWithGemini(
     // We construct a single-item pool
     selection = {
       models: [model],
-      usingFallback: false
+      usingFallback: false,
     };
   }
 
@@ -251,30 +300,31 @@ async function generateWithGemini(
       continue;
     }
 
-    const modelName = model || await selectBestModel(candidatePool);
+    const modelName = model || (await selectBestModel(candidatePool));
     logger.info({ model: modelName }, "Using Gemini model");
+
+    // NEW: Validate context window
+    await validateContextWindow(prompt, modelName);
 
     let response: Response;
     try {
       response = await withRetry(() =>
-        fetchWithTimeout(
-          `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${apiKey}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [
-                {
-                  parts: [{ text: prompt }],
-                },
-              ],
-              generationConfig: {
-                temperature,
-                maxOutputTokens: maxTokens,
+        fetchWithTimeout(AI_ENDPOINTS.GEMINI.GENERATE(modelName, apiKey), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [{ text: prompt }],
               },
-            }),
-          }
-        )
+            ],
+            generationConfig: {
+              temperature,
+              maxOutputTokens: maxTokens,
+              stopSequences: [...DEFAULT_STOP_SEQUENCES],
+            },
+          }),
+        })
       );
     } catch (error) {
       lastError =
@@ -305,9 +355,19 @@ async function generateWithGemini(
       throw new Error("No text generated from Gemini");
     }
 
+    // Parse usageMetadata from Gemini response
+    const usage: TokenUsage | undefined = data.usageMetadata
+      ? {
+          promptTokens: data.usageMetadata.promptTokenCount || 0,
+          completionTokens: data.usageMetadata.candidatesTokenCount || 0,
+          totalTokens: data.usageMetadata.totalTokenCount || 0,
+        }
+      : undefined;
+
     return {
       text: text.trim(),
       model: modelName,
+      usage,
     };
   }
 
@@ -318,14 +378,11 @@ async function generateWithGemini(
   throw new Error("Gemini API error: No supported models available");
 }
 
-/**
- * Generate text using OpenAI API
- */
 async function generateWithOpenAI(
   prompt: string,
   maxTokens: number = 150,
-  temperature: number = 0.9
-): Promise<{ text: string; model: string }> {
+  temperature: number = 0.7
+): Promise<{ text: string; model: string; usage?: TokenUsage }> {
   const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
@@ -334,8 +391,10 @@ async function generateWithOpenAI(
 
   const model = "gpt-4o-mini"; // Fast and cheap
 
+  await validateContextWindow(prompt, model);
+
   const response = await withRetry(() =>
-    fetchWithTimeout("https://api.openai.com/v1/chat/completions", {
+    fetchWithTimeout(AI_ENDPOINTS.OPENAI.CHAT_COMPLETIONS, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -346,6 +405,7 @@ async function generateWithOpenAI(
         messages: [{ role: "user", content: prompt }],
         max_tokens: maxTokens,
         temperature,
+        stop: [...DEFAULT_STOP_SEQUENCES],
       }),
     })
   );
@@ -362,9 +422,19 @@ async function generateWithOpenAI(
     throw new Error("No text generated from OpenAI");
   }
 
+  // Parse usage from OpenAI response
+  const usage: TokenUsage | undefined = data.usage
+    ? {
+        promptTokens: data.usage.prompt_tokens || 0,
+        completionTokens: data.usage.completion_tokens || 0,
+        totalTokens: data.usage.total_tokens || 0,
+      }
+    : undefined;
+
   return {
     text: text.trim(),
     model,
+    usage,
   };
 }
 
@@ -374,8 +444,8 @@ async function generateWithOpenAI(
 async function generateWithGroq(
   prompt: string,
   maxTokens: number = 150,
-  temperature: number = 0.9
-): Promise<{ text: string; model: string }> {
+  temperature: number = 0.7
+): Promise<{ text: string; model: string; usage?: TokenUsage }> {
   const apiKey = process.env.GROQ_API_KEY;
 
   if (!apiKey) {
@@ -384,8 +454,10 @@ async function generateWithGroq(
 
   const model = "llama-3.3-70b-versatile"; // Fast and free tier available
 
+  await validateContextWindow(prompt, model);
+
   const response = await withRetry(() =>
-    fetchWithTimeout("https://api.groq.com/openai/v1/chat/completions", {
+    fetchWithTimeout(AI_ENDPOINTS.GROQ.CHAT_COMPLETIONS, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -396,6 +468,7 @@ async function generateWithGroq(
         messages: [{ role: "user", content: prompt }],
         max_tokens: maxTokens,
         temperature,
+        stop: [...DEFAULT_STOP_SEQUENCES],
       }),
     })
   );
@@ -412,9 +485,19 @@ async function generateWithGroq(
     throw new Error("No text generated from Groq");
   }
 
+  // Parse usage from Groq response (OpenAI-compatible format)
+  const usage: TokenUsage | undefined = data.usage
+    ? {
+        promptTokens: data.usage.prompt_tokens || 0,
+        completionTokens: data.usage.completion_tokens || 0,
+        totalTokens: data.usage.total_tokens || 0,
+      }
+    : undefined;
+
   return {
     text: text.trim(),
     model,
+    usage,
   };
 }
 
@@ -424,7 +507,7 @@ async function generateWithGroq(
 async function generateWithHuggingFace(
   prompt: string,
   maxTokens: number = 150,
-  temperature: number = 0.9
+  temperature: number = 0.7
 ): Promise<string> {
   const token = process.env.HUGGINGFACE_TOKEN;
 
@@ -433,24 +516,24 @@ async function generateWithHuggingFace(
   }
 
   // HuggingFace Inference API - using text-generation endpoint
+  await validateContextWindow(prompt, "flan-t5-base");
+
   const response = await withRetry(() =>
-    fetchWithTimeout(
-      "https://router.huggingface.co/models/google/flan-t5-base",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
+    fetchWithTimeout(AI_ENDPOINTS.HUGGINGFACE.MODELS("google/flan-t5-base"), {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        inputs: prompt,
+        parameters: {
+          max_new_tokens: maxTokens,
+          temperature,
+          stop_sequences: [...DEFAULT_STOP_SEQUENCES],
         },
-        body: JSON.stringify({
-          inputs: prompt,
-          parameters: {
-            max_new_tokens: maxTokens,
-            temperature,
-          },
-        }),
-      }
-    )
+      }),
+    })
   );
 
   if (!response.ok) {
@@ -485,116 +568,128 @@ async function generateWithHuggingFace(
   throw new Error("Unexpected HuggingFace response format");
 }
 
-// Circuit Breaker System
-import { CircuitBreaker } from "@/lib/utils/CircuitBreaker";
-
-const breakers = {
-  google: new CircuitBreaker("google", { failureThreshold: 3, resetTimeoutMs: 60000 }),
-  openai: new CircuitBreaker("openai", { failureThreshold: 3, resetTimeoutMs: 60000 }),
-  groq: new CircuitBreaker("groq", { failureThreshold: 3, resetTimeoutMs: 60000 }),
-  huggingface: new CircuitBreaker("huggingface", { failureThreshold: 3, resetTimeoutMs: 60000 }),
-};
+import { providerFallback } from "@/lib/services/ai/ProviderFallbackChain";
+import { aiCircuitBreaker } from "@/lib/services/ai/CircuitBreaker";
 
 /**
- * Generate text with fallback to multiple providers
+ * Generate text with dynamic fallback based on provider health
  */
 export async function generateText(
   prompt: string,
   maxTokens: number = 150,
-  temperature: number = 0.9,
+  temperature: number = 0.7,
   model?: string
-): Promise<{ text: string; model: string; provider: string }> {
+): Promise<{
+  text: string;
+  model: string;
+  provider: string;
+  usage?: TokenUsage;
+}> {
+  const providers = providerFallback.getPrioritizedProviders();
   const errors: Record<string, string> = {};
 
-  // Try Gemini first
-  if (!breakers.google.isOpen()) {
+  for (const provider of providers) {
+    const startTime = Date.now();
+
     try {
-      logger.info("Trying Gemini API...");
-      const result = await generateWithGemini(prompt, maxTokens, temperature, model);
-      logger.info({ model: result.model }, "Gemini API success");
-      breakers.google.recordSuccess();
+      logger.info({ provider }, "Attempting AI generation");
+
+      let result;
+      switch (provider) {
+        case "gemini":
+          result = await generateWithGemini(
+            prompt,
+            maxTokens,
+            temperature,
+            model
+          );
+          break;
+        case "openai":
+          result = await generateWithOpenAI(prompt, maxTokens, temperature);
+          break;
+        case "groq":
+          result = await generateWithGroq(prompt, maxTokens, temperature);
+          break;
+        case "huggingface":
+          const text = await generateWithHuggingFace(
+            prompt,
+            maxTokens,
+            temperature
+          );
+          result = { text, model: "flan-t5-base", usage: undefined };
+          break;
+        default:
+          throw new Error(`Unknown provider: ${provider}`);
+      }
+
+      // Success
+      const duration = Date.now() - startTime;
+      logger.info(
+        { provider, model: result.model, duration },
+        "Generation success"
+      );
+
+      providerFallback.reportSuccess(provider, duration);
+      aiCircuitBreaker.recordSuccess(provider);
+
       return {
         text: result.text,
         model: result.model,
-        provider: "google",
+        provider,
+        usage: result.usage,
       };
     } catch (error) {
-      breakers.google.recordFailure();
-      const errorMsg = error instanceof Error ? error.message : "Unknown error";
-      errors.gemini = errorMsg;
-      logger.error({ err: error }, "Gemini failed");
-    }
-  } else {
-    logger.warn("Gemini Circuit Breaker OPEN - Skipping");
-  }
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      errors[provider] = errorMsg;
 
-  // Try OpenAI as second fallback
-  if (!breakers.openai.isOpen()) {
-    try {
-      logger.info("Trying OpenAI API...");
-      const result = await generateWithOpenAI(prompt, maxTokens, temperature);
-      logger.info({ model: result.model }, "OpenAI API success");
-      breakers.openai.recordSuccess();
-      return {
-        text: result.text,
-        model: result.model,
-        provider: "openai",
-      };
-    } catch (error) {
-      breakers.openai.recordFailure();
-      const errorMsg = error instanceof Error ? error.message : "Unknown error";
-      errors.openai = errorMsg;
-      logger.error({ err: error }, "OpenAI failed");
-    }
-  } else {
-    logger.warn("OpenAI Circuit Breaker OPEN - Skipping");
-  }
+      logger.warn({ provider, err: error }, "Provider generation failed");
 
-
-  // Try Groq as third fallback (fast & free)
-  if (!breakers.groq.isOpen()) {
-    try {
-      logger.info("Trying Groq API...");
-      const result = await generateWithGroq(prompt, maxTokens, temperature);
-      logger.info({ model: result.model }, "Groq API success");
-      breakers.groq.recordSuccess();
-      return {
-        text: result.text,
-        model: result.model,
-        provider: "groq",
-      };
-    } catch (error) {
-      breakers.groq.recordFailure();
-      const errorMsg = error instanceof Error ? error.message : "Unknown error";
-      errors.groq = errorMsg;
-      logger.error({ err: error }, "Groq failed");
+      // Update health and circuit breaker
+      providerFallback.reportFailure(provider);
+      aiCircuitBreaker.recordFailure(provider);
     }
-  } else {
-    logger.warn("Groq Circuit Breaker OPEN - Skipping");
-  }
-
-  // Try HuggingFace as last fallback
-  if (!breakers.huggingface.isOpen()) {
-    try {
-      logger.info("Trying HuggingFace API...");
-      const text = await generateWithHuggingFace(prompt, maxTokens, temperature);
-      logger.info("HuggingFace API success");
-      breakers.huggingface.recordSuccess();
-      return {
-        text,
-        model: "FLAN-T5 Base",
-        provider: "huggingface",
-      };
-    } catch (error) {
-      breakers.huggingface.recordFailure();
-      const errorMsg = error instanceof Error ? error.message : "Unknown error";
-      errors.huggingface = errorMsg;
-      logger.error({ err: error }, "HuggingFace failed");
-    }
-  } else {
-    logger.warn("HuggingFace Circuit Breaker OPEN - Skipping");
   }
 
   // All providers failed
-  throw new Error(`All AI providers failed or blocked: ${JSON.stringify(errors)}`);
+  logger.error({ errors }, "All AI providers failed");
+  throw new Error(`All AI providers failed: ${JSON.stringify(errors)}`);
+}
+
+/**
+ * Generate vector embeddings for text using Gemini
+ * Model: models/embedding-001 (768 dimensions)
+ */
+export async function generateEmbedding(text: string): Promise<number[]> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("Gemini API key missing");
+
+  // model: "models/embedding-001" or "models/text-embedding-004"
+  const model = "models/text-embedding-004";
+
+  const result = await fetchWithTimeout(
+    AI_ENDPOINTS.GEMINI.EMBED(model, apiKey),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        content: { parts: [{ text }] },
+        model,
+      }),
+    }
+  );
+
+  if (!result.ok) {
+    const err = await result.text();
+    throw new Error(`Embedding failed (${result.status}): ${err}`);
+  }
+
+  const data = await result.json();
+  // data.embedding.values
+  const values = data.embedding?.values;
+
+  if (!values || !Array.isArray(values)) {
+    throw new Error("Invalid embedding response structure");
+  }
+
+  return values;
 }

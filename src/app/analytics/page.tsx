@@ -1,7 +1,7 @@
 /* eslint-disable max-lines */
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserProfile } from "@/hooks/useUserProfile";
@@ -17,8 +17,17 @@ export default function AnalyticsPage() {
   const router = useRouter();
 
   // Use SWR hook for analytics data with caching
-  const canFetchAnalytics = !authLoading && !roleLoading && !!user && (role === "admin" || role === "recruiter");
-  const { analytics, loading: analyticsLoading, error, refresh } = useSystemAnalytics(canFetchAnalytics);
+  const canFetchAnalytics =
+    !authLoading &&
+    !roleLoading &&
+    !!user &&
+    (role === "admin" || role === "recruiter");
+  const {
+    analytics,
+    loading: analyticsLoading,
+    error,
+    refresh,
+  } = useSystemAnalytics(canFetchAnalytics);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -86,9 +95,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Show skeleton while initial data is loading */}
-        {analyticsLoading && !analytics && (
-          <AnalyticsPageSkeleton />
-        )}
+        {analyticsLoading && !analytics && <AnalyticsPageSkeleton />}
 
         {error && (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center">

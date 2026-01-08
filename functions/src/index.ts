@@ -191,6 +191,25 @@ export const generateResumeContent = functions
     return generateResumeContentHandler(req, res);
   });
 
+// Async resume generation processor (Cloud Task handler)
+export const processResumeGenerationAsync = functions
+  .runWith({
+    secrets: [
+      "HUGGINGFACE_TOKEN",
+      "GEMINI_API_KEY",
+      "GROQ_API_KEY",
+      "OPENAI_API_KEY",
+    ],
+    timeoutSeconds: 540, // 9 minutes max
+    memory: "1GB",
+  })
+  .https.onRequest(async (req, res) => {
+    const { processResumeGenerationHandler } = await import(
+      "./processResumeGeneration"
+    );
+    return processResumeGenerationHandler(req, res);
+  });
+
 // ==================== ANALYTICS ====================
 
 export const aggregateGlobalStats = functions

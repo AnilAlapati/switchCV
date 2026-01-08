@@ -44,7 +44,7 @@ jest.mock("@/lib/firebase-admin", () => ({
 import {
   getDashboardAnalytics,
   getAnalytics,
-  aggregateToDashboard
+  aggregateToDashboard,
 } from "@/lib/services/analyticsService";
 
 // Mock auth helpers
@@ -111,7 +111,8 @@ describe("GET /api/analytics/dashboard", () => {
       (analytics, heatmaps, recruiters, benchmark) => ({
         summary: {
           totalViews: analytics.viewCount || analytics.views?.count || 0,
-          uniqueViews: analytics.uniqueViewCount || analytics.views?.uniqueViewers || 0,
+          uniqueViews:
+            analytics.uniqueViewCount || analytics.views?.uniqueViewers || 0,
           conversionRate: 0,
           avgTimeOnResume: 45,
         },
@@ -123,10 +124,18 @@ describe("GET /api/analytics/dashboard", () => {
     );
 
     // Set up default mock for getDashboardAnalytics
-    (getDashboardAnalytics as jest.Mock).mockImplementation(async (resumeId) => {
-      const analytics = { viewCount: 15, uniqueViewCount: 8, attractivenessScore: 75 };
-      return aggregateToDashboard(analytics, [], [], { industry: "Technology" });
-    });
+    (getDashboardAnalytics as jest.Mock).mockImplementation(
+      async (resumeId) => {
+        const analytics = {
+          viewCount: 15,
+          uniqueViewCount: 8,
+          attractivenessScore: 75,
+        };
+        return aggregateToDashboard(analytics, [], [], {
+          industry: "Technology",
+        });
+      }
+    );
   });
 
   afterEach(() => {
@@ -265,7 +274,7 @@ describe("GET /api/analytics/dashboard", () => {
           totalViews: 100,
           uniqueViews: 50,
           conversionRate: 0,
-          avgTimeOnResume: 45
+          avgTimeOnResume: 45,
         },
         trends: [],
         heatmaps: [],
@@ -280,9 +289,7 @@ describe("GET /api/analytics/dashboard", () => {
         },
       };
 
-      (getDashboardAnalytics as jest.Mock).mockResolvedValue(
-        mockDashboard
-      );
+      (getDashboardAnalytics as jest.Mock).mockResolvedValue(mockDashboard);
 
       const request = new NextRequest(
         "http://localhost:3000/api/analytics/dashboard",
@@ -390,11 +397,9 @@ describe("GET /api/analytics/dashboard", () => {
     });
 
     it("should handle errors during dashboard aggregation", async () => {
-      (getDashboardAnalytics as jest.Mock).mockImplementation(
-        () => {
-          throw new Error("Aggregation failed");
-        }
-      );
+      (getDashboardAnalytics as jest.Mock).mockImplementation(() => {
+        throw new Error("Aggregation failed");
+      });
 
       const request = new NextRequest(
         "http://localhost:3000/api/analytics/dashboard",
@@ -412,8 +417,7 @@ describe("GET /api/analytics/dashboard", () => {
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.success).toBe(false);
-      expect(data.message).toBe("Aggregation failed");
+      expect(data.error).toBe("Failed to retrieve analytics dashboard");
     });
   });
 });

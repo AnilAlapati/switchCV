@@ -134,7 +134,10 @@ describe("RecruiterMetricsCard", () => {
 
     // Check API was called correctly
     expect(mockFetch).toHaveBeenCalledWith(
-      `/api/recruiter/metrics?userId=${mockUser.uid}`
+      `/api/recruiter/metrics?userId=${mockUser.uid}`,
+      expect.objectContaining({
+        signal: expect.any(Object),
+      })
     );
   });
 

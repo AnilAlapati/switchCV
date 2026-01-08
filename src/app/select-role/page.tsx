@@ -1,10 +1,11 @@
+/* eslint-disable max-lines */
 "use client";
 
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useRouter } from "next/navigation";
-import { doc, setDoc, serverTimestamp, increment } from "firebase/firestore";
+import { doc, setDoc, increment } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { logger } from "@/lib/logger";
 
@@ -119,7 +120,7 @@ export default function SelectRolePage() {
       // Increment the appropriate counter in global stats
       // We keep this client-side as it might fail silently without blocking the user flow
       // or we can move it to the API, but for now let's focus on unblocking the user.
-      // Actually, relying on client-side rules for stats is also risky. 
+      // Actually, relying on client-side rules for stats is also risky.
       // Ideally the API should do this, but let's leave the stats update here for now if it works,
       // or wrapped in a try-catch so it doesn't fail the whole flow.
       try {
@@ -146,12 +147,13 @@ export default function SelectRolePage() {
       } else {
         router.push("/dashboard");
       }
-    } catch (err: any) {
-      console.error("Role selection error:", err);
-      console.error("Error code:", err.code);
-      console.error("Error message:", err.message);
-      logger.error({ err, userId: user?.uid }, "Failed to set user role");
-      setError(`Error: ${err.message || "Something went wrong"}`);
+    } catch (err: unknown) {
+      const error = err as { code?: string; message?: string };
+      logger.error(
+        { err, errorCode: error.code, userId: user?.uid },
+        "Failed to set user role"
+      );
+      setError(`Error: ${error.message || "Something went wrong"}`);
       setIsSubmitting(false);
     }
   };
@@ -199,18 +201,19 @@ export default function SelectRolePage() {
             <button
               key={role.id}
               type="button"
-              onClick={() => {
-                console.log(`Selecting role: ${role.id}`);
-                setSelectedRole(role.id);
-              }}
+              onClick={() => setSelectedRole(role.id)}
               disabled={isSubmitting}
-              className={`relative p-8 rounded-[2rem] border-2 transition-all duration-300 text-left group ${selectedRole === role.id
-                ? `${role.borderColor.replace('/50', '')} ${role.activeBg} bg-white shadow-xl`
-                : "border-white/40 bg-white/40 hover:bg-white/60 hover:border-white/60 hover:shadow-lg"
-                } ${isSubmitting
+              className={`relative p-8 rounded-[2rem] border-2 transition-all duration-300 text-left group ${
+                selectedRole === role.id
+                  ? `${role.borderColor.replace("/50", "")} ${
+                      role.activeBg
+                    } bg-white shadow-xl`
+                  : "border-white/40 bg-white/40 hover:bg-white/60 hover:border-white/60 hover:shadow-lg"
+              } ${
+                isSubmitting
                   ? "opacity-50 cursor-not-allowed"
                   : "cursor-pointer"
-                }`}
+              }`}
             >
               {/* Selected indicator */}
               {selectedRole === role.id && (
@@ -243,8 +246,12 @@ export default function SelectRolePage() {
               </div>
 
               {/* Content */}
-              <h2 className="text-xl font-bold mb-2 text-[#1A2F25]">{role.title}</h2>
-              <p className="text-[#1A2F25]/70 text-sm mb-6">{role.description}</p>
+              <h2 className="text-xl font-bold mb-2 text-[#1A2F25]">
+                {role.title}
+              </h2>
+              <p className="text-[#1A2F25]/70 text-sm mb-6">
+                {role.description}
+              </p>
 
               {/* Features */}
               <ul className="space-y-3">
@@ -253,9 +260,15 @@ export default function SelectRolePage() {
                     key={idx}
                     className="flex items-center gap-3 text-sm text-[#1A2F25]/80"
                   >
-                    <div className={`p-1 rounded-full ${selectedRole === role.id
-                      ? role.id === 'jobseeker' ? 'bg-teal-100 text-teal-600' : 'bg-blue-100 text-blue-600'
-                      : "bg-[#2C4A3B]/5 text-[#2C4A3B]/60"}`}>
+                    <div
+                      className={`p-1 rounded-full ${
+                        selectedRole === role.id
+                          ? role.id === "jobseeker"
+                            ? "bg-teal-100 text-teal-600"
+                            : "bg-blue-100 text-blue-600"
+                          : "bg-[#2C4A3B]/5 text-[#2C4A3B]/60"
+                      }`}
+                    >
                       <svg
                         className="w-3 h-3"
                         fill="none"
@@ -289,12 +302,15 @@ export default function SelectRolePage() {
             type="button"
             onClick={handleSelectRole}
             disabled={!selectedRole || isSubmitting}
-            className={`px-10 py-4 rounded-2xl font-semibold text-white transition-all duration-300 shadow-lg ${selectedRole && !isSubmitting
-              ? `bg-gradient-to-r ${ROLES.find((r) => r.id === selectedRole)?.gradient
-              } ${ROLES.find((r) => r.id === selectedRole)?.hoverGradient
-              } hover:shadow-xl hover:scale-105 hover:-translate-y-0.5`
-              : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
-              }`}
+            className={`px-10 py-4 rounded-2xl font-semibold text-white transition-all duration-300 shadow-lg ${
+              selectedRole && !isSubmitting
+                ? `bg-gradient-to-r ${
+                    ROLES.find((r) => r.id === selectedRole)?.gradient
+                  } ${
+                    ROLES.find((r) => r.id === selectedRole)?.hoverGradient
+                  } hover:shadow-xl hover:scale-105 hover:-translate-y-0.5`
+                : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+            }`}
           >
             {isSubmitting ? (
               <span className="flex items-center gap-2">

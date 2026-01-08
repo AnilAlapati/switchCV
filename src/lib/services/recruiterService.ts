@@ -7,8 +7,13 @@ import { getRecruiterSearchLimits } from "@/lib/config.server";
 import { consumeQuota, QuotaExceededError } from "@/lib/services/quotaService";
 import { getConstants } from "@/lib/getSystemConfig";
 import { ResumeSchema, UserSchema } from "@/lib/schemas/resume";
+import { z } from "zod";
 
 type AllowedRole = "recruiter" | "admin";
+
+// Zod-inferred types for type-safe buildResult
+type ResumeData = z.infer<typeof ResumeSchema>;
+type UserData = z.infer<typeof UserSchema>;
 
 export class RecruiterService {
     /**
@@ -221,13 +226,13 @@ export class RecruiterService {
 
     private static buildResult(
         resumeId: string,
-        resumeData: any, // Typed via Zod above, passed here
-        userData: any | null // Typed via Zod above
+        resumeData: ResumeData,
+        userData: UserData | null
     ): SearchResult {
         const title = resumeData.title;
 
         // Skills are already normalized by Zod to be array of union, but we need string[]
-        const skills: string[] = resumeData.skills.map((s: any) => {
+        const skills: string[] = resumeData.skills.map((s) => {
             if (typeof s === "string") return s;
             return s.name;
         }).slice(0, 10);

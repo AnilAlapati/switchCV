@@ -262,7 +262,7 @@ describe("AuthPage", () => {
       user: { uid: "123" },
       loading: false,
       needsEmailVerification: false,
-      needsUsername: false,
+      needsUsername: true,
       checkNeedsUsername: mockCheckNeedsUsername,
     });
 

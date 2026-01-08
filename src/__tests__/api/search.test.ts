@@ -75,6 +75,8 @@ jest.mock("@/lib/firebase-admin", () => ({
 
 // Mock api-helpers to return authenticated user
 jest.mock("@/lib/utils/api-helpers", () => ({
+  ...jest.requireActual("@/lib/utils/api-helpers"),
+  validateCorsRequest: jest.fn(() => null),
   handleApiError: jest.fn((error, message, status = 500) => {
     const { NextResponse } = require("next/server");
     return NextResponse.json(

@@ -12,6 +12,7 @@ import {
 } from "@/lib/utils/api-helpers";
 import { getUserRole } from "@/lib/services/userService";
 import { getConstants } from "@/lib/getSystemConfig";
+import { AI_ENDPOINTS } from "@/config/aiEndpoints";
 
 export async function GET(request: NextRequest) {
   try {
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch latest models
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`
+      AI_ENDPOINTS.GEMINI.MODELS(apiKey)
     );
 
     if (!response.ok) {

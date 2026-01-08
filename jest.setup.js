@@ -260,10 +260,10 @@ jest.mock('@/lib/firebase-admin', () => ({
       set: jest.fn().mockResolvedValue({}),
       update: jest.fn().mockResolvedValue({}),
       delete: jest.fn().mockResolvedValue({}),
-      collection: jest.fn((name) => mockCollection(name)),
+      collection: jest.fn(() => mockCollection()),
     });
 
-    const createMockQuery = (name) => {
+    const createMockQuery = () => {
       const query = {
         doc: jest.fn((id) => mockDoc(id)),
         where: jest.fn().mockReturnThis(),
@@ -273,7 +273,7 @@ jest.mock('@/lib/firebase-admin', () => ({
           docs: [], 
           empty: true, 
           size: 0,
-          forEach: jest.fn((cb) => [])
+          forEach: jest.fn(() => [])
         }),
         add: jest.fn().mockResolvedValue({ id: 'test-id' }),
         count: jest.fn().mockReturnThis(),
@@ -281,10 +281,10 @@ jest.mock('@/lib/firebase-admin', () => ({
       return query;
     };
 
-    const mockCollection = (name) => createMockQuery(name);
+    const mockCollection = () => createMockQuery();
 
     return {
-      collection: jest.fn((name) => mockCollection(name)),
+      collection: jest.fn(() => mockCollection()),
       doc: jest.fn((path) => mockDoc(path)),
       batch: jest.fn(() => ({
         set: jest.fn(),
@@ -407,4 +407,14 @@ jest.mock('next/dynamic', () => ({
     const React = require('react');
     return React.lazy(fn);
   }),
+}));
+
+// Mock use-intl for internationalization
+jest.mock('use-intl', () => ({
+  useLocale: jest.fn(() => 'en'),
+  useTranslations: jest.fn(() => (key) => key),
+  useFormatter: jest.fn(() => ({
+    dateTime: jest.fn(),
+    number: jest.fn(),
+  })),
 }));
