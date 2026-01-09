@@ -10,7 +10,7 @@ import { HomeTestimonials } from "@/components/home/HomeTestimonials";
 import { HomeWorkflow } from "@/components/home/HomeWorkflow";
 import { useGlobalStats } from "@/hooks/useGlobalStats";
 import { BackgroundBlobs } from "@/components/ui/BackgroundBlobs";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+// import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 const HERO_HIGHLIGHTS = [
   {
@@ -64,9 +64,12 @@ export default function Home() {
         <BackgroundBlobs />
       </div>
 
+      {/* Language switcher disabled for MVP - Spanish support incomplete */}
+      {/* 
       <div className="fixed top-4 right-4 z-50">
         <LanguageSwitcher />
       </div>
+      */}
 
       <div className="relative z-10 min-h-screen">
         <div className="container mx-auto px-6 py-12 md:py-24 space-y-32">

@@ -1,7 +1,8 @@
 "use client";
 
 import { NextIntlClientProvider } from "next-intl";
-import { ReactNode, useSyncExternalStore } from "react";
+import { ReactNode } from "react";
+// import { useSyncExternalStore } from "react"; // Commented out for MVP
 
 // Default messages for English - loaded statically to avoid async in client
 import enMessages from "../../../messages/en.json";
@@ -12,6 +13,8 @@ const messages: Record<string, typeof enMessages> = {
   es: esMessages,
 };
 
+/*
+// Commented out for MVP - force English only
 function getLocaleFromCookie(): string {
   if (typeof document === "undefined") return "en";
   const match = document.cookie.match(/NEXT_LOCALE=([^;]+)/);
@@ -28,17 +31,22 @@ function subscribeToLocale(callback: () => void) {
 function getServerSnapshot(): string {
   return "en";
 }
+*/
 
 interface IntlProviderProps {
   children: ReactNode;
 }
 
 export function IntlProvider({ children }: IntlProviderProps) {
+  // Forced to 'en' for MVP until translations are complete
+  const locale = "en";
+  /*
   const locale = useSyncExternalStore(
     subscribeToLocale,
     getLocaleFromCookie,
     getServerSnapshot
   );
+  */
 
   return (
     <NextIntlClientProvider
