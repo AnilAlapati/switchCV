@@ -1,4 +1,4 @@
-// src/middleware.ts - Next.js middleware
+// src/proxy.ts - Next.js proxy (formerly middleware)
 import { NextRequest, NextResponse } from "next/server";
 import { checkEdgeRateLimit } from "@/lib/utils/edgeRateLimit";
 
@@ -42,7 +42,7 @@ async function getMaintenanceConfig(): Promise<{
   return { isActive: false, blocking: false };
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
   // 1. API Routes: Apply Rate Limiting Only

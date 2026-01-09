@@ -80,7 +80,7 @@ const ROLES = [
 
 export default function SelectRolePage() {
   const { user, loading } = useAuth();
-  const { mutate } = useUserProfile();
+  const { mutate, role: existingRole, loading: profileLoading } = useUserProfile();
   const router = useRouter();
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -89,6 +89,19 @@ export default function SelectRolePage() {
   // Redirect if not logged in
   if (!loading && !user) {
     router.replace("/auth");
+    return null;
+  }
+
+  // Redirect if role is already selected (safeguard)
+  // We use a separate useEffect/check here because user might be loaded but profile/role might take a moment
+  // This prevents the loop where dashboard sends back to select-role, but select-role doesn't check if role exists
+  if (!loading && user && selectedRole && ROLES.find(r => r.id === selectedRole)) {
+    // This state is handled by the mutation logic usually, but if we land here with a role in the DB
+    // we want to redirect.
+  }
+
+  if (!loading && !profileLoading && existingRole && (existingRole === 'jobseeker' || existingRole === 'recruiter')) {
+    router.replace("/dashboard");
     return null;
   }
 
@@ -139,7 +152,17 @@ export default function SelectRolePage() {
       );
 
       // Force refresh of user profile to update role in SWR cache
-      await mutate();
+      // We use optimistic update here to ensure the local cache has the new role immediately
+      // setting revalidate: false prevents SWR from fetching the stale data from the server (which might be cached by the browser)
+      await mutate(
+        (currentProfile: any) => ({
+          ...currentProfile,
+          role: selectedRole,
+          // If we had the full profile type we could be more specific, but this should suffice to update the role
+          // effectively merging the new role into the existing cached profile
+        }),
+        { revalidate: false }
+      );
 
       // Redirect based on role
       if (selectedRole === "jobseeker") {
@@ -203,17 +226,14 @@ export default function SelectRolePage() {
               type="button"
               onClick={() => setSelectedRole(role.id)}
               disabled={isSubmitting}
-              className={`relative p-8 rounded-[2rem] border-2 transition-all duration-300 text-left group ${
-                selectedRole === role.id
-                  ? `${role.borderColor.replace("/50", "")} ${
-                      role.activeBg
-                    } bg-white shadow-xl`
-                  : "border-white/40 bg-white/40 hover:bg-white/60 hover:border-white/60 hover:shadow-lg"
-              } ${
-                isSubmitting
+              className={`relative p-8 rounded-[2rem] border-2 transition-all duration-300 text-left group ${selectedRole === role.id
+                ? `${role.borderColor.replace("/50", "")} ${role.activeBg
+                } bg-white shadow-xl`
+                : "border-white/40 bg-white/40 hover:bg-white/60 hover:border-white/60 hover:shadow-lg"
+                } ${isSubmitting
                   ? "opacity-50 cursor-not-allowed"
                   : "cursor-pointer"
-              }`}
+                }`}
             >
               {/* Selected indicator */}
               {selectedRole === role.id && (
@@ -261,13 +281,12 @@ export default function SelectRolePage() {
                     className="flex items-center gap-3 text-sm text-[#1A2F25]/80"
                   >
                     <div
-                      className={`p-1 rounded-full ${
-                        selectedRole === role.id
-                          ? role.id === "jobseeker"
-                            ? "bg-teal-100 text-teal-600"
-                            : "bg-blue-100 text-blue-600"
-                          : "bg-[#2C4A3B]/5 text-[#2C4A3B]/60"
-                      }`}
+                      className={`p-1 rounded-full ${selectedRole === role.id
+                        ? role.id === "jobseeker"
+                          ? "bg-teal-100 text-teal-600"
+                          : "bg-blue-100 text-blue-600"
+                        : "bg-[#2C4A3B]/5 text-[#2C4A3B]/60"
+                        }`}
                     >
                       <svg
                         className="w-3 h-3"
@@ -302,15 +321,12 @@ export default function SelectRolePage() {
             type="button"
             onClick={handleSelectRole}
             disabled={!selectedRole || isSubmitting}
-            className={`px-10 py-4 rounded-2xl font-semibold text-white transition-all duration-300 shadow-lg ${
-              selectedRole && !isSubmitting
-                ? `bg-gradient-to-r ${
-                    ROLES.find((r) => r.id === selectedRole)?.gradient
-                  } ${
-                    ROLES.find((r) => r.id === selectedRole)?.hoverGradient
-                  } hover:shadow-xl hover:scale-105 hover:-translate-y-0.5`
-                : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
-            }`}
+            className={`px-10 py-4 rounded-2xl font-semibold text-white transition-all duration-300 shadow-lg ${selectedRole && !isSubmitting
+              ? `bg-gradient-to-r ${ROLES.find((r) => r.id === selectedRole)?.gradient
+              } ${ROLES.find((r) => r.id === selectedRole)?.hoverGradient
+              } hover:shadow-xl hover:scale-105 hover:-translate-y-0.5`
+              : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+              }`}
           >
             {isSubmitting ? (
               <span className="flex items-center gap-2">

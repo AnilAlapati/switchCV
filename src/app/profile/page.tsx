@@ -53,12 +53,17 @@ export default function ProfileEditor() {
         throw new Error("Failed to save profile");
       }
 
-      await mutate(); // Update SWR cache
+      // Optimistic update: Update SWR cache immediately with current local state
+      // Disable revalidation to prevent fetching stale data from the 60s cache
+      await mutate(profile, { revalidate: false });
+
       logger.info({ userId: user.uid }, "Profile saved successfully");
       setSaveMessage("Profile saved successfully!");
     } catch (error) {
       logger.error({ err: error, userId: user?.uid }, "Failed to save profile");
       setSaveMessage("Failed to save profile. Please try again.");
+      // Revalidate on error to ensure sync
+      await mutate();
     } finally {
       setSaving(false);
     }
@@ -148,8 +153,8 @@ export default function ProfileEditor() {
             {saveMessage && (
               <span
                 className={`text-sm ${saveMessage.includes("success")
-                    ? "text-green-600"
-                    : "text-red-600"
+                  ? "text-green-600"
+                  : "text-red-600"
                   }`}
               >
                 {saveMessage}

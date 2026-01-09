@@ -107,7 +107,15 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
-        await mutateSettings(); // Re-fetch specific user settings
+        // Optimistic update: Update local cache immediately without revalidating (fetching stale data)
+        const newSettings = {
+          ...settings,
+          isRecruiter: checked,
+          // If switching to recruiter, keep existing name, if switching off, it might be cleared server side but we keep local state clean
+          companyName: checked ? settings.companyName : ""
+        };
+        await mutateSettings(newSettings, { revalidate: false });
+
         await mutateProfile(); // Force re-fetch of global user profile
         setShowCompanyInput(checked);
         setMessage({ type: "success", text: "Account type updated!" });
@@ -120,6 +128,8 @@ export default function SettingsPage() {
         type: "error",
         text: err instanceof Error ? err.message : "An error occurred",
       });
+      // Revalidate to sync with server in case of error mismatch
+      await mutateSettings();
     } finally {
       setSavingRecruiter(false);
     }
@@ -155,7 +165,8 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
-        await mutateSettings();
+        // Optimistic update
+        await mutateSettings({ ...settings, displayName: settings.displayName }, { revalidate: false });
         setMessage({ type: "success", text: "Display name saved!" });
         setTimeout(() => setMessage(null), 3000);
       } else {
@@ -166,6 +177,7 @@ export default function SettingsPage() {
         type: "error",
         text: err instanceof Error ? err.message : "An error occurred",
       });
+      await mutateSettings();
     } finally {
       setSavingDisplayName(false);
     }
@@ -201,7 +213,8 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
-        await mutateSettings();
+        // Optimistic update
+        await mutateSettings({ ...settings, companyName: settings.companyName }, { revalidate: false });
         setMessage({ type: "success", text: "Company name saved!" });
         setTimeout(() => setMessage(null), 3000);
       } else {
@@ -212,6 +225,7 @@ export default function SettingsPage() {
         type: "error",
         text: err instanceof Error ? err.message : "An error occurred",
       });
+      await mutateSettings();
     } finally {
       setSavingCompanyName(false);
     }

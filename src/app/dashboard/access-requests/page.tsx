@@ -98,6 +98,20 @@ export default function AccessRequestsPage() {
   };
 
   const handleDeny = async (request: DashboardAccessRequest) => {
+    // Optimistic update: immediately mark as denied in local state
+    mutate(
+      (currentData: any) => {
+        if (!currentData?.requests) return currentData;
+        return {
+          ...currentData,
+          requests: currentData.requests.map((r: DashboardAccessRequest) =>
+            r.id === request.id ? { ...r, status: "denied" } : r
+          ),
+        };
+      },
+      { revalidate: false }
+    );
+
     try {
       const token = await user?.getIdToken();
       await fetch("/api/profiles/respond-access", {
@@ -112,13 +126,14 @@ export default function AccessRequestsPage() {
           action: "deny",
         }),
       });
-      await mutate(); // Refresh SWR
 
       if (metricsContext?.refreshJobSeekerMetrics) {
         await metricsContext.refreshJobSeekerMetrics();
       }
     } catch (error) {
       logger.error({ err: error }, "Failed to respond");
+      // Revalidate to sync on error
+      await mutate();
     }
   };
 
@@ -141,6 +156,20 @@ export default function AccessRequestsPage() {
         ? { preset: "custom_days" as const, customDays: formState.customDays }
         : { preset: formState.preset };
 
+    // Optimistic update: immediately mark as approved in local state
+    mutate(
+      (currentData: any) => {
+        if (!currentData?.requests) return currentData;
+        return {
+          ...currentData,
+          requests: currentData.requests.map((r: DashboardAccessRequest) =>
+            r.id === request.id ? { ...r, status: "approved" } : r
+          ),
+        };
+      },
+      { revalidate: false }
+    );
+
     try {
       const token = await user?.getIdToken();
       await fetch("/api/profiles/respond-access", {
@@ -157,13 +186,14 @@ export default function AccessRequestsPage() {
           timezone,
         }),
       });
-      await mutate(); // Refresh SWR
 
       if (metricsContext?.refreshJobSeekerMetrics) {
         await metricsContext.refreshJobSeekerMetrics();
       }
     } catch (error) {
       logger.error({ err: error }, "Failed to approve");
+      // Revalidate to sync on error
+      await mutate();
     }
   };
 

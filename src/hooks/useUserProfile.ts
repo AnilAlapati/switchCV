@@ -1,6 +1,6 @@
 "use client";
 
-import useSWR from "swr";
+import useSWR, { KeyedMutator } from "swr";
 import { useAuth } from "@/hooks/useAuth";
 import {
   SubscriptionTier,
@@ -31,7 +31,7 @@ interface UseUserProfileResult {
   role: UserRole | undefined;
   loading: boolean;
   error: any;
-  mutate: () => Promise<any>;
+  mutate: KeyedMutator<any>;
 }
 
 const fetcher = async (url: string, token: string) => {
@@ -57,7 +57,7 @@ export function useUserProfile(): UseUserProfileResult {
 
   const { data, error, isLoading, mutate } = useSWR(
     key,
-    ([url]) => user!.getIdToken().then((token) => fetcher(url, token)),
+    ([url]: [string, string]) => user!.getIdToken().then((token) => fetcher(url, token)),
     {
       // Keep data fresh for 30 seconds (reduced from 5 minutes for better balance)
       dedupingInterval: 30000,
