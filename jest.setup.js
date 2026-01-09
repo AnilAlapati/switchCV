@@ -418,3 +418,14 @@ jest.mock('use-intl', () => ({
     number: jest.fn(),
   })),
 }));
+
+// Mock next-intl for internationalization
+jest.mock('next-intl', () => ({
+  useLocale: jest.fn(() => 'en'),
+  useTranslations: jest.fn(() => (key) => key),
+  useFormatter: jest.fn(() => ({
+    dateTime: jest.fn(),
+    number: jest.fn(),
+  })),
+  NextIntlClientProvider: ({ children }) => children,
+}));

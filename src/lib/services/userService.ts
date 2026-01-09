@@ -97,6 +97,15 @@ export async function getUserRole(userId: string): Promise<UserRole> {
 }
 
 /**
+ * Verifies if the user has admin role.
+ * Used by admin-only API endpoints.
+ */
+export async function verifyAdminRole(userId: string): Promise<boolean> {
+  const role = await getUserRole(userId);
+  return role === "admin";
+}
+
+/**
  * Fetch full user profile data.
  */
 export async function getUserProfile(userId: string) {

@@ -72,7 +72,7 @@ export class ResumeDataExtractor {
     ];
 
     for (const extractor of extractors) {
-      const result = extractor.extract(responseText, localContext as string);
+      const result = extractor.extract(responseText, localContext);
       // Only merge if we found something new (simple merge logic)
       // ideally we would use deep merge, but shallow merge of sections is fine for now
       this.mergeData(data, result);

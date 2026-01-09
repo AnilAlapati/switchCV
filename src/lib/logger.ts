@@ -154,10 +154,13 @@ const env = process.env.NODE_ENV || "development";
 const logLevel = process.env.LOG_LEVEL || "info";
 const isProd = env === "production";
 const isTestRuntime = env === "test" || Boolean(process.env.JEST_WORKER_ID);
+const isEdge = process.env.NEXT_RUNTIME === "edge";
 const shouldMirrorConsole = !isProd;
 
+// Edge Runtime CANNOT use pino-pretty due to process.stdout.isTTY access
+// Use plain JSON logging in Edge, pino-pretty only in Node.js runtime
 const transport: LoggerOptions["transport"] =
-  !isProd && !isTestRuntime
+  !isProd && !isTestRuntime && !isEdge
     ? {
         target: "pino-pretty",
         options: {
@@ -169,7 +172,7 @@ const transport: LoggerOptions["transport"] =
 
 const baseLogger = pino({
   level: logLevel,
-  transport,
+  transport: isEdge ? undefined : transport,
   base: {
     env,
   },
@@ -309,7 +312,11 @@ logger.error = (...args: unknown[]) => {
 
 export const logError = (error: unknown, context?: string) => {
   const sanitizedError = sanitizeForLogging(serializeError(error));
-  logger.error({ ...sanitizedError, context }, "Error occurred");
+  const errorObj =
+    typeof sanitizedError === "object" && sanitizedError !== null
+      ? sanitizedError
+      : { err: sanitizedError };
+  logger.error({ ...errorObj, context }, "Error occurred");
 };
 
 export { logger };

@@ -15,6 +15,7 @@ import {
   trackResumeView,
 } from "@/lib/services/resumeService";
 import { getUserTier } from "@/lib/services/userService";
+import type { ResumeProfile } from "@/types";
 
 export async function GET(
   request: NextRequest,
@@ -34,7 +35,9 @@ export async function GET(
     // Rate Limiting
     const ip = request.headers.get("x-forwarded-for") ?? "anonymous";
     const optionalUserId = await maybeGetAuthenticatedUserId(request);
-    const rateLimitIdentifier = optionalUserId ? `user:${optionalUserId}` : `ip:${ip}`;
+    const rateLimitIdentifier = optionalUserId
+      ? `user:${optionalUserId}`
+      : `ip:${ip}`;
 
     // Stricter limit for unauthenticated (public) access to prevent scraping
     const limit = optionalUserId ? 30 : 10;
@@ -56,7 +59,10 @@ export async function GET(
     }
 
     // Scraping Protection (Sequential Access)
-    const isSequentialSafe = await checkSequentialAccess(rateLimitIdentifier, id);
+    const isSequentialSafe = await checkSequentialAccess(
+      rateLimitIdentifier,
+      id
+    );
     if (!isSequentialSafe) {
       return handleApiError(
         null,
@@ -75,7 +81,10 @@ export async function GET(
     }
 
     // Use Service Layer
-    const { resume: resumeData, access } = await getResume(id, optionalUserId || undefined);
+    const { resume: resumeData, access } = await getResume(
+      id,
+      optionalUserId || undefined
+    );
 
     if (!resumeData || access === "none") {
       return handleApiError(
@@ -90,36 +99,42 @@ export async function GET(
     // 1. Owner Access
     if (access === "owner") {
       logger.info(`[ResumeAPI] User is owner.`);
-      return NextResponse.json({
-        ...resumeData,
-        isBeingEdited,
-        viewerAccess: {
-          scope: "owner",
-          isOwner: true,
+      return NextResponse.json(
+        {
+          ...resumeData,
+          isBeingEdited,
+          viewerAccess: {
+            scope: "owner",
+            isOwner: true,
+          },
         },
-      }, {
-        headers: {
-          'Cache-Control': 'private, max-age=300, stale-while-revalidate=60',
+        {
+          headers: {
+            "Cache-Control": "private, max-age=300, stale-while-revalidate=60",
+          },
         }
-      });
+      );
     }
 
     // 2. Admin Access
     if (access === "admin") {
       logger.info(`[ResumeAPI] User is admin.`);
-      return NextResponse.json({
-        ...resumeData,
-        isBeingEdited,
-        viewerAccess: {
-          scope: "admin-view",
-          isOwner: false,
-          isMasked: false,
+      return NextResponse.json(
+        {
+          ...resumeData,
+          isBeingEdited,
+          viewerAccess: {
+            scope: "admin-view",
+            isOwner: false,
+            isMasked: false,
+          },
         },
-      }, {
-        headers: {
-          'Cache-Control': 'private, max-age=300, stale-while-revalidate=60',
+        {
+          headers: {
+            "Cache-Control": "private, max-age=300, stale-while-revalidate=60",
+          },
         }
-      });
+      );
     }
 
     // 3. Explicit Grant (Recruiter)
@@ -128,19 +143,22 @@ export async function GET(
       // Track view could be moved to service ideally
       await trackResumeView(id);
 
-      return NextResponse.json({
-        ...resumeData,
-        isBeingEdited,
-        viewerAccess: {
-          scope: "full",
-          isOwner: false,
-          isMasked: false,
+      return NextResponse.json(
+        {
+          ...resumeData,
+          isBeingEdited,
+          viewerAccess: {
+            scope: "full",
+            isOwner: false,
+            isMasked: false,
+          },
         },
-      }, {
-        headers: {
-          'Cache-Control': 'private, max-age=300, stale-while-revalidate=60',
+        {
+          headers: {
+            "Cache-Control": "private, max-age=300, stale-while-revalidate=60",
+          },
         }
-      });
+      );
     }
 
     // 4. Public Snapshot
@@ -165,7 +183,6 @@ export async function GET(
       "Permission denied",
       403
     );
-
   } catch (error) {
     return handleApiError(error, "Error fetching resume");
   }
@@ -197,14 +214,15 @@ export async function PATCH(
       return handleApiError(new Error("Unauthorized"), "Unauthorized", 403);
     }
 
-    // Update Visibility using service (we reuse updateResume or need a specific one? 
+    // Update Visibility using service (we reuse updateResume or need a specific one?
     // updateResume takes 'any' data so it should work if we pass partial)
     // Actually updateResume in service does a set with merge: true.
+    // These are runtime metadata fields, not part of ResumeProfile type
     await updateResume(id, userId, {
       isPublic: isPublic,
       visibility: isPublic ? "public" : "private",
       published: isPublic,
-    });
+    } as Partial<ResumeProfile>);
 
     return NextResponse.json({ success: true, isPublic });
   } catch (error) {

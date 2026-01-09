@@ -92,7 +92,7 @@ export class SecretManagerService {
 
       return value;
     } catch (error) {
-      logger.error(`Failed to fetch secret ${name}`, { error });
+      logger.error({ err: error, secretName: name }, "Failed to fetch secret");
       throw error;
     }
   }
@@ -126,7 +126,10 @@ export class SecretManagerService {
           version: metadata?.version || "unknown",
         });
       } catch (error) {
-        logger.error(`Failed to get metadata for ${secretName}`, { error });
+        logger.error(
+          { err: error, secretName },
+          "Failed to get metadata for secret"
+        );
       }
     }
 
@@ -170,7 +173,7 @@ export class SecretManagerService {
 
       // TODO: Update in Firebase Secret Manager
       // For now, log the rotation attempt
-      logger.info(`Secret rotation requested for ${name}`, { rotatedBy });
+      logger.info({ secretName: name, rotatedBy }, "Secret rotation requested");
 
       // Update metadata
       await this.updateSecretMetadata(name, rotatedBy);
@@ -178,9 +181,12 @@ export class SecretManagerService {
       // Invalidate cache
       this.cache.delete(name);
 
-      logger.info(`Secret ${name} rotated successfully`, { rotatedBy });
+      logger.info(
+        { secretName: name, rotatedBy },
+        "Secret rotated successfully"
+      );
     } catch (error) {
-      logger.error(`Failed to rotate secret ${name}`, { error });
+      logger.error({ err: error, secretName: name }, "Failed to rotate secret");
       throw error;
     }
   }
@@ -201,7 +207,7 @@ export class SecretManagerService {
       environment: process.env.NODE_ENV,
     };
 
-    logger.info("Secret metadata updated", metadata);
+    logger.info(metadata, "Secret metadata updated");
   }
 
   /**
@@ -213,12 +219,15 @@ export class SecretManagerService {
   ): Promise<void> {
     // TODO: Save to Firestore collection 'secretAccessLogs' with retention policy
     // For now, just log to application logs
-    logger.debug("Secret accessed", {
-      secretName,
-      accessedBy: userId || "system",
-      accessedAt: new Date().toISOString(),
-      environment: process.env.NODE_ENV,
-    });
+    logger.debug(
+      {
+        secretName,
+        accessedBy: userId || "system",
+        accessedAt: new Date().toISOString(),
+        environment: process.env.NODE_ENV,
+      },
+      "Secret accessed"
+    );
   }
 
   /**

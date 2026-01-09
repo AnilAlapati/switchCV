@@ -5,6 +5,99 @@
 			"label": "test-ai-tiers",
 			"type": "shell",
 			"command": "node scripts/test-ai-tiers.js"
+		},
+		{
+			"label": "Quality Check (Quick) - On Demand",
+			"type": "shell",
+			"command": "npm",
+			"args": ["run", "quality:quick"],
+			"problemMatcher": [],
+			"group": {
+				"kind": "build",
+				"isDefault": false
+			},
+			"presentation": {
+				"reveal": "silent",
+				"panel": "shared"
+			}
+		},
+		{
+			"label": "Quality Watch - Continuous",
+			"type": "shell",
+			"command": "bash",
+			"args": ["scripts/watch-quality.sh"],
+			"isBackground": true,
+			"problemMatcher": {
+				"pattern": {
+					"regexp": "^(.*?)\\((\\d+),(\\d+)\\):\\s+(error|warning)\\s+(.*)$",
+					"file": 1,
+					"line": 2,
+					"column": 3,
+					"severity": 4,
+					"message": 5
+				},
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "Watching for file changes",
+					"endsPattern": "SwitchCV Quality Watch"
+				}
+			},
+			"presentation": {
+				"reveal": "silent",
+				"panel": "shared"
+			}
+		},
+		{
+			"label": "TypeScript Check - Watch",
+			"type": "shell",
+			"command": "npx",
+			"args": ["tsc", "--noEmit", "--watch"],
+			"isBackground": true,
+			"problemMatcher": {
+				"pattern": {
+					"regexp": "^([^\\s].*)\\((\\d+),(\\d+)\\):\\s+(error|warning)\\s+(.*)$",
+					"file": 1,
+					"line": 2,
+					"column": 3,
+					"severity": 4,
+					"message": 5
+				},
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "Starting compilation",
+					"endsPattern": "Found (\\d+) error|Watching for file changes"
+				}
+			},
+			"presentation": {
+				"reveal": "silent",
+				"panel": "shared"
+			}
+		},
+		{
+			"label": "ESLint Watch",
+			"type": "shell",
+			"command": "npx",
+			"args": ["eslint-watch", "src/app/api src/lib --ext .ts,.tsx"],
+			"isBackground": true,
+			"problemMatcher": {
+				"pattern": {
+					"regexp": "^([^\\s].*)\\s+(\\d+):(\\d+)\\s+(error|warning)\\s+(.*)$",
+					"file": 1,
+					"line": 2,
+					"column": 3,
+					"severity": 4,
+					"message": 5
+				},
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "Start watching",
+					"endsPattern": "Stop watching"
+				}
+			},
+			"presentation": {
+				"reveal": "silent",
+				"panel": "shared"
+			}
 		}
 	]
 }

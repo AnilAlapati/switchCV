@@ -1,7 +1,4 @@
-import {
-  ResumeDataRequirements,
-  EducationEntry,
-} from "../../conversationManager";
+import { ResumeDataRequirements, EducationEntry } from "../conversationManager";
 import { IExtractor } from "./IExtractor";
 
 export class EducationExtractor implements IExtractor {

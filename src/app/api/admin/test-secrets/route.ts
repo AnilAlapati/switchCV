@@ -17,15 +17,17 @@ import {
   SecretManagerService,
 } from "@/lib/services/secretManagerService";
 import { logger } from "@/lib/logger";
+import { verifyAdminRole } from "@/lib/services/userService";
 
 export async function GET(request: NextRequest) {
   try {
     // Authenticate request
-    const { userId, role, error } = await getAuthenticatedUserId(request);
+    const { userId, error } = await getAuthenticatedUserId(request);
     if (error) return error;
 
     // Admin-only access
-    if (role !== "admin") {
+    const isAdmin = await verifyAdminRole(userId!);
+    if (!isAdmin) {
       return handleApiError(
         null,
         "Unauthorized - Admin access required",
@@ -34,7 +36,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    logger.info("Secret Manager test initiated", { userId });
+    logger.info({ userId }, "Secret Manager test initiated");
 
     const service = SecretManagerService.getInstance();
     const results: Record<string, any> = {};
@@ -123,11 +125,14 @@ export async function GET(request: NextRequest) {
       (r: any) => r.success === true
     );
 
-    logger.info("Secret Manager test completed", {
-      userId,
-      allTestsPassed,
-      results,
-    });
+    logger.info(
+      {
+        userId,
+        allTestsPassed,
+        results,
+      },
+      "Secret Manager test completed"
+    );
 
     return NextResponse.json(
       {

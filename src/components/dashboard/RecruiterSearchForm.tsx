@@ -12,6 +12,7 @@ export interface SearchResult {
   location?: string;
   createdAt: string;
   accessStatus?: "none" | "pending" | "approved" | "denied";
+  summary?: string; // AI-generated or profile summary
 }
 
 export type SearchModeType = "basic" | "premium" | "ai";

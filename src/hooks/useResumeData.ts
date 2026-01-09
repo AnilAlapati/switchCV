@@ -3,9 +3,35 @@
 import useSWR from "swr";
 import { useAuth } from "./useAuth";
 import { ResumeAccessBlockConfig } from "@/components/resume/ResumeAccessBlock";
+import { templateService } from "@/lib/services/templateService";
+import type { ResumeTemplate, ResumeProfile } from "@/types";
+
+/**
+ * Extended resume type with viewer access metadata and runtime fields
+ */
+interface ViewerAccessMeta {
+  isOwner?: boolean;
+  isRecruiter?: boolean;
+  hasGrantedAccess?: boolean;
+}
+
+/**
+ * Resume data as returned from the API, includes base profile + runtime metadata
+ */
+type ResumeWithAccess = ResumeProfile & {
+  viewerAccess?: ViewerAccessMeta;
+  // Runtime fields added by API
+  isPublic?: boolean;
+  isBeingEdited?: boolean;
+  deletionScheduledAt?: string;
+  countdownStartsAt?: string;
+  expirationWarningHours?: number;
+  numericId?: number;
+  userId?: string;
+};
 
 type FetchResult = {
-  resume: Record<string, unknown> | null;
+  resume: ResumeWithAccess | null;
   accessBlock: ResumeAccessBlockConfig | null;
   error: string | null;
 };
@@ -116,12 +142,12 @@ export function useResumeData(id: string | string[] | undefined) {
   const error = fetchResult?.error ?? null;
 
   // Fetch Template (Dependent on Resume)
-  const templateId = resume?.templateId || "masonry-v1";
+  const templateId = (resume?.templateId as string) || "masonry-v1";
 
   const { data: template, isLoading: templateLoading } =
     useSWR<ResumeTemplate | null>(
       resume ? `template-${templateId}` : null,
-      () => templateService.getTemplateById(templateId),
+      async () => templateService.getTemplateById(templateId),
       {
         dedupingInterval: 60 * 60 * 1000, // 1 hour cache for templates (rarely change)
         revalidateOnFocus: false,

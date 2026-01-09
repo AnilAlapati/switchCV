@@ -31,7 +31,7 @@ module.exports = {
     '^.+\\.(js|jsx|ts|tsx)$': '<rootDir>/jest-preprocessor.js',
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(jose|@noble|uuid|next-intl|use-intl)/)',
+    'node_modules/(?!(jose|@noble|uuid|next-intl|use-intl|intl-messageformat)/)',
   ],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
 };

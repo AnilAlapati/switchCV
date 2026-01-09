@@ -1,0 +1,39 @@
+#!/bin/bash
+# =============================================================================
+# SwitchCV Pre-Commit Hook
+# =============================================================================
+# This hook runs automatically before every commit.
+# It blocks commits that violate quality standards.
+#
+# Install: cp scripts/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+# Or run: npm run setup:hooks
+# =============================================================================
+
+echo "🔍 Running pre-commit quality checks..."
+echo ""
+
+# Get the directory of the script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." 2>/dev/null && pwd)" || PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Change to project root
+cd "$PROJECT_ROOT" || exit 1
+
+# Run quick quality checks
+./scripts/quality-check.sh --quick
+
+RESULT=$?
+
+if [ $RESULT -ne 0 ]; then
+  echo ""
+  echo "❌ Commit blocked due to quality issues!"
+  echo ""
+  echo "To bypass (NOT recommended): git commit --no-verify"
+  echo "To fix: Review errors above and fix them"
+  echo ""
+  exit 1
+fi
+
+echo ""
+echo "✅ Pre-commit checks passed!"
+exit 0

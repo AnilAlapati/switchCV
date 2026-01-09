@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { generateText } from "@/lib/services/aiGenerationService";
@@ -18,7 +19,11 @@ import {
 } from "@/lib/utils/api-helpers";
 import { getUserTier } from "@/lib/services/userService";
 import type { SubscriptionTier } from "@/lib/config";
-import { getResumeCount, saveGeneratedResume } from "@/lib/services/resumeService";
+import {
+  getResumeCount,
+  saveGeneratedResume,
+  GeneratedResumeInput,
+} from "@/lib/services/resumeService";
 import { createGenerationJob } from "@/lib/services/resumeGenerationQueue";
 
 // Cloud Functions URL for async processing (configured per environment)
@@ -78,7 +83,13 @@ export async function POST(request: NextRequest) {
     }
 
     const body: GenerateResumeRequest = await request.json();
-    const { message, conversationHistory, sessionData, modelId, async: asyncMode } = body;
+    const {
+      message,
+      conversationHistory,
+      sessionData,
+      modelId,
+      async: asyncMode,
+    } = body;
 
     let userTier: SubscriptionTier = "basic";
     try {
@@ -143,17 +154,23 @@ export async function POST(request: NextRequest) {
             logger.error({ err, jobId }, "Failed to trigger async processor");
           });
         } catch (triggerError) {
-          logger.error({ err: triggerError, jobId }, "Error triggering async processor");
+          logger.error(
+            { err: triggerError, jobId },
+            "Error triggering async processor"
+          );
         }
       } else {
-        logger.warn("ASYNC_RESUME_PROCESSOR_URL not configured, job will wait for manual processing");
+        logger.warn(
+          "ASYNC_RESUME_PROCESSOR_URL not configured, job will wait for manual processing"
+        );
       }
 
       // Return immediately with job ID
       return NextResponse.json({
         jobId,
         status: "pending",
-        message: "Resume generation queued. Poll /api/resume/generate/status/{jobId} for updates.",
+        message:
+          "Resume generation queued. Poll /api/resume/generate/status/{jobId} for updates.",
       });
     }
 
@@ -264,7 +281,7 @@ export async function POST(request: NextRequest) {
     // Track Billing
     await BillingService.trackUsage(userId, aiResponse.model || "default", {
       input: Math.ceil(prompt.length / 4),
-      output: Math.ceil(responseText.length / 4)
+      output: Math.ceil(responseText.length / 4),
     });
 
     // Step 5: Check if AI indicates completion or if we have enough data
@@ -339,7 +356,10 @@ export async function POST(request: NextRequest) {
         logger.info("✨ Creating generated resume via Service");
 
         // Delegate to Service
-        const { resumeId, numericId } = await saveGeneratedResume(userId, resumeData);
+        const { resumeId, numericId } = await saveGeneratedResume(
+          userId,
+          resumeData as GeneratedResumeInput
+        );
 
         logger.info({ data: resumeId }, "✅ Resume created successfully:");
 

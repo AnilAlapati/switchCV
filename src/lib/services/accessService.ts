@@ -97,8 +97,8 @@ export class AccessService {
       const err = e as { code?: number; message?: string };
       if (err.code === 9 || err.message?.toLowerCase().includes("index")) {
         logger.warn(
-          "Missing Firestore index for accessRequests, falling back to full collection scan",
-          { resumeId, requesterId }
+          { resumeId, requesterId },
+          "Missing Firestore index for accessRequests, falling back to full collection scan"
         );
         const allRequests = await resumeRef.collection("accessRequests").get();
         const filteredDocs = allRequests.docs.filter((doc) => {
@@ -128,8 +128,8 @@ export class AccessService {
       const err = e as { code?: number; message?: string };
       if (err.code === 9 || err.message?.toLowerCase().includes("index")) {
         logger.warn(
-          "Missing Firestore index for accessGrants, falling back to full collection scan",
-          { resumeId, requesterId }
+          { resumeId, requesterId },
+          "Missing Firestore index for accessGrants, falling back to full collection scan"
         );
         activeGrants = await resumeRef.collection("accessGrants").get();
         const filteredDocs = activeGrants.docs.filter(

@@ -41,26 +41,6 @@ interface GenerateResumeRequest {
   tone?: "professional" | "creative" | "concise";
 }
 
-interface GenerateResumeResponse {
-  success: boolean;
-  data?: {
-    enhancedSummary: string;
-    enhancedExperience: Array<{
-      title: string;
-      company: string;
-      duration: string;
-      description: string;
-      enhancedDescription: string;
-      achievements: string[];
-    }>;
-    skillSuggestions: string[];
-    improvementTips: string[];
-  };
-  error?: string;
-  model?: string;
-  provider?: string;
-}
-
 /**
  * Handle CORS preflight requests
  */
@@ -68,11 +48,7 @@ export async function OPTIONS(request: NextRequest) {
   return handleCorsPreflightRequest(request);
 }
 
-export async function POST(
-  request: NextRequest
-): Promise<
-  NextResponse<GenerateResumeResponse | { error: string; details?: string }>
-> {
+export async function POST(request: NextRequest) {
   try {
     // 0. Validate CORS origin
     const corsError = validateCorsRequest(request);

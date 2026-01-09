@@ -382,7 +382,7 @@ export async function createResume(userId: string, data: CreateResumeInput) {
 }
 
 /** Generated resume data from AI conversation */
-interface GeneratedResumeInput {
+export interface GeneratedResumeInput {
   name?: string;
   email?: string;
   phone?: string;
@@ -390,16 +390,21 @@ interface GeneratedResumeInput {
   summary?: string;
   experience?: Array<{
     company: string;
-    role: string;
+    role?: string;
+    title?: string; // Alternative to role from CollectedResumeData
     startDate?: string;
     endDate?: string;
+    duration?: string; // Alternative to startDate/endDate
     description?: string;
+    achievements?: string[];
   }>;
   education?: Array<{
     institution: string;
     degree: string;
     startDate?: string;
     endDate?: string;
+    year?: string; // Alternative to endDate from CollectedResumeData
+    major?: string;
   }>;
   skills?: string[] | Array<{ name: string }>;
 }
@@ -416,6 +421,26 @@ export async function saveGeneratedResume(
   const numericId = await generateNumericResumeId();
   const resumeId = numericId.toString();
 
+  // Normalize experience data (handle both CollectedResumeData and legacy formats)
+  const normalizedExperience = (resumeData.experience || []).map((exp) => ({
+    company: exp.company,
+    role: exp.role || exp.title || "",
+    startDate: exp.startDate || "",
+    endDate: exp.endDate || "",
+    duration: exp.duration || "",
+    description: exp.description || "",
+    achievements: exp.achievements || [],
+  }));
+
+  // Normalize education data
+  const normalizedEducation = (resumeData.education || []).map((edu) => ({
+    institution: edu.institution,
+    degree: edu.degree,
+    startDate: edu.startDate || "",
+    endDate: edu.endDate || edu.year || "",
+    major: edu.major || "",
+  }));
+
   // Prepare resume document
   const resumeDocument = {
     id: resumeId,
@@ -429,8 +454,8 @@ export async function saveGeneratedResume(
       location: resumeData.location || "",
     },
     summary: resumeData.summary || "",
-    experience: resumeData.experience || [],
-    education: resumeData.education || [],
+    experience: normalizedExperience,
+    education: normalizedEducation,
     skills: resumeData.skills || [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

@@ -120,12 +120,27 @@ export async function updateRecruiterAccessMetric(
 }
 
 /**
+ * Job seeker metrics type
+ */
+interface JobSeekerMetrics {
+  profileViews?: number;
+  contactRequests?: number;
+  downloads?: number;
+  quality?: number;
+  lastUpdated?: FirebaseFirestore.Timestamp | null;
+}
+
+/**
  * Get metrics for a job seeker.
  */
-export async function getJobSeekerMetrics(userId: string) {
+export async function getJobSeekerMetrics(
+  userId: string
+): Promise<JobSeekerMetrics> {
   const metricsRef = adminDb.collection("jobSeekerMetrics").doc(userId);
   const metricsDoc = await metricsRef.get();
-  const metrics = metricsDoc.exists ? metricsDoc.data() : {};
+  const metrics = (
+    metricsDoc.exists ? metricsDoc.data() : {}
+  ) as JobSeekerMetrics;
 
   // Lazy migration: calculate contactRequests if missing
   let contactRequests = metrics?.contactRequests;
@@ -163,18 +178,38 @@ export async function getJobSeekerMetrics(userId: string) {
 }
 
 /**
+ * Recruiter metrics type
+ */
+interface RecruiterMetrics {
+  totalSearches?: number;
+  totalProfileViews?: number;
+  accessRequests?: {
+    pending: number;
+    approved: number;
+    denied: number;
+  };
+  totalCandidatesInteracted?: number;
+  lastActivityAt?: FirebaseFirestore.Timestamp | null;
+}
+
+/**
  * Get metrics for a recruiter.
  */
-export async function getRecruiterMetrics(userId: string) {
+export async function getRecruiterMetrics(
+  userId: string
+): Promise<RecruiterMetrics> {
   const metricsRef = adminDb.collection("recruiterMetrics").doc(userId);
   const metricsDoc = await metricsRef.get();
-  const metrics = metricsDoc.exists ? metricsDoc.data() : {};
+  const metrics = (
+    metricsDoc.exists ? metricsDoc.data() : {}
+  ) as RecruiterMetrics;
 
   // Return cached metrics immediately - no expensive calculations on the hot path
   // If accessRequests is missing, perform a lazy migration by counting them
-  let accessRequests = metrics?.accessRequests;
+  let accessRequests: { pending: number; approved: number; denied: number } =
+    metrics?.accessRequests ?? { pending: 0, approved: 0, denied: 0 };
 
-  if (!accessRequests) {
+  if (!metrics?.accessRequests) {
     try {
       logger.info(
         { userId },
@@ -187,11 +222,8 @@ export async function getRecruiterMetrics(userId: string) {
         .where("fromUserId", "==", userId)
         .get();
 
-      accessRequests = {
-        pending: 0,
-        approved: 0,
-        denied: 0,
-      };
+      // Reset counts for migration
+      accessRequests = { pending: 0, approved: 0, denied: 0 };
 
       requestsSnapshot.forEach((doc) => {
         const data = doc.data();

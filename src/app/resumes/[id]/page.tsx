@@ -241,7 +241,7 @@ export default function ResumeView() {
         {editingBanner}
         {/* Privacy Toggle */}
         <PrivacyMenu
-          isPublic={resume.isPublic}
+          isPublic={resume.isPublic ?? false}
           viewerIsOwner={viewerIsOwner}
           isPublicPreview={isPublicPreview}
           showPrivacyMenu={showPrivacyMenu}

@@ -1,17 +1,15 @@
-// src/proxy.ts - Next.js middleware
+// src/middleware.ts - Next.js middleware
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase-admin";
 import { checkEdgeRateLimit } from "@/lib/utils/edgeRateLimit";
-import createMiddleware from "next-intl/middleware";
 
-// Initialize i18n middleware
-const i18nMiddleware = createMiddleware({
-  // A list of all locales that are supported
-  locales: ["en", "es", "fr", "de"],
-
-  // Used when no locale matches
-  defaultLocale: "en",
-});
+// NOTE: next-intl middleware is disabled because app structure doesn't use [locale] routing
+// To enable i18n, restructure app directory to src/app/[locale]/page.tsx pattern
+// import createMiddleware from "next-intl/middleware";
+// const i18nMiddleware = createMiddleware({
+//   locales: ["en", "es", "fr", "de"],
+//   defaultLocale: "en",
+//   localePrefix: "never",
+// });
 
 // In-memory cache for maintenance config
 interface MaintenanceCache {
@@ -26,7 +24,9 @@ interface MaintenanceCache {
 // Default cache TTL: 24 hours (can be overridden by Firestore config)
 const DEFAULT_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
-let maintenanceCache: MaintenanceCache = {
+// Reserved for future use - maintenance mode caching
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const maintenanceCache: MaintenanceCache = {
   config: null,
   cacheTtlMs: DEFAULT_CACHE_TTL_MS,
   timestamp: 0,
@@ -36,54 +36,13 @@ async function getMaintenanceConfig(): Promise<{
   isActive: boolean;
   blocking: boolean;
 } | null> {
-  const now = Date.now();
-
-  // Return cached value if still fresh (use the cacheTtlMs from Firestore)
-  if (
-    maintenanceCache.config !== null &&
-    now - maintenanceCache.timestamp < maintenanceCache.cacheTtlMs
-  ) {
-    return maintenanceCache.config;
-  }
-
-  try {
-    // Fetch from Firestore
-    const docRef = adminDb.collection("config").doc("system");
-    const snapshot = await docRef.get();
-
-    if (snapshot.exists) {
-      const config = snapshot.data();
-      const maintenance = config?.maintenance || {
-        isActive: false,
-        blocking: false,
-      };
-
-      // Get cache TTL from Firestore config, fallback to default
-      const cacheTtlMs =
-        config?.cache?.maintenanceConfigCacheTtlMs || DEFAULT_CACHE_TTL_MS;
-
-      // Update cache with both config and cache TTL
-      maintenanceCache = {
-        config: {
-          isActive: maintenance.isActive ?? false,
-          blocking: maintenance.blocking ?? false,
-        },
-        cacheTtlMs,
-        timestamp: now,
-      };
-
-      return maintenanceCache.config;
-    }
-  } catch {
-    // On error, return cached value if available, otherwise assume no maintenance
-    // console.error("Middleware error checking maintenance status:", error);
-    return maintenanceCache.config || { isActive: false, blocking: false };
-  }
-
+  // NOTE: Firebase Admin cannot be used in Next.js Middleware (Edge Runtime).
+  // Maintenance mode checks should be moved to a separate API route or Edge Config.
+  // Returning default (no maintenance) to prevent runtime crashes.
   return { isActive: false, blocking: false };
 }
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
   // 1. API Routes: Apply Rate Limiting Only
@@ -132,7 +91,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 3. Page Routes: Check Maintenance then i18n
+  // 3. Page Routes: Check Maintenance mode
   try {
     const maintenance = await getMaintenanceConfig();
 
@@ -144,8 +103,8 @@ export async function proxy(request: NextRequest) {
     // Silently fail - let request through if there's any error
   }
 
-  // 4. Apply i18n Middleware
-  return i18nMiddleware(request);
+  // 4. Allow request to proceed normally
+  return NextResponse.next();
 }
 
 export const config = {

@@ -188,7 +188,7 @@ export default function CreateResume() {
     // Scroll immediately when new messages arrive
     if (previousMessageCount.current > 0) {
       // Use requestAnimationFrame to ensure DOM is updated
-      requestAnimationFrame(() => scrollToBottom(true));
+      requestAnimationFrame(() => scrollToBottom());
     }
 
     previousMessageCount.current = messages.length;

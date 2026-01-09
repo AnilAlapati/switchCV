@@ -10,6 +10,7 @@ import { Footer } from "@/components/layout/Footer";
 import { MaintenanceBanner } from "@/components/layout/MaintenanceBanner";
 import { DevModeBanner } from "@/components/dev/DevModeBanner";
 import { SWRProvider } from "@/components/providers/SWRProvider";
+import { IntlProvider } from "@/components/providers/IntlProvider";
 import { Toaster } from "sonner";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import { BetaBadge } from "@/components/layout/BetaBadge";
@@ -42,29 +43,31 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning
       >
-        <ConnectivityStatusProvider>
-          <SystemConfigProvider>
-            <BlockingGuard>
-              <AuthProvider>
-                <SWRProvider>
-                  <Toaster
-                    position="top-right"
-                    richColors
-                    closeButton
-                    theme="dark"
-                  />
-                  <MaintenanceBanner />
-                  <div className="flex min-h-screen flex-col">
-                    <div className="flex-1">{children}</div>
-                    <Footer />
-                  </div>
-                  <DevModeBanner />
-                  <BetaBadge />
-                </SWRProvider>
-              </AuthProvider>
-            </BlockingGuard>
-          </SystemConfigProvider>
-        </ConnectivityStatusProvider>
+        <IntlProvider>
+          <ConnectivityStatusProvider>
+            <SystemConfigProvider>
+              <BlockingGuard>
+                <AuthProvider>
+                  <SWRProvider>
+                    <Toaster
+                      position="top-right"
+                      richColors
+                      closeButton
+                      theme="dark"
+                    />
+                    <MaintenanceBanner />
+                    <div className="flex min-h-screen flex-col">
+                      <div className="flex-1">{children}</div>
+                      <Footer />
+                    </div>
+                    <DevModeBanner />
+                    <BetaBadge />
+                  </SWRProvider>
+                </AuthProvider>
+              </BlockingGuard>
+            </SystemConfigProvider>
+          </ConnectivityStatusProvider>
+        </IntlProvider>
       </body>
       {process.env.NODE_ENV === "production" &&
         process.env.NEXT_PUBLIC_GA_ID && (
