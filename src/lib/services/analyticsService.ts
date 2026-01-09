@@ -394,18 +394,18 @@ export async function getSystemAnalytics(
     throw new Error("Unauthorized");
   }
 
+
   // 1. Aggregations (Fast & Bounded)
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
   const { AggregateField } = await import("firebase-admin/firestore");
 
+  // Run queries that don't require composite indexes
   const [
     totalUsersSnap,
     totalResumesSnap,
     totalRequestsSnap,
-    activeRecruitersSnap,
-    analyticsAggSnap,
     basicSubsSnap,
     premiumSubsSnap,
     entSubsSnap,
@@ -414,25 +414,51 @@ export async function getSystemAnalytics(
     adminDb.collection("users").count().get(),
     adminDb.collection("resumes").count().get(),
     adminDb.collection("contactRequests").count().get(),
-    adminDb
+    adminDb.collection("users").where("tier", "==", "basic").count().get(),
+    adminDb.collection("users").where("tier", "==", "premium").count().get(),
+    adminDb.collection("users").where("tier", "==", "enterprise").count().get(),
+    adminDb.collection("resumes").orderBy("createdAt", "desc").limit(500).get(),
+  ]);
+
+  // Active recruiters query requires composite index - wrap in try-catch
+  let activeRecruitersCount = 0;
+  try {
+    const activeRecruitersSnap = await adminDb
       .collection("users")
       .where("role", "in", ["recruiter", "admin"])
       .where("lastLoginAt", ">=", thirtyDaysAgo)
       .count()
-      .get(),
-    adminDb
+      .get();
+    activeRecruitersCount = activeRecruitersSnap.data().count;
+  } catch (error) {
+    // Index missing - log warning but continue with 0
+    logger.warn({ err: error }, "Active recruiters query failed - composite index may be missing");
+  }
+
+  // Safely fetch aggregations (can fail if indexes are missing)
+  let totalViews = 0;
+  let averageAttractiveness = 0;
+
+  try {
+    const analyticsAggSnap = await adminDb
       .collection("analytics")
       .aggregate({
         totalViews: AggregateField.sum("views.count"),
         avgAttract: AggregateField.average("attractivenessScore"),
       })
-      .get(),
-    adminDb.collection("users").where("tier", "==", "basic").count().get(),
-    adminDb.collection("users").where("tier", "==", "premium").count().get(),
-    adminDb.collection("users").where("tier", "==", "enterprise").count().get(),
-    // Sample last 500 resumes for industry trends instead of scanning all
-    adminDb.collection("resumes").orderBy("createdAt", "desc").limit(500).get(),
-  ]);
+      .get();
+
+    totalViews = analyticsAggSnap.data().totalViews || 0;
+    averageAttractiveness = Math.round(analyticsAggSnap.data().avgAttract || 0);
+  } catch (error) {
+    // Log detailed error for admin to fix (usually missing index)
+    /* eslint-disable no-console */
+    console.log("\n=== AGGREGATION FAILED ===");
+    console.log("Error:", error);
+    console.log("===========================\n");
+    /* eslint-enable no-console */
+    // Continue with default 0 values so dashboard doesn't crash
+  }
 
   // Process Industries (Sampled)
   const industriesCounts: Record<string, number> = {};
@@ -490,9 +516,9 @@ export async function getSystemAnalytics(
   return {
     totalUsers: totalUsersSnap.data().count,
     totalResumes: totalResumesSnap.data().count,
-    activeRecruiters: activeRecruitersSnap.data().count,
-    totalViews: analyticsAggSnap.data().totalViews || 0,
-    averageAttractiveness: Math.round(analyticsAggSnap.data().avgAttract || 0),
+    activeRecruiters: activeRecruitersCount,
+    totalViews,
+    averageAttractiveness,
     totalContactRequests: totalRequestsSnap.data().count,
     topIndustries,
     recentActivity: recentActivity.slice(0, 10),
@@ -570,10 +596,10 @@ export async function getDashboardAnalytics(resumeId: string) {
 
   const heatmaps: SectionHeatmap[] = heatmapsSnap.docs.map(
     (doc) =>
-      ({
-        ...doc.data(),
-        sectionName: doc.data().sectionName || doc.id,
-      } as SectionHeatmap)
+    ({
+      ...doc.data(),
+      sectionName: doc.data().sectionName || doc.id,
+    } as SectionHeatmap)
   );
 
   const recruiters: RecruiterEngagement[] = recruitersSnap.docs.map((doc) => {
@@ -589,12 +615,12 @@ export async function getDashboardAnalytics(resumeId: string) {
     heatmaps.length > 0
       ? heatmaps
       : generateHeatmap(viewEvents, resumeId, [
-          "summary",
-          "experience",
-          "skills",
-          "education",
-          "projects",
-        ]);
+        "summary",
+        "experience",
+        "skills",
+        "education",
+        "projects",
+      ]);
 
   // 4. Get Benchmark (defaulting to Technology for now, could be dynamic)
   const benchmarkRef = adminDb.collection("benchmarks").doc("technology");

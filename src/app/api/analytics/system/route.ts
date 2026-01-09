@@ -36,6 +36,8 @@ export async function GET(request: NextRequest) {
       return handleApiError(error, "Unauthorized. Only admins and recruiters can access system analytics.", 403);
     }
     logger.error({ err: error, userId }, "Failed to fetch system analytics");
-    return handleApiError(error, "Failed to fetch system analytics");
+    // Include detailed error message for debugging
+    const detailedMessage = `Failed to fetch system analytics: ${error?.message || String(error)}`;
+    return handleApiError(error, detailedMessage);
   }
 }

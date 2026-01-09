@@ -31,10 +31,19 @@ const fetcher = async (url: string, token: string) => {
     });
 
     if (!res.ok) {
+        // Parse error response for debugging
+        let errorDetails = "Unknown error";
+        try {
+            const errorJson = await res.json();
+            errorDetails = errorJson.details || errorJson.error || "Unknown error";
+        } catch {
+            // Ignore JSON parse errors
+        }
+
         if (res.status === 403) {
             throw new Error("You do not have permission to view analytics.");
         }
-        throw new Error("Failed to fetch analytics");
+        throw new Error(`Failed to fetch analytics: ${errorDetails}`);
     }
 
     return res.json();
