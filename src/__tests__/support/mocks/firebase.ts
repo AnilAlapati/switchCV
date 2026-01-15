@@ -10,11 +10,11 @@ export const mockFirebaseAuth = {
   currentUser: {
     uid: "test-user-id",
     email: "test@example.com",
-    getIdToken: jest.fn().mockResolvedValue("test-token"),
-    getIdTokenResult: jest.fn().mockResolvedValue({
+    getIdToken: (jest.fn() as any).mockResolvedValue("test-token"),
+    getIdTokenResult: (jest.fn() as any).mockResolvedValue({
       token: "test-token",
       claims: { admin: false },
-    }),
+    } as any),
   } as any,
 };
 
@@ -64,14 +64,13 @@ export function setMockCurrentUser(uid: string, email: string) {
 
 // Helper to make getIdToken fail
 export function setMockGetIdTokenError(error: Error) {
-  (mockFirebaseAuth.currentUser as any).getIdToken = jest
-    .fn()
-    .mockRejectedValue(error);
+  (mockFirebaseAuth.currentUser as any).getIdToken = (jest.fn() as any)
+    .mockRejectedValue(error as any);
 }
 
 // Helper to set up Firestore document response
 export function mockFirestoreDoc(data: any) {
-  mockFirestore.getDoc = jest.fn().mockResolvedValue({
+  mockFirestore.getDoc = (jest.fn() as any).mockResolvedValue({
     exists: () => !!data,
     data: () => data,
     id: "test-doc-id",
@@ -80,7 +79,7 @@ export function mockFirestoreDoc(data: any) {
 
 // Helper to set up Firestore collection response
 export function mockFirestoreCollection(docs: any[]) {
-  mockFirestore.getDocs = jest.fn().mockResolvedValue({
+  mockFirestore.getDocs = (jest.fn() as any).mockResolvedValue({
     docs: docs.map((data) => ({
       data: () => data,
       id: data.id || "test-doc-id",
@@ -91,11 +90,11 @@ export function mockFirestoreCollection(docs: any[]) {
 }
 
 // Mock getDoc function for testing
-export const mockGetDoc = jest.fn().mockResolvedValue({
+export const mockGetDoc = (jest.fn() as any).mockResolvedValue({
   exists: () => true,
   data: () => ({}),
   id: "test-doc-id",
-});
+} as any);
 
 // Mock serverTimestamp function
 export const mockServerTimestamp = jest.fn().mockReturnValue({
@@ -118,18 +117,18 @@ export function createMockFirebaseUser(overrides?: Partial<any>) {
     providerData: [],
     phoneNumber: null,
     tenantId: null,
-    reloadUserInfo: async () => {},
-    reload: jest.fn().mockResolvedValue(undefined),
-    getIdToken: jest.fn().mockResolvedValue("test-token"),
-    getIdTokenResult: jest.fn().mockResolvedValue({
+    reloadUserInfo: async () => { },
+    reload: (jest.fn() as any).mockResolvedValue(undefined as any),
+    getIdToken: (jest.fn() as any).mockResolvedValue("test-token"),
+    getIdTokenResult: (jest.fn() as any).mockResolvedValue({
       token: "test-token",
       claims: { admin: false },
       expirationTime: new Date().toISOString(),
       issuedAtTime: new Date().toISOString(),
       signInProvider: "password",
       signInSecond: Math.floor(Date.now() / 1000),
-    }),
-    delete: jest.fn().mockResolvedValue(undefined),
+    } as any),
+    delete: (jest.fn() as any).mockResolvedValue(undefined as any),
     toJSON: jest.fn().mockReturnValue({}),
     ...overrides,
   } as any;

@@ -289,6 +289,6 @@ describe("System Analytics API", () => {
     const data = await response.json();
 
     expect(response.status).toBe(500);
-    expect(data.error).toBe("Failed to fetch system analytics");
+    expect(data.error).toContain("Failed to fetch system analytics");
   });
 });

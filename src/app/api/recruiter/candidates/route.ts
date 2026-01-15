@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 // eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
- 
+
 import { FieldValue } from "firebase-admin/firestore";
 import {
   Candidate,
@@ -66,7 +66,7 @@ async function verifyRecruiterRole(userId: string): Promise<boolean> {
   return userData?.role === "recruiter" || userData?.role === "admin";
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   const { userId: authUserId, error: authError } = await getAuthenticatedUserId(
     request
   );
@@ -234,7 +234,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   const { userId: authUserId, error: authError } = await getAuthenticatedUserId(
     request
   );

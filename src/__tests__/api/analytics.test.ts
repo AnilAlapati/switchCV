@@ -75,7 +75,7 @@ describe("Analytics API", () => {
       docRef: {},
     });
     // Mock adminDb.get for the owner details used in the route
-    (adminDb.get as jest.Mock).mockResolvedValue({
+    ((adminDb as any).get as jest.Mock).mockResolvedValue({
       exists: true,
       data: () => ({ displayName: "Owner Name", email: "owner@example.com" }),
     });
@@ -108,7 +108,7 @@ describe("Analytics API", () => {
       };
 
       (trackAnalyticsEvent as jest.Mock).mockResolvedValue({ success: true });
-      (adminDb.get as jest.Mock).mockResolvedValue({
+      ((adminDb as any).get as jest.Mock).mockResolvedValue({
         data: () => ({ userId: "owner-789" }),
       });
 
@@ -143,7 +143,7 @@ describe("Analytics API", () => {
       };
 
       (trackAnalyticsEvent as jest.Mock).mockResolvedValue({ success: true });
-      (adminDb.get as jest.Mock).mockResolvedValue({
+      ((adminDb as any).get as jest.Mock).mockResolvedValue({
         data: () => ({ userId: "owner-789" }),
       });
 
@@ -170,7 +170,7 @@ describe("Analytics API", () => {
       };
 
       (trackAnalyticsEvent as jest.Mock).mockResolvedValue({ success: true });
-      (adminDb.get as jest.Mock).mockRejectedValue(
+      ((adminDb as any).get as jest.Mock).mockRejectedValue(
         new Error("Firestore error")
       );
 

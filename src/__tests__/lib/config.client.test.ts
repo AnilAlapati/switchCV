@@ -36,7 +36,7 @@ describe("Client Configuration", () => {
 
   describe("getBaseUrl", () => {
     it("should return localhost in development", () => {
-      process.env.NODE_ENV = "development";
+      (process.env as any).NODE_ENV = "development";
       expect(getBaseUrl()).toBe("http://localhost:3000");
     });
 
@@ -46,7 +46,7 @@ describe("Client Configuration", () => {
     });
 
     it("should use VERCEL_URL in production", () => {
-      process.env.NODE_ENV = "production";
+      (process.env as any).NODE_ENV = "production";
       process.env.NEXT_PUBLIC_VERCEL_URL = "vercel-app.vercel.app";
 
       jest.resetModules();
@@ -56,7 +56,7 @@ describe("Client Configuration", () => {
     });
 
     it("should handle server-side rendering", () => {
-      delete global.window;
+      delete (global as any).window;
       process.env.NEXT_PUBLIC_BASE_URL = "https://server-url.com";
       expect(getBaseUrl()).toBe("https://server-url.com");
     });
@@ -83,18 +83,18 @@ describe("Client Configuration", () => {
 
   describe("getEmailBaseUrl", () => {
     it("should return localhost in development", () => {
-      process.env.NODE_ENV = "development";
+      (process.env as any).NODE_ENV = "development";
       expect(getEmailBaseUrl()).toBe("http://localhost:3000");
     });
 
     it("should return production domain in production", () => {
-      process.env.NODE_ENV = "production";
+      (process.env as any).NODE_ENV = "production";
       process.env.NEXT_PUBLIC_VERCEL_URL = "prod-app.vercel.app";
       expect(getEmailBaseUrl()).toBe("prod-app.vercel.app");
     });
 
     it("should fallback to switchcv.com in production", () => {
-      process.env.NODE_ENV = "production";
+      (process.env as any).NODE_ENV = "production";
       delete process.env.NEXT_PUBLIC_VERCEL_URL;
       delete process.env.NEXT_PUBLIC_BASE_URL;
       expect(getEmailBaseUrl()).toBe("https://switchcv.com");
@@ -136,13 +136,13 @@ describe("Client Configuration", () => {
 
   describe("Feature Flags", () => {
     it("should disable seeding in production", () => {
-      process.env.NODE_ENV = "production";
+      (process.env as any).NODE_ENV = "production";
       process.env.NEXT_PUBLIC_ENABLE_SEEDING_DEBUG = "true";
       expect(ENABLE_SEEDING_AND_DEBUG_LISTS).toBe(false);
     });
 
     it("should enable seeding in development when explicitly set", () => {
-      process.env.NODE_ENV = "development";
+      (process.env as any).NODE_ENV = "development";
       process.env.NEXT_PUBLIC_ENABLE_SEEDING_DEBUG = "true";
 
       jest.resetModules();
@@ -154,7 +154,7 @@ describe("Client Configuration", () => {
     });
 
     it("should disable seeding when not set", () => {
-      process.env.NODE_ENV = "development";
+      (process.env as any).NODE_ENV = "development";
       delete process.env.NEXT_PUBLIC_ENABLE_SEEDING_DEBUG;
       expect(ENABLE_SEEDING_AND_DEBUG_LISTS).toBe(false);
     });
@@ -220,7 +220,7 @@ describe("Client Configuration", () => {
 
   describe("Dev Mode", () => {
     it("should disable dev mode in production", () => {
-      process.env.NODE_ENV = "production";
+      (process.env as any).NODE_ENV = "production";
       process.env.NEXT_PUBLIC_DEV_MODE = "true";
 
       jest.resetModules();
@@ -230,7 +230,7 @@ describe("Client Configuration", () => {
     });
 
     it("should enable dev mode in development when set", () => {
-      process.env.NODE_ENV = "development";
+      (process.env as any).NODE_ENV = "development";
       process.env.NEXT_PUBLIC_DEV_MODE = "true";
 
       jest.resetModules();
@@ -240,7 +240,7 @@ describe("Client Configuration", () => {
     });
 
     it("should disable dev mode when not explicitly set", () => {
-      process.env.NODE_ENV = "development";
+      (process.env as any).NODE_ENV = "development";
       delete process.env.NEXT_PUBLIC_DEV_MODE;
 
       jest.resetModules();
@@ -252,7 +252,7 @@ describe("Client Configuration", () => {
 
   describe("Dev Mode Overrides", () => {
     beforeEach(() => {
-      process.env.NODE_ENV = "development";
+      (process.env as any).NODE_ENV = "development";
       process.env.NEXT_PUBLIC_DEV_MODE = "true";
     });
 
@@ -302,7 +302,7 @@ describe("Client Configuration", () => {
 
   describe("getDevModeStatus", () => {
     it("should return dev mode status", () => {
-      process.env.NODE_ENV = "development";
+      (process.env as any).NODE_ENV = "development";
       process.env.NEXT_PUBLIC_DEV_MODE = "true";
       process.env.NEXT_PUBLIC_DEV_TIER = "enterprise";
       process.env.NEXT_PUBLIC_DEV_ROLE = "admin";

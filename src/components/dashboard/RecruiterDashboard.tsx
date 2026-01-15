@@ -22,6 +22,7 @@ import {
 import { PremiumFeatureLock } from "@/components/ui/PremiumFeatureLock";
 import { TIER_RESTRICTION_MESSAGES } from "@/lib/utils/tier-restrictions";
 import type { RecruiterMetrics } from "@/types/dashboard";
+import type { DashboardResume } from "@/types";
 
 const pipelinePanelEnabled =
   process.env.NEXT_PUBLIC_FEATURE_PIPELINE_PANEL === "true";
@@ -31,7 +32,7 @@ interface RecruiterDashboardProps {
   metricsLoading: boolean;
   onLaunchSearch?: () => void;
   searchSectionRef?: React.RefObject<HTMLDivElement | null>;
-  resumes?: any[];
+  resumes?: DashboardResume[];
 }
 
 export function RecruiterDashboard({

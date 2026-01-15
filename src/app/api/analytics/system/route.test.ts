@@ -1,6 +1,6 @@
 // Tests for System Analytics API
 
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { GET } from "./route";
 // eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
@@ -25,10 +25,7 @@ jest.mock("@/lib/utils/api-helpers", () => ({
     if (error) {
       res.details = error instanceof Error ? error.message : String(error);
     }
-    return {
-      status,
-      json: async () => res,
-    };
+    return NextResponse.json(res, { status });
   }),
   validateCorsRequest: jest.fn(() => null),
 }));
@@ -46,10 +43,8 @@ describe("System Analytics API", () => {
 
   it("should return 401 if user is not authenticated", async () => {
     mockGetAuthenticatedUserId.mockResolvedValue({
-      userId: null,
-      error: new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-      }),
+      userId: undefined,
+      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
     });
 
     const request = new NextRequest(
@@ -63,7 +58,7 @@ describe("System Analytics API", () => {
 
   it("should return 403 if user is not admin or recruiter", async () => {
     const userId = "user123";
-    mockGetAuthenticatedUserId.mockResolvedValue({ userId, error: null });
+    mockGetAuthenticatedUserId.mockResolvedValue({ userId, error: undefined });
 
     (getSystemAnalytics as jest.Mock).mockRejectedValue(
       new Error("Unauthorized")
@@ -94,7 +89,7 @@ describe("System Analytics API", () => {
 
   it("should return analytics data for admin user", async () => {
     const userId = "admin123";
-    mockGetAuthenticatedUserId.mockResolvedValue({ userId, error: null });
+    mockGetAuthenticatedUserId.mockResolvedValue({ userId, error: undefined });
 
     // Mock getSystemAnalytics to return expected data
     (getSystemAnalytics as jest.Mock).mockResolvedValue({
@@ -200,10 +195,10 @@ describe("System Analytics API", () => {
               collectionName === "users"
                 ? mockUsersSnapshot
                 : collectionName === "resumes"
-                ? mockResumesSnapshot
-                : collectionName === "analytics"
-                ? mockAnalyticsSnapshot
-                : mockContactRequestsSnapshot
+                  ? mockResumesSnapshot
+                  : collectionName === "analytics"
+                    ? mockAnalyticsSnapshot
+                    : mockContactRequestsSnapshot
             ),
           orderBy: mockOrderBy,
         };
@@ -235,7 +230,7 @@ describe("System Analytics API", () => {
 
   it("should return analytics data for recruiter user", async () => {
     const userId = "recruiter123";
-    mockGetAuthenticatedUserId.mockResolvedValue({ userId, error: null });
+    mockGetAuthenticatedUserId.mockResolvedValue({ userId, error: undefined });
 
     // Mock getSystemAnalytics to return expected data for recruiter
     (getSystemAnalytics as jest.Mock).mockResolvedValue({
@@ -259,7 +254,7 @@ describe("System Analytics API", () => {
       doc: jest.fn().mockReturnValue({
         get: jest.fn().mockResolvedValue(mockUserDoc),
       }),
-      get: jest.fn().mockResolvedValue({ size: 0, forEach: () => {} }),
+      get: jest.fn().mockResolvedValue({ size: 0, forEach: () => { } }),
       orderBy: jest.fn().mockReturnThis(),
       limit: jest.fn().mockReturnThis(),
     }));

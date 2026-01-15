@@ -245,6 +245,19 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "resumes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "embedding",
+          "vectorConfig": {
+            "dimension": 768,
+            "flat": {}
+          }
+        }
+      ]
     }
   ],
   "fieldOverrides": [
@@ -305,14 +318,6 @@
           "queryScope": "COLLECTION_GROUP"
         }
       ]
-    },
-    {
-      "collectionGroup": "resumes",
-      "fieldPath": "embedding",
-      "vectorConfig": {
-        "dimension": 768,
-        "flat": {}
-      }
     }
   ]
 }

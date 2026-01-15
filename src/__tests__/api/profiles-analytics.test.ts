@@ -75,7 +75,7 @@ describe("Profiles Analytics API", () => {
         userId: "user-1",
         error: null,
       });
-      (adminDb.get as jest.Mock).mockResolvedValue({
+      ((adminDb as any).get as jest.Mock).mockResolvedValue({
         exists: true,
         data: () => ({ role: "jobseeker" }),
       });
@@ -117,7 +117,7 @@ describe("Profiles Analytics API", () => {
         userId: "admin-1",
         error: null,
       });
-      (adminDb.get as jest.Mock).mockResolvedValue({
+      ((adminDb as any).get as jest.Mock).mockResolvedValue({
         exists: true,
         data: () => ({ role: "admin" }),
       });
@@ -196,7 +196,7 @@ describe("Profiles Analytics API", () => {
       (analyticsService.trackAnalyticsEvent as jest.Mock).mockResolvedValue({
         success: true,
       });
-      (adminDb.get as jest.Mock).mockResolvedValue({
+      ((adminDb as any).get as jest.Mock).mockResolvedValue({
         exists: true,
         data: () => ({ userId: "owner-1" }),
       });
@@ -233,7 +233,7 @@ describe("Profiles Analytics API", () => {
       (analyticsService.trackAnalyticsEvent as jest.Mock).mockResolvedValue({
         success: true,
       });
-      (adminDb.get as jest.Mock).mockResolvedValue({
+      ((adminDb as any).get as jest.Mock).mockResolvedValue({
         exists: true,
         data: () => ({ userId: "owner-1" }),
       });
@@ -264,7 +264,9 @@ describe("Profiles Analytics API", () => {
       (analyticsService.trackAnalyticsEvent as jest.Mock).mockResolvedValue({
         success: true,
       });
-      (adminDb.get as jest.Mock).mockRejectedValue(new Error("Metric error"));
+      ((adminDb as any).get as jest.Mock).mockRejectedValue(
+        new Error("Metric error")
+      );
 
       const req = new NextRequest(
         new URL("http://localhost:3000/api/profiles/analytics"),

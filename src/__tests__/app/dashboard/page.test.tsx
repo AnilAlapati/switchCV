@@ -105,7 +105,7 @@ describe("Dashboard", () => {
     });
 
     render(<Dashboard />);
-    expect(screen.getByText("Loading your dashboard…")).toBeInTheDocument();
+    expect(screen.getByText("Loading dashboard...")).toBeInTheDocument();
   });
 
   it("redirects to auth if not logged in", () => {

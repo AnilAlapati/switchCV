@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { AIProvider } from "@/types/ai";
 import { GET } from "@/app/api/ai/models/route";
 import { getSelectableModels } from "@/lib/services/aiProviderService";
 import { getUserTier } from "@/lib/services/userService";
@@ -31,12 +32,19 @@ describe("GET /api/ai/models", () => {
 
   it("should return models for authenticated user with basic tier", async () => {
     const mockModels = [
-      { id: "gpt-3.5-turbo", name: "GPT-3.5 Turbo", provider: "openai" },
+      {
+        id: "gpt-3.5-turbo",
+        name: "GPT-3.5 Turbo",
+        provider: "openai" as AIProvider,
+        tier: "free" as const,
+        quality: 1,
+        costPer1MTokens: 1,
+      },
     ];
 
     mockGetAuthenticatedUserId.mockResolvedValue({
       userId: "user123",
-      error: null,
+      error: undefined,
     });
     mockGetUserTier.mockResolvedValue("basic");
     mockGetSelectableModels.mockReturnValue(mockModels);
@@ -56,13 +64,27 @@ describe("GET /api/ai/models", () => {
 
   it("should return models for premium tier user", async () => {
     const mockModels = [
-      { id: "gpt-4", name: "GPT-4", provider: "openai" },
-      { id: "claude-3", name: "Claude 3", provider: "anthropic" },
+      {
+        id: "model-1",
+        name: "Model 1",
+        provider: "google" as AIProvider,
+        tier: "premium" as const,
+        quality: 1,
+        costPer1MTokens: 1,
+      },
+      {
+        id: "model-2",
+        name: "Model 2",
+        provider: "google" as AIProvider,
+        tier: "premium" as const,
+        quality: 1,
+        costPer1MTokens: 1,
+      },
     ];
 
     mockGetAuthenticatedUserId.mockResolvedValue({
       userId: "user456",
-      error: null,
+      error: undefined,
     });
     mockGetUserTier.mockResolvedValue("premium");
     mockGetSelectableModels.mockReturnValue(mockModels);
@@ -83,7 +105,7 @@ describe("GET /api/ai/models", () => {
     );
 
     mockGetAuthenticatedUserId.mockResolvedValue({
-      userId: null,
+      userId: undefined,
       error: errorResponse,
     });
 
@@ -101,8 +123,8 @@ describe("GET /api/ai/models", () => {
     );
 
     mockGetAuthenticatedUserId.mockResolvedValue({
-      userId: null,
-      error: null,
+      userId: undefined,
+      error: undefined,
     });
     mockHandleApiError.mockReturnValue(errorResponse);
 
@@ -120,7 +142,7 @@ describe("GET /api/ai/models", () => {
 
     mockGetAuthenticatedUserId.mockResolvedValue({
       userId: "user789",
-      error: null,
+      error: undefined,
     });
     mockGetUserTier.mockRejectedValue(new Error("Database error"));
     mockHandleApiError.mockReturnValue(errorResponse);
@@ -142,7 +164,7 @@ describe("GET /api/ai/models", () => {
 
     mockGetAuthenticatedUserId.mockResolvedValue({
       userId: "user999",
-      error: null,
+      error: undefined,
     });
     mockGetUserTier.mockResolvedValue("enterprise");
     mockGetSelectableModels.mockImplementation(() => {

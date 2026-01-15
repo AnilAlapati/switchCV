@@ -32,8 +32,8 @@ export function ActionPlanCard({
   return (
     <section className="glass-panel rounded-2xl p-6">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-bold text-[#1A2F25]">{headline}</h2>
-        <span className="text-xs font-bold uppercase tracking-wide text-[#2C4A3B]/60">
+        <h2 className="text-lg font-bold text-[black]">{headline}</h2>
+        <span className="text-xs font-bold uppercase tracking-wide text-[black]/60">
           Focus queue
         </span>
       </div>
@@ -51,7 +51,7 @@ export function ActionPlanCard({
         )}
 
         {!loading && items.length === 0 && (
-          <p className="rounded-xl border border-white/50 bg-white/20 p-4 text-sm text-[#1A2F25]/60">
+          <p className="rounded-xl border border-white/50 bg-white/20 p-4 text-sm text-[black]/60">
             {emptyMessage}
           </p>
         )}
@@ -140,13 +140,13 @@ export function ActionPlanCard({
                         {item.priority} priority
                       </span>
                     </div>
-                    <h3 className="text-base font-bold text-[#1A2F25]">
+                    <h3 className="text-base font-bold text-[black]">
                       {item.title}
                     </h3>
                   </div>
                   {CTAButton}
                 </div>
-                <p className="mt-2 text-sm text-[#1A2F25]/70">
+                <p className="mt-2 text-sm text-[black]/70">
                   {item.description}
                 </p>
                 {MetaTag && <div className="mt-3">{MetaTag}</div>}

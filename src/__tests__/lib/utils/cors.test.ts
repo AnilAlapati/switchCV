@@ -15,7 +15,7 @@ describe("CORS Validation", () => {
   describe("validateCorsOrigin", () => {
     it("should allow localhost in development", () => {
       const originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = "development";
+      (process.env as any).NODE_ENV = "development";
 
       const request = new NextRequest("http://localhost:3000/api/test", {
         headers: {
@@ -28,12 +28,12 @@ describe("CORS Validation", () => {
       expect(result.allowed).toBe(true);
       expect(result.origin).toBe("http://localhost:3000");
 
-      process.env.NODE_ENV = originalEnv;
+      (process.env as any).NODE_ENV = originalEnv;
     });
 
     it("should allow localhost with different port in development", () => {
       const originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = "development";
+      (process.env as any).NODE_ENV = "development";
 
       const request = new NextRequest("http://localhost:3000/api/test", {
         headers: {
@@ -46,12 +46,12 @@ describe("CORS Validation", () => {
       expect(result.allowed).toBe(true);
       expect(result.origin).toBe("http://localhost:3001");
 
-      process.env.NODE_ENV = originalEnv;
+      (process.env as any).NODE_ENV = originalEnv;
     });
 
     it("should reject unauthorized origins in production", () => {
       const originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = "production";
+      (process.env as any).NODE_ENV = "production";
 
       const request = new NextRequest("https://switchcv.com/api/test", {
         headers: {
@@ -65,12 +65,12 @@ describe("CORS Validation", () => {
       expect(result.origin).toBe(null);
       expect(result.reason).toBe("Origin not allowed");
 
-      process.env.NODE_ENV = originalEnv;
+      (process.env as any).NODE_ENV = originalEnv;
     });
 
     it("should allow production domains in production", () => {
       const originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = "production";
+      (process.env as any).NODE_ENV = "production";
 
       const request = new NextRequest("https://switchcv.com/api/test", {
         headers: {
@@ -83,7 +83,7 @@ describe("CORS Validation", () => {
       expect(result.allowed).toBe(true);
       expect(result.origin).toBe("https://switchcv.com");
 
-      process.env.NODE_ENV = originalEnv;
+      (process.env as any).NODE_ENV = originalEnv;
     });
 
     it("should handle requests without origin header", () => {
@@ -112,7 +112,7 @@ describe("CORS Validation", () => {
   describe("createCorsHeaders", () => {
     it("should create standard CORS headers in development", () => {
       const originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = "development";
+      (process.env as any).NODE_ENV = "development";
 
       const request = new NextRequest("http://localhost:3000/api/test", {
         headers: {
@@ -120,7 +120,7 @@ describe("CORS Validation", () => {
         },
       });
 
-      const headers = createCorsHeaders(request);
+      const headers = createCorsHeaders(request) as Record<string, string>;
 
       expect(headers["Access-Control-Allow-Origin"]).toBe(
         "http://localhost:3000"
@@ -130,12 +130,12 @@ describe("CORS Validation", () => {
       expect(headers["Access-Control-Allow-Headers"]).toContain("Content-Type");
       expect(headers["Access-Control-Max-Age"]).toBe("86400");
 
-      process.env.NODE_ENV = originalEnv;
+      (process.env as any).NODE_ENV = originalEnv;
     });
 
     it("should not include origin for invalid origins", () => {
       const originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = "production";
+      (process.env as any).NODE_ENV = "production";
 
       const request = new NextRequest("https://switchcv.com/api/test", {
         headers: {
@@ -143,16 +143,16 @@ describe("CORS Validation", () => {
         },
       });
 
-      const headers = createCorsHeaders(request);
+      const headers = createCorsHeaders(request) as Record<string, string>;
 
       expect(headers["Access-Control-Allow-Origin"]).toBeUndefined();
 
-      process.env.NODE_ENV = originalEnv;
+      (process.env as any).NODE_ENV = originalEnv;
     });
 
     it("should allow custom options", () => {
       const originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = "development";
+      (process.env as any).NODE_ENV = "development";
 
       const req = new NextRequest("http://localhost:3000/api/test", {
         headers: {
@@ -167,19 +167,19 @@ describe("CORS Validation", () => {
         allowedHeaders: ["Content-Type"],
       });
 
-      expect(headers["Access-Control-Allow-Credentials"]).toBeUndefined();
-      expect(headers["Access-Control-Max-Age"]).toBe("3600");
-      expect(headers["Access-Control-Allow-Methods"]).toBe("GET, POST");
-      expect(headers["Access-Control-Allow-Headers"]).toBe("Content-Type");
+      expect((headers as any)["Access-Control-Allow-Credentials"]).toBeUndefined();
+      expect((headers as any)["Access-Control-Max-Age"]).toBe("3600");
+      expect((headers as any)["Access-Control-Allow-Methods"]).toBe("GET, POST");
+      expect((headers as any)["Access-Control-Allow-Headers"]).toBe("Content-Type");
 
-      process.env.NODE_ENV = originalEnv;
+      (process.env as any).NODE_ENV = originalEnv;
     });
   });
 
   describe("handleCorsPreflightRequest", () => {
     it("should return 204 for allowed origin in development", () => {
       const originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = "development";
+      (process.env as any).NODE_ENV = "development";
 
       const request = new NextRequest("http://localhost:3000/api/test", {
         method: "OPTIONS",
@@ -195,12 +195,12 @@ describe("CORS Validation", () => {
         "http://localhost:3000"
       );
 
-      process.env.NODE_ENV = originalEnv;
+      (process.env as any).NODE_ENV = originalEnv;
     });
 
     it("should return 403 for disallowed origin", () => {
       const originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = "production";
+      (process.env as any).NODE_ENV = "production";
 
       const request = new NextRequest("https://switchcv.com/api/test", {
         method: "OPTIONS",
@@ -214,7 +214,7 @@ describe("CORS Validation", () => {
       expect(response.status).toBe(403);
       expect(response.statusText).toContain("Origin not allowed");
 
-      process.env.NODE_ENV = originalEnv;
+      (process.env as any).NODE_ENV = originalEnv;
     });
   });
 });

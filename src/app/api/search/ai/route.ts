@@ -146,26 +146,26 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(resultData as SearchResponse);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error({ err: error }, "[AI Search API] Error:");
 
-    // Handle Firebase callable function errors
-    if (error.code) {
-      const code = error.code;
-      const message = error.message || "Search failed";
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorCode = (error as { code?: string })?.code;
 
-      if (code === "functions/permission-denied") {
+    // Handle Firebase callable function errors
+    if (errorCode) {
+      if (errorCode === "functions/permission-denied") {
         // Check for specific error types in the message
-        if (message.includes("QUOTA_EXCEEDED")) {
+        if (errorMessage.includes("QUOTA_EXCEEDED")) {
           return handleApiError(new Error("Quota exceeded"), "Search quota exceeded", 403);
         }
-        if (message.includes("not allowed") || message.includes("tier")) {
+        if (errorMessage.includes("not allowed") || errorMessage.includes("tier")) {
           return handleApiError(new Error("Tier not allowed"), "AI search not available for your subscription tier", 403);
         }
         return handleApiError(new Error("Permission denied"), "Permission denied for AI search", 403);
       }
 
-      if (code === "functions/unauthenticated") {
+      if (errorCode === "functions/unauthenticated") {
         return handleApiError(
           new Error("Authentication required"),
           "Please sign in to use AI search",
@@ -173,11 +173,11 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (code === "functions/invalid-argument") {
-        return handleApiError(new Error(message), "Invalid search request", 400);
+      if (errorCode === "functions/invalid-argument") {
+        return handleApiError(new Error(errorMessage), "Invalid search request", 400);
       }
     }
 
-    return handleApiError(error, "Search failed. Please try again.");
+    return handleApiError(error, "Search failed. Please try again: " + errorMessage);
   }
 }

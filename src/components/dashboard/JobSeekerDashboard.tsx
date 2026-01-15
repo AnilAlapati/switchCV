@@ -21,6 +21,7 @@ import type { JobSeekerMetrics } from "@/types/dashboard";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { logger } from "@/lib/logger";
+import type { DashboardResume } from "@/types";
 
 interface JobSeekerDashboardProps {
   hasResume: boolean;
@@ -28,39 +29,39 @@ interface JobSeekerDashboardProps {
   resumeLoading: boolean;
   metrics: JobSeekerMetrics | null;
   metricsLoading: boolean;
-  resume?: any;
-  resumes?: any[];
+  resume?: DashboardResume;
+  resumes?: DashboardResume[];
   onRefreshResume?: () => void;
 }
 
 function ProTips() {
   return (
     <div className="glass-panel rounded-3xl p-8 bg-gradient-to-br from-indigo-500/5 to-cyan-500/5 border-indigo-500/10 h-full">
-      <h3 className="text-xl font-bold text-[#1A2F25] mb-6">Agent Insights</h3>
+      <h3 className="text-xl font-bold text-black mb-6">Agent Insights</h3>
       <div className="space-y-6">
         <div className="flex gap-4">
           <div className="h-6 w-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0 text-xs font-bold">
             1
           </div>
-          <p className="text-sm text-[#1A2F25]/70 leading-relaxed">
+          <p className="text-sm text-black/70 leading-relaxed">
             Profiles with a professional photo get{" "}
-            <span className="font-bold text-[#1A2F25]">14x more views</span>.
+            <span className="font-bold text-black">14x more views</span>.
           </p>
         </div>
         <div className="flex gap-4">
           <div className="h-6 w-6 rounded-full bg-cyan-100 text-cyan-600 flex items-center justify-center flex-shrink-0 text-xs font-bold">
             2
           </div>
-          <p className="text-sm text-[#1A2F25]/70 leading-relaxed">
+          <p className="text-sm text-black/70 leading-relaxed">
             Quantifying your impact increases recruiter engagement by{" "}
-            <span className="font-bold text-[#1A2F25]">40%</span>.
+            <span className="font-bold text-black">40%</span>.
           </p>
         </div>
         <div className="flex gap-4">
           <div className="h-6 w-6 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center flex-shrink-0 text-xs font-bold">
             3
           </div>
-          <p className="text-sm text-[#1A2F25]/70 leading-relaxed">
+          <p className="text-sm text-black/70 leading-relaxed">
             Weekly updates keep you at the{" "}
             <span className="font-bold text-[#1A1F25]">
               top of search results
@@ -239,17 +240,13 @@ export function JobSeekerDashboard({
           />
 
           <div className="h-full">
-            {tier === "basic" ? (
-              <PremiumFeatureLock
-                featureName="AI Insights"
-                description={TIER_RESTRICTION_MESSAGES.PRIORITY_ACTIONS}
-                className="h-full"
-              >
-                <ProTips />
-              </PremiumFeatureLock>
-            ) : (
+            <PremiumFeatureLock
+              featureName="AI Insights"
+              description={TIER_RESTRICTION_MESSAGES.PRIORITY_ACTIONS}
+              className="h-full"
+            >
               <ProTips />
-            )}
+            </PremiumFeatureLock>
           </div>
         </div>
       </div>
@@ -261,7 +258,7 @@ export function JobSeekerDashboard({
 
       {ENABLE_SEEDING_AND_DEBUG_LISTS && resumes && resumes.length > 1 && (
         <div className="mt-12">
-          <h3 className="text-sm font-bold text-[#1A2F25]/40 uppercase tracking-widest mb-4 px-2">
+          <h3 className="text-sm font-bold text-[black]/40 uppercase tracking-widest mb-4 px-2">
             Manage All Resumes
           </h3>
           <ResumeList resumes={resumes} />

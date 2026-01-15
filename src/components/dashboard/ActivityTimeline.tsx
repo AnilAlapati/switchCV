@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactElement } from "react";
 import { useState, useEffect } from "react";
 import { CheckCircle2, Search, Zap, Star, MessageSquare } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -7,7 +8,7 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import { PremiumFeatureLock } from "@/components/ui/PremiumFeatureLock";
 import { TIER_RESTRICTION_MESSAGES } from "@/lib/utils/tier-restrictions";
 
-export function ActivityTimeline() {
+export function ActivityTimeline(): ReactElement {
   const { tier } = useUserProfile();
   const isBasic = tier === "basic";
 
@@ -20,40 +21,40 @@ export function ActivityTimeline() {
         type: "update",
         content: "Resume updated",
         timestamp: placeholderDate,
-        icon: <CheckCircle2 className="h-4 w-4 text-emerald-500" />,
-        color: "bg-emerald-500/10",
+        icon: <CheckCircle2 className="h-4 w-4 text-black" />,
+        color: "bg-gray-100",
       },
       {
         id: 2,
         type: "search",
         content: "5 recruiters searched for 'React Developer'",
         timestamp: placeholderDate,
-        icon: <Search className="h-4 w-4 text-indigo-500" />,
-        color: "bg-indigo-500/10",
+        icon: <Search className="h-4 w-4 text-blue-600" />,
+        color: "bg-blue-50",
       },
       {
         id: 3,
         type: "insight",
         content: "New interview guide available in resources",
         timestamp: placeholderDate,
-        icon: <Zap className="h-4 w-4 text-yellow-500" />,
-        color: "bg-yellow-500/10",
+        icon: <Zap className="h-4 w-4 text-gray-600" />,
+        color: "bg-gray-50",
       },
       {
         id: 4,
         type: "success",
         content: "Profile visibility boosted by 15%",
         timestamp: placeholderDate,
-        icon: <Star className="h-4 w-4 text-purple-500" />,
-        color: "bg-purple-500/10",
+        icon: <Star className="h-4 w-4 text-blue-600" />,
+        color: "bg-blue-50",
       },
       {
         id: 5,
         type: "engagement",
         content: "New contact request received",
         timestamp: placeholderDate,
-        icon: <MessageSquare className="h-4 w-4 text-pink-500" />,
-        color: "bg-pink-500/10",
+        icon: <MessageSquare className="h-4 w-4 text-black" />,
+        color: "bg-gray-100",
       },
     ];
   });
@@ -69,40 +70,40 @@ export function ActivityTimeline() {
           type: "update",
           content: "Resume updated",
           timestamp: new Date(now - 1000 * 60 * 60 * 2), // 2 hours ago
-          icon: <CheckCircle2 className="h-4 w-4 text-emerald-500" />,
-          color: "bg-emerald-500/10",
+          icon: <CheckCircle2 className="h-4 w-4 text-black" />,
+          color: "bg-gray-100",
         },
         {
           id: 2,
           type: "search",
           content: "5 recruiters searched for 'React Developer'",
           timestamp: new Date(now - 1000 * 60 * 60 * 5), // 5 hours ago
-          icon: <Search className="h-4 w-4 text-indigo-500" />,
-          color: "bg-indigo-500/10",
+          icon: <Search className="h-4 w-4 text-blue-600" />,
+          color: "bg-blue-50",
         },
         {
           id: 3,
           type: "insight",
           content: "New interview guide available in resources",
           timestamp: new Date(now - 1000 * 60 * 60 * 24), // 24 hours ago
-          icon: <Zap className="h-4 w-4 text-yellow-500" />,
-          color: "bg-yellow-500/10",
+          icon: <Zap className="h-4 w-4 text-gray-600" />,
+          color: "bg-gray-50",
         },
         {
           id: 4,
           type: "success",
           content: "Profile visibility boosted by 15%",
           timestamp: new Date(now - 1000 * 60 * 60 * 48), // 2 days ago
-          icon: <Star className="h-4 w-4 text-purple-500" />,
-          color: "bg-purple-500/10",
+          icon: <Star className="h-4 w-4 text-blue-600" />,
+          color: "bg-blue-50",
         },
         {
           id: 5,
           type: "engagement",
           content: "New contact request received",
           timestamp: new Date(now - 1000 * 60 * 60 * 72), // 3 days ago
-          icon: <MessageSquare className="h-4 w-4 text-pink-500" />,
-          color: "bg-pink-500/10",
+          icon: <MessageSquare className="h-4 w-4 text-black" />,
+          color: "bg-gray-100",
         },
       ]);
     }, 0);
@@ -111,24 +112,24 @@ export function ActivityTimeline() {
   }, []);
 
   const cardContent = (
-    <div className="glass-panel rounded-3xl p-6 bg-white/40 border-white/60">
-      <h3 className="text-lg font-bold text-[#1A2F25] mb-6 flex items-center gap-2">
+    <div className="bg-white border-2 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+      <h3 className="text-lg font-serif font-bold text-black mb-6 flex items-center gap-2 border-b-2 border-gray-100 pb-4">
         Recent Activity
       </h3>
 
-      <div className="space-y-6 relative before:absolute before:inset-0 before:left-[15px] before:w-0.5 before:bg-[#1A2F25]/5 before:content-['']">
+      <div className="space-y-6 relative before:absolute before:inset-0 before:left-[15px] before:w-0.5 before:bg-gray-200 before:content-['']">
         {activities.map((activity) => (
           <div key={activity.id} className="relative flex gap-4 pl-1">
             <div
-              className={`relative z-10 flex h-8 w-8 items-center justify-center rounded-full ${activity.color} border-2 border-white shadow-sm ring-4 ring-transparent transition-transform hover:scale-110`}
+              className={`relative z-10 flex h-8 w-8 items-center justify-center ${activity.color} border-2 border-gray-200 transition-transform hover:scale-110 hover:border-black`}
             >
               {activity.icon}
             </div>
             <div className="flex flex-col pt-0.5">
-              <span className="text-sm font-bold text-[#1A2F25]">
+              <span className="text-sm font-bold text-black">
                 {activity.content}
               </span>
-              <span className="text-[10px] font-medium text-[#1A2F25]/40 mt-0.5">
+              <span className="text-[10px] font-mono text-gray-400 mt-0.5 uppercase tracking-wider">
                 {formatDistanceToNow(activity.timestamp, { addSuffix: true })}
               </span>
             </div>
@@ -137,7 +138,7 @@ export function ActivityTimeline() {
       </div>
 
       <div className="mt-8">
-        <button className="w-full py-2.5 rounded-xl border border-[#1A2F25]/10 text-xs font-bold text-[#1A2F25]/60 hover:bg-[#1A2F25]/5 transition-colors">
+        <button className="w-full py-3 border-2 border-black text-xs font-bold text-black uppercase tracking-widest hover:bg-black hover:text-white transition-colors">
           View All Activity
         </button>
       </div>

@@ -3,7 +3,6 @@ import { NextRequest } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
-import * as searchQuery from "@/app/api/profiles/search/search-query";
 import * as searchUtils from "@/app/api/profiles/search/search-utils";
 
 jest.mock("@/lib/firebase-admin", () => ({
@@ -15,7 +14,7 @@ jest.mock("@/lib/firebase-admin", () => ({
     limit: jest.fn().mockReturnThis(),
     orderBy: jest.fn().mockReturnThis(),
     startAfter: jest.fn().mockReturnThis(),
-  },
+  } as any,
 }));
 
 jest.mock("@/lib/utils/api-helpers", () => ({
@@ -28,7 +27,6 @@ jest.mock("@/lib/utils/api-helpers", () => ({
 }));
 
 jest.mock("@/lib/utils/distributedRateLimit");
-jest.mock("@/app/api/profiles/search/search-query");
 jest.mock("@/app/api/profiles/search/search-utils");
 
 describe("Profiles Search API", () => {
@@ -37,10 +35,10 @@ describe("Profiles Search API", () => {
     (checkDistributedRateLimit as jest.Mock).mockResolvedValue({
       allowed: true,
     });
-    (searchQuery.buildNormalizedFilters as jest.Mock).mockReturnValue({
+    (searchUtils.buildNormalizedFilters as jest.Mock).mockReturnValue({
       skills: [],
     });
-    (searchQuery.matchesAllFilters as jest.Mock).mockReturnValue(true);
+    (searchUtils.matchesAllFilters as jest.Mock).mockReturnValue(true);
     (searchUtils.mapProfileResult as jest.Mock).mockImplementation(
       (id, data) => ({ id, ...data })
     );
@@ -89,7 +87,7 @@ describe("Profiles Search API", () => {
       userId: "user-1",
       error: null,
     });
-    (searchQuery.buildNormalizedFilters as jest.Mock).mockReturnValue({
+    (searchUtils.buildNormalizedFilters as jest.Mock).mockReturnValue({
       skills: [],
     });
 
@@ -109,11 +107,11 @@ describe("Profiles Search API", () => {
       userId: "user-1",
       error: null,
     });
-    (searchQuery.buildNormalizedFilters as jest.Mock).mockReturnValue({
+    (searchUtils.buildNormalizedFilters as jest.Mock).mockReturnValue({
       slug: "test-slug",
       skills: [],
     });
-    (adminDb.get as jest.Mock).mockResolvedValue({
+    ((adminDb as any).get as jest.Mock).mockResolvedValue({
       docs: [{ id: "user-1", data: () => ({ displayName: "Test User" }) }],
     });
 
@@ -137,13 +135,13 @@ describe("Profiles Search API", () => {
       userId: "user-1",
       error: null,
     });
-    (searchQuery.buildNormalizedFilters as jest.Mock).mockReturnValue({
+    (searchUtils.buildNormalizedFilters as jest.Mock).mockReturnValue({
       role: "Developer",
       location: "NY",
       skills: ["React"],
     });
 
-    (adminDb.get as jest.Mock).mockResolvedValue({
+    ((adminDb as any).get as jest.Mock).mockResolvedValue({
       empty: false,
       size: 2,
       docs: [
@@ -168,17 +166,17 @@ describe("Profiles Search API", () => {
 
     expect(response.status).toBe(200);
     expect(data.results).toHaveLength(2);
-    expect(adminDb.where).toHaveBeenCalledWith(
+    expect((adminDb as any).where).toHaveBeenCalledWith(
       "publicProfile.role",
       "==",
       "Developer"
     );
-    expect(adminDb.where).toHaveBeenCalledWith(
+    expect((adminDb as any).where).toHaveBeenCalledWith(
       "publicProfile.location",
       "==",
       "NY"
     );
-    expect(adminDb.where).toHaveBeenCalledWith(
+    expect((adminDb as any).where).toHaveBeenCalledWith(
       "publicProfile.skills",
       "array-contains",
       "React"
@@ -190,11 +188,11 @@ describe("Profiles Search API", () => {
       userId: "user-1",
       error: null,
     });
-    (searchQuery.buildNormalizedFilters as jest.Mock).mockReturnValue({
+    (searchUtils.buildNormalizedFilters as jest.Mock).mockReturnValue({
       skills: ["React", "Node"],
     });
 
-    (adminDb.get as jest.Mock).mockResolvedValue({ empty: true });
+    ((adminDb as any).get as jest.Mock).mockResolvedValue({ empty: true });
 
     const req = new NextRequest(
       new URL("http://localhost:3000/api/profiles/search"),
@@ -205,7 +203,7 @@ describe("Profiles Search API", () => {
     );
     await POST(req);
 
-    expect(adminDb.where).toHaveBeenCalledWith(
+    expect((adminDb as any).where).toHaveBeenCalledWith(
       "publicProfile.skills",
       "array-contains-any",
       ["React", "Node"]
@@ -217,7 +215,7 @@ describe("Profiles Search API", () => {
       userId: "user-1",
       error: null,
     });
-    (adminDb.get as jest.Mock)
+    ((adminDb as any).get as jest.Mock)
       .mockResolvedValueOnce({ exists: true }) // Cursor doc
       .mockResolvedValueOnce({
         empty: false,
@@ -234,7 +232,7 @@ describe("Profiles Search API", () => {
     );
     const response = await POST(req);
     expect(response.status).toBe(200);
-    expect(adminDb.startAfter).toHaveBeenCalled();
+    expect((adminDb as any).startAfter).toHaveBeenCalled();
   });
 
   it("should handle empty results", async () => {
@@ -242,7 +240,7 @@ describe("Profiles Search API", () => {
       userId: "user-1",
       error: null,
     });
-    (adminDb.get as jest.Mock).mockResolvedValue({ empty: true });
+    ((adminDb as any).get as jest.Mock).mockResolvedValue({ empty: true });
 
     const req = new NextRequest(
       new URL("http://localhost:3000/api/profiles/search"),
@@ -264,7 +262,7 @@ describe("Profiles Search API", () => {
       error: null,
     });
     const mockId = "a".repeat(20);
-    (adminDb.get as jest.Mock).mockResolvedValue({
+    ((adminDb as any).get as jest.Mock).mockResolvedValue({
       exists: true,
       id: mockId,
       data: () => ({
@@ -293,11 +291,11 @@ describe("Profiles Search API", () => {
       userId: "user-1",
       error: null,
     });
-    (searchQuery.buildNormalizedFilters as jest.Mock).mockReturnValue({
+    (searchUtils.buildNormalizedFilters as jest.Mock).mockReturnValue({
       skills: [],
     });
 
-    (adminDb.get as jest.Mock).mockResolvedValue({
+    ((adminDb as any).get as jest.Mock).mockResolvedValue({
       empty: false,
       size: 5,
       docs: Array(5)
@@ -330,16 +328,16 @@ describe("Profiles Search API", () => {
       userId: "user-1",
       error: null,
     });
-    (searchQuery.buildNormalizedFilters as jest.Mock).mockReturnValue({
+    (searchUtils.buildNormalizedFilters as jest.Mock).mockReturnValue({
       skills: [],
     });
 
     // Mock matchesAllFilters to return false for the first doc, true for the second
-    (searchQuery.matchesAllFilters as jest.Mock)
+    (searchUtils.matchesAllFilters as jest.Mock)
       .mockReturnValueOnce(false)
       .mockReturnValueOnce(true);
 
-    (adminDb.get as jest.Mock).mockResolvedValue({
+    ((adminDb as any).get as jest.Mock).mockResolvedValue({
       empty: false,
       size: 2,
       docs: [
@@ -371,7 +369,7 @@ describe("Profiles Search API", () => {
       userId: "user-1",
       error: null,
     });
-    (adminDb.get as jest.Mock).mockRejectedValue(new Error("Firestore error"));
+    ((adminDb as any).get as jest.Mock).mockRejectedValue(new Error("Firestore error"));
 
     const req = new NextRequest(
       new URL("http://localhost:3000/api/profiles/search"),

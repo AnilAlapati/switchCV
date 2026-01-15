@@ -124,6 +124,7 @@ describe("useRecruiterPipeline", () => {
         ],
         createdAt: new Date(),
         updatedAt: new Date(),
+        totalCandidates: 0,
       })
     );
 
@@ -146,17 +147,18 @@ describe("useRecruiterPipeline", () => {
         columns: pipeline.columns.map((col: any) =>
           col.stage === PipelineStage.LEAD
             ? {
-                ...col,
-                candidates: [...col.candidates, candidate],
-                count: col.count + 1,
-              }
+              ...col,
+              candidates: [...col.candidates, candidate],
+              count: col.count + 1,
+            }
             : col
         ),
       })
     );
 
     mockMoveCandidateInPipeline.mockImplementation(
-      (pipeline: any, candidateId: string, newStage: any) => {
+      (pipeline: any, candidate: any, newStage: any) => {
+        const candidateId = candidate.id;
         // Find candidate in current stage
         let candidateToMove: any = null;
         let fromStage: any = null;
@@ -212,6 +214,7 @@ describe("useRecruiterPipeline", () => {
 
     mockAddCandidateNote.mockImplementation(() => {
       // Mock implementation - in real app this would add to notes collection
+      return {} as any;
     });
 
     mockGetCandidatesByStage.mockImplementation(
@@ -224,8 +227,26 @@ describe("useRecruiterPipeline", () => {
 
     mockCalculatePipelineMetrics.mockImplementation(() => ({
       totalCandidates: 0,
-      stageDistribution: {},
-      timeInStage: {},
+      stageDistribution: {
+        [PipelineStage.LEAD]: 0,
+        [PipelineStage.SCREENED]: 0,
+        [PipelineStage.SHORTLISTED]: 0,
+        [PipelineStage.INTERVIEWED]: 0,
+        [PipelineStage.OFFERED]: 0,
+        [PipelineStage.HIRED]: 0,
+        [PipelineStage.REJECTED]: 0,
+        [PipelineStage.ON_HOLD]: 0,
+      },
+      timeInStage: {
+        [PipelineStage.LEAD]: 0,
+        [PipelineStage.SCREENED]: 0,
+        [PipelineStage.SHORTLISTED]: 0,
+        [PipelineStage.INTERVIEWED]: 0,
+        [PipelineStage.OFFERED]: 0,
+        [PipelineStage.HIRED]: 0,
+        [PipelineStage.REJECTED]: 0,
+        [PipelineStage.ON_HOLD]: 0,
+      },
       conversionRate: 0,
       averageTimeToHire: 0,
       hiredThisMonth: 0,
@@ -241,15 +262,13 @@ describe("useRecruiterPipeline", () => {
       jobId: "job_1",
       jobTitle: "Engineer",
       columns: [
-        { id: "lead", stage: PipelineStage.LEAD, candidates: [] },
-        { id: "screened", stage: PipelineStage.SCREENED, candidates: [] },
-        { id: "interview", stage: PipelineStage.INTERVIEW, candidates: [] },
-        { id: "offer", stage: PipelineStage.OFFER, candidates: [] },
-        { id: "hired", stage: PipelineStage.HIRED, candidates: [] },
+        { stage: PipelineStage.LEAD, candidates: [], count: 0, stageOrder: 1 },
+        { stage: PipelineStage.SCREENED, candidates: [], count: 0, stageOrder: 2 },
+        { stage: PipelineStage.INTERVIEWED, candidates: [], count: 0, stageOrder: 3 },
+        { stage: PipelineStage.OFFERED, candidates: [], count: 0, stageOrder: 4 },
+        { stage: PipelineStage.HIRED, candidates: [], count: 0, stageOrder: 5 },
       ],
       totalCandidates: 0,
-      createdAt: new Date(),
-      updatedAt: new Date(),
     });
     mockCreateCandidate.mockReturnValue({
       id: "cand_1",
@@ -267,7 +286,6 @@ describe("useRecruiterPipeline", () => {
       jobTitle: "Engineer",
       columns: [
         {
-          id: "lead",
           stage: PipelineStage.LEAD,
           candidates: [
             {
@@ -281,45 +299,43 @@ describe("useRecruiterPipeline", () => {
               updatedAt: new Date(),
             },
           ],
+          count: 1,
+          stageOrder: 1,
         },
-        { id: "screened", stage: PipelineStage.SCREENED, candidates: [] },
-        { id: "interview", stage: PipelineStage.INTERVIEW, candidates: [] },
-        { id: "offer", stage: PipelineStage.OFFER, candidates: [] },
-        { id: "hired", stage: PipelineStage.HIRED, candidates: [] },
+        { stage: PipelineStage.SCREENED, candidates: [], count: 0, stageOrder: 2 },
+        { stage: PipelineStage.INTERVIEWED, candidates: [], count: 0, stageOrder: 3 },
+        { stage: PipelineStage.OFFERED, candidates: [], count: 0, stageOrder: 4 },
+        { stage: PipelineStage.HIRED, candidates: [], count: 0, stageOrder: 5 },
       ],
       totalCandidates: 1,
-      createdAt: new Date(),
-      updatedAt: new Date(),
     });
     mockMoveCandidateInPipeline.mockReturnValue({
       id: "pipeline_1",
       jobId: "job_1",
       jobTitle: "Engineer",
       columns: [
-        { id: "lead", stage: PipelineStage.LEAD, candidates: [] },
         {
-          id: "screened",
-          stage: PipelineStage.SCREENED,
-          candidates: [
+          stage: PipelineStage.LEAD, candidates: [
             {
               id: "cand_1",
               name: "John",
               email: "john@example.com",
               position: "Engineer",
-              stage: PipelineStage.SCREENED,
+              stage: PipelineStage.LEAD,
               priority: CandidatePriority.MEDIUM,
               createdAt: new Date(),
               updatedAt: new Date(),
             },
           ],
+          count: 1,
+          stageOrder: 1,
         },
-        { id: "interview", stage: PipelineStage.INTERVIEW, candidates: [] },
-        { id: "offer", stage: PipelineStage.OFFER, candidates: [] },
-        { id: "hired", stage: PipelineStage.HIRED, candidates: [] },
+        { stage: PipelineStage.SCREENED, candidates: [], count: 0, stageOrder: 2 },
+        { stage: PipelineStage.INTERVIEWED, candidates: [], count: 0, stageOrder: 3 },
+        { stage: PipelineStage.OFFERED, candidates: [], count: 0, stageOrder: 4 },
+        { stage: PipelineStage.HIRED, candidates: [], count: 0, stageOrder: 5 },
       ],
       totalCandidates: 1,
-      createdAt: new Date(),
-      updatedAt: new Date(),
     });
     mockUpdateCandidatePriority.mockReturnValue({
       id: "cand_1",
@@ -335,8 +351,26 @@ describe("useRecruiterPipeline", () => {
     mockSearchCandidatesInPipeline.mockReturnValue([]);
     mockCalculatePipelineMetrics.mockReturnValue({
       totalCandidates: 1,
-      stageDistribution: {},
-      timeInStage: {},
+      stageDistribution: {
+        [PipelineStage.LEAD]: 1,
+        [PipelineStage.SCREENED]: 0,
+        [PipelineStage.SHORTLISTED]: 0,
+        [PipelineStage.INTERVIEWED]: 0,
+        [PipelineStage.OFFERED]: 0,
+        [PipelineStage.HIRED]: 0,
+        [PipelineStage.REJECTED]: 0,
+        [PipelineStage.ON_HOLD]: 0,
+      },
+      timeInStage: {
+        [PipelineStage.LEAD]: 1,
+        [PipelineStage.SCREENED]: 0,
+        [PipelineStage.SHORTLISTED]: 0,
+        [PipelineStage.INTERVIEWED]: 0,
+        [PipelineStage.OFFERED]: 0,
+        [PipelineStage.HIRED]: 0,
+        [PipelineStage.REJECTED]: 0,
+        [PipelineStage.ON_HOLD]: 0,
+      },
       conversionRate: 0,
       averageTimeToHire: 0,
       hiredThisMonth: 0,

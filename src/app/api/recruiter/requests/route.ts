@@ -87,21 +87,22 @@ export async function GET(request: NextRequest) {
     );
 
     return NextResponse.json({ requests });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, "Failed to fetch recruiter requests");
   }
 }
 
-function serializeTimestamp(value: any): string | null {
+function serializeTimestamp(value: unknown): string | null {
   if (!value) return null;
   try {
-    if (typeof value.toDate === "function") {
-      return value.toDate().toISOString();
+    const timestampValue = value as { toDate?: () => Date };
+    if (typeof timestampValue.toDate === "function") {
+      return timestampValue.toDate().toISOString();
     }
     if (typeof value === "string" || value instanceof Date) {
       return new Date(value).toISOString();
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.warn({ err: error }, "Failed to serialize timestamp");
   }
   return null;
@@ -139,7 +140,7 @@ export async function POST(request: NextRequest) {
     // This route could be used for bulk requests or other recruiter-specific POST actions
     // For now, we'll just return a 405 or handle simple ping
     return handleApiError(null, "Method not allowed", 405);
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, "Failed to process recruiter request");
   }
 }
@@ -191,7 +192,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, "Failed to delete request");
   }
 }

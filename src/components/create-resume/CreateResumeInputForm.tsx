@@ -29,7 +29,7 @@ export function CreateResumeInputForm({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      onSubmit(e as any);
+      onSubmit(e as unknown as React.FormEvent);
     }
   };
 
@@ -44,19 +44,17 @@ export function CreateResumeInputForm({
     <div className="w-full">
       <form
         onSubmit={onSubmit}
-        className={`relative flex items-end gap-2 bg-card/80 backdrop-blur-2xl border rounded-[2rem] p-2 shadow-2xl transition-all duration-300 ${
-          isFocused
+        className={`relative flex items-end gap-2 bg-card/80 backdrop-blur-2xl border rounded-[2rem] p-2 shadow-2xl transition-all duration-300 ${isFocused
             ? "border-primary/40 ring-4 ring-primary/10"
             : "border-gray-200/50 hover:border-gray-300/50"
-        }`}
+          }`}
       >
         {/* Unique Icon Core */}
         <div
-          className={`hidden md:flex items-center justify-center w-10 h-10 rounded-xl ml-2 self-end mb-3 transition-all duration-500 ${
-            isFocused
+          className={`hidden md:flex items-center justify-center w-10 h-10 rounded-xl ml-2 self-end mb-3 transition-all duration-500 ${isFocused
               ? "bg-primary text-white rotate-0"
               : "bg-muted text-muted-foreground -rotate-12"
-          }`}
+            }`}
         >
           {isGenerating ? (
             <Sparkles className="w-5 h-5 animate-pulse" />
@@ -78,8 +76,8 @@ export function CreateResumeInputForm({
               isGenerating
                 ? "✨ Strategizing your career path..."
                 : isComplete
-                ? "✓ Strategy locked. View below."
-                : "Describe your dream role or paste your experience..."
+                  ? "✓ Strategy locked. View below."
+                  : "Describe your dream role or paste your experience..."
             }
             className="w-full p-3.5 bg-transparent border-none text-foreground placeholder-muted-foreground/60 focus:outline-none resize-none min-h-[52px] max-h-[120px] overflow-y-auto text-base leading-relaxed font-medium scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent"
             disabled={isGenerating || isComplete}
@@ -90,11 +88,10 @@ export function CreateResumeInputForm({
         <button
           type="submit"
           aria-label="Send message"
-          className={`group relative rounded-2xl font-semibold shadow-lg transition-all transform active:scale-95 flex items-center justify-center w-[52px] h-[52px] overflow-hidden self-end mb-1 ${
-            !currentInput.trim() || isGenerating || isComplete
+          className={`group relative rounded-2xl font-semibold shadow-lg transition-all transform active:scale-95 flex items-center justify-center w-[52px] h-[52px] overflow-hidden self-end mb-1 ${!currentInput.trim() || isGenerating || isComplete
               ? "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
               : "bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-emerald-600/25"
-          }`}
+            }`}
           disabled={!currentInput.trim() || isGenerating || isComplete}
         >
           {isGenerating ? (

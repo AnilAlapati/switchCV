@@ -5,6 +5,7 @@ import { AccessStatusMap, getAccessStatus } from "./access-status";
 import { getDisplayName } from "./search-result";
 import type { SearchResultCard } from "./search-result";
 import { logger } from "@/lib/logger";
+import type { User } from "@/types";
 
 export { buildAccessStatusMap } from "./access-status";
 export type { SearchResultCard } from "./search-result";
@@ -59,7 +60,7 @@ export async function performBasicSearch(
           return { results: [], notification: "Candidate profile not found" };
         }
 
-        const userData = userSnapshot.data();
+        const userData = userSnapshot.data() || {};
         const accessStatus = await getAccessStatus(
           mapping.documentId,
           recruiterId,
@@ -69,7 +70,7 @@ export async function performBasicSearch(
         results.push({
           resumeId: userId,
           title: resumeData.title || "Untitled Resume",
-          userName: getDisplayName(userData),
+          userName: getDisplayName(userData as Partial<User>),
           userId: mapping.userId,
           createdAt: resumeData.createdAt || new Date().toISOString(),
           accessStatus,
@@ -107,7 +108,7 @@ export async function performBasicSearch(
         return { results: [], notification: "Candidate profile not found" };
       }
 
-      const userData = userSnapshot.data();
+      const userData = userSnapshot.data() || {};
       const accessStatus = await getAccessStatus(
         resumeSnapshot.id,
         recruiterId,
@@ -117,7 +118,7 @@ export async function performBasicSearch(
       results.push({
         resumeId: resumeSnapshot.id,
         title: resumeData.title || "Untitled Resume",
-        userName: getDisplayName(userData),
+        userName: getDisplayName(userData as Partial<User>),
         userId: resumeData.userId,
         createdAt: resumeData.createdAt || new Date().toISOString(),
         accessStatus,
@@ -137,7 +138,7 @@ export async function performBasicSearch(
       };
     }
 
-    const userData = userSnapshot.data();
+    const userData = userSnapshot.data() || {};
 
     const resumesSnapshot = await adminDb
       .collection("resumes")
@@ -164,7 +165,7 @@ export async function performBasicSearch(
     results.push({
       resumeId: resumeDoc.id,
       title: resumeData.title || "Untitled Resume",
-      userName: getDisplayName(userData),
+      userName: getDisplayName(userData as Partial<User>),
       userId: userId,
       createdAt: resumeData.createdAt || new Date().toISOString(),
       accessStatus,
@@ -190,7 +191,7 @@ export async function performPremiumSearch(
       skills?.map((skill) => skill.trim().toLowerCase()).filter(Boolean) || [];
     const normalizedLocation = location?.trim().toLowerCase() || "";
 
-    let resumesQuery: any = adminDb
+    let resumesQuery: FirebaseFirestore.Query = adminDb
       .collection("resumes")
       .where("published", "==", true);
 
@@ -246,9 +247,9 @@ export async function performPremiumSearch(
       }
 
       const resumeSkills = Array.isArray(resumeData.skills)
-        ? resumeData.skills.map((skill: any) =>
-            typeof skill === "string" ? skill : skill?.name || ""
-          )
+        ? resumeData.skills.map((skill: string | { name?: string }) =>
+          typeof skill === "string" ? skill : skill?.name || ""
+        )
         : [];
       const normalizedResumeSkills = resumeSkills
         .map((skill: string) => skill.toLowerCase())

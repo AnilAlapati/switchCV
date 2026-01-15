@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactElement } from "react";
+
 interface AccountInformationProps {
   email?: string | null;
   resumeId?: string | number | null;
@@ -18,12 +20,12 @@ export function AccountInformation({
   savingRecruiter,
   onRecruiterToggle,
   onCopy,
-}: AccountInformationProps) {
+}: AccountInformationProps): ReactElement {
   return (
-    <div className="bg-white/60 backdrop-blur-md rounded-3xl shadow-sm border border-white/40 overflow-hidden">
+    <div className="bg-white border-2 border-gray-200 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] overflow-hidden">
       <div className="p-8">
-        <div className="flex items-center gap-4 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-[#1A2F25]/5 flex items-center justify-center text-[#1A2F25]">
+        <div className="flex items-center gap-4 mb-8 border-b-2 border-gray-100 pb-4">
+          <div className="w-10 h-10 bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-600">
             <svg
               className="w-5 h-5"
               fill="none"
@@ -38,19 +40,19 @@ export function AccountInformation({
               />
             </svg>
           </div>
-          <h2 className="text-xl font-bold text-[#1A2F25]">Account Settings</h2>
+          <h2 className="text-xl font-serif font-bold text-black">Account Settings</h2>
         </div>
 
         <div className="space-y-8">
           {/* Email */}
           <div className="group">
-            <label className="block text-xs font-bold text-[#1A2F25]/60 uppercase tracking-wider mb-2 ml-1">
+            <label className="block text-[10px] font-mono font-bold text-gray-500 uppercase tracking-widest mb-2 ml-1">
               Email Address
             </label>
-            <div className="px-5 py-4 bg-[#F5F7F6] rounded-xl text-[#1A2F25] font-medium border border-transparent group-hover:border-[#1A2F25]/5 transition-colors">
+            <div className="px-5 py-4 bg-gray-50 border-2 border-gray-200 text-black font-medium transition-colors group-hover:border-gray-300">
               {email}
             </div>
-            <p className="text-[#1A2F25]/40 text-xs mt-2 ml-1">
+            <p className="text-gray-400 text-xs mt-2 ml-1 font-sans">
               Used for login and notifications
             </p>
           </div>
@@ -58,16 +60,16 @@ export function AccountInformation({
           {/* Resume ID */}
           {hasResume && resumeId && (
             <div className="group">
-              <label className="block text-xs font-bold text-[#1A2F25]/60 uppercase tracking-wider mb-2 ml-1">
+              <label className="block text-[10px] font-mono font-bold text-gray-500 uppercase tracking-widest mb-2 ml-1">
                 Resume ID
               </label>
               <div className="flex items-center gap-2">
-                <div className="flex-1 px-5 py-4 bg-[#F5F7F6] rounded-xl text-[#1A2F25] font-mono font-medium border border-transparent group-hover:border-[#1A2F25]/5 transition-colors">
+                <div className="flex-1 px-5 py-4 bg-gray-50 border-2 border-gray-200 text-black font-mono font-medium transition-colors group-hover:border-gray-300">
                   {resumeId}
                 </div>
                 <button
                   onClick={onCopy}
-                  className="p-4 bg-white text-[#2C4A3B] rounded-xl shadow-sm border border-[#2C4A3B]/10 hover:bg-[#2C4A3B] hover:text-white transition-all duration-200"
+                  className="p-4 bg-white text-black border-2 border-black hover:bg-black hover:text-white transition-all duration-200"
                   title="Copy Resume ID"
                 >
                   <svg
@@ -85,49 +87,49 @@ export function AccountInformation({
                   </svg>
                 </button>
               </div>
-              <p className="text-[#1A2F25]/40 text-xs mt-2 ml-1">
+              <p className="text-gray-400 text-xs mt-2 ml-1 font-sans">
                 Share this ID with recruiters
               </p>
             </div>
           )}
 
           {/* Account Type */}
-          <div className="pt-6 border-t border-[#1A2F25]/5">
+          <div className="pt-6 border-t-2 border-gray-100">
             <div className="flex items-center justify-between mb-4">
-              <label className="block text-xs font-bold text-[#1A2F25]/60 uppercase tracking-wider ml-1">
+              <label className="block text-[10px] font-mono font-bold text-gray-500 uppercase tracking-widest ml-1">
                 Account Type
               </label>
               <span
-                className={`px-3 py-1 rounded-full text-xs font-bold ${isRecruiter
-                    ? "bg-emerald-100 text-emerald-800"
-                    : "bg-slate-100 text-slate-600"
+                className={`px-3 py-1 text-[10px] font-mono font-bold uppercase tracking-wider ${isRecruiter
+                  ? "bg-blue-50 text-blue-700 border border-blue-200"
+                  : "bg-gray-100 text-gray-600 border border-gray-200"
                   }`}
               >
                 {isRecruiter ? "Recruiter" : "Job Seeker"}
               </span>
             </div>
 
-            <div className="bg-[#F5F7F6] rounded-xl p-5">
-              <p className="text-[#1A2F25]/70 text-sm mb-4 leading-relaxed">
+            <div className="bg-gray-50 border-2 border-gray-200 p-5">
+              <p className="text-gray-600 text-sm mb-4 leading-relaxed font-sans">
                 {isRecruiter
                   ? "You have recruiter access. You can search for candidates and view their profiles."
                   : "You are currently a job seeker. Switch to recruiter mode to search for candidates."}
               </p>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-bold text-[#1A2F25]">
+                <span className="text-sm font-bold text-black">
                   Recruiter Mode
                 </span>
                 <button
                   onClick={() => onRecruiterToggle(!isRecruiter)}
                   disabled={savingRecruiter}
-                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#2C4A3B] focus:ring-offset-2 ${isRecruiter
-                      ? "bg-[#2C4A3B]"
-                      : "bg-slate-300 hover:bg-slate-400"
+                  className={`relative inline-flex h-7 w-12 items-center transition-colors focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 ${isRecruiter
+                    ? "bg-black"
+                    : "bg-gray-300 hover:bg-gray-400"
                     } ${savingRecruiter ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
                     }`}
                 >
                   <span
-                    className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm ${isRecruiter ? "translate-x-6" : "translate-x-1"
+                    className={`inline-block h-5 w-5 transform bg-white transition-transform shadow-sm ${isRecruiter ? "translate-x-6" : "translate-x-1"
                       }`}
                   />
                 </button>

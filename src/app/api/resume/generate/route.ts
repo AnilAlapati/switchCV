@@ -37,7 +37,7 @@ interface GenerateResumeRequest {
     isUser: boolean;
     timestamp: string;
   }>;
-  sessionData?: any; // Optional stored session data
+  sessionData?: Record<string, unknown>; // Optional stored session data
   modelId?: string;
   async?: boolean; // If true, queue for background processing
 }
@@ -60,9 +60,9 @@ export async function POST(request: NextRequest) {
     const userRole = await getUserTier(userId);
 
     const rateLimit = await checkDistributedRateLimit(userId, {
-      tier: userRole,
+      tier: userRole as "basic" | "premium" | "enterprise",
       scope: "ai_generation",
-    } as any);
+    });
 
     if (!rateLimit.allowed) {
       return handleApiError(
@@ -391,7 +391,7 @@ export async function POST(request: NextRequest) {
         progress,
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error({ err: error }, "Error in resume generation:");
     return handleApiError(error, "Internal server error");
   }

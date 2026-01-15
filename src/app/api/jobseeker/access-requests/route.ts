@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
       .where("userId", "==", userId)
       .get();
 
-    const requests: any[] = [];
+    const requests: Record<string, unknown>[] = [];
 
     logger.info(`Fetching access requests for user: ${userId}`);
     logger.info(`Found ${resumesSnapshot.size} resumes.`);
@@ -59,9 +59,10 @@ export async function GET(request: NextRequest) {
           } else if (data.expiresAt) {
             expiresAtStr = new Date(data.expiresAt).toISOString();
           }
-        } catch (e) {
+        } catch (e: unknown) {
+          const parseError = e instanceof Error ? e.message : String(e);
           logger.warn(
-            { err: e },
+            { err: parseError },
             `Error parsing timestamp for request ${doc.id}`
           );
         }
@@ -70,7 +71,7 @@ export async function GET(request: NextRequest) {
         delete rest.approvedAt;
         delete rest.expiresAt;
 
-        const responsePayload: Record<string, any> = {
+        const responsePayload: Record<string, unknown> = {
           id: doc.id,
           ...rest,
           resumeId: resumeDoc.id,
@@ -96,7 +97,7 @@ export async function GET(request: NextRequest) {
         "Cache-Control": "private, max-age=60, stale-while-revalidate=300",
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, "Failed to fetch requests");
   }
 }

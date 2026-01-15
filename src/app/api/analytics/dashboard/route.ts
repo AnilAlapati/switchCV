@@ -91,13 +91,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const result = await getAnalytics(resumeId);
 
     // Flatten logic to match previous response shape
+    const analyticsRecord = result.analytics as unknown as Record<string, unknown>;
     const analytics = {
       resumeId,
       userId,
       viewCount: result.analytics.views?.count || 0,
       uniqueViewCount: result.analytics.views?.uniqueViewers || 0,
-      downloadCount: (result.analytics as any).downloads || 0,
-      shareCount: (result.analytics as any).shares || 0,
+      downloadCount: (analyticsRecord.downloads as number) || 0,
+      shareCount: (analyticsRecord.shares as number) || 0,
       attractivenessScore: result.analytics.attractivenessScore || 0,
       lastViewedAt: result.analytics.views?.lastViewedAt || null,
       createdAt: result.analytics.lastUpdatedAt, // Approximate

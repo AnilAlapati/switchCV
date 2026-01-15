@@ -1,9 +1,10 @@
 "use client";
 
+import type { ReactElement } from "react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 
-export function SecuritySection() {
+export function SecuritySection(): ReactElement | null {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{
@@ -11,7 +12,7 @@ export function SecuritySection() {
     text: string;
   } | null>(null);
 
-  const handleChangePassword = async () => {
+  const handleChangePassword = async (): Promise<void> => {
     if (!user?.email) return;
     setLoading(true);
     try {
@@ -43,10 +44,10 @@ export function SecuritySection() {
   const isEmailLinked = providers.includes("password");
 
   return (
-    <div className="glass-panel rounded-3xl overflow-hidden transition-all duration-300 hover:shadow-2xl">
+    <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden transition-all duration-300">
       <div className="p-8">
-        <div className="flex items-center gap-4 mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-foreground flex items-center justify-center shadow-lg shadow-primary/20 text-white">
+        <div className="flex items-center gap-4 mb-8 border-b-2 border-gray-100 pb-6">
+          <div className="w-12 h-12 bg-black flex items-center justify-center text-white">
             <svg
               className="w-6 h-6"
               fill="none"
@@ -62,8 +63,8 @@ export function SecuritySection() {
             </svg>
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-foreground">Security</h2>
-            <p className="text-foreground/50 text-sm font-medium">
+            <h2 className="text-2xl font-serif font-bold text-black">Security</h2>
+            <p className="text-gray-500 text-sm font-sans">
               Manage your password and sign-in methods
             </p>
           </div>
@@ -71,17 +72,17 @@ export function SecuritySection() {
 
         <div className="space-y-6">
           {isEmailLinked && (
-            <div className="flex items-center justify-between p-4 bg-muted rounded-xl">
+            <div className="flex items-center justify-between p-5 bg-gray-50 border-2 border-gray-200">
               <div>
-                <h3 className="font-bold text-foreground">Password</h3>
-                <p className="text-xs text-foreground/60">
+                <h3 className="font-bold text-black">Password</h3>
+                <p className="text-xs text-gray-500 font-sans">
                   Change your login password
                 </p>
               </div>
               <button
                 onClick={handleChangePassword}
                 disabled={loading}
-                className="px-4 py-2 bg-white text-primary text-sm font-bold rounded-lg border border-primary/10 hover:bg-primary hover:text-white transition-all disabled:opacity-50"
+                className="px-4 py-2 bg-white text-black text-sm font-bold border-2 border-black hover:bg-black hover:text-white transition-all disabled:opacity-50"
               >
                 Reset Password
               </button>
@@ -90,11 +91,10 @@ export function SecuritySection() {
 
           {message && (
             <div
-              className={`p-3 rounded-lg text-sm ${
-                message.type === "success"
-                  ? "bg-green-100 text-green-800"
-                  : "bg-red-100 text-red-800"
-              }`}
+              className={`p-4 text-sm border-2 ${message.type === "success"
+                  ? "bg-blue-50 text-blue-800 border-blue-200"
+                  : "bg-red-50 text-red-800 border-red-200"
+                }`}
             >
               {message.text}
             </div>

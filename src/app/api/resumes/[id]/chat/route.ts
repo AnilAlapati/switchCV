@@ -50,7 +50,7 @@ async function getResumeDocument(id: string) {
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+): Promise<NextResponse> {
   try {
     const { id } = await params;
     if (!id) {
@@ -67,12 +67,12 @@ export async function GET(
 
     // Unified Rate Limiting
     const userSnapshot = await adminDb.collection("users").doc(requestUserId!).get();
-    const userRole = (userSnapshot.data()?.subscriptionTier || "basic") as any;
+    const userRole = (userSnapshot.data()?.subscriptionTier || "basic") as "basic" | "premium" | "enterprise";
 
     const rateLimitResult = await checkDistributedRateLimit(requestUserId!, {
       tier: userRole,
       scope: "chat",
-    } as any);
+    });
 
     if (!rateLimitResult.allowed) {
       return handleApiError(
@@ -130,7 +130,7 @@ export async function GET(
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+): Promise<NextResponse> {
   try {
     const { id } = await params;
     if (!id) {
@@ -229,16 +229,17 @@ export async function POST(
     }
 
     // Fix for missing visibility in skills from AI response
-    if (updatedProfile.skills && Array.isArray(updatedProfile.skills)) {
-      updatedProfile.skills = updatedProfile.skills.map((skill: any) => ({
-        ...skill,
-        visibility: skill.visibility ?? true,
+    if ("skills" in updatedProfile && Array.isArray(updatedProfile.skills)) {
+      updatedProfile.skills = (updatedProfile.skills as Record<string, unknown>[]).map((skill) => ({
+        name: (skill.name as string) || "",
+        level: (skill.level as "advanced" | "intermediate" | "beginner") || "intermediate",
+        visibility: (skill.visibility as boolean) ?? true,
       }));
     }
 
     const mergedResume = mergeProfileIntoResume(
       resumeData,
-      updatedProfile as any
+      updatedProfile as Record<string, unknown>
     );
     const normalizedUpdated = normalizeResumeForEditor(mergedResume);
     const sanitizedUpdate = sanitizeResumePayload(normalizedUpdated.resume);

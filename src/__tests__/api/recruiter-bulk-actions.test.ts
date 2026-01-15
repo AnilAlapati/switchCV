@@ -36,7 +36,7 @@ describe("Recruiter Bulk Actions API", () => {
   describe("POST", () => {
     it("should return 401 if not authenticated", async () => {
       (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
-        userId: null,
+        userId: undefined,
         error: { status: 401, json: async () => ({ error: "Unauthorized" }) },
       });
 
@@ -55,7 +55,7 @@ describe("Recruiter Bulk Actions API", () => {
         userId: "user-1",
         error: null,
       });
-      (adminDb.get as jest.Mock).mockResolvedValue({
+      ((adminDb as any).get as jest.Mock).mockResolvedValue({
         exists: true,
         data: () => ({ role: "jobseeker" }),
       });
@@ -75,7 +75,7 @@ describe("Recruiter Bulk Actions API", () => {
         userId: "recruiter-1",
         error: null,
       });
-      (adminDb.get as jest.Mock).mockResolvedValue({
+      ((adminDb as any).get as jest.Mock).mockResolvedValue({
         exists: true,
         data: () => ({ role: "recruiter" }),
       });
@@ -101,7 +101,7 @@ describe("Recruiter Bulk Actions API", () => {
 
       expect(response.status).toBe(201);
       expect(data.bulkAction.id).toBe("bulk-1");
-      expect(adminDb.set).toHaveBeenCalled();
+      expect((adminDb as any).set).toHaveBeenCalled();
     });
 
     it("should execute bulk action successfully", async () => {
@@ -109,7 +109,7 @@ describe("Recruiter Bulk Actions API", () => {
         userId: "recruiter-1",
         error: null,
       });
-      (adminDb.get as jest.Mock)
+      ((adminDb as any).get as jest.Mock)
         .mockResolvedValueOnce({
           exists: true,
           data: () => ({ role: "recruiter" }),
@@ -135,7 +135,7 @@ describe("Recruiter Bulk Actions API", () => {
 
       expect(response.status).toBe(200);
       expect(data.bulkAction.status).toBe("completed");
-      expect(adminDb.update).toHaveBeenCalledWith(
+      expect((adminDb as any).update).toHaveBeenCalledWith(
         expect.objectContaining({ status: "completed" })
       );
     });
@@ -145,7 +145,7 @@ describe("Recruiter Bulk Actions API", () => {
         userId: "recruiter-1",
         error: null,
       });
-      (adminDb.get as jest.Mock)
+      ((adminDb as any).get as jest.Mock)
         .mockResolvedValueOnce({
           exists: true,
           data: () => ({ role: "recruiter" }),
@@ -164,7 +164,7 @@ describe("Recruiter Bulk Actions API", () => {
       );
       const response = await POST(req);
       expect(response.status).toBe(200);
-      expect(adminDb.delete).toHaveBeenCalled();
+      expect((adminDb as any).delete).toHaveBeenCalled();
     });
 
     it("should return 400 for unknown action", async () => {
@@ -172,7 +172,7 @@ describe("Recruiter Bulk Actions API", () => {
         userId: "recruiter-1",
         error: null,
       });
-      (adminDb.get as jest.Mock).mockResolvedValue({
+      ((adminDb as any).get as jest.Mock).mockResolvedValue({
         exists: true,
         data: () => ({ role: "recruiter" }),
       });
@@ -195,7 +195,7 @@ describe("Recruiter Bulk Actions API", () => {
         userId: "recruiter-1",
         error: null,
       });
-      (adminDb.get as jest.Mock)
+      ((adminDb as any).get as jest.Mock)
         .mockResolvedValueOnce({
           exists: true,
           data: () => ({ role: "recruiter" }),
@@ -220,7 +220,7 @@ describe("Recruiter Bulk Actions API", () => {
         userId: "recruiter-1",
         error: null,
       });
-      (adminDb.get as jest.Mock)
+      ((adminDb as any).get as jest.Mock)
         .mockResolvedValueOnce({
           exists: true,
           data: () => ({ role: "recruiter" }),
@@ -250,7 +250,7 @@ describe("Recruiter Bulk Actions API", () => {
         userId: "recruiter-1",
         error: null,
       });
-      (adminDb.get as jest.Mock).mockRejectedValue(
+      ((adminDb as any).get as jest.Mock).mockRejectedValue(
         new Error("Firestore error")
       );
 

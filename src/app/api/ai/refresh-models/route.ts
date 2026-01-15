@@ -56,14 +56,20 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json();
+    interface GeminiModelResponse {
+      name: string;
+      displayName: string;
+      supportedGenerationMethods: string[];
+    }
+
     const allModels =
-      data.models?.map((m: any) => ({
+      (data.models as GeminiModelResponse[] | undefined)?.map((m) => ({
         name: m.name.replace("models/", ""),
         displayName: m.displayName,
         methods: m.supportedGenerationMethods,
       })) || [];
 
-    const compatibleModels = allModels.filter((m: any) =>
+    const compatibleModels = allModels.filter((m) =>
       m.methods?.includes("generateContent")
     );
 

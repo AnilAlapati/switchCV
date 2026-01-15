@@ -74,12 +74,12 @@ export function RecruiterRequestForm({
             >
               <input
                 type="checkbox"
-                checked={formData.fields.includes(field.id as any)}
+                checked={formData.fields.includes(field.id as "email" | "phone" | "address" | "personalLinks")}
                 onChange={(e) => {
                   if (e.target.checked) {
                     onFormChange({
                       ...formData,
-                      fields: [...formData.fields, field.id as any],
+                      fields: [...formData.fields, field.id as "email" | "phone" | "address" | "personalLinks"],
                     });
                   } else {
                     onFormChange({
@@ -125,7 +125,7 @@ export function RecruiterRequestForm({
           onChange={(e) =>
             onFormChange({
               ...formData,
-              duration: e.target.value as any,
+              duration: e.target.value as "1hour" | "1day" | "1week" | "30days",
             })
           }
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"

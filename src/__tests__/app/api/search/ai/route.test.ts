@@ -63,14 +63,16 @@ describe("POST /api/search/ai", () => {
     // Default successful auth
     mockGetAuthenticatedUserId.mockResolvedValue({
       userId: "test-user-id",
-      error: null,
+      error: undefined,
     });
 
     // Default rate limit allowed
     mockAiSearchRateLimiter.mockResolvedValue({
       allowed: true,
       remaining: 10,
-      reset: Date.now() + 1000,
+      resetIn: 1000,
+      limit: 10,
+      current: 0,
     });
 
     // Default handleApiError implementation
@@ -87,7 +89,7 @@ describe("POST /api/search/ai", () => {
 
   it("should return 401 if authentication fails", async () => {
     mockGetAuthenticatedUserId.mockResolvedValue({
-      userId: null,
+      userId: undefined,
       error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
     });
 
@@ -100,8 +102,8 @@ describe("POST /api/search/ai", () => {
 
   it("should return 401 if userId is missing", async () => {
     mockGetAuthenticatedUserId.mockResolvedValue({
-      userId: null,
-      error: null,
+      userId: undefined,
+      error: undefined,
     });
 
     const request = createRequest({ query: "valid query string" });
@@ -118,8 +120,10 @@ describe("POST /api/search/ai", () => {
   it("should return 429 if rate limit exceeded", async () => {
     mockAiSearchRateLimiter.mockResolvedValue({
       allowed: false,
+      resetIn: 1000,
+      limit: 30,
       remaining: 0,
-      reset: Date.now() + 1000,
+      current: 30,
     });
 
     const request = createRequest({ query: "valid query string" });

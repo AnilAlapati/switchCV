@@ -189,9 +189,9 @@ function RecruiterRequestsContent() {
     isAvailableResumesView
       ? [{ key: "active", label: "Active", count: activeRequests.length }]
       : [
-          { key: "pending", label: "Pending", count: pendingRequests.length },
-          { key: "history", label: "History", count: historyRequests.length },
-        ];
+        { key: "pending", label: "Pending", count: pendingRequests.length },
+        { key: "history", label: "History", count: historyRequests.length },
+      ];
 
   const emptyStateMessage = useMemo(() => {
     if (activeTab === "pending") {
@@ -212,24 +212,24 @@ function RecruiterRequestsContent() {
       <main className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-10">
           <div>
-            <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-500 bg-clip-text text-transparent">
+            <h1 className="text-4xl font-serif font-bold tracking-tight text-slate-900">
               {isAvailableResumesView
                 ? "Available Resumes"
                 : isContactHistoryView
-                ? "Candidates Contacted"
-                : "Access Requests"}
+                  ? "Candidates Contacted"
+                  : "Access Requests"}
             </h1>
-            <p className="text-slate-400 mt-2.5 text-base font-medium">
+            <p className="text-slate-600 mt-2.5 text-base font-sans font-medium">
               {isAvailableResumesView
                 ? "Manage approved resume access and view candidate profiles"
                 : isContactHistoryView
-                ? "View all candidates you've contacted and their response status"
-                : "Track and manage your candidate access requests"}
+                  ? "View all candidates you've contacted and their response status"
+                  : "Track and manage your candidate access requests"}
             </p>
           </div>
           <Link
             href="/dashboard"
-            className="group flex items-center gap-2.5 px-5 py-2.5 rounded-xl bg-slate-800/60 hover:bg-slate-700/70 text-cyan-400 hover:text-cyan-300 text-sm font-semibold transition-all duration-200 border border-slate-700/70 hover:border-cyan-500/50 shadow-lg shadow-slate-950/50"
+            className="group flex items-center gap-2.5 px-5 py-2.5 rounded-lg bg-white hover:bg-slate-50 text-slate-900 text-sm font-bold transition-all duration-200 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px]"
           >
             <svg
               className="w-4 h-4 transition-transform group-hover:-translate-x-1"
@@ -278,10 +278,10 @@ function RecruiterRequestsContent() {
             <p className="text-red-400/80 text-sm">{error}</p>
           </div>
         ) : requests.length === 0 ? (
-          <div className="text-center bg-slate-900/40 border border-slate-800/50 backdrop-blur-sm p-16 rounded-2xl shadow-xl">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-slate-800/50 mb-6">
+          <div className="text-center bg-white border-2 border-black p-16 rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-slate-50 border-2 border-black mb-6 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
               <svg
-                className="w-10 h-10 text-slate-500"
+                className="w-10 h-10 text-slate-900"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -294,23 +294,23 @@ function RecruiterRequestsContent() {
                 />
               </svg>
             </div>
-            <h3 className="text-white text-2xl font-bold mb-3">
+            <h3 className="text-slate-900 font-serif text-2xl font-bold mb-3">
               {isAvailableResumesView
                 ? "No Available Resumes Yet"
                 : isContactHistoryView
-                ? "No Candidates Contacted Yet"
-                : "No Access Requests Yet"}
+                  ? "No Candidates Contacted Yet"
+                  : "No Access Requests Yet"}
             </h3>
-            <p className="text-white text-base max-w-md mx-auto mb-6">
+            <p className="text-slate-600 text-base max-w-md mx-auto mb-8 font-medium">
               {isAvailableResumesView
                 ? "Request access to candidate resumes to see them here."
                 : isContactHistoryView
-                ? "Start discovering talent by searching for candidates and requesting access to their resumes."
-                : "Start discovering talent by searching for candidates and requesting access to their resumes."}
+                  ? "Start discovering talent by searching for candidates and requesting access to their resumes."
+                  : "Start discovering talent by searching for candidates and requesting access to their resumes."}
             </p>
             <Link
               href="/recruiter/search"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white rounded-xl font-bold transition-all duration-200 shadow-xl shadow-cyan-500/30"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-black hover:bg-slate-800 text-white rounded-lg font-bold transition-all duration-200 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[2px] hover:translate-y-[2px]"
             >
               <svg
                 className="w-5 h-5"
@@ -330,7 +330,7 @@ function RecruiterRequestsContent() {
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="flex gap-2 p-1.5 rounded-xl bg-slate-900/60 backdrop-blur-sm border border-slate-800/60 shadow-xl w-fit">
+            <div className="flex gap-2 p-1.5 rounded-lg bg-white border-2 border-slate-200 w-fit">
               {tabConfig.map((tab) => (
                 <button
                   key={tab.key}
@@ -341,20 +341,18 @@ function RecruiterRequestsContent() {
                     newUrl.searchParams.set("tab", tab.key);
                     window.history.pushState({}, "", newUrl);
                   }}
-                  className={`relative py-2.5 px-6 rounded-lg text-sm font-bold transition-all duration-200 ${
-                    activeTab === tab.key
-                      ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/30"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
-                  }`}
+                  className={`relative py-2.5 px-6 rounded-md text-sm font-bold transition-all duration-200 border-2 ${activeTab === tab.key
+                      ? "bg-slate-900 border-slate-900 text-white shadow-md"
+                      : "bg-transparent border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+                    }`}
                 >
                   <span className="flex items-center justify-center gap-2.5">
                     {tab.label}
                     <span
-                      className={`px-2.5 py-0.5 rounded-md text-xs font-bold ${
-                        activeTab === tab.key
-                          ? "bg-white/25 text-white"
-                          : "bg-slate-800 text-slate-300"
-                      }`}
+                      className={`px-2 py-0.5 rounded text-xs font-bold ${activeTab === tab.key
+                          ? "bg-white/20 text-white"
+                          : "bg-slate-100 text-slate-600"
+                        }`}
                     >
                       {tab.count}
                     </span>
@@ -364,11 +362,11 @@ function RecruiterRequestsContent() {
             </div>
 
             {displayedRequests.length === 0 ? (
-              <div className="text-center p-14 rounded-2xl bg-gradient-to-br from-slate-900/60 to-slate-800/40 border border-slate-700/60 backdrop-blur-sm shadow-xl">
+              <div className="text-center p-14 rounded-xl bg-white border-2 border-dashed border-slate-300">
                 <div className="flex justify-center mb-5">
-                  <div className="p-5 rounded-full bg-slate-800/50 border border-slate-700">
+                  <div className="p-5 rounded-full bg-slate-50 border-2 border-slate-200">
                     <svg
-                      className="w-12 h-12 text-slate-500"
+                      className="w-12 h-12 text-slate-400"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -382,11 +380,11 @@ function RecruiterRequestsContent() {
                     </svg>
                   </div>
                 </div>
-                <p className="text-slate-300 text-lg font-semibold">
+                <p className="text-slate-900 text-lg font-serif font-bold">
                   {emptyStateMessage}
                 </p>
                 {activeTab === "active" && (
-                  <p className="text-slate-500 text-sm mt-2">
+                  <p className="text-slate-500 text-sm mt-2 font-medium">
                     Request access to candidate resumes to see them here
                   </p>
                 )}

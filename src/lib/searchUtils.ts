@@ -4,6 +4,7 @@
  */
 
 import { logger } from "@/lib/logger";
+import type { ProfileSearchResult } from "@/types/profileSearch";
 
 export const validateSearchQuery = (
   query: string
@@ -46,7 +47,7 @@ export const getSearchSuggestions = (
 };
 
 export const exportSearchResults = (
-  results: any[],
+  results: ProfileSearchResult[],
   format: "json" | "csv"
 ): string => {
   try {

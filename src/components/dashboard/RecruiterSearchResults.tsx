@@ -22,22 +22,22 @@ const badgeStyles: Record<
   approved: {
     label: "Approved",
     classes:
-      "bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm",
+      "bg-emerald-50 text-emerald-900 border-2 border-black",
     helper: "Full resume unlocked and ready to view",
   },
   pending: {
     label: "Pending",
-    classes: "bg-amber-50 text-amber-700 border border-amber-200 shadow-sm",
+    classes: "bg-amber-50 text-amber-900 border-2 border-black",
     helper: "You'll be notified when the candidate responds",
   },
   denied: {
     label: "Denied",
-    classes: "bg-rose-50 text-rose-700 border border-rose-200 shadow-sm",
+    classes: "bg-rose-50 text-rose-900 border-2 border-black",
     helper: "Consider personalizing your request and trying again",
   },
   none: {
     label: "Request Access",
-    classes: "bg-slate-100 text-slate-600 border border-slate-200",
+    classes: "bg-white text-slate-900 border-2 border-black",
     helper: "Send a personalized request to view full contact details",
   },
 };
@@ -49,15 +49,14 @@ const Callout = ({
   variant: "error" | "info";
   children: ReactNode;
 }) => (
-  <section className="glass-panel p-6">
+  <section className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-6 rounded-lg">
     <div
-      className={`flex items-center gap-3 rounded-2xl border px-5 py-4 font-bold shadow-sm ${
-        variant === "error"
-          ? "border-rose-200 bg-rose-50 text-rose-700"
-          : "border-cyan-200 bg-cyan-50 text-cyan-700"
-      }`}
+      className={`flex items-center gap-3 rounded-lg border-2 border-black px-5 py-4 font-bold ${variant === "error"
+          ? "bg-rose-50 text-rose-900"
+          : "bg-cyan-50 text-cyan-900"
+        }`}
     >
-      <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-white/40 shadow-sm">
+      <span className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${variant === "error" ? "bg-rose-200" : "bg-cyan-200"}`}>
         {variant === "error" ? "!" : "i"}
       </span>
       {children}
@@ -184,19 +183,19 @@ export function RecruiterSearchResults({
           />
         )}
 
-        <div className="glass-panel flex flex-col gap-3 rounded-3xl px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col gap-3 rounded-xl px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="mb-1 flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-              <p className="text-xs font-bold uppercase tracking-wider text-[#2C4A3B]/60">
+              <span className="h-2 w-2 rounded-full border border-black bg-emerald-500"></span>
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
                 Search Complete
               </p>
             </div>
-            <h3 className="text-2xl font-black text-[#1A2F25]">
+            <h3 className="text-2xl font-black text-slate-900 font-serif">
               {results.length} resume{results.length === 1 ? "" : "s"} found
             </h3>
           </div>
-          <p className="text-sm leading-relaxed text-[#2C4A3B]/70">
+          <p className="text-sm leading-relaxed text-slate-600 font-medium">
             ✨ Agent actions enabled for all results
           </p>
         </div>
@@ -215,7 +214,7 @@ export function RecruiterSearchResults({
                 return (
                   <button
                     onClick={() => onViewResume(result.resumeId)}
-                    className="group relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/30 transition-all hover:shadow-xl hover:shadow-emerald-500/40"
+                    className="group relative w-full overflow-hidden rounded-lg bg-black px-4 py-3 text-sm font-bold text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] border-2 border-black transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none"
                   >
                     <span className="relative z-10 flex items-center justify-center gap-2">
                       <svg
@@ -239,7 +238,6 @@ export function RecruiterSearchResults({
                       </svg>
                       View Full Resume
                     </span>
-                    <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-500 group-hover:translate-x-full"></div>
                   </button>
                 );
               }
@@ -247,7 +245,7 @@ export function RecruiterSearchResults({
                 return (
                   <button
                     disabled
-                    className="w-full rounded-xl border border-amber-400/40 bg-amber-500/15 px-4 py-3 text-sm font-bold text-amber-100 shadow-lg shadow-amber-500/10"
+                    className="w-full rounded-lg border-2 border-dashed border-amber-300 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800"
                   >
                     <span className="flex items-center justify-center gap-2">
                       <svg
@@ -274,7 +272,7 @@ export function RecruiterSearchResults({
                     onClick={() =>
                       onRequestAccess?.(result.resumeId, result.userName)
                     }
-                    className="group w-full rounded-xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-sm font-bold text-rose-100 transition-all hover:border-rose-400/60 hover:bg-rose-500/20 hover:shadow-lg hover:shadow-rose-500/20"
+                    className="group w-full rounded-lg border-2 border-rose-900 bg-white px-4 py-3 text-sm font-bold text-rose-900 transition-all hover:bg-rose-50 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
                   >
                     <span className="flex items-center justify-center gap-2">
                       Request Again
@@ -288,7 +286,7 @@ export function RecruiterSearchResults({
                     onClick={() =>
                       onRequestAccess?.(result.resumeId, result.userName)
                     }
-                    className="group relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-cyan-500/30 transition-all hover:shadow-xl hover:shadow-cyan-500/40"
+                    className="group relative w-full overflow-hidden rounded-lg bg-black px-4 py-3 text-sm font-bold text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] border-2 border-black transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none"
                   >
                     <span className="relative z-10 flex items-center justify-center gap-2">
                       Request Access
@@ -300,14 +298,14 @@ export function RecruiterSearchResults({
                     <button
                       onClick={() => handleDraftMessage(result)}
                       disabled={isDrafting || isAgentLoading}
-                      className="flex-1 rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-bold text-purple-700 hover:bg-purple-100 transition-colors disabled:opacity-50"
+                      className="flex-1 rounded-lg border-2 border-black bg-white px-3 py-2 text-xs font-bold text-slate-900 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50"
                     >
                       {isDrafting ? "Drafting..." : "✨ Draft Msg"}
                     </button>
                     <button
                       onClick={() => handleAnalyzeMatch(result)}
                       disabled={isAnalyzing}
-                      className="flex-1 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition-colors disabled:opacity-50"
+                      className="flex-1 rounded-lg border-2 border-black bg-white px-3 py-2 text-xs font-bold text-slate-900 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50"
                     >
                       {isAnalyzing ? "Thinking..." : "🧠 Analyze"}
                     </button>
@@ -319,14 +317,14 @@ export function RecruiterSearchResults({
             return (
               <article
                 key={result.resumeId}
-                className="group glass-panel rounded-3xl p-6 transition-all hover:shadow-lg hover:shadow-cyan-500/10 hover:border-cyan-200/50"
+                className="group bg-white rounded-xl border-2 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[-2px]"
               >
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
                   <div className="flex-1 space-y-4">
                     <div className="flex flex-wrap items-start gap-3">
-                      <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-cyan-50 text-cyan-600 ring-1 ring-cyan-200">
+                      <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-lg bg-slate-50 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
                         <svg
-                          className="h-7 w-7"
+                          className="h-7 w-7 text-slate-900"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -340,21 +338,21 @@ export function RecruiterSearchResults({
                         </svg>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-lg font-bold text-[#1A2F25]">
+                        <h4 className="text-lg font-bold font-serif text-slate-900">
                           {result.title}
                         </h4>
-                        <p className="text-sm text-[#2C4A3B]/60 font-medium">
+                        <p className="text-sm text-slate-600 font-medium font-sans">
                           {result.userName}
                         </p>
                       </div>
-                      <span className="rounded-full border border-slate-200 bg-white/50 px-3 py-1 text-xs font-bold text-slate-500 backdrop-blur-sm">
+                      <span className="rounded-full border-2 border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-500">
                         #{result.userId.substring(0, 8)}
                       </span>
                     </div>
 
                     {result.skills && result.skills.length > 0 && (
                       <div className="space-y-2">
-                        <p className="text-xs uppercase tracking-wide text-[#2C4A3B]/50 font-bold">
+                        <p className="text-xs uppercase tracking-wide text-[black]/50 font-bold">
                           Core skills
                         </p>
                         <div className="flex flex-wrap gap-2">
@@ -388,7 +386,7 @@ export function RecruiterSearchResults({
                       </div>
                     )}
 
-                    <div className="flex flex-wrap gap-3 text-xs text-[#2C4A3B]/60 font-medium">
+                    <div className="flex flex-wrap gap-3 text-xs text-[black]/60 font-medium">
                       {result.location && (
                         <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white/50 px-3 py-1">
                           <svg
@@ -419,25 +417,25 @@ export function RecruiterSearchResults({
                     </div>
                   </div>
 
-                  <div className="w-full rounded-2xl border border-slate-200 bg-white/60 p-5 backdrop-blur-sm lg:w-80 shadow-sm">
+                  <div className="w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 p-5 lg:w-80">
                     <div className="mb-4 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="h-1 w-1 rounded-full bg-cyan-500"></span>
-                        <span className="text-xs font-bold uppercase tracking-wider text-[#2C4A3B]/60">
+                        <span className="h-2 w-2 rounded-full bg-cyan-500 border border-black"></span>
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
                           Access Status
                         </span>
                       </div>
-                      <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      <span className="rounded-full border-2 border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
                         {searchMode === "basic" ? "Direct" : "Premium"}
                       </span>
                     </div>
                     <div
                       className={`mb-4 inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold uppercase tracking-wide ${badge.classes}`}
                     >
-                      <span className="h-1.5 w-1.5 rounded-full bg-current"></span>
+                      <span className="h-2 w-2 rounded-full border border-black bg-current"></span>
                       {badge.label}
                     </div>
-                    <p className="mb-5 text-xs leading-relaxed text-[#2C4A3B]/70">
+                    <p className="mb-5 text-xs leading-relaxed text-slate-600 font-medium">
                       {badge.helper}
                     </p>
                     {actionArea()}
@@ -453,10 +451,10 @@ export function RecruiterSearchResults({
 
   if (searched && results.length === 0) {
     return (
-      <section className="glass-panel px-6 py-12 text-center text-[#2C4A3B]/70">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
+      <section className="bg-white border-2 border-black rounded-xl p-12 text-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
           <svg
-            className="h-8 w-8 text-slate-400"
+            className="h-8 w-8 text-slate-900"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -469,8 +467,8 @@ export function RecruiterSearchResults({
             />
           </svg>
         </div>
-        <p className="text-lg font-bold text-[#1A2F25]">No resumes found</p>
-        <p className="text-sm font-medium">
+        <p className="text-2xl font-bold font-serif text-slate-900 mb-2">No resumes found</p>
+        <p className="text-sm font-medium text-slate-600">
           Adjust your filters or widen the location range to discover more
           talent.
         </p>

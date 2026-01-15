@@ -40,7 +40,7 @@ describe("GET /api/system-config", () => {
 
   it("should return config when snapshot exists", async () => {
     const rawData: Partial<SystemConfig> = {
-      maintenance: { enabled: false },
+      maintenance: { isActive: false, message: "Down", blocking: false },
     };
     const mergedConfig = { ...defaultSystemConfig, ...rawData };
     const validatedConfig = mergedConfig;
@@ -140,7 +140,7 @@ describe("GET /api/system-config", () => {
 
   it("should handle validation errors gracefully", async () => {
     const rawData: Partial<SystemConfig> = {
-      maintenance: { enabled: false },
+      maintenance: { isActive: false, message: "Down", blocking: false },
     };
     const mergedConfig = { ...defaultSystemConfig, ...rawData };
 

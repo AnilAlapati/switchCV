@@ -10,6 +10,7 @@ import { db } from "@/lib/firebase";
 import { logger } from "@/lib/logger";
 
 import { BackgroundBlobs } from "@/components/ui/BackgroundBlobs";
+import { UserProfile } from "@/types";
 
 type Role = "jobseeker" | "recruiter";
 
@@ -155,12 +156,14 @@ export default function SelectRolePage() {
       // We use optimistic update here to ensure the local cache has the new role immediately
       // setting revalidate: false prevents SWR from fetching the stale data from the server (which might be cached by the browser)
       await mutate(
-        (currentProfile: any) => ({
-          ...currentProfile,
-          role: selectedRole,
-          // If we had the full profile type we could be more specific, but this should suffice to update the role
-          // effectively merging the new role into the existing cached profile
-        }),
+        (currentProfile: unknown) => {
+          if (!currentProfile) return null;
+          const profile = currentProfile as UserProfile;
+          return {
+            ...profile,
+            role: selectedRole,
+          };
+        },
         { revalidate: false }
       );
 
@@ -183,8 +186,8 @@ export default function SelectRolePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#E8F3EE]">
-        <div className="w-8 h-8 border-4 border-[#2C4A3B] border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[#FFFFF8]">
+        <div className="w-8 h-8 border-4 border-black border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -195,9 +198,9 @@ export default function SelectRolePage() {
 
       <div className="relative z-10 w-full max-w-4xl mx-auto">
         <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-white/40 backdrop-blur-xl border border-white/50 rounded-2xl mb-6 shadow-lg shadow-[#2C4A3B]/5">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-white border-2 border-black mb-6 shadow-lg">
             <svg
-              className="w-8 h-8 text-[#2C4A3B]"
+              className="w-8 h-8 text-black"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -210,10 +213,10 @@ export default function SelectRolePage() {
               />
             </svg>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold mb-3 text-[#1A2F25]">
+          <h1 className="text-3xl sm:text-4xl font-serif font-bold mb-3 text-black">
             How will you use SwitchCV?
           </h1>
-          <p className="text-[#1A2F25]/70 text-lg max-w-xl mx-auto">
+          <p className="text-gray-600 text-lg max-w-xl mx-auto">
             Choose your role to get a personalized experience. You can always
             change this later in settings.
           </p>
@@ -266,10 +269,10 @@ export default function SelectRolePage() {
               </div>
 
               {/* Content */}
-              <h2 className="text-xl font-bold mb-2 text-[#1A2F25]">
+              <h2 className="text-xl font-bold mb-2 text-black">
                 {role.title}
               </h2>
-              <p className="text-[#1A2F25]/70 text-sm mb-6">
+              <p className="text-gray-600 text-sm mb-6">
                 {role.description}
               </p>
 
@@ -278,14 +281,14 @@ export default function SelectRolePage() {
                 {role.features.map((feature, idx) => (
                   <li
                     key={idx}
-                    className="flex items-center gap-3 text-sm text-[#1A2F25]/80"
+                    className="flex items-center gap-3 text-sm text-gray-700"
                   >
                     <div
                       className={`p-1 rounded-full ${selectedRole === role.id
                         ? role.id === "jobseeker"
                           ? "bg-teal-100 text-teal-600"
                           : "bg-blue-100 text-blue-600"
-                        : "bg-[#2C4A3B]/5 text-[#2C4A3B]/60"
+                        : "bg-gray-100 text-gray-500"
                         }`}
                     >
                       <svg
@@ -357,7 +360,7 @@ export default function SelectRolePage() {
           </button>
         </div>
 
-        <p className="text-center text-[#1A2F25]/40 text-sm mt-8 pb-8">
+        <p className="text-center text-gray-400 text-sm mt-8 pb-8 font-sans">
           Your choice helps us show you the right features. Both roles have
           access to core functionality.
         </p>

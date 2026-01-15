@@ -184,20 +184,20 @@ export default function ContactPage() {
 
         <div className="relative z-10 mx-auto max-w-6xl px-4 lg:px-8 py-24 sm:py-32">
           <div className="grid gap-12 lg:grid-cols-[1.2fr,0.8fr]">
-            <section className="glass-panel p-6 sm:p-10">
+            <section className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-6 sm:p-10">
               <header className="mb-10 space-y-4">
-                <p className="inline-flex items-center gap-2 rounded-full bg-[#2C4A3B]/10 px-3 py-1 text-xs uppercase tracking-[0.2em] text-[#2C4A3B]">
-                  <span className="h-2 w-2 rounded-full bg-[#2C4A3B]" />{" "}
+                <p className="inline-flex items-center gap-2 px-3 py-1 text-[10px] font-mono font-bold uppercase tracking-widest text-blue-600 bg-blue-50 border border-blue-200">
+                  <span className="h-2 w-2 bg-blue-600" />{" "}
                   Dedicated support
                 </p>
-                <h1 className="text-3xl font-bold tracking-tight text-[#1A2F25] sm:text-4xl text-wrap">
+                <h1 className="text-3xl font-serif font-bold tracking-tight text-black sm:text-4xl text-wrap">
                   Tell us what's working, what's not, or what you need next.
                 </h1>
-                <p className="text-base text-[#1A2F25]/70">
+                <p className="text-base text-gray-600 font-sans">
                   We read every message. Submissions route directly to{" "}
                   <Link
                     href={`mailto:${APP_CONFIG.SUPPORT_EMAIL}`}
-                    className="text-[#2C4A3B] underline underline-offset-4 hover:text-[#1A2F25]"
+                    className="text-blue-600 underline underline-offset-4 hover:text-black"
                   >
                     {APP_CONFIG.SUPPORT_EMAIL}
                   </Link>{" "}
@@ -206,12 +206,12 @@ export default function ContactPage() {
               </header>
 
               {showSuccess && referenceId && (
-                <div className="mb-8 rounded-2xl border border-emerald-500/30 bg-emerald-50 p-4 text-emerald-900">
-                  <p className="font-bold text-emerald-800">
+                <div className="mb-8 border-2 border-blue-200 bg-blue-50 p-4 text-blue-900">
+                  <p className="font-bold text-blue-800">
                     Thanks for the signal! Reference ID:{" "}
                     <span className="font-mono">{referenceId}</span>
                   </p>
-                  <p className="text-sm text-emerald-800/80">
+                  <p className="text-sm text-blue-800/80 font-sans">
                     We replied via {APP_CONFIG.SUPPORT_EMAIL}. Keep this ID
                     handy if you follow up.
                   </p>
@@ -219,9 +219,9 @@ export default function ContactPage() {
               )}
 
               {error && (
-                <div className="mb-6 rounded-2xl border border-rose-500/30 bg-rose-50 p-4 text-rose-900">
+                <div className="mb-6 border-2 border-red-200 bg-red-50 p-4 text-red-900">
                   <p className="font-bold">We couldn't send that.</p>
-                  <p className="text-sm opacity-80">{error}</p>
+                  <p className="text-sm opacity-80 font-sans">{error}</p>
                 </div>
               )}
 
@@ -250,15 +250,15 @@ export default function ContactPage() {
                     handleChange(f as keyof FormState, v)
                   }
                 />
-                <div className="flex flex-col gap-4 text-sm text-[#1A2F25]/60 sm:flex-row sm:items-center sm:justify-between">
-                  <p>
+                <div className="flex flex-col gap-4 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="font-sans">
                     Avg. weekday response time:{" "}
-                    <span className="text-[#1A2F25] font-semibold">&lt; 12 hrs</span>
+                    <span className="text-black font-bold">&lt; 12 hrs</span>
                   </p>
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="glass-button inline-flex items-center justify-center rounded-2xl bg-[#2C4A3B] px-6 py-3 text-base font-bold text-white shadow-lg transition-transform hover:-translate-y-0.5 hover:bg-[#1A2F25] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex items-center justify-center bg-black px-6 py-3 text-base font-bold text-white border-2 border-black transition-all hover:bg-white hover:text-black disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {isSubmitting ? "Sending..." : "Send feedback"}
                   </button>
@@ -267,21 +267,21 @@ export default function ContactPage() {
             </section>
 
             <aside className="space-y-6">
-              <div className="glass-panel p-6">
-                <div className="rounded-2xl border border-[#2C4A3B]/10 bg-white/40 p-5 mb-4">
-                  <p className="text-sm uppercase tracking-[0.3em] text-[#2C4A3B]/60 font-bold">
+              <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-6">
+                <div className="border-2 border-gray-200 bg-gray-50 p-5 mb-4">
+                  <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-gray-500">
                     Direct inbox
                   </p>
-                  <p className="mt-3 text-2xl font-bold text-[#1A2F25]">
+                  <p className="mt-3 text-2xl font-serif font-bold text-black">
                     {APP_CONFIG.SUPPORT_EMAIL}
                   </p>
-                  <p className="mt-2 text-sm text-[#1A2F25]/70">
+                  <p className="mt-2 text-sm text-gray-600 font-sans">
                     Mon–Fri · 9a–7p ET · Escalations routed instantly.
                   </p>
                 </div>
-                <div className="rounded-2xl border border-[#2C4A3B]/10 bg-white/40 p-5 mb-4">
-                  <p className="text-sm font-bold text-[#1A2F25]">What's next?</p>
-                  <ul className="mt-3 space-y-3 text-sm text-[#1A2F25]/70">
+                <div className="border-2 border-gray-200 bg-gray-50 p-5 mb-4">
+                  <p className="text-sm font-bold text-black">What's next?</p>
+                  <ul className="mt-3 space-y-3 text-sm text-gray-600 font-sans">
                     <li>• You receive a confirmation with your reference ID.</li>
                     <li>• An on-call teammate triages within a business day.</li>
                     <li>
@@ -290,8 +290,8 @@ export default function ContactPage() {
                     </li>
                   </ul>
                 </div>
-                <div className="rounded-2xl border border-[#2C4A3B]/10 bg-white/40 p-5 text-sm text-[#1A2F25]/70">
-                  <p className="font-bold text-[#1A2F25]">Prefer async?</p>
+                <div className="border-2 border-gray-200 bg-gray-50 p-5 text-sm text-gray-600 font-sans">
+                  <p className="font-bold text-black">Prefer async?</p>
                   <p className="mt-2">
                     Reply to the confirmation email with screenshots or Loom
                     links. The same reference ID threads everything together.

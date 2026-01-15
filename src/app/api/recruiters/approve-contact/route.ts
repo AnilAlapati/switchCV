@@ -2,7 +2,7 @@ import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 // eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
- 
+
 import { FieldValue } from "firebase-admin/firestore";
 import { tokenGenerator } from "@/lib/tokenGenerator";
 import { RecruiterContactRequest } from "@/types/profileSearch";
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
       requestId: payload.requestId,
       token, // Store encrypted token
       tokenHash, // Store hash for verification
-      accessFields: contactRequest.requestedFields as any,
+      accessFields: contactRequest.requestedFields as string[],
       accessType: "read-only",
       issuedAt: new Date(now * 1000),
       expiresAt: new Date(tokenExpiry * 1000),
@@ -174,7 +174,7 @@ export async function POST(request: NextRequest) {
       reviewedAt: FieldValue.serverTimestamp(),
       tokenId: tokenRef.id,
       accessExpiresAt: FieldValue.serverTimestamp(),
-    } as any);
+    } as Record<string, unknown>);
 
     // Create notification for recruiter
     const recruiterNotification = {

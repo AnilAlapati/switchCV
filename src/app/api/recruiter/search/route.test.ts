@@ -1,5 +1,6 @@
 // eslint-disable-next-line no-restricted-imports
-import type { FirebaseFirestore } from "firebase-admin";
+import { adminDb } from "@/lib/firebase-admin";
+import type { Firestore } from "@google-cloud/firestore";
 import { NextRequest, NextResponse } from "next/server";
 import { GET } from "./route";
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";

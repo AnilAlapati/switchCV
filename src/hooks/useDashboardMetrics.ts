@@ -16,9 +16,9 @@ interface UseDashboardMetricsResult {
   jobSeekerMetrics: JobSeekerMetrics;
   recruiterMetrics: RecruiterMetrics;
   loading: boolean;
-  error: any;
-  refreshJobSeekerMetrics: () => Promise<any>;
-  refreshRecruiterMetrics: () => Promise<any>;
+  error: Error | null;
+  refreshJobSeekerMetrics: () => Promise<JobSeekerMetrics | undefined>;
+  refreshRecruiterMetrics: () => Promise<RecruiterMetrics | undefined>;
 }
 
 export function useDashboardMetrics(): UseDashboardMetricsResult {
@@ -77,7 +77,7 @@ export function useDashboardMetrics(): UseDashboardMetricsResult {
       profileLoading ||
       (isRecruiter ? recruiterLoading : jobLoading),
     error: jobError || recruiterError,
-    refreshJobSeekerMetrics: mutateJob,
-    refreshRecruiterMetrics: mutateRecruiter,
+    refreshJobSeekerMetrics: mutateJob as () => Promise<JobSeekerMetrics | undefined>,
+    refreshRecruiterMetrics: mutateRecruiter as () => Promise<RecruiterMetrics | undefined>,
   };
 }

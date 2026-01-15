@@ -54,6 +54,7 @@ describe("PUT /api/resumes/[id]", () => {
     const response = await PUT(request, {
       params: Promise.resolve({ id: "42" }),
     });
+    if (!response) throw new Error("Response is undefined");
     expect(response.status).toBe(401);
   });
 
@@ -69,6 +70,7 @@ describe("PUT /api/resumes/[id]", () => {
     const response = await PUT(request, {
       params: Promise.resolve({ id: "42" }),
     });
+    if (!response) throw new Error("Response is undefined");
     expect(response.status).toBe(403);
   });
 
@@ -85,6 +87,7 @@ describe("PUT /api/resumes/[id]", () => {
     const response = await PUT(request, {
       params: Promise.resolve({ id: "42" }),
     });
+    if (!response) throw new Error("Response is undefined");
     expect(response.status).toBe(403);
     const data = await response.json();
     expect(data.error).toContain("Editing is not allowed");
@@ -109,8 +112,8 @@ describe("PUT /api/resumes/[id]", () => {
     const response = await PUT(request, {
       params: Promise.resolve({ id: "42" }),
     });
+    if (!response) throw new Error("Response is undefined");
     expect(response.status).toBe(200);
-
     const data = await response.json();
     expect(data.success).toBe(true);
     expect(data.resume.title).toBe("Updated Title");

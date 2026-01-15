@@ -115,6 +115,7 @@ export async function publishDraft(
 
   const publishedResume: PublishedResume = {
     resumeId,
+    numericId: resumeId,
     userId,
     profile: draft.profile,
     publishedAt: isNewResume
@@ -170,8 +171,7 @@ export async function publishDraft(
     // Note: In production, consider using a saga pattern or two-phase commit
     // for more robust error recovery
     throw new Error(
-      `Failed to publish draft: ${
-        error instanceof Error ? error.message : "Unknown error"
+      `Failed to publish draft: ${error instanceof Error ? error.message : "Unknown error"
       }. Please try again.`
     );
   }
@@ -238,7 +238,7 @@ export async function unpublishResume(
   if (publishedResume.isBeingEdited) {
     throw new Error(
       `Resume ${resumeId} is already being edited. ` +
-        `Draft ID: ${publishedResume.editingDraftId}`
+      `Draft ID: ${publishedResume.editingDraftId}`
     );
   }
 
@@ -299,8 +299,7 @@ export async function unpublishResume(
     }
 
     throw new Error(
-      `Failed to unpublish resume: ${
-        error instanceof Error ? error.message : "Unknown error"
+      `Failed to unpublish resume: ${error instanceof Error ? error.message : "Unknown error"
       }. Please try again.`
     );
   }

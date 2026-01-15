@@ -37,7 +37,7 @@ const WORKFLOW_STEPS = [
 
 export function HomeWorkflow() {
   return (
-    <section aria-labelledby="workflow-heading" className="space-y-12 py-12">
+    <section id="how-it-works" aria-labelledby="workflow-heading" className="space-y-12 py-12">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}

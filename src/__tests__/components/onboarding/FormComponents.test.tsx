@@ -69,10 +69,10 @@ describe("FormComponents", () => {
   describe("VisibilityControl", () => {
     it("renders and calls onChange", () => {
       const onChange = jest.fn();
-      render(<VisibilityControl value="private" onChange={onChange} />);
+      render(<VisibilityControl value="public" onChange={onChange} />);
 
-      expect(screen.getByText("Mock Visibility: private")).toBeInTheDocument();
-      fireEvent.click(screen.getByText("Mock Visibility: private"));
+      expect(screen.getByText("Mock Visibility: public")).toBeInTheDocument();
+      fireEvent.click(screen.getByText("Mock Visibility: public"));
       expect(onChange).toHaveBeenCalledWith("public");
     });
   });

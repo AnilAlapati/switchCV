@@ -7,7 +7,7 @@ import { useCallback } from "react";
 
 interface AnalyticsEvent {
   eventName: string;
-  properties?: Record<string, any>;
+  properties?: Record<string, unknown>;
   timestamp?: Date;
 }
 
@@ -22,7 +22,7 @@ export const useAnalyticsTracking = () => {
   }, []);
 
   const track = useCallback(
-    (category: string, action: string, properties?: Record<string, any>) => {
+    (category: string, action: string, properties?: Record<string, unknown>) => {
       trackEvent({
         eventName: `${category}_${action}`,
         properties,
@@ -32,7 +32,7 @@ export const useAnalyticsTracking = () => {
   );
 
   const trackSearch = useCallback(
-    (query: string, resultCount: number, filters?: Record<string, any>) => {
+    (query: string, resultCount: number, filters?: Record<string, unknown>) => {
       trackEvent({
         eventName: "search_performed",
         properties: {
@@ -47,7 +47,7 @@ export const useAnalyticsTracking = () => {
   );
 
   const trackProfileView = useCallback(
-    (userId: string, profileData?: any) => {
+    (userId: string, profileData?: unknown) => {
       trackEvent({
         eventName: "profile_viewed",
         properties: {

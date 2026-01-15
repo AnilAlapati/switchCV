@@ -9,29 +9,15 @@ import {
   DEV_TIER_OVERRIDE,
   DEV_ROLE_OVERRIDE,
 } from "@/lib/config";
-
-interface UserProfile {
-  uid: string;
-  email: string;
-  displayName?: string;
-  photoURL?: string;
-  subscriptionTier: SubscriptionTier;
-  role: UserRole;
-  createdAt?: string;
-  lastLoginAt?: string;
-  agentic?: {
-    usageCount: number;
-    lastRunAt: string;
-  };
-}
+import { UserProfile } from "@/types";
 
 interface UseUserProfileResult {
   profile: UserProfile | null;
   tier: SubscriptionTier;
   role: UserRole | undefined;
   loading: boolean;
-  error: any;
-  mutate: KeyedMutator<any>;
+  error: Error | null;
+  mutate: KeyedMutator<UserProfile | null>;
 }
 
 const fetcher = async (url: string, token: string) => {
@@ -59,12 +45,12 @@ export function useUserProfile(): UseUserProfileResult {
     key,
     ([url]: [string, string]) => user!.getIdToken().then((token) => fetcher(url, token)),
     {
-      // Keep data fresh for 30 seconds (reduced from 5 minutes for better balance)
-      dedupingInterval: 30000,
+      // Keep data fresh for 10 seconds
+      dedupingInterval: 10000,
       // Don't retry on 404s (profile doesn't exist yet)
       shouldRetryOnError: false,
-      // Don't revalidate on focus to reduce unnecessary API calls
-      revalidateOnFocus: false,
+      // Revalidate on focus to pick up tier changes
+      revalidateOnFocus: true,
       // Don't revalidate on reconnect
       revalidateOnReconnect: false,
     }

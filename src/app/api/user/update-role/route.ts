@@ -27,8 +27,8 @@ export async function POST(request: NextRequest) {
     if (!validationResult.success) {
       return handleApiError(
         new Error("Validation failed"),
-        (validationResult.error as any).errors
-          .map((e: any) => `${e.path.join(".")}: ${e.message}`)
+        validationResult.error.issues
+          .map((e) => `${e.path.join(".")}: ${e.message}`)
           .join(", "),
         400
       );
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     const now = new Date().toISOString();
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       role: newRole,
       isRecruiter: newRole === "recruiter",
       updatedAt: now,
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
         updatedAt: now,
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error({ err: error }, "Error updating user role:");
     return handleApiError(error, "Failed to update user role");
   }

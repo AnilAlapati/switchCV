@@ -31,7 +31,7 @@ interface SessionData {
   userId: string;
   messages: Message[];
   stage: "input" | "generating" | "complete";
-  sessionData: any;
+  sessionData: unknown;
   progress: number;
   lastActivity?: string;
 }
@@ -52,7 +52,7 @@ export default function CreateResume() {
     connected: boolean;
     model?: string;
   } | null>(null);
-  const [sessionData, setSessionData] = useState<any>(null);
+  const [sessionData, setSessionData] = useState<unknown>(null);
   const [progress, setProgress] = useState<number>(0);
   const [availableModels, setAvailableModels] = useState<
     Array<{
@@ -119,7 +119,7 @@ export default function CreateResume() {
 
     // Restore the session
     setMessages(
-      pendingSession.messages.map((m: any) => ({
+      pendingSession.messages.map((m: Message) => ({
         ...m,
         timestamp: new Date(m.timestamp),
       }))
@@ -379,10 +379,10 @@ export default function CreateResume() {
       const errorDetails =
         error instanceof Error
           ? {
-              message: error.message,
-              stack: error.stack,
-              name: error.name,
-            }
+            message: error.message,
+            stack: error.stack,
+            name: error.name,
+          }
           : { error: String(error) };
 
       logger.error(
@@ -513,10 +513,10 @@ export default function CreateResume() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-[#FFFFF8] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-400 text-lg">Loading...</p>
+          <div className="w-16 h-16 border-4 border-gray-200 border-t-black rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 text-lg">Loading...</p>
         </div>
       </div>
     );
@@ -528,8 +528,8 @@ export default function CreateResume() {
 
   const resumeProgressProps = {
     progress,
-    collectedFields: sessionData?.progress?.collectedFields,
-    missingFields: sessionData?.progress?.missingFields,
+    collectedFields: (sessionData as Record<string, any>)?.progress?.collectedFields,
+    missingFields: (sessionData as Record<string, any>)?.progress?.missingFields,
   };
 
   const shouldShowProgress = progress > 0;
@@ -611,9 +611,8 @@ export default function CreateResume() {
                 {messages.map((message) => (
                   <div
                     key={message.id}
-                    className={`flex items-end gap-3 ${
-                      message.isUser ? "justify-end" : "justify-start"
-                    }`}
+                    className={`flex items-end gap-3 ${message.isUser ? "justify-end" : "justify-start"
+                      }`}
                   >
                     {!message.isUser && (
                       <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 border border-primary/20">
@@ -622,21 +621,19 @@ export default function CreateResume() {
                     )}
 
                     <div
-                      className={`max-w-[85%] sm:max-w-[75%] p-5 rounded-2xl shadow-sm ${
-                        message.isUser
-                          ? "bg-primary text-primary-foreground rounded-br-none"
-                          : "bg-white/60 backdrop-blur-sm text-foreground border border-white/40 rounded-bl-none"
-                      }`}
+                      className={`max-w-[85%] sm:max-w-[75%] p-5 rounded-2xl shadow-sm ${message.isUser
+                        ? "bg-primary text-primary-foreground rounded-br-none"
+                        : "bg-white/60 backdrop-blur-sm text-foreground border border-white/40 rounded-bl-none"
+                        }`}
                     >
                       <p className="whitespace-pre-wrap leading-relaxed">
                         {message.content}
                       </p>
                       <p
-                        className={`text-[10px] mt-2 ${
-                          message.isUser
-                            ? "text-primary-foreground/70"
-                            : "text-muted-foreground"
-                        }`}
+                        className={`text-[10px] mt-2 ${message.isUser
+                          ? "text-primary-foreground/70"
+                          : "text-muted-foreground"
+                          }`}
                       >
                         {message.timestamp.toLocaleTimeString([], {
                           hour: "2-digit",
@@ -646,8 +643,8 @@ export default function CreateResume() {
                     </div>
 
                     {message.isUser && (
-                      <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center flex-shrink-0 border border-emerald-500/20">
-                        <User className="w-5 h-5 text-emerald-600" />
+                      <div className="w-8 h-8 bg-black flex items-center justify-center flex-shrink-0 border-2 border-black">
+                        <User className="w-5 h-5 text-white" />
                       </div>
                     )}
                   </div>
@@ -672,7 +669,7 @@ export default function CreateResume() {
                     <button
                       onClick={handleForceCreate}
                       aria-label="Create resume now"
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-full shadow-lg font-semibold flex items-center gap-2 transition-all hover:scale-105 text-sm border border-emerald-500/50"
+                      className="bg-black hover:bg-gray-800 text-white px-6 py-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] font-bold flex items-center gap-2 transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] text-sm border-2 border-black"
                     >
                       <span>✨ Create Resume Now</span>
                     </button>

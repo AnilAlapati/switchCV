@@ -1,4 +1,3 @@
-/* eslint-disable max-lines */
 import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { generateText } from "@/lib/services/aiGenerationService";
@@ -69,12 +68,12 @@ export async function POST(request: NextRequest) {
     // Fetch user for subscription tier
     // 2. Check Rate Limit
     // Fetch user for subscription tier
-    const userRole = (await getUserTier(userId)) as any;
+    const userRole = (await getUserTier(userId)) as string;
 
     const rateLimitResult = await checkDistributedRateLimit(userId, {
-      tier: userRole,
+      tier: userRole as "basic" | "premium" | "enterprise",
       scope: "ai_generation",
-    } as any);
+    });
 
     if (!rateLimitResult.allowed) {
       return handleApiError(
@@ -86,7 +85,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Billing & Budget Check
-    const budgetAllowed = await BillingService.checkBudget(userId, userRole);
+    const budgetAllowed = await BillingService.checkBudget(userId, userRole as "basic" | "premium" | "enterprise");
     if (!budgetAllowed) {
       return handleApiError(
         new Error("Budget exceeded"),
@@ -216,7 +215,7 @@ export async function POST(request: NextRequest) {
         headers: createCorsHeaders(request),
       }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(
       error,
       "Failed to generate resume enhancement",
@@ -229,7 +228,7 @@ export async function POST(request: NextRequest) {
 /**
  * Create a detailed prompt for resume enhancement
  */
-function createResumeEnhancementPrompt(resumeData: any, tone: string): string {
+function createResumeEnhancementPrompt(resumeData: GenerateResumeRequest["resumeData"], tone: string): string {
   const {
     personalInfo,
     summary = "",
@@ -241,7 +240,7 @@ function createResumeEnhancementPrompt(resumeData: any, tone: string): string {
   const experienceText =
     (experience || [])
       .map(
-        (exp: any) =>
+        (exp) =>
           `${exp.title} at ${exp.company} (${exp.duration}): ${exp.description}`
       )
       .join("\n") || "No experience provided";
@@ -259,11 +258,10 @@ ${experienceText}
 SKILLS: ${(skills || []).join(", ") || "Skills not provided"}
 
 EDUCATION:
-${
-  (education || [])
-    .map((edu: any) => `${edu.degree} from ${edu.institution} (${edu.year})`)
-    .join("\n") || "No education provided"
-}
+${(education || [])
+      .map((edu) => `${edu.degree} from ${edu.institution} (${edu.year})`)
+      .join("\n") || "No education provided"
+    }
 
 TONE: ${tone}
 
@@ -290,7 +288,7 @@ Ensure all descriptions use strong action verbs, quantify achievements with metr
 /**
  * Parse AI response and extract structured data
  */
-function parseAIResponse(aiText: string, resumeData: any): any {
+function parseAIResponse(aiText: string, resumeData: GenerateResumeRequest["resumeData"]): Record<string, unknown> {
   try {
     // Try to extract JSON from the response
     const jsonMatch = aiText.match(/\{[\s\S]*\}/);
@@ -304,12 +302,11 @@ function parseAIResponse(aiText: string, resumeData: any): any {
     return {
       enhancedSummary:
         parsed.enhancedSummary ||
-        `Professional ${
-          resumeData.personalInfo.name
+        `Professional ${resumeData.personalInfo.name
         } with expertise in ${resumeData.skills.slice(0, 2).join(" and ")}.`,
       enhancedExperience: (
         parsed.enhancedExperience || resumeData.experience
-      ).map((exp: any) => ({
+      ).map((exp: Record<string, unknown>) => ({
         title: exp.title,
         company: exp.company,
         duration: exp.duration,
@@ -343,14 +340,12 @@ function parseAIResponse(aiText: string, resumeData: any): any {
 /**
  * Generate fallback enhancement if AI fails
  */
-function generateFallbackEnhancement(resumeData: any): any {
+function generateFallbackEnhancement(resumeData: GenerateResumeRequest["resumeData"]): Record<string, unknown> {
   return {
-    enhancedSummary: `Results-driven professional with ${
-      resumeData.experience.length
-    }+ years of experience in ${
-      resumeData.skills[0] || "leadership"
-    }. Proven track record of delivering high-impact solutions and driving organizational success.`,
-    enhancedExperience: resumeData.experience.map((exp: any) => ({
+    enhancedSummary: `Results-driven professional with ${resumeData.experience.length
+      }+ years of experience in ${resumeData.skills[0] || "leadership"
+      }. Proven track record of delivering high-impact solutions and driving organizational success.`,
+    enhancedExperience: resumeData.experience.map((exp) => ({
       title: exp.title,
       company: exp.company,
       duration: exp.duration,

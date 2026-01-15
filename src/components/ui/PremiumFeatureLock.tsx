@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Lock, LucideIcon } from "lucide-react";
 import { ReactNode } from "react";
+import { useTier } from "@/hooks/useTier";
 
 interface PremiumFeatureLockProps {
   /** The feature name to display in the heading */
@@ -21,6 +22,8 @@ interface PremiumFeatureLockProps {
   disabledOpacity?: number;
   /** Maximum width for the description text, defaults to 200px */
   maxDescriptionWidth?: number;
+  /** Require enterprise tier specifically (defaults to false = premium or higher) */
+  requireEnterprise?: boolean;
 }
 
 /**
@@ -28,6 +31,8 @@ interface PremiumFeatureLockProps {
  *
  * This component creates a visual lock overlay with a centered upgrade prompt,
  * while rendering the locked content in a disabled state behind it.
+ * 
+ * For premium/enterprise users, the lock is hidden and content is fully accessible.
  *
  * @example
  * ```tsx
@@ -48,7 +53,28 @@ export function PremiumFeatureLock({
   blurBackground = true,
   disabledOpacity = 20,
   maxDescriptionWidth = 200,
+  requireEnterprise = false,
 }: PremiumFeatureLockProps) {
+  const { isPremiumOrHigher, isEnterprise, loading } = useTier();
+
+  // Determine if user has access based on requirements
+  const hasAccess = requireEnterprise ? isEnterprise : isPremiumOrHigher;
+
+  // Show loading state briefly or show unlocked content for premium/enterprise users
+  if (loading) {
+    return (
+      <div className={`relative ${className}`}>
+        <div className="opacity-50 pointer-events-none">{children}</div>
+      </div>
+    );
+  }
+
+  // Premium/Enterprise users see unlocked content
+  if (hasAccess) {
+    return <div className={className}>{children}</div>;
+  }
+
+  // Basic tier users see the lock overlay
   return (
     <div className={`relative overflow-hidden ${className}`}>
       {/* Lock Overlay */}
@@ -84,3 +110,4 @@ export function PremiumFeatureLock({
     </div>
   );
 }
+

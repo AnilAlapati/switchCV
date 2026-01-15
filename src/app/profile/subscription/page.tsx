@@ -38,7 +38,7 @@ export default function SubscriptionPage() {
   if (loading) {
     return (
       <DashboardBackground>
-        <DashboardHeader userEmail={user?.email} onLogout={() => {}} />
+        <DashboardHeader userEmail={user?.email} onLogout={() => { }} />
         <SubscriptionSkeleton />
       </DashboardBackground>
     );
@@ -52,55 +52,54 @@ export default function SubscriptionPage() {
     features: string[];
     highlight?: boolean;
   }[] = [
-    {
-      id: "basic",
-      name: "Basic",
-      price: "Free",
-      description: "Essential features for job seekers starting their journey.",
-      features: [
-        `${limits.basic.resumeCreationLimit} Active Resume`,
-        limits.basic.resumeEditingAllowed
-          ? "Resume Editing"
-          : "No Resume Editing",
-        `${
-          limits.basic.resumeRetentionDays || "Forever"
-        } Days Resume Retention`,
-        limits.basic.recruiterSearchLimit > 0
-          ? `${limits.basic.recruiterSearchLimit} AI Searches (Recruiter)`
-          : "AI Search not available",
-        `${limits.basic.recruiterContactLimit.amount} Contact Requests (${limits.basic.recruiterContactLimit.interval})`,
-      ],
-    },
-    {
-      id: "premium",
-      name: "Premium",
-      price: "",
-      description: "Advanced AI tools for serious candidates and recruiters.",
-      highlight: true,
-      features: [
-        `${limits.premium.resumeCreationLimit} Tailored Resume Versions`,
-        limits.premium.resumeEditingAllowed
-          ? "Unlimited Resume Editing"
-          : "No Resume Editing",
-        "Forever Resume Retention",
-        `${limits.premium.recruiterSearchLimit} AI Searches (Recruiter)`,
-        `${limits.premium.recruiterContactLimit.amount} Contact Requests (${limits.premium.recruiterContactLimit.interval})`,
-      ],
-    },
-    {
-      id: "enterprise",
-      name: "Enterprise",
-      price: "Custom",
-      description: "Complete solution for high-volume recruitment agencies.",
-      features: [
-        "Unlimited Resume Management",
-        "Unlimited Resume Editing",
-        "Forever Resume Retention",
-        "Unlimited AI Searches",
-        "Unlimited Contact Requests",
-      ],
-    },
-  ];
+      {
+        id: "basic",
+        name: "Basic",
+        price: "Free",
+        description: "Essential features for job seekers starting their journey.",
+        features: [
+          `${limits.basic.resumeCreationLimit} Active Resume`,
+          limits.basic.resumeEditingAllowed
+            ? "Resume Editing"
+            : "No Resume Editing",
+          `${limits.basic.resumeRetentionDays || "Forever"
+          } Days Resume Retention`,
+          limits.basic.recruiterSearchLimit > 0
+            ? `${limits.basic.recruiterSearchLimit} AI Searches (Recruiter)`
+            : "AI Search not available",
+          `${limits.basic.recruiterContactLimit.amount} Contact Requests (${limits.basic.recruiterContactLimit.interval})`,
+        ],
+      },
+      {
+        id: "premium",
+        name: "Premium",
+        price: "",
+        description: "Advanced AI tools for serious candidates and recruiters.",
+        highlight: true,
+        features: [
+          `${limits.premium.resumeCreationLimit} Tailored Resume Versions`,
+          limits.premium.resumeEditingAllowed
+            ? "Unlimited Resume Editing"
+            : "No Resume Editing",
+          "Forever Resume Retention",
+          `${limits.premium.recruiterSearchLimit} AI Searches (Recruiter)`,
+          `${limits.premium.recruiterContactLimit.amount} Contact Requests (${limits.premium.recruiterContactLimit.interval})`,
+        ],
+      },
+      {
+        id: "enterprise",
+        name: "Enterprise",
+        price: "Custom",
+        description: "Complete solution for high-volume recruitment agencies.",
+        features: [
+          "Unlimited Resume Management",
+          "Unlimited Resume Editing",
+          "Forever Resume Retention",
+          "Unlimited AI Searches",
+          "Unlimited Contact Requests",
+        ],
+      },
+    ];
 
   return (
     <DashboardBackground>
@@ -111,7 +110,7 @@ export default function SubscriptionPage() {
           router.push("/auth");
         }}
       />
-      <div className="min-h-screen relative overflow-hidden text-[#1A2F25]">
+      <div className="min-h-screen relative overflow-hidden text-[black]">
         {/* Aura Background - Removed as it is in DashboardBackground now */}
 
         <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
@@ -119,15 +118,15 @@ export default function SubscriptionPage() {
           <div className="mb-16 relative">
             <div className="relative flex items-center gap-4 glass-panel p-4 rounded-xl shadow-lg">
               <div className="flex-shrink-0">
-                <div className="h-10 w-10 rounded-full bg-[#2C4A3B]/10 flex items-center justify-center border border-[#2C4A3B]/10">
-                  <SparklesIcon className="h-5 w-5 text-[#2C4A3B]" />
+                <div className="h-10 w-10 rounded-full bg-[black]/10 flex items-center justify-center border border-[black]/10">
+                  <SparklesIcon className="h-5 w-5 text-[black]" />
                 </div>
               </div>
               <div>
-                <h3 className="text-sm font-bold text-[#1A2F25]">
+                <h3 className="text-sm font-bold text-[black]">
                   Beta Access Active
                 </h3>
-                <p className="text-sm text-[#2C4A3B]/70">
+                <p className="text-sm text-[black]/70">
                   Subscription management is currently in beta. Payment gateways
                   are disabled for testing purposes.
                 </p>
@@ -138,16 +137,16 @@ export default function SubscriptionPage() {
           <WillingnessToPaySurvey />
 
           <div className="text-center mb-20">
-            <h2 className="text-[#2C4A3B] font-bold tracking-wide uppercase text-sm mb-3">
+            <h2 className="text-[black] font-bold tracking-wide uppercase text-sm mb-3">
               Upgrade Your Potential
             </h2>
-            <h1 className="text-4xl md:text-5xl font-bold text-[#1A2F25] tracking-tight mb-6">
+            <h1 className="text-4xl md:text-5xl font-bold text-[black] tracking-tight mb-6">
               Choose your{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#2C4A3B] to-emerald-600">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
                 Power Level
               </span>
             </h1>
-            <p className="max-w-2xl mx-auto text-lg text-[#1A2F25]/70">
+            <p className="max-w-2xl mx-auto text-lg text-[black]/70">
               Unlock advanced AI capabilities, unlimited searches, and premium
               features designed to accelerate your career or hiring pipeline.
             </p>
@@ -157,49 +156,47 @@ export default function SubscriptionPage() {
           <div className="grid gap-6 lg:grid-cols-3 lg:gap-x-8 items-stretch bg-transparent">
             {tiers.map((plan) => {
               const isCurrent = tier === plan.id;
-              // const isHighlight = plan.highlight;
 
               return (
                 <div
                   key={plan.id}
-                  className={`relative group flex flex-col h-full transition-all duration-500 rounded-3xl ${
-                    isCurrent
+                  className={`relative group flex flex-col h-full transition-all duration-500 rounded-xl ${isCurrent
                       ? "scale-105 z-10 shadow-2xl"
                       : "hover:scale-105 z-0 hover:shadow-xl"
-                  }`}
+                    }`}
                 >
                   {/* Card Boarder/Background */}
                   <div
-                    className={`absolute inset-0 rounded-3xl border transition-colors duration-300 ${
-                      isCurrent
-                        ? "border-[#2C4A3B]/40 bg-white/60 backdrop-blur-xl"
-                        : "border-white/50 bg-white/40 backdrop-blur-md"
-                    }`}
+                    className={`absolute inset-0 rounded-xl border-2 transition-colors duration-300 ${isCurrent
+                        ? "border-black bg-white"
+                        : "border-gray-200 bg-white group-hover:border-black/50"
+                      }`}
                   />
 
                   {/* Card Content */}
                   <div className="relative z-10 flex-1 flex flex-col p-8 h-full">
                     {/* Header Section */}
-                    <div className="mb-8 border-b border-[#2C4A3B]/10 pb-6">
+                    <div className="mb-8 border-b-2 border-gray-100 pb-6">
                       <div className="flex justify-between items-center mb-2">
                         <h3
-                          className={`font-bold text-sm uppercase tracking-[0.2em] ${
-                            isCurrent ? "text-[#2C4A3B]" : "text-[#1A2F25]/60"
-                          }`}
+                          className={`font-serif font-bold text-base uppercase tracking-widest ${isCurrent ? "text-black" : "text-gray-500"
+                            }`}
                         >
                           {plan.name}
                         </h3>
                         {isCurrent && (
-                          <span className="animate-pulse w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.8)]"></span>
+                          <span className="flex items-center gap-2 px-2 py-1 bg-black text-white text-[10px] font-bold uppercase tracking-wider rounded">
+                            Current
+                          </span>
                         )}
                       </div>
 
                       <div className="flex items-baseline gap-1">
-                        <span className="text-3xl font-bold text-[#1A2F25]">
+                        <span className="text-4xl font-serif font-bold text-black">
                           {plan.price}
                         </span>
                         {plan.price !== "Free" && plan.price !== "Custom" && (
-                          <span className="text-[#2C4A3B]/60 font-medium text-xs">
+                          <span className="text-gray-400 font-mono text-xs font-bold">
                             /MO
                           </span>
                         )}
@@ -207,7 +204,7 @@ export default function SubscriptionPage() {
                     </div>
 
                     {/* Description */}
-                    <p className="text-[#1A2F25]/70 text-sm mb-8 leading-relaxed min-h-[40px]">
+                    <p className="text-gray-600 text-sm mb-8 leading-relaxed min-h-[40px] font-sans">
                       {plan.description}
                     </p>
 
@@ -219,13 +216,12 @@ export default function SubscriptionPage() {
                           className="flex items-start gap-3 group/item"
                         >
                           <span
-                            className={`mt-1.5 w-1.5 h-1.5 rounded-full ${
-                              isCurrent
-                                ? "bg-emerald-500"
-                                : "bg-[#2C4A3B]/40 group-hover/item:bg-[#2C4A3B]"
-                            } transition-colors`}
+                            className={`mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${isCurrent
+                                ? "bg-blue-600"
+                                : "bg-gray-300 group-hover/item:bg-black"
+                              } transition-colors`}
                           />
-                          <span className="text-sm text-[#1A2F25]/80 font-medium tracking-tight">
+                          <span className="text-sm text-gray-700 font-medium tracking-tight group-hover/item:text-black transition-colors">
                             {feature}
                           </span>
                         </li>
@@ -235,11 +231,10 @@ export default function SubscriptionPage() {
                     {/* Action Button */}
                     <button
                       disabled={true}
-                      className={`w-full py-3 px-4 text-xs font-bold uppercase tracking-widest transition-all duration-300 rounded-xl border ${
-                        isCurrent
-                          ? "bg-[#2C4A3B]/10 border-[#2C4A3B] text-[#2C4A3B]"
-                          : "bg-transparent border-[#2C4A3B]/20 text-[#2C4A3B]/60"
-                      }`}
+                      className={`w-full py-4 px-4 text-xs font-bold uppercase tracking-widest transition-all duration-300 rounded-lg border-2 ${isCurrent
+                          ? "bg-black border-black text-white"
+                          : "bg-transparent border-gray-200 text-gray-400"
+                        }`}
                     >
                       {isCurrent ? "Active Plan" : "Select Plan"}
                     </button>
@@ -250,13 +245,13 @@ export default function SubscriptionPage() {
           </div>
 
           {/* FAQ / Additional Info Section */}
-          <div className="mt-24 border-t border-[#2C4A3B]/10 pt-16">
+          <div className="mt-24 border-t border-[black]/10 pt-16">
             <div className="grid md:grid-cols-2 gap-12">
               <div>
-                <h3 className="text-lg font-bold text-[#1A2F25] mb-4">
+                <h3 className="text-lg font-bold text-[black] mb-4">
                   Enterprise Solutions
                 </h3>
-                <p className="text-[#1A2F25]/70 text-sm leading-relaxed">
+                <p className="text-[black]/70 text-sm leading-relaxed">
                   Need more power? Our enterprise infrastructure is built to
                   handle millions of vector searches with sub-second latency.
                   Contact our sales team for custom SLA agreements and dedicated
@@ -264,10 +259,10 @@ export default function SubscriptionPage() {
                 </p>
               </div>
               <div>
-                <h3 className="text-lg font-bold text-[#1A2F25] mb-4">
+                <h3 className="text-lg font-bold text-[black] mb-4">
                   Secure & Private
                 </h3>
-                <p className="text-[#1A2F25]/70 text-sm leading-relaxed">
+                <p className="text-[black]/70 text-sm leading-relaxed">
                   We prioritize data privacy. Your resume data is encrypted at
                   rest and in transit. We never share your personal contact
                   information without your explicit consent for each request.

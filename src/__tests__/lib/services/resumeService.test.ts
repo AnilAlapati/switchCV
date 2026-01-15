@@ -385,7 +385,7 @@ describe("resumeService", () => {
         doc: jest.fn().mockReturnValue({ set: mockSet }),
       });
 
-      const result = await createResume(mockUserId, mockData);
+      const result = await createResume(mockUserId, mockData as any);
 
       expect(result.numericId).toBe(5555);
       expect(mockSet).toHaveBeenCalledWith(

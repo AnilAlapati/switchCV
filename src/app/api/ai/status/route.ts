@@ -30,12 +30,17 @@ async function getBestGeminiModel(apiKey: string): Promise<string> {
     }
 
     const data = await response.json();
+    interface GeminiModel {
+      name: string;
+      supportedGenerationMethods: string[];
+    }
+
     const availableModels =
-      data.models
-        ?.filter((model: any) =>
+      (data.models as GeminiModel[] | undefined)
+        ?.filter((model) =>
           model.supportedGenerationMethods?.includes("generateContent")
         )
-        .map((model: any) => model.name.replace("models/", "")) || [];
+        .map((model) => model.name.replace("models/", "")) || [];
 
     // Try each preference in order
     for (const preferred of MODEL_PREFERENCES) {

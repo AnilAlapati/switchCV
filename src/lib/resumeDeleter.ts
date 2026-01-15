@@ -12,6 +12,7 @@ import { logger } from "@/lib/logger";
 import { doc, deleteDoc, getDoc, collection, getDocs, writeBatch, DocumentReference } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { addDeletedIdToPool } from "@/lib/resumeIdRecycler";
+import { PublishedResume } from "@/types";
 
 /**
  * Delete all documents in a subcollection (cascade delete helper)
@@ -71,7 +72,7 @@ export const deleteResumeById = async (
       };
     }
 
-    const resumeData = resumeSnap.data() as any;
+    const resumeData = resumeSnap.data() as PublishedResume;
 
     // Step 2: Optional: Check authorization (if userId provided)
     if (userId && resumeData.userId !== userId) {

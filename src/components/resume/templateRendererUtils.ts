@@ -23,10 +23,12 @@ export const normalizeSkills = (value: unknown): string[] => {
   if (!value) return [];
   if (Array.isArray(value)) {
     return value
-      .map((item: any) =>
-        typeof item === "string" ? item : item?.name || item?.label
-      )
-      .filter(Boolean);
+      .map((item: unknown) => {
+        if (typeof item === "string") return item;
+        const i = item as { name?: string; label?: string };
+        return i?.name || i?.label;
+      })
+      .filter((v): v is string => Boolean(v));
   }
   return [];
 };
@@ -34,17 +36,17 @@ export const normalizeSkills = (value: unknown): string[] => {
 export const normalizeTimelineItems = (value: unknown): TimelineItem[] => {
   if (!Array.isArray(value)) return [];
   return value
-    .map((item: any) => ({
-      headline: item?.title || item?.role || item?.degree || item?.name,
-      subline: item?.company || item?.institution || item?.organization,
+    .map((item: Record<string, unknown>) => ({
+      headline: (item?.title || item?.role || item?.degree || item?.name) as string,
+      subline: (item?.company || item?.institution || item?.organization) as string,
       meta:
-        item?.duration ||
-        formatRange(item?.startDate, item?.endDate) ||
-        item?.year,
-      description: item?.description || item?.summary,
-      bullets: item?.achievements || item?.highlights || item?.responsibilities,
-      technologies: item?.technologies,
-      url: item?.url,
+        (item?.duration ||
+          formatRange(item?.startDate as string, item?.endDate as string) ||
+          item?.year) as string,
+      description: (item?.description || item?.summary) as string,
+      bullets: (item?.achievements || item?.highlights || item?.responsibilities) as string[],
+      technologies: item?.technologies as string[],
+      url: item?.url as string,
     }))
     .filter((timeline) => timeline.headline);
 };
@@ -52,13 +54,13 @@ export const normalizeTimelineItems = (value: unknown): TimelineItem[] => {
 export const normalizeProjects = (value: unknown): TimelineItem[] => {
   if (!Array.isArray(value)) return [];
   return value
-    .map((item: any) => ({
-      headline: item?.name,
-      subline: item?.role,
-      meta: item?.duration || item?.year,
-      description: item?.description,
-      technologies: item?.technologies,
-      url: item?.url,
+    .map((item: Record<string, unknown>) => ({
+      headline: item?.name as string,
+      subline: item?.role as string,
+      meta: (item?.duration || item?.year) as string,
+      description: item?.description as string,
+      technologies: item?.technologies as string[],
+      url: item?.url as string,
     }))
     .filter((project) => project.headline);
 };

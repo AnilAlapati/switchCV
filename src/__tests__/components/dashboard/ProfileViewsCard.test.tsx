@@ -26,7 +26,7 @@ const createMockAuthContext = (user: any) => ({
   refreshUser: jest.fn(),
   needsUsername: false,
   setUsername: jest.fn(),
-  checkNeedsUsername: jest.fn(),
+  checkNeedsUsername: jest.fn().mockResolvedValue(false),
 });
 
 const mockUser = {

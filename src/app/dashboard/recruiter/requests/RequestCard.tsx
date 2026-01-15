@@ -19,25 +19,24 @@ export function RequestCard({
   const hasActiveAccess = isApproved && !accessExpired;
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-slate-800/60 bg-gradient-to-br from-slate-900/90 via-slate-900/50 to-slate-950/80 backdrop-blur-sm p-7 shadow-xl hover:shadow-2xl hover:border-slate-700/70 transition-all duration-300">
-      {/* Gradient accent line */}
+    <div className="group relative overflow-hidden rounded-xl border-2 border-black bg-white p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+      {/* Accent line based on status */}
       <div
-        className={`absolute top-0 left-0 right-0 h-1 ${
-          hasActiveAccess
-            ? "bg-gradient-to-r from-green-500 to-emerald-500"
+        className={`absolute top-0 left-0 right-0 h-1.5 border-b-2 border-black ${hasActiveAccess
+            ? "bg-emerald-400"
             : accessExpired
-            ? "bg-gradient-to-r from-orange-500 to-red-500"
-            : "bg-gradient-to-r from-cyan-500 to-blue-500"
-        }`}
+              ? "bg-rose-400"
+              : "bg-cyan-400"
+          }`}
       />
 
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex-1 space-y-3">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between mt-2">
+        <div className="flex-1 space-y-4">
           <div>
-            <h3 className="text-xl font-bold text-white tracking-tight">
+            <h3 className="text-xl font-serif font-bold text-slate-900 tracking-tight">
               {request.candidateName}
             </h3>
-            <div className="flex items-center gap-2 mt-1.5">
+            <div className="flex items-center gap-2 mt-2">
               <svg
                 className="w-4 h-4 text-slate-500"
                 fill="none"
@@ -51,21 +50,21 @@ export function RequestCard({
                   d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                 />
               </svg>
-              <p className="text-sm font-semibold text-slate-300">
+              <p className="text-sm font-semibold text-slate-600">
                 {request.resumeTitle}
               </p>
             </div>
           </div>
 
           {request.message && (
-            <div className="pl-4 border-l-2 border-slate-700">
-              <p className="text-sm text-slate-400 italic font-medium">
+            <div className="pl-4 border-l-4 border-slate-200 py-1">
+              <p className="text-sm text-slate-600 italic font-medium font-serif leading-relaxed">
                 "{request.message}"
               </p>
             </div>
           )}
 
-          <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+          <div className="flex items-center gap-2 text-xs text-slate-500 font-bold uppercase tracking-wider">
             <svg
               className="w-3.5 h-3.5"
               fill="none"
@@ -84,21 +83,18 @@ export function RequestCard({
 
           {isApproved && (
             <div
-              className={`rounded-xl border p-4 shadow-lg ${
-                accessExpired
-                  ? "border-red-800/50 bg-gradient-to-br from-red-950/40 to-red-900/20"
-                  : "border-green-800/50 bg-gradient-to-br from-green-950/40 to-emerald-900/20"
-              }`}
+              className={`rounded-lg border-2 border-black p-4 ${accessExpired
+                  ? "bg-rose-50"
+                  : "bg-emerald-50"
+                }`}
             >
               <div className="flex items-start gap-3">
                 <div
-                  className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${
-                    accessExpired ? "bg-red-500/20" : "bg-green-500/20"
-                  }`}
+                  className={`flex-shrink-0 w-8 h-8 rounded border-2 border-black flex items-center justify-center bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]`}
                 >
                   {accessExpired ? (
                     <svg
-                      className="w-5 h-5 text-red-400"
+                      className="w-4 h-4 text-rose-600"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -106,13 +102,13 @@ export function RequestCard({
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        strokeWidth={2}
+                        strokeWidth={2.5}
                         d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                       />
                     </svg>
                   ) : (
                     <svg
-                      className="w-5 h-5 text-green-400"
+                      className="w-4 h-4 text-emerald-600"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -120,8 +116,8 @@ export function RequestCard({
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                        strokeWidth={2.5}
+                        d="M9 12l2 2 4-4"
                       />
                     </svg>
                   )}
@@ -129,19 +125,19 @@ export function RequestCard({
                 <div className="flex-1">
                   {accessExpired ? (
                     <>
-                      <p className="font-bold text-red-300 text-sm">
+                      <p className="font-bold text-rose-900 text-sm font-serif">
                         Access Expired
                       </p>
-                      <p className="text-xs text-red-400/80 mt-1">
+                      <p className="text-xs text-rose-700 mt-0.5 font-medium">
                         Request access again to view this resume
                       </p>
                     </>
                   ) : (
                     <>
-                      <p className="font-bold text-green-300 text-sm">
+                      <p className="font-bold text-emerald-900 text-sm font-serif">
                         Active Access • {timeState.label}
                       </p>
-                      <p className="text-xs text-green-400/80 mt-1">
+                      <p className="text-xs text-emerald-700 mt-0.5 font-medium">
                         Expires {formatDateTime(request.expiresAt)}
                       </p>
                     </>
@@ -152,27 +148,26 @@ export function RequestCard({
           )}
         </div>
 
-        <div className="flex flex-col items-end gap-3">
+        <div className="flex flex-col items-end gap-4">
           <span
-            className={`px-3.5 py-1.5 text-xs font-bold rounded-lg uppercase tracking-wider shadow-lg ${
-              request.status === "approved"
-                ? "bg-gradient-to-r from-green-500/30 to-emerald-500/30 text-green-200 border border-green-500/30"
+            className={`px-3 py-1 text-xs font-bold rounded-full border-2 border-black uppercase tracking-wider ${request.status === "approved"
+                ? "bg-emerald-100 text-emerald-800"
                 : request.status === "denied"
-                ? "bg-gradient-to-r from-red-500/30 to-rose-500/30 text-red-200 border border-red-500/30"
-                : "bg-gradient-to-r from-yellow-500/30 to-amber-500/30 text-yellow-200 border border-yellow-500/30"
-            }`}
+                  ? "bg-rose-100 text-rose-800"
+                  : "bg-amber-100 text-amber-800"
+              }`}
           >
             {request.status}
           </span>
 
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-3">
             {hasActiveAccess && (
               <Link
                 href={`/resumes/${request.resumeId}`}
-                className="group/btn inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white rounded-lg transition-all duration-200 font-semibold text-sm shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40"
+                className="group/btn inline-flex items-center gap-2 px-5 py-2.5 bg-black hover:bg-slate-800 text-white border-2 border-black rounded-lg transition-all duration-200 font-bold text-sm shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[2px] hover:translate-y-[2px]"
               >
                 <svg
-                  className="w-4 h-4 transition-transform group-hover/btn:scale-110"
+                  className="w-4 h-4"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -197,7 +192,7 @@ export function RequestCard({
             {accessExpired && (
               <button
                 onClick={() => onReRequest(request)}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 hover:from-indigo-500/30 hover:to-purple-500/30 text-indigo-200 hover:text-indigo-100 rounded-lg transition-all duration-200 font-semibold text-sm border border-indigo-500/30"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-white hover:bg-slate-50 text-indigo-700 border-2 border-indigo-700 rounded-lg transition-all duration-200 font-bold text-sm hover:shadow-md"
               >
                 <svg
                   className="w-4 h-4"
@@ -218,11 +213,11 @@ export function RequestCard({
 
             <button
               onClick={() => onDelete(request)}
-              className="group/del p-2.5 text-slate-500 hover:text-red-400 rounded-lg hover:bg-red-500/10 transition-all duration-200 border border-transparent hover:border-red-500/30"
+              className="group/del p-2.5 text-slate-500 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-all duration-200 border-2 border-transparent hover:border-rose-200"
               title="Delete Request"
             >
               <svg
-                className="w-5 h-5 transition-transform group-hover/del:scale-110"
+                className="w-5 h-5"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"

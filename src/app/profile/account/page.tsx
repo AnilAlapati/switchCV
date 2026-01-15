@@ -32,7 +32,7 @@ export default function AccountPage() {
         return (
             <DashboardBackground>
                 <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-16 h-16 border-4 border-[#2C4A3B]/20 border-t-[#2C4A3B] rounded-full animate-spin"></div>
+                    <div className="w-16 h-16 border-4 border-gray-200 border-t-black rounded-full animate-spin"></div>
                 </div>
             </DashboardBackground>
         );
@@ -44,10 +44,10 @@ export default function AccountPage() {
 
             <main className="relative z-10 max-w-5xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
                 <div className="mb-12 text-center">
-                    <h1 className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-[#1A2F25] to-[#2C4A3B] tracking-tight">
+                    <h1 className="text-5xl font-serif font-bold text-black tracking-tight">
                         Account Settings
                     </h1>
-                    <p className="text-[#1A2F25]/60 text-lg mt-4 font-light max-w-2xl mx-auto">
+                    <p className="text-gray-500 text-lg mt-4 font-sans max-w-2xl mx-auto">
                         Manage security, privacy, and preferences
                     </p>
                 </div>

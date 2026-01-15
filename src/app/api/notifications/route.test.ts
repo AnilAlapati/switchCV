@@ -8,6 +8,7 @@ jest.mock("@/lib/utils/api-helpers", () => ({
   getAuthenticatedUserId: jest
     .fn()
     .mockResolvedValue({ userId: "user123", error: null }),
+  applyRateLimit: jest.fn(),
   handleApiError: jest.fn((error, message, status = 500) => {
     const res: any = { error: message };
     if (error) {
@@ -70,7 +71,10 @@ import {
   getDeliveryStatus,
 } from "@/lib/notificationDelivery";
 
-import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
+import {
+  getAuthenticatedUserId,
+  applyRateLimit,
+} from "@/lib/utils/api-helpers";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
 
 import {
@@ -117,18 +121,20 @@ const mockGetAuthenticatedUserId =
 const mockCheckRateLimit = checkRateLimit as jest.MockedFunction<
   typeof checkRateLimit
 >;
+const mockApplyRateLimit = applyRateLimit as jest.MockedFunction< // Added mockApplyRateLimit
+  typeof applyRateLimit
+>;
 
 describe("POST /api/notifications", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGetAuthenticatedUserId.mockResolvedValue({
-      userId: "user123",
-      error: null,
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "user-123",
+      error: undefined,
     });
-    mockCheckRateLimit.mockReturnValue({
+    (applyRateLimit as jest.Mock).mockResolvedValue({
       allowed: true,
-      remaining: 99,
-      reset: Date.now() + 60000,
+      result: { remaining: 10, limit: 100, resetIn: 3600 },
     });
     (getNotification as jest.Mock).mockResolvedValue(mockNotification);
   });
@@ -346,13 +352,14 @@ describe("POST /api/notifications", () => {
       mockGetUnreadNotifications.mockResolvedValue(mockUnreadNotifications);
       mockMarkAsRead.mockResolvedValue(mockNotification);
 
-      const request = new NextRequest("http://localhost:3000/api/notifications", { headers: { authorization: "Bearer test-token" }, 
-          method: "POST",
-          body: JSON.stringify({
-            action: "mark-all-read",
-            userId: "user123",
-          }),
-        }
+      const request = new NextRequest("http://localhost:3000/api/notifications", {
+        headers: { authorization: "Bearer test-token" },
+        method: "POST",
+        body: JSON.stringify({
+          action: "mark-all-read",
+          userId: "user123",
+        }),
+      }
       );
 
       const response = await POST(request);
@@ -367,12 +374,13 @@ describe("POST /api/notifications", () => {
     });
 
     it("should return 400 for missing userId", async () => {
-      const request = new NextRequest("http://localhost:3000/api/notifications", { headers: { authorization: "Bearer test-token" }, 
-          method: "POST",
-          body: JSON.stringify({
-            action: "mark-all-read",
-          }),
-        }
+      const request = new NextRequest("http://localhost:3000/api/notifications", {
+        headers: { authorization: "Bearer test-token" },
+        method: "POST",
+        body: JSON.stringify({
+          action: "mark-all-read",
+        }),
+      }
       );
 
       const response = await POST(request);
@@ -436,13 +444,14 @@ describe("POST /api/notifications", () => {
     it("should get user preferences", async () => {
       mockGetPreferences.mockResolvedValue([mockPreference]);
 
-      const request = new NextRequest("http://localhost:3000/api/notifications", { headers: { authorization: "Bearer test-token" }, 
-          method: "POST",
-          body: JSON.stringify({
-            action: "get-preferences",
-            userId: "user123",
-          }),
-        }
+      const request = new NextRequest("http://localhost:3000/api/notifications", {
+        headers: { authorization: "Bearer test-token" },
+        method: "POST",
+        body: JSON.stringify({
+          action: "get-preferences",
+          userId: "user123",
+        }),
+      }
       );
 
       const response = await POST(request);
@@ -463,12 +472,13 @@ describe("POST /api/notifications", () => {
     });
 
     it("should return 400 for missing userId", async () => {
-      const request = new NextRequest("http://localhost:3000/api/notifications", { headers: { authorization: "Bearer test-token" }, 
-          method: "POST",
-          body: JSON.stringify({
-            action: "get-preferences",
-          }),
-        }
+      const request = new NextRequest("http://localhost:3000/api/notifications", {
+        headers: { authorization: "Bearer test-token" },
+        method: "POST",
+        body: JSON.stringify({
+          action: "get-preferences",
+        }),
+      }
       );
 
       const response = await POST(request);
@@ -517,13 +527,14 @@ describe("POST /api/notifications", () => {
     });
 
     it("should return 400 for missing fields", async () => {
-      const request = new NextRequest("http://localhost:3000/api/notifications", { headers: { authorization: "Bearer test-token" }, 
-          method: "POST",
-          body: JSON.stringify({
-            action: "update-preference",
-            userId: "user123",
-          }),
-        }
+      const request = new NextRequest("http://localhost:3000/api/notifications", {
+        headers: { authorization: "Bearer test-token" },
+        method: "POST",
+        body: JSON.stringify({
+          action: "update-preference",
+          userId: "user123",
+        }),
+      }
       );
 
       const response = await POST(request);
@@ -594,7 +605,8 @@ describe("POST /api/notifications", () => {
   });
 
   it("should return 400 for unknown action", async () => {
-    const request = new NextRequest("http://localhost:3000/api/notifications", { headers: { authorization: "Bearer test-token" }, 
+    const request = new NextRequest("http://localhost:3000/api/notifications", {
+      headers: { authorization: "Bearer test-token" },
       method: "POST",
       body: JSON.stringify({
         action: "unknown-action",
@@ -611,7 +623,8 @@ describe("POST /api/notifications", () => {
   });
 
   it("should handle JSON parsing errors", async () => {
-    const request = new NextRequest("http://localhost:3000/api/notifications", { headers: { authorization: "Bearer test-token" }, 
+    const request = new NextRequest("http://localhost:3000/api/notifications", {
+      headers: { authorization: "Bearer test-token" },
       method: "POST",
       body: "invalid json",
     });
@@ -630,7 +643,7 @@ describe("GET /api/notifications", () => {
     jest.clearAllMocks();
     mockGetAuthenticatedUserId.mockResolvedValue({
       userId: "user123",
-      error: null,
+      error: undefined,
     });
   });
 
@@ -670,7 +683,7 @@ describe("GET /api/notifications", () => {
       mockGetUserNotifications.mockResolvedValue(mockNotifications);
 
       const request = new NextRequest("http://localhost:3000/api/notifications?action=get-notifications&userId=user123"
-      , { headers: { authorization: "Bearer test-token" } });
+        , { headers: { authorization: "Bearer test-token" } });
 
       const response = await GET(request);
       const data = await response.json();
@@ -689,7 +702,7 @@ describe("GET /api/notifications", () => {
 
     it("should return 400 for missing userId", async () => {
       const request = new NextRequest("http://localhost:3000/api/notifications?action=get-notifications"
-      , { headers: { authorization: "Bearer test-token" } });
+        , { headers: { authorization: "Bearer test-token" } });
 
       const response = await GET(request);
       const data = await response.json();
@@ -722,7 +735,7 @@ describe("GET /api/notifications", () => {
       mockGetUnreadNotifications.mockResolvedValue(mockUnreadNotifications);
 
       const request = new NextRequest("http://localhost:3000/api/notifications?action=get-unread&userId=user123"
-      , { headers: { authorization: "Bearer test-token" } });
+        , { headers: { authorization: "Bearer test-token" } });
 
       const response = await GET(request);
       const data = await response.json();
@@ -741,7 +754,7 @@ describe("GET /api/notifications", () => {
 
     it("should return 400 for missing userId", async () => {
       const request = new NextRequest("http://localhost:3000/api/notifications?action=get-unread"
-      , { headers: { authorization: "Bearer test-token" } });
+        , { headers: { authorization: "Bearer test-token" } });
 
       const response = await GET(request);
       const data = await response.json();
@@ -763,7 +776,7 @@ describe("GET /api/notifications", () => {
       mockGetStatistics.mockResolvedValue(mockStats);
 
       const request = new NextRequest("http://localhost:3000/api/notifications?action=get-statistics&userId=user123"
-      , { headers: { authorization: "Bearer test-token" } });
+        , { headers: { authorization: "Bearer test-token" } });
 
       const response = await GET(request);
       const data = await response.json();
@@ -786,7 +799,7 @@ describe("GET /api/notifications", () => {
       mockGetStatistics.mockResolvedValue(mockStats);
 
       const request = new NextRequest("http://localhost:3000/api/notifications?action=get-statistics"
-      , { headers: { authorization: "Bearer test-token" } });
+        , { headers: { authorization: "Bearer test-token" } });
 
       const response = await GET(request);
       const data = await response.json();
@@ -812,7 +825,7 @@ describe("GET /api/notifications", () => {
       mockGetDeliveryStatus.mockReturnValue(mockStatus);
 
       const request = new NextRequest("http://localhost:3000/api/notifications?action=get-delivery-status&notificationId=notif-123"
-      , { headers: { authorization: "Bearer test-token" } });
+        , { headers: { authorization: "Bearer test-token" } });
 
       const response = await GET(request);
       const data = await response.json();
@@ -827,7 +840,7 @@ describe("GET /api/notifications", () => {
 
     it("should return 400 for missing notificationId", async () => {
       const request = new NextRequest("http://localhost:3000/api/notifications?action=get-delivery-status"
-      , { headers: { authorization: "Bearer test-token" } });
+        , { headers: { authorization: "Bearer test-token" } });
 
       const response = await GET(request);
       const data = await response.json();
@@ -840,7 +853,7 @@ describe("GET /api/notifications", () => {
 
   it("should return 400 for unknown action", async () => {
     const request = new NextRequest("http://localhost:3000/api/notifications?action=unknown-action"
-    , { headers: { authorization: "Bearer test-token" } });
+      , { headers: { authorization: "Bearer test-token" } });
 
     const response = await GET(request);
     const data = await response.json();

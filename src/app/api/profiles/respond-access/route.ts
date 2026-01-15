@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
- 
+
 import {
   getAuthenticatedUserId,
   handleApiError,
@@ -45,10 +45,11 @@ export async function POST(request: NextRequest) {
     await AccessService.respondToRequest(userId, resumeId, requestId, action, grantDurationDays);
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    if (error.message?.includes("Unauthorized")) return handleApiError(error, "Unauthorized", 403);
-    if (error.message?.toLowerCase().includes("not found")) return handleApiError(error, "Request not found", 404);
-    if (error.message?.includes("already processed")) return handleApiError(error, "Request already processed", 400);
-    return handleApiError(error, "Failed to process response");
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes("Unauthorized")) return handleApiError(error, "Unauthorized", 403);
+    if (errorMessage.toLowerCase().includes("not found")) return handleApiError(error, "Request not found", 404);
+    if (errorMessage.includes("already processed")) return handleApiError(error, "Request already processed", 400);
+    return handleApiError(error, "Failed to process response: " + errorMessage);
   }
 }

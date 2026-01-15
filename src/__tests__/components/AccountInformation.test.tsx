@@ -10,6 +10,7 @@ describe("AccountInformation", () => {
     hasResume: true,
     isRecruiter: false,
     saving: false,
+    savingRecruiter: false,
     onRecruiterToggle: jest.fn(),
     onCopy: jest.fn(),
   };

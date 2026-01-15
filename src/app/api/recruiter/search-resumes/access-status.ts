@@ -104,7 +104,7 @@ export async function buildAccessStatusMap(
   }
 
   // collectionGroup is not available in some test environments; fall back to empty map
-  if (typeof (adminDb as any)?.collectionGroup !== "function") {
+  if (typeof (adminDb as unknown as { collectionGroup?: Function }).collectionGroup !== "function") {
     return statusMap;
   }
 
@@ -120,9 +120,7 @@ export async function buildAccessStatusMap(
     requestsSnapshot.forEach((doc) => {
       const data = doc.data() || {};
       const rawStatus = (data.status as AccessStatus) || "none";
-      const resumeId = (doc as any)?.ref?.parent?.parent?.id as
-        | string
-        | undefined;
+      const resumeId = (doc as unknown as { ref: { parent: { parent: { id: string } } } }).ref.parent.parent.id;
 
       if (!resumeId) return;
 
@@ -162,9 +160,7 @@ export async function buildAccessStatusMap(
 
     grantsSnapshot.forEach((doc) => {
       const data = doc.data();
-      const resumeId = (doc as any)?.ref?.parent?.parent?.id as
-        | string
-        | undefined;
+      const resumeId = (doc as unknown as { ref: { parent: { parent: { id: string } } } }).ref.parent.parent.id;
 
       if (!resumeId) return;
 

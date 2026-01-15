@@ -16,6 +16,7 @@ import { RequestAccessDialog } from "@/components/RequestAccessDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useResumeData } from "@/hooks/useResumeData";
 import { ResumeViewSkeleton } from "@/components/resume/ResumeViewSkeleton";
+import { DashboardResume, LegacyResumeData } from "@/types";
 
 type DeletionCountdownNotice = {
   label: string;
@@ -172,21 +173,26 @@ export default function ResumeView() {
 
       // Update local SWR data immediately
       mutateResume(
-        (current: any) => {
-          if (!current?.resume) return current;
+        (current: unknown) => {
+          if (!current) return { resume: null, accessBlock: null, error: null };
+          const data = current as Record<string, unknown>;
+          const resumeData = data.resume as DashboardResume;
+          if (!resumeData) return { resume: null, accessBlock: null, error: null };
+
           return {
-            ...current,
             resume: {
-              ...current.resume,
+              ...(resumeData as unknown as Record<string, unknown>),
               isPublic: newVisibility,
-              visibility: newVisibility ? "public" : "private",
+              visibility: (newVisibility ? "public" : "private") as "public" | "private" | "recruiter",
               viewerAccess: {
-                ...current.resume.viewerAccess,
+                ...(resumeData.viewerAccess || {}),
                 scope: "owner",
                 isOwner: true,
               },
             },
-          };
+            accessBlock: data.accessBlock || null,
+            error: data.error || null,
+          } as unknown as { resume: DashboardResume | null; accessBlock: null; error: null };
         },
         { revalidate: false }
       );
@@ -232,9 +238,8 @@ export default function ResumeView() {
   if (template) {
     return (
       <div
-        className={`min-h-screen ${
-          template.id === "masonry-v1" ? "" : "bg-gray-900 text-white"
-        } p-8 font-sans relative`}
+        className={`min-h-screen ${template.id === "masonry-v1" ? "" : "bg-gray-900 text-white"
+          } p-8 font-sans relative`}
       >
         <ResumeToastOverlay toast={toast} onDismiss={() => setToast(null)} />
         {countdownBanner}
@@ -278,7 +283,7 @@ export default function ResumeView() {
       <ResumeToastOverlay toast={toast} onDismiss={() => setToast(null)} />
       {countdownBanner}
       {editingBanner}
-      <LegacyResumeRenderer resume={resume} />
+      <LegacyResumeRenderer resume={resume as unknown as LegacyResumeData} />
     </>
   );
 }
@@ -295,9 +300,8 @@ function DeletionCountdownBanner({
 }) {
   return (
     <div
-      className={`mb-4 rounded-lg border px-4 py-3 text-sm leading-relaxed ${
-        bannerStyles[notice.severity]
-      }`}
+      className={`mb-4 rounded-lg border px-4 py-3 text-sm leading-relaxed ${bannerStyles[notice.severity]
+        }`}
       role="status"
     >
       <p className="font-semibold text-base">

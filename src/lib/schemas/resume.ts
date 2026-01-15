@@ -14,8 +14,24 @@ export const ResumeSchema = z.object({
   location: z.string().optional(),
   summary: z.string().optional(),
   skills: z.array(z.union([z.string(), SkillSchema])).default([]),
-  experience: z.array(z.unknown()).default([]), // TODO: Define strict experience schema
-  education: z.array(z.unknown()).default([]), // TODO: Define strict education schema
+  experience: z.array(z.object({
+    id: z.string().optional(),
+    company: z.string(),
+    role: z.string(),
+    startDate: z.string(),
+    endDate: z.string().optional(),
+    description: z.string(),
+    visibility: z.enum(["public", "masked", "request"]).default("public"),
+  })).default([]),
+  education: z.array(z.object({
+    id: z.string().optional(),
+    institution: z.string(),
+    degree: z.string(),
+    startDate: z.string(),
+    endDate: z.string().optional(),
+    description: z.string().optional(),
+    visibility: z.enum(["public", "masked", "request"]).default("public"),
+  })).default([]),
   createdAt: z.preprocess((arg) => {
     if (typeof arg === "string" || arg instanceof Date) return new Date(arg);
     if (arg && typeof arg === "object" && "toDate" in arg)

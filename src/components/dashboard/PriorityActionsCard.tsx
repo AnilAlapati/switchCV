@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactElement } from "react";
 import Link from "next/link";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { PremiumFeatureLock } from "@/components/ui/PremiumFeatureLock";
@@ -15,16 +16,16 @@ interface PriorityActionsCardProps {
 }
 
 const statusStyles: Record<ActionItem["status"], string> = {
-  blocked: "bg-rose-50 text-rose-600 border border-rose-100",
-  notStarted: "bg-slate-50 text-slate-600 border border-slate-200",
-  inProgress: "bg-amber-50 text-amber-600 border border-amber-100",
-  completed: "bg-emerald-50 text-emerald-600 border border-emerald-100",
+  blocked: "bg-red-50 text-red-700 border border-red-200",
+  notStarted: "bg-gray-50 text-gray-600 border border-gray-200",
+  inProgress: "bg-blue-50 text-blue-700 border border-blue-200",
+  completed: "bg-gray-100 text-black border border-black",
 };
 
 const priorityAccent: Record<ActionItem["priority"], string> = {
-  high: "text-rose-600",
-  medium: "text-amber-600",
-  low: "text-blue-600",
+  high: "text-red-600",
+  medium: "text-blue-600",
+  low: "text-gray-500",
 };
 
 export function PriorityActionsCard({
@@ -32,14 +33,14 @@ export function PriorityActionsCard({
   items,
   loading,
   emptyMessage = "Your agent has no urgent suggestions. Circle back tomorrow for a fresh analysis.",
-}: PriorityActionsCardProps) {
+}: PriorityActionsCardProps): ReactElement {
   const { tier } = useUserProfile();
   const isBasic = tier === "basic";
 
   const cardContent = (
     <section className="glass-panel rounded-3xl p-6 h-full flex flex-col">
       <div className="flex items-center justify-between gap-3 mb-6">
-        <h2 className="text-xl font-bold text-[#1A2F25] flex items-center gap-2">
+        <h2 className="text-xl font-bold text-[black] flex items-center gap-2">
           <span className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600">
             <svg
               className="h-5 w-5"
@@ -77,9 +78,9 @@ export function PriorityActionsCard({
         )}
 
         {!loading && items.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-48 text-center p-6 rounded-2xl border border-dashed border-[#1A2F25]/10 bg-[#1A2F25]/5">
+          <div className="flex flex-col items-center justify-center h-48 text-center p-6 rounded-2xl border border-dashed border-[black]/10 bg-[black]/5">
             <svg
-              className="h-12 w-12 text-[#1A2F25]/40 mb-3"
+              className="h-12 w-12 text-[black]/40 mb-3"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -91,7 +92,7 @@ export function PriorityActionsCard({
                 d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <p className="text-sm text-[#1A2F25]/60">{emptyMessage}</p>
+            <p className="text-sm text-[black]/60">{emptyMessage}</p>
           </div>
         )}
 
@@ -99,9 +100,8 @@ export function PriorityActionsCard({
           items.map((item) => {
             const StatusTag = (
               <span
-                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border ${
-                  statusStyles[item.status]
-                }`}
+                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border ${statusStyles[item.status]
+                  }`}
               >
                 {item.status === "blocked" && "Blocked"}
                 {item.status === "notStarted" && "To Do"}
@@ -140,7 +140,7 @@ export function PriorityActionsCard({
                 <Link
                   href={item.cta.href}
                   target={item.cta.target}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 p-2 text-xs font-bold text-white transition hover:bg-indigo-700 shadow-md hover:shadow-lg"
+                  className="inline-flex items-center gap-1.5 bg-black p-2 text-xs font-bold text-white transition hover:bg-gray-800 border-2 border-black"
                 >
                   <span className="hidden sm:inline">{item.cta.label}</span>
                   <svg
@@ -161,7 +161,7 @@ export function PriorityActionsCard({
                 <button
                   type="button"
                   onClick={item.cta.onClick}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-600 p-2 text-xs font-bold text-white transition hover:bg-cyan-700 shadow-md hover:shadow-lg"
+                  className="inline-flex items-center gap-1.5 bg-black p-2 text-xs font-bold text-white transition hover:bg-gray-800 border-2 border-black"
                 >
                   <span className="hidden sm:inline">{item.cta.label}</span>
                   <svg
@@ -196,21 +196,21 @@ export function PriorityActionsCard({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-1">
                       {StatusTag}
-                      <span className="text-[10px] text-[#1A2F25]/50 font-mono">
+                      <span className="text-[10px] text-[black]/50 font-mono">
                         {item.priority.toUpperCase()}
                       </span>
                     </div>
 
-                    <h3 className="text-base font-bold text-[#1A2F25] mb-1 pr-8">
+                    <h3 className="text-base font-bold text-[black] mb-1 pr-8">
                       {item.title}
                     </h3>
 
-                    <p className="text-sm text-[#1A2F25]/70 line-clamp-2 mb-3">
+                    <p className="text-sm text-[black]/70 line-clamp-2 mb-3">
                       {item.description}
                     </p>
 
                     {item.meta && (
-                      <div className="flex items-center text-xs text-[#1A2F25]/60">
+                      <div className="flex items-center text-xs text-[black]/60">
                         <span className="mr-1.5">●</span>
                         {item.meta}
                       </div>

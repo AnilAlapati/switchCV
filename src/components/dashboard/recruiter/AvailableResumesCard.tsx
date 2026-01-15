@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactElement } from "react";
 import { logger } from "@/lib/logger";
 
 import { useEffect, useState } from "react";
@@ -13,7 +14,7 @@ interface AccessMetrics {
   denied: number;
 }
 
-export function AvailableResumesCard() {
+export function AvailableResumesCard(): ReactElement {
   const { user } = useAuth();
   const metricsContext = useOptionalDashboardMetricsContext();
   const usingContext = Boolean(
@@ -40,7 +41,7 @@ export function AvailableResumesCard() {
 
     const abortController = new AbortController();
 
-    const fetchMetrics = async () => {
+    const fetchMetrics = async (): Promise<void> => {
       try {
         const response = await fetch(
           `/api/recruiter/metrics?userId=${user?.uid}`,
@@ -85,12 +86,12 @@ export function AvailableResumesCard() {
 
   return (
     <Link href="/dashboard/recruiter/requests?tab=active">
-      <div className="glass-panel rounded-3xl p-6 transition-all duration-300 hover:shadow-xl hover:shadow-cyan-500/20 hover:border-cyan-400/50 cursor-pointer h-full flex flex-col justify-between group hover:scale-[1.02]">
+      <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-6 transition-all duration-200 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] cursor-pointer h-full flex flex-col justify-between group">
         <div className="flex items-center relative z-10">
           <div className="flex-shrink-0">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-cyan-500/30 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 text-cyan-400 transition-all duration-300 group-hover:border-cyan-400 group-hover:shadow-lg group-hover:shadow-cyan-500/30">
+            <div className="flex h-12 w-12 items-center justify-center bg-black text-white">
               <svg
-                className="h-7 w-7"
+                className="h-6 w-6"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -106,17 +107,17 @@ export function AvailableResumesCard() {
           </div>
           <div className="ml-5 w-0 flex-1">
             <dl>
-              <dt className="text-sm font-bold text-gray-900 transition-colors group-hover:text-cyan-700">
+              <dt className="text-[10px] font-mono font-bold text-gray-500 uppercase tracking-widest">
                 Unlocked Talent Profiles
               </dt>
-              <dd className="text-3xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">
+              <dd className="text-3xl font-serif font-bold text-black">
                 {loadingState ? "-" : availableCount}
               </dd>
             </dl>
           </div>
         </div>
         <div className="mt-5 relative z-10 flex items-center justify-between">
-          <p className="text-sm font-medium text-gray-700 transition-colors group-hover:text-gray-900">
+          <p className="text-sm font-sans text-gray-500">
             {loadingState
               ? "Loading..."
               : availableCount === 0
@@ -125,9 +126,9 @@ export function AvailableResumesCard() {
                 } unlocked`}
           </p>
           <div className="opacity-0 transform translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
-            <div className="flex items-center justify-center h-8 w-8 rounded-full bg-cyan-500/10 border border-cyan-500/30">
+            <div className="flex items-center justify-center h-8 w-8 bg-black">
               <svg
-                className="w-4 h-4 text-cyan-600"
+                className="w-4 h-4 text-white"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"

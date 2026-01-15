@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "@/lib/env"; // Validates environment variables on startup
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Merriweather } from "next/font/google"; // 1. Import Merriweather
 import "./globals.css";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ConnectivityStatusProvider } from "@/context/ConnectivityStatusProvider";
@@ -25,6 +25,14 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// 2. Configure Merriweather
+const merriweather = Merriweather({
+  variable: "--font-merriweather",
+  subsets: ["latin"],
+  weight: ["300", "400", "700", "900"],
+  display: 'swap',
+});
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://switchcv.com"),
   title: "SwitchCV - The Autonomous Career Agent Platform",
@@ -40,7 +48,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${merriweather.variable} antialiased`}
         suppressHydrationWarning
       >
         <IntlProvider>

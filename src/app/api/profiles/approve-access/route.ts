@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
- 
+
 import {
   getAuthenticatedUserId,
   handleApiError,
@@ -61,13 +61,8 @@ export async function POST(request: NextRequest) {
       success: true,
       message: "Access approved!",
     });
-  } catch (error: any) {
-    if (error.message?.includes("Unauthorized"))
-      return handleApiError(error, "Unauthorized", 403);
-    if (error.message?.toLowerCase().includes("not found"))
-      return handleApiError(error, "Not found", 404);
-    if (error.message?.includes("already processed"))
-      return handleApiError(error, "Request already processed", 400);
-    return handleApiError(error, "Failed to approve access");
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return handleApiError(error, "Failed to approve access: " + errorMessage);
   }
 }

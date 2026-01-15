@@ -19,7 +19,7 @@ interface ViewEvent {
   viewedAt: Date;
   duration: number;
   sourceType: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 interface SectionHeatmap {
@@ -452,11 +452,7 @@ export async function getSystemAnalytics(
     averageAttractiveness = Math.round(analyticsAggSnap.data().avgAttract || 0);
   } catch (error) {
     // Log detailed error for admin to fix (usually missing index)
-    /* eslint-disable no-console */
-    console.log("\n=== AGGREGATION FAILED ===");
-    console.log("Error:", error);
-    console.log("===========================\n");
-    /* eslint-enable no-console */
+    logger.warn({ err: error }, "Analytics aggregation failed - composite index may be missing. Continuing with default values.");
     // Continue with default 0 values so dashboard doesn't crash
   }
 
@@ -643,7 +639,7 @@ export async function getDashboardAnalytics(resumeId: string) {
   }
 
   return aggregateToDashboard(
-    analyticsData as any,
+    analyticsData as unknown as Partial<Analytics>,
     finalHeatmaps,
     recruiters,
     benchmark

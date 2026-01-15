@@ -2,7 +2,7 @@ import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 // eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
- 
+
 import { FieldValue } from "firebase-admin/firestore";
 import { RecruiterContactRequest } from "@/types/profileSearch";
 import {
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
       reviewedBy: payload.adminUserId,
       reviewedAt: FieldValue.serverTimestamp(),
       denialReason: payload.reason,
-    } as any);
+    } as Record<string, unknown>);
 
     // Create notification for recruiter
     const recruiterNotification = {

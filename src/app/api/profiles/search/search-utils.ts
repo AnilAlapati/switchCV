@@ -31,16 +31,18 @@ export function matchesQuery(text: string = "", query: string = ""): boolean {
   return text.toLowerCase().includes(query.toLowerCase());
 }
 
-export function extractProfileSkills(userData: Record<string, any>): string[] {
-  const skills = userData.publicProfile?.skills;
+export function extractProfileSkills(userData: Record<string, unknown>): string[] {
+  const publicProfile = userData.publicProfile as Record<string, unknown> | undefined;
+  const skills = publicProfile?.skills;
   if (!Array.isArray(skills)) {
     return [];
   }
 
   return skills
-    .map((skill: any) => {
+    .map((skill) => {
       if (typeof skill === "string") return skill;
-      if (skill?.name) return String(skill.name);
+      const s = skill as { name?: string };
+      if (s?.name) return String(s.name);
       return "";
     })
     .filter(Boolean);
@@ -48,20 +50,21 @@ export function extractProfileSkills(userData: Record<string, any>): string[] {
 
 export function mapProfileResult(
   userId: string,
-  userData: Record<string, any>
+  userData: Record<string, unknown>
 ): ProfileSearchResult {
-  const displayName = userData.displayName || "";
-  const username = userData.publicProfile?.username || "";
-  const bio = userData.publicProfile?.aiSelectedBio || "";
-  const role = userData.publicProfile?.role || "";
-  const location = userData.publicProfile?.location || "";
+  const publicProfile = userData.publicProfile as Record<string, unknown> | undefined;
+  const displayName = (userData.displayName as string) || "";
+  const username = (publicProfile?.username as string) || "";
+  const bio = (publicProfile?.aiSelectedBio as string) || "";
+  const role = (publicProfile?.role as string) || "";
+  const location = (publicProfile?.location as string) || "";
   const skills = extractProfileSkills(userData);
 
   return {
     userId,
     username,
     displayName,
-    photoURL: userData.photoURL,
+    photoURL: userData.photoURL as string | undefined,
     bio,
     role: role || undefined,
     location: location || undefined,
@@ -72,16 +75,17 @@ export function mapProfileResult(
 }
 
 export function matchesAllFilters(
-  userData: Record<string, any>,
+  userData: Record<string, unknown>,
   normalizedFilters: NormalizedFilters,
   searchQuery?: string
 ): boolean {
-  const displayName = userData.displayName || "";
-  const username = userData.publicProfile?.username || "";
-  const slug = userData.profileSlug || "";
-  const bio = userData.publicProfile?.aiSelectedBio || "";
-  const role = userData.publicProfile?.role || "";
-  const location = userData.publicProfile?.location || "";
+  const publicProfile = userData.publicProfile as Record<string, unknown> | undefined;
+  const displayName = (userData.displayName as string) || "";
+  const username = (publicProfile?.username as string) || "";
+  const slug = (userData.profileSlug as string) || "";
+  const bio = (publicProfile?.aiSelectedBio as string) || "";
+  const role = (publicProfile?.role as string) || "";
+  const location = (publicProfile?.location as string) || "";
   const skills = extractProfileSkills(userData);
 
   const matchesSearch =
@@ -114,12 +118,12 @@ export function matchesAllFilters(
 }
 
 export function buildNormalizedFilters(
-  filters?: Record<string, any>
+  filters?: Record<string, unknown>
 ): NormalizedFilters {
   return {
-    role: filters?.role?.trim() || undefined,
-    location: filters?.location?.trim() || undefined,
-    skills: normalizeSkills(filters?.skills).slice(0, 10),
-    slug: filters?.slug?.trim() || undefined,
+    role: (filters?.role as string)?.trim() || undefined,
+    location: (filters?.location as string)?.trim() || undefined,
+    skills: normalizeSkills(filters?.skills as string[]).slice(0, 10),
+    slug: (filters?.slug as string)?.trim() || undefined,
   };
 }

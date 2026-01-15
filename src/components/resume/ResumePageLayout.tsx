@@ -102,7 +102,7 @@ export function ResumePageLayout({
               {/* Experience */}
               <ResumeExperienceSection
                 experience={resume.experience ?? []}
-                enhancedExperience={enhancedContent.enhancedExperience as any}
+                enhancedExperience={enhancedContent.enhancedExperience as unknown as Record<string, { enhancedDescription: string }>}
               />
 
               {/* Education */}

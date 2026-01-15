@@ -13,7 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useResume } from "@/hooks/useResume";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
-import { DashboardMetricsProvider } from "@/context/DashboardMetricsContext";
+import { DashboardMetricsProvider, type DashboardMetricsContextValue } from "@/context/DashboardMetricsContext";
 import { getVerificationRoute } from "@/lib/config";
 
 const VERIFICATION_ROUTE = getVerificationRoute();
@@ -87,14 +87,14 @@ export default function Dashboard() {
     }
   }, []);
 
-  const metricsProviderValue = useMemo(
+  const metricsProviderValue: DashboardMetricsContextValue = useMemo(
     () => ({
       loading: metricsLoading,
       jobSeekerMetrics,
       recruiterMetrics: userIsRecruiter ? recruiterMetrics : null,
-      refreshJobSeekerMetrics,
+      refreshJobSeekerMetrics: refreshJobSeekerMetrics as () => Promise<void>,
       refreshRecruiterMetrics: userIsRecruiter
-        ? refreshRecruiterMetrics
+        ? (refreshRecruiterMetrics as () => Promise<void>)
         : undefined,
     }),
     [
@@ -112,10 +112,10 @@ export default function Dashboard() {
     return (
       <DashboardBackground>
         <div className="relative z-20 flex min-h-screen items-center justify-center">
-          <div className="rounded-lg bg-black/60 px-8 py-6 text-center backdrop-blur-sm">
-            <div className="mx-auto mb-4 h-16 w-16 animate-spin rounded-full border-4 border-cyan-500/30 border-t-cyan-400"></div>
-            <p className="text-lg font-semibold text-white">
-              Loading your dashboard…
+          <div className="bg-white border border-gray-200 px-8 py-6 text-center shadow-lg">
+            <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-black border-t-transparent"></div>
+            <p className="text-lg font-serif font-bold text-black tracking-tight">
+              Loading dashboard...
             </p>
           </div>
         </div>
@@ -157,7 +157,7 @@ export default function Dashboard() {
               resumeLoading={resumeLoading}
               metrics={jobSeekerMetrics}
               metricsLoading={metricsLoading}
-              resume={resume}
+              resume={resume || undefined}
               resumes={resumes}
               onRefreshResume={refreshResume}
             />

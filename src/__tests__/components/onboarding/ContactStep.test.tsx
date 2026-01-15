@@ -38,14 +38,26 @@ describe("ContactStep", () => {
   });
 
   it("renders correctly with empty profile data", () => {
-    render(<ContactStep profile={{}} onChange={mockOnChange} />);
+    const emptyProfile = {
+      contact: {
+        email: { value: "", visibility: "masked" as Visibility },
+        phone: { value: "", visibility: "masked" as Visibility },
+      },
+    } as any;
+    render(<ContactStep profile={emptyProfile} onChange={mockOnChange} />);
 
     expect(screen.getByLabelText("Email")).toHaveValue("");
     expect(screen.getByLabelText("Phone")).toHaveValue("");
   });
 
   it("renders correctly with partial contact data", () => {
-    render(<ContactStep profile={{ contact: {} }} onChange={mockOnChange} />);
+    const partialProfile = {
+      contact: {
+        email: { value: "", visibility: "masked" as Visibility },
+        phone: { value: "", visibility: "masked" as Visibility },
+      },
+    } as any;
+    render(<ContactStep profile={partialProfile} onChange={mockOnChange} />);
 
     expect(screen.getByLabelText("Email")).toHaveValue("");
     expect(screen.getByLabelText("Phone")).toHaveValue("");

@@ -13,14 +13,13 @@ interface UserProfileMenuProps {
 export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const { role } = useUserProfile();
+  const { role, tier } = useUserProfile();
 
   const userInitial = userEmail ? userEmail.charAt(0).toUpperCase() : "U";
   const displayName = userEmail?.split("@")[0] || "User";
   const emailLabel = userEmail || "Signed out";
-  const appVersion = `${APP_CONFIG.VERSION_PREFIX}.${
-    process.env.NEXT_PUBLIC_APP_VERSION || "0.0.1"
-  }`;
+  const appVersion = `${APP_CONFIG.VERSION_PREFIX}.${process.env.NEXT_PUBLIC_APP_VERSION || "0.0.1"
+    }`;
 
   // Check if user has access to analytics (admin or recruiter)
   const hasAnalyticsAccess = role === "admin" || role === "recruiter";
@@ -46,31 +45,39 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
       {/* User Profile Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="group relative z-40 flex items-center gap-3 rounded-xl border border-white/50 bg-white/40 px-3 py-2 text-left shadow-sm transition-all duration-200 hover:border-[#2C4A3B]/30 hover:bg-white/60 hover:shadow-md"
+        className="group relative z-40 flex items-center gap-3 rounded-xl border border-white/50 bg-white/40 px-3 py-2 text-left shadow-sm transition-all duration-200 hover:border-[black]/30 hover:bg-white/60 hover:shadow-md"
       >
         {/* Avatar */}
-        <div className="relative flex h-11 w-11 items-center justify-center rounded-full border border-white/60 bg-gradient-to-br from-[#2C4A3B] to-[#1A2F25] text-base font-semibold text-white shadow-md">
+        <div className="relative flex h-11 w-11 items-center justify-center rounded-full border border-white/60 bg-gradient-to-br from-[black] to-[black] text-base font-semibold text-white shadow-md">
           <span className="relative text-lg">{userInitial}</span>
         </div>
 
         {/* Username & Email */}
         <div className="relative hidden min-w-[9rem] sm:flex flex-col">
-          <p className="text-sm font-bold leading-tight text-[#1A2F25]">
+          <p className="text-sm font-bold leading-tight text-[black]">
             {displayName}
           </p>
-          <p className="text-xs text-[#2C4A3B]/70">{emailLabel}</p>
+          <p className="text-xs text-[black]/70">{emailLabel}</p>
         </div>
 
-        <span className="relative hidden lg:inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-50 px-2.5 py-1 text-[0.68rem] font-bold uppercase tracking-wide text-emerald-700">
-          <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-          Recruiting seat
-        </span>
+        {role === "recruiter" && (
+          <span className="relative hidden lg:inline-flex items-center gap-1 border-2 border-black bg-white px-2.5 py-1 text-[0.68rem] font-mono font-bold uppercase tracking-widest text-black">
+            <span className="inline-flex h-1.5 w-1.5 animate-pulse bg-black" />
+            Recruiting seat
+          </span>
+        )}
+
+        {role === "admin" && (
+          <span className="relative hidden lg:inline-flex items-center gap-1 border-2 border-black bg-white px-2.5 py-1 text-[0.68rem] font-mono font-bold uppercase tracking-widest text-black">
+            <span className="inline-flex h-1.5 w-1.5 animate-pulse bg-black" />
+            Admin
+          </span>
+        )}
 
         {/* Chevron */}
         <svg
-          className={`relative h-4 w-4 text-[#2C4A3B]/60 transition-transform duration-200 group-hover:text-[#1A2F25] ${
-            isOpen ? "rotate-180" : ""
-          }`}
+          className={`relative h-4 w-4 text-[black]/60 transition-transform duration-200 group-hover:text-[black] ${isOpen ? "rotate-180" : ""
+            }`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -88,16 +95,16 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
       {isOpen && (
         <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-[100] animate-in fade-in slide-in-from-top-2 ring-1 ring-black/5">
           {/* User Info Section */}
-          <div className="px-4 py-4 border-b border-[#2C4A3B]/10 bg-[#2C4A3B]/5">
+          <div className="px-4 py-4 border-b border-[black]/10 bg-[black]/5">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 rounded-lg bg-[#2C4A3B] flex items-center justify-center text-white font-bold text-lg shadow-md">
+              <div className="w-12 h-12 rounded-lg bg-[black] flex items-center justify-center text-white font-bold text-lg shadow-md">
                 {userInitial}
               </div>
               <div>
-                <p className="text-sm font-bold text-[#1A2F25]">
+                <p className="text-sm font-bold text-[black]">
                   {displayName}
                 </p>
-                <p className="text-xs text-[#2C4A3B]/70">{emailLabel}</p>
+                <p className="text-xs text-[black]/70">{emailLabel}</p>
               </div>
             </div>
           </div>
@@ -107,7 +114,7 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
             <Link
               href="/analytics"
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-3 px-4 py-3 text-sm text-[#1A2F25] hover:bg-[#2C4A3B]/5 transition-colors duration-150 font-medium"
+              className="flex items-center gap-3 px-4 py-3 text-sm text-[black] hover:bg-[black]/5 transition-colors duration-150 font-medium"
             >
               <svg
                 className="w-4 h-4 text-indigo-600"
@@ -137,10 +144,10 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
             <Link
               href="/profile/settings"
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-3 px-4 py-3 text-sm text-[#1A2F25] hover:bg-[#2C4A3B]/5 transition-colors duration-150 font-medium"
+              className="flex items-center gap-3 px-4 py-3 text-sm text-[black] hover:bg-[black]/5 transition-colors duration-150 font-medium"
             >
               <svg
-                className="w-4 h-4 text-[#2C4A3B]"
+                className="w-4 h-4 text-[black]"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -165,7 +172,7 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
             <Link
               href="/profile/account"
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-3 px-4 py-3 text-sm text-[#1A2F25] hover:bg-[#2C4A3B]/5 transition-colors duration-150 font-medium"
+              className="flex items-center gap-3 px-4 py-3 text-sm text-[black] hover:bg-[black]/5 transition-colors duration-150 font-medium"
             >
               <svg
                 className="w-4 h-4 text-purple-600"
@@ -187,7 +194,7 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
             <Link
               href="/profile/subscription"
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-3 px-4 py-3 text-sm text-[#1A2F25] hover:bg-[#2C4A3B]/5 transition-colors duration-150 font-medium"
+              className="flex items-center gap-3 px-4 py-3 text-sm text-[black] hover:bg-[black]/5 transition-colors duration-150 font-medium"
             >
               <svg
                 className="w-4 h-4 text-amber-500"
@@ -203,8 +210,13 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
                 />
               </svg>
               <span>Subscription Plan</span>
-              <span className="ml-auto px-2 py-1 text-xs rounded-full bg-amber-100 text-amber-700 font-bold border border-amber-200">
-                Basic
+              <span className={`ml-auto px-2 py-1 text-xs rounded-full font-bold border ${tier === "enterprise"
+                ? "bg-purple-100 text-purple-700 border-purple-200"
+                : tier === "premium"
+                  ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+                  : "bg-amber-100 text-amber-700 border-amber-200"
+                }`}>
+                {tier === "enterprise" ? "Enterprise" : tier === "premium" ? "Premium" : "Basic"}
               </span>
             </Link>
 
@@ -212,7 +224,7 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
             <Link
               href="/contact"
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-3 px-4 py-3 text-sm text-[#1A2F25] hover:bg-[#2C4A3B]/5 transition-colors duration-150 font-medium"
+              className="flex items-center gap-3 px-4 py-3 text-sm text-[black] hover:bg-[black]/5 transition-colors duration-150 font-medium"
             >
               <svg
                 className="w-4 h-4 text-emerald-600"
@@ -234,7 +246,7 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
             <a
               href={`mailto:${APP_CONFIG.SUPPORT_EMAIL}`}
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-3 px-4 py-3 text-sm text-[#1A2F25] hover:bg-[#2C4A3B]/5 transition-colors duration-150 font-medium"
+              className="flex items-center gap-3 px-4 py-3 text-sm text-[black] hover:bg-[black]/5 transition-colors duration-150 font-medium"
             >
               <svg
                 className="w-4 h-4 text-blue-600"
@@ -253,7 +265,7 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
             </a>
 
             {/* Divider */}
-            <div className="my-2 border-t border-[#2C4A3B]/10" />
+            <div className="my-2 border-t border-[black]/10" />
 
             {/* Logout */}
             <button
@@ -280,7 +292,7 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
             </button>
 
             {/* Version */}
-            <div className="px-4 py-2 text-[10px] text-[#2C4A3B]/50 text-center border-t border-[#2C4A3B]/5 font-mono">
+            <div className="px-4 py-2 text-[10px] text-[black]/50 text-center border-t border-[black]/5 font-mono">
               {appVersion}
             </div>
           </div>

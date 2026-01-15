@@ -4,11 +4,11 @@ import {
 } from "@/app/dashboard/access-requests/durationHelpers";
 import { DURATION_PRESETS, MAX_CUSTOM_DAYS } from "@/lib/accessDuration";
 import type { DashboardAccessRequest } from "@/app/dashboard/access-requests/types";
+import type { NormalizedDuration } from "@/lib/accessDuration";
 
 jest.mock("@/lib/accessDuration", () => ({
   DURATION_PRESETS: [
     { preset: "1_week", durationHours: 168 },
-    { preset: "2_weeks", durationHours: 336 },
     { preset: "1_month", durationHours: 720 },
   ],
   MAX_CUSTOM_DAYS: 90,
@@ -17,6 +17,20 @@ jest.mock("@/lib/accessDuration", () => ({
   ),
   hoursToDays: jest.fn((hours) => Math.floor(hours / 24)),
 }));
+
+function createMockDuration(overrides: Partial<NormalizedDuration>): NormalizedDuration {
+  return {
+    preset: "1_week",
+    value: 7,
+    unit: "day",
+    durationHours: 168,
+    durationMs: 168 * 60 * 60 * 1000,
+    label: "1 Week",
+    timezone: "UTC",
+    isCustom: false,
+    ...overrides,
+  };
+}
 
 describe("durationHelpers", () => {
   beforeEach(() => {
@@ -35,11 +49,11 @@ describe("durationHelpers", () => {
     });
 
     it("should handle custom duration preset", () => {
-      const requested = {
-        preset: "custom_days" as const,
+      const requested = createMockDuration({
+        preset: "custom_days",
         isCustom: true,
         durationHours: 240,
-      };
+      });
 
       const result = buildDefaultDurationState(requested);
 
@@ -49,11 +63,11 @@ describe("durationHelpers", () => {
     });
 
     it("should round custom days correctly", () => {
-      const requested = {
-        preset: "custom_days" as const,
+      const requested = createMockDuration({
+        preset: "custom_days",
         isCustom: true,
         durationHours: 110, // ~4.6 days, should round to 5
-      };
+      });
 
       const result = buildDefaultDurationState(requested);
 
@@ -61,11 +75,11 @@ describe("durationHelpers", () => {
     });
 
     it("should handle preset duration", () => {
-      const requested = {
-        preset: "1_week" as const,
+      const requested = createMockDuration({
+        preset: "1_week",
         isCustom: false,
         durationHours: 168,
-      };
+      });
 
       const result = buildDefaultDurationState(requested);
 
@@ -74,11 +88,11 @@ describe("durationHelpers", () => {
     });
 
     it("should ensure minimum custom days is 1", () => {
-      const requested = {
-        preset: "custom_days" as const,
+      const requested = createMockDuration({
+        preset: "custom_days",
         isCustom: true,
         durationHours: 1, // Very small value
-      };
+      });
 
       const result = buildDefaultDurationState(requested);
 
@@ -88,12 +102,12 @@ describe("durationHelpers", () => {
 
   describe("validateDuration", () => {
     const mockRequest = {
-      requestedDuration: {
-        preset: "1_month" as const,
+      requestedDuration: createMockDuration({
+        preset: "1_month",
         durationHours: 720, // 30 days
         isCustom: false,
-      },
-    } as DashboardAccessRequest;
+      }),
+    } as unknown as DashboardAccessRequest;
 
     it("should validate valid custom duration", () => {
       const result = validateDuration(mockRequest, {
@@ -139,12 +153,12 @@ describe("durationHelpers", () => {
 
     it("should reject preset duration exceeding request max", () => {
       const request = {
-        requestedDuration: {
-          preset: "2_weeks" as const,
+        requestedDuration: createMockDuration({
+          preset: "1_week" as const,
           durationHours: 100, // Very limited max
           isCustom: false,
-        },
-      } as DashboardAccessRequest;
+        }),
+      } as unknown as DashboardAccessRequest;
 
       const result = validateDuration(request, {
         preset: "1_month",

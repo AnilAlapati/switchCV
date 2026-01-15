@@ -70,7 +70,7 @@ export function ResumeQualityCard({ hasResume }: ResumeQualityCardProps) {
   }, [user, usingContext]);
 
   return (
-    <div className="glass-panel rounded-3xl p-6 transition hover:shadow-lg hover:shadow-[#2C4A3B]/10 hover:border-white">
+    <div className="glass-panel rounded-3xl p-6 transition hover:shadow-lg hover:shadow-[black]/10 hover:border-white">
       <div className="flex items-center">
         <div className="flex-shrink-0">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-emerald-100 bg-emerald-50 text-emerald-600">
@@ -91,23 +91,23 @@ export function ResumeQualityCard({ hasResume }: ResumeQualityCardProps) {
         </div>
         <div className="ml-5 w-0 flex-1">
           <dl>
-            <dt className="text-sm font-bold text-[#2C4A3B]/60 truncate">
+            <dt className="text-sm font-bold text-[black]/60 truncate">
               Resume Quality
             </dt>
-            <dd className="text-2xl font-bold text-[#1A2F25]">
+            <dd className="text-2xl font-bold text-[black]">
               {loading ? "-" : `${qualityValue}%`}
             </dd>
           </dl>
         </div>
       </div>
       <div className="mt-4">
-        <div className="h-2 w-full rounded-full bg-[#2C4A3B]/10">
+        <div className="h-2 w-full rounded-full bg-[black]/10">
           <div
             className="h-2 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500 transition-all duration-500"
             style={{ width: loadingState ? "0%" : `${qualityValue}%` }}
           ></div>
         </div>
-        <p className="mt-2 text-sm text-[#1A2F25]/60">
+        <p className="mt-2 text-sm text-[black]/60">
           {loadingState
             ? "Loading..."
             : resumePrompt

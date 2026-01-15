@@ -73,7 +73,7 @@ describe("retry", () => {
     const originalWorkerId = process.env.JEST_WORKER_ID;
 
     delete process.env.JEST_WORKER_ID;
-    process.env.NODE_ENV = "production";
+    (process.env as any).NODE_ENV = "production";
 
     let isolatedWithRetry: typeof withRetry;
 
@@ -96,7 +96,7 @@ describe("retry", () => {
     const result = await promise;
     expect(result).toBe("success");
 
-    process.env.NODE_ENV = originalEnv;
+    (process.env as any).NODE_ENV = originalEnv;
     process.env.JEST_WORKER_ID = originalWorkerId;
   });
 });

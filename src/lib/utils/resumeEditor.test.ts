@@ -253,7 +253,7 @@ describe("resumeEditor Utilities", () => {
         },
       };
 
-      const merged = mergeProfileIntoResume(original, profile);
+      const merged = mergeProfileIntoResume(original, profile as any);
 
       expect(merged.title).toBe("New Title");
       expect(merged.summary).toBe("New Summary");

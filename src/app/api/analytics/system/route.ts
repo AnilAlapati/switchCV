@@ -28,16 +28,17 @@ export async function GET(request: NextRequest) {
         'Cache-Control': 'private, max-age=300, stale-while-revalidate=60',
       },
     });
-  } catch (error: any) {
-    if (error.message === "User not found") {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === "User not found") {
       return handleApiError(null, "User not found", 404);
     }
-    if (error.message === "Unauthorized") {
+    if (error instanceof Error && error.message === "Unauthorized") {
       return handleApiError(error, "Unauthorized. Only admins and recruiters can access system analytics.", 403);
     }
     logger.error({ err: error, userId }, "Failed to fetch system analytics");
     // Include detailed error message for debugging
-    const detailedMessage = `Failed to fetch system analytics: ${error?.message || String(error)}`;
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const detailedMessage = `Failed to fetch system analytics: ${errorMessage}`;
     return handleApiError(error, detailedMessage);
   }
 }

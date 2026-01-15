@@ -133,6 +133,11 @@ describe("GET /api/analytics/dashboard", () => {
         };
         return aggregateToDashboard(analytics, [], [], {
           industry: "Technology",
+          avgAttractivenessScore: 85,
+          avgViewCount: 120,
+          avgDownloadCount: 45,
+          topSkills: ["React", "TypeScript"],
+          benchmarkDate: new Date(),
         });
       }
     );
@@ -279,14 +284,16 @@ describe("GET /api/analytics/dashboard", () => {
         trends: [],
         heatmaps: [],
         recruiterActivity: [],
-        benchmark: {
-          industry: "Technology",
-          avgAttractivenessScore: 62,
-          avgViewCount: 45,
-          avgDownloadCount: 12,
-          topSkills: ["TypeScript", "React", "Node.js"],
-          benchmarkDate: new Date().toISOString(),
-        },
+        industryBenchmarks: [
+          {
+            industry: "Technology",
+            avgAttractivenessScore: 85,
+            avgViewCount: 120,
+            avgDownloadCount: 45,
+            topSkills: ["React", "TypeScript"],
+            benchmarkDate: new Date().toISOString(),
+          },
+        ],
       };
 
       (getDashboardAnalytics as jest.Mock).mockResolvedValue(mockDashboard);

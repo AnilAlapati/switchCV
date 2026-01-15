@@ -85,7 +85,6 @@ export const checkSecretRotation = functions.scheduler.onSchedule(
       await updateRotationMetrics(allSecrets);
 
       logger.info("Secret rotation check completed successfully");
-      return { success: true, timestamp: new Date().toISOString() };
     } catch (error) {
       logger.error("Secret rotation check failed", { error });
       throw error;
@@ -131,11 +130,10 @@ async function sendRotationAlert(
     const mailOptions = {
       from: ALERT_EMAIL,
       to: ADMIN_EMAIL,
-      subject: `[${severity}] ${secrets.length} Secret${
-        secrets.length > 1 ? "s" : ""
-      } Require${secrets.length === 1 ? "s" : ""} Rotation - SwitchCV`,
+      subject: `[${severity}] ${secrets.length} Secret${secrets.length > 1 ? "s" : ""
+        } Require${secrets.length === 1 ? "s" : ""} Rotation - SwitchCV`,
       html: emailHtml,
-      priority: severity === "CRITICAL" ? "high" : "normal",
+      priority: (severity === "CRITICAL" ? "high" : "normal") as "high" | "normal" | "low",
     };
 
     await transporter.sendMail(mailOptions);
@@ -177,9 +175,8 @@ function generateRotationEmail(
       <td style="padding: 12px; font-weight: 500;">${s.name}</td>
       <td style="padding: 12px;">${s.lastRotated.toLocaleDateString()}</td>
       <td style="padding: 12px;">${s.nextRotation.toLocaleDateString()}</td>
-      <td style="padding: 12px; font-weight: 500; color: ${
-        severityColors[severity]
-      };">
+      <td style="padding: 12px; font-weight: 500; color: ${severityColors[severity]
+        };">
         ${Math.ceil(
           (s.nextRotation.getTime() - Date.now()) / (24 * 60 * 60 * 1000)
         )} days
@@ -198,9 +195,8 @@ function generateRotationEmail(
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
   
-  <div style="background: ${
-    severityColors[severity]
-  }; color: white; padding: 20px; border-radius: 8px 8px 0 0;">
+  <div style="background: ${severityColors[severity]
+    }; color: white; padding: 20px; border-radius: 8px 8px 0 0;">
     <h1 style="margin: 0; font-size: 24px;">
       ${severityEmoji[severity]} Secret Rotation Required
     </h1>

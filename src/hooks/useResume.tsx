@@ -8,16 +8,13 @@ import useSWR from "swr";
 import { collection, query, where, getDocs, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "./useAuth";
-import { ResumeProfile } from "@/types";
+import { ResumeProfile, DashboardResume } from "@/types";
 
-interface ResumeProfileWithId extends ResumeProfile {
-  id: string;
-  numericId?: number;
-}
+
 
 interface ResumesData {
-  resumes: ResumeProfileWithId[];
-  primaryResume: ResumeProfileWithId | null;
+  resumes: DashboardResume[];
+  primaryResume: DashboardResume | null;
 }
 
 const fetchUserResumes = async (userId: string): Promise<ResumesData> => {
@@ -29,9 +26,9 @@ const fetchUserResumes = async (userId: string): Promise<ResumesData> => {
 
     if (!querySnapshot.empty) {
       const allResumes = querySnapshot.docs.map((doc) => ({
-        ...(doc.data() as any),
+        ...(doc.data() as DashboardResume),
         id: doc.id,
-        numericId: doc.data().numericId,
+        numericId: doc.data().numericId as number,
       }));
 
       // Sort by createdAt desc (newest first)
@@ -129,8 +126,8 @@ export const useResume = (options: { enabled?: boolean } = {}) => {
   }, [resume]);
 
   return {
-    resume,
-    resumes,
+    resume: resume as DashboardResume | null,
+    resumes: resumes as DashboardResume[],
     loading: isLoading,
     error: error ? (error instanceof Error ? error.message : "Failed to fetch resume") : null,
     hasResume,

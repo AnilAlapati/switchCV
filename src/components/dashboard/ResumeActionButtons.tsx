@@ -54,7 +54,7 @@ export function ResumeActionButtons({
         className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all border ${
           isPublished
             ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20 hover:bg-emerald-500/20"
-            : "bg-white/40 text-[#1A2F25]/60 border-white/60 hover:bg-white/60 hover:text-[#1A2F25]"
+            : "bg-white/40 text-[black]/60 border-white/60 hover:bg-white/60 hover:text-[black]"
         }`}
       >
         {isUpdatingVisibility ? (
@@ -126,7 +126,7 @@ export function ResumeActionButtons({
           ) : (
             <Link
               href={`/resumes/${resumeIdString}/edit`}
-              className="inline-flex items-center gap-2 rounded-xl bg-white/40 border border-white/60 px-4 py-2 text-sm font-bold text-[#1A2F25] transition hover:bg-white/60 shadow-sm"
+              className="inline-flex items-center gap-2 rounded-xl bg-white/40 border border-white/60 px-4 py-2 text-sm font-bold text-[black] transition hover:bg-white/60 shadow-sm"
             >
               Edit
               <svg

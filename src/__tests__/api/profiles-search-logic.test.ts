@@ -1,4 +1,3 @@
-import * as searchQuery from "@/app/api/profiles/search/search-query";
 import * as searchUtils from "@/app/api/profiles/search/search-utils";
 import { db } from "@/lib/firebase";
 import { getDoc } from "firebase/firestore";
@@ -17,8 +16,8 @@ jest.mock("firebase/firestore", () => ({
   where: jest.fn(),
 }));
 
-describe("Profiles Search Logic", () => {
-  describe("search-utils", () => {
+describe("Profiles Search Logic (search-utils)", () => {
+  describe("search-utils base functionality", () => {
     it("normalizeSkills should handle various inputs", () => {
       expect(
         searchUtils.normalizeSkills([" React ", null as any, "Node"])
@@ -69,43 +68,19 @@ describe("Profiles Search Logic", () => {
     });
   });
 
-  describe("search-query", () => {
+  describe("search-utils filter logic", () => {
     it("buildNormalizedFilters should return defaults", () => {
-      const filters = searchQuery.buildNormalizedFilters({});
+      const filters = searchUtils.buildNormalizedFilters({});
       expect(filters.skills).toEqual([]);
     });
 
     it("buildNormalizedFilters should normalize inputs", () => {
-      const filters = searchQuery.buildNormalizedFilters({
+      const filters = searchUtils.buildNormalizedFilters({
         role: "Dev",
         skills: [" React "],
       });
       expect(filters.role).toBe("Dev");
       expect(filters.skills).toEqual(["React"]);
-    });
-
-    it("buildBaseConstraints should add constraints", () => {
-      const filters = {
-        role: "Dev",
-        location: "NY",
-        slug: "test",
-        skills: ["React", "Node"],
-      };
-      const constraints = searchQuery.buildBaseConstraints(filters);
-      expect(constraints.length).toBeGreaterThan(1);
-    });
-
-    it("getCursorSnapshot should return snapshot if exists", async () => {
-      (getDoc as jest.Mock).mockResolvedValue({ exists: () => true });
-      const snap = await searchQuery.getCursorSnapshot("u1");
-      expect(snap).toBeDefined();
-    });
-
-    it("getCursorSnapshot should return null if not exists", async () => {
-      (getDoc as jest.Mock).mockResolvedValue({ exists: () => false });
-      const snap = await searchQuery.getCursorSnapshot("u1");
-      expect(snap).toBeNull();
-      expect(await searchQuery.getCursorSnapshot()).toBeNull();
     });
 
     it("matchesAllFilters should validate correctly", () => {
@@ -114,23 +89,27 @@ describe("Profiles Search Logic", () => {
         publicProfile: {
           role: "Developer",
           skills: ["React"],
+          aiSelectedBio: "Senior Dev",
         },
+        profileSlug: "anil",
       };
       const filters = {
         role: "Developer",
         skills: ["React"],
       };
       expect(
-        searchQuery.matchesAllFilters(userData, filters as any, "anil")
+        searchUtils.matchesAllFilters(userData, filters as any, "anil")
       ).toBe(true);
+
       expect(
-        searchQuery.matchesAllFilters(userData, {
+        searchUtils.matchesAllFilters(userData, {
           ...filters,
           role: "Manager",
         } as any)
       ).toBe(false);
+
       expect(
-        searchQuery.matchesAllFilters(userData, {
+        searchUtils.matchesAllFilters(userData, {
           ...filters,
           skills: ["Node"],
         } as any)

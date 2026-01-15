@@ -75,7 +75,7 @@ describe("Firebase Configuration", () => {
       "mock-project.appspot.com";
     process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = "123456789";
     process.env.NEXT_PUBLIC_FIREBASE_APP_ID = "1:123456789:web:abcdef123456";
-    process.env.NODE_ENV = "test";
+    (process.env as any).NODE_ENV = "test";
   });
 
   afterEach(() => {
@@ -94,6 +94,11 @@ describe("Firebase Configuration", () => {
     expect(storage).toBeDefined();
   });
 
+  it("should recognize production environment", () => {
+    (process.env as any).NODE_ENV = "production";
+    expect(app).toBeDefined();
+  });
+
   it("should export functions service", () => {
     expect(functions).toBeDefined();
   });
@@ -104,8 +109,8 @@ describe("Firebase Configuration", () => {
 
   describe("Configuration Validation", () => {
     it("should detect missing configuration keys", () => {
-      delete process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-      delete process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+      delete (process.env as any).NEXT_PUBLIC_FIREBASE_API_KEY;
+      delete (process.env as any).NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 
       // Re-import to trigger re-initialization
       jest.resetModules();
@@ -130,7 +135,7 @@ describe("Firebase Configuration", () => {
   describe("Emulator Configuration", () => {
     beforeEach(() => {
       jest.clearAllMocks();
-      process.env.NODE_ENV = "development";
+      (process.env as any).NODE_ENV = "development";
       process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS = "true";
       process.env.NEXT_PUBLIC_FIREBASE_EMULATOR_HOST = "localhost";
       process.env.NEXT_PUBLIC_FIRESTORE_EMULATOR_PORT = "8081";
@@ -170,14 +175,14 @@ describe("Firebase Configuration", () => {
   describe("Debug Logging", () => {
     beforeEach(() => {
       jest.clearAllMocks();
-      process.env.NODE_ENV = "development";
+      (process.env as any).NODE_ENV = "development";
       process.env.NEXT_PUBLIC_FIREBASE_DEBUG_LOGS = "true";
     });
 
     it("should enable Firestore debug logging when configured", () => {
       // Debug logging is set during initialization based on environment variables
       const isDebugEnabled =
-        process.env.NODE_ENV !== "production" &&
+        (process.env as any).NODE_ENV !== "production" &&
         process.env.NEXT_PUBLIC_FIREBASE_DEBUG_LOGS === "true";
       expect(isDebugEnabled).toBe(true);
     });
@@ -187,17 +192,17 @@ describe("Firebase Configuration", () => {
     beforeEach(() => {
       // Mock window object for client-side analytics
       global.window = {} as any;
-      process.env.NODE_ENV = "production";
+      (process.env as any).NODE_ENV = "production";
       jest.clearAllMocks();
     });
 
     afterEach(() => {
-      delete global.window;
+      delete (global as any).window;
     });
 
     it("should initialize analytics when supported", async () => {
       // Analytics initialization is async and optional
-      expect(process.env.NODE_ENV).toBe("production");
+      expect((process.env as any).NODE_ENV).toBe("production");
     });
   });
 

@@ -107,17 +107,26 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
-        // Optimistic update: Update local cache immediately without revalidating (fetching stale data)
+        // Optimistic update: Update local cache immediately, then revalidate to ensure persistence
         const newSettings = {
           ...settings,
           isRecruiter: checked,
-          // If switching to recruiter, keep existing name, if switching off, it might be cleared server side but we keep local state clean
+          // If switching to recruiter, keep existing name, if switching off, clear it
           companyName: checked ? settings.companyName : ""
         };
+        // First update the local cache optimistically for instant UI feedback
         await mutateSettings(newSettings, { revalidate: false });
-
-        await mutateProfile(); // Force re-fetch of global user profile
+        // Then also update local component state
+        setSettings(newSettings);
         setShowCompanyInput(checked);
+
+        // Force re-fetch of global user profile to sync header badge
+        await mutateProfile();
+
+        // Finally, revalidate the settings cache to ensure server data is fetched
+        // This ensures the cache is fresh when navigating away and back
+        await mutateSettings();
+
         setMessage({ type: "success", text: "Account type updated!" });
         setTimeout(() => setMessage(null), 3000);
       } else {
@@ -256,10 +265,10 @@ export default function SettingsPage() {
 
       <main className="relative z-10 max-w-6xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
         <div className="mb-12 text-center">
-          <h1 className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-[#1A2F25] to-[#2C4A3B] tracking-tight">
+          <h1 className="text-5xl font-serif font-bold text-black tracking-tight">
             Your Profile
           </h1>
-          <p className="text-[#1A2F25]/60 text-lg mt-4 font-light max-w-2xl mx-auto">
+          <p className="text-gray-500 text-lg mt-4 font-sans max-w-2xl mx-auto">
             Manage your personal information and account settings in one place.
           </p>
         </div>

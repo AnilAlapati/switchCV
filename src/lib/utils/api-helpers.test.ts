@@ -527,11 +527,11 @@ describe("api-helpers", () => {
 
     it("should include requestId in development", () => {
       const originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = "development";
+      (process.env as any).NODE_ENV = "development";
       const response = handleSecureApiError(new Error("err"));
       // @ts-expect-error - accessing mocked body
       expect(response.body.requestId).toBeDefined();
-      process.env.NODE_ENV = originalEnv;
+      (process.env as any).NODE_ENV = originalEnv;
     });
 
     it("should not log details if logDetails is false", () => {

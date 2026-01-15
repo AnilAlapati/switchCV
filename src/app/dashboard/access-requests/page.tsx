@@ -100,14 +100,15 @@ export default function AccessRequestsPage() {
   const handleDeny = async (request: DashboardAccessRequest) => {
     // Optimistic update: immediately mark as denied in local state
     mutate(
-      (currentData: any) => {
-        if (!currentData?.requests) return currentData;
+      (currentData: unknown) => {
+        const data = currentData as { requests?: DashboardAccessRequest[] };
+        if (!data?.requests) return currentData;
         return {
-          ...currentData,
-          requests: currentData.requests.map((r: DashboardAccessRequest) =>
+          ...data,
+          requests: data.requests.map((r: DashboardAccessRequest) =>
             r.id === request.id ? { ...r, status: "denied" } : r
           ),
-        };
+        } as { requests?: DashboardAccessRequest[] };
       },
       { revalidate: false }
     );
@@ -158,14 +159,15 @@ export default function AccessRequestsPage() {
 
     // Optimistic update: immediately mark as approved in local state
     mutate(
-      (currentData: any) => {
-        if (!currentData?.requests) return currentData;
+      (currentData: unknown) => {
+        const data = currentData as { requests?: DashboardAccessRequest[] };
+        if (!data?.requests) return currentData;
         return {
-          ...currentData,
-          requests: currentData.requests.map((r: DashboardAccessRequest) =>
+          ...data,
+          requests: data.requests.map((r: DashboardAccessRequest) =>
             r.id === request.id ? { ...r, status: "approved" } : r
           ),
-        };
+        } as { requests?: DashboardAccessRequest[] };
       },
       { revalidate: false }
     );

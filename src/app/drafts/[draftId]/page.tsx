@@ -8,7 +8,7 @@ import { templateService } from "@/lib/services/templateService";
 import { TemplateRenderer } from "@/components/resume/TemplateRenderer";
 import { LegacyResumeRenderer } from "@/components/resume/LegacyResumeRenderer";
 import { useDraftData } from "@/hooks/useDraftData";
-import type { ResumeTemplate } from "@/types";
+import type { ResumeTemplate, LegacyResumeData } from "@/types";
 
 export default function DraftPreview() {
   const params = useParams();
@@ -75,9 +75,10 @@ export default function DraftPreview() {
 
       const result = await response.json();
       router.push(`/resumes/${result.resumeId}`);
-    } catch (err: any) {
-      logger.error({ err: err }, "Error publishing draft:");
-      setPublishError(err.message || "Failed to publish. Please try again.");
+    } catch (err: unknown) {
+      const error = err as Error;
+      logger.error({ err: error }, "Error publishing draft:");
+      setPublishError(error.message || "Failed to publish. Please try again.");
     } finally {
       setPublishing(false);
     }
@@ -165,7 +166,7 @@ export default function DraftPreview() {
             onRequestAccess={() => { }}
           />
         ) : (
-          <LegacyResumeRenderer resume={resumeData} />
+          <LegacyResumeRenderer resume={resumeData as unknown as LegacyResumeData} />
         )}
       </div>
     </div>

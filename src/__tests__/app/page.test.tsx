@@ -60,17 +60,17 @@ jest.mock("../../hooks/useGlobalStats", () => ({
 }));
 
 // Mock useHeroBackground (internal) is hard, but we can mock subcomponents
-jest.mock("@/components/home/HomeHero", () => ({
-  HomeHero: ({ stats }: any) => (
+jest.mock("@/components/home/writer/WriterHero", () => ({
+  WriterHero: ({ stats }: any) => (
     <div>
       <h1>SwitchCV</h1>
-      <p>Tell your career story with AI assistance</p>
+      <p>Autonomous Career Agent</p>
       <div>{stats?.resumes} Resumes</div>
     </div>
   ),
 }));
-jest.mock("@/components/home/HomeFeatureCards", () => ({
-  HomeFeatureCards: () => (
+jest.mock("@/components/home/writer/WriterFeatureCards", () => ({
+  WriterFeatureCards: () => (
     <div>
       <div>Privacy Controls</div>
       <div>AI Resume Builder</div>
@@ -79,11 +79,8 @@ jest.mock("@/components/home/HomeFeatureCards", () => ({
     </div>
   ),
 }));
-jest.mock("@/components/home/HomeWorkflow", () => ({
-  HomeWorkflow: () => <div>HomeWorkflow</div>,
-}));
-jest.mock("@/components/home/HomeTestimonials", () => ({
-  HomeTestimonials: () => <div>HomeTestimonials</div>,
+jest.mock("@/components/home/writer/WriterHeader", () => ({
+  WriterHeader: () => <header>Header</header>,
 }));
 jest.mock("@/components/home/HomeFooterCta", () => ({
   HomeFooterCta: () => (
@@ -94,8 +91,8 @@ jest.mock("@/components/home/HomeFooterCta", () => ({
     </div>
   ),
 }));
-jest.mock("@/components/ui/BackgroundBlobs", () => ({
-  BackgroundBlobs: () => <div>BackgroundBlobs</div>,
+jest.mock("@/components/home/LandingFooter", () => ({
+  LandingFooter: () => <footer>Footer</footer>,
 }));
 
 describe("Home", () => {
@@ -117,7 +114,7 @@ describe("Home", () => {
     });
 
     expect(
-      screen.getByText(/Tell your career story with AI assistance/i)
+      screen.getByText(/Autonomous Career Agent/i)
     ).toBeInTheDocument();
   });
 

@@ -19,7 +19,6 @@ export const aggregateBillingHandler = async (context: functions.EventContext) =
     try {
         const shardsSnapshot = await db.collection(SHARD_COLLECTION).get();
         let totalCost = 0;
-        const updates: Promise<any>[] = [];
 
         shardsSnapshot.forEach((doc) => {
             const data = doc.data();

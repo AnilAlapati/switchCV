@@ -105,50 +105,43 @@ export function WillingnessToPaySurvey() {
 
   return (
     <div className="mb-12 relative animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#2C4A3B] to-[#1A2F25] p-1 shadow-xl">
-        <div className="absolute top-0 right-0 p-2 z-20">
-          <button
-            onClick={handleSkip}
-            className="p-2 text-white/40 hover:text-white transition-colors rounded-full hover:bg-white/10"
-            aria-label="Skip survey"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+      {/* Writer Theme: White background with black border, editorial look */}
+      <div className="relative bg-white border-2 border-black p-6 sm:p-8 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        {/* Close button */}
+        <button
+          onClick={handleSkip}
+          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-black transition-colors"
+          aria-label="Skip survey"
+        >
+          <X className="w-5 h-5" />
+        </button>
 
-        <div className="relative bg-[#1A2F25] rounded-xl p-6 sm:p-8">
-          <div className="grid md:grid-cols-[1.5fr,2fr] gap-8 items-center">
-            <div>
-              <div className="flex items-center gap-3 mb-3">
-                <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-bold uppercase tracking-wider border border-emerald-500/20">
-                  Quick Question
-                </span>
-              </div>
-              <h3 className="text-xl font-bold text-white mb-2">
-                Help us shape the future
-              </h3>
-              <p className="text-white/60 text-sm leading-relaxed">
-                If we introduced advanced premium features like bulk resume
-                editing and unlimited AI analysis, would you be interested in
-                subscribing?
-              </p>
-            </div>
+        <div className="grid md:grid-cols-[1.5fr,2fr] gap-8 items-center">
+          <div>
+            <span className="inline-block px-3 py-1 mb-3 text-[10px] font-mono font-bold uppercase tracking-widest text-blue-600 bg-blue-100 border border-blue-200">
+              Quick Question
+            </span>
+            <h3 className="text-xl font-serif font-bold text-black mb-2">
+              Help us shape the future
+            </h3>
+            <p className="text-gray-600 text-sm leading-relaxed">
+              If we introduced advanced premium features like bulk resume
+              editing and unlimited AI analysis, would you be interested in
+              subscribing?
+            </p>
+          </div>
 
-            <div className="grid grid-cols-3 gap-3">
-              {(["Yes", "Maybe", "No"] as const).map((option) => (
-                <button
-                  key={option}
-                  onClick={() => handleResponse(option)}
-                  disabled={isSubmitting}
-                  className="group relative flex flex-col items-center justify-center p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-emerald-500/50 transition-all duration-300 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <span className="text-lg font-bold text-white mb-1 group-hover:text-emerald-400 transition-colors">
-                    {option}
-                  </span>
-                  <div className="absolute inset-0 rounded-xl bg-emerald-500/0 group-hover:bg-emerald-500/5 transition-colors" />
-                </button>
-              ))}
-            </div>
+          <div className="grid grid-cols-3 gap-3">
+            {(["Yes", "Maybe", "No"] as const).map((option) => (
+              <button
+                key={option}
+                onClick={() => handleResponse(option)}
+                disabled={isSubmitting}
+                className="flex flex-col items-center justify-center p-4 border-2 border-black bg-white hover:bg-black hover:text-white transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed font-bold"
+              >
+                {option}
+              </button>
+            ))}
           </div>
         </div>
       </div>

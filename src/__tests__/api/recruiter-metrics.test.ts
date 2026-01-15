@@ -1,30 +1,15 @@
 import { NextRequest } from "next/server";
 import { GET } from "@/app/api/recruiter/metrics/route";
-import { adminDb } from "@/lib/firebase-admin";
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 import { getRecruiterSearchBreakdown } from "@/lib/recruiterSearchHistory";
+import { getUserRole } from "@/lib/services/userService";
+import { getRecruiterMetrics } from "@/lib/services/metricsService";
 
 // Mock dependencies
-jest.mock("@/lib/firebase-admin", () => ({
-  adminDb: {
-    collection: jest.fn().mockReturnThis(),
-    collectionGroup: jest.fn().mockReturnThis(),
-    doc: jest.fn().mockReturnThis(),
-    where: jest.fn().mockReturnThis(),
-    orderBy: jest.fn().mockReturnThis(),
-    get: jest.fn().mockResolvedValue({
-      exists: false,
-      docs: [],
-      forEach: jest.fn(),
-    }),
-    set: jest.fn().mockResolvedValue({}),
-  },
-}));
-
 jest.mock("@/lib/utils/api-helpers", () => ({
   getAuthenticatedUserId: jest.fn(),
   handleApiError: jest.fn((err, msg, status) =>
-    require("next/server").NextResponse.json(
+    Response.json(
       { error: msg || "Internal Server Error" },
       { status: status || 500 }
     )
@@ -33,6 +18,14 @@ jest.mock("@/lib/utils/api-helpers", () => ({
 
 jest.mock("@/lib/recruiterSearchHistory", () => ({
   getRecruiterSearchBreakdown: jest.fn(),
+}));
+
+jest.mock("@/lib/services/userService", () => ({
+  getUserRole: jest.fn(),
+}));
+
+jest.mock("@/lib/services/metricsService", () => ({
+  getRecruiterMetrics: jest.fn(),
 }));
 
 jest.mock("@/lib/logger", () => ({
@@ -51,32 +44,14 @@ describe("Recruiter Metrics API", () => {
     (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
       userId: mockUserId,
     });
-
-    // Mock user role check
-    (adminDb.collection as jest.Mock).mockImplementation((col) => {
-      if (col === "users") {
-        return {
-          doc: jest.fn().mockReturnValue({
-            get: jest.fn().mockResolvedValue({
-              exists: true,
-              data: () => ({ role: "recruiter" }),
-            }),
-          }),
-        };
-      }
-      return {
-        doc: jest.fn().mockReturnThis(),
-        get: jest.fn().mockResolvedValue({
-          exists: true,
-          data: () => ({
-            totalSearches: 10,
-            accessRequests: { pending: 1, approved: 2, denied: 0 },
-          }),
-        }),
-        set: jest.fn().mockResolvedValue({}),
-      };
+    (getUserRole as jest.Mock).mockResolvedValue("recruiter");
+    (getRecruiterMetrics as jest.Mock).mockResolvedValue({
+      totalSearches: 10,
+      totalProfileViews: 5,
+      totalCandidatesInteracted: 2,
+      lastActivityAt: "2024-01-01",
+      accessRequests: { pending: 1, approved: 2, denied: 0 },
     });
-
     (getRecruiterSearchBreakdown as jest.Mock).mockResolvedValue({
       "Software Engineer": 5,
     });
@@ -93,58 +68,6 @@ describe("Recruiter Metrics API", () => {
     expect(data.accessRequests.pending).toBe(1);
   });
 
-  it("should perform lazy migration if accessRequests are missing", async () => {
-    // Mock metrics missing accessRequests
-    (adminDb.collection as jest.Mock).mockImplementation((col) => {
-      if (col === "users") {
-        return {
-          doc: jest.fn().mockReturnValue({
-            get: jest.fn().mockResolvedValue({
-              exists: true,
-              data: () => ({ role: "recruiter" }),
-            }),
-          }),
-        };
-      }
-      if (col === "recruiterMetrics") {
-        return {
-          doc: jest.fn().mockReturnThis(),
-          get: jest.fn().mockResolvedValue({
-            exists: true,
-            data: () => ({ totalSearches: 10 }), // Missing accessRequests
-          }),
-          set: jest.fn().mockResolvedValue({}),
-        };
-      }
-      return {};
-    });
-
-    // Mock collectionGroup queries
-    (adminDb.collectionGroup as jest.Mock).mockImplementation((col) => {
-      return {
-        where: jest.fn().mockReturnThis(),
-        get: jest.fn().mockResolvedValue({
-          forEach: (cb: any) => {
-            if (col === "accessRequests") {
-              cb({ data: () => ({ status: "pending" }) });
-            } else if (col === "accessGrants") {
-              cb({ data: () => ({ expiresAt: null }) });
-            }
-          },
-        }),
-      };
-    });
-
-    const req = new NextRequest(
-      `http://localhost/api/recruiter/metrics?userId=${mockUserId}`
-    );
-    const res = await GET(req);
-    expect(res.status).toBe(200);
-    const data = await res.json();
-    expect(data.accessRequests.pending).toBe(1);
-    expect(data.accessRequests.approved).toBe(1);
-  });
-
   it("should return 403 if accessing another user's metrics", async () => {
     const req = new NextRequest(
       `http://localhost/api/recruiter/metrics?userId=other-user`
@@ -154,25 +77,9 @@ describe("Recruiter Metrics API", () => {
   });
 
   it("should allow admin to access any user's metrics", async () => {
-    (adminDb.collection as jest.Mock).mockImplementation((col) => {
-      if (col === "users") {
-        return {
-          doc: jest.fn().mockReturnValue({
-            get: jest.fn().mockResolvedValue({
-              exists: true,
-              data: () => ({ role: "admin" }),
-            }),
-          }),
-        };
-      }
-      return {
-        doc: jest.fn().mockReturnThis(),
-        get: jest.fn().mockResolvedValue({
-          exists: true,
-          data: () => ({ totalSearches: 10 }),
-        }),
-        set: jest.fn().mockResolvedValue({}),
-      };
+    (getUserRole as jest.Mock).mockImplementation((uid) => {
+      if (uid === mockUserId) return "admin";
+      return "recruiter";
     });
 
     const req = new NextRequest(

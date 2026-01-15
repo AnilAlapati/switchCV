@@ -102,15 +102,15 @@ export function RecruiterSearchForm({
   return (
     <div className="space-y-6">
       {/* Search Mode Selector */}
-      <div className="glass-panel rounded-2xl p-6 shadow-sm border border-[#2C4A3B]/10">
+      <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-6">
         <div className="mb-5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="h-2 w-2 rounded-full bg-[#2C4A3B] animate-pulse"></div>
-            <span className="text-xs font-bold uppercase tracking-wider text-[#2C4A3B]/70">
+            <div className="h-2 w-2 bg-black animate-pulse"></div>
+            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-gray-500">
               Search Mode
             </span>
           </div>
-          <span className="text-[10px] uppercase tracking-widest text-[#2C4A3B]/40 bg-[#2C4A3B]/5 px-2 py-0.5 rounded-full">
+          <span className="text-[10px] font-mono uppercase tracking-widest text-gray-400 bg-gray-100 px-2 py-0.5 border border-gray-200">
             Switch Anytime
           </span>
         </div>
@@ -125,15 +125,15 @@ export function RecruiterSearchForm({
                   <div className="mb-3 rounded-2xl bg-white p-3 shadow-lg">
                     <Lock className="h-6 w-6 text-indigo-600" />
                   </div>
-                  <h3 className="mb-1 text-sm font-bold text-[#1A2F25]">
+                  <h3 className="mb-1 text-sm font-bold text-[black]">
                     Agent Search
                   </h3>
-                  <p className="mb-4 text-xs text-[#1A2F25]/60">
+                  <p className="mb-4 text-xs text-[black]/60">
                     Unlock with Premium or Enterprise
                   </p>
                   <Link
                     href="/profile/subscription"
-                    className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-indigo-600/20 transition-colors hover:bg-indigo-700"
+                    className="bg-black px-4 py-2 text-xs font-bold text-white border-2 border-black transition-colors hover:bg-white hover:text-black"
                   >
                     Upgrade Now
                   </Link>
@@ -145,12 +145,12 @@ export function RecruiterSearchForm({
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-xl text-slate-500">
                       ✨
                     </div>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[#2C4A3B]/40">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[black]/40">
                       Agentic
                     </span>
                   </div>
                   <div>
-                    <span className="block font-bold text-[#1A2F25]">
+                    <span className="block font-bold text-[black]">
                       Agent Search
                     </span>
                     <p className="mt-1 text-xs leading-relaxed text-slate-500">
@@ -163,48 +163,43 @@ export function RecruiterSearchForm({
               <button
                 type="button"
                 onClick={() => handleModeSwitch("ai")}
-                className={`group relative flex h-full flex-col justify-between gap-4 rounded-2xl border-2 p-5 text-left transition-all duration-300 ${
-                  searchMode === "ai"
-                    ? "border-[#2C4A3B] bg-[#2C4A3B] text-white shadow-lg shadow-[#2C4A3B]/20"
-                    : "border-slate-200/80 bg-white/80 hover:border-[#2C4A3B]/50 hover:bg-[#2C4A3B]/5 hover:shadow-md hover:scale-[1.01]"
-                }`}
+                className={`group relative flex h-full flex-col justify-between gap-4 rounded-2xl border-2 p-5 text-left transition-all duration-300 ${searchMode === "ai"
+                  ? "border-[black] bg-[black] text-white shadow-lg shadow-[black]/20"
+                  : "border-slate-200/80 bg-white/80 hover:border-[black]/50 hover:bg-[black]/5 hover:shadow-md hover:scale-[1.01]"
+                  }`}
               >
                 <div className="flex w-full items-start justify-between">
                   <div
-                    className={`flex h-12 w-12 items-center justify-center rounded-xl text-xl transition-all duration-300 ${
-                      searchMode === "ai"
-                        ? "bg-white/20 text-white"
-                        : "bg-slate-100 text-slate-500 group-hover:bg-[#2C4A3B]/10 group-hover:text-[#2C4A3B]"
-                    }`}
+                    className={`flex h-12 w-12 items-center justify-center rounded-xl text-xl transition-all duration-300 ${searchMode === "ai"
+                      ? "bg-white/20 text-white"
+                      : "bg-slate-100 text-slate-500 group-hover:bg-[black]/10 group-hover:text-[black]"
+                      }`}
                   >
                     ✨
                   </div>
                   <span
-                    className={`text-[10px] font-black uppercase tracking-widest ${
-                      searchMode === "ai"
-                        ? "text-white/60"
-                        : "text-[#2C4A3B]/40"
-                    }`}
+                    className={`text-[10px] font-black uppercase tracking-widest ${searchMode === "ai"
+                      ? "text-white/60"
+                      : "text-[black]/40"
+                      }`}
                   >
                     Agentic
                   </span>
                 </div>
                 <div>
                   <span
-                    className={`block font-bold ${
-                      searchMode === "ai"
-                        ? "text-white"
-                        : "text-[#1A2F25] group-hover:text-[#2C4A3B]"
-                    }`}
+                    className={`block font-bold ${searchMode === "ai"
+                      ? "text-white"
+                      : "text-[black] group-hover:text-[black]"
+                      }`}
                   >
                     Agent Search
                   </span>
                   <p
-                    className={`mt-1 text-xs leading-relaxed ${
-                      searchMode === "ai"
-                        ? "text-emerald-100"
-                        : "text-slate-500"
-                    }`}
+                    className={`mt-1 text-xs leading-relaxed ${searchMode === "ai"
+                      ? "text-gray-200"
+                      : "text-slate-500"
+                      }`}
                   >
                     Natural language search powered by autonomous agents
                   </p>
@@ -217,37 +212,33 @@ export function RecruiterSearchForm({
           <button
             type="button"
             onClick={() => handleModeSwitch("basic")}
-            className={`group relative flex h-full flex-col justify-between gap-4 rounded-2xl border-2 p-5 text-left transition-all duration-300 ${
-              searchMode === "basic"
-                ? "border-[#2C4A3B] bg-[#2C4A3B] text-white shadow-lg shadow-[#2C4A3B]/20"
-                : "border-slate-200/80 bg-white/80 hover:border-[#2C4A3B]/50 hover:bg-[#2C4A3B]/5 hover:shadow-md hover:scale-[1.01]"
-            }`}
+            className={`group relative flex h-full flex-col justify-between gap-4 rounded-2xl border-2 p-5 text-left transition-all duration-300 ${searchMode === "basic"
+              ? "border-[black] bg-[black] text-white shadow-lg shadow-[black]/20"
+              : "border-slate-200/80 bg-white/80 hover:border-[black]/50 hover:bg-[black]/5 hover:shadow-md hover:scale-[1.01]"
+              }`}
           >
             <div className="flex w-full items-start justify-between">
               <div
-                className={`flex h-12 w-12 items-center justify-center rounded-xl text-base font-black transition-all duration-300 ${
-                  searchMode === "basic"
-                    ? "bg-white/20 text-white"
-                    : "bg-slate-100 text-slate-500 group-hover:bg-[#2C4A3B]/10 group-hover:text-[#2C4A3B]"
-                }`}
+                className={`flex h-12 w-12 items-center justify-center rounded-xl text-base font-black transition-all duration-300 ${searchMode === "basic"
+                  ? "bg-white/20 text-white"
+                  : "bg-slate-100 text-slate-500 group-hover:bg-[black]/10 group-hover:text-[black]"
+                  }`}
               >
                 ID
               </div>
             </div>
             <div>
               <span
-                className={`block text-base font-bold transition-colors ${
-                  searchMode === "basic"
-                    ? "text-white"
-                    : "text-[#1A2F25] group-hover:text-[#2C4A3B]"
-                }`}
+                className={`block text-base font-bold transition-colors ${searchMode === "basic"
+                  ? "text-white"
+                  : "text-[black] group-hover:text-[black]"
+                  }`}
               >
                 Basic Lookup
               </span>
               <p
-                className={`mt-1.5 text-xs leading-relaxed ${
-                  searchMode === "basic" ? "text-emerald-100" : "text-slate-500"
-                }`}
+                className={`mt-1.5 text-xs leading-relaxed ${searchMode === "basic" ? "text-emerald-100" : "text-slate-500"
+                  }`}
               >
                 Quickly retrieve a Specific candidate using their Resume ID
               </p>
@@ -263,15 +254,15 @@ export function RecruiterSearchForm({
                   <div className="mb-3 rounded-2xl bg-white p-3 shadow-lg">
                     <Lock className="h-6 w-6 text-indigo-600" />
                   </div>
-                  <h3 className="mb-1 text-sm font-bold text-[#1A2F25]">
+                  <h3 className="mb-1 text-sm font-bold text-[black]">
                     Premium Filters
                   </h3>
-                  <p className="mb-4 text-xs text-[#1A2F25]/60">
+                  <p className="mb-4 text-xs text-[black]/60">
                     Unlock with Premium or Enterprise
                   </p>
                   <Link
                     href="/profile/subscription"
-                    className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-indigo-600/20 transition-colors hover:bg-indigo-700"
+                    className="bg-black px-4 py-2 text-xs font-bold text-white border-2 border-black transition-colors hover:bg-white hover:text-black"
                   >
                     Upgrade Now
                   </Link>
@@ -288,7 +279,7 @@ export function RecruiterSearchForm({
                     </span>
                   </div>
                   <div>
-                    <span className="block text-base font-bold text-[#1A2F25]">
+                    <span className="block text-base font-bold text-[black]">
                       Premium Filters
                     </span>
                     <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
@@ -301,39 +292,35 @@ export function RecruiterSearchForm({
               <button
                 type="button"
                 onClick={() => handleModeSwitch("premium")}
-                className={`group relative flex h-full flex-col justify-between gap-4 rounded-2xl border-2 p-5 text-left transition-all duration-300 ${
-                  searchMode === "premium"
-                    ? "border-[#2C4A3B] bg-[#2C4A3B] text-white shadow-lg shadow-[#2C4A3B]/20"
-                    : "border-slate-200/80 bg-white/80 hover:border-[#2C4A3B]/50 hover:bg-[#2C4A3B]/5 hover:shadow-md hover:scale-[1.01]"
-                }`}
+                className={`group relative flex h-full flex-col justify-between gap-4 rounded-2xl border-2 p-5 text-left transition-all duration-300 ${searchMode === "premium"
+                  ? "border-[black] bg-[black] text-white shadow-lg shadow-[black]/20"
+                  : "border-slate-200/80 bg-white/80 hover:border-[black]/50 hover:bg-[black]/5 hover:shadow-md hover:scale-[1.01]"
+                  }`}
               >
                 <div className="flex w-full items-start justify-between">
                   <div
-                    className={`flex h-12 w-12 items-center justify-center rounded-xl text-lg transition-all duration-300 ${
-                      searchMode === "premium"
-                        ? "bg-white/20 text-white"
-                        : "bg-slate-100 text-slate-500 group-hover:bg-[#2C4A3B]/10 group-hover:text-[#2C4A3B]"
-                    }`}
+                    className={`flex h-12 w-12 items-center justify-center rounded-xl text-lg transition-all duration-300 ${searchMode === "premium"
+                      ? "bg-white/20 text-white"
+                      : "bg-slate-100 text-slate-500 group-hover:bg-[black]/10 group-hover:text-[black]"
+                      }`}
                   >
                     ★
                   </div>
                 </div>
                 <div>
                   <span
-                    className={`block text-base font-bold transition-colors ${
-                      searchMode === "premium"
-                        ? "text-white"
-                        : "text-[#1A2F25] group-hover:text-[#2C4A3B]"
-                    }`}
+                    className={`block text-base font-bold transition-colors ${searchMode === "premium"
+                      ? "text-white"
+                      : "text-[black] group-hover:text-[black]"
+                      }`}
                   >
                     Premium Filters
                   </span>
                   <p
-                    className={`mt-1.5 text-xs leading-relaxed ${
-                      searchMode === "premium"
-                        ? "text-emerald-100"
-                        : "text-slate-500"
-                    }`}
+                    className={`mt-1.5 text-xs leading-relaxed ${searchMode === "premium"
+                      ? "text-gray-200"
+                      : "text-slate-500"
+                      }`}
                   >
                     Advanced search with skills and location filters
                   </p>
@@ -348,9 +335,9 @@ export function RecruiterSearchForm({
         onSubmit={
           searchMode === "ai"
             ? (e) => {
-                e.preventDefault();
-                onAiSearch?.();
-              }
+              e.preventDefault();
+              onAiSearch?.();
+            }
             : onSearch
         }
         className="space-y-5"
@@ -359,12 +346,12 @@ export function RecruiterSearchForm({
           /* AI Search Input */
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 text-sm font-semibold text-[#1A2F25]">
+              <label className="flex items-center gap-2 text-sm font-semibold text-[black]">
                 <span className="h-1 w-1 rounded-full bg-cyan-500"></span>
                 Describe Your Ideal Candidate
               </label>
               {aiQuota && (
-                <span className="text-xs text-[#2C4A3B]/60">
+                <span className="text-xs text-[black]/60">
                   {aiQuota.limit === -1 ? (
                     <span className="text-emerald-600">Unlimited searches</span>
                   ) : (
@@ -382,10 +369,10 @@ export function RecruiterSearchForm({
                 placeholder="e.g., Looking for a Java developer with 10 years experience and cloud tools like AWS or Azure..."
                 disabled={aiSearching}
                 rows={3}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-[#1A2F25] placeholder-slate-400 shadow-sm transition-all focus:border-cyan-500 focus:bg-cyan-50/10 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 disabled:opacity-50 resize-none hover:border-cyan-300"
+                className="w-full rounded-lg border-2 border-black bg-white px-4 py-3.5 text-slate-900 placeholder-slate-500 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)] transition-all focus:translate-x-[2px] focus:translate-y-[2px] focus:shadow-none focus:outline-none disabled:opacity-50 resize-none"
               />
             </div>
-            <p className="flex items-start gap-2 text-xs leading-relaxed text-[#2C4A3B]/60">
+            <p className="flex items-start gap-2 text-xs leading-relaxed text-[black]/60">
               <svg
                 className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-slate-400"
                 fill="currentColor"
@@ -409,7 +396,7 @@ export function RecruiterSearchForm({
               <button
                 type="submit"
                 disabled={loading || aiSearching}
-                className="flex items-center gap-2 rounded-xl bg-[#2C4A3B] px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#2C4A3B]/20 transition-all hover:bg-[#20362B] hover:shadow-xl hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 rounded-lg bg-black px-6 py-2.5 text-sm font-bold text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] border-2 border-black transition-all hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading || aiSearching ? (
                   <>
@@ -445,12 +432,12 @@ export function RecruiterSearchForm({
           </div>
         ) : searchMode === "basic" ? (
           <div className="space-y-4">
-            <label className="flex items-center gap-2.5 text-sm font-semibold text-[#1A2F25]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#2C4A3B]"></span>
+            <label className="flex items-center gap-2.5 text-sm font-semibold text-[black]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[black]"></span>
               Resume ID
             </label>
             <div className="relative group">
-              <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-slate-400 transition-colors group-focus-within:text-[#2C4A3B]">
+              <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-slate-400 transition-colors group-focus-within:text-[black]">
                 <svg
                   className="h-5 w-5"
                   fill="none"
@@ -471,13 +458,13 @@ export function RecruiterSearchForm({
                 onChange={(e) => setUserId(e.target.value)}
                 placeholder="e.g., 2"
                 disabled={loading}
-                className="w-full rounded-2xl border-2 border-slate-200 bg-white py-4 pl-12 pr-28 text-lg text-[#1A2F25] placeholder-slate-400 shadow-sm transition-all duration-300 focus:border-[#2C4A3B] focus:bg-emerald-50/10 focus:outline-none focus:ring-4 focus:ring-[#2C4A3B]/10 focus:shadow-lg focus:shadow-[#2C4A3B]/5 disabled:opacity-50 hover:border-[#2C4A3B]/50 hover:shadow-md"
+                className="w-full rounded-lg border-2 border-black bg-white py-4 pl-12 pr-28 text-lg text-slate-900 placeholder-slate-500 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)] transition-all focus:translate-x-[2px] focus:translate-y-[2px] focus:shadow-none focus:outline-none disabled:opacity-50"
               />
               <div className="absolute right-2 top-2 bottom-2">
                 <button
                   type="submit"
                   disabled={loading}
-                  className="h-full rounded-xl bg-[#2C4A3B] px-4 font-bold text-white shadow-md transition-all hover:bg-[#20362B] hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="h-full rounded-lg bg-black px-4 font-bold text-white shadow-sm border-2 border-black transition-all hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   {loading ? (
                     <svg
@@ -518,9 +505,9 @@ export function RecruiterSearchForm({
                 </button>
               </div>
             </div>
-            <p className="flex items-start gap-2.5 text-xs leading-relaxed text-[#2C4A3B]/60">
+            <p className="flex items-start gap-2.5 text-xs leading-relaxed text-[black]/60">
               <svg
-                className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#2C4A3B]"
+                className="mt-0.5 h-4 w-4 flex-shrink-0 text-[black]"
                 fill="currentColor"
                 viewBox="0 0 20 20"
               >
@@ -536,7 +523,7 @@ export function RecruiterSearchForm({
         ) : (
           <div className="space-y-5">
             <div>
-              <label className="mb-3 flex items-center gap-2 text-sm font-semibold text-[#1A2F25]">
+              <label className="mb-3 flex items-center gap-2 text-sm font-semibold text-[black]">
                 <span className="h-1 w-1 rounded-full bg-purple-500"></span>
                 Skills
               </label>
@@ -552,13 +539,13 @@ export function RecruiterSearchForm({
                       commitSkill();
                     }
                   }}
-                  className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-[#1A2F25] placeholder-slate-400 shadow-sm transition-all focus:border-purple-500 focus:bg-purple-50/10 focus:outline-none focus:ring-2 focus:ring-purple-500/20 disabled:opacity-50 hover:border-purple-300"
+                  className="flex-1 rounded-lg border-2 border-black bg-white px-4 py-3 text-slate-900 placeholder-slate-500 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)] transition-all focus:translate-x-[2px] focus:translate-y-[2px] focus:shadow-none focus:outline-none disabled:opacity-50"
                 />
                 <button
                   type="button"
                   onClick={commitSkill}
                   disabled={loading}
-                  className="rounded-xl border border-purple-200 bg-purple-50 px-6 py-3 text-sm font-bold text-purple-700 shadow-sm transition-all hover:border-purple-300 hover:bg-purple-100 disabled:opacity-60"
+                  className="rounded-lg border-2 border-black bg-black px-6 py-3 text-sm font-bold text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none disabled:opacity-60"
                 >
                   Add Skill
                 </button>
@@ -585,7 +572,7 @@ export function RecruiterSearchForm({
             </div>
 
             <div>
-              <label className="mb-3 flex items-center gap-2 text-sm font-semibold text-[#1A2F25]">
+              <label className="mb-3 flex items-center gap-2 text-sm font-semibold text-[black]">
                 <span className="h-1 w-1 rounded-full bg-purple-500"></span>
                 Location
               </label>
@@ -617,10 +604,10 @@ export function RecruiterSearchForm({
                   onChange={(e) => setLocation(e.target.value)}
                   placeholder="City, region, or remote"
                   disabled={loading}
-                  className="w-full rounded-xl border border-slate-200 bg-white py-3.5 pl-11 pr-4 text-[#1A2F25] placeholder-slate-400 shadow-sm transition-all focus:border-purple-500 focus:bg-purple-50/10 focus:outline-none focus:ring-2 focus:ring-purple-500/20 disabled:opacity-50 hover:border-purple-300"
+                  className="w-full rounded-lg border-2 border-black bg-white py-3.5 pl-11 pr-4 text-slate-900 placeholder-slate-500 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)] transition-all focus:translate-x-[2px] focus:translate-y-[2px] focus:shadow-none focus:outline-none disabled:opacity-50"
                 />
               </div>
-              <p className="mt-2 flex items-start gap-2 text-xs leading-relaxed text-[#2C4A3B]/60">
+              <p className="mt-2 flex items-start gap-2 text-xs leading-relaxed text-[black]/60">
                 <svg
                   className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-slate-400"
                   fill="currentColor"
@@ -639,7 +626,7 @@ export function RecruiterSearchForm({
               <button
                 type="submit"
                 disabled={loading}
-                className="flex items-center gap-2 rounded-xl bg-[#2C4A3B] px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#2C4A3B]/20 transition-all hover:bg-[#20362B] hover:shadow-xl hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 rounded-lg bg-black px-6 py-2.5 text-sm font-bold text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] border-2 border-black transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <>

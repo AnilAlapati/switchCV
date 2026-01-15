@@ -8,6 +8,8 @@ import {
   NotificationType,
   NotificationChannel,
   NotificationPriority,
+  NotificationPayload,
+  NotificationPreference,
 } from "@/lib/notifications.types";
 import {
   createNotification,
@@ -32,6 +34,18 @@ import {
 import { checkRateLimit } from "@/lib/utils/rateLimit";
 import { getConstants } from "@/lib/getSystemConfig";
 import { notificationRequestSchema } from "@/lib/validations/notification";
+
+interface NotificationActionData {
+  type: string;
+  payload: NotificationPayload;
+  channels: string[];
+  priority?: NotificationPriority;
+  email?: string;
+  phone?: string;
+  pushToken?: string;
+  webhookUrl?: string;
+}
+
 
 export async function POST(request: NextRequest) {
   try {
@@ -135,7 +149,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-async function handleSend(userId: string, data: any) {
+async function handleSend(userId: string, data: NotificationActionData) {
   const {
     type,
     payload,
@@ -254,16 +268,20 @@ async function handleGetPreferences(userId: string) {
   });
 }
 
-async function handleUpdatePreference(userId: string, preference: any) {
+async function handleUpdatePreference(userId: string, preference: Partial<NotificationPreference>) {
   if (!userId || !preference) {
     return handleApiError(null, "Missing required fields", 400);
   }
 
-  const updated = {
+  const updated: NotificationPreference = {
     ...preference,
     id: preference.id || `pref_${generateNotificationId()}`,
     userId,
     updatedAt: new Date(),
+    type: preference.type || NotificationType.PROFILE_VIEW, // Default if not provided
+    channels: preference.channels || [NotificationChannel.IN_APP],
+    enabled: preference.enabled !== undefined ? preference.enabled : true,
+    createdAt: preference.createdAt || new Date(),
   };
 
   await savePreference(updated);

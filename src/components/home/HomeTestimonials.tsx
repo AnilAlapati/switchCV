@@ -23,7 +23,7 @@ const TESTIMONIALS = [
 
 export function HomeTestimonials() {
   return (
-    <section aria-labelledby="voices-heading" className="space-y-12 py-12">
+    <section id="testimonials" aria-labelledby="voices-heading" className="space-y-12 py-12">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}

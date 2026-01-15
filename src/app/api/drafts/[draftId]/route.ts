@@ -44,8 +44,8 @@ export async function GET(
         "Cache-Control": "private, max-age=60, stale-while-revalidate=300",
       },
     });
-  } catch (error: any) {
-    if (error?.message?.includes("Forbidden")) {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message.includes("Forbidden")) {
       return handleApiError(error, "Forbidden", 403);
     }
     return handleApiError(error, "Failed to fetch draft");
@@ -104,16 +104,16 @@ export async function PATCH(
         (updates.profile || {}) as unknown as Partial<ResumeProfile>
       );
       return NextResponse.json(updatedDraft);
-    } catch (error: any) {
-      if (error.message.includes("Draft not found")) {
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message.includes("Draft not found")) {
         return handleApiError(null, "Draft not found", 404);
       }
-      if (error.message.includes("Forbidden")) {
+      if (error instanceof Error && error.message.includes("Forbidden")) {
         return handleApiError(error, "Forbidden", 403);
       }
       throw error;
     }
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, "Failed to update draft");
   }
 }
@@ -131,16 +131,16 @@ export async function DELETE(
     try {
       await deleteDraft(draftId, userId!);
       return NextResponse.json({ success: true });
-    } catch (error: any) {
-      if (error.message.includes("Draft not found")) {
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message.includes("Draft not found")) {
         return handleApiError(null, "Draft not found", 404);
       }
-      if (error.message.includes("Forbidden")) {
+      if (error instanceof Error && error.message.includes("Forbidden")) {
         return handleApiError(error, "Forbidden", 403);
       }
       throw error;
     }
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, "Failed to delete draft");
   }
 }

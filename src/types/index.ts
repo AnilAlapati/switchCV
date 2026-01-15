@@ -1,4 +1,5 @@
 // src/types/index.ts
+import { SubscriptionTier, UserRole } from "@/lib/config";
 
 export type Visibility = "public" | "masked" | "request";
 
@@ -121,6 +122,8 @@ export interface DraftResume {
 export interface PublishedResume {
   /** Numeric resume ID (e.g., 12345678) */
   resumeId: number;
+  /** Alias for resumeId to match DashboardResume */
+  numericId: number;
   /** Owner's user ID */
   userId: string;
   /** Resume content */
@@ -139,6 +142,77 @@ export interface PublishedResume {
   isBeingEdited: boolean;
   /** Associated draft ID if currently being edited */
   editingDraftId?: string;
+}
+
+/**
+ * Dashboard Resume - Flattened structure used in UI components
+ */
+export interface DashboardResume extends ResumeProfile {
+  id: string;
+  numericId?: number;
+  published?: boolean;
+  isPublic?: boolean;
+  visibility?: string;
+  lastUpdatedAt: string;
+  updatedAt?: string;
+  publishedAt?: string;
+  createdAt?: string;
+  templateId?: string;
+  isBeingEdited?: boolean;
+  viewerAccess?: ViewerAccessMeta;
+}
+
+export interface ViewerAccessMeta {
+  isOwner?: boolean;
+  isRecruiter?: boolean;
+  hasGrantedAccess?: boolean;
+  scope?: string;
+}
+
+export interface UserProfile {
+  uid: string;
+  email: string;
+  displayName?: string;
+  photoURL?: string;
+  subscriptionTier: SubscriptionTier;
+  role: UserRole;
+  createdAt?: string;
+  lastLoginAt?: string;
+  agentic?: {
+    usageCount: number;
+    lastRunAt: string;
+  };
+}
+
+export interface LegacyResumeData {
+  title: string;
+  numericId?: string | number;
+  personalInfo?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    location?: string;
+  };
+  summary?: string;
+  experience?: Array<{
+    title: string;
+    company: string;
+    duration: string;
+    description: string;
+    achievements?: string[];
+  }>;
+  education?: Array<{
+    institution: string;
+    degree: string;
+    year: string;
+    major?: string;
+  }>;
+  skills?: Array<string | { name: string }>;
+  work?: Array<Record<string, unknown>>;
+  languages?: Array<Record<string, unknown>>;
+  interests?: Array<Record<string, unknown>>;
+  references?: Array<Record<string, unknown>>;
+  projects?: Array<Record<string, unknown>>;
 }
 
 export interface User {

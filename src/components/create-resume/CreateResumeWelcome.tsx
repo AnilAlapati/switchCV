@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactElement } from "react";
 import {
   Bot,
   Brain,
@@ -15,31 +16,31 @@ interface CreateResumeWelcomeProps {
 
 export function CreateResumeWelcome({
   onSuggestionClick,
-}: CreateResumeWelcomeProps) {
+}: CreateResumeWelcomeProps): ReactElement {
   const agents = [
     {
-      icon: <MessageSquare className="w-5 h-5 text-blue-500" />,
+      icon: <MessageSquare className="w-5 h-5 text-blue-600" />,
       title: "Conversational Agent",
       description:
         "Interviews you naturally to understand your experience, skills, and career goals through friendly conversation.",
       role: "Information Gathering",
     },
     {
-      icon: <Brain className="w-5 h-5 text-purple-500" />,
+      icon: <Brain className="w-5 h-5 text-gray-600" />,
       title: "Strategy Agent",
       description:
         "Analyzes your background and target roles to determine the best resume structure, tone, and positioning strategy.",
       role: "Strategic Planning",
     },
     {
-      icon: <Sparkles className="w-5 h-5 text-amber-500" />,
+      icon: <Sparkles className="w-5 h-5 text-blue-600" />,
       title: "Content Agent",
       description:
         "Crafts compelling, ATS-optimized content with powerful action verbs and quantified achievements that stand out.",
       role: "Content Creation",
     },
     {
-      icon: <FileCheck className="w-5 h-5 text-emerald-500" />,
+      icon: <FileCheck className="w-5 h-5 text-black" />,
       title: "Quality Agent",
       description:
         "Reviews and refines every section for clarity, impact, consistency, and alignment with industry best practices.",
@@ -50,21 +51,21 @@ export function CreateResumeWelcome({
   return (
     <div className="flex flex-col items-center justify-center min-h-[32vh] px-4 pt-6 pb-4 text-center animate-in fade-in zoom-in duration-700">
       <div className="flex flex-col items-center gap-3 mb-4">
-        <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl shadow-md flex items-center justify-center">
+        <div className="w-14 h-14 bg-black flex items-center justify-center border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)]">
           <Bot className="w-7 h-7 text-white" />
         </div>
-        <h1 className="text-3xl md:text-[34px] font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70 tracking-tight">
+        <h1 className="text-3xl md:text-[34px] font-serif font-bold text-black tracking-tight">
           Your AI Career Agent
         </h1>
-        <p className="text-base md:text-lg text-muted-foreground max-w-3xl leading-relaxed">
+        <p className="text-base md:text-lg text-gray-600 max-w-3xl leading-relaxed font-sans">
           Powered by an{" "}
-          <span className="font-semibold text-foreground">
+          <span className="font-bold text-black">
             Agentic AI System
           </span>{" "}
           — a team of specialized AI agents working together to create your
           perfect resume.
         </p>
-        <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 rounded-full text-sm font-medium text-primary shadow-sm">
+        <div className="inline-flex items-center gap-2 px-4 py-2 bg-white border-2 border-black text-sm font-mono font-bold text-black uppercase tracking-wider">
           <Users className="w-4 h-4" />
           <span>4 AI Agents • Collaborative Intelligence</span>
         </div>
@@ -74,20 +75,20 @@ export function CreateResumeWelcome({
         {agents.map((agent, index) => (
           <div
             key={index}
-            className="group flex flex-col items-start p-5 bg-card/50 backdrop-blur-sm border border-white/20 rounded-2xl text-left transition-all hover:bg-card hover:border-primary/30 hover:shadow-lg"
+            className="group flex flex-col items-start p-5 bg-white border-2 border-gray-200 text-left transition-all hover:border-black hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
           >
             <div className="flex items-start justify-between w-full mb-4">
-              <div className="p-3 bg-white/10 rounded-xl group-hover:scale-110 transition-transform">
+              <div className="p-3 bg-gray-50 border border-gray-200 group-hover:bg-black group-hover:text-white transition-colors">
                 {agent.icon}
               </div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 bg-muted/50 px-2 py-1 rounded-full">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-gray-400 bg-gray-100 px-2 py-1 border border-gray-200">
                 {agent.role}
               </span>
             </div>
-            <h3 className="text-lg font-bold mb-2 text-foreground">
+            <h3 className="text-lg font-serif font-bold mb-2 text-black">
               {agent.title}
             </h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">
+            <p className="text-sm text-gray-600 leading-relaxed font-sans">
               {agent.description}
             </p>
           </div>
@@ -95,7 +96,7 @@ export function CreateResumeWelcome({
       </div>
 
       <div className="mt-8 text-center">
-        <p className="text-sm text-muted-foreground mb-4">
+        <p className="text-sm text-gray-500 mb-4 font-sans">
           Ready to get started?
         </p>
         <button
@@ -104,7 +105,7 @@ export function CreateResumeWelcome({
               "I want to create a professional resume. Let's get started!"
             )
           }
-          className="group inline-flex items-center gap-2 px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-full shadow-lg transition-all hover:scale-105 hover:shadow-emerald-600/25"
+          className="group inline-flex items-center gap-2 px-8 py-4 bg-black hover:bg-gray-800 text-white font-bold transition-all border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]"
         >
           <Bot className="w-5 h-5" />
           <span>Start Building Your Resume</span>

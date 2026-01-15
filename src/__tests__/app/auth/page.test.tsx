@@ -127,7 +127,7 @@ describe("AuthPage", () => {
 
   it("renders sign in form by default", () => {
     render(<AuthPage />);
-    expect(screen.getByText("Welcome Back")).toBeInTheDocument();
+    expect(screen.getByText("Access Terminal")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign In" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Username")).not.toBeInTheDocument();
   });
@@ -136,7 +136,7 @@ describe("AuthPage", () => {
     render(<AuthPage />);
     fireEvent.click(screen.getByText("Don't have an account? Sign up"));
 
-    expect(screen.getByText("Join the Future")).toBeInTheDocument();
+    expect(screen.getByText("Begin Application")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Create Account" })
     ).toBeInTheDocument();

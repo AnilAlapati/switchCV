@@ -93,7 +93,7 @@ export function addCandidateNote(
     candidateId,
     userId,
     content,
-    category: category as any,
+    category: (category as "general" | "technical" | "cultural-fit" | "feedback" | "follow-up") || "general",
     isPrivate,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -192,7 +192,7 @@ export function getUpcomingInterviews(
 export function calculatePipelineMetrics(
   pipeline: RecruitmentPipeline
 ): PipelineMetrics {
-  const stageDistribution: Record<PipelineStage, number> = {} as any;
+  const stageDistribution: Record<PipelineStage, number> = {} as Record<PipelineStage, number>;
   let hiredCount = 0;
 
   pipeline.columns.forEach((col) => {

@@ -1,4 +1,3 @@
-/* eslint-disable max-lines */
 "use client";
 
 import Link from "next/link";
@@ -11,13 +10,14 @@ import type { JobSeekerMetrics } from "@/types/dashboard";
 import { DeleteResumeDialog } from "./DeleteResumeDialog";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import type { DashboardResume } from "@/types";
 
 interface ResumeSnapshotCardProps {
   hasResume: boolean;
   resumeId: string | number | null;
   resumeLoading: boolean;
   isPublished: boolean;
-  resumeData?: any;
+  resumeData?: DashboardResume;
   metrics?: JobSeekerMetrics | null;
   onToggleVisibility?: () => void;
   isUpdatingVisibility?: boolean;
@@ -84,23 +84,19 @@ export function ResumeSnapshotCard({
 
   if (!hasResume) {
     return (
-      <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1A2F25] to-[#2C4A3B] p-8 text-white shadow-xl transition-all hover:shadow-2xl">
-        {/* Decorative background elements */}
-        <div className="absolute top-0 right-0 -mt-16 -mr-16 h-64 w-64 rounded-full bg-white/5 blur-3xl transition-all duration-500 group-hover:bg-white/10"></div>
-        <div className="absolute bottom-0 left-0 -mb-16 -ml-16 h-64 w-64 rounded-full bg-emerald-500/20 blur-3xl"></div>
-
+      <div className="group relative overflow-hidden bg-white p-8 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
         <div className="relative z-10 flex flex-col items-start gap-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="max-w-lg space-y-3">
-            <div className="flex items-center gap-2 text-emerald-400">
+            <div className="flex items-center gap-2 text-blue-600">
               <Sparkles className="h-5 w-5" />
-              <span className="text-sm font-semibold uppercase tracking-wider">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-widest">
                 AI-Powered Resume
               </span>
             </div>
-            <h2 className="text-3xl font-bold tracking-tight text-white">
+            <h2 className="text-3xl font-serif font-bold tracking-tight text-black">
               Build Your Spotlight
             </h2>
-            <p className="text-lg text-slate-300">
+            <p className="text-base text-gray-600 leading-relaxed">
               Create a professional resume in minutes and get discovered by top
               recruiters.
             </p>
@@ -108,7 +104,7 @@ export function ResumeSnapshotCard({
 
           <Link
             href="/create-resume"
-            className="group/btn relative inline-flex items-center justify-center overflow-hidden rounded-2xl bg-white px-8 py-4 font-bold text-[#1A2F25] shadow-lg transition-all hover:scale-105 hover:shadow-xl"
+            className="group/btn inline-flex items-center justify-center bg-black px-8 py-4 font-bold text-white transition-all hover:scale-105 border-2 border-black"
           >
             <span className="mr-2">Start Building</span>
             <ArrowRight className="h-5 w-5 transition-transform group-hover/btn:translate-x-1" />
@@ -131,26 +127,24 @@ export function ResumeSnapshotCard({
             <div className="flex items-center gap-3 mb-4">
               <div className="group relative">
                 <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border cursor-help ${
-                    isPublished
-                      ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                      : "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                  }`}
+                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border cursor-help ${isPublished
+                    ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                    : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                    }`}
                 >
                   <span
-                    className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
-                      isPublished ? "bg-emerald-500" : "bg-amber-500"
-                    }`}
+                    className={`mr-1.5 h-1.5 w-1.5 rounded-full ${isPublished ? "bg-emerald-500" : "bg-amber-500"
+                      }`}
                   ></span>
                   {isPublished ? "Public" : "Private"}
                 </span>
 
                 {/* Tooltip */}
-                <div className="absolute left-0 top-full mt-2 hidden group-hover:block w-56 rounded-xl border border-white/60 bg-white/80 backdrop-blur-xl p-3 text-xs text-[#1A2F25]/80 shadow-xl z-30">
-                  <p className="font-bold text-[#1A2F25] mb-0.5">
+                <div className="absolute left-0 top-full mt-2 hidden group-hover:block w-56 rounded-xl border border-white/60 bg-white/80 backdrop-blur-xl p-3 text-xs text-[black]/80 shadow-xl z-30">
+                  <p className="font-bold text-[black] mb-0.5">
                     {isPublished ? "Public Resume" : "Private Resume"}
                   </p>
-                  <p className="text-[#1A2F25]/60 leading-relaxed">
+                  <p className="text-black/60 leading-relaxed">
                     {isPublished
                       ? "Your resume is visible to recruiters and can be shared with a public link."
                       : "Your resume is only visible to you. Recruiters cannot find or view it."}
@@ -161,7 +155,7 @@ export function ResumeSnapshotCard({
               </div>
 
               {lastUpdated && (
-                <span className="text-[10px] text-[#1A2F25]/40 font-medium">
+                <span className="text-[10px] text-black/40 font-medium">
                   Updated{" "}
                   {formatDistanceToNow(new Date(lastUpdated), {
                     addSuffix: true,
@@ -170,24 +164,24 @@ export function ResumeSnapshotCard({
               )}
             </div>
 
-            <h2 className="text-3xl font-extrabold text-[#1A2F25] mb-2 tracking-tight">
+            <h2 className="text-3xl font-extrabold text-black mb-2 tracking-tight">
               {resumeData?.title || "My Resume"}
             </h2>
-            <p className="text-[#1A2F25]/60 line-clamp-2 max-w-xl text-sm leading-relaxed mb-6">
+            <p className="text-black/60 line-clamp-2 max-w-xl text-sm leading-relaxed mb-6">
               {resumeData?.summary ||
                 "Add a professional summary to help recruiters understand your background."}
             </p>
 
             <div className="flex flex-wrap gap-2 mb-8">
-              {skills.map((skill: any, i: number) => (
+              {skills.map((skill: string | { name: string }, i: number) => (
                 <span
                   key={i}
-                  className="px-3 py-1 rounded-lg bg-white/60 border border-white/80 text-xs font-semibold text-[#1A2F25]/70 shadow-sm"
+                  className="px-3 py-1 rounded-lg bg-white/60 border border-white/80 text-xs font-semibold text-black/70 shadow-sm"
                 >
                   {typeof skill === "string" ? skill : skill.name}
                 </span>
               ))}
-              {resumeData?.skills?.length > 5 && (
+              {resumeData?.skills && resumeData.skills.length > 5 && (
                 <span className="px-3 py-1 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100 text-xs font-bold">
                   +{resumeData.skills.length - 5}
                 </span>
@@ -197,7 +191,7 @@ export function ResumeSnapshotCard({
 
           <div className="flex flex-wrap lg:flex-col gap-3">
             <div className="flex items-center gap-2 p-1 bg-white/50 rounded-xl border border-white/80 shadow-sm mb-2">
-              <span className="text-[10px] font-bold text-[#1A2F25]/40 ml-2 mr-1">
+              <span className="text-[10px] font-bold text-black/40 ml-2 mr-1">
                 VISIBILITY
               </span>
               <button
@@ -235,7 +229,7 @@ export function ResumeSnapshotCard({
                 ) : (
                   <Link
                     href={`/resumes/${resumeIdString}/ai-edit`}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-[#1A2F25] text-sm font-bold border border-slate-200 shadow-sm transition-all hover:bg-slate-50 hover:shadow-md active:scale-95"
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-[black] text-sm font-bold border border-slate-200 shadow-sm transition-all hover:bg-slate-50 hover:shadow-md active:scale-95"
                   >
                     <Edit3 className="h-4 w-4 text-indigo-600" />
                     Edit
@@ -258,7 +252,7 @@ export function ResumeSnapshotCard({
                     duration: 3000,
                   });
                 }}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-[#1A2F25] text-sm font-bold border border-slate-200 shadow-sm transition-all hover:bg-slate-50 hover:shadow-md active:scale-95"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-[black] text-sm font-bold border border-slate-200 shadow-sm transition-all hover:bg-slate-50 hover:shadow-md active:scale-95"
               >
                 Share
               </button>
@@ -281,9 +275,9 @@ export function ResumeSnapshotCard({
           isBasicUser={isBasicUser}
         />
 
-        <div className="mt-8 pt-6 border-t border-[#1A2F25]/5 flex flex-wrap gap-8">
+        <div className="mt-8 pt-6 border-t border-[black]/5 flex flex-wrap gap-8">
           <div className="flex flex-col">
-            <span className="text-[10px] font-bold text-[#1A2F25]/40 uppercase tracking-widest mb-1">
+            <span className="text-[10px] font-bold text-[black]/40 uppercase tracking-widest mb-1">
               Impact Factor
             </span>
             <div className="flex items-center gap-2">
@@ -293,22 +287,22 @@ export function ResumeSnapshotCard({
                   style={{ width: `${metrics?.quality || 0}%` }}
                 ></div>
               </div>
-              <span className="text-sm font-bold text-[#1A2F25]">
+              <span className="text-sm font-bold text-[black]">
                 {metrics?.quality
                   ? metrics.quality > 75
                     ? "High"
                     : metrics.quality > 40
-                    ? "Medium"
-                    : "Developing"
+                      ? "Medium"
+                      : "Developing"
                   : "Not analyzed"}
               </span>
             </div>
           </div>
           <div className="flex flex-col">
-            <span className="text-[10px] font-bold text-[#1A2F25]/40 uppercase tracking-widest mb-1">
+            <span className="text-[10px] font-bold text-[black]/40 uppercase tracking-widest mb-1">
               Recruiter Searches
             </span>
-            <span className="text-sm font-bold text-[#1A2F25]">
+            <span className="text-sm font-bold text-[black]">
               {metrics?.profileViews ?? 0} this week
             </span>
           </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactElement } from "react";
 import Link from "next/link";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { PremiumFeatureLock } from "@/components/ui/PremiumFeatureLock";
@@ -25,15 +26,15 @@ export function ResourceLinksCard({
   caption,
   links,
   lockForBasic = false,
-}: ResourceLinksCardProps) {
+}: ResourceLinksCardProps): ReactElement {
   const { tier } = useUserProfile();
   const isBasic = tier === "basic";
 
   const cardContent = (
-    <section className="glass-panel rounded-3xl p-6 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 border-indigo-500/10">
-      <header className="mb-5 space-y-1">
-        <h2 className="text-lg font-bold text-[#1A2F25]">{title}</h2>
-        {caption && <p className="text-sm text-[#1A2F25]/60">{caption}</p>}
+    <section className="bg-white border-2 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+      <header className="mb-5 space-y-1 border-b-2 border-gray-100 pb-4">
+        <h2 className="text-lg font-serif font-bold text-black">{title}</h2>
+        {caption && <p className="text-sm text-gray-500 font-sans">{caption}</p>}
       </header>
 
       <div className="space-y-3">
@@ -42,12 +43,12 @@ export function ResourceLinksCard({
             key={link.id}
             href={link.href}
             target={link.external ? "_blank" : undefined}
-            className="flex flex-col gap-1 rounded-2xl border border-[#1A2F25]/5 bg-white/40 p-4 transition-all hover:bg-white/60 hover:shadow-sm hover:border-indigo-500/20 group"
+            className="flex flex-col gap-1 border-2 border-gray-200 bg-white p-4 transition-all hover:border-black hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] group"
           >
-            <span className="text-sm font-bold text-indigo-600 group-hover:text-indigo-700">
+            <span className="text-sm font-mono font-bold text-blue-600 uppercase tracking-wider group-hover:text-black">
               {link.title}
             </span>
-            <span className="text-sm text-[#1A2F25]/70">
+            <span className="text-sm text-gray-600 font-sans">
               {link.description}
             </span>
           </Link>

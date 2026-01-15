@@ -36,7 +36,7 @@ const createMockAuthContext = (user: any) => ({
   refreshUser: jest.fn(),
   needsUsername: false,
   setUsername: jest.fn(),
-  checkNeedsUsername: jest.fn(),
+  checkNeedsUsername: jest.fn().mockResolvedValue(false),
 });
 
 describe("CandidatesInteractedCard", () => {
@@ -312,13 +312,13 @@ describe("CandidatesInteractedCard", () => {
       });
 
       await waitFor(() => {
-        const card = document.querySelector(".glass-panel");
+        const card = document.querySelector(".border-black");
         expect(card).toHaveClass(
-          "glass-panel",
-          "rounded-3xl",
+          "bg-white",
+          "border-2",
+          "border-black",
           "p-6",
-          "transition",
-          "hover:shadow-lg"
+          "transition-all"
         );
       });
     });

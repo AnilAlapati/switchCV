@@ -8,7 +8,7 @@ import { QuotaExceededError } from "@/lib/services/quotaService";
 
 // export const dynamic = 'force-dynamic'; // Typically needed for Next.js API routes using headers/cookies
 
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     // 1. Authentication
     const { userId: authUserId, error: authError } =
@@ -40,9 +40,10 @@ export async function GET(request: NextRequest) {
         }
       });
 
-    } catch (error: any) {
+    } catch (error) {
       // Handle known domain errors to preserve UX
-      if (error.message === "forbidden-role") {
+      const err = error as Error;
+      if (err.message === "forbidden-role") {
         return handleApiError(null, "Forbidden: Recruiter role required", 403);
       }
 
@@ -60,8 +61,8 @@ export async function GET(request: NextRequest) {
       throw error; // Let outer catch handle unexpected errors
     }
 
-  } catch (error) {
-    return handleApiError(error, "Failed to process request");
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return handleApiError(error, "Failed to search resumes: " + errorMessage);
   }
 }
-

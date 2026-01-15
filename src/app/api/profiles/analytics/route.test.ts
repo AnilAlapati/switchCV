@@ -79,7 +79,7 @@ describe("GET /api/profiles/analytics", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (adminDb.get as jest.Mock).mockResolvedValue({
+    ((adminDb as any).get as jest.Mock).mockResolvedValue({
       exists: true,
       data: () => ({ role: "admin" }),
     });
@@ -93,6 +93,7 @@ describe("GET /api/profiles/analytics", () => {
     const { getAuthenticatedUserId } = require("@/lib/utils/api-helpers");
     (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: "user-123", error: null });
   });
+
 
   it("should return analytics data for valid resumeId", async () => {
     const mockAnalyticsData = {
@@ -142,7 +143,7 @@ describe("GET /api/profiles/analytics", () => {
       recentEvents: [],
     };
 
-    mockGetAnalytics.mockResolvedValue(mockAnalyticsData);
+    mockGetAnalytics.mockResolvedValue(mockAnalyticsData as any);
 
     mockRequest.nextUrl.searchParams.set("resumeId", "resume-123");
 

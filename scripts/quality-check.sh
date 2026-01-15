@@ -74,7 +74,8 @@ else
   LINT_OUTPUT=$(npm run lint 2>&1) || true
 fi
 
-LINT_ERRORS=$(echo "$LINT_OUTPUT" | grep -c "error" || echo "0")
+# Exclude the summary line from error counting to avoid matching "0 errors"
+LINT_ERRORS=$(echo "$LINT_OUTPUT" | grep "error" | grep -v "0 errors" | wc -l | tr -d ' ' || echo "0")
 
 if [ "$LINT_ERRORS" -gt "0" ]; then
   echo -e "${RED}❌ FAILED: $LINT_ERRORS ESLint errors${NC}"

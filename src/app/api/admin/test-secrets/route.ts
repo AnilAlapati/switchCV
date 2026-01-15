@@ -19,7 +19,7 @@ import {
 import { logger } from "@/lib/logger";
 import { verifyAdminRole } from "@/lib/services/userService";
 
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     // Authenticate request
     const { userId, error } = await getAuthenticatedUserId(request);
@@ -39,7 +39,11 @@ export async function GET(request: NextRequest) {
     logger.info({ userId }, "Secret Manager test initiated");
 
     const service = SecretManagerService.getInstance();
-    const results: Record<string, any> = {};
+    interface TestResult {
+      success: boolean;
+      [key: string]: unknown;
+    }
+    const results: Record<string, TestResult> = {};
 
     // Test 1: Get all rotation statuses
     try {
@@ -122,7 +126,7 @@ export async function GET(request: NextRequest) {
 
     // Overall status
     const allTestsPassed = Object.values(results).every(
-      (r: any) => r.success === true
+      (r) => r.success === true
     );
 
     logger.info(

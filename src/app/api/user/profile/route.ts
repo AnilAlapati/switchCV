@@ -48,10 +48,10 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(userData, {
       headers: {
-        'Cache-Control': 'private, max-age=300, stale-while-revalidate=60',
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error({ err: error }, "Error fetching user profile:");
     return handleApiError(error, "Failed to fetch user profile");
   }
@@ -91,14 +91,14 @@ export async function POST(request: NextRequest) {
         message: "User profile created successfully",
         data: userProfileData,
       });
-    } catch (e: any) {
-      if (e.message.startsWith("Validation failed")) {
+    } catch (e: unknown) {
+      if (e instanceof Error && e.message.startsWith("Validation failed")) {
         return handleApiError(e, "Invalid profile data", 400);
       }
       throw e;
     }
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error({ err: error }, "Error creating user profile:");
     return handleApiError(error, "Failed to create user profile");
   }
@@ -137,14 +137,14 @@ export async function PUT(request: NextRequest) {
         message: "User profile updated successfully",
         data: updateData,
       });
-    } catch (e: any) {
-      if (e.message.startsWith("Validation failed")) {
+    } catch (e: unknown) {
+      if (e instanceof Error && e.message.startsWith("Validation failed")) {
         return handleApiError(e, "Invalid profile data", 400);
       }
       throw e;
     }
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error({ err: error }, "Error updating user profile:");
     return handleApiError(error, "Failed to update user profile");
   }

@@ -54,10 +54,10 @@ export function ResumeActionCenter({
         <div className="absolute top-0 right-0 -mt-4 -mr-4 h-32 w-32 rounded-full bg-cyan-500/10 blur-3xl"></div>
 
         <div className="relative z-10">
-          <h2 className="text-2xl font-bold text-[#1A2F25] mb-2">
+          <h2 className="text-2xl font-bold text-[black] mb-2">
             Create Your Resume
           </h2>
-          <p className="text-[#1A2F25] mb-6 max-w-lg font-medium">
+          <p className="text-[black] mb-6 max-w-lg font-medium">
             Build a professional resume in minutes. Our AI-powered tools help
             you highlight your strengths and get noticed by recruiters.
           </p>
@@ -142,9 +142,9 @@ export function ResumeActionCenter({
               )}
             </div>
 
-            <h2 className="text-2xl font-bold text-[#1A2F25]">My Resume</h2>
+            <h2 className="text-2xl font-bold text-[black]">My Resume</h2>
             {lastUpdated && (
-              <p className="text-sm text-[#1A2F25]/60 mt-1">
+              <p className="text-sm text-[black]/60 mt-1">
                 Last updated{" "}
                 {formatDistanceToNow(new Date(lastUpdated), {
                   addSuffix: true,
@@ -178,10 +178,10 @@ export function ResumeActionCenter({
               ) : (
                 <Link
                   href={`/resumes/${resumeIdString}/edit`}
-                  className="inline-flex items-center justify-center rounded-xl bg-white/50 px-4 py-2.5 text-sm font-medium text-[#1A2F25] backdrop-blur-sm transition-all hover:bg-white/80 border border-white/20 shadow-sm"
+                  className="inline-flex items-center justify-center rounded-xl bg-white/50 px-4 py-2.5 text-sm font-medium text-[black] backdrop-blur-sm transition-all hover:bg-white/80 border border-white/20 shadow-sm"
                 >
                   <svg
-                    className="mr-2 h-4 w-4 text-[#1A2F25]/60"
+                    className="mr-2 h-4 w-4 text-[black]/60"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -225,7 +225,7 @@ export function ResumeActionCenter({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 mt-8 pt-6 border-t border-[#1A2F25]/10">
+        <div className="grid grid-cols-1 gap-4 mt-8 pt-6 border-t border-[black]/10">
           <div className="flex items-start gap-4 p-4 rounded-2xl bg-white/40 border border-white/60">
             <div className="p-2.5 rounded-xl bg-violet-50 text-violet-600">
               <svg
@@ -243,10 +243,10 @@ export function ResumeActionCenter({
               </svg>
             </div>
             <div>
-              <h3 className="text-[#1A2F25] font-medium mb-1">
+              <h3 className="text-[black] font-medium mb-1">
                 Boost Visibility
               </h3>
-              <p className="text-sm text-[#1A2F25]/60">
+              <p className="text-sm text-[black]/60">
                 Optimize keywords to appear in more recruiter searches.
               </p>
             </div>

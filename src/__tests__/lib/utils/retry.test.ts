@@ -62,7 +62,7 @@ describe("Retry Utility", () => {
 
     it("should use zero retries in test environment", async () => {
       jest.useRealTimers();
-      process.env.NODE_ENV = "test";
+      (process.env as any).NODE_ENV = "test";
       const error = new Error("Failure");
       mockFn.mockRejectedValue(error);
 
@@ -92,7 +92,7 @@ describe("Retry Utility", () => {
     }, 5000);
 
     it.skip("should limit delay in test environment", async () => {
-      process.env.NODE_ENV = "test";
+      (process.env as any).NODE_ENV = "test";
       process.env.JEST_WORKER_ID = "1";
 
       mockFn.mockRejectedValue(new Error("Failure"));
@@ -138,4 +138,55 @@ describe("Retry Utility", () => {
       expect(syncFn).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe("Jitter functionality", () => {
+    it("should not apply jitter in test environment", async () => {
+      const { logger } = require("@/lib/logger");
+      jest.useRealTimers();
+
+      // In test environment, jitter should be disabled for deterministic testing
+      (process.env as Record<string, string>).NODE_ENV = "test";
+
+      const error = new Error("Failure");
+      const mockFn = jest.fn()
+        .mockRejectedValueOnce(error)
+        .mockResolvedValue("success");
+
+      await withRetry(mockFn, 1, 100);
+
+      // In test mode, delay should be minimized and deterministic (no jitter)
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          remainingAttempts: 1,
+          // In test mode, waitMs should be capped at 5ms
+          waitMs: expect.any(Number),
+        }),
+        "Retrying operation after failure"
+      );
+
+      // The waitMs should be exactly 5 (minimized for tests, no jitter)
+      const callArgs = logger.warn.mock.calls[0][0];
+      expect(callArgs.waitMs).toBeLessThanOrEqual(5);
+    });
+
+    it("should include baseDelay in log output for debugging", async () => {
+      const { logger } = require("@/lib/logger");
+      jest.useRealTimers();
+
+      const mockFn = jest.fn()
+        .mockRejectedValueOnce(new Error("Failure"))
+        .mockResolvedValue("success");
+
+      await withRetry(mockFn, 1, 100);
+
+      // Should log baseDelay for debugging purposes
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          baseDelay: 100,
+        }),
+        "Retrying operation after failure"
+      );
+    });
+  });
 });
+

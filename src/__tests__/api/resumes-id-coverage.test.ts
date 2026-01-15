@@ -90,7 +90,7 @@ describe("Resume ID API Route Coverage", () => {
     it("should return 400 if ID is missing", async () => {
       const req = new NextRequest("http://localhost/api/resumes/");
       const res = await route.GET(req, { params: Promise.resolve({ id: "" }) });
-      expect(res.status).toBe(400);
+      expect(res!.status).toBe(400);
     });
 
     it("should return 403 for reserved ID 1", async () => {
@@ -98,7 +98,7 @@ describe("Resume ID API Route Coverage", () => {
       const res = await route.GET(req, {
         params: Promise.resolve({ id: "1" }),
       });
-      expect(res.status).toBe(403);
+      expect(res!.status).toBe(403);
     });
 
     it("should return 404 if resume not found", async () => {
@@ -188,7 +188,7 @@ describe("Resume ID API Route Coverage", () => {
       const res = await route.GET(req, {
         params: Promise.resolve({ id: mockResumeId }),
       });
-      expect(res.status).toBe(200);
+      expect(res!.status).toBe(200);
       const json = await res.json();
       expect(json.title).toBe("Public Resume");
     });
@@ -228,7 +228,7 @@ describe("Resume ID API Route Coverage", () => {
       });
       // The current route logic returns 200 for public snapshot even if view=full is requested (it just ignores it or returns what it has)
       // Actually, looking at the route, it returns public_snapshot regardless of the view param if that's the access level.
-      expect(res.status).toBe(200);
+      expect(res!.status).toBe(200);
     });
   });
 
@@ -248,7 +248,7 @@ describe("Resume ID API Route Coverage", () => {
       const res = await route.PATCH(req, {
         params: Promise.resolve({ id: mockResumeId }),
       });
-      expect(res.status).toBe(200);
+      expect(res!.status).toBe(200);
     });
 
     it("should return 400 for invalid visibility state", async () => {
@@ -262,7 +262,7 @@ describe("Resume ID API Route Coverage", () => {
       const res = await route.PATCH(req, {
         params: Promise.resolve({ id: mockResumeId }),
       });
-      expect(res.status).toBe(400);
+      expect(res!.status).toBe(400);
     });
   });
 
@@ -283,7 +283,7 @@ describe("Resume ID API Route Coverage", () => {
       const res = await route.PUT(req, {
         params: Promise.resolve({ id: mockResumeId }),
       });
-      expect(res.status).toBe(200);
+      expect(res!.status).toBe(200);
     });
 
     it("should return 400 for invalid resume payload", async () => {
@@ -301,7 +301,7 @@ describe("Resume ID API Route Coverage", () => {
       const res = await route.PUT(req, {
         params: Promise.resolve({ id: mockResumeId }),
       });
-      expect(res.status).toBe(400);
+      expect(res!.status).toBe(400);
     });
 
     it("should return 403 if editing restricted by tier", async () => {
@@ -319,7 +319,7 @@ describe("Resume ID API Route Coverage", () => {
       const res = await route.PUT(req, {
         params: Promise.resolve({ id: mockResumeId }),
       });
-      expect(res.status).toBe(403);
+      expect(res!.status).toBe(403);
     });
   });
 
@@ -337,7 +337,7 @@ describe("Resume ID API Route Coverage", () => {
       const res = await route.DELETE(req, {
         params: Promise.resolve({ id: mockResumeId }),
       });
-      expect(res.status).toBe(200);
+      expect(res!.status).toBe(200);
     });
   });
 });

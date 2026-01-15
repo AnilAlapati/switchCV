@@ -69,7 +69,7 @@ export function ContactRequestsCard() {
 
   return (
     <Link href="/dashboard/access-requests">
-      <div className="glass-panel rounded-3xl p-6 transition hover:shadow-lg hover:shadow-[#2C4A3B]/10 hover:border-white cursor-pointer">
+      <div className="glass-panel rounded-3xl p-6 transition hover:shadow-lg hover:shadow-[black]/10 hover:border-white cursor-pointer">
         <div className="flex items-center">
           <div className="flex-shrink-0">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-blue-200/50 bg-blue-100/30 text-blue-600">
@@ -90,17 +90,17 @@ export function ContactRequestsCard() {
           </div>
           <div className="ml-5 w-0 flex-1">
             <dl>
-              <dt className="text-sm font-bold text-[#2C4A3B]/60 truncate">
+              <dt className="text-sm font-bold text-[black]/60 truncate">
                 Contact Requests
               </dt>
-              <dd className="text-2xl font-bold text-[#1A2F25]">
+              <dd className="text-2xl font-bold text-[black]">
                 {loadingState ? "-" : displayValue}
               </dd>
             </dl>
           </div>
         </div>
         <div className="mt-4">
-          <p className="text-sm text-[#1A2F25]/60">
+          <p className="text-sm text-[black]/60">
             {loadingState
               ? "Loading..."
               : displayValue === 0

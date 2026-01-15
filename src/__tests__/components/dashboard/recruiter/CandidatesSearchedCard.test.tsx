@@ -43,7 +43,7 @@ const createMockAuthContext = (user: any) => ({
   refreshUser: jest.fn(),
   needsUsername: false,
   setUsername: jest.fn(),
-  checkNeedsUsername: jest.fn(),
+  checkNeedsUsername: jest.fn().mockResolvedValue(false),
 });
 
 const buildMetricsResponse = (
@@ -131,10 +131,10 @@ describe("CandidatesSearchedCard", () => {
     it("displays loading state initially", async () => {
       // Mock fetch to never resolve - this keeps the component in loading state
       mockFetch.mockImplementation(
-        () => new Promise(() => {}) // Never resolves
+        () => new Promise(() => { }) // Never resolves
       );
       fetchSpy.mockImplementation(
-        () => new Promise(() => {}) // Never resolves
+        () => new Promise(() => { }) // Never resolves
       );
 
       await act(async () => {
@@ -340,12 +340,13 @@ describe("CandidatesSearchedCard", () => {
       await renderCard();
 
       await waitFor(() => {
-        const card = document.querySelector(".glass-panel");
+        const card = document.querySelector(".border-black");
         expect(card).toHaveClass(
-          "glass-panel",
-          "rounded-3xl",
+          "bg-white",
+          "border-2",
+          "border-black",
           "p-6",
-          "transition"
+          "transition-all"
         );
       });
     });

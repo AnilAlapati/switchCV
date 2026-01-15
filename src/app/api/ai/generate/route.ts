@@ -22,6 +22,8 @@ import {
   createCachedResponse,
   createProcessingResponse,
 } from "@/lib/utils/idempotency";
+import { withAppCheck } from "@/lib/middleware/appCheck";
+import { lookupCache, storeInCache } from "@/lib/services/semanticCache";
 
 /**
  * Zod schema for AI generation request validation
@@ -47,6 +49,7 @@ const GenerateRequestSchema = z.object({
     .enum(["creative", "balanced", "structured", "precise"])
     .optional()
     .default("creative"),
+  skipCache: z.boolean().optional().default(false), // Allow bypassing semantic cache
 });
 
 interface Entitlement {
@@ -79,6 +82,12 @@ export async function POST(request: NextRequest) {
   const idempotencyKey = getIdempotencyKey(request);
 
   try {
+    // App Check verification (when enabled via ENFORCE_APP_CHECK=true)
+    const appCheckResult = await withAppCheck(request);
+    if (appCheckResult) {
+      return appCheckResult; // Returns 401 if App Check fails
+    }
+
     const { userId, error: authError } = await getAuthenticatedUserId(request);
     if (authError) {
       return authError;
@@ -117,7 +126,32 @@ export async function POST(request: NextRequest) {
       return handleApiError(null, errorMessage, 400);
     }
 
-    const { prompt, maxTokens, temperature: userTemp, task } = validationResult.data;
+    const { prompt, maxTokens, temperature: userTemp, task, skipCache } = validationResult.data;
+
+    // Semantic cache lookup (unless explicitly skipped)
+    if (!skipCache && userId) {
+      const cached = await lookupCache(userId, prompt);
+      if (cached.hit && cached.response) {
+        logger.info(
+          { userId, requestId, similarity: cached.similarity, cacheKey: cached.cacheKey },
+          "🎯 Returning semantically cached AI response"
+        );
+
+        const cachedResult = {
+          text: cached.response,
+          model: cached.model || "cached",
+          cached: true,
+          similarity: cached.similarity,
+        };
+
+        // Store for idempotency as well
+        if (idempotencyKey) {
+          await storeIdempotencyResponse(idempotencyKey, userId, cachedResult);
+        }
+
+        return NextResponse.json(cachedResult, { status: 200 });
+      }
+    }
 
     // Task-specific temperature defaults
     const defaultTemps = {
@@ -131,18 +165,17 @@ export async function POST(request: NextRequest) {
 
     const entitlement = await getEntitlement(userId!);
 
-    // Unified Rate Limiting
     const rateLimit = await checkDistributedRateLimit(userId!, {
-      tier: entitlement.plan as any,
+      tier: entitlement.plan as "basic" | "premium" | "enterprise",
       scope: "ai_generation",
-    } as any);
+    });
 
     if (!rateLimit.allowed) {
       throw new RateLimitError(Math.ceil((rateLimit.resetIn || 60000) / 1000));
     }
 
     // Billing & Budget Check
-    const budgetAllowed = await BillingService.checkBudget(userId!, entitlement.plan as any);
+    const budgetAllowed = await BillingService.checkBudget(userId!, entitlement.plan as "basic" | "premium" | "enterprise");
     if (!budgetAllowed) {
       return handleApiError(
         new Error("Budget exceeded"),
@@ -163,6 +196,18 @@ export async function POST(request: NextRequest) {
       output: Math.ceil(result.text.length / 4)
     };
     await BillingService.trackUsage(userId!, result.model, tokenUsage);
+
+    // Store in semantic cache for future similar queries
+    if (!skipCache && userId) {
+      storeInCache(userId, prompt, result.text, {
+        model: result.model,
+        provider: "ai", // Generic provider label
+        tokens: tokenUsage.input + tokenUsage.output,
+      }).catch((err) => {
+        // Don't fail the request if caching fails
+        logger.warn({ err, userId }, "Failed to store in semantic cache");
+      });
+    }
 
     await Promise.all([
       logUsage({

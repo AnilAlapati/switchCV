@@ -36,7 +36,7 @@ const FEATURE_CARDS = [
 
 export function HomeFeatureCards() {
   return (
-    <section aria-labelledby="features-heading" className="space-y-16 py-12">
+    <section id="features" aria-labelledby="features-heading" className="space-y-16 py-12">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}

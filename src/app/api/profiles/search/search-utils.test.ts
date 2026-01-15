@@ -4,6 +4,8 @@ import {
   matchesQuery,
   extractProfileSkills,
   mapProfileResult,
+  matchesAllFilters,
+  buildNormalizedFilters,
 } from "./search-utils";
 
 describe("search-utils", () => {
@@ -95,20 +97,70 @@ describe("search-utils", () => {
         approvalExpiresAt: undefined,
       });
     });
+  });
 
-    it("should handle missing optional fields", () => {
-      const result = mapProfileResult("user123", {});
+  describe("matchesAllFilters", () => {
+    const userData = {
+      displayName: "Anil Alapati",
+      profileSlug: "anil",
+      publicProfile: {
+        username: "anil",
+        aiSelectedBio: "Software Engineer specializing in AI",
+        role: "Software Engineer",
+        location: "NYC",
+        skills: ["React", "TypeScript", "Python"],
+      },
+    };
+
+    it("should match when all criteria are met", () => {
+      const filters = {
+        role: "Software Engineer",
+        location: "NYC",
+        skills: ["React", "TypeScript"],
+      };
+      expect(matchesAllFilters(userData, filters as any, "Anil")).toBe(true);
+    });
+
+    it("should mismatch on role", () => {
+      const filters = { role: "Product Manager", skills: [] };
+      expect(matchesAllFilters(userData, filters as any)).toBe(false);
+    });
+
+    it("should mismatch on skills", () => {
+      const filters = { skills: ["Rust"] };
+      expect(matchesAllFilters(userData, filters as any)).toBe(false);
+    });
+
+    it("should match on slug", () => {
+      const filters = { slug: "anil", skills: [] };
+      expect(matchesAllFilters(userData, filters as any)).toBe(true);
+    });
+  });
+
+  describe("buildNormalizedFilters", () => {
+    it("should handle full filters", () => {
+      const input = {
+        role: "  Dev  ",
+        location: " SF ",
+        skills: ["React", " "],
+        slug: " anil-slug ",
+      };
+      const result = buildNormalizedFilters(input);
       expect(result).toEqual({
-        userId: "user123",
-        username: "",
-        displayName: "",
-        photoURL: undefined,
-        bio: "",
+        role: "Dev",
+        location: "SF",
+        skills: ["React"],
+        slug: "anil-slug",
+      });
+    });
+
+    it("should handle empty or missing filters", () => {
+      const result = buildNormalizedFilters({});
+      expect(result).toEqual({
         role: undefined,
         location: undefined,
-        skills: undefined,
-        hasApproval: false,
-        approvalExpiresAt: undefined,
+        skills: [],
+        slug: undefined,
       });
     });
   });
