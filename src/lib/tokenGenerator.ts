@@ -30,12 +30,13 @@ class TokenGenerator {
   private algorithm = "HS256";
 
   constructor(secret?: string) {
-    // Use environment variable or fallback for development
-    this.secret =
-      secret || process.env.TOKEN_SECRET || "development-secret-key";
-    if (!process.env.TOKEN_SECRET && !secret) {
-      logger.warn(
-        "⚠️  TOKEN_SECRET not configured. Using development secret. Set TOKEN_SECRET in .env.local for production."
+    // Require TOKEN_SECRET environment variable - no hardcoded fallback for security
+    this.secret = secret || process.env.TOKEN_SECRET;
+
+    if (!this.secret) {
+      throw new Error(
+        "TOKEN_SECRET environment variable is required for secure token generation. " +
+        "Please set TOKEN_SECRET in your .env.local file."
       );
     }
   }
