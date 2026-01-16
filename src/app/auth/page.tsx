@@ -1,385 +1,209 @@
-/* eslint-disable max-lines */
 "use client";
 
-import { useState, useEffect, Suspense, useCallback } from "react";
-import { useAuth } from "@/hooks/useAuth";
-import { useRouter, useSearchParams } from "next/navigation";
-import { AuthBackground } from "@/components/auth/AuthBackground";
-import { AuthBrand } from "@/components/auth/AuthBrand";
-import { AuthFormInputs } from "@/components/auth/AuthFormInputs";
+import Link from "next/link";
+import { Suspense } from "react";
+// import { AuthBrand } from "@/components/auth/AuthBrand"; // No longer used in current design
+// import { BackgroundBlobs } from "@/components/ui/BackgroundBlobs"; // No longer used
 import { EmailVerificationNotice } from "@/components/auth/EmailVerificationNotice";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
-import { REGISTRATION_DISABLED, LOGIN_DISABLED } from "@/lib/config";
-import { useDebouncedValue } from "@/hooks/useDebounce";
-import { USERNAME_CONFIG } from "@/config/constants";
-import type { UsernameCheckResponse } from "@/app/api/user/username/check/route";
+import { GoogleSignInDebug } from "@/components/auth/GoogleSignInDebug";
+import { LoginForm } from "@/components/auth/LoginForm";
+import { SignupForm } from "@/components/auth/SignupForm";
+import { useAuthPage } from "@/hooks/useAuthPage";
+import { useSystemConfig } from "@/context/SystemConfigProvider";
 
-type UsernameStatus =
-  | "idle"
-  | "checking"
-  | "available"
-  | "taken"
-  | "invalid"
-  | "error";
+function AuthContent(): React.JSX.Element {
+  const {
+    config: {
+      auth: { registrationClosed, loginDisabled },
+    },
+  } = useSystemConfig();
 
-function AuthContent() {
-  const searchParams = useSearchParams();
-
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [username, setUsername] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const [usernameError, setUsernameError] = useState("");
-  const [resending, setResending] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>("idle");
-  const [usernameSuggestion, setUsernameSuggestion] = useState("");
-
-  // Debounce username for availability check
-  const { debouncedValue: debouncedUsername, isPending: isCheckingUsername } =
-    useDebouncedValue(username, USERNAME_CONFIG.CHECK_DEBOUNCE_MS);
-
-  // Check username availability when debounced value changes
-  const checkUsernameAvailability = useCallback(async () => {
-    if (
-      !debouncedUsername ||
-      debouncedUsername.length < USERNAME_CONFIG.MIN_LENGTH
-    ) {
-      setUsernameStatus("idle");
-      setUsernameError("");
-      setUsernameSuggestion("");
-      return;
-    }
-
-    setUsernameStatus("checking");
-    setUsernameError("");
-
-    try {
-      const response = await fetch(
-        `/api/user/username/check?username=${encodeURIComponent(
-          debouncedUsername
-        )}`
-      );
-      const data: UsernameCheckResponse = await response.json();
-
-      if (response.status === 429) {
-        setUsernameStatus("error");
-        setUsernameError(data.reason || "Too many requests. Please wait.");
-        return;
-      }
-
-      if (data.available) {
-        setUsernameStatus("available");
-        setUsernameError("");
-        setUsernameSuggestion("");
-      } else {
-        const isInvalid =
-          data.reason?.includes("format") ||
-          data.reason?.includes("characters") ||
-          data.reason?.includes("at least");
-        setUsernameStatus(isInvalid ? "invalid" : "taken");
-        setUsernameError(data.reason || "Username is not available");
-        setUsernameSuggestion(data.suggestion || "");
-      }
-    } catch {
-      setUsernameStatus("error");
-      setUsernameError("Failed to check availability. Please try again.");
-    }
-  }, [debouncedUsername]);
-
-  useEffect(() => {
-    if (isSignUp && debouncedUsername) {
-      checkUsernameAvailability();
-    }
-  }, [isSignUp, debouncedUsername, checkUsernameAvailability]);
+  const { state, actions, authContext, isCheckingUsername } = useAuthPage();
 
   const {
-    user,
-    loading: authLoading,
-    needsEmailVerification,
-    needsUsername,
-    verificationEmail,
-    signIn,
-    signUp,
-    signInWithGoogle,
-    resendVerificationEmail,
-    refreshUser,
-    checkNeedsUsername,
-  } = useAuth();
-  const router = useRouter();
+    isSignUp,
+    email,
+    password,
+    username,
+    error,
+    loading,
 
-  useEffect(() => {
-    setMounted(true);
-    if (searchParams.get("mode") === "signup") {
-      setIsSignUp(true);
-    }
-  }, [searchParams]);
+    usernameError,
+    resending,
+    refreshing,
+    usernameStatus,
+    usernameSuggestion,
+    verificationSuccess,
+    verificationProcessing,
+  } = state;
 
-  useEffect(() => {
-    if (!authLoading && user && !needsEmailVerification) {
-      // Check if user needs to choose a username
-      if (needsUsername) {
-        router.push("/auth/choose-username");
-      } else {
-        // Also check Firestore in case state was lost
-        checkNeedsUsername().then((needs) => {
-          if (needs) {
-            router.push("/auth/choose-username");
-          } else {
-            router.push("/dashboard");
-          }
-        });
-      }
-    }
-  }, [
-    user,
-    needsEmailVerification,
-    needsUsername,
-    authLoading,
-    router,
-    checkNeedsUsername,
-  ]);
+  const {
+    setIsSignUp,
+    setEmail,
+    setPassword,
+    setUsername,
+    handleSubmit,
+    handleGoogleSignIn,
+    handleResend,
+    handleRefreshVerification,
+    handleUseSuggestion,
+  } = actions;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-    setUsernameError("");
-
-    try {
-      if (isSignUp) {
-        if (!username.trim()) {
-          setUsernameError("Username is required to create your profile.");
-          setLoading(false);
-          return;
-        }
-        // Check if username availability check is still pending or not available
-        if (isCheckingUsername || usernameStatus === "checking") {
-          setUsernameError(
-            "Please wait for username availability check to complete."
-          );
-          setLoading(false);
-          return;
-        }
-        if (usernameStatus !== "available" && usernameStatus !== "idle") {
-          setUsernameError("Please choose an available username.");
-          setLoading(false);
-          return;
-        }
-        await signUp(email, password, username);
-      } else {
-        await signIn(email, password);
-      }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-      if (
-        err instanceof Error &&
-        err.message.toLowerCase().includes("username")
-      ) {
-        setUsernameError(err.message);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    setError("");
-    setLoading(true);
-    try {
-      const result = await signInWithGoogle();
-      // If the user needs to choose a username (new Google OAuth user), redirect to username selection
-      if (result.needsUsername) {
-        router.push("/auth/choose-username");
-      } else {
-        router.push("/dashboard");
-      }
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to sign in with Google"
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResend = async () => {
-    setResending(true);
-    setError("");
-    try {
-      await resendVerificationEmail();
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to resend verification email"
-      );
-    } finally {
-      setResending(false);
-    }
-  };
-
-  const handleRefreshVerification = async () => {
-    setRefreshing(true);
-    try {
-      await refreshUser();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to refresh status");
-    } finally {
-      setRefreshing(false);
-    }
-  };
+  const { needsEmailVerification, verificationEmail } = authContext;
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      <AuthBackground />
+    <div className="min-h-screen relative flex p-4 justify-center items-center bg-[#FFFFF8]">
+      {/* Paper texture overlay */}
+      <div className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] mix-blend-multiply bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')]"></div>
 
-      <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
-        <div
-          className={`w-full max-w-md transition-all duration-1000 ${
-            mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
-          }`}
+      {/* Back to Home Link - Absolute Positioned */}
+      <Link
+        href="/"
+        className="absolute top-8 left-8 z-20 inline-flex items-center gap-2 text-sm text-gray-600 hover:text-black transition-colors font-serif italic"
+      >
+        <svg
+          className="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          strokeWidth={2}
         >
-          <AuthBrand />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M10 19l-7-7m0 0l7-7m-7 7h18"
+          />
+        </svg>
+        Back to Home
+      </Link>
 
-          <div className="backdrop-blur-xl bg-white/10 rounded-3xl border border-white/20 shadow-2xl shadow-black/50 p-8">
-            {needsEmailVerification && (
-              <EmailVerificationNotice
-                email={verificationEmail}
-                onResend={handleResend}
-                onRefresh={handleRefreshVerification}
-                resending={resending}
-                refreshing={refreshing}
-              />
-            )}
-            <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold text-white mb-2">
-                {isSignUp ? "Join the Future" : "Welcome Back"}
-              </h2>
-              <p className="text-slate-400 text-sm">
-                {isSignUp
-                  ? REGISTRATION_DISABLED
-                    ? "Registration is currently closed for maintenance"
-                    : "Create your account to get started"
-                  : LOGIN_DISABLED
-                  ? "Login is currently disabled for maintenance"
-                  : "Sign in to access your dashboard"}
+      <div className="relative z-10 w-full max-w-md mx-auto">
+        <div className="mb-8 text-center">
+          <h1 className="font-serif text-3xl font-bold tracking-tight">SwitchCV.</h1>
+          <p className="font-mono text-xs uppercase tracking-widest text-gray-500 mt-2">The Career Agency</p>
+        </div>
+
+        <div className="bg-white border border-gray-200 shadow-xl p-8 sm:p-12 relative overflow-hidden">
+          {/* Decorative Typewriter Line */}
+          <div className="absolute top-0 left-0 w-full h-1 bg-black" />
+
+          {verificationProcessing && (
+            <div className="mb-6 border-l-4 border-blue-600 bg-blue-50 p-4">
+              <div className="flex items-center">
+                <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-3"></div>
+                <p className="text-sm text-blue-900 font-medium font-serif italic">Verifying your credentials...</p>
+              </div>
+            </div>
+          )}
+
+          {verificationSuccess && !verificationProcessing && (
+            <div className="mb-6 border-l-4 border-green-600 bg-green-50 p-4">
+              <p className="text-sm text-green-900 font-bold font-serif">
+                Success. Email verified.
+              </p>
+              <p className="text-xs text-green-800 mt-1 font-mono">
+                Proceed to login.
               </p>
             </div>
+          )}
 
-            {isSignUp && REGISTRATION_DISABLED ? (
-              <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-xl p-6 text-center">
-                <p className="text-yellow-200 mb-4">
-                  We are currently performing system upgrades. New account
-                  registration is temporarily disabled.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setIsSignUp(false)}
-                  className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors"
-                >
-                  Return to Sign In
-                </button>
-              </div>
-            ) : !isSignUp && LOGIN_DISABLED ? (
-              <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-xl p-6 text-center">
-                <p className="text-yellow-200 mb-4">
-                  We are currently performing system upgrades. Login is
-                  temporarily disabled.
-                </p>
-                {!REGISTRATION_DISABLED && (
-                  <button
-                    type="button"
-                    onClick={() => setIsSignUp(true)}
-                    className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors"
-                  >
-                    Create an Account
-                  </button>
-                )}
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <AuthFormInputs
-                  email={email}
-                  password={password}
-                  username={username}
-                  showUsername={isSignUp}
-                  usernameError={usernameError}
-                  usernameStatus={usernameStatus}
-                  isCheckingUsername={isCheckingUsername}
-                  usernameSuggestion={usernameSuggestion}
-                  onEmailChange={setEmail}
-                  onPasswordChange={setPassword}
-                  onUsernameChange={setUsername}
-                  onUseSuggestion={() => {
-                    setUsername(usernameSuggestion);
-                  }}
-                />
+          {needsEmailVerification && !isSignUp && !verificationSuccess && (
+            <EmailVerificationNotice
+              email={verificationEmail}
+              onResend={handleResend}
+              onRefresh={handleRefreshVerification}
+              onSignOut={actions.logout}
+              resending={resending}
+              refreshing={refreshing}
+            />
+          )}
 
-                {error && (
-                  <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3">
-                    <p className="text-red-400 text-sm text-center">{error}</p>
-                  </div>
-                )}
+          <div className="text-left mb-8">
+            <h2 className="text-2xl font-serif font-bold text-black mb-2">
+              {isSignUp ? "Begin Application" : "Access Terminal"}
+            </h2>
+            <p className="text-gray-500 text-sm font-sans">
+              {isSignUp
+                ? registrationClosed
+                  ? "New entries are currently paused."
+                  : "Start your professional narrative."
+                : loginDisabled
+                  ? "Terminal access disabled."
+                  : "Enter your credentials to continue."}
+            </p>
+          </div>
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-3 px-6 bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-105 hover:shadow-lg hover:shadow-cyan-500/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                >
-                  {loading ? (
-                    <div className="flex items-center justify-center">
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                      Processing...
-                    </div>
-                  ) : isSignUp ? (
-                    "Create Account"
-                  ) : (
-                    "Sign In"
-                  )}
-                </button>
-
-                {(!REGISTRATION_DISABLED || !LOGIN_DISABLED) && (
-                  <div className="text-center">
-                    <button
-                      type="button"
-                      onClick={() => setIsSignUp(!isSignUp)}
-                      className="text-slate-400 hover:text-cyan-400 text-sm transition-colors duration-200"
-                    >
-                      {isSignUp
-                        ? "Already have an account? Sign in"
-                        : "Don't have an account? Sign up"}
-                    </button>
-                  </div>
-                )}
-              </form>
-            )}
-
-            {((!isSignUp && !LOGIN_DISABLED) ||
-              (isSignUp && !REGISTRATION_DISABLED)) && (
-              <div className="mt-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="flex-1 h-px bg-white/20"></span>
-                  <span className="text-xs uppercase tracking-[0.3em] text-slate-400">
-                    or
-                  </span>
-                  <span className="flex-1 h-px bg-white/20"></span>
-                </div>
+          {((!isSignUp && !loginDisabled) ||
+            (isSignUp && !registrationClosed)) && (
+              <div className="mb-8">
                 <GoogleSignInButton
                   onClick={handleGoogleSignIn}
                   disabled={loading}
                 />
+
+                <div className="flex items-center gap-3 mt-6">
+                  <span className="flex-1 h-px bg-gray-200"></span>
+                  <span className="text-xs uppercase tracking-widest text-gray-400 font-bold font-mono">
+                    or
+                  </span>
+                  <span className="flex-1 h-px bg-gray-200"></span>
+                </div>
               </div>
             )}
 
-            <div className="mt-8 pt-6 border-t border-slate-700/50">
-              <p className="text-xs text-slate-500 text-center">
-                By continuing, you agree to our Terms of Service and Privacy
-                Policy
-              </p>
+          {isSignUp && registrationClosed ? (
+            <MaintenanceNotice
+              message="System upgrades in progress. Registration paused."
+              actionLabel="Return to Sign In"
+              onAction={() => setIsSignUp(false)}
+            />
+          ) : !isSignUp && loginDisabled ? (
+            <MaintenanceNotice
+              message="System upgrades in progress. Login paused."
+              actionLabel={
+                !registrationClosed ? "Create an Account" : undefined
+              }
+              onAction={
+                !registrationClosed ? () => setIsSignUp(true) : undefined
+              }
+            />
+          ) : isSignUp ? (
+            <SignupForm
+              email={email}
+              password={password}
+              username={username}
+              error={error}
+              usernameError={usernameError}
+              usernameStatus={usernameStatus}
+              isCheckingUsername={isCheckingUsername}
+              usernameSuggestion={usernameSuggestion}
+              loading={loading}
+              onEmailChange={setEmail}
+              onPasswordChange={setPassword}
+              onUsernameChange={setUsername}
+              onUseSuggestion={handleUseSuggestion}
+              onSubmit={handleSubmit}
+              onSwitchToLogin={() => setIsSignUp(false)}
+            />
+          ) : (
+            <LoginForm
+              email={email}
+              password={password}
+              error={error}
+              loading={loading}
+              onEmailChange={setEmail}
+              onPasswordChange={setPassword}
+              onSubmit={handleSubmit}
+              onSwitchToSignUp={() => setIsSignUp(true)}
+            />
+          )}
+
+          <div className="mt-10 pt-6 border-t border-gray-100 flex justify-between items-center text-[10px] text-gray-400 font-mono uppercase tracking-wider">
+            <span>Vol. 2025</span>
+            <div className="space-x-4">
+              <a href="#" className="hover:text-black transition-colors">Terms</a>
+              <a href="#" className="hover:text-black transition-colors">Privacy</a>
             </div>
           </div>
         </div>
@@ -388,10 +212,38 @@ function AuthContent() {
   );
 }
 
-export default function AuthPage() {
+interface MaintenanceNoticeProps {
+  message: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}
+
+function MaintenanceNotice({
+  message,
+  actionLabel,
+  onAction,
+}: MaintenanceNoticeProps): React.JSX.Element {
+  return (
+    <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-center">
+      <p className="text-amber-800 mb-4">{message}</p>
+      {actionLabel && onAction && (
+        <button
+          type="button"
+          onClick={onAction}
+          className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
+        >
+          {actionLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+export default function AuthPage(): React.JSX.Element {
   return (
     <Suspense fallback={<div>Loading...</div>}>
       <AuthContent />
+      {process.env.NODE_ENV !== "production" && <GoogleSignInDebug />}
     </Suspense>
   );
 }

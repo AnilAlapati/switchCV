@@ -11,7 +11,7 @@ import {
   safeParseBody,
   maybeGetAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
-import { adminAuth } from "@/lib/firebase-admin";
+import { getAuthUser } from "@/lib/services/authService";
 import type { SupportFeedbackMeta } from "@/types/supportFeedback";
 
 // Bot protection constants
@@ -28,13 +28,8 @@ async function tryGetAuthenticatedUser(
     if (!userId) {
       return null;
     }
-    // Fetch user details from Firebase Auth
-    const userRecord = await adminAuth.getUser(userId);
-    return {
-      uid: userRecord.uid,
-      email: userRecord.email || null,
-      displayName: userRecord.displayName || null,
-    };
+    // Fetch user details from AuthService
+    return await getAuthUser(userId);
   } catch {
     // Any error - return null, feedback is public
     return null;
@@ -93,7 +88,7 @@ export async function POST(request: NextRequest) {
       return handleApiError(error, "Invalid JSON payload", 400);
     }
     if (error instanceof SupportFeedbackError) {
-      return handleApiError(error, error.message, error.statusCode);
+      return handleApiError(error, "Unable to process feedback submission", error.statusCode);
     }
 
     return handleApiError(error, "Unable to send feedback right now");

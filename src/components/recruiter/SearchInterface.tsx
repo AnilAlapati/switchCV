@@ -82,8 +82,11 @@ export function SearchInterface({
 
       {/* Error Display */}
       {error && (
-        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400">
-          {error}
+        <div className="glass-panel p-4 bg-red-50 border-2 border-red-500/20">
+          <div className="flex items-center gap-2 text-red-700">
+            <span className="text-xl">⚠️</span>
+            <span className="font-medium">{error}</span>
+          </div>
         </div>
       )}
 
@@ -91,38 +94,38 @@ export function SearchInterface({
       {(location || selectedSkills.length > 0 || targetRole) && (
         <div className="flex flex-wrap gap-2">
           {location && (
-            <div className="flex items-center gap-2 bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 px-3 py-1 rounded-full text-sm">
-              {location}
+            <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-full text-sm font-medium shadow-sm">
+              📍 {location}
               <button
                 onClick={() => setLocation("")}
-                className="hover:text-cyan-100"
+                className="hover:text-emerald-900 ml-1"
               >
-                ❌
+                ✕
               </button>
             </div>
           )}
           {selectedSkills.map((skill) => (
             <div
               key={skill}
-              className="flex items-center gap-2 bg-purple-500/10 text-purple-300 border border-purple-500/20 px-3 py-1 rounded-full text-sm"
+              className="flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-full text-sm font-medium shadow-sm"
             >
-              {skill}
+              🎯 {skill}
               <button
                 onClick={() => toggleSkill(skill)}
-                className="hover:text-purple-100"
+                className="hover:text-[#2C4A3B] ml-1"
               >
-                ❌
+                ✕
               </button>
             </div>
           ))}
           {targetRole && (
-            <div className="flex items-center gap-2 bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 px-3 py-1 rounded-full text-sm">
-              {targetRole}
+            <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-full text-sm font-medium shadow-sm">
+              💼 {targetRole}
               <button
                 onClick={() => setTargetRole("")}
-                className="hover:text-emerald-100"
+                className="hover:text-emerald-900 ml-1"
               >
-                ❌
+                ✕
               </button>
             </div>
           )}

@@ -17,7 +17,7 @@ export const PreviewSkills = ({ profile }: PreviewSkillsProps) => {
       <div className="flex flex-wrap gap-2">
         {profile.skills.map((skill, index) => (
           <div
-            key={index}
+            key={skill.id || `skill-${index}`}
             className="flex items-center gap-2 bg-indigo-50 px-3 py-2 rounded-full border border-indigo-200"
           >
             <span className="text-sm font-medium text-indigo-900">

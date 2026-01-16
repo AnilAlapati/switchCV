@@ -9,6 +9,7 @@ export const createMockUser = (overrides: Partial<User> = {}) =>
     emailVerified: true,
     displayName: "Test User",
     providerData: [{ providerId: "password" }],
+    getIdToken: jest.fn().mockResolvedValue("mock-token"),
     ...overrides,
   } as unknown as User);
 

@@ -1,32 +1,53 @@
 import Link from "next/link";
+import { motion } from "framer-motion";
 
 export function HomeFooterCta() {
   return (
-    <section className="rounded-3xl border border-white/10 bg-gradient-to-r from-cyan-600/20 via-purple-600/20 to-pink-600/20 p-10 text-center backdrop-blur-xl shadow-2xl shadow-black/40">
-      <p className="text-sm uppercase tracking-[0.3em] text-cyan-200">
-        Ready when you are
-      </p>
-      <h3 className="text-3xl font-bold mt-3">
-        Launch your next opportunity with a resume you control end-to-end.
-      </h3>
-      <p className="text-slate-200 mt-3 max-w-2xl mx-auto">
-        Create a professional resume with AI assistance and take control of your
-        job search with privacy features and view tracking.
-      </p>
-      <div className="flex flex-col sm:flex-row justify-center gap-4 mt-8">
-        <Link
-          href="/auth?mode=signup"
-          className="inline-flex items-center justify-center bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 text-white px-8 py-4 rounded-2xl font-semibold transition-all duration-200"
-        >
-          Create my resume
-        </Link>
-        <Link
-          href="/auth"
-          className="inline-flex items-center justify-center px-8 py-4 rounded-2xl border border-white/20 text-white/90 hover:bg-white/10 transition"
-        >
-          Explore the dashboard
-        </Link>
+    <motion.section
+      initial={{ opacity: 0, y: 40 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.8, ease: "easeOut" }}
+      className="bg-white border-2 border-black p-12 md:p-20 text-center shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden"
+    >
+      {/* Decorative Lines */}
+      <div className="absolute top-0 left-0 w-full h-1 bg-black" />
+      <div className="absolute bottom-0 left-0 w-full h-1 bg-black" />
+
+      <div className="relative z-10 space-y-8 max-w-4xl mx-auto">
+        <div className="space-y-4">
+          <p className="text-[10px] uppercase tracking-[0.5em] text-blue-600 font-black bg-blue-100 inline-block px-4 py-1.5 font-mono">
+            Ready when you are
+          </p>
+          <h3 className="text-4xl md:text-5xl lg:text-6xl font-serif font-bold text-black tracking-tight leading-[1.05]">
+            Launch your next opportunity <br className="hidden md:block" /> with a resume you control.
+          </h3>
+        </div>
+
+        <p className="text-gray-600 text-lg md:text-xl font-sans max-w-2xl mx-auto leading-relaxed">
+          Create a professional resume with AI assistance and take control of your
+          job search with privacy features and view tracking.
+        </p>
+
+        <div className="flex flex-col sm:flex-row justify-center gap-6 pt-4">
+          <Link
+            href="/auth?mode=signup"
+            className="inline-flex items-center justify-center bg-black text-white px-10 py-5 font-bold transition-all hover:bg-gray-800 active:scale-95 border-2 border-black"
+          >
+            Create my resume
+          </Link>
+          <Link
+            href="/auth"
+            className="inline-flex items-center justify-center px-10 py-5 border-2 border-black text-black hover:bg-gray-100 transition-all font-bold"
+          >
+            Explore the dashboard
+          </Link>
+        </div>
+
+        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest font-mono">
+          Free to get started · No credit card required
+        </p>
       </div>
-    </section>
+    </motion.section>
   );
 }

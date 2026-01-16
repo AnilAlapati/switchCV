@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { ResumeProgress } from "@/components/create-resume/ResumeProgress";
 
 describe("ResumeProgress", () => {
@@ -10,28 +10,38 @@ describe("ResumeProgress", () => {
 
   it("renders progress bar and percentage", () => {
     render(<ResumeProgress progress={50} />);
-    expect(
-      screen.getByText(
-        (content, node) => node?.textContent?.replace(/\s/g, "") === "50%"
-      )
-    ).toBeInTheDocument();
-    expect(screen.getByText("Resume Progress")).toBeInTheDocument();
+    // Component starts minimized, showing only percentage
+    const percentageElements = screen.getAllByText(
+      (content, node) => node?.textContent?.replace(/\s/g, "") === "50%"
+    );
+    expect(percentageElements.length).toBeGreaterThan(0);
+    // "Resume Progress" text only shows when expanded
+    expect(screen.queryByText("Resume Progress")).not.toBeInTheDocument();
   });
 
-  it("renders collected fields", () => {
-    render(
+  it("renders collected fields when expanded", async () => {
+    const { container } = render(
       <ResumeProgress
         progress={30}
         collectedFields={["Name", "Email"]}
         missingFields={[]}
       />
     );
-    expect(screen.getByText("✓ Collected:")).toBeInTheDocument();
+    // Click to expand
+    const expandButton = screen.getByRole("button", {
+      name: /expand resume progress/i,
+    });
+    await fireEvent.click(expandButton);
+
+    // Now the fields should be visible
+    await waitFor(() => {
+      expect(screen.getByText("✓ Collected:")).toBeInTheDocument();
+    });
     expect(screen.getByText("Name")).toBeInTheDocument();
     expect(screen.getByText("Email")).toBeInTheDocument();
   });
 
-  it("renders missing fields (limited to 5)", () => {
+  it("renders missing fields (limited to 5) when expanded", async () => {
     const missingFields = ["Field1", "Field2", "Field3", "Field4", "Field5"];
     render(
       <ResumeProgress
@@ -40,7 +50,15 @@ describe("ResumeProgress", () => {
         missingFields={missingFields}
       />
     );
-    expect(screen.getByText("⏳ Still need:")).toBeInTheDocument();
+    // Click to expand
+    const expandButton = screen.getByRole("button", {
+      name: /expand resume progress/i,
+    });
+    await fireEvent.click(expandButton);
+
+    await waitFor(() => {
+      expect(screen.getByText("⏳ Still need:")).toBeInTheDocument();
+    });
     expect(screen.getByText("Field1")).toBeInTheDocument();
     expect(screen.getByText("Field5")).toBeInTheDocument();
   });
@@ -64,11 +82,21 @@ describe("ResumeProgress", () => {
     expect(screen.queryByText("⏳ Still need:")).not.toBeInTheDocument();
   });
 
-  it("renders completion message when progress is 100", () => {
+  it("renders completion message when progress is 100 and expanded", async () => {
     render(<ResumeProgress progress={100} />);
-    expect(
-      screen.getByText("✨ All information collected! Creating your resume...")
-    ).toBeInTheDocument();
+    // Click to expand
+    const expandButton = screen.getByRole("button", {
+      name: /expand resume progress/i,
+    });
+    await fireEvent.click(expandButton);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "✨ All information collected! Creating your resume..."
+        )
+      ).toBeInTheDocument();
+    });
   });
 
   it("does not render missing fields if empty", () => {

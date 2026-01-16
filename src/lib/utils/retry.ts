@@ -5,9 +5,26 @@ const isTestRuntime =
 
 const DEFAULT_RETRIES = isTestRuntime ? 0 : 3;
 const DEFAULT_DELAY = isTestRuntime ? 5 : 1000;
+const DEFAULT_JITTER_FACTOR = 0.2; // ±20% jitter
 
 /**
- * Retry a function with exponential backoff
+ * Add jitter to a delay value to prevent thundering herd
+ * @param delay Base delay in ms
+ * @param jitterFactor Factor for jitter range (0.2 = ±20%)
+ * @returns Delay with random jitter applied
+ */
+function addJitter(delay: number, jitterFactor: number = DEFAULT_JITTER_FACTOR): number {
+  const jitterRange = delay * jitterFactor;
+  const jitter = (Math.random() * 2 - 1) * jitterRange; // Random value between -jitterRange and +jitterRange
+  return Math.max(0, Math.round(delay + jitter));
+}
+
+/**
+ * Retry a function with exponential backoff and jitter
+ * 
+ * The jitter prevents "thundering herd" issues where many requests
+ * retry at exactly the same time after a provider outage.
+ * 
  * @param fn The async function to retry
  * @param retries Maximum number of retries (default: 3)
  * @param delay Initial delay in ms (default: 1000)
@@ -26,11 +43,15 @@ export async function withRetry<T>(
       throw error;
     }
 
-    const waitMs = isTestRuntime ? Math.min(delay, 5) : delay;
+    // Apply jitter only in non-test environments
+    const baseWaitMs = isTestRuntime ? Math.min(delay, 5) : delay;
+    const waitMs = isTestRuntime ? baseWaitMs : addJitter(baseWaitMs);
+
     logger.warn(
       {
         remainingAttempts: retries,
         waitMs,
+        baseDelay: delay,
       },
       "Retrying operation after failure"
     );

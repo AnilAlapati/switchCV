@@ -39,7 +39,7 @@ export function SkillsStep({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {skills.map((skill, index) => (
             <SkillCard
-              key={index}
+              key={skill.id || `skill-${index}`}
               index={index}
               skill={skill}
               onUpdate={(updates) => onUpdate(index, updates)}

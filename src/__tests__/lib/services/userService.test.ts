@@ -1,5 +1,6 @@
 import { adminDb } from "@/lib/firebase-admin";
 import { getUserTier, getUserRole } from "@/lib/services/userService";
+import { userTierCache, userRoleCache } from "@/lib/utils/cache";
 
 // Initial mock for production mode
 jest.mock("@/lib/config", () => ({
@@ -22,6 +23,8 @@ describe("userService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (adminDb.collection as jest.Mock).mockImplementation(mockCollection);
+    userTierCache.clear();
+    userRoleCache.clear();
   });
 
   describe("getUserTier (Production)", () => {

@@ -5,19 +5,37 @@ import { POST } from "./route";
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 import { getUserTier } from "@/lib/services/userService";
 import { consumeQuota, QuotaExceededError } from "@/lib/services/quotaService";
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 
 // Mock dependencies
 jest.mock("@/lib/utils/api-helpers", () => ({
-  getAuthenticatedUserId: jest.fn(),
+  getAuthenticatedUserId: jest
+    .fn()
+    .mockResolvedValue({ userId: "recruiter123", error: null }),
   handleApiError: jest.fn((error, message, status = 500) => ({
     status,
-    json: async () => ({ error: message, details: error.message }),
+    json: async () => ({
+      error: message,
+      details:
+        error instanceof Error
+          ? error.message
+          : error
+          ? String(error)
+          : undefined,
+    }),
   })),
 }));
 
 jest.mock("@/lib/services/userService");
 jest.mock("@/lib/services/quotaService");
+
+// Mock config.server to avoid DB calls
+jest.mock("@/lib/config.server", () => ({
+  getRecruiterContactLimits: jest.fn().mockResolvedValue({
+    basic: { amount: 2, interval: "lifetime" },
+  }),
+}));
 
 // Mock firebase-admin
 jest.mock("@/lib/firebase-admin", () => ({
@@ -74,10 +92,19 @@ describe("POST /api/recruiter/request-access", () => {
     (consumeQuota as jest.Mock).mockResolvedValue({ remaining: 1 });
 
     // Default resume found
-    mockGet.mockResolvedValue({
-      exists: true,
-      data: () => ({ userId: mockUserId, title: "Resume Title" }),
-      empty: true, // for query results
+    mockGet.mockImplementation(async () => {
+      // Check if this is a user doc or resume doc or query
+      // We can distinguish by looking at what mockDoc was called with if we wanted,
+      // but a simpler way is to return an object that satisfies both.
+      return {
+        exists: true,
+        data: () => ({
+          userId: mockUserId,
+          title: "Resume Title",
+          role: "recruiter", // For verifyRecruiterRole
+        }),
+        empty: true, // for query results
+      };
     });
   });
 
@@ -86,6 +113,7 @@ describe("POST /api/recruiter/request-access", () => {
       "http://localhost/api/recruiter/request-access",
       {
         method: "POST",
+        headers: { authorization: "Bearer test-token" },
         body: JSON.stringify({ resumeId: mockResumeId }),
       }
     );
@@ -112,6 +140,7 @@ describe("POST /api/recruiter/request-access", () => {
       "http://localhost/api/recruiter/request-access",
       {
         method: "POST",
+        headers: { authorization: "Bearer test-token" },
         body: JSON.stringify({ resumeId: mockResumeId }),
       }
     );
@@ -129,18 +158,24 @@ describe("POST /api/recruiter/request-access", () => {
       .mockImplementationOnce(() =>
         Promise.resolve({
           exists: true,
-          data: () => ({ userId: mockUserId }),
+          data: () => ({ role: "recruiter" }), // verifyRecruiterRole
         })
       )
       .mockImplementationOnce(() =>
         Promise.resolve({
           exists: true,
-          data: () => ({ email: "test@example.com" }),
+          data: () => ({ userId: mockUserId }), // resumeRef.get()
         })
       )
       .mockImplementationOnce(() =>
         Promise.resolve({
-          empty: false, // Request exists
+          exists: true,
+          data: () => ({ email: "test@example.com" }), // userRef.get()
+        })
+      )
+      .mockImplementationOnce(() =>
+        Promise.resolve({
+          empty: false, // Request exists - existingQuery.get()
         })
       );
 

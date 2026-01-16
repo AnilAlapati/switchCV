@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactElement } from "react";
 import type { OpportunityInsight } from "@/types/dashboard";
 
 interface OpportunityInsightsCardProps {
@@ -8,44 +9,54 @@ interface OpportunityInsightsCardProps {
   insights: OpportunityInsight[];
 }
 
-const toneAccent: Record<OpportunityInsight["tone"], string> = {
-  positive: "bg-emerald-500/15 text-emerald-200 border border-emerald-500/30",
-  info: "bg-cyan-500/15 text-cyan-200 border border-cyan-500/30",
-  caution: "bg-amber-500/15 text-amber-200 border border-amber-500/30",
+const toneStyles: Record<OpportunityInsight["tone"], string> = {
+  positive: "bg-white border-black hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]",
+  info: "bg-gray-50 border-gray-300 hover:border-black",
+  caution: "bg-white border-gray-200 hover:border-black",
+};
+
+const iconStyles: Record<OpportunityInsight["tone"], string> = {
+  positive: "text-blue-600",
+  info: "text-gray-600",
+  caution: "text-gray-500",
 };
 
 export function OpportunityInsightsCard({
   title,
   subtitle,
   insights,
-}: OpportunityInsightsCardProps) {
+}: OpportunityInsightsCardProps): ReactElement {
   return (
-    <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-lg shadow-slate-950/40">
-      <header className="mb-5 space-y-1">
-        <h2 className="text-lg font-semibold text-white">{title}</h2>
-        {subtitle && <p className="text-sm text-slate-300">{subtitle}</p>}
+    <section className="bg-white border-2 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+      <header className="mb-6 flex items-start justify-between border-b-2 border-gray-100 pb-4">
+        <div>
+          <h2 className="text-xl font-serif font-bold text-black">{title}</h2>
+          {subtitle && <p className="text-sm text-gray-500 mt-1 font-sans">{subtitle}</p>}
+        </div>
       </header>
+
       <div className="grid gap-4 md:grid-cols-3">
         {insights.map((insight) => (
           <article
             key={insight.id}
-            className={`flex flex-col gap-4 rounded-xl p-4 transition hover:border-cyan-500/30 hover:bg-slate-900/80 ${
-              toneAccent[insight.tone]
-            }`}
+            className={`group relative flex flex-col gap-4 p-5 border-2 transition-all ${toneStyles[insight.tone]}`}
           >
-            <div>
-              <span className="text-xs uppercase tracking-wide text-slate-300/80">
+            <div className="flex items-center justify-between">
+              <span className={`text-[10px] font-mono font-bold uppercase tracking-widest ${iconStyles[insight.tone]}`}>
                 {insight.metricLabel}
               </span>
-              <p className="text-2xl font-semibold text-white">
+            </div>
+
+            <div>
+              <p className="text-3xl font-serif font-bold text-black mb-4">
                 {insight.metricValue}
               </p>
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold tracking-wide text-slate-100">
+
+              <h3 className="text-base font-bold text-black mb-2">
                 {insight.title}
               </h3>
-              <p className="mt-1 text-sm text-slate-200/90">
+
+              <p className="text-sm text-gray-600 leading-relaxed font-sans">
                 {insight.description}
               </p>
             </div>

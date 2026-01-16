@@ -1,8 +1,46 @@
+import { NextRequest, NextResponse } from "next/server";
 import { POST } from "./route";
-import { NextRequest } from "next/server";
-import { generateText } from "@/lib/services/aiGenerationService";
 
-jest.mock("@/lib/services/aiGenerationService");
+jest.mock("@/lib/services/agentOrchestrator", () => ({
+  runAgenticWorkflow: jest.fn(),
+}));
+
+jest.mock("@/lib/services/userService", () => ({
+  getUserTier: jest.fn(),
+}));
+
+jest.mock("@/lib/services/billingService", () => ({
+  BillingService: {
+    checkBudget: jest.fn().mockResolvedValue(true),
+    trackUsage: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+
+jest.mock("@/lib/services/aiGenerationService", () => ({
+  generateText: jest.fn(),
+}));
+
+jest.mock("@/lib/utils/api-helpers", () => ({
+  ...jest.requireActual("@/lib/utils/api-helpers"),
+  validateCorsRequest: jest.fn(() => null),
+  handleApiError: jest.fn((error, message, status) => {
+    return Response.json(
+      { error: message, details: error?.message },
+      { status: status || 500 }
+    );
+  }),
+  getAuthenticatedUserId: jest.fn(),
+}));
+
+jest.mock("@/lib/utils/distributedRateLimit", () => ({
+  checkDistributedRateLimit: jest.fn(),
+}));
+
+import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
+import { getUserTier } from "@/lib/services/userService";
+import { runAgenticWorkflow } from "@/lib/services/agentOrchestrator";
+import { generateText } from "@/lib/services/aiGenerationService";
 
 describe("POST /api/ai/generate-resume", () => {
   const mockResumeData = {
@@ -31,6 +69,13 @@ describe("POST /api/ai/generate-resume", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "test-user",
+    });
+    (checkDistributedRateLimit as jest.Mock).mockResolvedValue({
+      allowed: true,
+    });
+    (getUserTier as jest.Mock).mockResolvedValue("premium");
   });
 
   it("should return 400 if resume data is missing", async () => {
@@ -43,8 +88,33 @@ describe("POST /api/ai/generate-resume", () => {
     const data = await res.json();
 
     expect(res.status).toBe(400);
-    // expect(data.success).toBe(false);
     expect(data.error).toBe("Missing resume data");
+  });
+
+  it("should return 401 if user is not authenticated", async () => {
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: null });
+
+    const req = new NextRequest("http://localhost/api/ai/generate-resume", {
+      method: "POST",
+      body: JSON.stringify({ resumeData: mockResumeData }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(401);
+  });
+
+  it("should return 429 if rate limit exceeded", async () => {
+    (checkDistributedRateLimit as jest.Mock).mockResolvedValue({
+      allowed: false,
+    });
+
+    const req = new NextRequest("http://localhost/api/ai/generate-resume", {
+      method: "POST",
+      body: JSON.stringify({ resumeData: mockResumeData }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(429);
   });
 
   it("should generate enhanced resume successfully", async () => {
@@ -64,11 +134,9 @@ describe("POST /api/ai/generate-resume", () => {
       improvementTips: ["Add metrics"],
     };
 
-    (generateText as jest.Mock).mockResolvedValue({
-      text: JSON.stringify(mockAIResponse),
-      model: "gpt-4",
-      provider: "openai",
-    });
+    (runAgenticWorkflow as jest.Mock).mockResolvedValue(
+      JSON.stringify(mockAIResponse)
+    );
 
     const req = new NextRequest("http://localhost/api/ai/generate-resume", {
       method: "POST",
@@ -81,11 +149,11 @@ describe("POST /api/ai/generate-resume", () => {
     expect(res.status).toBe(200);
     expect(data.success).toBe(true);
     expect(data.data.enhancedSummary).toBe("Enhanced summary text");
-    expect(generateText).toHaveBeenCalled();
+    expect(runAgenticWorkflow).toHaveBeenCalled();
   });
 
   it("should handle AI service errors", async () => {
-    (generateText as jest.Mock).mockRejectedValue(
+    (runAgenticWorkflow as jest.Mock).mockRejectedValue(
       new Error("AI Service Error")
     );
 
@@ -104,11 +172,11 @@ describe("POST /api/ai/generate-resume", () => {
   });
 
   it("should use fallback if AI response is invalid JSON", async () => {
-    (generateText as jest.Mock).mockResolvedValue({
-      text: "Invalid JSON response",
-      model: "gpt-4",
-      provider: "openai",
-    });
+    (runAgenticWorkflow as jest.Mock).mockResolvedValue(
+      JSON.stringify({
+        enhancedSummary: "Results-driven professional with enhanced summary",
+      })
+    );
 
     const req = new NextRequest("http://localhost/api/ai/generate-resume", {
       method: "POST",

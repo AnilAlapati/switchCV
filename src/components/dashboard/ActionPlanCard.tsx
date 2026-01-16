@@ -11,29 +11,29 @@ interface ActionPlanCardProps {
 }
 
 const statusStyles: Record<ActionItem["status"], string> = {
-  blocked: "bg-rose-500/20 text-rose-200 border border-rose-500/40",
-  notStarted: "bg-slate-800/70 text-slate-200 border border-slate-700/70",
-  inProgress: "bg-amber-500/20 text-amber-200 border border-amber-500/40",
-  completed: "bg-emerald-500/20 text-emerald-200 border border-emerald-500/40",
+  blocked: "bg-rose-50 text-rose-600 border border-rose-100",
+  notStarted: "bg-slate-50 text-slate-600 border border-slate-200",
+  inProgress: "bg-amber-50 text-amber-600 border border-amber-100",
+  completed: "bg-emerald-50 text-emerald-600 border border-emerald-100",
 };
 
 const priorityAccent: Record<ActionItem["priority"], string> = {
-  high: "text-rose-200",
-  medium: "text-amber-200",
-  low: "text-cyan-200",
+  high: "text-rose-600",
+  medium: "text-amber-600",
+  low: "text-blue-600",
 };
 
 export function ActionPlanCard({
   headline,
   items,
   loading,
-  emptyMessage = "All caught up. Circle back tomorrow for new suggestions.",
+  emptyMessage = "Your agent has no urgent suggestions. Circle back tomorrow for new suggestions.",
 }: ActionPlanCardProps) {
   return (
-    <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-lg shadow-slate-950/40">
+    <section className="glass-panel rounded-2xl p-6">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold text-white">{headline}</h2>
-        <span className="text-xs uppercase tracking-wide text-slate-400">
+        <h2 className="text-lg font-bold text-[black]">{headline}</h2>
+        <span className="text-xs font-bold uppercase tracking-wide text-[black]/60">
           Focus queue
         </span>
       </div>
@@ -44,14 +44,14 @@ export function ActionPlanCard({
             {Array.from({ length: 3 }).map((_, index) => (
               <div
                 key={index}
-                className="h-20 animate-pulse rounded-xl bg-slate-800/70"
+                className="h-20 animate-pulse rounded-xl bg-white/20"
               />
             ))}
           </div>
         )}
 
         {!loading && items.length === 0 && (
-          <p className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-sm text-slate-300">
+          <p className="rounded-xl border border-white/50 bg-white/20 p-4 text-sm text-[black]/60">
             {emptyMessage}
           </p>
         )}
@@ -72,7 +72,7 @@ export function ActionPlanCard({
             );
 
             const MetaTag = item.meta ? (
-              <span className="text-xs font-medium text-slate-400">
+              <span className="text-xs font-medium text-slate-500">
                 {item.meta}
               </span>
             ) : null;
@@ -82,7 +82,7 @@ export function ActionPlanCard({
                 <Link
                   href={item.cta.href}
                   target={item.cta.target}
-                  className="inline-flex items-center gap-2 rounded-lg bg-cyan-500/20 px-3 py-1.5 text-xs font-medium text-cyan-200 transition hover:bg-cyan-500/30"
+                  className="inline-flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-600 transition hover:bg-blue-100 group-hover:bg-blue-100"
                 >
                   {item.cta.label}
                   <svg
@@ -103,7 +103,7 @@ export function ActionPlanCard({
                 <button
                   type="button"
                   onClick={item.cta.onClick}
-                  className="inline-flex items-center gap-2 rounded-lg bg-cyan-500/20 px-3 py-1.5 text-xs font-medium text-cyan-200 transition hover:bg-cyan-500/30"
+                  className="inline-flex items-center gap-2 rounded-lg bg-cyan-100 px-3 py-1.5 text-xs font-bold text-cyan-700 transition hover:bg-cyan-200"
                 >
                   {item.cta.label}
                   <svg
@@ -126,7 +126,7 @@ export function ActionPlanCard({
             return (
               <article
                 key={item.id}
-                className="rounded-xl border border-slate-800/70 bg-slate-900/60 p-4 transition hover:border-cyan-500/40 hover:bg-slate-900/70"
+                className="group rounded-xl border border-white/50 bg-white/40 p-4 transition hover:border-white hover:shadow-md"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="flex flex-col gap-1">
@@ -140,13 +140,13 @@ export function ActionPlanCard({
                         {item.priority} priority
                       </span>
                     </div>
-                    <h3 className="text-base font-semibold text-white">
+                    <h3 className="text-base font-bold text-[black]">
                       {item.title}
                     </h3>
                   </div>
                   {CTAButton}
                 </div>
-                <p className="mt-2 text-sm text-slate-300">
+                <p className="mt-2 text-sm text-[black]/70">
                   {item.description}
                 </p>
                 {MetaTag && <div className="mt-3">{MetaTag}</div>}

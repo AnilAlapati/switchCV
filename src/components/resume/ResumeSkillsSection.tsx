@@ -29,7 +29,7 @@ export function ResumeSkillsSection({
           <div className="flex flex-wrap gap-3">
             {publicSkills.map((skill, index) => (
               <div
-                key={index}
+                key={skill.id || `skill-${index}`}
                 className="group px-3 py-2 rounded-lg bg-slate-700/40 border border-slate-600/60 hover:border-blue-500/60 hover:bg-slate-700/60 transition-all"
               >
                 <p className="text-slate-300 group-hover:text-blue-300 transition-colors text-sm font-medium">

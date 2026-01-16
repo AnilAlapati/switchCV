@@ -1,0 +1,25 @@
+{
+    "common": {
+        "loading": "Cargando...",
+        "save": "Guardar",
+        "cancel": "Cancelar",
+        "delete": "Eliminar",
+        "edit": "Editar",
+        "create": "Crear",
+        "back": "Atrás",
+        "next": "Siguiente",
+        "finish": "Finalizar"
+    },
+    "dashboard": {
+        "title": "Panel de Control",
+        "welcome": "¡Bienvenido, {name}!",
+        "createResume": "Crear Currículum",
+        "myResumes": "Mis Currículums",
+        "analytics": "Analítica"
+    },
+    "hero": {
+        "title": "Construye tu Currículum con IA",
+        "subtitle": "Crea currículums profesionales y personalizados en minutos.",
+        "cta": "Empezar"
+    }
+}

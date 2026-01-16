@@ -1,4 +1,5 @@
 // src/types/index.ts
+import { SubscriptionTier, UserRole } from "@/lib/config";
 
 export type Visibility = "public" | "masked" | "request";
 
@@ -8,12 +9,14 @@ export interface ContactInfo {
 }
 
 export interface Skill {
+  id?: string;
   name: string;
   level: string;
   visibility: Visibility;
 }
 
 export interface Experience {
+  id?: string;
   company: string;
   role: string;
   startDate: string;
@@ -23,6 +26,7 @@ export interface Experience {
 }
 
 export interface Education {
+  id?: string;
   institution: string;
   degree: string;
   startDate: string;
@@ -32,6 +36,7 @@ export interface Education {
 }
 
 export interface Project {
+  id?: string;
   name: string;
   url?: string;
   description: string;
@@ -117,6 +122,8 @@ export interface DraftResume {
 export interface PublishedResume {
   /** Numeric resume ID (e.g., 12345678) */
   resumeId: number;
+  /** Alias for resumeId to match DashboardResume */
+  numericId: number;
   /** Owner's user ID */
   userId: string;
   /** Resume content */
@@ -137,6 +144,77 @@ export interface PublishedResume {
   editingDraftId?: string;
 }
 
+/**
+ * Dashboard Resume - Flattened structure used in UI components
+ */
+export interface DashboardResume extends ResumeProfile {
+  id: string;
+  numericId?: number;
+  published?: boolean;
+  isPublic?: boolean;
+  visibility?: string;
+  lastUpdatedAt: string;
+  updatedAt?: string;
+  publishedAt?: string;
+  createdAt?: string;
+  templateId?: string;
+  isBeingEdited?: boolean;
+  viewerAccess?: ViewerAccessMeta;
+}
+
+export interface ViewerAccessMeta {
+  isOwner?: boolean;
+  isRecruiter?: boolean;
+  hasGrantedAccess?: boolean;
+  scope?: string;
+}
+
+export interface UserProfile {
+  uid: string;
+  email: string;
+  displayName?: string;
+  photoURL?: string;
+  subscriptionTier: SubscriptionTier;
+  role: UserRole;
+  createdAt?: string;
+  lastLoginAt?: string;
+  agentic?: {
+    usageCount: number;
+    lastRunAt: string;
+  };
+}
+
+export interface LegacyResumeData {
+  title: string;
+  numericId?: string | number;
+  personalInfo?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    location?: string;
+  };
+  summary?: string;
+  experience?: Array<{
+    title: string;
+    company: string;
+    duration: string;
+    description: string;
+    achievements?: string[];
+  }>;
+  education?: Array<{
+    institution: string;
+    degree: string;
+    year: string;
+    major?: string;
+  }>;
+  skills?: Array<string | { name: string }>;
+  work?: Array<Record<string, unknown>>;
+  languages?: Array<Record<string, unknown>>;
+  interests?: Array<Record<string, unknown>>;
+  references?: Array<Record<string, unknown>>;
+  projects?: Array<Record<string, unknown>>;
+}
+
 export interface User {
   uid: string;
   email: string;
@@ -147,6 +225,11 @@ export interface User {
   settings: {
     publicProfile: boolean;
     defaultPIIVisibility: Visibility;
+  };
+  subscriptionTier?: "basic" | "premium" | "enterprise";
+  agentic?: {
+    usageCount: number;
+    lastRunAt: string;
   };
 }
 
@@ -247,6 +330,27 @@ export interface Analytics {
   totalInteractions: number; // views + requests
   lastUpdatedAt: string;
   period?: "daily" | "weekly" | "monthly";
+
+  // Optional metadata for dashboard
+  demographics?: {
+    topIndustries: string[];
+    topLocations: string[];
+  };
+  attractivenessScore?: number;
+
+  // Additional metrics tracked in service
+  downloads?: number;
+  lastDownloadedAt?: string;
+  downloadsByFormat?: Record<string, number>;
+  shares?: number;
+  lastSharedAt?: string;
+
+  // Legacy/Flat structure support
+  viewCount?: number;
+  uniqueViews?: number;
+  uniqueViewCount?: number;
+  downloadCount?: number;
+  shareCount?: number;
 }
 
 /**
@@ -258,7 +362,7 @@ export interface AnalyticsEvent {
   userId: string;
   eventType: "view" | "request" | "approval" | "click" | "share" | "download";
   timestamp: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface AuditLog {
@@ -267,4 +371,20 @@ export interface AuditLog {
   actor: string;
   timestamp: string;
   meta: Record<string, unknown>;
+}
+
+export interface SystemAnalytics {
+  totalUsers: number;
+  totalResumes: number;
+  activeRecruiters: number;
+  totalViews: number;
+  totalContactRequests: number;
+  averageAttractiveness: number;
+  topIndustries: Array<{ name: string; count: number }>;
+  recentActivity: Array<{ type: string; timestamp: Date; description: string }>;
+  subscriptionDistribution: {
+    basic: number;
+    premium: number;
+    enterprise: number;
+  };
 }

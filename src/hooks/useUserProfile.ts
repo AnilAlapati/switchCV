@@ -1,6 +1,6 @@
 "use client";
 
-import useSWR from "swr";
+import useSWR, { KeyedMutator } from "swr";
 import { useAuth } from "@/hooks/useAuth";
 import {
   SubscriptionTier,
@@ -9,25 +9,15 @@ import {
   DEV_TIER_OVERRIDE,
   DEV_ROLE_OVERRIDE,
 } from "@/lib/config";
-
-interface UserProfile {
-  uid: string;
-  email: string;
-  displayName?: string;
-  photoURL?: string;
-  subscriptionTier: SubscriptionTier;
-  role: UserRole;
-  createdAt?: string;
-  lastLoginAt?: string;
-}
+import { UserProfile } from "@/types";
 
 interface UseUserProfileResult {
   profile: UserProfile | null;
   tier: SubscriptionTier;
   role: UserRole | undefined;
   loading: boolean;
-  error: any;
-  mutate: () => Promise<any>;
+  error: Error | null;
+  mutate: KeyedMutator<UserProfile | null>;
 }
 
 const fetcher = async (url: string, token: string) => {
@@ -53,12 +43,16 @@ export function useUserProfile(): UseUserProfileResult {
 
   const { data, error, isLoading, mutate } = useSWR(
     key,
-    ([url]) => user!.getIdToken().then((token) => fetcher(url, token)),
+    ([url]: [string, string]) => user!.getIdToken().then((token) => fetcher(url, token)),
     {
-      // Keep data fresh for 5 minutes
-      dedupingInterval: 300000,
+      // Keep data fresh for 10 seconds
+      dedupingInterval: 10000,
       // Don't retry on 404s (profile doesn't exist yet)
       shouldRetryOnError: false,
+      // Revalidate on focus to pick up tier changes
+      revalidateOnFocus: true,
+      // Don't revalidate on reconnect
+      revalidateOnReconnect: false,
     }
   );
 
@@ -74,18 +68,18 @@ export function useUserProfile(): UseUserProfileResult {
   // Construct effective profile
   const effectiveProfile: UserProfile | null = data
     ? {
-        ...data,
-        subscriptionTier: effectiveTier,
-        role: effectiveRole as UserRole,
-      }
+      ...data,
+      subscriptionTier: effectiveTier,
+      role: effectiveRole as UserRole,
+    }
     : user
-    ? {
+      ? {
         uid: user.uid,
         email: user.email || "",
         subscriptionTier: effectiveTier,
         role: effectiveRole as UserRole,
       }
-    : null;
+      : null;
 
   return {
     profile: effectiveProfile,

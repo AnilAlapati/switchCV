@@ -1,182 +1,68 @@
-import { logger } from "@/lib/logger";
-// src/app/api/recruiter/search/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/firebase";
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  orderBy,
-  limit as firestoreLimit,
-} from "firebase/firestore";
-import type { SearchResult } from "@/components/dashboard/RecruiterSearchForm";
 import {
   handleApiError,
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
-import { getUserTier } from "@/lib/services/userService";
-import { RECRUITER_SEARCH_LIMITS } from "@/lib/config";
-import { consumeQuota, QuotaExceededError } from "@/lib/services/quotaService";
+import { RecruiterService } from "@/lib/services/recruiterService";
+import { QuotaExceededError } from "@/lib/services/quotaService";
 
-export async function GET(request: NextRequest) {
+// export const dynamic = 'force-dynamic'; // Typically needed for Next.js API routes using headers/cookies
+
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
+    // 1. Authentication
+    const { userId: authUserId, error: authError } =
+      await getAuthenticatedUserId(request);
+
+    if (authError || !authUserId) {
+      return authError || handleApiError(null, "Unauthorized", 401);
+    }
+
+    // 2. Parse Query
     const { searchParams } = new URL(request.url);
     const rawQuery = searchParams.get("q");
 
-    if (!rawQuery) {
+    if (!rawQuery || !rawQuery.trim()) {
       return handleApiError(null, "Search query is required", 400);
     }
 
     const searchQuery = rawQuery.trim();
 
-    if (!searchQuery) {
-      return handleApiError(null, "Search query is required", 400);
-    }
-
-    const { userId: recruiterId, error: authError } =
-      await getAuthenticatedUserId(request);
-    if (authError) return authError;
-
-    const tier = await getUserTier(recruiterId!);
-    const limit = RECRUITER_SEARCH_LIMITS[tier];
-
+    // 3. Delegation to Service
     try {
-      await consumeQuota({
-        subjectId: recruiterId!,
-        scope: "recruiter_search",
-        limit,
-        period: "monthly",
+      const result = await RecruiterService.searchCandidates(authUserId, searchQuery);
+
+      // 4. Response
+      // Cache headers are still good to keep here at the "Edge" (Controller) level
+      return NextResponse.json(result, {
+        headers: {
+          'Cache-Control': 'private, max-age=60, stale-while-revalidate=600',
+        }
       });
+
     } catch (error) {
+      // Handle known domain errors to preserve UX
+      const err = error as Error;
+      if (err.message === "forbidden-role") {
+        return handleApiError(null, "Forbidden: Recruiter role required", 403);
+      }
+
       if (error instanceof QuotaExceededError) {
+        // We catch this here to provide specific UI feedback
+        // The service could return current limit, but we can also just say "limit reached"
+        // Ideally we'd get the limit from the error or service, but generic message is OK for parity
         return handleApiError(
           error,
-          `You have reached your monthly search limit of ${limit}. Please upgrade to search more candidates.`,
+          `You have reached your monthly search limit. Please upgrade to search more candidates.`,
           403
         );
       }
-      throw error;
+
+      throw error; // Let outer catch handle unexpected errors
     }
 
-    const searchLower = searchQuery.toLowerCase();
-    const results: SearchResult[] = [];
-
-    // Search in resumes collection
-    try {
-      const resumesRef = collection(db, "resumes");
-      const resumesQuery = query(
-        resumesRef,
-        where("published", "==", true),
-        orderBy("createdAt", "desc"),
-        firestoreLimit(50)
-      );
-
-      const resumesSnapshot = await getDocs(resumesQuery);
-
-      for (const doc of resumesSnapshot.docs) {
-        const resumeData = doc.data();
-        const title = resumeData.title || "Untitled Resume";
-        const userId = resumeData.userId;
-        const skills = resumeData.skills?.map((s: any) => s.name) || [];
-
-        // Check if matches search query (resume number, title, or skill)
-        const resumeNumber = doc.id.substring(0, 6);
-        const matchesNumber = resumeNumber.includes(searchLower);
-        const matchesTitle = title.toLowerCase().includes(searchLower);
-        const matchesSkill = skills.some((skill: string) =>
-          skill.toLowerCase().includes(searchLower)
-        );
-
-        if (!matchesNumber && !matchesTitle && !matchesSkill) {
-          continue;
-        }
-
-        // Fetch user info
-        try {
-          const userDoc = await getDocs(
-            query(collection(db, "users"), where("uid", "==", userId))
-          );
-          if (!userDoc.empty) {
-            const userData = userDoc.docs[0].data();
-            results.push({
-              resumeId: doc.id,
-              title,
-              userName: userData.displayName || userData.email || "Anonymous",
-              userId,
-              createdAt: resumeData.createdAt || new Date().toISOString(),
-              skills: skills.slice(0, 10),
-            });
-          }
-        } catch (err) {
-          logger.error({ err: err }, "Error fetching user for resume:");
-          // Continue with just resume data if user fetch fails
-          results.push({
-            resumeId: doc.id,
-            title,
-            userName: "Unknown User",
-            userId,
-            createdAt: resumeData.createdAt || new Date().toISOString(),
-            skills: skills.slice(0, 10),
-          });
-        }
-      }
-
-      // Also search in users by name/email if no resumes found
-      if (results.length === 0) {
-        const usersRef = collection(db, "users");
-        const usersQuery = query(
-          usersRef,
-          where("publicProfile.visible", "==", true)
-        );
-        const usersSnapshot = await getDocs(usersQuery);
-
-        for (const doc of usersSnapshot.docs) {
-          const userData = doc.data();
-          const displayName = userData.displayName || "";
-          const email = userData.email || "";
-
-          if (
-            displayName.toLowerCase().includes(searchLower) ||
-            email.toLowerCase().includes(searchLower)
-          ) {
-            // Get user's resumes
-            const userResumesQuery = query(
-              collection(db, "resumes"),
-              where("userId", "==", doc.id),
-              where("published", "==", true)
-            );
-            const userResumesSnapshot = await getDocs(userResumesQuery);
-
-            for (const resumeDoc of userResumesSnapshot.docs) {
-              const resumeData = resumeDoc.data();
-              results.push({
-                resumeId: resumeDoc.id,
-                title: resumeData.title || "Untitled Resume",
-                userName: displayName,
-                userId: doc.id,
-                createdAt: resumeData.createdAt || new Date().toISOString(),
-                skills: resumeData.skills?.map((s: any) => s.name) || [],
-              });
-            }
-          }
-        }
-      }
-
-      // Remove duplicates
-      const uniqueResults = Array.from(
-        new Map(results.map((r) => [r.resumeId, r])).values()
-      );
-
-      return NextResponse.json({
-        results: uniqueResults.slice(0, 20),
-        count: uniqueResults.length,
-        query: searchQuery,
-      });
-    } catch (error) {
-      return handleApiError(error, "Search failed");
-    }
-  } catch (error) {
-    return handleApiError(error, "Failed to process request");
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return handleApiError(error, "Failed to search resumes: " + errorMessage);
   }
 }

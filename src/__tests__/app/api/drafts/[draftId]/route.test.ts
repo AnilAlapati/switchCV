@@ -105,7 +105,11 @@ describe("/api/drafts/[draftId]", () => {
       const res = await GET(req, { params: mockParams });
 
       expect(res.status).toBe(403);
-      expect(handleApiError).toHaveBeenCalledWith(null, "Forbidden", 403);
+      expect(handleApiError).toHaveBeenCalledWith(
+        new Error("Forbidden: Not the owner of this draft"),
+        "Forbidden",
+        403
+      );
     });
 
     it("should return draft data on success", async () => {

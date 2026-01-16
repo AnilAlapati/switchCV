@@ -8,8 +8,8 @@ export interface DashboardMetricsContextValue {
   loading: boolean;
   jobSeekerMetrics: JobSeekerMetrics | null;
   recruiterMetrics: RecruiterMetrics | null;
-  refreshJobSeekerMetrics?: () => Promise<void> | void;
-  refreshRecruiterMetrics?: () => Promise<void> | void;
+  refreshJobSeekerMetrics?: () => Promise<unknown>;
+  refreshRecruiterMetrics?: () => Promise<unknown>;
 }
 
 const DashboardMetricsContext =

@@ -1,6 +1,6 @@
 import { logger } from "@/lib/logger";
-// src/app/api/user/settings/route.ts
 import { NextRequest, NextResponse } from "next/server";
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 import {
   handleApiError,
@@ -39,14 +39,41 @@ export async function GET(request: NextRequest) {
     }
 
     const userData = userDoc.data();
+
+    // Ensure role field is in sync with isRecruiter (migration fix)
+    const isRecruiter = userData?.isRecruiter || false;
+    if (userData && userData.role === undefined) {
+      // Update the document to include the role field
+      await adminDb
+        .collection("users")
+        .doc(userId!)
+        .set(
+          { role: isRecruiter ? "recruiter" : "jobseeker" },
+          { merge: true }
+        );
+    }
+
     const settings = {
-      isRecruiter: userData?.isRecruiter || false,
+      isRecruiter,
       displayName: userData?.displayName || "",
       companyName: userData?.companyName || "",
+      notifications: userData?.notifications || {
+        marketing: true,
+        security: true,
+        activity: false,
+      },
+      privacy: userData?.privacy || {
+        profilePublic: true,
+        searchable: true,
+      },
       updatedAt: userData?.settingsUpdatedAt || new Date().toISOString(),
     };
 
-    return NextResponse.json(settings);
+    return NextResponse.json(settings, {
+      headers: {
+        'Cache-Control': 'private, max-age=60, stale-while-revalidate=300',
+      },
+    });
   } catch (error) {
     logger.error({ err: error }, "Error fetching user settings:");
     return handleApiError(error, "Failed to fetch settings");
@@ -75,6 +102,8 @@ export async function PUT(request: NextRequest) {
       isRecruiter,
       companyName,
       displayName,
+      notifications,
+      privacy,
     } = body;
 
     if (!requestedUserId) {
@@ -102,12 +131,24 @@ export async function PUT(request: NextRequest) {
     // Only add fields that were explicitly provided
     if (typeof isRecruiter === "boolean") {
       updateData.isRecruiter = isRecruiter;
+      // Also update the role field to keep them in sync
+      updateData.role = isRecruiter ? "recruiter" : "jobseeker";
     }
     if (companyName !== undefined && companyName !== null) {
       updateData.companyName = companyName;
     }
     if (displayName !== undefined && displayName !== null) {
       updateData.displayName = displayName;
+    }
+
+    // Validate and update notifications
+    if (notifications && typeof notifications === 'object') {
+      updateData.notifications = notifications;
+    }
+
+    // Validate and update privacy
+    if (privacy && typeof privacy === 'object') {
+      updateData.privacy = privacy;
     }
 
     // Use set with merge to create the document if it doesn't exist

@@ -58,11 +58,11 @@ describe("UserProfileSettings", () => {
 
     const buttons = screen.getAllByRole("button");
     await userEvent.click(buttons[0]);
-    // Ensure a PUT request to update profile was made
+    // Ensure a POST request to update role was made
     await waitFor(() => {
       const calls = (global.fetch as jest.Mock).mock.calls;
-      const hasPut = calls.some((c: any) => c[1] && c[1].method === "PUT");
-      expect(hasPut).toBe(true);
+      const hasPost = calls.some((c: any) => c[1] && c[1].method === "POST");
+      expect(hasPost).toBe(true);
     });
   });
 

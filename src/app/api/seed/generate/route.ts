@@ -9,12 +9,14 @@
  * - AI response validation using Zod schemas
  * - Prompt injection protection
  * - Robust JSON extraction from AI responses
+ * - App Check protection (when enabled)
  *
  * @see /docs/features/SEED_GENERATE_IMPROVEMENTS.md for full documentation
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+// eslint-disable-next-line no-restricted-imports
 import admin, { adminDb } from "@/lib/firebase-admin";
 import { generateText } from "@/lib/services/aiGenerationService";
 import {
@@ -50,6 +52,7 @@ import {
   AIResumeResponseSchema,
   type AIResumeResponse,
 } from "@/lib/schemas/aiResumeSchema";
+import { withAppCheck } from "@/lib/middleware/appCheck";
 
 // ============================================================================
 // INPUT VALIDATION
@@ -88,6 +91,12 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // App Check verification (when enabled via ENFORCE_APP_CHECK=true)
+    const appCheckResult = await withAppCheck(req);
+    if (appCheckResult) {
+      return appCheckResult; // Returns 401 if App Check fails
+    }
+
     const { userId, error: authError } = await getAuthenticatedUserId(req);
     if (authError || !userId) {
       return authError ?? handleApiError(null, "Authentication required", 401);

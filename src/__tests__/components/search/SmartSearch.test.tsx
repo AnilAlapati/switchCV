@@ -83,7 +83,7 @@ describe("SmartSearch Component", () => {
         screen.getByPlaceholderText(/Looking for a senior/i)
       ).toBeInTheDocument();
       expect(
-        screen.getByRole("button", { name: /Smart Search/i })
+        screen.getByText(/Analyze with AI/i).closest("button")
       ).toBeInTheDocument();
     });
 
@@ -110,7 +110,7 @@ describe("SmartSearch Component", () => {
       const textarea = screen.getByPlaceholderText(/Looking for a senior/i);
       await userEvent.type(textarea, "React");
 
-      const button = screen.getByRole("button", { name: /Smart Search/i });
+      const button = screen.getByRole("button", { name: /Analyze with AI/i });
       fireEvent.click(button);
 
       expect(screen.getByText(/at least 10 characters/)).toBeInTheDocument();
@@ -165,12 +165,12 @@ describe("SmartSearch Component", () => {
       const textarea = screen.getByPlaceholderText(/Looking for a senior/i);
       await userEvent.type(textarea, "Looking for a React developer with AWS");
 
-      const button = screen.getByRole("button", { name: /Smart Search/i });
+      const button = screen.getByRole("button", { name: /Analyze with AI/i });
       fireEvent.click(button);
 
       // Button should show searching state
       await waitFor(() => {
-        expect(screen.getByText(/Searching with AI/i)).toBeInTheDocument();
+        expect(screen.getByText(/Analyzing with AI Intelligence/i)).toBeInTheDocument();
       });
     });
   });
@@ -211,7 +211,7 @@ describe("SmartSearch Component", () => {
       const textarea = screen.getByPlaceholderText(/Looking for a senior/i);
       await userEvent.type(textarea, "Looking for a React developer with AWS");
 
-      const button = screen.getByRole("button", { name: /Smart Search/i });
+      const button = screen.getByRole("button", { name: /Analyze with AI/i });
       fireEvent.click(button);
 
       await waitFor(() => {
@@ -236,7 +236,7 @@ describe("SmartSearch Component", () => {
 
       const textarea = screen.getByPlaceholderText(/Looking for a senior/i);
       await userEvent.type(textarea, "Looking for a React developer with AWS");
-      fireEvent.click(screen.getByRole("button", { name: /Smart Search/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Analyze with AI/i }));
 
       await waitFor(() => {
         expect(screen.getByText("92% match")).toBeInTheDocument();
@@ -260,7 +260,7 @@ describe("SmartSearch Component", () => {
 
       const textarea = screen.getByPlaceholderText(/Looking for a senior/i);
       await userEvent.type(textarea, "Looking for a React developer");
-      fireEvent.click(screen.getByRole("button", { name: /Smart Search/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Analyze with AI/i }));
 
       await waitFor(() => {
         expect(screen.getByText("React")).toBeInTheDocument();
@@ -284,7 +284,7 @@ describe("SmartSearch Component", () => {
 
       const textarea = screen.getByPlaceholderText(/Looking for a senior/i);
       await userEvent.type(textarea, "Looking for a React developer");
-      fireEvent.click(screen.getByRole("button", { name: /Smart Search/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Analyze with AI/i }));
 
       await waitFor(() => {
         expect(
@@ -309,7 +309,7 @@ describe("SmartSearch Component", () => {
 
       const textarea = screen.getByPlaceholderText(/Looking for a senior/i);
       await userEvent.type(textarea, "Very specific unique query here");
-      fireEvent.click(screen.getByRole("button", { name: /Smart Search/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Analyze with AI/i }));
 
       await waitFor(() => {
         expect(screen.getByText(/No matching profiles/)).toBeInTheDocument();
@@ -333,7 +333,7 @@ describe("SmartSearch Component", () => {
 
       const textarea = screen.getByPlaceholderText(/Looking for a senior/i);
       await userEvent.type(textarea, "Looking for a React developer");
-      fireEvent.click(screen.getByRole("button", { name: /Smart Search/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Analyze with AI/i }));
 
       await waitFor(() => {
         expect(screen.getByText("Senior React Developer")).toBeInTheDocument();
@@ -364,7 +364,7 @@ describe("SmartSearch Component", () => {
 
       const textarea = screen.getByPlaceholderText(/Looking for a senior/i);
       await userEvent.type(textarea, "Looking for a React developer");
-      fireEvent.click(screen.getByRole("button", { name: /Smart Search/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Analyze with AI/i }));
 
       await waitFor(() => {
         expect(
@@ -389,7 +389,7 @@ describe("SmartSearch Component", () => {
 
       const textarea = screen.getByPlaceholderText(/Looking for a senior/i);
       await userEvent.type(textarea, "Looking for a React developer");
-      fireEvent.click(screen.getByRole("button", { name: /Smart Search/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Analyze with AI/i }));
 
       await waitFor(() => {
         expect(screen.getByText(/Unlimited searches/)).toBeInTheDocument();
@@ -413,7 +413,7 @@ describe("SmartSearch Component", () => {
 
       const textarea = screen.getByPlaceholderText(/Looking for a senior/i);
       await userEvent.type(textarea, "Looking for a React developer");
-      fireEvent.click(screen.getByRole("button", { name: /Smart Search/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Analyze with AI/i }));
 
       await waitFor(() => {
         expect(screen.getByText(/monthly search limit/)).toBeInTheDocument();
@@ -434,7 +434,7 @@ describe("SmartSearch Component", () => {
 
       const textarea = screen.getByPlaceholderText(/Looking for a senior/i);
       await userEvent.type(textarea, "Looking for a React developer");
-      fireEvent.click(screen.getByRole("button", { name: /Smart Search/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Analyze with AI/i }));
 
       await waitFor(() => {
         expect(screen.getByText(/requires a Premium/)).toBeInTheDocument();
@@ -458,7 +458,7 @@ describe("SmartSearch Component", () => {
 
       const textarea = screen.getByPlaceholderText(/Looking for a senior/i);
       await userEvent.type(textarea, "Looking for a React developer");
-      fireEvent.click(screen.getByRole("button", { name: /Smart Search/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Analyze with AI/i }));
 
       await waitFor(() => {
         expect(screen.getByText(/Internal server error/)).toBeInTheDocument();
@@ -499,7 +499,7 @@ describe("SmartSearch Component", () => {
         textarea,
         "Looking for a React developer with AWS experience"
       );
-      fireEvent.click(screen.getByRole("button", { name: /Smart Search/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Analyze with AI/i }));
 
       await waitFor(() => {
         expect(mockFetch).toHaveBeenCalledWith(
@@ -534,7 +534,7 @@ describe("SmartSearch Component", () => {
 
       const textarea = screen.getByPlaceholderText(/Looking for a senior/i);
       await userEvent.type(textarea, "Looking for a developer");
-      fireEvent.click(screen.getByRole("button", { name: /Smart Search/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Analyze with AI/i }));
 
       await waitFor(() => {
         expect(mockUser.getIdToken).toHaveBeenCalled();

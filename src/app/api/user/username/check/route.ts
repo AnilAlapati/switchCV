@@ -8,6 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
 import { RESERVED_USERNAMES, USERNAME_CONFIG } from "@/config/constants";
@@ -86,7 +87,7 @@ export async function GET(request: NextRequest) {
     const ip = forwardedFor?.split(",")[0]?.trim() || "unknown";
 
     // Apply rate limiting (10 requests per minute per IP)
-    const rateLimitResult = checkRateLimit(ip, {
+    const rateLimitResult = await checkRateLimit(ip, {
       limit: USERNAME_CONFIG.CHECK_RATE_LIMIT_PER_MINUTE,
       windowMs: 60 * 1000,
     });

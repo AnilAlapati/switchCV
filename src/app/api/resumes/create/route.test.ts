@@ -2,6 +2,8 @@ import { POST } from "./route";
 import { NextRequest } from "next/server";
 import { generateNumericResumeId } from "@/lib/numericIdGenerator";
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
+import { getUserTier } from "@/lib/services/userService";
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 
 // Mock api-helpers
@@ -20,17 +22,18 @@ jest.mock("@/lib/numericIdGenerator");
 jest.mock("@/lib/firebase-admin", () => ({
   adminDb: {
     collection: jest.fn(),
-    batch: jest.fn(),
   },
+}));
+
+jest.mock("@/lib/services/userService", () => ({
+  getUserTier: jest.fn(),
 }));
 
 describe("POST /api/resumes/create", () => {
   const mockSet = jest.fn();
   const mockDoc = jest.fn();
   const mockCollection = jest.fn();
-  const mockBatchSet = jest.fn();
-  const mockBatchCommit = jest.fn();
-  const mockGet = jest.fn();
+  const mockWhere = jest.fn();
   const mockCount = jest.fn();
   const mockCountGet = jest.fn();
 
@@ -39,35 +42,29 @@ describe("POST /api/resumes/create", () => {
 
     // Setup default Firestore mock chain
     (adminDb.collection as jest.Mock).mockImplementation(mockCollection);
-    (adminDb.batch as jest.Mock).mockReturnValue({
-      set: mockBatchSet,
-      commit: mockBatchCommit,
-    });
 
     mockCollection.mockReturnValue({
       doc: mockDoc,
-      count: mockCount,
+      where: mockWhere,
     });
     mockDoc.mockReturnValue({
       set: mockSet,
-      get: mockGet,
-      collection: mockCollection, // For nested collections
     });
     mockSet.mockResolvedValue(undefined);
-    mockBatchCommit.mockResolvedValue(undefined);
 
-    // Mock getUserTier response
-    mockGet.mockResolvedValue({
-      data: () => ({ subscriptionTier: "basic" }),
+    mockWhere.mockReturnValue({
+      count: mockCount,
     });
 
-    // Mock resume count response
     mockCount.mockReturnValue({
       get: mockCountGet,
     });
+
     mockCountGet.mockResolvedValue({
       data: () => ({ count: 0 }),
     });
+
+    (getUserTier as jest.Mock).mockResolvedValue("basic");
 
     // Default auth mock
     (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
@@ -129,19 +126,15 @@ describe("POST /api/resumes/create", () => {
 
     // Verify Firestore calls
     expect(mockCollection).toHaveBeenCalledWith("resumes");
+    expect(mockWhere).toHaveBeenCalledWith("userId", "==", mockUserId);
     expect(mockDoc).toHaveBeenCalledWith(String(mockNumericId));
-    // expect(mockSet).toHaveBeenCalled(); // Replaced by batch
-    expect(mockBatchSet).toHaveBeenCalledTimes(3);
-    expect(mockBatchCommit).toHaveBeenCalled();
+    expect(mockSet).toHaveBeenCalledTimes(1);
   });
 
   it("should return 403 if resume limit is reached", async () => {
     const mockUserId = "user123";
 
-    // Mock Basic tier (limit 3)
-    mockGet.mockResolvedValue({
-      data: () => ({ subscriptionTier: "basic" }),
-    });
+    (getUserTier as jest.Mock).mockResolvedValue("basic");
 
     // Mock existing count = 3
     mockCountGet.mockResolvedValue({
@@ -166,10 +159,7 @@ describe("POST /api/resumes/create", () => {
   it("should set expiration date for basic tier", async () => {
     const mockUserId = "user123";
 
-    // Mock Basic tier
-    mockGet.mockResolvedValue({
-      data: () => ({ subscriptionTier: "basic" }),
-    });
+    (getUserTier as jest.Mock).mockResolvedValue("basic");
 
     // Mock count = 0
     mockCountGet.mockResolvedValue({
@@ -187,8 +177,7 @@ describe("POST /api/resumes/create", () => {
     await POST(req);
 
     // Verify expiresAt was set in Firestore
-    const setCall = mockBatchSet.mock.calls[0]; // First set call (main doc)
-    const docData = setCall[1];
+    const docData = mockSet.mock.calls[0][0];
     expect(docData.expiresAt).toBeDefined();
     expect(typeof docData.expiresAt).toBe("string");
     expect(docData.deletionScheduledAt).toBeDefined();

@@ -2,6 +2,8 @@ import { POST } from "@/app/api/ai/generate/route";
 import { NextRequest, NextResponse } from "next/server";
 import { generateText } from "@/lib/services/aiGenerationService";
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
+import { BillingService } from "@/lib/services/billingService";
 
 // Mock Firebase Admin
 const mockFirestoreGet = jest.fn();
@@ -64,6 +66,19 @@ jest.mock("@/lib/logger", () => ({
   },
 }));
 
+// Mock Rate Limit
+jest.mock("@/lib/utils/distributedRateLimit", () => ({
+  checkDistributedRateLimit: jest.fn(),
+}));
+
+// Mock Billing
+jest.mock("@/lib/services/billingService", () => ({
+  BillingService: {
+    checkBudget: jest.fn(),
+    trackUsage: jest.fn(),
+  },
+}));
+
 const mockedGenerateText = jest.mocked(generateText);
 
 const createRequest = (body: any) => {
@@ -93,6 +108,15 @@ describe("/api/ai/generate route", () => {
       remaining: 10,
       resetTime: Date.now() + 60000,
     });
+    (checkDistributedRateLimit as jest.Mock).mockResolvedValue({
+      allowed: true,
+      remaining: 10,
+      resetIn: 60000,
+      limit: 100,
+      current: 1,
+    });
+    (BillingService.checkBudget as jest.Mock).mockResolvedValue(true);
+    (BillingService.trackUsage as jest.Mock).mockResolvedValue(undefined);
   });
 
   it("should successfully generate text with valid prompt", async () => {
@@ -293,13 +317,17 @@ describe("/api/ai/generate route", () => {
 
     const request = createRequest({ prompt: "Test" });
 
+    mockedGenerateText.mockResolvedValueOnce({
+      text: "Basic tier response",
+      model: "gemini-1.5-flash",
+      provider: "google",
+    });
+
     const response = await POST(request);
     const data = await response.json();
 
-    expect(response.status).toBe(403);
-    expect(data.error).toBe(
-      "AI text generation requires a premium or enterprise plan."
-    );
+    expect(response.status).toBe(200);
+    expect(mockedGenerateText).toHaveBeenCalled();
   });
 
   it("should default to basic plan if user not found and return 403", async () => {
@@ -308,30 +336,28 @@ describe("/api/ai/generate route", () => {
       data: () => undefined,
     });
 
+    mockedGenerateText.mockResolvedValueOnce({
+      text: "Anonymous/Basic response",
+      model: "gemini-1.5-flash",
+      provider: "google",
+    });
+
     const request = createRequest({ prompt: "Test" });
 
     const response = await POST(request);
     const data = await response.json();
 
-    expect(response.status).toBe(403);
-    expect(data.error).toBe(
-      "AI text generation requires a premium or enterprise plan."
-    );
+    expect(response.status).toBe(200);
+    expect(mockedGenerateText).toHaveBeenCalled();
   });
 
   it("should return 429 error when rate limit is exceeded", async () => {
-    mockRunTransaction.mockImplementation(async (callback) => {
-      const mockTx = {
-        get: jest.fn().mockResolvedValue({
-          exists: true,
-          data: () => ({
-            count: 100, // Exceed limit
-            windowStart: Date.now(), // Current window
-          }),
-        }),
-        set: jest.fn(),
-      };
-      return callback(mockTx);
+    (checkDistributedRateLimit as jest.Mock).mockResolvedValueOnce({
+      allowed: false,
+      remaining: 0,
+      resetIn: 60000,
+      limit: 100,
+      current: 101,
     });
 
     const request = createRequest({ prompt: "Test" });

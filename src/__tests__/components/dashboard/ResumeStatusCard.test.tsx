@@ -1,5 +1,11 @@
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  act,
+} from "@testing-library/react";
 import { ResumeStatusCard } from "@/components/dashboard/ResumeStatusCard";
 import { useAuth } from "@/hooks/useAuth";
 import { reloadPage } from "@/lib/utils/navigation";
@@ -39,71 +45,86 @@ describe("ResumeStatusCard", () => {
     global.alert = jest.fn();
   });
 
-  it("renders loading state", () => {
-    render(
-      <ResumeStatusCard
-        hasResume={false}
-        resumeId={null}
-        resumeLoading={true}
-      />
-    );
+  it("renders loading state", async () => {
+    await act(async () => {
+      render(
+        <ResumeStatusCard
+          hasResume={false}
+          resumeId={null}
+          resumeLoading={true}
+        />
+      );
+    });
     expect(screen.getAllByText("Loading...")[0]).toBeInTheDocument();
   });
 
-  it("renders 'Not Created' state", () => {
-    render(
-      <ResumeStatusCard
-        hasResume={false}
-        resumeId={null}
-        resumeLoading={false}
-      />
-    );
+  it("renders 'Not Created' state", async () => {
+    await act(async () => {
+      render(
+        <ResumeStatusCard
+          hasResume={false}
+          resumeId={null}
+          resumeLoading={false}
+        />
+      );
+    });
     expect(screen.getAllByText("Not Created")[0]).toBeInTheDocument();
     expect(screen.getByText("Create Resume")).toBeInTheDocument();
   });
 
-  it("renders 'Created' state with View and Delete buttons", () => {
-    render(
-      <ResumeStatusCard
-        hasResume={true}
-        resumeId="resume-123"
-        resumeLoading={false}
-      />
-    );
+  it("renders 'Created' state with View and Delete buttons", async () => {
+    await act(async () => {
+      render(
+        <ResumeStatusCard
+          hasResume={true}
+          resumeId="resume-123"
+          resumeLoading={false}
+        />
+      );
+    });
     expect(screen.getAllByText("Private Draft")[0]).toBeInTheDocument();
     expect(screen.getByText("View Resume")).toBeInTheDocument();
     expect(screen.getByText("Edit")).toBeInTheDocument();
     expect(screen.getByText("Delete")).toBeInTheDocument();
   });
 
-  it("opens delete confirmation modal when Delete is clicked", () => {
-    render(
-      <ResumeStatusCard
-        hasResume={true}
-        resumeId="resume-123"
-        resumeLoading={false}
-      />
-    );
+  it("opens delete confirmation modal when Delete is clicked", async () => {
+    await act(async () => {
+      render(
+        <ResumeStatusCard
+          hasResume={true}
+          resumeId="resume-123"
+          resumeLoading={false}
+        />
+      );
+    });
     fireEvent.click(screen.getByText("Delete"));
-    expect(screen.getByText("Delete Resume?")).toBeInTheDocument();
+    expect(screen.getByText("Warning: Permanent Action")).toBeInTheDocument();
     expect(
-      screen.getByText("Are you sure you want to delete your resume?", {
-        exact: false,
-      })
+      screen.getByText(
+        "If you delete this resume, you will lose all its data permanently.",
+        {
+          exact: false,
+        }
+      )
     ).toBeInTheDocument();
   });
 
-  it("cancels delete when Cancel is clicked", () => {
-    render(
-      <ResumeStatusCard
-        hasResume={true}
-        resumeId="resume-123"
-        resumeLoading={false}
-      />
-    );
+  it("cancels delete when Cancel is clicked", async () => {
+    await act(async () => {
+      render(
+        <ResumeStatusCard
+          hasResume={true}
+          resumeId="resume-123"
+          resumeLoading={false}
+        />
+      );
+    });
     fireEvent.click(screen.getByText("Delete"));
     fireEvent.click(screen.getByText("Cancel"));
-    expect(screen.queryByText("Delete Resume?")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Warning: Permanent Action")
+    ).not.toBeInTheDocument();
   });
 
   it("handles delete resume successfully", async () => {
@@ -122,8 +143,11 @@ describe("ResumeStatusCard", () => {
 
     fireEvent.click(screen.getByText("Delete"));
     // Click the confirm delete button (the one inside the modal)
-    const deleteButtons = screen.getAllByText("Delete");
-    fireEvent.click(deleteButtons[1]); // The second one is in the modal
+    const deleteButtons = screen.getAllByRole("button", { name: /Delete/i });
+    const confirmDeleteButton = deleteButtons.find((b) =>
+      b.className.includes("bg-red-600")
+    );
+    fireEvent.click(confirmDeleteButton!);
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
@@ -146,17 +170,22 @@ describe("ResumeStatusCard", () => {
       json: async () => ({ error: "Delete failed" }),
     });
 
-    render(
-      <ResumeStatusCard
-        hasResume={true}
-        resumeId="resume-123"
-        resumeLoading={false}
-      />
-    );
+    await act(async () => {
+      render(
+        <ResumeStatusCard
+          hasResume={true}
+          resumeId="resume-123"
+          resumeLoading={false}
+        />
+      );
+    });
 
     fireEvent.click(screen.getByText("Delete"));
-    const deleteButtons = screen.getAllByText("Delete");
-    fireEvent.click(deleteButtons[1]);
+    const deleteButtons = screen.getAllByRole("button", { name: /Delete/i });
+    const confirmDeleteButton = deleteButtons.find((b) =>
+      b.className.includes("bg-red-600")
+    );
+    fireEvent.click(confirmDeleteButton!);
 
     await waitFor(() => {
       expect(global.alert).toHaveBeenCalledWith(
@@ -165,23 +194,28 @@ describe("ResumeStatusCard", () => {
     });
   });
 
-  it("alerts if user is not logged in when deleting", async () => {
+  it("alerts when user is not logged in during delete", async () => {
     (useAuth as jest.Mock).mockReturnValue({ user: null });
 
-    render(
-      <ResumeStatusCard
-        hasResume={true}
-        resumeId="resume-123"
-        resumeLoading={false}
-      />
-    );
+    await act(async () => {
+      render(
+        <ResumeStatusCard
+          hasResume={true}
+          resumeId="resume-123"
+          resumeLoading={false}
+        />
+      );
+    });
 
     // Note: The component checks user login inside handleDeleteResume,
     // but the button is only visible if hasResume is true.
     // We need to trigger the delete flow.
     fireEvent.click(screen.getByText("Delete"));
-    const deleteButtons = screen.getAllByText("Delete");
-    fireEvent.click(deleteButtons[1]);
+    const deleteButtons = screen.getAllByRole("button", { name: /Delete/i });
+    const confirmDeleteButton = deleteButtons.find((b) =>
+      b.className.includes("bg-red-600")
+    );
+    fireEvent.click(confirmDeleteButton!);
 
     expect(global.alert).toHaveBeenCalledWith(
       "You must be logged in to delete your resume."
@@ -189,18 +223,23 @@ describe("ResumeStatusCard", () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it("alerts if resumeId is missing when deleting", async () => {
-    render(
-      <ResumeStatusCard
-        hasResume={true}
-        resumeId={null}
-        resumeLoading={false}
-      />
-    );
+  it("alerts when resumeId is missing during delete", async () => {
+    await act(async () => {
+      render(
+        <ResumeStatusCard
+          hasResume={true}
+          resumeId={null}
+          resumeLoading={false}
+        />
+      );
+    });
 
     fireEvent.click(screen.getByText("Delete"));
-    const deleteButtons = screen.getAllByText("Delete");
-    fireEvent.click(deleteButtons[1]);
+    const deleteButtons = screen.getAllByRole("button", { name: /Delete/i });
+    const confirmDeleteButton = deleteButtons.find((b) =>
+      b.className.includes("bg-red-600")
+    );
+    fireEvent.click(confirmDeleteButton!);
 
     expect(global.alert).toHaveBeenCalledWith(
       "Resume ID not found. Please refresh the page and try again."
@@ -208,14 +247,16 @@ describe("ResumeStatusCard", () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it("disables edit button when resumeId is missing", () => {
-    render(
-      <ResumeStatusCard
-        hasResume={true}
-        resumeId={null}
-        resumeLoading={false}
-      />
-    );
+  it("disables edit button when resumeId is missing", async () => {
+    await act(async () => {
+      render(
+        <ResumeStatusCard
+          hasResume={true}
+          resumeId={null}
+          resumeLoading={false}
+        />
+      );
+    });
 
     const editButton = screen.getByText("Edit");
     expect(editButton.tagName).toBe("BUTTON");

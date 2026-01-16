@@ -1,0 +1,13 @@
+<svg width="1500" height="500" viewBox="0 0 1500 500" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#2C4A3B;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1A2F25;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="1500" height="500" fill="url(#grad1)"/>
+  <circle cx="200" cy="400" r="300" fill="#E8F3EE" opacity="0.1"/>
+  <circle cx="1300" cy="100" r="200" fill="#E8F3EE" opacity="0.1"/>
+  <text x="50%" y="45%" dominant-baseline="middle" text-anchor="middle" font-family="Arial, sans-serif" font-size="120" fill="#FFFFFF" font-weight="bold">SwitchCV</text>
+  <text x="50%" y="65%" dominant-baseline="middle" text-anchor="middle" font-family="Arial, sans-serif" font-size="50" fill="#E8F3EE">Privacy-First Living Resume Platform</text>
+</svg>

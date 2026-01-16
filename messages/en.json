@@ -1,0 +1,25 @@
+{
+    "common": {
+        "loading": "Loading...",
+        "save": "Save",
+        "cancel": "Cancel",
+        "delete": "Delete",
+        "edit": "Edit",
+        "create": "Create",
+        "back": "Back",
+        "next": "Next",
+        "finish": "Finish"
+    },
+    "dashboard": {
+        "title": "Dashboard",
+        "welcome": "Welcome back, {name}!",
+        "createResume": "Create New Resume",
+        "myResumes": "My Resumes",
+        "analytics": "Analytics"
+    },
+    "hero": {
+        "title": "Build Your Dream Resume with AI",
+        "subtitle": "Create professional, tailored resumes in minutes.",
+        "cta": "Get Started"
+    }
+}

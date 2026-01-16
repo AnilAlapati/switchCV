@@ -27,21 +27,21 @@ describe("AnalyticsMetrics", () => {
     expect(screen.getByText("1,500")).toBeInTheDocument();
     expect(screen.getByText("1200 unique viewers")).toBeInTheDocument();
 
-    // Check Unique Visitors
-    expect(screen.getByText("Unique Visitors")).toBeInTheDocument();
-    expect(screen.getByText("1,200")).toBeInTheDocument();
-    expect(screen.getByText("Individual viewers")).toBeInTheDocument();
+    // Check Returning Hits
+    expect(screen.getByText("Returning Hits")).toBeInTheDocument();
+    expect(screen.getByText("300")).toBeInTheDocument();
+    expect(screen.getByText("Repeat interactions")).toBeInTheDocument();
 
     // Check Avg Session
     expect(screen.getByText("Avg Session")).toBeInTheDocument();
     expect(screen.getByText("46s")).toBeInTheDocument();
-    expect(screen.getByText("average time spent")).toBeInTheDocument();
+    expect(screen.getByText(/time on profile/i)).toBeInTheDocument();
 
     // Check Total Interactions
-    expect(screen.getByText("Total Interactions")).toBeInTheDocument();
+    expect(screen.getByText("Interactions")).toBeInTheDocument();
     expect(screen.getByText("1,800")).toBeInTheDocument();
     expect(
-      screen.getByText("views + requests + approvals")
+      screen.getByText("Total engagement")
     ).toBeInTheDocument();
   });
 
@@ -78,17 +78,15 @@ describe("AnalyticsMetrics", () => {
     const cards = screen.getAllByRole("generic", { hidden: true });
     const metricCards = cards.filter(
       (card) =>
-        card.className.includes("bg-gray-800") &&
-        card.className.includes("rounded-lg")
+        card.className.includes("glass-panel") &&
+        card.className.includes("rounded-2xl")
     );
 
     expect(metricCards).toHaveLength(4);
 
     // Check hover classes are applied
     metricCards.forEach((card) => {
-      expect(card.className).toMatch(
-        /hover:border-(blue|green|purple|orange)-500/
-      );
+      expect(card.className).toContain("hover:border-blue-300");
     });
   });
 });

@@ -64,29 +64,43 @@ export function UserProfileSettings() {
     setSaving(true);
     try {
       const idToken = await user.getIdToken();
-      const response = await fetch("/api/user/profile", {
-        method: "PUT",
+      // Call the role change function to properly update both role and isRecruiter
+      const response = await fetch("/api/user/update-role", {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${idToken}`,
         },
         body: JSON.stringify({
           uid: user.uid,
-          isRecruiter: checked,
+          newRole: checked ? "recruiter" : "jobseeker",
           companyName: checked ? settings.companyName : "",
         }),
       });
 
       if (response.ok) {
+        // Force refresh the token to get the new custom claims (role) immediately.
+        // Without this, the client might still use the old cached token which has the old role.
+        if (user) {
+          await user.getIdToken(true);
+        }
+
         setSettings((prev) => ({ ...prev, isRecruiter: checked }));
         setShowCompanyInput(checked);
-        setMessage({ type: "success", text: "Account type updated!" });
-        setTimeout(() => setMessage(null), 3000);
+        setMessage({
+          type: "success",
+          text: "Account type updated! Refreshing...",
+        });
+
+        // Refresh the page to ensure dashboard updates immediately with new permissions
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
       } else {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
           errorData.error ||
-            `API error: ${response.status} ${response.statusText}`
+          `API error: ${response.status} ${response.statusText}`
         );
       }
     } catch (error) {
@@ -142,7 +156,7 @@ export function UserProfileSettings() {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
           errorData.error ||
-            `API error: ${response.status} ${response.statusText}`
+          `API error: ${response.status} ${response.statusText}`
         );
       }
     } catch (error) {
@@ -234,16 +248,14 @@ export function UserProfileSettings() {
             <button
               onClick={() => handleRecruiterToggle(!settings.isRecruiter)}
               disabled={saving}
-              className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
-                settings.isRecruiter
+              className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${settings.isRecruiter
                   ? "bg-gradient-to-r from-cyan-500 to-blue-600"
                   : "bg-slate-700 hover:bg-slate-600"
-              } ${saving ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                } ${saving ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
             >
               <span
-                className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
-                  settings.isRecruiter ? "translate-x-7" : "translate-x-1"
-                }`}
+                className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${settings.isRecruiter ? "translate-x-7" : "translate-x-1"
+                  }`}
               />
             </button>
           </div>
@@ -285,14 +297,13 @@ export function UserProfileSettings() {
         </div>
       )}
 
-      {/* Messages */}
+      {/* Messages - Fixed Position Centered */}
       {message && (
         <div
-          className={`px-4 py-3 rounded-lg text-sm font-medium transition-all duration-300 ${
-            message.type === "success"
-              ? "bg-green-500/20 text-green-300 border border-green-500/30"
-              : "bg-red-500/20 text-red-300 border border-red-500/30"
-          }`}
+          className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 px-8 py-6 rounded-2xl text-lg font-bold transition-all duration-300 shadow-2xl z-50 border-2 ${message.type === "success"
+              ? "bg-blue-600 text-white border-blue-400"
+              : "bg-yellow-500 text-slate-900 border-yellow-600"
+            }`}
         >
           {message.text}
         </div>

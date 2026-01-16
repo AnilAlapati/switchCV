@@ -1,7 +1,19 @@
 import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { generateText } from "@/lib/services/aiGenerationService";
-import { handleApiError } from "@/lib/utils/api-helpers";
+import { BillingService } from "@/lib/services/billingService";
+import {
+  handleApiError,
+  getAuthenticatedUserId,
+  validateCorsRequest,
+} from "@/lib/utils/api-helpers";
+import {
+  createCorsHeaders,
+  handleCorsPreflightRequest,
+} from "@/lib/utils/cors";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
+import { runAgenticWorkflow } from "@/lib/services/agentOrchestrator";
+import { getUserTier } from "@/lib/services/userService";
 
 interface GenerateResumeRequest {
   resumeData: {
@@ -28,80 +40,195 @@ interface GenerateResumeRequest {
   tone?: "professional" | "creative" | "concise";
 }
 
-interface GenerateResumeResponse {
-  success: boolean;
-  data?: {
-    enhancedSummary: string;
-    enhancedExperience: Array<{
-      title: string;
-      company: string;
-      duration: string;
-      description: string;
-      enhancedDescription: string;
-      achievements: string[];
-    }>;
-    skillSuggestions: string[];
-    improvementTips: string[];
-  };
-  error?: string;
-  model?: string;
-  provider?: string;
+/**
+ * Handle CORS preflight requests
+ */
+export async function OPTIONS(request: NextRequest) {
+  return handleCorsPreflightRequest(request);
 }
 
-export async function POST(
-  request: NextRequest
-): Promise<
-  NextResponse<GenerateResumeResponse | { error: string; details?: string }>
-> {
+export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as GenerateResumeRequest;
+    // 0. Validate CORS origin
+    const corsError = validateCorsRequest(request);
+    if (corsError) return corsError;
+
+    // 1. Verify Authentication
+    const { userId } = await getAuthenticatedUserId(request);
+    if (!userId) {
+      return handleApiError(
+        new Error("Unauthorized"),
+        "Unauthorized",
+        401,
+        request
+      );
+    }
+
+    // 2. Check Rate Limit
+    // Fetch user for subscription tier
+    // 2. Check Rate Limit
+    // Fetch user for subscription tier
+    const userRole = (await getUserTier(userId)) as string;
+
+    const rateLimitResult = await checkDistributedRateLimit(userId, {
+      tier: userRole as "basic" | "premium" | "enterprise",
+      scope: "ai_generation",
+    });
+
+    if (!rateLimitResult.allowed) {
+      return handleApiError(
+        new Error("Too many requests"),
+        "Too many requests. Please try again later.",
+        429,
+        request
+      );
+    }
+
+    // 3. Billing & Budget Check
+    const budgetAllowed = await BillingService.checkBudget(userId, userRole as "basic" | "premium" | "enterprise");
+    if (!budgetAllowed) {
+      return handleApiError(
+        new Error("Budget exceeded"),
+        "Monthly usage limit reached. Please upgrade your plan.",
+        402,
+        request
+      );
+    }
+
+    let body: GenerateResumeRequest;
+    try {
+      body = (await request.json()) as GenerateResumeRequest;
+    } catch {
+      return handleApiError(
+        new Error("Invalid JSON body"),
+        "Invalid JSON body",
+        400,
+        request
+      );
+    }
     const { resumeData, tone = "professional" } = body;
 
+    // Validate resumeData
     if (!resumeData) {
       return handleApiError(
         new Error("Missing resume data"),
         "Missing resume data",
-        400
+        400,
+        request
       );
     }
 
-    // Create prompt for AI
-    const prompt = createResumeEnhancementPrompt(resumeData, tone);
+    // 3. PROPOSED: Agentic Workflow Logic (replaces standard flow if enabled)
 
-    logger.info({
-      name: resumeData.personalInfo.name,
-      tone,
-      skillCount: (resumeData.skills || []).length,
-      experienceCount: (resumeData.experience || []).length,
-    }, "🤖 Starting AI resume enhancement...");
+    // Fetch user for subscription tier (already fetched above)
+    // const userSnapshot = await adminDb.collection("users").doc(userId).get();
+    // const userRole = userSnapshot.data()?.subscriptionTier || "basic";
 
-    // Call AI service
-    const { text, model, provider } = await generateText(prompt, 2000, 0.7);
+    let aiResponseText = "";
+    let aiModel = "";
+    let aiProvider = "";
 
-    logger.info({
-      model,
-      provider,
-      responseLength: text.length,
-    }, "✅ AI generation successful");
+    // Try Agentic Workflow
+    const agenticResult = await runAgenticWorkflow(userId, userRole, {
+      userResume: JSON.stringify(resumeData),
+      jobDescription: "", // Not provided in current API schema
+      outputFormatInstruction: `
+                Please provide enhancements in the following JSON format (IMPORTANT - respond ONLY with valid JSON):
+                {
+                    "enhancedSummary": "...",
+                    "enhancedExperience": [...],
+                    "skillSuggestions": [...],
+                    "improvementTips": [...]
+                }
+             `,
+    });
+
+    if (agenticResult) {
+      aiResponseText = agenticResult;
+      aiModel = "agentic-workflow";
+      aiProvider = "google"; // Assumed primary provider for agentic
+      logger.info({ userId }, "🚀 Agentic Workflow Executed Successfully");
+    } else {
+      // Fallback to standard flow
+      // Create prompt for AI
+      const prompt = createResumeEnhancementPrompt(resumeData, tone);
+
+      logger.info(
+        {
+          userId,
+          name: resumeData.personalInfo.name,
+          tone,
+          skillCount: (resumeData.skills || []).length,
+          experienceCount: (resumeData.experience || []).length,
+        },
+        "🤖 Starting AI resume enhancement (Standard Flow)..."
+      );
+
+      // Call AI service
+      const result = await generateText(prompt, 2000, 0.7);
+      aiResponseText = result.text;
+      aiModel = result.model;
+      aiProvider = result.provider;
+    }
+
+    /* 
+       ORIGINAL CODE REPLACED ABOVE BY THE IF/ELSE BLOCK 
+       // Create prompt for AI
+       // const prompt = createResumeEnhancementPrompt(resumeData, tone);
+       // ...
+       // const { text, model, provider } = await generateText(prompt, 2000, 0.7);
+    */
+
+    logger.info(
+      {
+        userId,
+        model: aiModel,
+        provider: aiProvider,
+        responseLength: aiResponseText.length,
+      },
+      "✅ AI generation successful"
+    );
+
+    // Track Billing
+    // Estimate tokens (1 char ~= 0.25 tokens for simple estimation if provider doesn't return usage)
+    const estimatedInputTokens = Math.ceil(
+      JSON.stringify(resumeData).length / 4
+    );
+    const estimatedOutputTokens = Math.ceil(aiResponseText.length / 4);
+
+    await BillingService.trackUsage(userId, aiModel || "default", {
+      input: estimatedInputTokens,
+      output: estimatedOutputTokens,
+    });
 
     // Parse AI response
-    const enhancedContent = parseAIResponse(text, resumeData);
+    const enhancedContent = parseAIResponse(aiResponseText, resumeData);
 
-    return NextResponse.json({
-      success: true,
-      data: enhancedContent,
-      model,
-      provider,
-    });
-  } catch (error) {
-    return handleApiError(error, "Failed to generate resume enhancement");
+    return NextResponse.json(
+      {
+        success: true,
+        data: enhancedContent,
+        model: aiModel,
+        provider: aiProvider,
+      },
+      {
+        headers: createCorsHeaders(request),
+      }
+    );
+  } catch (error: unknown) {
+    return handleApiError(
+      error,
+      "Failed to generate resume enhancement",
+      500,
+      request
+    );
   }
 }
 
 /**
  * Create a detailed prompt for resume enhancement
  */
-function createResumeEnhancementPrompt(resumeData: any, tone: string): string {
+function createResumeEnhancementPrompt(resumeData: GenerateResumeRequest["resumeData"], tone: string): string {
   const {
     personalInfo,
     summary = "",
@@ -113,7 +240,7 @@ function createResumeEnhancementPrompt(resumeData: any, tone: string): string {
   const experienceText =
     (experience || [])
       .map(
-        (exp: any) =>
+        (exp) =>
           `${exp.title} at ${exp.company} (${exp.duration}): ${exp.description}`
       )
       .join("\n") || "No experience provided";
@@ -131,11 +258,10 @@ ${experienceText}
 SKILLS: ${(skills || []).join(", ") || "Skills not provided"}
 
 EDUCATION:
-${
-  (education || [])
-    .map((edu: any) => `${edu.degree} from ${edu.institution} (${edu.year})`)
-    .join("\n") || "No education provided"
-}
+${(education || [])
+      .map((edu) => `${edu.degree} from ${edu.institution} (${edu.year})`)
+      .join("\n") || "No education provided"
+    }
 
 TONE: ${tone}
 
@@ -162,7 +288,7 @@ Ensure all descriptions use strong action verbs, quantify achievements with metr
 /**
  * Parse AI response and extract structured data
  */
-function parseAIResponse(aiText: string, resumeData: any): any {
+function parseAIResponse(aiText: string, resumeData: GenerateResumeRequest["resumeData"]): Record<string, unknown> {
   try {
     // Try to extract JSON from the response
     const jsonMatch = aiText.match(/\{[\s\S]*\}/);
@@ -176,12 +302,11 @@ function parseAIResponse(aiText: string, resumeData: any): any {
     return {
       enhancedSummary:
         parsed.enhancedSummary ||
-        `Professional ${
-          resumeData.personalInfo.name
+        `Professional ${resumeData.personalInfo.name
         } with expertise in ${resumeData.skills.slice(0, 2).join(" and ")}.`,
       enhancedExperience: (
         parsed.enhancedExperience || resumeData.experience
-      ).map((exp: any) => ({
+      ).map((exp: Record<string, unknown>) => ({
         title: exp.title,
         company: exp.company,
         duration: exp.duration,
@@ -215,14 +340,12 @@ function parseAIResponse(aiText: string, resumeData: any): any {
 /**
  * Generate fallback enhancement if AI fails
  */
-function generateFallbackEnhancement(resumeData: any): any {
+function generateFallbackEnhancement(resumeData: GenerateResumeRequest["resumeData"]): Record<string, unknown> {
   return {
-    enhancedSummary: `Results-driven professional with ${
-      resumeData.experience.length
-    }+ years of experience in ${
-      resumeData.skills[0] || "leadership"
-    }. Proven track record of delivering high-impact solutions and driving organizational success.`,
-    enhancedExperience: resumeData.experience.map((exp: any) => ({
+    enhancedSummary: `Results-driven professional with ${resumeData.experience.length
+      }+ years of experience in ${resumeData.skills[0] || "leadership"
+      }. Proven track record of delivering high-impact solutions and driving organizational success.`,
+    enhancedExperience: resumeData.experience.map((exp) => ({
       title: exp.title,
       company: exp.company,
       duration: exp.duration,

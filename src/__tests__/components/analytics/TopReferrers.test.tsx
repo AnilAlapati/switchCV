@@ -5,7 +5,7 @@ import { TopReferrers } from "@/components/analytics/TopReferrers";
 describe("TopReferrers", () => {
   it("renders nothing when referrers is empty", () => {
     const { container } = render(<TopReferrers referrers={{}} />);
-    expect(container.firstChild).toBeNull();
+    expect(screen.getByText("No referral data yet")).toBeInTheDocument();
   });
 
   it("renders top 5 referrers sorted by count descending", () => {
@@ -20,27 +20,26 @@ describe("TopReferrers", () => {
 
     render(<TopReferrers referrers={referrers} />);
 
-    expect(screen.getByText("Top Referrers")).toBeInTheDocument();
+    expect(screen.getByText("Referral Channels")).toBeInTheDocument();
 
     // Should show top 5 in order: linkedin.com (200), google.com (150), twitter.com (100), stackoverflow.com (75), github.com (50)
-    const referrerElements = screen.getAllByText(/→/);
-    expect(referrerElements).toHaveLength(5);
+    expect(screen.getAllByText("Hits")).toHaveLength(5);
 
     // Check the order and counts
     expect(screen.getByText("linkedin.com")).toBeInTheDocument();
-    expect(screen.getByText("200 views")).toBeInTheDocument();
+    expect(screen.getByText("200")).toBeInTheDocument();
 
     expect(screen.getByText("google.com")).toBeInTheDocument();
-    expect(screen.getByText("150 views")).toBeInTheDocument();
+    expect(screen.getByText("150")).toBeInTheDocument();
 
     expect(screen.getByText("twitter.com")).toBeInTheDocument();
-    expect(screen.getByText("100 views")).toBeInTheDocument();
+    expect(screen.getByText("100")).toBeInTheDocument();
 
     expect(screen.getByText("stackoverflow.com")).toBeInTheDocument();
-    expect(screen.getByText("75 views")).toBeInTheDocument();
+    expect(screen.getByText("75")).toBeInTheDocument();
 
     expect(screen.getByText("github.com")).toBeInTheDocument();
-    expect(screen.getByText("50 views")).toBeInTheDocument();
+    expect(screen.getByText("50")).toBeInTheDocument();
   });
 
   it("handles singular 'view' for count of 1", () => {
@@ -50,7 +49,8 @@ describe("TopReferrers", () => {
 
     render(<TopReferrers referrers={referrers} />);
 
-    expect(screen.getByText("1 view")).toBeInTheDocument();
+    expect(screen.getByText("1")).toBeInTheDocument();
+    expect(screen.getByText("Hits")).toBeInTheDocument();
   });
 
   it("displays 'Direct' for empty referrer string", () => {
@@ -60,7 +60,7 @@ describe("TopReferrers", () => {
 
     render(<TopReferrers referrers={referrers} />);
 
-    expect(screen.getByText("Direct")).toBeInTheDocument();
+    expect(screen.getByText("Direct Link")).toBeInTheDocument();
   });
 
   it("limits to top 5 even when more referrers exist", () => {

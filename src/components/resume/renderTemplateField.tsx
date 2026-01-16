@@ -1,21 +1,27 @@
 import React from "react";
 import { TimelineItem } from "./ResumeVisualPrimitives";
 
-export const renderTemplateField = (field: any, value: any) => {
+interface TemplateField {
+  id: string;
+  type?: string;
+}
+
+export const renderTemplateField = (field: TemplateField, value: unknown) => {
   if (!value || (Array.isArray(value) && value.length === 0)) return null;
 
   if (field.id === "summary") {
     return (
       <p key={field.id} className="text-lg leading-relaxed text-slate-200">
-        {value}
+        {value as React.ReactNode}
       </p>
     );
   }
 
   if (field.id === "skills") {
+    const skills = value as string[];
     return (
       <div key={field.id} className="flex flex-wrap gap-2" aria-label="Skills">
-        {value.map((skill: string) => (
+        {skills.map((skill: string) => (
           <span
             key={skill}
             className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-4 py-1 text-sm font-medium text-cyan-100"
@@ -28,9 +34,10 @@ export const renderTemplateField = (field: any, value: any) => {
   }
 
   if (field.id === "projects") {
+    const projects = value as TimelineItem[];
     return (
       <div key={field.id} className="grid gap-4">
-        {value.map((project: TimelineItem, index: number) => (
+        {projects.map((project: TimelineItem, index: number) => (
           <article
             key={`${project.headline}-${index}`}
             className="rounded-2xl border border-white/5 bg-slate-900/40 p-5"
@@ -85,9 +92,10 @@ export const renderTemplateField = (field: any, value: any) => {
   }
 
   if (field.type === "complex_list") {
+    const items = value as TimelineItem[];
     return (
       <div key={field.id} className="space-y-5">
-        {value.map((item: TimelineItem, index: number) => (
+        {items.map((item: TimelineItem, index: number) => (
           <article
             key={`${item.headline}-${index}`}
             className="rounded-2xl border border-white/5 bg-slate-900/40 p-5"
@@ -113,7 +121,7 @@ export const renderTemplateField = (field: any, value: any) => {
             {item.bullets && item.bullets.length > 0 && (
               <ul className="mt-3 list-disc space-y-1 pl-6 text-sm text-slate-200/90">
                 {item.bullets.map((bullet, bulletIndex) => (
-                  <li key={`${item.headline}-${bulletIndex}`}>{bullet}</li>
+                  <li key={`${item.headline}-${bulletIndex}`}>{bullet as React.ReactNode}</li>
                 ))}
               </ul>
             )}
@@ -124,9 +132,10 @@ export const renderTemplateField = (field: any, value: any) => {
   }
 
   if (field.type === "list") {
+    const items = value as string[];
     return (
       <ul key={field.id} className="space-y-2">
-        {value.map((item: string, index: number) => (
+        {items.map((item: string, index: number) => (
           <li
             key={`${field.id}-${index}`}
             className="flex items-center gap-2 text-slate-200"
@@ -141,7 +150,7 @@ export const renderTemplateField = (field: any, value: any) => {
 
   return (
     <p key={field.id} className="text-slate-200">
-      {value}
+      {value as React.ReactNode}
     </p>
   );
 };

@@ -1,6 +1,10 @@
 // Mock global fetch
 global.fetch = jest.fn();
 
+jest.mock("@/lib/utils/retry", () => ({
+  withRetry: jest.fn((fn) => fn()),
+}));
+
 describe("aiGenerationService", () => {
   const originalEnv = process.env;
   let generateText: any;
@@ -47,7 +51,7 @@ describe("aiGenerationService", () => {
       const result = await generateText("prompt");
 
       expect(result.text).toBe("Generated text");
-      expect(result.provider).toBe("google");
+      expect(result.provider).toBe("gemini");
       expect(result.model).toContain("gemini");
       expect(global.fetch).toHaveBeenCalledTimes(2);
     });

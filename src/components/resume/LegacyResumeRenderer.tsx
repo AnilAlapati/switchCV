@@ -1,7 +1,41 @@
 import React from "react";
 
+interface LegacyExperience {
+  title: string;
+  company: string;
+  duration: string;
+  description: string;
+  achievements?: string[];
+}
+
+interface LegacyEducation {
+  institution: string;
+  degree: string;
+  year: string;
+  major?: string;
+}
+
+interface LegacySkill {
+  name: string;
+}
+
+interface LegacyResumeData {
+  title: string;
+  numericId?: string | number;
+  personalInfo?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    location?: string;
+  };
+  summary?: string;
+  experience?: LegacyExperience[];
+  education?: LegacyEducation[];
+  skills?: (string | LegacySkill)[];
+}
+
 interface LegacyResumeRendererProps {
-  resume: any;
+  resume: LegacyResumeData;
 }
 
 export const LegacyResumeRenderer: React.FC<LegacyResumeRendererProps> = ({
@@ -60,7 +94,7 @@ export const LegacyResumeRenderer: React.FC<LegacyResumeRendererProps> = ({
               Experience
             </h2>
             <div className="space-y-6">
-              {resume.experience.map((exp: any, index: number) => (
+              {resume.experience.map((exp: LegacyExperience, index: number) => (
                 <div key={index}>
                   <div className="flex justify-between items-baseline mb-1">
                     <h3 className="text-lg font-bold text-gray-800">
@@ -96,7 +130,7 @@ export const LegacyResumeRenderer: React.FC<LegacyResumeRendererProps> = ({
               Education
             </h2>
             <div className="space-y-4">
-              {resume.education.map((edu: any, index: number) => (
+              {resume.education.map((edu: LegacyEducation, index: number) => (
                 <div key={index}>
                   <div className="flex justify-between items-baseline">
                     <h3 className="text-lg font-bold text-gray-800">
@@ -122,12 +156,12 @@ export const LegacyResumeRenderer: React.FC<LegacyResumeRendererProps> = ({
               Skills
             </h2>
             <div className="flex flex-wrap gap-2">
-              {(resume.skills as any[]).map((skill, index) => (
+              {resume.skills.map((skill, index) => (
                 <span
                   key={index}
                   className="bg-gray-100 text-gray-700 px-3 py-1 rounded-md text-sm font-medium border border-gray-200"
                 >
-                  {typeof skill === "object" ? skill.name : skill}
+                  {typeof skill === "object" ? (skill as LegacySkill).name : skill}
                 </span>
               ))}
             </div>

@@ -15,7 +15,7 @@ import {
 import { db } from "@/lib/firebase";
 import { generateNumericResumeId } from "@/lib/numericIdGenerator";
 import { logger } from "@/lib/logger";
-import type { ResumeProfile } from "@/types";
+import type { ResumeProfile, DashboardResume } from "@/types";
 
 interface ResumeWithoutNumericId extends ResumeProfile {
   id: string;
@@ -39,7 +39,7 @@ export const findResumesWithoutNumericIds = async (): Promise<
     // Filter for those without numericId
     const resumesWithoutId = snapshot.docs
       .filter((docSnap) => {
-        const data = docSnap.data() as any;
+        const data = docSnap.data() as DashboardResume;
         return !data.numericId;
       })
       .map((docSnap) => ({
@@ -142,7 +142,7 @@ export const migrateUserResumesToNumericIds = async (
 
     // Filter for those without numericId
     const resumesWithoutId = snapshot.docs.filter((docSnap) => {
-      const data = docSnap.data() as any;
+      const data = docSnap.data() as DashboardResume;
       return !data.numericId;
     });
 

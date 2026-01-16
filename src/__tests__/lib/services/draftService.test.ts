@@ -13,6 +13,7 @@ import type { ResumeProfile, DraftResume } from "@/types";
 // Define mock functions at module level
 const mockGet = jest.fn();
 const mockSet = jest.fn();
+const mockUpdate = jest.fn();
 const mockWhere = jest.fn();
 const mockLimit = jest.fn();
 const mockBatchDelete = jest.fn();
@@ -21,6 +22,7 @@ const mockBatchCommit = jest.fn();
 const mockDocRef = {
   get: mockGet,
   set: mockSet,
+  update: mockUpdate,
 };
 const mockDoc = jest.fn(() => mockDocRef);
 const mockCollectionRef = {
@@ -41,6 +43,7 @@ jest.mock("@/lib/firebase-admin", () => ({
       doc: jest.fn(() => ({
         get: jest.fn(),
         set: jest.fn(),
+        update: jest.fn(),
       })),
       where: jest.fn(() => ({
         limit: jest.fn(() => ({
@@ -133,6 +136,7 @@ describe("Draft Service", () => {
     mockReserveDraftId.mockResolvedValue(undefined);
     mockReleaseDraftId.mockResolvedValue(undefined);
     mockSet.mockResolvedValue(undefined);
+    mockUpdate.mockResolvedValue(undefined);
     mockBatchCommit.mockResolvedValue(undefined);
 
     // Default: no existing draft
@@ -261,15 +265,15 @@ describe("Draft Service", () => {
       expect(result).toBeNull();
     });
 
-    it("should return null when user does not own draft", async () => {
+    it("should throw error when user does not own draft", async () => {
       mockGet.mockResolvedValue({
         exists: true,
         data: () => ({ ...existingDraft, userId: "different-user" }),
       });
 
-      const result = await getDraft(testDraftId, testUserId);
-
-      expect(result).toBeNull();
+      await expect(getDraft(testDraftId, testUserId)).rejects.toThrow(
+        "Forbidden: Not the owner of this draft"
+      );
     });
 
     it("should query correct collection and document", async () => {
@@ -370,10 +374,11 @@ describe("Draft Service", () => {
 
       await updateDraft(testDraftId, testUserId, updates);
 
-      expect(mockSet).toHaveBeenCalledWith(
+      expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          draftId: testDraftId,
-          userId: testUserId,
+          profile: expect.objectContaining({
+            summary: "New summary",
+          }),
         })
       );
     });
@@ -394,7 +399,7 @@ describe("Draft Service", () => {
 
       await expect(
         updateDraft(testDraftId, testUserId, { summary: "New" })
-      ).rejects.toThrow(/not found or access denied/);
+      ).rejects.toThrow("Forbidden: Not the owner of this draft");
     });
   });
 
@@ -445,7 +450,7 @@ describe("Draft Service", () => {
       });
 
       await expect(deleteDraft(testDraftId, testUserId)).rejects.toThrow(
-        /not found or access denied/
+        "Forbidden: Not the owner of this draft"
       );
     });
   });

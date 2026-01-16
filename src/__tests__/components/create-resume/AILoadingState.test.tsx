@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { AILoadingState } from "@/components/create-resume/AILoadingState";
 
@@ -11,94 +11,76 @@ describe("AILoadingState", () => {
   });
 
   it("renders loading state when aiLoading is true", () => {
-    render(<AILoadingState aiLoading={true} aiError={null} />);
-
-    expect(
-      screen.getByText("🤖 AI is generating your resume...")
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("Check browser console (F12) for live AI call details")
-    ).toBeInTheDocument();
-
-    // Check for spinner
-    const spinner = document.querySelector(".animate-spin");
-    expect(spinner).toBeInTheDocument();
-    expect(spinner).toHaveClass(
-      "rounded-full",
-      "h-12",
-      "w-12",
-      "border-b-4",
-      "border-blue-500"
+    const { container } = render(
+      <AILoadingState aiLoading={true} aiError={null} />
     );
+
+    // Check for Bot icon
+    const botIcon = container.querySelector(".lucide-bot");
+    expect(botIcon).toBeInTheDocument();
+
+    // Check for animated dots
+    const animatedDots = container.querySelectorAll(".animate-bounce");
+    expect(animatedDots).toHaveLength(3);
+
+    // Check for container structure
+    const mainContainer = container.querySelector(".flex.items-end.gap-3");
+    expect(mainContainer).toBeInTheDocument();
   });
 
   it("renders error state when aiError is provided", () => {
     const errorMessage = "Failed to generate resume";
-    render(<AILoadingState aiLoading={false} aiError={errorMessage} />);
+    const { container, getByText } = render(
+      <AILoadingState aiLoading={false} aiError={errorMessage} />
+    );
 
-    expect(
-      screen.getByText(`⚠️ AI Error: ${errorMessage}`)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("Check browser console for error details")
-    ).toBeInTheDocument();
+    expect(getByText(`⚠️ ${errorMessage}`)).toBeInTheDocument();
 
     // Check error styling
-    const errorDiv = screen
-      .getByText(`⚠️ AI Error: ${errorMessage}`)
-      .closest("div");
-    expect(errorDiv).toHaveClass("bg-red-900/30", "border-red-500/50");
+    const errorDiv = container.querySelector(".bg-red-50");
+    expect(errorDiv).toBeInTheDocument();
+    expect(errorDiv).toHaveClass("border-red-100", "text-red-800");
   });
 
-  it("renders both loading and error states when both are present", () => {
+  it("prefers error state over loading when both are present", () => {
     const errorMessage = "Network timeout";
-    render(<AILoadingState aiLoading={true} aiError={errorMessage} />);
+    const { getByText, container } = render(
+      <AILoadingState aiLoading={true} aiError={errorMessage} />
+    );
 
-    // Both should be rendered
-    expect(
-      screen.getByText("🤖 AI is generating your resume...")
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(`⚠️ AI Error: ${errorMessage}`)
-    ).toBeInTheDocument();
+    // Error should be shown
+    expect(getByText(`⚠️ ${errorMessage}`)).toBeInTheDocument();
 
-    // Spinner should be present
-    const spinner = document.querySelector(".animate-spin");
-    expect(spinner).toBeInTheDocument();
+    // Should have red styling, not loading styling
+    const errorDiv = container.querySelector(".bg-red-50");
+    expect(errorDiv).toBeInTheDocument();
   });
 
   it("applies correct loading container styles", () => {
-    render(<AILoadingState aiLoading={true} aiError={null} />);
+    const { container } = render(
+      <AILoadingState aiLoading={true} aiError={null} />
+    );
 
-    const loadingContainer = screen.getByText(
-      "🤖 AI is generating your resume..."
-    ).parentElement?.parentElement;
-    expect(loadingContainer).toHaveClass(
-      "flex",
-      "flex-col",
-      "items-center",
-      "justify-center",
-      "py-6",
-      "space-y-3",
-      "px-4"
+    const mainContainer = container.querySelector(".flex.items-end.gap-3");
+    expect(mainContainer).toHaveClass(
+      "justify-start",
+      "animate-in",
+      "fade-in",
+      "slide-in-from-bottom-2",
+      "duration-300"
     );
   });
 
   it("applies correct error container styles", () => {
-    render(<AILoadingState aiLoading={false} aiError="Test error" />);
+    const { container } = render(
+      <AILoadingState aiLoading={false} aiError="Test error" />
+    );
 
-    const errorContainer = screen
-      .getByText("⚠️ AI Error: Test error")
-      .closest("div");
+    const errorContainer = container.querySelector(".bg-red-50");
     expect(errorContainer).toHaveClass(
-      "bg-red-900/30",
       "border",
-      "border-red-500/50",
-      "rounded-lg",
-      "p-4",
-      "mt-4",
-      "mx-4",
-      "mb-4"
+      "border-red-100",
+      "text-red-800"
     );
   });
 });

@@ -1,35 +1,87 @@
-import nodemailer from "nodemailer";
-import { EmailTemplate, EmailOptions, EmailResult } from "../types/email";
+// Lazy loaded import
+// import nodemailer from "nodemailer";
+import {
+  EmailTemplate,
+  EmailOptions,
+  EmailResult,
+  CustomEmailOptions,
+} from "../types/email";
+import { retryWithBackoff } from "../utils/retryHandler";
 
 /**
  * Email Service for user/recruiter communication
  * Handles email sending with templating system
  */
 export class EmailService {
-  private transporter: nodemailer.Transporter;
+  private transporter: any; // Type: nodemailer.Transporter
   private fromEmail: string;
   private fromName: string;
 
   constructor() {
-    // Initialize nodemailer transporter
-    // Configured for Titan Email (or other SMTP providers via env vars)
-    const smtpHost = process.env.SMTP_HOST || "smtp.titan.email";
-    const smtpPort = parseInt(process.env.SMTP_PORT || "465");
     const smtpUser = process.env.SMTP_USER || "support@switchcv.com";
-    const smtpPass = process.env.SMTP_PASS || "";
-
     this.fromEmail = smtpUser;
     this.fromName = "SwitchCV";
+  }
 
-    this.transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpPort === 465, // true for 465, false for other ports
-      auth: {
-        user: smtpUser,
-        pass: smtpPass,
-      },
-    });
+  private async getTransporter() {
+    if (!this.transporter) {
+      const nodemailer = (await import("nodemailer")).default;
+
+      const smtpHost = process.env.SMTP_HOST || "smtp.titan.email";
+      const smtpPort = parseInt(process.env.SMTP_PORT || "465");
+      const smtpUser = process.env.SMTP_USER || "support@switchcv.com";
+      const smtpPass = process.env.SMTP_PASS || "";
+
+      this.transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpPort === 465, // true for 465, false for other ports
+        auth: {
+          user: smtpUser,
+          pass: smtpPass,
+        },
+      });
+    }
+    return this.transporter;
+  }
+
+  /**
+   * Send a custom email without using the templating system
+   */
+  async sendCustomEmail(options: CustomEmailOptions): Promise<EmailResult> {
+    try {
+      const mailOptions = {
+        from: `${this.fromName} <${this.fromEmail}>`,
+        to: options.to,
+        subject: options.subject,
+        html: options.html,
+        text: options.text || options.html.replace(/<[^>]+>/g, ""),
+      };
+
+      const transporter = await this.getTransporter();
+
+      const info = await retryWithBackoff(
+        () => transporter.sendMail(mailOptions),
+        {
+          maxAttempts: 3,
+          initialDelayMs: 1000,
+        },
+        "sendCustomEmail"
+      );
+
+      return {
+        success: true,
+        messageId: (info as any).messageId,
+        timestamp: new Date(),
+      };
+    } catch (error) {
+      console.error("Custom email sending failed:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+        timestamp: new Date(),
+      };
+    }
   }
 
   /**
@@ -48,11 +100,20 @@ export class EmailService {
         text: template.text, // Fallback plain text
       };
 
-      const info = await this.transporter.sendMail(mailOptions);
+      const transporter = await this.getTransporter();
+
+      const info = await retryWithBackoff(
+        () => transporter.sendMail(mailOptions),
+        {
+          maxAttempts: 3,
+          initialDelayMs: 1000,
+        },
+        "sendEmail"
+      );
 
       return {
         success: true,
-        messageId: info.messageId,
+        messageId: (info as any).messageId,
         timestamp: new Date(),
       };
     } catch (error) {
@@ -256,7 +317,8 @@ export class EmailService {
    */
   async verifyConnection(): Promise<boolean> {
     try {
-      await this.transporter.verify();
+      const transporter = await this.getTransporter();
+      await transporter.verify();
       console.log("Email service configured successfully");
       return true;
     } catch (error) {

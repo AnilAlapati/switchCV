@@ -1,18 +1,17 @@
-/* eslint-disable max-lines */
 /**
- * Resume Data Extractor Service
+ * Resume Data Extractor Service (Refactored)
  *
- * Extracts structured resume data from conversational AI responses
- * using pattern matching, NLP techniques, and structured data markers.
+ * Coordinator that uses specialized strategies to extract resume data.
  *
  * @module services/resumeDataExtractor
  */
 
-import {
-  ResumeDataRequirements,
-  ExperienceEntry,
-  EducationEntry,
-} from "./conversationManager";
+import { ResumeDataRequirements } from "./conversationManager";
+import { ContactExtractor } from "./extractors/ContactExtractor";
+import { SkillsExtractor } from "./extractors/SkillsExtractor";
+import { ExperienceExtractor } from "./extractors/ExperienceExtractor";
+import { EducationExtractor } from "./extractors/EducationExtractor";
+import { JSONExtractor } from "./extractors/JSONExtractor";
 
 export interface ExtractionResult {
   /** Successfully extracted data */
@@ -26,25 +25,10 @@ export interface ExtractionResult {
 }
 
 /**
- * Extracted JSON data structure from AI responses
- */
-interface ExtractedJSONData {
-  name?: string;
-  email?: string;
-  phone?: string;
-  location?: string;
-  summary?: string;
-  experience?: ExperienceEntry[];
-  education?: EducationEntry[];
-  skills?: string[];
-  isComplete?: boolean;
-}
-
-/**
  * Resume Data Extractor
  *
  * Parses conversation text and AI responses to extract structured resume data.
- * Uses multiple strategies: JSON markers, pattern matching, and NLP.
+ * Uses Strategy Pattern with specialized extractors.
  */
 export class ResumeDataExtractor {
   /**
@@ -52,31 +36,52 @@ export class ResumeDataExtractor {
    */
   static extract(
     responseText: string,
-    conversationHistory?: string
+    context?: "education" | "experience" | "skills" | "contact" | null
   ): ExtractionResult {
     const data: Partial<ResumeDataRequirements> = {};
     const extractedFields: string[] = [];
     let confidence = 0.5; // Base confidence
     let isComplete = false;
 
-    // Strategy 1: Check for structured JSON markers
-    const jsonData = this.extractJSONData(responseText);
-    if (jsonData) {
+    // Detect context if not provided
+    const localContext = context || this.detectContext(responseText);
+
+    // 1. JSON Strategy (Highest Confidence)
+    const jsonExtractor = new JSONExtractor();
+    const jsonData = jsonExtractor.extract(responseText);
+
+    if (Object.keys(jsonData).length > 0) {
       Object.assign(data, jsonData);
+      if (jsonData.isComplete) isComplete = true;
+      // Clean up isComplete from data object if it leaked there
+      delete (data as Record<string, unknown>).isComplete;
+
       confidence = 0.95;
-      isComplete = jsonData.isComplete || false;
       extractedFields.push(...Object.keys(jsonData));
     }
 
-    // Strategy 2: Pattern matching for common fields
-    const patternData = this.extractViaPatterns(
-      responseText,
-      conversationHistory
-    );
-    Object.assign(data, patternData);
-    extractedFields.push(...Object.keys(patternData));
+    // 2. Pattern Strategy (Accumulative)
+    // We run these even if JSON was found, to catch things the AI might have mentioned in text but missed in JSON
+    // or if JSON extraction failed.
 
-    // Strategy 3: Check for completion indicators
+    const extractors = [
+      new ContactExtractor(),
+      new SkillsExtractor(),
+      new ExperienceExtractor(),
+      new EducationExtractor(),
+    ];
+
+    for (const extractor of extractors) {
+      const result = extractor.extract(responseText, localContext);
+      // Only merge if we found something new (simple merge logic)
+      // ideally we would use deep merge, but shallow merge of sections is fine for now
+      this.mergeData(data, result);
+
+      const keys = Object.keys(result);
+      if (keys.length > 0) extractedFields.push(...keys);
+    }
+
+    // 3. Completion Check
     if (this.hasCompletionMarker(responseText)) {
       isComplete = true;
       confidence = Math.max(confidence, 0.8);
@@ -88,46 +93,6 @@ export class ResumeDataExtractor {
       extractedFields: [...new Set(extractedFields)],
       isComplete,
     };
-  }
-
-  /**
-   * Extract data from JSON markers in AI response
-   * Looks for patterns like: ```json {...} ``` or RESUME_DATA: {...}
-   */
-  private static extractJSONData(text: string): ExtractedJSONData | null {
-    try {
-      // Look for JSON code blocks
-      const jsonBlockRegex = /```json\s*([\s\S]*?)\s*```/;
-      const jsonMatch = text.match(jsonBlockRegex);
-
-      if (jsonMatch && jsonMatch[1]) {
-        return JSON.parse(jsonMatch[1].trim()) as ExtractedJSONData;
-      }
-
-      // Look for RESUME_DATA marker
-      const dataMarkerRegex = /RESUME_DATA:\s*({[\s\S]*?})/;
-      const dataMatch = text.match(dataMarkerRegex);
-
-      if (dataMatch && dataMatch[1]) {
-        return JSON.parse(dataMatch[1].trim()) as ExtractedJSONData;
-      }
-
-      // Look for any JSON object
-      const jsonObjectRegex = /{[\s\S]*?}/;
-      const objectMatch = text.match(jsonObjectRegex);
-
-      if (objectMatch) {
-        const parsed = JSON.parse(objectMatch[0]) as ExtractedJSONData;
-        // Validate it looks like resume data
-        if (parsed.name || parsed.email || parsed.experience) {
-          return parsed;
-        }
-      }
-    } catch {
-      // JSON parsing failed - not a problem, will use pattern matching
-    }
-
-    return null;
   }
 
   /**
@@ -147,6 +112,7 @@ export class ResumeDataExtractor {
       lower.includes("graduate")
     )
       return "education";
+
     if (
       lower.includes("experience") ||
       lower.includes("work") ||
@@ -156,6 +122,7 @@ export class ResumeDataExtractor {
       lower.includes("position")
     )
       return "experience";
+
     if (
       lower.includes("skill") ||
       lower.includes("technology") ||
@@ -163,6 +130,7 @@ export class ResumeDataExtractor {
       lower.includes("proficient")
     )
       return "skills";
+
     if (
       lower.includes("email") ||
       lower.includes("phone") ||
@@ -170,361 +138,8 @@ export class ResumeDataExtractor {
       lower.includes("name")
     )
       return "contact";
+
     return null;
-  }
-
-  /**
-   * Extract data using regex patterns
-   */
-  private static extractViaPatterns(
-    text: string,
-    history?: string,
-    context?: "education" | "experience" | "skills" | "contact" | null
-  ): Partial<ResumeDataRequirements> {
-    const data: Partial<ResumeDataRequirements> = {};
-    const trimmedText = text.trim();
-    const fullText = history ? `${history}\n${trimmedText}` : trimmedText;
-
-    // Extract name
-    const namePatterns = [
-      /(?:[Mm]y name is|[Ii]'m|[Ii] am|[Cc]all me)\s+([A-Z][a-z]+(?:\s+(?:[A-Z][a-z]+|[A-Z]\.?)){0,3})(?=\s|$|[.,])/,
-      /[Nn]ame:\s*([A-Z][a-z]+(?:\s+(?:[A-Z][a-z]+|[A-Z]\.?)){0,3})(?=\s|$|[.,])/,
-      // Fallback for just the name if it looks like a name (2-3 capitalized words or initials)
-      /^([A-Z][a-z]+(?:\s+(?:[A-Z][a-z]+|[A-Z]\.?)){1,3})$/,
-    ];
-
-    for (const pattern of namePatterns) {
-      const match = trimmedText.match(pattern) || fullText.match(pattern);
-      if (match && match[1]) {
-        data.name = match[1].trim();
-        break;
-      }
-    }
-
-    // Extract email
-    const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/;
-    const emailMatch = fullText.match(emailRegex);
-    if (emailMatch) {
-      data.email = emailMatch[0];
-    }
-
-    // Extract phone
-    const phoneRegex =
-      /\b(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})\b/;
-    const phoneMatch = fullText.match(phoneRegex);
-    if (phoneMatch) {
-      data.phone = phoneMatch[0];
-    }
-
-    // Extract location (city, state)
-    const locationPatterns = [
-      /(?:located in|based in|live in)\s+([a-z]+(?: [a-z]+)?(?:,?\s+[a-z]{2})?)/i,
-      /location:\s*([a-z]+(?: [a-z]+)?(?:,?\s+[a-z]{2})?)/i,
-      // "from" requires strict City, State format to avoid "from University"
-      /from\s+([a-z]+(?: [a-z]+)?,\s*[a-z]{2})/i,
-      // City, State format (e.g. New York, NY) - relaxed case
-      /([a-z]+(?: [a-z]+)?,\s*([a-z]{2}))/i,
-    ];
-
-    const US_STATE_CODES = new Set([
-      "AL",
-      "AK",
-      "AZ",
-      "AR",
-      "CA",
-      "CO",
-      "CT",
-      "DE",
-      "FL",
-      "GA",
-      "HI",
-      "ID",
-      "IL",
-      "IN",
-      "IA",
-      "KS",
-      "KY",
-      "LA",
-      "ME",
-      "MD",
-      "MA",
-      "MI",
-      "MN",
-      "MS",
-      "MO",
-      "MT",
-      "NE",
-      "NV",
-      "NH",
-      "NJ",
-      "NM",
-      "NY",
-      "NC",
-      "ND",
-      "OH",
-      "OK",
-      "OR",
-      "PA",
-      "RI",
-      "SC",
-      "SD",
-      "TN",
-      "TX",
-      "UT",
-      "VT",
-      "VA",
-      "WA",
-      "WV",
-      "WI",
-      "WY",
-      "DC",
-    ]);
-
-    for (const pattern of locationPatterns) {
-      const match = fullText.match(pattern);
-      if (match) {
-        // For the last pattern (generic City, State), validate the state code
-        if (pattern.source.includes("([a-z]{2}))")) {
-          const stateCode = match[2].toUpperCase();
-          if (US_STATE_CODES.has(stateCode)) {
-            data.location = match[1].trim();
-            break;
-          }
-        } else if (match[1]) {
-          data.location = match[1].trim();
-          break;
-        }
-      }
-    }
-
-    // Extract skills (comma or bullet separated lists)
-    const skillsPatterns = [
-      /skills?:\s*([^.\n]+(?:,\s*[^.\n]+)*)/i,
-      /proficient in:\s*([^.\n]+(?:,\s*[^.\n]+)*)/i,
-      /technologies?:\s*([^.\n]+(?:,\s*[^.\n]+)*)/i,
-      /(?:I know|I use|experience with)\s+([^.\n]+(?:,\s*[^.\n]+)*)/i,
-    ];
-
-    // 1. Try explicit patterns first
-    for (const pattern of skillsPatterns) {
-      const match = fullText.match(pattern);
-      if (match && match[1]) {
-        const skillsList = match[1]
-          .split(/,|;|\n|\s+and\s+/)
-          .map((s) => s.trim())
-          .filter((s) => s.length > 0 && s.length < 50);
-
-        if (skillsList.length > 0) {
-          data.skills = skillsList;
-          break;
-        }
-      }
-    }
-
-    // 2. Fallback: Look for lines containing tech keywords
-    if (!data.skills) {
-      const techKeywords = [
-        "Java",
-        "Python",
-        "React",
-        "Node.js",
-        "AWS",
-        "Docker",
-        "SQL",
-        "NoSQL",
-        "TypeScript",
-        "Go",
-        "Rust",
-        "HTML",
-        "CSS",
-        "Git",
-        "C++",
-        "C#",
-        "Kubernetes",
-        "CI/CD",
-        "Agile",
-        "Scrum",
-        "JavaScript",
-      ];
-      const lines = fullText.split("\n");
-      const foundSkills: string[] = [];
-
-      for (const line of lines) {
-        // If line contains at least 2 keywords, treat it as a skills list
-        const keywordsInLine = techKeywords.filter((kw) =>
-          line.toLowerCase().includes(kw.toLowerCase())
-        );
-        if (keywordsInLine.length >= 1) {
-          // Split by comma or space if no commas
-          const hasComma = line.includes(",");
-          const parts = hasComma ? line.split(/,|;/) : line.split(/\s+/);
-
-          parts.forEach((p) => {
-            const clean = p.trim().replace(/[^a-zA-Z0-9+#.]/g, ""); // Clean punctuation
-            if (
-              clean.length > 1 &&
-              clean.length < 20 &&
-              !["and", "with", "i", "know", "use", "the", "a"].includes(
-                clean.toLowerCase()
-              )
-            ) {
-              foundSkills.push(clean);
-            }
-          });
-        }
-      }
-      if (foundSkills.length > 0) {
-        data.skills = [...new Set(foundSkills)];
-      }
-    }
-
-    // Extract experience (basic detection)
-    const experienceKeywords = [
-      "worked at",
-      "work at",
-      "employed at",
-      "position at",
-      "job at",
-      "role at",
-      "worked as",
-      "work as",
-      "current role",
-      "senior software engineer", // Common job titles as keywords
-      "software engineer",
-      "developer",
-      "engineer",
-      "manager",
-    ];
-    const hasExperience = experienceKeywords.some((kw) =>
-      fullText.toLowerCase().includes(kw)
-    );
-
-    if (hasExperience || /@/.test(fullText)) {
-      // @ often used for "Title @ Company"
-      // Extract company and title
-      const expPatterns = [
-        /(?:worked|work|employed|position|job|role)\s+(?:as|at)\s+((?:(?! at ).)+)(?:\s+at\s+([^,.\n]+))?/i,
-        // "Title @ Company"
-        /([A-Za-z\s]+)\s+@\s+([A-Za-z\s]+)/,
-        // "I spent X years at Company"
-        /(?:spent|worked)\s+(?:.*?)\s+at\s+([A-Za-z\s]+)/i,
-      ];
-
-      for (const pattern of expPatterns) {
-        const expMatch = fullText.match(pattern);
-        if (expMatch) {
-          const experience: ExperienceEntry = {
-            title: expMatch[1]?.trim() || "Professional",
-            company:
-              expMatch[2]?.trim() ||
-              (pattern.source.includes("spent")
-                ? expMatch[1].trim()
-                : "Company"),
-            duration: "Present",
-            description: "Contributed to various projects and initiatives",
-          };
-
-          data.experience = [experience];
-          break;
-        }
-      }
-    }
-
-    // Extract education
-    const educationKeywords = [
-      "degree",
-      "graduated",
-      "studied at",
-      "university",
-      "college",
-      "bachelor",
-      "master",
-      "phd",
-      "b.tech",
-      "m.tech",
-      "b.e",
-      "m.e",
-      "b.s",
-      "m.s",
-      "mba",
-      "bba",
-      "diploma",
-      "btech",
-      "mtech",
-    ];
-    const hasEducation =
-      context === "education" ||
-      educationKeywords.some((kw) => fullText.toLowerCase().includes(kw));
-
-    if (hasEducation) {
-      const eduPatterns = [
-        // Comprehensive pattern for "Degree in Major from Institution Year" or "Degree, Institution, Year"
-        /(B\.?Tech|M\.?Tech|B\.?E|M\.?E|B\.?S|M\.?S|MBA|BBA|Diploma|B\.?A|M\.?A|Bachelor|Master|PhD|Doctorate)(?:\s+(?:in|of)\s+([^,]+?))?(?:[,]\s*|\s+from\s+|\s+at\s+)([^0-9,\n]+?)(?:\s+(?:in\s+)?(\d{4}))?(?:\s|$)/i,
-
-        /(bachelor|master|phd|associate|doctorate|degree)(?:['\s]+(?:of|in))?\s+([^,.\n]+)?\s+(?:from|at)?\s*([^,.\n]+)/i,
-        // "Graduated from [Institution] with [Degree]" - use non-greedy capture
-        /graduated\s+from\s+(.+?)\s+(?:with|in)\s+(?:a\s+)?(.+)/i,
-        // "[Degree] [Institution]" (messy)
-        /(bachelor|master|phd|associate|doctorate|degree)\s+([\w\s.&'-]+)/i,
-      ];
-
-      // Context-aware fallback patterns (more permissive)
-      if (context === "education") {
-        eduPatterns.push(
-          // "Degree/Major at Institution Year" (generic)
-          /^(.+?)\s+(?:at|from|in)\s+(.+?)(?:\s+(\d{4}))?$/i,
-          // "Degree/Major, Institution, Year" (generic comma separated)
-          /^(.+?),\s*(.+?)(?:,\s*(\d{4}))?$/i
-        );
-      }
-
-      for (const pattern of eduPatterns) {
-        const eduMatch = fullText.match(pattern);
-        if (eduMatch) {
-          let degree = "Degree";
-          let institution = "University";
-          let year = new Date().getFullYear().toString();
-          let major = "";
-
-          // Handle the new comprehensive pattern (index 0)
-          if (pattern.source.startsWith("(B\\.?Tech")) {
-            degree = eduMatch[1].trim();
-            major = eduMatch[2]?.trim() || "";
-            institution = eduMatch[3]?.trim();
-            if (eduMatch[4]) year = eduMatch[4];
-          } else if (pattern.source.includes("graduated")) {
-            institution = eduMatch[1].trim();
-            degree = eduMatch[2].trim();
-          } else if (
-            context === "education" &&
-            !pattern.source.includes("bachelor")
-          ) {
-            // Handle generic fallback patterns
-            // Group 1: Degree/Major, Group 2: Institution, Group 3: Year
-            degree = eduMatch[1].trim();
-            institution = eduMatch[2].trim();
-            if (eduMatch[3]) year = eduMatch[3];
-          } else {
-            degree = eduMatch[1]
-              ? `${eduMatch[1]} ${eduMatch[2] || ""}`.trim()
-              : "Degree";
-            institution =
-              eduMatch[3]?.trim() || eduMatch[2]?.trim() || "University";
-          }
-
-          const education: EducationEntry = {
-            degree,
-            institution,
-            year,
-            major: major || undefined,
-          };
-          data.education = [education];
-          break;
-        }
-      }
-    }
-
-    return data;
   }
 
   /**
@@ -552,37 +167,52 @@ export class ResumeDataExtractor {
     existing: Partial<ResumeDataRequirements>,
     extracted: Partial<ResumeDataRequirements>
   ): Partial<ResumeDataRequirements> {
-    const merged: Partial<ResumeDataRequirements> = { ...existing };
+    // Merge simple fields (strings) - Overwrite if present in extracted
+    if (extracted.name) existing.name = extracted.name;
+    if (extracted.email) existing.email = extracted.email;
+    if (extracted.phone) existing.phone = extracted.phone;
+    if (extracted.location) existing.location = extracted.location;
+    if (extracted.summary) existing.summary = extracted.summary;
 
-    // Merge simple fields (strings)
-    if (extracted.name) merged.name = extracted.name;
-    if (extracted.email) merged.email = extracted.email;
-    if (extracted.phone) merged.phone = extracted.phone;
-    if (extracted.location) merged.location = extracted.location;
-    if (extracted.summary) merged.summary = extracted.summary;
+    // Merge arrays with deduplication
 
-    // Merge arrays (experience, education, skills)
+    // Experience
     if (extracted.experience) {
-      merged.experience = [
-        ...(existing.experience || []),
-        ...extracted.experience,
-      ];
+      const existingExp = existing.experience || [];
+      const newExp = extracted.experience.filter(
+        (newItem) =>
+          !existingExp.some(
+            (existingItem) =>
+              existingItem.company.toLowerCase() ===
+                newItem.company.toLowerCase() &&
+              existingItem.title.toLowerCase() === newItem.title.toLowerCase()
+          )
+      );
+      existing.experience = [...existingExp, ...newExp];
     }
 
+    // Education
     if (extracted.education) {
-      merged.education = [
-        ...(existing.education || []),
-        ...extracted.education,
-      ];
+      const existingEdu = existing.education || [];
+      const newEdu = extracted.education.filter(
+        (newItem) =>
+          !existingEdu.some(
+            (existingItem) =>
+              existingItem.institution.toLowerCase() ===
+                newItem.institution.toLowerCase() &&
+              existingItem.degree.toLowerCase() === newItem.degree.toLowerCase()
+          )
+      );
+      existing.education = [...existingEdu, ...newEdu];
     }
 
+    // Skills
     if (extracted.skills) {
-      // Combine and deduplicate skills
       const allSkills = [...(existing.skills || []), ...extracted.skills];
-      merged.skills = [...new Set(allSkills)];
+      existing.skills = [...new Set(allSkills)];
     }
 
-    return merged;
+    return existing;
   }
 
   /**
@@ -591,43 +221,36 @@ export class ResumeDataExtractor {
   static extractFromConversation(
     messages: Array<{ content: string; isUser: boolean }>
   ): ExtractionResult {
-    const conversationText = messages
-      .map((m) => `${m.isUser ? "User" : "AI"}: ${m.content}`)
-      .join("\n");
-
     let aggregatedData: Partial<ResumeDataRequirements> = {};
     let maxConfidence = 0;
     let isComplete = false;
 
-    let lastContext: "education" | "experience" | "skills" | "contact" | null =
-      null;
+    // Track current context across the conversation
+    let currentContext:
+      | "education"
+      | "experience"
+      | "skills"
+      | "contact"
+      | null = null;
 
-    // Extract from each AI response
+    // Extract from each message sequentially
     for (const message of messages) {
-      if (!message.isUser) {
-        const result = this.extract(message.content, conversationText);
-        aggregatedData = this.mergeData(aggregatedData, result.data);
-        maxConfidence = Math.max(maxConfidence, result.confidence);
-        isComplete = isComplete || result.isComplete;
-
-        lastContext = this.detectContext(message.content);
-      } else {
-        // User Message: Extract using patterns + context
-        const userData = this.extractViaPatterns(
-          message.content,
-          undefined,
-          lastContext
-        );
-        aggregatedData = this.mergeData(aggregatedData, userData);
+      // Detect context from the message (usually from AI question)
+      const detectedContext = this.detectContext(message.content);
+      if (detectedContext) {
+        currentContext = detectedContext;
       }
-    }
 
-    // Also extract from user messages (they contain the actual data)
-    // Note: We already processed user messages above with context, but the original logic
-    // did a second pass. We can keep the original logic for safety or rely on the interleaved loop above.
-    // The interleaved loop is better because it has context.
-    // However, the original code had two separate loops. Let's stick to the single interleaved loop
-    // which is more correct for context.
+      // We treat User and AI messages similarly now, as the context detector works on both
+      // and extractors are robust.
+      // Pass the current context to ensure generic answers are parsed correctly
+      const result = this.extract(message.content, currentContext);
+
+      // Merge into aggregated state
+      aggregatedData = this.mergeData(aggregatedData, result.data);
+      maxConfidence = Math.max(maxConfidence, result.confidence);
+      isComplete = isComplete || result.isComplete;
+    }
 
     return {
       data: aggregatedData,

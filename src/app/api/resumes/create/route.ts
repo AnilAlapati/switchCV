@@ -1,5 +1,6 @@
 import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 import { generateNumericResumeId } from "@/lib/numericIdGenerator";
 import { Resume } from "@/lib/resumeComparison.types";
@@ -9,11 +10,11 @@ import {
 } from "@/lib/utils/api-helpers";
 import { getUserTier } from "@/lib/services/userService";
 import {
-  RESUME_CREATION_LIMITS,
-  RESUME_RETENTION_DAYS,
-  RESUME_DELETION_GRACE_DAYS,
-  RESUME_EXPIRY_WARNING_HOURS,
-} from "@/lib/config";
+  getResumeCreationLimits,
+  getResumeRetentionDays,
+  getResumeDeletionGraceDays,
+  getResumeExpiryWarningHours,
+} from "@/lib/config.server";
 
 interface CreateResumeRequest {
   userId: string;
@@ -62,7 +63,8 @@ export async function POST(request: NextRequest) {
 
     // Check Quota
     const tier = await getUserTier(userId);
-    const limit = RESUME_CREATION_LIMITS[tier];
+    const limits = await getResumeCreationLimits();
+    const limit = limits[tier];
 
     // We use "resume_create" scope and "monthly" period (or "forever" if we want total limit)
     // For now, let's assume it's a total limit on active resumes, but consumeQuota is for "events over time".
@@ -70,13 +72,12 @@ export async function POST(request: NextRequest) {
     // Let's check existing resumes count first.
 
     const existingResumesSnapshot = await adminDb
-      .collection("users")
-      .doc(userId)
       .collection("resumes")
+      .where("userId", "==", userId)
       .count()
       .get();
 
-    const currentCount = existingResumesSnapshot.data().count;
+    const currentCount = existingResumesSnapshot.data()?.count ?? 0;
 
     if (currentCount >= limit) {
       return handleApiError(
@@ -98,9 +99,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate Expiration
-    const retentionDays = RESUME_RETENTION_DAYS[tier];
-    const deletionGraceDays = RESUME_DELETION_GRACE_DAYS[tier];
-    const warningHours = RESUME_EXPIRY_WARNING_HOURS[tier];
+    const retentionConfig = await getResumeRetentionDays();
+    const deletionGraceConfig = await getResumeDeletionGraceDays();
+    const warningHoursConfig = await getResumeExpiryWarningHours();
+
+    const retentionDays = retentionConfig[tier];
+    const deletionGraceDays = deletionGraceConfig[tier];
+    const warningHours = warningHoursConfig[tier];
 
     let expiresAt: string | null = null;
     let deletionScheduledAt: string | null = null;
@@ -142,41 +147,9 @@ export async function POST(request: NextRequest) {
       expirationWarningHours: warningHours ?? null,
     };
 
-    // Save to Firestore using Batch Write
-    const batch = adminDb.batch();
-
-    // 1. Main Resume Document
-    // Structure: resumes/{numericId} (Root collection for easy access by ID)
-    const docRef = adminDb.collection("resumes").doc(String(numericId));
-    batch.set(docRef, resumeDoc);
-
-    // 2. User's Subcollection
-    const userResumeRef = adminDb
-      .collection("users")
-      .doc(userId)
-      .collection("resumes")
-      .doc(String(numericId));
-
-    batch.set(userResumeRef, {
-      ...resumeDoc,
-      // We can store full data or just metadata here
-    });
-
-    // 3. Global Resumes Collection (for search/listing)
-    const globalResumesRef = adminDb
-      .collection("allResumes")
-      .doc(String(numericId));
-
-    batch.set(globalResumesRef, {
-      userId,
-      numericId,
-      title: resume.title,
-      isPublic: isPublic,
-      createdAt: new Date().toISOString(),
-    });
-
-    // Commit all writes atomically
-    await batch.commit();
+    // Persist single source of truth document. Fan-out Cloud Function will
+    // propagate to user + global indexes asynchronously.
+    await adminDb.collection("resumes").doc(String(numericId)).set(resumeDoc);
 
     logger.info(
       {

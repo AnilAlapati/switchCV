@@ -79,119 +79,117 @@ async function scanExpiredDocuments(
   }
 }
 
-export const cleanupExpiredResumes = functions.pubsub
-  .schedule("10 2 * * *")
-  .timeZone("UTC")
-  .onRun(async (context: functions.EventContext) => {
-    return performanceMonitor.measure(
-      "functions.cleanupExpiredResumes",
-      async () => {
-        const processedIds = new Set<string>();
-        const nowIso = new Date().toISOString();
-        const now = new Date();
-        let batch = db.batch();
-        let batchOps = 0;
-        let deletedCount = 0;
+export const cleanupExpiredResumesHandler = async (
+  context: functions.EventContext
+) => {
+  return performanceMonitor.measure(
+    "functions.cleanupExpiredResumes",
+    async () => {
+      const processedIds = new Set<string>();
+      const nowIso = new Date().toISOString();
+      const now = new Date();
+      let batch = db.batch();
+      let batchOps = 0;
+      let deletedCount = 0;
 
-        const commitBatch = async () => {
-          if (batchOps === 0) {
-            return;
-          }
-
-          await resilientCall(() => batch.commit(), {
-            retryOptions: { maxAttempts: databaseConfig?.maxRetries || 3 },
-            timeoutMs: databaseConfig?.timeoutMs || 10000,
-            operationName: "resume-cleanup-commit",
-          });
-
-          batch = db.batch();
-          batchOps = 0;
-        };
-
-        const queueDeletion = async (doc: ResumeDoc) => {
-          batch.delete(doc.ref);
-          batchOps++;
-
-          const data = doc.data();
-          const userId = data.userId;
-          if (userId) {
-            const userResumeRef = db
-              .collection("users")
-              .doc(userId)
-              .collection("resumes")
-              .doc(doc.id);
-            batch.delete(userResumeRef);
-            batchOps++;
-          }
-
-          const globalRef = db.collection("allResumes").doc(doc.id);
-          batch.delete(globalRef);
-          batchOps++;
-          deletedCount++;
-
-          if (batchOps >= MAX_BATCH_OPS) {
-            await commitBatch();
-          }
-        };
-
-        const handleDoc = async (doc: ResumeDoc) => {
-          const data = doc.data();
-          const removalDate =
-            resolveTimestamp(data.deletionScheduledAt) ||
-            resolveTimestamp(data.expiresAt);
-
-          if (!removalDate || removalDate > now) {
-            return;
-          }
-
-          await queueDeletion(doc);
-        };
-
-        try {
-          await scanExpiredDocuments(
-            "deletionScheduledAt",
-            nowIso,
-            processedIds,
-            handleDoc
-          );
-
-          await scanExpiredDocuments(
-            "expiresAt",
-            nowIso,
-            processedIds,
-            handleDoc
-          );
-
-          await commitBatch();
-
-          functions.logger.info("Resume cleanup completed", {
-            deletedCount,
-            eventId: context.eventId,
-          });
-        } catch (error) {
-          await commitBatch();
-          const message =
-            error instanceof Error ? error.message : String(error);
-          await alertManager.sendAlert(
-            AlertSeverity.ERROR,
-            "cleanupExpiredResumes failed",
-            message,
-            {
-              eventId: context.eventId,
-              stack: error instanceof Error ? error.stack : undefined,
-            }
-          );
-          functions.logger.error("cleanupExpiredResumes failed", {
-            eventId: context.eventId,
-            message,
-            stack: error instanceof Error ? error.stack : undefined,
-          });
-          throw error;
+      const commitBatch = async () => {
+        if (batchOps === 0) {
+          return;
         }
 
-        return null;
-      },
-      MetricType.FUNCTION_EXECUTION,
-      { eventId: context.eventId }
-    );
-  });
+        await resilientCall(() => batch.commit(), {
+          retryOptions: { maxAttempts: databaseConfig?.maxRetries || 3 },
+          timeoutMs: databaseConfig?.timeoutMs || 10000,
+          operationName: "resume-cleanup-commit",
+        });
+
+        batch = db.batch();
+        batchOps = 0;
+      };
+
+      const queueDeletion = async (doc: ResumeDoc) => {
+        batch.delete(doc.ref);
+        batchOps++;
+
+        const data = doc.data();
+        const userId = data.userId;
+        if (userId) {
+          const userResumeRef = db
+            .collection("users")
+            .doc(userId)
+            .collection("resumes")
+            .doc(doc.id);
+          batch.delete(userResumeRef);
+          batchOps++;
+        }
+
+        const globalRef = db.collection("allResumes").doc(doc.id);
+        batch.delete(globalRef);
+        batchOps++;
+        deletedCount++;
+
+        if (batchOps >= MAX_BATCH_OPS) {
+          await commitBatch();
+        }
+      };
+
+      const handleDoc = async (doc: ResumeDoc) => {
+        const data = doc.data();
+        const removalDate =
+          resolveTimestamp(data.deletionScheduledAt) ||
+          resolveTimestamp(data.expiresAt);
+
+        if (!removalDate || removalDate > now) {
+          return;
+        }
+
+        await queueDeletion(doc);
+      };
+
+      try {
+        await scanExpiredDocuments(
+          "deletionScheduledAt",
+          nowIso,
+          processedIds,
+          handleDoc
+        );
+
+        await scanExpiredDocuments(
+          "expiresAt",
+          nowIso,
+          processedIds,
+          handleDoc
+        );
+
+        await commitBatch();
+
+        functions.logger.info("Resume cleanup completed", {
+          deletedCount,
+          eventId: context.eventId,
+        });
+      } catch (error) {
+        await commitBatch();
+        const message = error instanceof Error ? error.message : String(error);
+        await alertManager.sendAlert(
+          AlertSeverity.ERROR,
+          "cleanupExpiredResumes failed",
+          message,
+          {
+            eventId: context.eventId,
+            stack: error instanceof Error ? error.stack : undefined,
+          }
+        );
+        functions.logger.error("cleanupExpiredResumes failed", {
+          eventId: context.eventId,
+          message,
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+        throw error;
+      }
+
+      return null;
+    },
+    MetricType.BACKGROUND_TASK,
+    { eventId: context.eventId }
+  );
+};

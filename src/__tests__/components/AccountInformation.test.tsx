@@ -10,13 +10,14 @@ describe("AccountInformation", () => {
     hasResume: true,
     isRecruiter: false,
     saving: false,
+    savingRecruiter: false,
     onRecruiterToggle: jest.fn(),
     onCopy: jest.fn(),
   };
 
   it("displays account information title", () => {
     render(<AccountInformation {...mockProps} />);
-    expect(screen.getByText("Account Information")).toBeInTheDocument();
+    expect(screen.getByText("Account Settings")).toBeInTheDocument();
   });
 
   it("displays email address", () => {

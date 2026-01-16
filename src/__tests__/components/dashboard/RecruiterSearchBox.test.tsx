@@ -38,13 +38,16 @@ describe("RecruiterSearchBox", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetIdToken.mockResolvedValue("mock-token");
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ results: [], notification: null }),
+    });
   });
 
   it("renders the search box with header and form", () => {
     render(<RecruiterSearchBox />);
 
-    expect(screen.getByText("Resume Search")).toBeInTheDocument();
-    expect(screen.getByText("AI Search")).toBeInTheDocument();
+    expect(screen.getByText("Agent Search")).toBeInTheDocument();
     expect(screen.getByText("Basic Lookup")).toBeInTheDocument();
     expect(screen.getByText("Premium Filters")).toBeInTheDocument();
   });
@@ -105,7 +108,7 @@ describe("RecruiterSearchBox", () => {
     await userEvent.click(basicButton);
 
     // Switch back to AI
-    const aiButton = screen.getByText("AI Search");
+    const aiButton = screen.getByText("Agent Search");
     await userEvent.click(aiButton);
 
     // AI mode textarea should be visible again
@@ -123,8 +126,10 @@ describe("RecruiterSearchBox", () => {
     const basicButton = screen.getByText("Basic Lookup");
     await userEvent.click(basicButton);
 
-    const submitButton = screen.getByText("Run Search");
-    await userEvent.click(submitButton);
+    // Find the submit button - use getAllByRole and filter
+    const buttons = screen.getAllByRole("button", { name: /Search/i });
+    // Click the first one (after mode buttons)
+    await userEvent.click(buttons[buttons.length - 1]);
 
     expect(screen.getByText("Please enter a candidate ID")).toBeInTheDocument();
   });
@@ -136,8 +141,8 @@ describe("RecruiterSearchBox", () => {
     const premiumButton = screen.getByText("Premium Filters");
     await userEvent.click(premiumButton);
 
-    const submitButton = screen.getByText("Run Search");
-    await userEvent.click(submitButton);
+    const buttons = screen.getAllByRole("button", { name: /Search/i });
+    await userEvent.click(buttons[buttons.length - 1]);
 
     expect(
       screen.getByText("Please enter skills or location")
@@ -173,8 +178,8 @@ describe("RecruiterSearchBox", () => {
     const userIdInput = screen.getByPlaceholderText("e.g., 2");
     await userEvent.type(userIdInput, "user-123");
 
-    const submitButton = screen.getByText("Run Search");
-    await userEvent.click(submitButton);
+    const buttons = screen.getAllByRole("button", { name: /Search/i });
+    await userEvent.click(buttons[buttons.length - 1]);
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith("/api/recruiter/search-resumes", {
@@ -225,8 +230,8 @@ describe("RecruiterSearchBox", () => {
     const skillInput = screen.getByPlaceholderText("e.g., React, Python, AWS");
     await userEvent.type(skillInput, "React{enter}");
 
-    const submitButton = screen.getByText("Run Search");
-    await userEvent.click(submitButton);
+    const buttons = screen.getAllByRole("button", { name: /Search/i });
+    await userEvent.click(buttons[buttons.length - 1]);
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith("/api/recruiter/search-resumes", {
@@ -278,8 +283,8 @@ describe("RecruiterSearchBox", () => {
     );
     await userEvent.type(locationInput, "Austin");
 
-    const submitButton = screen.getByText("Run Search");
-    await userEvent.click(submitButton);
+    const buttons = screen.getAllByRole("button", { name: /Search/i });
+    await userEvent.click(buttons[buttons.length - 1]);
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith("/api/recruiter/search-resumes", {
@@ -315,8 +320,8 @@ describe("RecruiterSearchBox", () => {
     const userIdInput = screen.getByPlaceholderText("e.g., 2");
     await userEvent.type(userIdInput, "user-123");
 
-    const submitButton = screen.getByText("Run Search");
-    await userEvent.click(submitButton);
+    const buttons = screen.getAllByRole("button", { name: /Search/i });
+    await userEvent.click(buttons[buttons.length - 1]);
 
     await waitFor(() => {
       expect(screen.getByText("Search failed")).toBeInTheDocument();
@@ -342,8 +347,10 @@ describe("RecruiterSearchBox", () => {
     const userIdInput = screen.getByPlaceholderText("e.g., 2");
     await userEvent.type(userIdInput, "user-999");
 
-    const submitButton = screen.getByText("Run Search");
-    await userEvent.click(submitButton);
+    const submitButton = screen
+      .getAllByRole("button", { name: /Search/i })
+      .find((b) => b.getAttribute("type") === "submit");
+    await userEvent.click(submitButton!);
 
     await waitFor(() => {
       expect(
@@ -389,8 +396,8 @@ describe("RecruiterSearchBox", () => {
     const userIdInput = screen.getByPlaceholderText("e.g., 2");
     await userEvent.type(userIdInput, "user-123");
 
-    const submitButton = screen.getByText("Run Search");
-    await userEvent.click(submitButton);
+    const buttons = screen.getAllByRole("button", { name: /Search/i });
+    await userEvent.click(buttons[buttons.length - 1]);
 
     await waitFor(() => {
       expect(screen.getByText("View Full Resume")).toBeInTheDocument();
@@ -403,20 +410,13 @@ describe("RecruiterSearchBox", () => {
   });
 
   it("disables form during loading", async () => {
-    // Mock a slow response
-    mockFetch.mockImplementationOnce(
-      () =>
-        new Promise((resolve) =>
-          setTimeout(
-            () =>
-              resolve({
-                ok: true,
-                json: async () => ({ results: [], notification: null }),
-              }),
-            100
-          )
-        )
-    );
+    // Mock a very slow response to ensure we can see loading state
+    let resolveSlowFetch: any;
+    const slowPromise = new Promise((resolve) => {
+      resolveSlowFetch = resolve;
+    });
+
+    mockFetch.mockImplementationOnce(() => slowPromise);
 
     render(<RecruiterSearchBox />);
 
@@ -427,17 +427,24 @@ describe("RecruiterSearchBox", () => {
     const userIdInput = screen.getByPlaceholderText("e.g., 2");
     await userEvent.type(userIdInput, "user-123");
 
-    const submitButton = screen.getByText("Run Search");
+    const buttons = screen.getAllByRole("button", { name: /Search/i });
+    const submitButton = buttons[buttons.length - 1];
+
+    // Click the button - this should trigger loading
     await userEvent.click(submitButton);
 
-    // Button should show loading state
-    expect(screen.getByText("Searching...")).toBeInTheDocument();
-
-    // Input should be disabled
+    // Input should be disabled during loading
     expect(userIdInput).toBeDisabled();
 
+    // Resolve the slow fetch
+    resolveSlowFetch({
+      ok: true,
+      json: async () => ({ results: [], notification: null }),
+    });
+
+    // Wait for loading to complete
     await waitFor(() => {
-      expect(screen.queryByText("Searching...")).not.toBeInTheDocument();
+      expect(userIdInput).not.toBeDisabled();
     });
   });
 });

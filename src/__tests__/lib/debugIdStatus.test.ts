@@ -1,8 +1,8 @@
 import { checkIdStatus, resetCounter } from "@/lib/debugIdStatus";
-import { getDoc, setDoc } from "firebase/firestore";
+import { getDoc, getDocs, setDoc, writeBatch } from "firebase/firestore";
 import { logger } from "@/lib/logger";
+import { ID_GENERATION } from "@/config/constants";
 
-// Mock logger
 jest.mock("@/lib/logger", () => ({
   logger: {
     info: jest.fn(),
@@ -10,39 +10,56 @@ jest.mock("@/lib/logger", () => ({
   },
 }));
 
-// Mock dependencies
 jest.mock("@/lib/firebase", () => ({
   db: {},
 }));
+
 jest.mock("firebase/firestore", () => ({
   doc: jest.fn(),
+  collection: jest.fn(),
   getDoc: jest.fn(),
+  getDocs: jest.fn(),
   setDoc: jest.fn(),
+  writeBatch: jest.fn(),
 }));
 
 describe("debugIdStatus", () => {
+  let mockBatch: { set: jest.Mock; commit: jest.Mock };
+
   beforeEach(() => {
     jest.clearAllMocks();
+    (getDocs as jest.Mock).mockResolvedValue({ empty: true, docs: [] });
+    mockBatch = {
+      set: jest.fn(),
+      commit: jest.fn().mockResolvedValue(undefined),
+    };
+    (writeBatch as jest.Mock).mockReturnValue(mockBatch);
   });
 
   describe("checkIdStatus", () => {
-    it("should log status when documents exist", async () => {
+    it("logs shard and pool data when present", async () => {
       (getDoc as jest.Mock)
         .mockResolvedValueOnce({
           exists: () => true,
           data: () => ({
-            currentId: 100,
             createdAt: "2023-01-01",
-            lastResetAt: "2023-01-01",
+            lastResetAt: "2023-02-01",
+            description: "test",
           }),
         })
         .mockResolvedValueOnce({
           exists: () => true,
-          data: () => ({
-            deletedIds: [1, 2, 3],
-            totalRecycled: 3,
-          }),
+          data: () => ({ deletedIds: [1, 2], totalRecycled: 2 }),
         });
+
+      (getDocs as jest.Mock).mockResolvedValue({
+        empty: false,
+        docs: [
+          {
+            data: () => ({ shardId: 0, lastIssued: 10, nextId: 11 }),
+          },
+        ],
+      });
 
       await checkIdStatus();
 
@@ -50,32 +67,24 @@ describe("debugIdStatus", () => {
         expect.stringContaining("ID Counter Status")
       );
       expect(logger.info).toHaveBeenCalledWith(
-        expect.stringContaining("Counter exists")
+        expect.stringContaining("Shard Overview")
       );
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining("Deleted IDs Pool Status")
       );
-      expect(logger.info).toHaveBeenCalledWith(
-        expect.stringContaining("Pool exists")
-      );
     });
 
-    it("should log when documents do not exist", async () => {
-      (getDoc as jest.Mock).mockResolvedValue({
-        exists: () => false,
-      });
+    it("logs missing documents", async () => {
+      (getDoc as jest.Mock).mockResolvedValue({ exists: () => false });
 
       await checkIdStatus();
 
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining("Counter doesn't exist")
       );
-      expect(logger.info).toHaveBeenCalledWith(
-        expect.stringContaining("Pool doesn't exist")
-      );
     });
 
-    it("should handle errors", async () => {
+    it("handles read failures", async () => {
       (getDoc as jest.Mock).mockRejectedValue(new Error("DB Error"));
 
       await checkIdStatus();
@@ -88,21 +97,22 @@ describe("debugIdStatus", () => {
   });
 
   describe("resetCounter", () => {
-    it("should reset counter successfully", async () => {
+    it("updates metadata and shards", async () => {
       await resetCounter();
 
       expect(setDoc).toHaveBeenCalledWith(
-        undefined, // doc ref (mocked)
-        expect.objectContaining({
-          currentId: 0,
-        })
+        undefined,
+        expect.objectContaining({ resetTo: 0 }),
+        { merge: true }
       );
+      expect(mockBatch.set).toHaveBeenCalledTimes(ID_GENERATION.SHARD_COUNT);
+      expect(mockBatch.commit).toHaveBeenCalled();
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining("Counter reset to 0")
       );
     });
 
-    it("should handle errors during reset", async () => {
+    it("logs errors when reset fails", async () => {
       (setDoc as jest.Mock).mockRejectedValue(new Error("Write Error"));
 
       await resetCounter();

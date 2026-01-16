@@ -17,7 +17,7 @@ export const PreviewProjects = ({ profile }: PreviewProjectsProps) => {
       <div className="space-y-4">
         {profile.projects.map((project, index) => (
           <div
-            key={index}
+            key={project.id || `proj-${index}`}
             className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
           >
             <div className="flex items-start justify-between gap-2 mb-2">

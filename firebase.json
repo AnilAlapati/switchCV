@@ -23,5 +23,15 @@
   },
   "extensions": {
     "firestore-send-email": "firebase/firestore-send-email@0.2.4"
+  },
+  "emulators": {
+    "firestore": {
+      "port": 8080
+    },
+    "ui": {
+      "enabled": true,
+      "port": 4000
+    },
+    "singleProjectMode": true
   }
 }

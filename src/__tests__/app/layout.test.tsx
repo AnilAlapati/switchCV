@@ -6,6 +6,7 @@ import Layout from "../../app/layout";
 jest.mock("next/font/google", () => ({
   Geist: () => ({ variable: "--font-geist-sans" }),
   Geist_Mono: () => ({ variable: "--font-geist-mono" }),
+  Merriweather: () => ({ variable: "--font-merriweather" }),
 }));
 
 // Mock the useAuth hook

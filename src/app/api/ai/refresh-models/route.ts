@@ -11,11 +11,8 @@ import {
   handleApiError,
 } from "@/lib/utils/api-helpers";
 import { getUserRole } from "@/lib/services/userService";
-
-const ADMIN_REFRESH_LIMIT = {
-  limit: 5,
-  windowMs: 60 * 1000,
-};
+import { getConstants } from "@/lib/getSystemConfig";
+import { AI_ENDPOINTS } from "@/config/aiEndpoints";
 
 export async function GET(request: NextRequest) {
   try {
@@ -30,10 +27,11 @@ export async function GET(request: NextRequest) {
     }
 
     const clientIp = getClientIp(request);
-    const rateCheck = applyRateLimit(
-      `refresh-models:${clientIp}`,
-      ADMIN_REFRESH_LIMIT
-    );
+    const constants = await getConstants();
+    const rateCheck = await applyRateLimit(`refresh-models:${clientIp}`, {
+      limit: constants.RATE_LIMITS.ADMIN_REFRESH_PER_MINUTE,
+      windowMs: 60 * 1000,
+    });
     if (!rateCheck.allowed) {
       return rateCheck.response;
     }
@@ -50,7 +48,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch latest models
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`
+      AI_ENDPOINTS.GEMINI.MODELS(apiKey)
     );
 
     if (!response.ok) {
@@ -58,14 +56,20 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json();
+    interface GeminiModelResponse {
+      name: string;
+      displayName: string;
+      supportedGenerationMethods: string[];
+    }
+
     const allModels =
-      data.models?.map((m: any) => ({
+      (data.models as GeminiModelResponse[] | undefined)?.map((m) => ({
         name: m.name.replace("models/", ""),
         displayName: m.displayName,
         methods: m.supportedGenerationMethods,
       })) || [];
 
-    const compatibleModels = allModels.filter((m: any) =>
+    const compatibleModels = allModels.filter((m) =>
       m.methods?.includes("generateContent")
     );
 

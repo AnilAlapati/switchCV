@@ -108,8 +108,8 @@ export const analyzeATS = (
       issues.length > 0
         ? issues
         : [
-            "✅ Resume looks ATS-friendly! Good structure and formatting detected",
-          ],
+          "✅ Resume looks ATS-friendly! Good structure and formatting detected",
+        ],
   };
 };
 
@@ -117,7 +117,7 @@ export const analyzeATS = (
  * Detect formatting style and suggest improvements
  */
 export const analyzeFormatting = (resume: Resume): string => {
-  const hasBulletPoints = resume.experience.some((exp: any) =>
+  const hasBulletPoints = resume.experience.some((exp) =>
     exp.description?.includes("•")
   );
 
@@ -159,7 +159,7 @@ export const generateOptimizationTips = (resume: Resume): string[] => {
   }
 
   const experienceDescription = resume.experience
-    .map((e: any) => e.description)
+    .map((e) => e.description)
     .join(" ")
     .toLowerCase();
 
@@ -189,10 +189,8 @@ export const analyzeKeywords = (
 } => {
   const resumeText = JSON.stringify(resume).toLowerCase();
 
-  // Extract current keywords (skills)
-  const currentKeywords = resume.skills.map((s: any) =>
-    (typeof s === "string" ? s : s.name).toLowerCase()
-  );
+  // Extract current keywords (skills) - Resume.skills is string[]
+  const currentKeywords = resume.skills.map((s) => s.toLowerCase());
 
   // Suggested technical keywords
   const technicalKeywords = [
@@ -323,7 +321,7 @@ export const getFormattingRecommendations = (resume: Resume): string[] => {
 
   // Check for action verbs
   const descriptions = resume.experience
-    .map((e: any) => e.description)
+    .map((e) => e.description)
     .join(" ");
   const actionVerbs = [
     "managed",
@@ -354,7 +352,7 @@ export const getFormattingRecommendations = (resume: Resume): string[] => {
   // Check for consistency
   if (resume.experience.length > 0) {
     const allHaveDescriptions = resume.experience.every(
-      (e: any) => e.description && e.description.length > 20
+      (e) => e.description && e.description.length > 20
     );
     if (!allHaveDescriptions) {
       recommendations.push("Expand job descriptions with more detail");

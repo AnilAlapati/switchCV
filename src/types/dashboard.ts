@@ -55,6 +55,8 @@ export interface ActionItem {
     href?: string;
     onClick?: () => void;
     target?: "_blank" | "_self" | "_parent" | "_top";
+    disabled?: boolean;
+    tooltip?: string;
   };
 }
 

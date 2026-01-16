@@ -1,6 +1,8 @@
 import React from "react";
 import Link from "next/link";
 import { getResumeUrl } from "@/lib/config";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { RestrictedFeature } from "@/components/ui/RestrictedFeature";
 
 interface ResumeActionButtonsProps {
   resumeId: string | number | null;
@@ -17,6 +19,8 @@ export function ResumeActionButtons({
   onToggleVisibility,
   onDelete,
 }: ResumeActionButtonsProps) {
+  const { tier } = useUserProfile();
+  const isBasicUser = tier === "basic";
   const resumeIdString = resumeId ? String(resumeId) : null;
 
   return (
@@ -26,7 +30,7 @@ export function ResumeActionButtons({
         target="_blank"
         rel="noopener noreferrer"
         title={`Resume ID: ${resumeId || "Loading..."}`}
-        className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+        className="inline-flex items-center gap-2 rounded-xl glass-button px-4 py-2 text-sm font-bold transition-all shadow-sm"
       >
         View Resume
         <svg
@@ -47,10 +51,10 @@ export function ResumeActionButtons({
       <button
         onClick={onToggleVisibility}
         disabled={isUpdatingVisibility}
-        className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
+        className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all border ${
           isPublished
-            ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/30"
-            : "bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700 hover:text-slate-300"
+            ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20 hover:bg-emerald-500/20"
+            : "bg-white/40 text-[black]/60 border-white/60 hover:bg-white/60 hover:text-[black]"
         }`}
       >
         {isUpdatingVisibility ? (
@@ -94,37 +98,65 @@ export function ResumeActionButtons({
       </button>
 
       {resumeIdString ? (
-        <Link
-          href={`/resumes/${resumeIdString}/edit`}
-          className="inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
+        <RestrictedFeature
+          messageKey="AI_EDIT"
+          requiredTier="premium"
+          tooltipPosition="left"
         >
-          Edit
-          <svg
-            className="h-4 w-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M11 5h2m-1-1v2m1 5h-4m6-9.5l1.5 1.5M5 19l4.586-4.586a2 2 0 012.828 0L17 19"
-            />
-          </svg>
-        </Link>
+          {isBasicUser ? (
+            <button
+              disabled
+              className="inline-flex items-center gap-2 rounded-xl bg-slate-50 border border-slate-200 px-4 py-2 text-sm font-bold text-slate-400 cursor-not-allowed opacity-60"
+            >
+              Edit
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M11 5h2m-1-1v2m1 5h-4m6-9.5l1.5 1.5M5 19l4.586-4.586a2 2 0 012.828 0L17 19"
+                />
+              </svg>
+            </button>
+          ) : (
+            <Link
+              href={`/resumes/${resumeIdString}/edit`}
+              className="inline-flex items-center gap-2 rounded-xl bg-white/40 border border-white/60 px-4 py-2 text-sm font-bold text-[black] transition hover:bg-white/60 shadow-sm"
+            >
+              Edit
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M11 5h2m-1-1v2m1 5h-4m6-9.5l1.5 1.5M5 19l4.586-4.586a2 2 0 012.828 0L17 19"
+                />
+              </svg>
+            </Link>
+          )}
+        </RestrictedFeature>
       ) : (
         <button
           type="button"
           disabled
-          className="inline-flex items-center gap-2 rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-400 opacity-70"
+          className="inline-flex items-center gap-2 rounded-xl bg-slate-50 border border-slate-200 px-4 py-2 text-sm font-bold text-slate-400 opacity-60"
         >
           Edit
         </button>
       )}
       <button
         onClick={onDelete}
-        className="inline-flex items-center gap-2 rounded-xl border border-red-500/40 bg-red-500/20 px-4 py-2 text-sm font-semibold text-red-200 transition hover:border-red-400/60 hover:bg-red-500/30"
+        className="inline-flex items-center gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-2 text-sm font-bold text-red-600 transition hover:border-red-200 hover:bg-red-100"
       >
         Delete
         <svg

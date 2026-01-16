@@ -23,21 +23,25 @@ describe("resumeEditor normalization", () => {
       const result = normalizeResumeForEditor(raw);
       expect(result.profile.skills).toHaveLength(4);
       expect(result.profile.skills![0]).toEqual({
+        id: expect.stringMatching(/^skill-legacy-\d+$/),
         name: "JavaScript",
         level: "intermediate",
         visibility: "public",
       });
       expect(result.profile.skills![1]).toEqual({
+        id: expect.stringMatching(/^skill-legacy-\d+$/),
         name: "TypeScript",
         level: "expert",
         visibility: "public",
       });
       expect(result.profile.skills![2]).toEqual({
+        id: expect.stringMatching(/^skill-legacy-\d+$/),
         name: "",
         level: "intermediate",
         visibility: "public",
       });
       expect(result.profile.skills![3]).toEqual({
+        id: expect.stringMatching(/^skill-legacy-\d+$/),
         name: "React",
         level: "intermediate",
         visibility: "public",
@@ -60,6 +64,7 @@ describe("resumeEditor normalization", () => {
       const result = normalizeResumeForEditor(raw);
       expect(result.profile.experience).toHaveLength(3);
       expect(result.profile.experience![0]).toEqual({
+        id: expect.stringMatching(/^exp-legacy-\d+$/),
         company: "",
         role: "",
         startDate: "",
@@ -67,6 +72,7 @@ describe("resumeEditor normalization", () => {
         visibility: "public",
       });
       expect(result.profile.experience![1]).toEqual({
+        id: expect.stringMatching(/^exp-legacy-\d+$/),
         company: "Tech Co",
         role: "Dev",
         startDate: "2020",
@@ -75,6 +81,7 @@ describe("resumeEditor normalization", () => {
         visibility: "masked",
       });
       expect(result.profile.experience![2]).toEqual({
+        id: expect.stringMatching(/^exp-legacy-\d+$/),
         company: "",
         role: "Lead",
         startDate: "2018",
@@ -100,12 +107,14 @@ describe("resumeEditor normalization", () => {
       const result = normalizeResumeForEditor(raw);
       expect(result.profile.education).toHaveLength(3);
       expect(result.profile.education![0]).toEqual({
+        id: expect.stringMatching(/^edu-legacy-\d+$/),
         institution: "",
         degree: "",
         startDate: "",
         visibility: "public",
       });
       expect(result.profile.education![1]).toEqual({
+        id: expect.stringMatching(/^edu-legacy-\d+$/),
         institution: "Uni",
         degree: "BS",
         startDate: "2016",
@@ -114,6 +123,7 @@ describe("resumeEditor normalization", () => {
         visibility: "request",
       });
       expect(result.profile.education![2]).toEqual({
+        id: expect.stringMatching(/^edu-legacy-\d+$/),
         institution: "",
         degree: "MS",
         startDate: "2018",
@@ -137,14 +147,17 @@ describe("resumeEditor normalization", () => {
         name: "",
         description: "",
         visibility: "public",
+        id: "proj-legacy-0",
       });
       expect(result.profile.projects![1]).toEqual({
+        id: expect.stringMatching(/^proj-legacy-\d+$/),
         name: "Project A",
         description: "Desc",
         url: undefined,
         visibility: "public",
       });
       expect(result.profile.projects![2]).toEqual({
+        id: expect.stringMatching(/^proj-legacy-\d+$/),
         name: "Project B",
         description: "",
         url: "http://example.com",

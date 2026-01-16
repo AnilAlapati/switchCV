@@ -34,7 +34,7 @@ export function useAiSearch({
 
   const handleAiSearch = useCallback(async () => {
     if (!user) {
-      setAiError("Please sign in to use AI search");
+      setAiError("Please sign in to use Agent search");
       return;
     }
 
@@ -74,7 +74,7 @@ export function useAiSearch({
             );
           } else if (errorData.code === "TIER_NOT_ALLOWED") {
             setAiError(
-              "AI-powered search requires a Premium or Enterprise subscription."
+              "Agent-powered search requires a Premium or Enterprise subscription."
             );
           } else {
             setAiError(errorData.message || "Access denied");

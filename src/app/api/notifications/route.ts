@@ -8,11 +8,14 @@ import {
   NotificationType,
   NotificationChannel,
   NotificationPriority,
+  NotificationPayload,
+  NotificationPreference,
 } from "@/lib/notifications.types";
 import {
   createNotification,
   getUserNotifications,
   getUnreadNotifications,
+  getNotification,
   markAsRead,
   getPreferences,
   savePreference,
@@ -29,7 +32,20 @@ import {
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
+import { getConstants } from "@/lib/getSystemConfig";
 import { notificationRequestSchema } from "@/lib/validations/notification";
+
+interface NotificationActionData {
+  type: string;
+  payload: NotificationPayload;
+  channels: string[];
+  priority?: NotificationPriority;
+  email?: string;
+  phone?: string;
+  pushToken?: string;
+  webhookUrl?: string;
+}
+
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,10 +55,14 @@ export async function POST(request: NextRequest) {
       return authError || handleApiError(null, "Unauthorized", 401);
 
     // Rate Limit
-    const rateLimitResult = checkRateLimit(`${authUserId}:notifications`, {
-      limit: 100,
-      windowMs: 60 * 1000, // 1 minute
-    });
+    const constants = await getConstants();
+    const rateLimitResult = await checkRateLimit(
+      `${authUserId}:notifications`,
+      {
+        limit: constants.RATE_LIMITS.NOTIFICATIONS_PER_MINUTE,
+        windowMs: 60 * 1000, // 1 minute
+      }
+    );
 
     if (!rateLimitResult.allowed) {
       return handleApiError(null, "Too many requests", 429);
@@ -67,13 +87,13 @@ export async function POST(request: NextRequest) {
         return handleSend(userId, data);
 
       case "mark-read":
-        return handleMarkRead(data?.notificationId);
+        return handleMarkRead(data?.notificationId, authUserId);
 
       case "mark-all-read":
         return handleMarkAllRead(userId);
 
       case "delete":
-        return handleDelete(data?.notificationId);
+        return handleDelete(data?.notificationId, authUserId);
 
       case "get-preferences":
         return handleGetPreferences(userId);
@@ -129,7 +149,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-async function handleSend(userId: string, data: any) {
+async function handleSend(userId: string, data: NotificationActionData) {
   const {
     type,
     payload,
@@ -164,9 +184,15 @@ async function handleSend(userId: string, data: any) {
   });
 }
 
-async function handleMarkRead(notificationId: string) {
+async function handleMarkRead(notificationId: string, authUserId: string) {
   if (!notificationId) {
     return handleApiError(null, "Missing notificationId", 400);
+  }
+
+  // Ownership check
+  const notification = await getNotification(notificationId);
+  if (!notification || notification.recipientId !== authUserId) {
+    return handleApiError(null, "Forbidden: You do not own this notification", 403);
   }
 
   await markAsRead(notificationId);
@@ -185,9 +211,15 @@ async function handleMarkAllRead(userId: string) {
   return NextResponse.json({ success: true, markedCount: unread.length });
 }
 
-async function handleDelete(notificationId: string) {
+async function handleDelete(notificationId: string, authUserId: string) {
   if (!notificationId) {
     return handleApiError(null, "Missing notificationId", 400);
+  }
+
+  // Ownership check
+  const notification = await getNotification(notificationId);
+  if (!notification || notification.recipientId !== authUserId) {
+    return handleApiError(null, "Forbidden: You do not own this notification", 403);
   }
 
   await deleteNotification(notificationId);
@@ -236,16 +268,20 @@ async function handleGetPreferences(userId: string) {
   });
 }
 
-async function handleUpdatePreference(userId: string, preference: any) {
+async function handleUpdatePreference(userId: string, preference: Partial<NotificationPreference>) {
   if (!userId || !preference) {
     return handleApiError(null, "Missing required fields", 400);
   }
 
-  const updated = {
+  const updated: NotificationPreference = {
     ...preference,
     id: preference.id || `pref_${generateNotificationId()}`,
     userId,
     updatedAt: new Date(),
+    type: preference.type || NotificationType.PROFILE_VIEW, // Default if not provided
+    channels: preference.channels || [NotificationChannel.IN_APP],
+    enabled: preference.enabled !== undefined ? preference.enabled : true,
+    createdAt: preference.createdAt || new Date(),
   };
 
   await savePreference(updated);

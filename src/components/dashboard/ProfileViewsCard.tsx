@@ -53,10 +53,10 @@ export function ProfileViewsCard() {
   const loadingState = usingContext ? contextLoading : loading;
 
   return (
-    <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6 shadow-lg shadow-slate-950/40 transition hover:border-cyan-500/40">
+    <div className="glass-panel rounded-3xl p-6 transition hover:shadow-lg hover:shadow-[black]/10 hover:border-white">
       <div className="flex items-center">
         <div className="flex-shrink-0">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-slate-700 bg-slate-950 text-cyan-300">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-blue-200/50 bg-blue-100/30 text-blue-600">
             <svg
               className="h-6 w-6"
               fill="none"
@@ -80,22 +80,22 @@ export function ProfileViewsCard() {
         </div>
         <div className="ml-5 w-0 flex-1">
           <dl>
-            <dt className="text-sm font-medium text-slate-400 truncate">
+            <dt className="text-sm font-bold text-[black]/60 truncate">
               Profile Views
             </dt>
-            <dd className="text-2xl font-bold text-white">
+            <dd className="text-2xl font-bold text-[black]">
               {loadingState ? "-" : displayValue}
             </dd>
           </dl>
         </div>
       </div>
       <div className="mt-4">
-        <p className="text-sm text-slate-300">
+        <p className="text-sm text-[black]/60">
           {loadingState
             ? "Loading..."
             : displayValue === 0
-            ? "No views yet"
-            : `${displayValue} profile view${displayValue !== 1 ? "s" : ""}`}
+              ? "No views yet"
+              : `${displayValue} profile view${displayValue !== 1 ? "s" : ""}`}
         </p>
       </div>
     </div>

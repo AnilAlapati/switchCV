@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { useProfileForm } from "@/hooks/useProfileForm";
 import {
   mergeProfileIntoResume,
@@ -17,6 +18,9 @@ import {
   ResumeEditWizard,
   type SaveState,
 } from "@/components/resume/ResumeEditWizard";
+import { getVerificationRoute } from "@/lib/config";
+
+const VERIFICATION_ROUTE = getVerificationRoute();
 
 const STEPS = [
   "Basic Info",
@@ -38,8 +42,16 @@ export default function EditResumePage() {
     : resumeIdParam;
   const searchParams = useSearchParams();
   const mode = searchParams?.get("mode") ?? "ai";
+  const { tier, loading: tierLoading } = useUserProfile();
+  const router = useRouter();
 
-  if (!resumeId) {
+  useEffect(() => {
+    if (!tierLoading && tier === "basic") {
+      router.replace("/dashboard");
+    }
+  }, [tier, tierLoading, router]);
+
+  if (!resumeId || tierLoading || tier === "basic") {
     return null;
   }
 
@@ -95,7 +107,7 @@ function ManualResumeEditor({ resumeId }: { resumeId: string }) {
 
   useEffect(() => {
     if (!authLoading && (!user || needsEmailVerification)) {
-      router.replace("/auth?mode=verify-email");
+      router.replace(VERIFICATION_ROUTE);
     }
   }, [authLoading, needsEmailVerification, router, user]);
 

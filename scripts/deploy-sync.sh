@@ -12,6 +12,23 @@ trap cleanup EXIT
 echo "🚀 Starting Cloud Sync Deployment (Functions, Rules, Indexes)..."
 
 # ---------------------------------------------------------
+# 0. SECURITY CHECK
+# ---------------------------------------------------------
+echo ""
+echo "🔒 [0/2] Running Security Scan..."
+if command -v git-secrets &> /dev/null; then
+    git secrets --scan
+    if [ $? -ne 0 ]; then
+        echo "❌ Security Check Failed: Secrets detected in code!"
+        echo "   Please fix the issues above before deploying."
+        exit 1
+    fi
+    echo "✅ No secrets detected in tracked files."
+else
+    echo "⚠️  git-secrets not found. Skipping scan."
+fi
+
+# ---------------------------------------------------------
 # 1. DEPLOY TO DEV
 # ---------------------------------------------------------
 echo ""

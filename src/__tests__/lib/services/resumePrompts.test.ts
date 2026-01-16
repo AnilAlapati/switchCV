@@ -32,8 +32,8 @@ describe("resumePrompts", () => {
   describe("getInitialGreeting", () => {
     it("should return the greeting string", () => {
       const greeting = getInitialGreeting();
-      expect(greeting).toContain("Hello! I'm your AI Resume Assistant");
-      expect(greeting).toContain("full name and email address");
+      expect(greeting).toContain("Hey! I'm your Career Coach AI");
+      expect(greeting).toContain("name, email, and what kind of role");
     });
   });
 
@@ -87,7 +87,10 @@ describe("resumePrompts", () => {
         hasSkills: true,
       };
       const prompt = buildConversationalPrompt("msg", [], progress);
-      expect(prompt).toContain("MISSING INFO: email, work experience");
+      // New format uses "STATUS: The following fields are NOT yet structured:"
+      expect(prompt).toContain(
+        "STATUS: The following fields are NOT yet structured: email, work experience"
+      );
     });
 
     it("should indicate completion when all info is present", () => {

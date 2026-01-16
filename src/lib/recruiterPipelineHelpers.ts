@@ -126,14 +126,14 @@ export function moveCandidateInPipeline(
 export function calculateTimeInStage(
   pipeline: RecruitmentPipeline
 ): Record<PipelineStage, number> {
-  const timeInStage: Record<PipelineStage, number> = {} as any;
+  const timeInStage: Record<PipelineStage, number> = {} as Record<PipelineStage, number>;
 
   pipeline.columns.forEach((col) => {
     const times = col.candidates
       .map((c) => {
         const daysInStage = Math.floor(
           (new Date().getTime() - new Date(c.updatedAt).getTime()) /
-            (1000 * 60 * 60 * 24)
+          (1000 * 60 * 60 * 24)
         );
         return daysInStage;
       })
@@ -165,7 +165,7 @@ export function calculateAverageTimeToHire(
   const times = hiredCandidates.map((c) => {
     const daysToHire = Math.floor(
       (new Date(c.updatedAt).getTime() - new Date(c.createdAt).getTime()) /
-        (1000 * 60 * 60 * 24)
+      (1000 * 60 * 60 * 24)
     );
     return daysToHire;
   });
@@ -222,11 +222,10 @@ export function compareCandidates(
 
   const recommendation =
     candidates.length > 0
-      ? `Top candidate: ${
-          candidates.reduce((prev, current) =>
-            (prev.skillMatch || 0) > (current.skillMatch || 0) ? prev : current
-          ).name
-        }`
+      ? `Top candidate: ${candidates.reduce((prev, current) =>
+        (prev.skillMatch || 0) > (current.skillMatch || 0) ? prev : current
+      ).name
+      }`
       : "No candidates to compare";
 
   return {
@@ -253,7 +252,15 @@ export function createBulkAction(
 ): BulkAction {
   return {
     id: generateBulkActionId(),
-    actionType: actionType as any,
+    actionType: (actionType === "move" ? "move-stage" :
+      actionType === "priority" ? "update-priority" :
+        actionType === "note" ? "add-note" : actionType) as
+      | "move-stage"
+      | "update-priority"
+      | "send-email"
+      | "schedule-interview"
+      | "reject"
+      | "add-note",
     candidateIds,
     status: "pending",
   };

@@ -5,13 +5,43 @@ import { logger } from "@/lib/logger";
  * Handles safe deletion of resumes from Firestore, including:
  * - Deleting the resume document
  * - Recycling the numeric ID back to the pool
- * - Cleaning up associated data
+ * - Cleaning up associated data (subcollections)
  * - Error handling and rollback
  */
 
-import { doc, deleteDoc, getDoc } from "firebase/firestore";
+import { doc, deleteDoc, getDoc, collection, getDocs, writeBatch, DocumentReference } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { addDeletedIdToPool } from "@/lib/resumeIdRecycler";
+import { PublishedResume } from "@/types";
+
+/**
+ * Delete all documents in a subcollection (cascade delete helper)
+ * Firestore does NOT cascade delete subcollections when parent is deleted.
+ */
+async function deleteSubcollection(
+  parentRef: DocumentReference,
+  subcollectionName: string
+): Promise<number> {
+  const subcollectionRef = collection(parentRef, subcollectionName);
+  const snapshot = await getDocs(subcollectionRef);
+
+  if (snapshot.empty) {
+    return 0;
+  }
+
+  const batch = writeBatch(db);
+  snapshot.docs.forEach((docSnap) => batch.delete(docSnap.ref));
+  await batch.commit();
+
+  logger.info(
+    { subcollection: subcollectionName, count: snapshot.size },
+    "🗑️ Deleted subcollection documents"
+  );
+
+  return snapshot.size;
+}
+
+
 
 /**
  * Delete a resume by document ID
@@ -42,7 +72,7 @@ export const deleteResumeById = async (
       };
     }
 
-    const resumeData = resumeSnap.data() as any;
+    const resumeData = resumeSnap.data() as PublishedResume;
 
     // Step 2: Optional: Check authorization (if userId provided)
     if (userId && resumeData.userId !== userId) {
@@ -54,7 +84,25 @@ export const deleteResumeById = async (
 
     const numericId = resumeData.numericId;
 
-    // Step 3: Delete the resume document
+    // Step 3: Delete subcollections first (Firestore doesn't cascade delete)
+    try {
+      const accessRequestsDeleted = await deleteSubcollection(resumeRef, "accessRequests");
+      const accessGrantsDeleted = await deleteSubcollection(resumeRef, "accessGrants");
+      if (accessRequestsDeleted > 0 || accessGrantsDeleted > 0) {
+        logger.info(
+          { resumeDocumentId, accessRequestsDeleted, accessGrantsDeleted },
+          "🗑️ Cascade deleted resume subcollections"
+        );
+      }
+    } catch (subcollectionError) {
+      // Log but continue - parent delete is more important
+      logger.warn(
+        { err: subcollectionError, resumeDocumentId },
+        "⚠️ Could not delete some subcollections"
+      );
+    }
+
+    // Step 4: Delete the resume document
     await deleteDoc(resumeRef);
     logger.info(
       `🗑️ Resume deleted: ${resumeDocumentId} (numeric ID: ${numericId})`
@@ -82,9 +130,8 @@ export const deleteResumeById = async (
     logger.error({ err: error }, "❌ Error deleting resume:");
     return {
       success: false,
-      message: `❌ Failed to delete resume: ${
-        error instanceof Error ? error.message : "Unknown error"
-      }`,
+      message: `❌ Failed to delete resume: ${error instanceof Error ? error.message : "Unknown error"
+        }`,
     };
   }
 };
@@ -137,9 +184,8 @@ export const deleteResumeByNumericId = async (
     logger.error({ err: error }, "❌ Error deleting resume by numeric ID:");
     return {
       success: false,
-      message: `❌ Failed to delete resume: ${
-        error instanceof Error ? error.message : "Unknown error"
-      }`,
+      message: `❌ Failed to delete resume: ${error instanceof Error ? error.message : "Unknown error"
+        }`,
     };
   }
 };
@@ -188,9 +234,8 @@ export const deleteResumeBySlug = async (
     logger.error({ err: error }, "❌ Error deleting resume by slug:");
     return {
       success: false,
-      message: `❌ Failed to delete resume: ${
-        error instanceof Error ? error.message : "Unknown error"
-      }`,
+      message: `❌ Failed to delete resume: ${error instanceof Error ? error.message : "Unknown error"
+        }`,
     };
   }
 };

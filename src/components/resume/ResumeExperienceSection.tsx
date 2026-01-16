@@ -27,7 +27,7 @@ export function ResumeExperienceSection({
       <div className="space-y-12">
         {publicExperience.length > 0 ? (
           publicExperience.map((exp, index) => (
-            <div key={index} className="group">
+            <div key={exp.id || `exp-${index}`} className="group">
               <div className="flex items-start justify-between gap-4 mb-3">
                 <div className="flex-1">
                   <h3 className="text-xl sm:text-2xl font-bold text-white group-hover:text-blue-400 transition-colors">

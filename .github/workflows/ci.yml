@@ -7,7 +7,19 @@ on:
     branches: [main, develop]
 
 jobs:
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+
+      - name: Run secret scan (full repo)
+        run: scripts/secret-scan.sh --all
+
   build:
+    needs: secret-scan
     runs-on: ubuntu-latest
 
     steps:
@@ -22,11 +34,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Setup Java (for Firebase Emulators)
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
       - name: Run Linting
         run: npm run lint
 
       - name: Run Tests
-        run: npm test
+        run: npx firebase emulators:exec --only firestore "npm test" --project demo-switchcv
 
       - name: Security Audit
         run: npm audit --audit-level=high

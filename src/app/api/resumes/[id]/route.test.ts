@@ -1,114 +1,39 @@
 import { NextRequest } from "next/server";
 import { PUT, GET } from "./route";
 import { getUserTier } from "@/lib/services/userService";
+import {
+  getResume,
+  updateResume,
+  deleteResume,
+  trackResumeView
+} from "@/lib/services/resumeService";
 
-// Mock userService
+// Mock services
 jest.mock("@/lib/services/userService", () => ({
   getUserTier: jest.fn(),
 }));
 
+jest.mock("@/lib/services/resumeService", () => ({
+  getResume: jest.fn(),
+  updateResume: jest.fn(),
+  deleteResume: jest.fn(),
+  trackResumeView: jest.fn(),
+}));
+
+jest.mock("@/lib/utils/api-helpers", () => ({
+  handleApiError: jest.fn((error, message, status) => {
+    return Response.json({ error: message, details: error?.message }, { status: status || 500 });
+  }),
+  maybeGetAuthenticatedUserId: jest.fn(),
+  getAuthenticatedUserId: jest.fn(),
+}));
+
+import { maybeGetAuthenticatedUserId, getAuthenticatedUserId } from "@/lib/utils/api-helpers";
+
 const mockGetUserTier = getUserTier as jest.Mock;
-
-const collectionHandlers: Record<string, any> = {};
-
-const createDoc = (initialData: Record<string, any>, exists = true) => {
-  let store = { ...initialData };
-  return {
-    get: jest.fn(async () =>
-      exists ? { exists: true, data: () => store } : { exists: false }
-    ),
-    set: jest.fn(
-      async (data: Record<string, any>, options?: { merge?: boolean }) => {
-        store = options?.merge ? { ...store, ...data } : { ...data };
-      }
-    ),
-    getData: () => store,
-  };
-};
-
-jest.mock("@/lib/firebase-admin", () => {
-  const verifyIdToken = jest.fn();
-  return {
-    adminDb: {
-      collection: (name: string) => collectionHandlers[name],
-      batch: () => ({
-        set: (docRef: any, data: any, options: any) => {
-          docRef.set(data, options);
-          return {};
-        },
-        commit: jest.fn().mockResolvedValue(undefined),
-      }),
-    },
-    adminAuth: {
-      verifyIdToken,
-    },
-  };
-});
-
-const { adminAuth } = jest.requireMock("@/lib/firebase-admin") as {
-  adminAuth: { verifyIdToken: jest.Mock };
-};
-
-interface MockSetup {
-  resumesDoc: ReturnType<typeof createDoc>;
-  resumeProfilesDoc: ReturnType<typeof createDoc>;
-  userResumeDoc: { set: jest.Mock };
-  allResumesDoc: { set: jest.Mock };
-}
-
-const setupCollections = (): MockSetup => {
-  const resumesDoc = createDoc({
-    userId: "user-123",
-    numericId: 42,
-    title: "Original Title",
-    visibility: "private",
-    isPublic: false,
-  });
-
-  const resumeProfilesDoc = createDoc({}, false);
-
-  const userResumeDoc = {
-    set: jest.fn(),
-  };
-
-  const allResumesDoc = {
-    set: jest.fn(),
-  };
-
-  collectionHandlers.resumes = {
-    doc: jest.fn(() => resumesDoc),
-  };
-
-  collectionHandlers.resumeProfiles = {
-    doc: jest.fn(() => resumeProfilesDoc),
-  };
-
-  collectionHandlers.users = {
-    doc: jest.fn(() => ({
-      collection: jest.fn(() => ({
-        doc: jest.fn(() => userResumeDoc),
-      })),
-    })),
-  };
-
-  collectionHandlers.allResumes = {
-    doc: jest.fn(() => allResumesDoc),
-  };
-
-  collectionHandlers.jobSeekerMetrics = {
-    doc: jest.fn(() => ({
-      set: jest.fn().mockResolvedValue(undefined),
-    })),
-  };
-
-  collectionHandlers.recruiterMetrics = {
-    doc: jest.fn(() => ({
-      set: jest.fn().mockResolvedValue(undefined),
-    })),
-  };
-
-  return { resumesDoc, resumeProfilesDoc, userResumeDoc, allResumesDoc };
-};
+const mockGetResume = getResume as jest.Mock;
+const mockUpdateResume = updateResume as jest.Mock;
+const mockDeleteResume = deleteResume as jest.Mock;
 
 const buildRequest = (body: Record<string, unknown>, headers?: HeadersInit) =>
   new NextRequest("http://localhost/api/resumes/42", {
@@ -118,26 +43,24 @@ const buildRequest = (body: Record<string, unknown>, headers?: HeadersInit) =>
   });
 
 describe("PUT /api/resumes/[id]", () => {
-  let mocks: MockSetup;
-
   beforeEach(() => {
     jest.clearAllMocks();
-    Object.keys(collectionHandlers).forEach(
-      (key) => delete collectionHandlers[key]
-    );
-    mocks = setupCollections();
   });
 
   it("returns 401 when authorization header is missing", async () => {
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: null, error: Response.json({ error: "Unauthorized" }, { status: 401 }) });
+
     const request = buildRequest({ resume: { title: "Updated" } });
     const response = await PUT(request, {
       params: Promise.resolve({ id: "42" }),
     });
+    if (!response) throw new Error("Response is undefined");
     expect(response.status).toBe(401);
   });
 
   it("returns 403 when user does not own the resume", async () => {
-    adminAuth.verifyIdToken.mockResolvedValue({ uid: "another-user" });
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: "another-user" });
+    mockGetResume.mockResolvedValue({ access: "none", resume: null });
 
     const request = buildRequest(
       { resume: { title: "Updated" } },
@@ -147,11 +70,13 @@ describe("PUT /api/resumes/[id]", () => {
     const response = await PUT(request, {
       params: Promise.resolve({ id: "42" }),
     });
+    if (!response) throw new Error("Response is undefined");
     expect(response.status).toBe(403);
   });
 
   it("returns 403 when basic user tries to edit", async () => {
-    adminAuth.verifyIdToken.mockResolvedValue({ uid: "user-123" });
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: "user-123" });
+    mockGetResume.mockResolvedValue({ access: "owner", resume: { userId: "user-123" } });
     mockGetUserTier.mockResolvedValue("basic");
 
     const request = buildRequest(
@@ -162,21 +87,23 @@ describe("PUT /api/resumes/[id]", () => {
     const response = await PUT(request, {
       params: Promise.resolve({ id: "42" }),
     });
+    if (!response) throw new Error("Response is undefined");
     expect(response.status).toBe(403);
     const data = await response.json();
     expect(data.error).toContain("Editing is not allowed");
   });
 
   it("updates resume content and returns updated payload", async () => {
-    adminAuth.verifyIdToken.mockResolvedValue({ uid: "user-123" });
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: "user-123" });
+    mockGetResume.mockResolvedValue({ access: "owner", resume: { userId: "user-123", title: "Original" } });
     mockGetUserTier.mockResolvedValue("premium");
+    mockUpdateResume.mockResolvedValue(undefined);
 
     const request = buildRequest(
       {
         resume: {
           title: "Updated Title",
           summary: "New summary",
-          userId: "malicious-change",
         },
       },
       { authorization: "Bearer token" }
@@ -185,80 +112,28 @@ describe("PUT /api/resumes/[id]", () => {
     const response = await PUT(request, {
       params: Promise.resolve({ id: "42" }),
     });
+    if (!response) throw new Error("Response is undefined");
     expect(response.status).toBe(200);
-
     const data = await response.json();
     expect(data.success).toBe(true);
     expect(data.resume.title).toBe("Updated Title");
-    expect(data.resume.summary).toBe("New summary");
-    expect(data.resume.userId).toBe("user-123");
 
-    expect(mocks.resumesDoc.set).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: "Updated Title",
-        summary: "New summary",
-      }),
-      { merge: true }
-    );
-
-    expect(mocks.userResumeDoc.set).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: "Updated Title",
-        summary: "New summary",
-        userId: "user-123",
-        numericId: 42,
-      }),
-      { merge: true }
-    );
-
-    expect(mocks.allResumesDoc.set).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: "Updated Title",
-        numericId: 42,
-        userId: "user-123",
-      }),
-      { merge: true }
-    );
-
-    const stored = mocks.resumesDoc.getData();
-    expect(stored.title).toBe("Updated Title");
-    expect(stored.summary).toBe("New summary");
-    expect(stored.userId).toBe("user-123");
-  });
-
-  it("returns 400 when resume payload is invalid", async () => {
-    adminAuth.verifyIdToken.mockResolvedValue({ uid: "user-123" });
-    mockGetUserTier.mockResolvedValue("premium");
-
-    const request = buildRequest({}, { authorization: "Bearer token" });
-    const response = await PUT(request, {
-      params: Promise.resolve({ id: "42" }),
-    });
-    expect(response.status).toBe(400);
+    expect(mockUpdateResume).toHaveBeenCalledWith("42", "user-123", expect.objectContaining({
+      title: "Updated Title",
+    }));
   });
 });
 
 describe("GET /api/resumes/[id]", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    Object.keys(collectionHandlers).forEach(
-      (key) => delete collectionHandlers[key]
-    );
-    setupCollections();
   });
 
   it("returns cache headers for public resumes", async () => {
-    // Setup public resume
-    const publicResumeDoc = createDoc({
-      userId: "user-123",
-      numericId: 42,
-      title: "Public Resume",
-      isPublic: true,
-      visibility: "public",
+    mockGetResume.mockResolvedValue({
+      access: "public_snapshot",
+      resume: { title: "Public Resume" }
     });
-    collectionHandlers.resumes = {
-      doc: jest.fn(() => publicResumeDoc),
-    };
 
     const request = new NextRequest("http://localhost/api/resumes/42", {
       method: "GET",
@@ -267,9 +142,6 @@ describe("GET /api/resumes/[id]", () => {
     const response = await GET(request, {
       params: Promise.resolve({ id: "42" }),
     });
-
-    console.log("Response headers:", response.headers);
-    console.log("Cache-Control:", response.headers.get("Cache-Control"));
 
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe(

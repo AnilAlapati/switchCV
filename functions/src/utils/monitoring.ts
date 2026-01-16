@@ -1,5 +1,7 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
+import { configLoader } from "../lib/configLoader";
+import { emailService } from "../services/emailService";
 
 /**
  * Performance metric types
@@ -9,6 +11,7 @@ export enum MetricType {
   AI_API_CALL = "ai_api_call",
   DATABASE_QUERY = "database_query",
   EXTERNAL_API = "external_api",
+  BACKGROUND_TASK = "background_task",
   ERROR_RATE = "error_rate",
 }
 
@@ -163,9 +166,17 @@ export class PerformanceMonitor {
    */
   private aggregateMetrics(metrics: Metric[]): any[] {
     const aggregated = new Map<string, any>();
+    const valuesMap = new Map<string, number[]>();
 
     metrics.forEach((metric) => {
       const key = `${metric.type}:${metric.name}`;
+
+      // Store all values for percentile calculation
+      if (!valuesMap.has(key)) {
+        valuesMap.set(key, []);
+      }
+      valuesMap.get(key)?.push(metric.value);
+
       const existing = aggregated.get(key);
 
       if (existing) {
@@ -196,6 +207,28 @@ export class PerformanceMonitor {
           errorCount: metric.metadata?.error ? 1 : 0,
           errors: metric.metadata?.error ? [metric.metadata.error] : [],
         });
+      }
+    });
+
+    // Calculate P95 for each aggregated metric
+    aggregated.forEach((metric, key) => {
+      const values = valuesMap.get(key);
+      if (values && values.length > 0) {
+        values.sort((a, b) => a - b);
+        const index = Math.ceil(0.95 * values.length) - 1;
+        metric.p95 = values[index];
+
+        // Check P95 threshold
+        try {
+          alertManager.checkP95(metric.name, metric.p95, metric.type);
+        } catch (e) {
+          // If alertManager is not initialized or checkP95 throws, log it
+          functions.logger.error("Error checking P95 threshold", {
+            metricName: metric.name,
+            p95Value: metric.p95,
+            error: e instanceof Error ? e.message : String(e),
+          });
+        }
       }
     });
 
@@ -253,9 +286,14 @@ export enum AlertSeverity {
 export class AlertManager {
   private static instance: AlertManager;
   private db: FirebaseFirestore.Firestore | null = null;
+  private alertEmailTo: string | null;
+  private alertEmailSubjectPrefix: string;
 
   private constructor() {
     // Lazy initialization to avoid circular dependencies
+    this.alertEmailTo = process.env.ALERT_EMAIL_TO || "support@switchcv.com";
+    this.alertEmailSubjectPrefix =
+      process.env.ALERT_EMAIL_SUBJECT_PREFIX || "[SWITCHCV EMERGENCY]";
   }
 
   private getDb(): FirebaseFirestore.Firestore {
@@ -297,6 +335,10 @@ export class AlertManager {
         .doc("alerts")
         .collection("active")
         .add(alert);
+
+      if (severity !== AlertSeverity.INFO) {
+        await this.sendSupportEmail(severity, title, message, metadata);
+      }
 
       // Log based on severity
       switch (severity) {
@@ -374,6 +416,157 @@ export class AlertManager {
           threshold,
         }
       );
+    }
+  }
+
+  /**
+   * Default P95 thresholds by operation type (in ms)
+   * These are sensible defaults based on industry standards
+   */
+  private static readonly DEFAULT_P95_THRESHOLDS: Record<string, number> = {
+    // Fast operations - database lookups, simple queries
+    database_query: 250,
+    // Standard API endpoints
+    function_execution: 500,
+    // External API calls (non-AI)
+    external_api: 1000,
+    // Background tasks/aggregations
+    background_task: 5000,
+    // AI/LLM operations - inherently slow
+    ai_api_call: 5000,
+    // Default fallback
+    default: 1000,
+  };
+
+  /**
+   * Check P95 threshold with per-operation support
+   * Thresholds can be overridden via Firebase config:
+   * - monitoring.p95_threshold_default (global fallback)
+   * - monitoring.p95_threshold_ai_api_call (AI operations)
+   * - monitoring.p95_threshold_database_query (DB queries)
+   * - monitoring.p95_threshold_function_execution (standard functions)
+   * - monitoring.p95_threshold_external_api (external APIs)
+   */
+  async checkP95(
+    functionName: string,
+    p95Value: number,
+    operationType?: string
+  ): Promise<void> {
+    const monitoringConfig = configLoader.getMonitoringConfig();
+
+    // Determine operation type from function name patterns if not provided
+    const opType = operationType || this.inferOperationType(functionName);
+
+    // Check for operation-specific config override first
+    const configKey = `p95_threshold_${opType.replace(/-/g, "_")}`;
+    const defaultKey = "p95_threshold_default";
+
+    let threshold: number;
+    if (monitoringConfig[configKey]) {
+      threshold = parseInt(monitoringConfig[configKey]);
+    } else if (monitoringConfig[defaultKey]) {
+      threshold = parseInt(monitoringConfig[defaultKey]);
+    } else {
+      // Fall back to built-in defaults
+      threshold =
+        AlertManager.DEFAULT_P95_THRESHOLDS[opType] ||
+        AlertManager.DEFAULT_P95_THRESHOLDS.default;
+    }
+
+    if (threshold > 0 && p95Value > threshold) {
+      await this.sendAlert(
+        AlertSeverity.WARNING,
+        `High P95 latency detected: ${functionName}`,
+        `P95 latency: ${p95Value}ms (threshold: ${threshold}ms, type: ${opType})`,
+        {
+          functionName,
+          p95Value,
+          threshold,
+          operationType: opType,
+        }
+      );
+    }
+  }
+
+  /**
+   * Infer operation type from function name patterns
+   */
+  private inferOperationType(functionName: string): string {
+    const lowerName = functionName.toLowerCase();
+
+    if (lowerName.startsWith("stats.")) {
+      return "background_task";
+    }
+
+    if (
+      lowerName.includes("ai") ||
+      lowerName.includes("generate") ||
+      lowerName.includes("gemini") ||
+      lowerName.includes("llm")
+    ) {
+      return "ai_api_call";
+    }
+    if (
+      lowerName.includes("query") ||
+      lowerName.includes("fetch") ||
+      lowerName.includes("get") ||
+      lowerName.includes("firestore")
+    ) {
+      return "database_query";
+    }
+    if (
+      lowerName.includes("external") ||
+      lowerName.includes("webhook") ||
+      lowerName.includes("huggingface")
+    ) {
+      return "external_api";
+    }
+    return "function_execution";
+  }
+
+  /**
+   * Fan out alert emails to the support mailbox
+   */
+  private async sendSupportEmail(
+    severity: AlertSeverity,
+    title: string,
+    message: string,
+    metadata?: Record<string, any>
+  ): Promise<void> {
+    if (!this.alertEmailTo) {
+      return;
+    }
+
+    try {
+      const metadataSection = metadata
+        ? `<pre>${JSON.stringify(metadata, null, 2)}</pre>`
+        : "<p>No additional metadata.</p>";
+
+      await emailService.sendCustomEmail({
+        to: this.alertEmailTo,
+        subject: `${
+          this.alertEmailSubjectPrefix
+        } ${severity.toUpperCase()}: ${title}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px;">
+            <h2>${title}</h2>
+            <p><strong>Severity:</strong> ${severity.toUpperCase()}</p>
+            <p>${message}</p>
+            <h3>Metadata</h3>
+            ${metadataSection}
+            <p style="color:#6b7280;font-size:12px;">Sent automatically by SwitchCV Monitoring</p>
+          </div>
+        `,
+        text: `${title} - ${message}\nSeverity: ${severity}\nMetadata: ${JSON.stringify(
+          metadata || {}
+        )}`,
+      });
+    } catch (error) {
+      functions.logger.error("Failed to send alert email", {
+        error: error instanceof Error ? error.message : String(error),
+        severity,
+        title,
+      });
     }
   }
 }

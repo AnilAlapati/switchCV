@@ -33,8 +33,10 @@ const createMockAuthContext = (user: any) => ({
   deleteAccount: jest.fn(),
   resendVerificationEmail: jest.fn(),
   refreshUser: jest.fn(),
+  needsUsername: false,
+  setUsername: jest.fn(),
+  checkNeedsUsername: jest.fn().mockResolvedValue(false),
 });
-
 
 describe("ResponseRateCard", () => {
   const mockUser = {
@@ -92,7 +94,8 @@ describe("ResponseRateCard", () => {
 
       await waitFor(() => {
         expect(fetchSpy).toHaveBeenCalledWith(
-          `/api/recruiter/metrics?userId=${mockUser.uid}`
+          `/api/recruiter/metrics?userId=${mockUser.uid}`,
+          expect.objectContaining({ signal: expect.any(AbortSignal) })
         );
       });
     });

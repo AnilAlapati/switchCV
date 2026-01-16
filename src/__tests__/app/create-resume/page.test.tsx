@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { useTier } from "@/hooks/useTier";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { getVerificationRoute } from "@/lib/config";
 
 // Mock hooks
 jest.mock("@/hooks/useAuth");
@@ -52,6 +53,7 @@ describe("CreateResume Page", () => {
     uid: "test-user-id",
     getIdToken: jest.fn().mockResolvedValue("mock-token"),
   };
+  const VERIFICATION_ROUTE = getVerificationRoute();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -81,7 +83,7 @@ describe("CreateResume Page", () => {
     });
 
     render(<CreateResume />);
-    expect(mockRouter.push).toHaveBeenCalledWith("/auth?mode=verify-email");
+    expect(mockRouter.push).toHaveBeenCalledWith(VERIFICATION_ROUTE);
   });
 
   it("shows loading state when auth is loading", () => {
@@ -103,9 +105,7 @@ describe("CreateResume Page", () => {
     render(<CreateResume />);
 
     expect(screen.getByTestId("create-resume-header")).toBeInTheDocument();
-    expect(
-      screen.getByText("Let's Build Your Perfect Resume")
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Your AI Career Agent/i)).toBeInTheDocument();
     expect(screen.getByTestId("input-form")).toBeInTheDocument();
   });
 

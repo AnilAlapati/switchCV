@@ -13,7 +13,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { useResume } from "@/hooks/useResume";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
-import { DashboardMetricsProvider } from "@/context/DashboardMetricsContext";
+import { DashboardMetricsProvider, type DashboardMetricsContextValue } from "@/context/DashboardMetricsContext";
+import { getVerificationRoute } from "@/lib/config";
+
+const VERIFICATION_ROUTE = getVerificationRoute();
 
 export default function Dashboard() {
   const {
@@ -26,7 +29,6 @@ export default function Dashboard() {
 
   const { role, loading: profileLoading } = useUserProfile();
   const userIsRecruiter = role === "recruiter" || role === "admin";
-  const userRoleLoading = profileLoading;
 
   const {
     jobSeekerMetrics,
@@ -43,7 +45,7 @@ export default function Dashboard() {
     resume,
     resumes,
     refetch: refreshResume,
-  } = useResume({ enabled: !userRoleLoading && !userIsRecruiter });
+  } = useResume({ enabled: !authLoading && !!user });
 
   const recruiterSearchRef = useRef<HTMLDivElement>(null);
 
@@ -59,7 +61,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!authLoading && (!user || needsEmailVerification)) {
-      router.push("/auth?mode=verify-email");
+      router.push(VERIFICATION_ROUTE);
     }
   }, [user, authLoading, needsEmailVerification, router]);
 
@@ -85,14 +87,14 @@ export default function Dashboard() {
     }
   }, []);
 
-  const metricsProviderValue = useMemo(
+  const metricsProviderValue: DashboardMetricsContextValue = useMemo(
     () => ({
       loading: metricsLoading,
       jobSeekerMetrics,
       recruiterMetrics: userIsRecruiter ? recruiterMetrics : null,
-      refreshJobSeekerMetrics,
+      refreshJobSeekerMetrics: refreshJobSeekerMetrics as () => Promise<void>,
       refreshRecruiterMetrics: userIsRecruiter
-        ? refreshRecruiterMetrics
+        ? (refreshRecruiterMetrics as () => Promise<void>)
         : undefined,
     }),
     [
@@ -105,13 +107,16 @@ export default function Dashboard() {
     ]
   );
 
-  if (authLoading || (user && profileLoading)) {
+  // Don't show anything while checking auth
+  if (authLoading) {
     return (
       <DashboardBackground>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center">
-            <div className="mx-auto mb-4 h-16 w-16 animate-spin rounded-full border-4 border-cyan-500/30 border-t-cyan-400"></div>
-            <p className="text-lg text-slate-300">Loading your dashboard…</p>
+        <div className="relative z-20 flex min-h-screen items-center justify-center">
+          <div className="bg-white border border-gray-200 px-8 py-6 text-center shadow-lg">
+            <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-black border-t-transparent"></div>
+            <p className="text-lg font-serif font-bold text-black tracking-tight">
+              Loading dashboard...
+            </p>
           </div>
         </div>
       </DashboardBackground>
@@ -124,21 +129,16 @@ export default function Dashboard() {
 
   // Show loading while redirecting to role selection
   if (!role) {
-    return (
-      <DashboardBackground>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center">
-            <div className="mx-auto mb-4 h-16 w-16 animate-spin rounded-full border-4 border-cyan-500/30 border-t-cyan-400"></div>
-            <p className="text-lg text-slate-300">Setting up your account…</p>
-          </div>
-        </div>
-      </DashboardBackground>
-    );
+    return null; // Let the useEffect handle the redirect to /select-role
   }
 
   return (
     <DashboardBackground>
-      <DashboardHeader userEmail={user.email} onLogout={handleLogout} />
+      <DashboardHeader
+        userEmail={user.email}
+        onLogout={handleLogout}
+        userRole={role}
+      />
 
       <DashboardMetricsProvider value={metricsProviderValue}>
         <main className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -157,7 +157,7 @@ export default function Dashboard() {
               resumeLoading={resumeLoading}
               metrics={jobSeekerMetrics}
               metricsLoading={metricsLoading}
-              resume={resume}
+              resume={resume || undefined}
               resumes={resumes}
               onRefreshResume={refreshResume}
             />

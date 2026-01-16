@@ -1,11 +1,13 @@
 "use client";
 
+import type { ReactElement } from "react";
+
 interface AccountInformationProps {
   email?: string | null;
   resumeId?: string | number | null;
   hasResume: boolean;
   isRecruiter: boolean;
-  saving: boolean;
+  savingRecruiter: boolean;
   onRecruiterToggle: (checked: boolean) => void;
   onCopy: () => void;
 }
@@ -15,97 +17,124 @@ export function AccountInformation({
   resumeId,
   hasResume,
   isRecruiter,
-  saving,
+  savingRecruiter,
   onRecruiterToggle,
   onCopy,
-}: AccountInformationProps) {
+}: AccountInformationProps): ReactElement {
   return (
-    <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border border-white/20 rounded-2xl p-8 hover:border-cyan-500/30 transition-all duration-300 mb-6">
-      <div className="flex items-center mb-6">
-        <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 flex items-center justify-center mr-4">
-          <svg
-            className="w-6 h-6 text-white"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-        </div>
-        <h2 className="text-2xl font-bold text-white">Account Information</h2>
-      </div>
-
-      <div className="space-y-6">
-        {/* Email */}
-        <div className="pb-6 border-b border-white/10">
-          <label className="block text-sm font-semibold text-slate-300 mb-2">
-            Email Address
-          </label>
-          <div className="px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-medium">
-            {email}
+    <div className="bg-white border-2 border-gray-200 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] overflow-hidden">
+      <div className="p-8">
+        <div className="flex items-center gap-4 mb-8 border-b-2 border-gray-100 pb-4">
+          <div className="w-10 h-10 bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-600">
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
           </div>
-          <p className="text-slate-500 text-sm mt-2">
-            Your login email cannot be changed
-          </p>
+          <h2 className="text-xl font-serif font-bold text-black">Account Settings</h2>
         </div>
 
-        {/* Resume ID */}
-        {hasResume && resumeId && (
-          <div className="pb-6 border-b border-white/10">
-            <label className="block text-sm font-semibold text-slate-300 mb-2">
-              Resume ID
+        <div className="space-y-8">
+          {/* Email */}
+          <div className="group">
+            <label className="block text-[10px] font-mono font-bold text-gray-500 uppercase tracking-widest mb-2 ml-1">
+              Email Address
             </label>
-            <div className="flex items-center gap-3">
-              <div className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-cyan-400 font-mono font-medium">
-                {resumeId}
-              </div>
-              <button
-                onClick={onCopy}
-                className="px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-medium rounded-lg transition-all duration-200"
-              >
-                Copy
-              </button>
+            <div className="px-5 py-4 bg-gray-50 border-2 border-gray-200 text-black font-medium transition-colors group-hover:border-gray-300">
+              {email}
             </div>
-            <p className="text-slate-500 text-sm mt-2">
-              Share this ID with recruiters to access your profile
+            <p className="text-gray-400 text-xs mt-2 ml-1 font-sans">
+              Used for login and notifications
             </p>
           </div>
-        )}
 
-        {/* Account Type */}
-        <div className="pb-6 border-b border-white/10">
-          <label className="block text-sm font-semibold text-slate-300 mb-3">
-            Account Type
-          </label>
-          <p className="text-slate-400 text-sm mb-4">
-            {isRecruiter
-              ? "You have recruiter access and can search for candidates"
-              : "You are currently set up as a job seeker"}
-          </p>
-          <div className="flex items-center">
-            <button
-              onClick={() => onRecruiterToggle(!isRecruiter)}
-              disabled={saving}
-              className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
-                isRecruiter
-                  ? "bg-gradient-to-r from-cyan-500 to-blue-600"
-                  : "bg-slate-700 hover:bg-slate-600"
-              } ${saving ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-            >
+          {/* Resume ID */}
+          {hasResume && resumeId && (
+            <div className="group">
+              <label className="block text-[10px] font-mono font-bold text-gray-500 uppercase tracking-widest mb-2 ml-1">
+                Resume ID
+              </label>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 px-5 py-4 bg-gray-50 border-2 border-gray-200 text-black font-mono font-medium transition-colors group-hover:border-gray-300">
+                  {resumeId}
+                </div>
+                <button
+                  onClick={onCopy}
+                  className="p-4 bg-white text-black border-2 border-black hover:bg-black hover:text-white transition-all duration-200"
+                  title="Copy Resume ID"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <p className="text-gray-400 text-xs mt-2 ml-1 font-sans">
+                Share this ID with recruiters
+              </p>
+            </div>
+          )}
+
+          {/* Account Type */}
+          <div className="pt-6 border-t-2 border-gray-100">
+            <div className="flex items-center justify-between mb-4">
+              <label className="block text-[10px] font-mono font-bold text-gray-500 uppercase tracking-widest ml-1">
+                Account Type
+              </label>
               <span
-                className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
-                  isRecruiter ? "translate-x-7" : "translate-x-1"
-                }`}
-              />
-            </button>
-            <span className="ml-3 text-white font-medium">
-              {isRecruiter ? "Recruiter" : "Job Seeker"}
-            </span>
+                className={`px-3 py-1 text-[10px] font-mono font-bold uppercase tracking-wider ${isRecruiter
+                  ? "bg-blue-50 text-blue-700 border border-blue-200"
+                  : "bg-gray-100 text-gray-600 border border-gray-200"
+                  }`}
+              >
+                {isRecruiter ? "Recruiter" : "Job Seeker"}
+              </span>
+            </div>
+
+            <div className="bg-gray-50 border-2 border-gray-200 p-5">
+              <p className="text-gray-600 text-sm mb-4 leading-relaxed font-sans">
+                {isRecruiter
+                  ? "You have recruiter access. You can search for candidates and view their profiles."
+                  : "You are currently a job seeker. Switch to recruiter mode to search for candidates."}
+              </p>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-bold text-black">
+                  Recruiter Mode
+                </span>
+                <button
+                  onClick={() => onRecruiterToggle(!isRecruiter)}
+                  disabled={savingRecruiter}
+                  className={`relative inline-flex h-7 w-12 items-center transition-colors focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 ${isRecruiter
+                    ? "bg-black"
+                    : "bg-gray-300 hover:bg-gray-400"
+                    } ${savingRecruiter ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                    }`}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform bg-white transition-transform shadow-sm ${isRecruiter ? "translate-x-6" : "translate-x-1"
+                      }`}
+                  />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

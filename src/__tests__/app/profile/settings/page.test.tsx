@@ -19,6 +19,38 @@ jest.mock("@/hooks/useResume", () => ({
   useResume: () => ({ resumeId: "r1", hasResume: true }),
 }));
 
+// Mock useUserSettings hook with configurable values
+// Variable names must be prefixed with "mock" for Jest to allow them
+const mockMutateSettings = jest.fn();
+const mockMutateProfile = jest.fn();
+
+// Store the current settings value to be returned by the mock
+const mockCreateSettings = (overrides = {}) => ({
+  isRecruiter: false,
+  displayName: "Test User",
+  companyName: "Test Company",
+  updatedAt: new Date().toISOString(),
+  ...overrides,
+});
+
+// Jest requires variables referenced in mock factories to start with 'mock'
+let mockCurrentSettings = mockCreateSettings();
+
+jest.mock("@/hooks/useUserSettings", () => ({
+  useUserSettings: () => ({
+    settings: mockCurrentSettings,
+    loading: false,
+    error: null,
+    mutate: mockMutateSettings,
+  }),
+}));
+
+jest.mock("@/hooks/useUserProfile", () => ({
+  useUserProfile: () => ({
+    mutate: mockMutateProfile,
+  }),
+}));
+
 // Mock child components to keep test focused
 jest.mock("@/components/dashboard/DashboardBackground", () => ({
   DashboardBackground: ({ children }: any) => (
@@ -85,22 +117,15 @@ describe("SettingsPage (app/profile/settings)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     global.fetch = jest.fn();
+    // Reset to default mock settings before each test
+    mockCurrentSettings = mockCreateSettings();
   });
 
   it("renders heading and child placeholders when user present", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        isRecruiter: false,
-        displayName: "Test User",
-        companyName: "Test Company",
-      }),
-    });
-
     const { getByText, getByTestId } = render((<SettingsPage />) as any);
 
     await waitFor(() => {
-      expect(getByText("Settings & Profile")).toBeInTheDocument();
+      expect(getByText("Your Profile")).toBeInTheDocument();
       expect(getByTestId("db-header")).toBeInTheDocument();
       expect(getByTestId("account-info")).toBeInTheDocument();
       expect(getByTestId("profile-details")).toBeInTheDocument();
@@ -108,20 +133,15 @@ describe("SettingsPage (app/profile/settings)", () => {
   });
 
   it("saves display name independently without overwriting company name", async () => {
+    // Set initial mock settings
+    mockCurrentSettings = mockCreateSettings({
+      isRecruiter: true,
+      displayName: "Old Name",
+      companyName: "Old Company",
+    });
+
+    // Mock fetch for PUT requests
     (global.fetch as jest.Mock).mockImplementation((url, options) => {
-      if (
-        url.includes("/api/user/settings") &&
-        (!options || options.method === "GET")
-      ) {
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({
-            isRecruiter: true,
-            displayName: "Old Name",
-            companyName: "Old Company",
-          }),
-        });
-      }
       if (url.includes("/api/user/settings") && options?.method === "PUT") {
         return Promise.resolve({
           ok: true,
@@ -135,7 +155,7 @@ describe("SettingsPage (app/profile/settings)", () => {
 
     const { getByTestId } = render((<SettingsPage />) as any);
 
-    // Wait for initial load
+    // Wait for initial load with hook-provided data
     await waitFor(() => {
       expect(getByTestId("display-name-input")).toHaveValue("Old Name");
     });
@@ -171,20 +191,15 @@ describe("SettingsPage (app/profile/settings)", () => {
   });
 
   it("saves company name independently without overwriting display name", async () => {
+    // Set initial mock settings
+    mockCurrentSettings = mockCreateSettings({
+      isRecruiter: true,
+      displayName: "Old Name",
+      companyName: "Old Company",
+    });
+
+    // Mock fetch for PUT requests
     (global.fetch as jest.Mock).mockImplementation((url, options) => {
-      if (
-        url.includes("/api/user/settings") &&
-        (!options || options.method === "GET")
-      ) {
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({
-            isRecruiter: true,
-            displayName: "Old Name",
-            companyName: "Old Company",
-          }),
-        });
-      }
       if (url.includes("/api/user/settings") && options?.method === "PUT") {
         return Promise.resolve({
           ok: true,
@@ -198,7 +213,7 @@ describe("SettingsPage (app/profile/settings)", () => {
 
     const { getByTestId } = render((<SettingsPage />) as any);
 
-    // Wait for initial load
+    // Wait for initial load with hook-provided data
     await waitFor(() => {
       expect(getByTestId("company-name-input")).toHaveValue("Old Company");
     });

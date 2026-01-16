@@ -12,7 +12,7 @@ const PREFERENCES_COLLECTION = "notification_preferences";
 const LOGS_COLLECTION = "notification_logs";
 
 export class FirestoreNotificationRepository implements NotificationRepository {
-  private convertDateToTimestamp(obj: any): any {
+  private convertDateToTimestamp(obj: unknown): unknown {
     if (obj instanceof Date) {
       return Timestamp.fromDate(obj);
     }
@@ -20,16 +20,17 @@ export class FirestoreNotificationRepository implements NotificationRepository {
       return obj.map((item) => this.convertDateToTimestamp(item));
     }
     if (typeof obj === "object" && obj !== null) {
-      const newObj: any = {};
-      for (const key in obj) {
-        newObj[key] = this.convertDateToTimestamp(obj[key]);
+      const newObj: Record<string, unknown> = {};
+      const record = obj as Record<string, unknown>;
+      for (const key in record) {
+        newObj[key] = this.convertDateToTimestamp(record[key]);
       }
       return newObj;
     }
     return obj;
   }
 
-  private convertTimestampToDate(obj: any): any {
+  private convertTimestampToDate(obj: unknown): unknown {
     if (obj instanceof Timestamp) {
       return obj.toDate();
     }
@@ -37,9 +38,10 @@ export class FirestoreNotificationRepository implements NotificationRepository {
       return obj.map((item) => this.convertTimestampToDate(item));
     }
     if (typeof obj === "object" && obj !== null) {
-      const newObj: any = {};
-      for (const key in obj) {
-        newObj[key] = this.convertTimestampToDate(obj[key]);
+      const newObj: Record<string, unknown> = {};
+      const record = obj as Record<string, unknown>;
+      for (const key in record) {
+        newObj[key] = this.convertTimestampToDate(record[key]);
       }
       return newObj;
     }
@@ -51,7 +53,7 @@ export class FirestoreNotificationRepository implements NotificationRepository {
     await adminDb
       .collection(NOTIFICATIONS_COLLECTION)
       .doc(notification.id)
-      .set(data);
+      .set(data as Record<string, any>);
     return notification;
   }
 
@@ -85,7 +87,7 @@ export class FirestoreNotificationRepository implements NotificationRepository {
     await adminDb
       .collection(NOTIFICATIONS_COLLECTION)
       .doc(notification.id)
-      .set(data, { merge: true });
+      .set(data as Record<string, any>, { merge: true });
     return notification;
   }
 
@@ -111,13 +113,13 @@ export class FirestoreNotificationRepository implements NotificationRepository {
     const data = this.convertDateToTimestamp(preference);
     // Use a composite ID or query to find existing preference
     const id = `${preference.userId}_${preference.type}`;
-    await adminDb.collection(PREFERENCES_COLLECTION).doc(id).set(data);
+    await adminDb.collection(PREFERENCES_COLLECTION).doc(id).set(data as Record<string, any>);
     return preference;
   }
 
   async logNotification(log: NotificationLog): Promise<void> {
     const data = this.convertDateToTimestamp(log);
-    await adminDb.collection(LOGS_COLLECTION).doc(log.id).set(data);
+    await adminDb.collection(LOGS_COLLECTION).doc(log.id).set(data as Record<string, any>);
   }
 
   async getLogs(

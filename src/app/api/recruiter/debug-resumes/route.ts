@@ -1,9 +1,32 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
-import { handleApiError } from "@/lib/utils/api-helpers";
+import {
+  getAuthenticatedUserId,
+  handleApiError,
+} from "@/lib/utils/api-helpers";
 
-export async function GET() {
+/**
+ * Helper to verify admin role
+ */
+async function verifyAdminRole(userId: string): Promise<boolean> {
+  const userSnap = await adminDb.collection("users").doc(userId).get();
+  const userData = userSnap.data();
+  return userData?.role === "admin";
+}
+
+export async function GET(request: NextRequest) {
+  const { userId: authUserId, error: authError } = await getAuthenticatedUserId(
+    request
+  );
+  if (authError || !authUserId)
+    return authError || handleApiError(null, "Unauthorized", 401);
+
   try {
+    if (!(await verifyAdminRole(authUserId))) {
+      return handleApiError(null, "Forbidden: Admin role required", 403);
+    }
+
     // Get all published resumes
     const resumesSnapshot = await adminDb
       .collection("resumes")

@@ -3,6 +3,7 @@
 import useSWR from "swr";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { apiClient } from "@/lib/apiClient";
 import {
   DEFAULT_JOB_METRICS,
   DEFAULT_RECRUITER_METRICS,
@@ -15,22 +16,10 @@ interface UseDashboardMetricsResult {
   jobSeekerMetrics: JobSeekerMetrics;
   recruiterMetrics: RecruiterMetrics;
   loading: boolean;
-  error: any;
-  refreshJobSeekerMetrics: () => Promise<any>;
-  refreshRecruiterMetrics: () => Promise<any>;
+  error: Error | null;
+  refreshJobSeekerMetrics: () => Promise<JobSeekerMetrics | undefined>;
+  refreshRecruiterMetrics: () => Promise<RecruiterMetrics | undefined>;
 }
-
-const fetcher = async (url: string, token: string) => {
-  const res = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-  if (!res.ok) {
-    throw new Error("Failed to fetch metrics");
-  }
-  return res.json();
-};
 
 export function useDashboardMetrics(): UseDashboardMetricsResult {
   const { user, loading: authLoading } = useAuth();
@@ -39,10 +28,11 @@ export function useDashboardMetrics(): UseDashboardMetricsResult {
   const isRecruiter = role === "recruiter" || role === "admin";
   const userId = user?.uid;
 
-  // Job Seeker Metrics SWR
+  // Job Seeker Metrics SWR - Optimistically fetch if we have a user, regardless of role loading
+  // This helps parallelize fetching. If user turns out to be recruiter, we just ignore this data.
   const jobMetricsKey =
-    !authLoading && !profileLoading && userId && !isRecruiter
-      ? [`/api/jobseeker/metrics?userId=${userId}`, userId]
+    !authLoading && userId && !isRecruiter
+      ? `/api/jobseeker/metrics?userId=${userId}`
       : null;
 
   const {
@@ -50,19 +40,17 @@ export function useDashboardMetrics(): UseDashboardMetricsResult {
     error: jobError,
     isLoading: jobLoading,
     mutate: mutateJob,
-  } = useSWR(
-    jobMetricsKey,
-    ([url]) => user!.getIdToken().then((token) => fetcher(url, token)),
-    {
-      dedupingInterval: 60000, // 1 minute
-      fallbackData: DEFAULT_JOB_METRICS,
-    }
-  );
+  } = useSWR(jobMetricsKey, (url) => apiClient(url), {
+    dedupingInterval: 300000, // 5 minutes - metrics don't change frequently
+    fallbackData: DEFAULT_JOB_METRICS,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  });
 
   // Recruiter Metrics SWR
   const recruiterMetricsKey =
     !authLoading && !profileLoading && userId && isRecruiter
-      ? [`/api/recruiter/metrics?userId=${userId}`, userId]
+      ? `/api/recruiter/metrics?userId=${userId}`
       : null;
 
   const {
@@ -70,14 +58,12 @@ export function useDashboardMetrics(): UseDashboardMetricsResult {
     error: recruiterError,
     isLoading: recruiterLoading,
     mutate: mutateRecruiter,
-  } = useSWR(
-    recruiterMetricsKey,
-    ([url]) => user!.getIdToken().then((token) => fetcher(url, token)),
-    {
-      dedupingInterval: 60000, // 1 minute
-      fallbackData: DEFAULT_RECRUITER_METRICS,
-    }
-  );
+  } = useSWR(recruiterMetricsKey, (url) => apiClient(url), {
+    dedupingInterval: 300000, // 5 minutes - metrics don't change frequently
+    fallbackData: DEFAULT_RECRUITER_METRICS,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  });
 
   return {
     jobSeekerMetrics: jobData
@@ -91,7 +77,7 @@ export function useDashboardMetrics(): UseDashboardMetricsResult {
       profileLoading ||
       (isRecruiter ? recruiterLoading : jobLoading),
     error: jobError || recruiterError,
-    refreshJobSeekerMetrics: mutateJob,
-    refreshRecruiterMetrics: mutateRecruiter,
+    refreshJobSeekerMetrics: mutateJob as () => Promise<JobSeekerMetrics | undefined>,
+    refreshRecruiterMetrics: mutateRecruiter as () => Promise<RecruiterMetrics | undefined>,
   };
 }

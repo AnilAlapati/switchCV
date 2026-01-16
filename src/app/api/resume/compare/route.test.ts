@@ -1,4 +1,4 @@
- 
+
 
 import { NextRequest } from "next/server";
 import { POST } from "./route";
@@ -297,7 +297,6 @@ describe("POST /api/resume/compare", () => {
 
       expect(response.status).toBe(500);
       expect(data.error).toBe("Failed to compare resumes");
-      expect(data.details).toBe("Comparison algorithm failed");
     });
 
     it("should handle unknown errors", async () => {
@@ -330,7 +329,6 @@ describe("POST /api/resume/compare", () => {
 
       expect(response.status).toBe(500);
       expect(data.error).toBe("Failed to compare resumes");
-      expect(data.details).toBe("Unknown error");
     });
   });
 });

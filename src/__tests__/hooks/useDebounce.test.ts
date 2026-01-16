@@ -142,12 +142,14 @@ describe("useDebounce", () => {
         { initialProps: { value: "test" } }
       );
 
+      expect(result.current.isPending).toBe(false); // Initial state
+
       rerender({ value: "updated" });
       expect(result.current.isPending).toBe(true);
 
-      // Default is 400ms
+      // Default is 1000ms
       act(() => {
-        jest.advanceTimersByTime(400);
+        jest.advanceTimersByTime(1001);
       });
 
       expect(result.current.isPending).toBe(false);

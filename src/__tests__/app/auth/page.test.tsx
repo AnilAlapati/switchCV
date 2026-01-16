@@ -6,6 +6,16 @@ import { useRouter, useSearchParams } from "next/navigation";
 // Mock hooks
 jest.mock("@/hooks/useAuth");
 jest.mock("next/navigation");
+jest.mock("@/context/SystemConfigProvider", () => {
+  const { defaultSystemConfig } = jest.requireActual("@/lib/system-config");
+  return {
+    useSystemConfig: () => ({
+      config: defaultSystemConfig,
+      loading: false,
+      refresh: jest.fn(),
+    }),
+  };
+});
 
 // Mock fetch for username availability check
 global.fetch = jest.fn();
@@ -117,7 +127,7 @@ describe("AuthPage", () => {
 
   it("renders sign in form by default", () => {
     render(<AuthPage />);
-    expect(screen.getByText("Welcome Back")).toBeInTheDocument();
+    expect(screen.getByText("Access Terminal")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign In" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Username")).not.toBeInTheDocument();
   });
@@ -126,7 +136,7 @@ describe("AuthPage", () => {
     render(<AuthPage />);
     fireEvent.click(screen.getByText("Don't have an account? Sign up"));
 
-    expect(screen.getByText("Join the Future")).toBeInTheDocument();
+    expect(screen.getByText("Begin Application")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Create Account" })
     ).toBeInTheDocument();
@@ -252,7 +262,7 @@ describe("AuthPage", () => {
       user: { uid: "123" },
       loading: false,
       needsEmailVerification: false,
-      needsUsername: false,
+      needsUsername: true,
       checkNeedsUsername: mockCheckNeedsUsername,
     });
 

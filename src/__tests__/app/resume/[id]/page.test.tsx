@@ -37,6 +37,13 @@ jest.mock("@/hooks/useAuth", () => ({
   }),
 }));
 
+// Mock useResumeData hook
+jest.mock("@/hooks/useResumeData", () => ({
+  useResumeData: jest.fn(),
+}));
+
+import { useResumeData } from "@/hooks/useResumeData";
+
 describe("ResumeView", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -45,18 +52,29 @@ describe("ResumeView", () => {
 
   it("should show loading state initially", () => {
     (useParams as jest.Mock).mockReturnValue({ id: "123" });
-    // Mock fetch to never resolve to test loading state
-    (global.fetch as jest.Mock).mockReturnValue(new Promise(() => {}));
+    (useResumeData as jest.Mock).mockReturnValue({
+      resume: null,
+      template: null,
+      accessBlock: null,
+      error: null,
+      loading: true,
+      mutateResume: jest.fn(),
+    });
 
     render(<ResumeView />);
-    expect(screen.getByText("Loading resume...")).toBeInTheDocument();
+    // Should show skeleton loader
+    expect(document.querySelector(".animate-pulse")).toBeInTheDocument();
   });
 
   it("should show resume not found if API returns 404", async () => {
     (useParams as jest.Mock).mockReturnValue({ id: "123" });
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: false,
-      status: 404,
+    (useResumeData as jest.Mock).mockReturnValue({
+      resume: null,
+      template: null,
+      accessBlock: null,
+      error: "Resume not found",
+      loading: false,
+      mutateResume: jest.fn(),
     });
 
     render(<ResumeView />);
@@ -78,20 +96,21 @@ describe("ResumeView", () => {
         name: "John Doe",
         email: "john@example.com",
       },
+      isPublic: false,
+      viewerAccess: { isOwner: true, scope: "owner" },
     };
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: jest.fn().mockResolvedValue(mockResume),
+    (useResumeData as jest.Mock).mockReturnValue({
+      resume: mockResume,
+      template: { id: "masonry-v1", name: "Masonry" },
+      accessBlock: null,
+      error: null,
+      loading: false,
+      mutateResume: jest.fn(),
     });
 
     const { container } = render(<ResumeView />);
 
     await waitFor(() => {
-      // Verify fetch was called with the resume ID
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining("/api/resumes/123"),
-        expect.any(Object)
-      );
       // Verify the component renders without error and shows the privacy toggle
       expect(container.textContent).toContain("Private");
     });
@@ -99,14 +118,20 @@ describe("ResumeView", () => {
 
   it("should handle errors", async () => {
     (useParams as jest.Mock).mockReturnValue({ id: "123" });
-    (global.fetch as jest.Mock).mockRejectedValue(new Error("Fetch error"));
+    (useResumeData as jest.Mock).mockReturnValue({
+      resume: null,
+      template: null,
+      accessBlock: null,
+      error: "Fetch error",
+      loading: false,
+      mutateResume: jest.fn(),
+    });
 
     const { container } = render(<ResumeView />);
 
     await waitFor(() => {
-      // Component shows error message in the error display
-      const errorText = container.textContent;
-      expect(errorText).toContain("Fetch error");
+      // Component shows error message
+      expect(container.textContent).toContain("Fetch error");
     });
   });
 });

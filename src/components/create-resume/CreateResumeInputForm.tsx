@@ -1,13 +1,7 @@
 "use client";
 
-interface CreateResumeInputFormProps {
-  currentInput: string;
-  onInputChange: (value: string) => void;
-  onSubmit: (e: React.FormEvent) => void;
-  stage: string;
-}
-
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
+import { Send, Sparkles, Command } from "lucide-react";
 
 interface CreateResumeInputFormProps {
   currentInput: string;
@@ -23,6 +17,7 @@ export function CreateResumeInputForm({
   stage,
 }: CreateResumeInputFormProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isFocused, setIsFocused] = useState(false);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -34,78 +29,93 @@ export function CreateResumeInputForm({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      onSubmit(e as any);
+      onSubmit(e as unknown as React.FormEvent);
     }
   };
 
+  const handleFocus = () => {
+    setIsFocused(true);
+  };
+
+  const isGenerating = stage === "generating";
+  const isComplete = stage === "complete";
+
   return (
-    <div className="p-4 border-t border-gray-700/50 bg-gray-800/20 backdrop-blur-sm rounded-b-xl">
-      <form onSubmit={onSubmit} className="flex space-x-3 items-end">
-        <textarea
-          ref={textareaRef}
-          value={currentInput}
-          onChange={(e) => onInputChange(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={
-            stage === "generating"
-              ? "✨ Generating your resume..."
-              : stage === "complete"
-              ? "✓ Resume ready! Check above."
-              : "Tell me about your experience, skills, or job goals..."
-          }
-          className="flex-1 p-4 bg-gray-800/80 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all resize-none min-h-[80px] max-h-[200px] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-600 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-gray-500"
-          disabled={stage === "generating" || stage === "complete"}
-          rows={3}
-        />
+    <div className="w-full">
+      <form
+        onSubmit={onSubmit}
+        className={`relative flex items-end gap-2 bg-card/80 backdrop-blur-2xl border rounded-[2rem] p-2 shadow-2xl transition-all duration-300 ${isFocused
+            ? "border-primary/40 ring-4 ring-primary/10"
+            : "border-gray-200/50 hover:border-gray-300/50"
+          }`}
+      >
+        {/* Unique Icon Core */}
+        <div
+          className={`hidden md:flex items-center justify-center w-10 h-10 rounded-xl ml-2 self-end mb-3 transition-all duration-500 ${isFocused
+              ? "bg-primary text-white rotate-0"
+              : "bg-muted text-muted-foreground -rotate-12"
+            }`}
+        >
+          {isGenerating ? (
+            <Sparkles className="w-5 h-5 animate-pulse" />
+          ) : (
+            <Command className="w-5 h-5" />
+          )}
+        </div>
+
+        <div className="flex-1 relative">
+          <textarea
+            ref={textareaRef}
+            value={currentInput}
+            onChange={(e) => onInputChange(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onFocus={handleFocus}
+            onBlur={() => setIsFocused(false)}
+            aria-label="Message input"
+            placeholder={
+              isGenerating
+                ? "✨ Strategizing your career path..."
+                : isComplete
+                  ? "✓ Strategy locked. View below."
+                  : "Describe your dream role or paste your experience..."
+            }
+            className="w-full p-3.5 bg-transparent border-none text-foreground placeholder-muted-foreground/60 focus:outline-none resize-none min-h-[52px] max-h-[120px] overflow-y-auto text-base leading-relaxed font-medium scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent"
+            disabled={isGenerating || isComplete}
+            rows={1}
+          />
+        </div>
+
         <button
           type="submit"
-          className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 rounded-xl font-semibold shadow-lg hover:shadow-cyan-500/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98] h-[80px]"
-          disabled={
-            !currentInput.trim() ||
-            stage === "generating" ||
-            stage === "complete"
-          }
+          aria-label="Send message"
+          className={`group relative rounded-2xl font-semibold shadow-lg transition-all transform active:scale-95 flex items-center justify-center w-[52px] h-[52px] overflow-hidden self-end mb-1 ${!currentInput.trim() || isGenerating || isComplete
+              ? "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
+              : "bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-emerald-600/25"
+            }`}
+          disabled={!currentInput.trim() || isGenerating || isComplete}
         >
-          {stage === "generating" ? (
-            <span className="flex items-center gap-2">
-              <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                  fill="none"
-                ></circle>
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
-              Processing
-            </span>
+          {isGenerating ? (
+            <div className="flex gap-1 scale-75">
+              <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce [animation-delay:-0.3s]" />
+              <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce [animation-delay:-0.15s]" />
+              <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" />
+            </div>
           ) : (
-            <span className="flex items-center gap-2">
-              Send
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M14 5l7 7m0 0l-7 7m7-7H3"
-                />
-              </svg>
-            </span>
+            <Send className="w-5 h-5 relative z-10 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
           )}
         </button>
       </form>
+
+      <div className="mt-3 flex justify-center gap-6 text-[10px] uppercase tracking-[0.2em] text-muted-foreground/40 font-black">
+        <span className="flex items-center gap-1.5 hover:text-primary transition-colors cursor-default">
+          <div className="w-1 h-1 bg-primary rounded-full" />
+          Neural Engine
+        </span>
+        <span className="flex items-center gap-1.5 hover:text-emerald-500 transition-colors cursor-default">
+          <div className="w-1 h-1 bg-emerald-500 rounded-full" />
+          ATS Intelligence
+        </span>
+      </div>
     </div>
   );
 }

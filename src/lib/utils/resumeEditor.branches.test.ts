@@ -11,6 +11,7 @@ describe("resumeEditor branch coverage", () => {
       });
       expect(result.profile.skills).toEqual([
         {
+          id: expect.stringMatching(/^skill-legacy-\d+$/),
           name: "",
           level: "intermediate",
           visibility: "public",
@@ -24,6 +25,7 @@ describe("resumeEditor branch coverage", () => {
       });
       expect(result.profile.skills).toEqual([
         {
+          id: expect.stringMatching(/^skill-legacy-\d+$/),
           name: "React",
           level: "expert",
           visibility: "public",
@@ -37,11 +39,13 @@ describe("resumeEditor branch coverage", () => {
       });
       expect(result.profile.skills).toEqual([
         {
+          id: expect.stringMatching(/^skill-legacy-\d+$/),
           name: "",
           level: "intermediate",
           visibility: "public",
         },
         {
+          id: expect.stringMatching(/^skill-legacy-\d+$/),
           name: "",
           level: "intermediate",
           visibility: "public",
@@ -85,6 +89,7 @@ describe("resumeEditor branch coverage", () => {
       });
       expect(result.profile.experience).toEqual([
         {
+          id: expect.stringMatching(/^exp-legacy-\d+$/),
           company: "",
           role: "",
           startDate: "",
@@ -92,6 +97,7 @@ describe("resumeEditor branch coverage", () => {
           visibility: "public",
         },
         {
+          id: expect.stringMatching(/^exp-legacy-\d+$/),
           company: "",
           role: "",
           startDate: "",
@@ -137,12 +143,14 @@ describe("resumeEditor branch coverage", () => {
       });
       expect(result.profile.education).toEqual([
         {
+          id: expect.stringMatching(/^edu-legacy-\d+$/),
           institution: "",
           degree: "",
           startDate: "",
           visibility: "public",
         },
         {
+          id: expect.stringMatching(/^edu-legacy-\d+$/),
           institution: "",
           degree: "",
           startDate: "",
@@ -171,11 +179,13 @@ describe("resumeEditor branch coverage", () => {
       });
       expect(result.profile.projects).toEqual([
         {
+          id: expect.stringMatching(/^proj-legacy-\d+$/),
           name: "",
           description: "",
           visibility: "public",
         },
         {
+          id: expect.stringMatching(/^proj-legacy-\d+$/),
           name: "",
           description: "",
           visibility: "public",

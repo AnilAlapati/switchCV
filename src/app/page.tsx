@@ -3,18 +3,18 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
-import { HomeFeatureCards } from "@/components/home/HomeFeatureCards";
 import { HomeFooterCta } from "@/components/home/HomeFooterCta";
-import { HomeHero } from "@/components/home/HomeHero";
-import { HomeTestimonials } from "@/components/home/HomeTestimonials";
-import { HomeWorkflow } from "@/components/home/HomeWorkflow";
+import { LandingFooter } from "@/components/home/LandingFooter";
 import { useGlobalStats } from "@/hooks/useGlobalStats";
+import { WriterHero } from "@/components/home/writer/WriterHero";
+import { WriterFeatureCards } from "@/components/home/writer/WriterFeatureCards";
+import { WriterHeader } from "@/components/home/writer/WriterHeader";
 
 const HERO_HIGHLIGHTS = [
   {
     title: "Resume view tracking",
     description:
-      "See how many times your resume has been viewed and track recruiter interest.",
+      "See how many times your agent-built resume has been viewed and track recruiter interest.",
   },
   {
     title: "Privacy-first sharing",
@@ -22,9 +22,14 @@ const HERO_HIGHLIGHTS = [
       "Share secure links and control who can see your contact information.",
   },
   {
-    title: "AI-powered resume builder",
+    title: "Autonomous Career Agent",
     description:
-      "Create professional resumes with AI that helps polish every bullet point.",
+      "Your agent builds professional resumes through guided reasoning and strategic optimization.",
+  },
+  {
+    title: "AI Interview Preparation",
+    description:
+      "Get personalized interview coaching and practice sessions tailored to your target roles.",
   },
 ];
 
@@ -32,7 +37,9 @@ export default function Home() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const { stats } = useGlobalStats();
-  const { scrolled, particles } = useHeroBackground();
+  // const { scrolled, particles, isMobile } = useHeroBackground();
+  // Preventing unused var warning by commenting out usage until needed
+  useHeroBackground();
 
   const canAccessDashboard =
     !!user &&
@@ -47,52 +54,32 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
-        <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-slate-50">
+        <div className="relative z-10 w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-slate-950 text-white selection:bg-cyan-500/30">
-      <div className="absolute inset-0">
-        <div
-          className={`absolute top-0 left-0 w-full h-full bg-gradient-to-br ${
-            scrolled ? "from-blue-500/5" : "from-blue-500/10"
-          } via-purple-500/10 to-cyan-500/10 animate-pulse`}
-        ></div>
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse delay-2000"></div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-blue-500/10 rounded-full blur-2xl animate-spin duration-[20s]"></div>
-      </div>
+    <div className="min-h-screen relative overflow-hidden bg-[#FFFFF8] text-black selection:bg-black selection:text-white">
+      {/* Paper texture overlay could go here */}
+      <div className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] mix-blend-multiply bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')]"></div>
 
-      <div className="absolute inset-0 overflow-hidden">
-        {particles.map((particle, i) => (
-          <div
-            key={i}
-            className="absolute w-1 h-1 bg-cyan-400 rounded-full opacity-60 animate-ping"
-            style={{
-              left: particle.left,
-              top: particle.top,
-              animationDelay: particle.delay,
-              animationDuration: particle.duration,
-            }}
-          ></div>
-        ))}
-      </div>
+      {/* Writer Header */}
+      <WriterHeader />
 
-      <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
-        <div className="container mx-auto px-4 py-16 space-y-20">
-          <HomeHero stats={stats} highlights={HERO_HIGHLIGHTS} />
+      <div className="relative z-10 min-h-screen">
+        {/* Added pt-24 to account for fixed header */}
+        <div className="container mx-auto px-6 pt-24 md:pt-32 pb-12 md:pb-24 space-y-20">
+          <WriterHero stats={stats} highlights={HERO_HIGHLIGHTS} />
 
-          <HomeFeatureCards />
-
-          <HomeWorkflow />
-
-          <HomeTestimonials />
+          <WriterFeatureCards />
 
           <HomeFooterCta />
         </div>
+
+        {/* Footer */}
+        <LandingFooter />
       </div>
     </div>
   );
@@ -100,10 +87,25 @@ export default function Home() {
 
 function useHeroBackground() {
   const [scrolled, setScrolled] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile devices for performance optimization
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768 || "ontouchstart" in window);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  // Reduce particle count on mobile for better performance
+  const particleCount = isMobile ? 8 : 20;
+
   const [particles] = useState<
     Array<{ left: string; top: string; delay: string; duration: string }>
   >(() =>
-    [...Array(20)].map(() => ({
+    [...Array(particleCount)].map(() => ({
       left: `${Math.random() * 100}%`,
       top: `${Math.random() * 100}%`,
       delay: `${Math.random() * 3}s`,
@@ -115,9 +117,9 @@ function useHeroBackground() {
     const handleScroll = () => {
       setScrolled(window.scrollY > 50);
     };
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  return { scrolled, particles };
+  return { scrolled, particles, isMobile };
 }

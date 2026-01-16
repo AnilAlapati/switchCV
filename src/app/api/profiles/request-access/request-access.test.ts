@@ -13,26 +13,25 @@ jest.mock("@/lib/firebase-admin", () => ({
 }));
 jest.mock("@/lib/utils/api-helpers", () => ({
   getAuthenticatedUserId: jest.fn(),
-  handleApiError: jest.fn((error, message, status = 500) => ({
-    status,
-    json: async () => ({ error: message, details: error?.message }),
-  })),
+  handleApiError: jest.fn((error, message, status = 500) => {
+    return Response.json(
+      { error: message, details: error?.message },
+      { status }
+    );
+  }),
 }));
-jest.mock("@/lib/notificationService", () => ({
-  createNotification: jest.fn(),
-}));
-jest.mock("firebase-admin/firestore", () => ({
-  FieldValue: {
-    serverTimestamp: jest.fn(() => "mock-timestamp"),
-    increment: jest.fn((n) => n),
+jest.mock("@/lib/services/accessService", () => ({
+  AccessService: {
+    requestAccess: jest.fn(),
   },
 }));
 
-import { createNotification } from "@/lib/notificationService";
 import { POST } from "@/app/api/profiles/request-access/route";
 import { NextRequest } from "next/server";
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
+import { AccessService } from "@/lib/services/accessService";
 
 const mockAdminDb = adminDb as jest.Mocked<typeof adminDb>;
 
@@ -70,82 +69,7 @@ let accessGrantsCollection: any;
 let messagesCollection: any;
 
 const setupFirestoreMocks = () => {
-  userDocRef = {
-    get: jest.fn().mockResolvedValue({
-      exists: true,
-      data: () => ({ displayName: "Requesting User", company: "Test Company" }),
-    }),
-  };
-
-  accessRequestsCollection = {
-    where: jest.fn().mockReturnThis(),
-    get: jest.fn().mockResolvedValue(mockQuerySnapshot([])),
-    add: jest.fn().mockResolvedValue({ id: "request-123" }),
-  };
-
-  accessGrantsCollection = {
-    where: jest.fn().mockReturnThis(),
-    get: jest.fn().mockResolvedValue(mockQuerySnapshot([])),
-  };
-
-  messagesCollection = {
-    add: jest.fn().mockResolvedValue({ id: "notification-123" }),
-  };
-
-  resumeDocRef = {
-    get: jest.fn().mockResolvedValue({
-      exists: true,
-      data: () => ({ userId: "owner-123", title: "My Resume" }),
-    }),
-    collection: jest.fn((name: string) => {
-      if (name === "accessRequests") {
-        return accessRequestsCollection;
-      }
-      if (name === "accessGrants") {
-        return accessGrantsCollection;
-      }
-      return null;
-    }),
-  };
-
-  notificationsDocRef = {
-    collection: jest.fn(() => messagesCollection),
-  };
-
-  (mockAdminDb.collection as jest.Mock).mockImplementation((name: string) => {
-    switch (name) {
-      case "users":
-        return { doc: jest.fn(() => userDocRef) };
-      case "resumes":
-        return { doc: jest.fn(() => resumeDocRef) };
-      case "notifications":
-        return { doc: jest.fn(() => notificationsDocRef) };
-      case "recruiterMetrics":
-      case "jobSeekerMetrics":
-        return {
-          doc: jest.fn(() => ({
-            set: jest.fn().mockResolvedValue(undefined),
-          })),
-        };
-      default:
-        return { doc: jest.fn() };
-    }
-  });
-
-  (mockAdminDb.collectionGroup as jest.Mock).mockImplementation(
-    (name: string) => {
-      if (name === "accessRequests") {
-        return {
-          where: jest.fn().mockReturnThis(),
-          get: jest.fn().mockResolvedValue(mockQuerySnapshot([])),
-        };
-      }
-      return {
-        where: jest.fn().mockReturnThis(),
-        get: jest.fn().mockResolvedValue(mockQuerySnapshot([])),
-      };
-    }
-  );
+  // Keep minimal mocks if needed for other tests
 };
 
 describe("POST /api/profiles/request-access", () => {
@@ -168,15 +92,22 @@ describe("POST /api/profiles/request-access", () => {
       message: "I'm interested in your resume",
     };
 
+    (AccessService.requestAccess as jest.Mock).mockResolvedValue({
+      requestId: "request-123",
+    });
+
     const response = await POST(buildRequest(payload));
     const data = await response.json();
 
     expect(response.status).toBe(200);
     expect(data.success).toBe(true);
-    expect(accessRequestsCollection.add).toHaveBeenCalledWith(
-      expect.objectContaining({ fromUserId: "requester-123" })
+    expect(AccessService.requestAccess).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requesterId: "requester-123",
+        resumeId: "resume-123",
+        message: "I'm interested in your resume",
+      })
     );
-    expect(createNotification).toHaveBeenCalled();
   });
 
   it("should return 401 when missing auth header", async () => {
@@ -206,7 +137,9 @@ describe("POST /api/profiles/request-access", () => {
   });
 
   it("should return 404 if resume doesn't exist", async () => {
-    resumeDocRef.get.mockResolvedValue({ exists: false });
+    (AccessService.requestAccess as jest.Mock).mockRejectedValue(
+      new Error("Resume not found")
+    );
 
     const payload = { ...basePayload, resumeId: "non-existent" };
 
@@ -214,7 +147,7 @@ describe("POST /api/profiles/request-access", () => {
     const data = await response.json();
 
     expect(response.status).toBe(404);
-    expect(data.error).toBe("Resume not found");
+    expect(data.error).toBe("Not found");
   });
 
   it("should return 400 if duration is missing", async () => {
@@ -226,10 +159,9 @@ describe("POST /api/profiles/request-access", () => {
   });
 
   it("should return 400 if user requests their own resume", async () => {
-    resumeDocRef.get.mockResolvedValue({
-      exists: true,
-      data: () => ({ userId: "requester-123", title: "My Resume" }),
-    });
+    (AccessService.requestAccess as jest.Mock).mockRejectedValue(
+      new Error("Cannot request access to own resume")
+    );
 
     const response = await POST(
       buildRequest({ ...basePayload, resumeId: "resume-1" })
@@ -250,12 +182,12 @@ describe("POST /api/profiles/request-access", () => {
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data.error).toContain("Custom duration");
+    expect(data.error).toContain("Invalid duration selection");
   });
 
   it("should return 409 if pending request already exists", async () => {
-    accessRequestsCollection.get.mockResolvedValue(
-      mockQuerySnapshot([{ id: "existing", status: "pending" }])
+    (AccessService.requestAccess as jest.Mock).mockRejectedValue(
+      new Error("Pending request already exists")
     );
 
     const response = await POST(
@@ -264,11 +196,13 @@ describe("POST /api/profiles/request-access", () => {
     const data = await response.json();
 
     expect(response.status).toBe(409);
-    expect(data.error).toContain("pending request");
+    expect(data.error).toContain("Access already requested or granted");
   });
 
   it("should handle unexpected errors gracefully", async () => {
-    resumeDocRef.get.mockRejectedValue(new Error("Database error"));
+    (AccessService.requestAccess as jest.Mock).mockRejectedValue(
+      new Error("Database error")
+    );
 
     const response = await POST(
       buildRequest({ ...basePayload, resumeId: "resume-1" })
@@ -279,45 +213,17 @@ describe("POST /api/profiles/request-access", () => {
     expect(data.error).toBe("Failed to create access request");
   });
 
-  it("should create notification for resume owner", async () => {
-    await POST(buildRequest({ ...basePayload, resumeId: "resume-1" }));
-
-    expect(createNotification).toHaveBeenCalledWith(
-      expect.anything(),
-      "owner-123",
-      expect.anything(),
-      expect.anything(),
-      expect.anything()
-    );
-  });
-
   it("should include optional message in request", async () => {
     const message = "I think we'd be great colleagues!";
 
+    (AccessService.requestAccess as jest.Mock).mockResolvedValue({
+      requestId: "request-123",
+    });
+
     await POST(buildRequest({ ...basePayload, resumeId: "resume-1", message }));
 
-    expect(accessRequestsCollection.add).toHaveBeenCalled();
-    const payloadArg = accessRequestsCollection.add.mock.calls[0][0];
-    expect(payloadArg.message).toBe(message);
-  });
-
-  it("should persist normalized duration metadata", async () => {
-    await POST(
-      buildRequest({
-        resumeId: "resume-1",
-        duration: { preset: "custom_days", customDays: 5 },
-        timezone: "America/New_York",
-      })
+    expect(AccessService.requestAccess).toHaveBeenCalledWith(
+      expect.objectContaining({ message })
     );
-
-    const payloadArg = accessRequestsCollection.add.mock.calls[0][0];
-    expect(payloadArg.requestedDuration).toMatchObject({
-      preset: "custom_days",
-      value: 5,
-      label: "5 Days",
-      timezone: "America/New_York",
-    });
-    expect(payloadArg.requestedDuration.durationHours).toBe(5 * 24);
-    expect(payloadArg.requestedDuration.durationMs).toBeGreaterThan(0);
   });
 });

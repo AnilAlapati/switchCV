@@ -1,4 +1,5 @@
 // src/hooks/useAuth.tsx
+/* eslint-disable max-lines */
 "use client";
 
 import {
@@ -17,9 +18,9 @@ import {
   signOut,
   GoogleAuthProvider,
   signInWithPopup,
-  sendEmailVerification,
 } from "firebase/auth";
-import { auth, db } from "@/lib/firebase";
+import { auth, db, functions } from "@/lib/firebase";
+import { httpsCallable } from "firebase/functions";
 import { doc, getDoc, serverTimestamp } from "firebase/firestore";
 import {
   createAuthProfileHelpers,
@@ -34,23 +35,13 @@ import {
   getSignUpErrorMessage,
   getGoogleSignInErrorMessage,
 } from "./useAuth.errors";
+import { logger } from "@/lib/logger";
 
 const googleProvider =
   typeof window !== "undefined" ? new GoogleAuthProvider() : null;
 if (googleProvider) {
   googleProvider.setCustomParameters({ prompt: "select_account" });
 }
-
-const getActionCodeSettings = () => {
-  if (typeof window === "undefined") {
-    return undefined;
-  }
-  const origin = window.location.origin;
-  return {
-    url: `${origin}/auth?mode=verify-email`,
-    handleCodeInApp: true,
-  };
-};
 
 interface AuthContextType {
   user: User | null;
@@ -100,8 +91,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const { reserveUsername, ensureUserProfile, releaseUsernameReservation } =
     createAuthProfileHelpers(db);
 
+  const skipEmailVerification =
+    process.env.NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION === "true";
+
   const needsEmailVerification =
-    !!user && isPasswordProvider(user) && !user.emailVerified;
+    !!user &&
+    isPasswordProvider(user) &&
+    !user.emailVerified &&
+    !skipEmailVerification;
 
   const ensureAuthAvailable = () => {
     if (!firebaseReady) {
@@ -144,8 +141,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     if (!activeUser) {
       throw new Error("No signed-in user to verify.");
     }
-    await sendEmailVerification(activeUser, getActionCodeSettings());
-    setVerificationEmail(activeUser.email ?? null);
+
+    // Use Cloud Function to send branded email via custom SMTP
+    try {
+      const resendVerificationEmail = httpsCallable(
+        functions,
+        "resendVerificationEmail"
+      );
+      await resendVerificationEmail();
+      setVerificationEmail(activeUser.email ?? null);
+    } catch (error) {
+      // Silently fail - verification resend error is non-critical
+      throw error;
+    }
   };
 
   const signIn = async (email: string, password: string) => {
@@ -184,6 +192,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       credential = await createUserWithEmailAndPassword(auth, email, password);
       setVerificationEmail(credential.user.email ?? email);
 
+      // Wait for the auth token to be ready before writing to Firestore
+      // This prevents "Missing or insufficient permissions" errors
+      await credential.user.getIdToken(true);
+
       reservedUsername = await reserveUsername(
         credential.user.uid,
         normalized,
@@ -195,11 +207,43 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
       );
 
-      if (!credential.user.emailVerified) {
-        await sendVerification(credential.user);
-      }
+      // Username successfully reserved - mark that we don't need username selection
+      // This prevents race condition where checkNeedsUsername() is called before Firestore write propagates
+      setNeedsUsername(false);
+
+      setNeedsUsername(false);
+
+      // We rely on the 'onUserCreated' Cloud Function to send the welcome/verification email
+      // This ensures we use our custom SMTP and branded template instead of Firebase's default
+      // If the cloud function fails, the user can use the "Resend" button in the dashboard
     } catch (error) {
-      if (credential?.user) {
+      // Only rollback if the error is NOT a permission error that might resolve
+      // (permission errors are now retried in reserveUsername with backoff)
+      const firestoreError = error as { code?: string; message?: string };
+      const errorMessage =
+        error instanceof Error ? error.message.toLowerCase() : "";
+      const isPermissionError =
+        firestoreError.code === "permission-denied" ||
+        errorMessage.includes("missing or insufficient permissions") ||
+        errorMessage.includes("permission denied");
+
+      // If it's a permission error after all retries, the user exists but profile doesn't
+      // Don't delete the user - they can try to complete signup later or use password reset
+      if (!isPermissionError && credential?.user) {
+        if (reservedUsername) {
+          try {
+            await releaseUsernameReservation(
+              credential.user.uid,
+              reservedUsername
+            );
+          } catch (releaseError) {
+            reportError(releaseError, {
+              source: "useAuth.signUp.rollback",
+              severity: "warning",
+            });
+          }
+        }
+
         try {
           await credential.user.delete();
         } catch (deleteError) {
@@ -207,13 +251,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             source: "useAuth.signUp.rollback",
             severity: "warning",
           });
-        }
-
-        if (reservedUsername) {
-          await releaseUsernameReservation(
-            credential.user.uid,
-            reservedUsername
-          );
         }
       }
 
@@ -229,6 +266,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const logout = async () => {
     ensureAuthAvailable();
+
+    // Clear all user-specific localStorage data
+    if (user?.uid) {
+      const SESSION_KEY = `resume_creation_session_${user.uid}`;
+      localStorage.removeItem(SESSION_KEY);
+      logger.info({ userId: user.uid }, "Cleared resume session on logout");
+    }
+
     await signOut(auth);
   };
 
@@ -312,7 +357,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       return;
     }
     try {
+      // Reload user data from Firebase Auth server
       await auth.currentUser.reload();
+      // Force refresh the ID token to get updated emailVerified status
+      await auth.currentUser.getIdToken(true);
       setUser(auth.currentUser ? ({ ...auth.currentUser } as User) : null);
       setVerificationEmail(auth.currentUser?.email ?? null);
     } catch (error) {

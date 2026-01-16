@@ -35,7 +35,7 @@ Set these in your `.env.local` or as environment variables:
 
 ```
 E2E_TEST_EMAIL=test@example.com
-E2E_TEST_PASSWORD=your-test-password
+E2E_TEST_PASSWORD=your-test-password-here
 ```
 
 ## Dev Mode Testing

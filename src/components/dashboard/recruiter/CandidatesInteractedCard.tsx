@@ -1,11 +1,14 @@
 "use client";
 
+import type { ReactElement } from "react";
 import { logger } from "@/lib/logger";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useOptionalDashboardMetricsContext } from "@/context/DashboardMetricsContext";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { RECRUITER_CONTACT_LIMITS } from "@/lib/config.client";
 
 interface AccessMetrics {
   pending: number;
@@ -13,8 +16,11 @@ interface AccessMetrics {
   denied: number;
 }
 
-export function CandidatesInteractedCard() {
+export function CandidatesInteractedCard(): ReactElement {
   const { user } = useAuth();
+  const { tier } = useUserProfile();
+  const isBasic = tier === "basic";
+
   const metricsContext = useOptionalDashboardMetricsContext();
   const usingContext = Boolean(
     metricsContext && metricsContext.recruiterMetrics
@@ -38,11 +44,15 @@ export function CandidatesInteractedCard() {
       return;
     }
 
-    const fetchMetrics = async () => {
+    const abortController = new AbortController();
+
+    const fetchMetrics = async (): Promise<void> => {
       try {
         const response = await fetch(
-          `/api/recruiter/metrics?userId=${user?.uid}`
+          `/api/recruiter/metrics?userId=${user?.uid}`,
+          { signal: abortController.signal }
         );
+        if (abortController.signal.aborted) return;
         if (response.ok) {
           const data = await response.json();
           const requests = data.accessRequests || {};
@@ -53,13 +63,20 @@ export function CandidatesInteractedCard() {
           });
         }
       } catch (error) {
+        if (abortController.signal.aborted) return;
         logger.error({ err: error }, "Failed to fetch interaction metrics:");
       } finally {
-        setLoading(false);
+        if (!abortController.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchMetrics();
+
+    return () => {
+      abortController.abort();
+    };
   }, [user, usingContext]);
 
   const displayMetrics = usingContext
@@ -70,13 +87,11 @@ export function CandidatesInteractedCard() {
     displayMetrics.pending + displayMetrics.approved + displayMetrics.denied;
 
   return (
-    <Link href="/dashboard/recruiter/requests">
-      <div className="group relative overflow-hidden backdrop-blur-xl rounded-3xl border border-white/20 bg-white/10 p-6 shadow-lg shadow-slate-950/40 transition-all duration-300 hover:border-emerald-500/40 hover:bg-white/15 hover:scale-[1.02] cursor-pointer h-full flex flex-col justify-between">
-        <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-emerald-500/10 blur-2xl transition-all group-hover:bg-emerald-500/20"></div>
-
+    <Link href="/dashboard/recruiter/requests?tab=history">
+      <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-6 transition-all duration-200 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] cursor-pointer h-full flex flex-col justify-between group">
         <div className="flex items-center relative z-10">
           <div className="flex-shrink-0">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 group-hover:text-emerald-300 transition-colors">
+            <div className="flex h-12 w-12 items-center justify-center bg-black text-white">
               <svg
                 className="h-6 w-6"
                 fill="none"
@@ -94,28 +109,34 @@ export function CandidatesInteractedCard() {
           </div>
           <div className="ml-5 w-0 flex-1">
             <dl>
-              <dt className="text-sm font-medium text-slate-400 truncate group-hover:text-slate-300 transition-colors">
+              <dt className="text-[10px] font-mono font-bold text-gray-500 uppercase tracking-widest truncate">
                 Candidates Contacted
               </dt>
-              <dd className="text-2xl font-bold text-white">
+              <dd className="text-3xl font-serif font-bold text-black">
                 {loadingState ? "-" : totalContacted}
               </dd>
             </dl>
           </div>
         </div>
         <div className="mt-4 relative z-10 flex items-center justify-between">
-          <p className="text-sm text-slate-400 group-hover:text-slate-300 transition-colors">
+          <p className="text-sm text-gray-500 font-sans">
             {loadingState
               ? "Loading..."
               : totalContacted === 0
-              ? "No candidates contacted yet"
-              : `${totalContacted} candidate${
-                  totalContacted !== 1 ? "s" : ""
-                } contacted`}
+                ? "No candidates contacted yet"
+                : isBasic
+                  ? `${totalContacted} / ${RECRUITER_CONTACT_LIMITS.basic.amount} contacts used`
+                  : `${totalContacted} candidate${totalContacted !== 1 ? "s" : ""
+                  } contacted`}
           </p>
+          {isBasic && !loadingState && (
+            <p className="text-xs text-gray-400 font-mono">
+              {RECRUITER_CONTACT_LIMITS.basic.amount - totalContacted} remaining
+            </p>
+          )}
           <div className="opacity-0 transform translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
             <svg
-              className="w-5 h-5 text-emerald-400"
+              className="w-5 h-5 text-black"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"

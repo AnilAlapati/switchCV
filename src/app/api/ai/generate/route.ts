@@ -1,7 +1,9 @@
+
 import { NextRequest, NextResponse } from "next/server";
 import { createHash, randomUUID } from "crypto";
 import { z } from "zod";
 import { generateText } from "@/lib/services/aiGenerationService";
+// eslint-disable-next-line no-restricted-imports
 import admin, { adminDb } from "@/lib/firebase-admin";
 import {
   getAuthenticatedUserId,
@@ -9,6 +11,19 @@ import {
   safeParseBody,
 } from "@/lib/utils/api-helpers";
 import { logger } from "@/lib/logger";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
+import { BillingService } from "@/lib/services/billingService";
+import {
+  getIdempotencyKey,
+  checkIdempotency,
+  markProcessing,
+  storeIdempotencyResponse,
+  clearIdempotencyKey,
+  createCachedResponse,
+  createProcessingResponse,
+} from "@/lib/utils/idempotency";
+import { withAppCheck } from "@/lib/middleware/appCheck";
+import { lookupCache, storeInCache } from "@/lib/services/semanticCache";
 
 /**
  * Zod schema for AI generation request validation
@@ -29,45 +44,31 @@ const GenerateRequestSchema = z.object({
     .number()
     .min(0, "Temperature must be between 0 and 2")
     .max(2, "Temperature must be between 0 and 2")
+    .optional(),
+  task: z
+    .enum(["creative", "balanced", "structured", "precise"])
     .optional()
-    .default(0.9),
+    .default("creative"),
+  skipCache: z.boolean().optional().default(false), // Allow bypassing semantic cache
 });
 
 interface Entitlement {
   plan: "basic" | "premium" | "enterprise" | string;
 }
 
-export class RateLimitError extends Error {
+class RateLimitError extends Error {
   constructor(public readonly retryAfterSeconds: number) {
     super("Too many requests");
     this.name = "RateLimitError";
   }
 }
 
-export class EntitlementError extends Error {
+class EntitlementError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "EntitlementError";
   }
 }
-
-const RATE_LIMIT_WINDOW_MS = Number(
-  process.env.AI_RATE_LIMIT_WINDOW_MS || 60_000
-);
-
-const BASE_LIMIT = Math.max(
-  1,
-  Number(
-    process.env.RATE_LIMIT_AI_GENERATION ||
-      process.env.NEXT_PUBLIC_RATE_LIMIT_AI_GENERATION ||
-      10
-  )
-);
-const PLAN_MULTIPLIER: Record<string, number> = {
-  basic: 0.3,
-  premium: 1,
-  enterprise: 2,
-};
 
 const AUDIT_LOG_TTL_DAYS = Number(process.env.AI_AUDIT_LOG_TTL_DAYS || 30);
 const AUDIT_LOG_TTL_MS = AUDIT_LOG_TTL_DAYS * 24 * 60 * 60 * 1000;
@@ -78,11 +79,36 @@ function hashPrompt(prompt: string): string {
 
 export async function POST(request: NextRequest) {
   const requestId = randomUUID();
+  const idempotencyKey = getIdempotencyKey(request);
 
   try {
+    // App Check verification (when enabled via ENFORCE_APP_CHECK=true)
+    const appCheckResult = await withAppCheck(request);
+    if (appCheckResult) {
+      return appCheckResult; // Returns 401 if App Check fails
+    }
+
     const { userId, error: authError } = await getAuthenticatedUserId(request);
     if (authError) {
       return authError;
+    }
+
+    // Idempotency check (if key provided)
+    if (idempotencyKey && userId) {
+      const idempotencyCheck = await checkIdempotency(idempotencyKey, userId);
+
+      if (idempotencyCheck.status === "cached" && idempotencyCheck.data) {
+        logger.info({ userId, requestId, idempotencyKey }, "Returning cached idempotent response");
+        return createCachedResponse(idempotencyCheck.data);
+      }
+
+      if (idempotencyCheck.status === "processing") {
+        logger.warn({ userId, requestId, idempotencyKey }, "Duplicate request still processing");
+        return createProcessingResponse();
+      }
+
+      // Mark as processing to prevent concurrent duplicates
+      await markProcessing(idempotencyKey, userId);
     }
 
     // Parse and validate request body using Zod
@@ -100,14 +126,88 @@ export async function POST(request: NextRequest) {
       return handleApiError(null, errorMessage, 400);
     }
 
-    const { prompt, maxTokens, temperature } = validationResult.data;
+    const { prompt, maxTokens, temperature: userTemp, task, skipCache } = validationResult.data;
+
+    // Semantic cache lookup (unless explicitly skipped)
+    if (!skipCache && userId) {
+      const cached = await lookupCache(userId, prompt);
+      if (cached.hit && cached.response) {
+        logger.info(
+          { userId, requestId, similarity: cached.similarity, cacheKey: cached.cacheKey },
+          "🎯 Returning semantically cached AI response"
+        );
+
+        const cachedResult = {
+          text: cached.response,
+          model: cached.model || "cached",
+          cached: true,
+          similarity: cached.similarity,
+        };
+
+        // Store for idempotency as well
+        if (idempotencyKey) {
+          await storeIdempotencyResponse(idempotencyKey, userId, cachedResult);
+        }
+
+        return NextResponse.json(cachedResult, { status: 200 });
+      }
+    }
+
+    // Task-specific temperature defaults
+    const defaultTemps = {
+      creative: 0.9,
+      balanced: 0.7,
+      structured: 0.3, // Recommended for data extraction
+      precise: 0.1,    // Determinisitic
+    };
+
+    const temperature = userTemp ?? defaultTemps[task] ?? 0.7;
 
     const entitlement = await getEntitlement(userId!);
-    enforceEntitlement(entitlement);
 
-    const rateLimit = await enforceRateLimit(userId!, entitlement.plan);
+    const rateLimit = await checkDistributedRateLimit(userId!, {
+      tier: entitlement.plan as "basic" | "premium" | "enterprise",
+      scope: "ai_generation",
+    });
+
+    if (!rateLimit.allowed) {
+      throw new RateLimitError(Math.ceil((rateLimit.resetIn || 60000) / 1000));
+    }
+
+    // Billing & Budget Check
+    const budgetAllowed = await BillingService.checkBudget(userId!, entitlement.plan as "basic" | "premium" | "enterprise");
+    if (!budgetAllowed) {
+      return handleApiError(
+        new Error("Budget exceeded"),
+        "Monthly usage limit reached. Please upgrade your plan.",
+        402
+      );
+    }
 
     const result = await generateText(prompt, maxTokens, temperature);
+
+    // Track Billing - use actual token counts when available, fallback to heuristic
+    const tokenUsage = result.usage ? {
+      input: result.usage.promptTokens,
+      output: result.usage.completionTokens
+    } : {
+      // Fallback heuristic for providers that don't return usage (e.g., HuggingFace)
+      input: Math.ceil(prompt.length / 4),
+      output: Math.ceil(result.text.length / 4)
+    };
+    await BillingService.trackUsage(userId!, result.model, tokenUsage);
+
+    // Store in semantic cache for future similar queries
+    if (!skipCache && userId) {
+      storeInCache(userId, prompt, result.text, {
+        model: result.model,
+        provider: "ai", // Generic provider label
+        tokens: tokenUsage.input + tokenUsage.output,
+      }).catch((err) => {
+        // Don't fail the request if caching fails
+        logger.warn({ err, userId }, "Failed to store in semantic cache");
+      });
+    }
 
     await Promise.all([
       logUsage({
@@ -117,6 +217,7 @@ export async function POST(request: NextRequest) {
         plan: entitlement.plan,
         maxTokens,
         temperature,
+        task,
       }),
       logAuditEvent({
         userId: userId!,
@@ -133,8 +234,21 @@ export async function POST(request: NextRequest) {
       { userId, model: result.model, plan: entitlement.plan, requestId },
       "AI text generation succeeded"
     );
+
+    // Store idempotent response for future duplicate requests
+    if (idempotencyKey && userId) {
+      await storeIdempotencyResponse(idempotencyKey, userId, result);
+    }
+
     return response;
   } catch (error) {
+    // Clear idempotency key on error to allow retry
+    if (idempotencyKey) {
+      const { userId } = await getAuthenticatedUserId(request);
+      if (userId) {
+        await clearIdempotencyKey(idempotencyKey, userId);
+      }
+    }
     return handleRouteError(error);
   }
 }
@@ -147,90 +261,18 @@ async function getEntitlement(userId: string): Promise<Entitlement> {
   };
 }
 
-function enforceEntitlement(entitlement: Entitlement): void {
-  if (entitlement.plan === "basic") {
-    throw new EntitlementError(
-      "AI text generation requires a premium or enterprise plan."
-    );
-  }
-}
-
-async function enforceRateLimit(userId: string, plan: string) {
-  const planLimit = Math.max(
-    1,
-    Math.round(BASE_LIMIT * (PLAN_MULTIPLIER[plan] ?? PLAN_MULTIPLIER.basic))
-  );
-  const windowStartThreshold = Date.now() - RATE_LIMIT_WINDOW_MS;
-  const docRef = adminDb
-    .collection("rateLimits")
-    .doc(`ai_generation_${userId}`);
-
-  const { remaining, resetTime } = await adminDb.runTransaction(async (tx) => {
-    const doc = await tx.get(docRef);
-    let count = 0;
-    let windowStart = Date.now();
-
-    if (doc.exists) {
-      const data = doc.data();
-      const storedWindowStart =
-        data?.windowStart instanceof admin.firestore.Timestamp
-          ? data.windowStart.toMillis()
-          : typeof data?.windowStart === "number"
-          ? data.windowStart
-          : windowStart;
-
-      if (storedWindowStart > windowStartThreshold) {
-        windowStart = storedWindowStart;
-        count = data?.count || 0;
-      } else {
-        windowStart = Date.now();
-        count = 0;
-      }
-    }
-
-    if (count >= planLimit) {
-      const retryAfterSeconds = Math.max(
-        1,
-        Math.ceil((windowStart + RATE_LIMIT_WINDOW_MS - Date.now()) / 1000)
-      );
-      throw new RateLimitError(retryAfterSeconds);
-    }
-
-    tx.set(
-      docRef,
-      {
-        userId,
-        scope: "ai_generation",
-        plan,
-        count: count + 1,
-        windowStart: admin.firestore.Timestamp.fromMillis(windowStart),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        expiresAt: admin.firestore.Timestamp.fromMillis(
-          windowStart + RATE_LIMIT_WINDOW_MS * 2
-        ),
-      },
-      { merge: true }
-    );
-
-    return {
-      remaining: Math.max(0, planLimit - (count + 1)),
-      resetTime: windowStart + RATE_LIMIT_WINDOW_MS,
-    };
-  });
-
-  return { remaining, resetTime, limit: planLimit };
-}
-
 function attachRateLimitHeaders(
   response: NextResponse,
-  data: { remaining: number; resetTime: number; limit: number }
+  data: { remaining: number; resetIn?: number; limit: number }
 ) {
   response.headers.set("X-RateLimit-Limit", data.limit.toString());
   response.headers.set("X-RateLimit-Remaining", data.remaining.toString());
-  response.headers.set(
-    "X-RateLimit-Reset",
-    Math.floor(data.resetTime / 1000).toString()
-  );
+  if (data.resetIn) {
+    response.headers.set(
+      "X-RateLimit-Reset",
+      Math.floor(Date.now() / 1000 + data.resetIn / 1000).toString()
+    );
+  }
 }
 
 async function logUsage(params: {
@@ -240,11 +282,13 @@ async function logUsage(params: {
   plan: string;
   maxTokens: number;
   temperature: number;
+  task?: string;
 }) {
   await adminDb.collection("aiUsageLogs").add({
     userId: params.userId,
     plan: params.plan,
     scope: "ai_generation",
+    task: params.task || "unknown",
     promptChars: params.prompt.length,
     requestedTokens: params.maxTokens,
     temperature: params.temperature,
@@ -289,7 +333,7 @@ function handleRouteError(error: unknown) {
   }
 
   if (error instanceof EntitlementError) {
-    return handleApiError(error, error.message, 403);
+    return handleApiError(error, "Access denied - insufficient entitlement", 403);
   }
 
   return handleApiError(error, "AI text generation failed");

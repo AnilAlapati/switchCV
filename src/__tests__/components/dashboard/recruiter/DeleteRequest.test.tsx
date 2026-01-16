@@ -135,7 +135,7 @@ describe("RecruiterRequestsPage - Delete Functionality", () => {
     expect(screen.getByText("Delete Request?")).toBeInTheDocument();
 
     // Click Cancel in dialog
-    const cancelButton = screen.getByRole("button", { name: "Cancel" });
+    const cancelButton = screen.getByRole("button", { name: /cancel/i });
     fireEvent.click(cancelButton);
 
     // Check if dialog disappears
@@ -194,7 +194,7 @@ describe("RecruiterRequestsPage - Delete Functionality", () => {
 
     // And the Active tab should be selected/visible
     expect(
-      screen.getByRole("button", { name: "Active (1)" })
+      screen.getByRole("button", { name: "Active 1" })
     ).toBeInTheDocument();
 
     // Pending tab should NOT be visible in Active view

@@ -2,7 +2,20 @@
  * @jest-environment node
  */
 
+import { NextRequest } from "next/server";
 import { GET } from "./route";
+
+// Mock api-helpers
+jest.mock("@/lib/utils/api-helpers", () => ({
+  getAuthenticatedUserId: jest
+    .fn()
+    .mockResolvedValue({ userId: "test-user-id", error: null }),
+  handleApiError: jest.fn((error, message, status = 500) => ({
+    status,
+    json: async () => ({ error: message }),
+  })),
+  verifyAdminRole: jest.fn().mockResolvedValue(null),
+}));
 
 // Mock Firebase admin
 jest.mock("@/lib/firebase-admin", () => ({
@@ -11,6 +24,7 @@ jest.mock("@/lib/firebase-admin", () => ({
   },
 }));
 
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 
 const mockCollection = adminDb.collection as jest.Mock;
@@ -42,7 +56,19 @@ describe("GET /api/recruiter/debug-resumes", () => {
       if (collectionName === "resumes") {
         return mockResumesCollection;
       } else if (collectionName === "users") {
-        return mockUsersCollection;
+        return {
+          doc: jest.fn().mockImplementation((userId) => {
+            if (userId === "test-user-id") {
+              return {
+                get: jest.fn().mockResolvedValue({
+                  exists: true,
+                  data: () => ({ role: "admin" }),
+                }),
+              };
+            }
+            return mockUsersCollection.doc(userId);
+          }),
+        };
       }
       return {};
     });
@@ -101,7 +127,8 @@ describe("GET /api/recruiter/debug-resumes", () => {
         .mockResolvedValue(userId === "user-1" ? mockUserDoc1 : mockUserDoc2),
     }));
 
-    const response = await GET();
+    const request = new NextRequest("http://localhost:3000/api/recruiter/debug-resumes", { headers: { authorization: "Bearer test-token" } });
+    const response = await GET(request);
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -165,7 +192,8 @@ describe("GET /api/recruiter/debug-resumes", () => {
       get: jest.fn().mockResolvedValue(mockUserDoc),
     });
 
-    const response = await GET();
+    const request = new NextRequest("http://localhost:3000/api/recruiter/debug-resumes", { headers: { authorization: "Bearer test-token" } });
+    const response = await GET(request);
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -199,7 +227,8 @@ describe("GET /api/recruiter/debug-resumes", () => {
       }),
     });
 
-    const response = await GET();
+    const request = new NextRequest("http://localhost:3000/api/recruiter/debug-resumes", { headers: { authorization: "Bearer test-token" } });
+    const response = await GET(request);
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -239,7 +268,8 @@ describe("GET /api/recruiter/debug-resumes", () => {
       get: jest.fn().mockResolvedValue(mockUserDoc),
     });
 
-    const response = await GET();
+    const request = new NextRequest("http://localhost:3000/api/recruiter/debug-resumes", { headers: { authorization: "Bearer test-token" } });
+    const response = await GET(request);
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -256,7 +286,8 @@ describe("GET /api/recruiter/debug-resumes", () => {
       }),
     });
 
-    const response = await GET();
+    const request = new NextRequest("http://localhost:3000/api/recruiter/debug-resumes", { headers: { authorization: "Bearer test-token" } });
+    const response = await GET(request);
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -275,7 +306,8 @@ describe("GET /api/recruiter/debug-resumes", () => {
       }),
     });
 
-    const response = await GET();
+    const request = new NextRequest("http://localhost:3000/api/recruiter/debug-resumes", { headers: { authorization: "Bearer test-token" } });
+    const response = await GET(request);
     const data = await response.json();
 
     expect(response.status).toBe(500);

@@ -98,6 +98,29 @@ export class ConfigManager {
       batchSize: parseInt(process.env.DB_BATCH_SIZE || "500", 10),
     });
 
+    // Search configuration
+    this.config.set("search", {
+      embeddingModel:
+        process.env.SEARCH_EMBEDDING_MODEL || "text-embedding-004",
+      vectorDimension: parseInt(
+        process.env.SEARCH_VECTOR_DIMENSION || "768",
+        10
+      ),
+      maxResults: parseInt(process.env.SEARCH_MAX_RESULTS || "10", 10),
+      minSimilarityScore: parseFloat(
+        process.env.SEARCH_MIN_SIMILARITY || "0.5"
+      ),
+      premiumMonthlyQuota: parseInt(
+        process.env.SEARCH_QUOTA_PREMIUM || "50",
+        10
+      ),
+      enterpriseMonthlyQuota: parseInt(
+        process.env.SEARCH_QUOTA_ENTERPRISE || "999999",
+        10
+      ),
+      quotaCollection: process.env.SEARCH_QUOTA_COLLECTION || "searchQuotas",
+    });
+
     this.validateConfig();
   }
 

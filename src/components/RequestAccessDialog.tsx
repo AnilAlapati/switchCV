@@ -114,14 +114,14 @@ export function RequestAccessDialog({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1A2F25]/40 p-4 backdrop-blur-sm">
       <form
         onSubmit={handleSubmit}
         noValidate
-        className="relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-slate-900 shadow-2xl shadow-cyan-500/20 md:flex-row"
+        className="relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-2xl shadow-emerald-500/10 md:flex-row"
       >
         {/* Left Sidebar - Duration Selector */}
-        <div className="w-full border-b border-white/5 bg-slate-950/50 p-6 md:w-80 md:border-b-0 md:border-r md:overflow-y-auto">
+        <div className="w-full border-b border-emerald-50 bg-emerald-50/30 p-6 md:w-80 md:border-b-0 md:border-r md:overflow-y-auto">
           <DurationSelector
             selectedPreset={durationPreset}
             onSelectPreset={setDurationPreset}
@@ -134,7 +134,7 @@ export function RequestAccessDialog({
         </div>
 
         {/* Right Content */}
-        <div className="flex flex-1 flex-col bg-gradient-to-br from-slate-900/95 via-slate-900/90 to-slate-950/95 backdrop-blur-xl">
+        <div className="flex flex-1 flex-col bg-white">
           <AccessRequestHeader profileName={profileName} onClose={onClose} />
 
           <div className="flex flex-1 flex-col gap-6 overflow-y-auto p-6">
@@ -148,9 +148,9 @@ export function RequestAccessDialog({
               />
 
               {/* Info Box */}
-              <div className="rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 p-4">
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
                 <div className="flex items-start gap-3">
-                  <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-cyan-400/20 text-cyan-300">
+                  <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
                     <svg
                       className="h-3.5 w-3.5"
                       fill="currentColor"
@@ -161,7 +161,7 @@ export function RequestAccessDialog({
                     </svg>
                   </span>
                   <div className="flex-1">
-                    <p className="text-xs font-medium leading-relaxed text-cyan-100/80">
+                    <p className="text-xs font-medium leading-relaxed text-[#1A2F25]/70">
                       The candidate will be notified via email and can approve
                       or decline your request. You will only have access for the
                       duration they approve.

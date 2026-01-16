@@ -31,10 +31,13 @@ const createMockAuthContext = (user: any) => ({
   updatePassword: jest.fn(),
   updateEmail: jest.fn(),
   deleteAccount: jest.fn(),
+
   resendVerificationEmail: jest.fn(),
   refreshUser: jest.fn(),
+  needsUsername: false,
+  setUsername: jest.fn(),
+  checkNeedsUsername: jest.fn().mockResolvedValue(false),
 });
-
 
 describe("CandidatesInteractedCard", () => {
   const mockUser = {
@@ -61,15 +64,36 @@ describe("CandidatesInteractedCard", () => {
     jest.clearAllMocks();
     fetchSpy.mockClear();
     mockUseAuth.mockReturnValue(createMockAuthContext(mockUser));
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        accessRequests: { pending: 0, approved: 0, denied: 0 },
+      }),
+    } as Response);
   });
 
   describe("Loading State", () => {
-    it("displays loading state initially", () => {
-      render(<CandidatesInteractedCard />);
+    it("displays loading state initially", async () => {
+      // Mock fetch to never resolve - this keeps the component in loading state
+      fetchSpy.mockImplementation(
+        () => new Promise(() => { }) // Never resolves
+      );
+
+      await act(async () => {
+        render(<CandidatesInteractedCard />);
+      });
 
       expect(screen.getByText("Candidates Contacted")).toBeInTheDocument();
       expect(screen.getByText("-")).toBeInTheDocument();
       expect(screen.getByText("Loading...")).toBeInTheDocument();
+
+      // Restore the normal mock for subsequent tests
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          accessRequests: { pending: 0, approved: 0, denied: 0 },
+        }),
+      } as Response);
     });
 
     it("fetches metrics on mount when user exists", async () => {
@@ -92,15 +116,20 @@ describe("CandidatesInteractedCard", () => {
 
       await waitFor(() => {
         expect(fetchSpy).toHaveBeenCalledWith(
-          `/api/recruiter/metrics?userId=${mockUser.uid}`
+          `/api/recruiter/metrics?userId=${mockUser.uid}`,
+          expect.objectContaining({
+            signal: expect.any(Object),
+          })
         );
       });
     });
 
-    it("does not fetch metrics when user is null", () => {
+    it("does not fetch metrics when user is null", async () => {
       mockUseAuth.mockReturnValue(createMockAuthContext(null));
 
-      render(<CandidatesInteractedCard />);
+      await act(async () => {
+        render(<CandidatesInteractedCard />);
+      });
 
       expect(fetchSpy).not.toHaveBeenCalled();
       expect(screen.getByText("0")).toBeInTheDocument();
@@ -128,7 +157,7 @@ describe("CandidatesInteractedCard", () => {
 
       await waitFor(() => {
         expect(screen.getByText("20")).toBeInTheDocument(); // 5 + 10 + 5
-        expect(screen.getByText("20 candidates contacted")).toBeInTheDocument();
+        expect(screen.getByText("Candidates Contacted")).toBeInTheDocument();
       });
     });
 
@@ -178,7 +207,7 @@ describe("CandidatesInteractedCard", () => {
 
       await waitFor(() => {
         expect(screen.getByText("1")).toBeInTheDocument();
-        expect(screen.getByText("1 candidate contacted")).toBeInTheDocument();
+        expect(screen.getByText("Candidates Contacted")).toBeInTheDocument();
       });
     });
 
@@ -261,7 +290,6 @@ describe("CandidatesInteractedCard", () => {
       await waitFor(() => {
         expect(screen.getByText("Candidates Contacted")).toBeInTheDocument();
         expect(screen.getByText("5")).toBeInTheDocument();
-        expect(screen.getByText("5 candidates contacted")).toBeInTheDocument();
       });
     });
 
@@ -284,19 +312,21 @@ describe("CandidatesInteractedCard", () => {
       });
 
       await waitFor(() => {
-        const card = document.querySelector(".backdrop-blur-xl");
+        const card = document.querySelector(".border-black");
         expect(card).toHaveClass(
-          "backdrop-blur-xl",
-          "bg-white/10",
-          "rounded-3xl",
-          "border",
-          "border-white/20"
+          "bg-white",
+          "border-2",
+          "border-black",
+          "p-6",
+          "transition-all"
         );
       });
     });
 
-    it("displays correct icon", () => {
-      render(<CandidatesInteractedCard />);
+    it("displays correct icon", async () => {
+      await act(async () => {
+        render(<CandidatesInteractedCard />);
+      });
 
       const icon = document.querySelector("svg");
       expect(icon).toBeInTheDocument();

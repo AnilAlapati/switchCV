@@ -4,6 +4,7 @@ import type {
   JobSeekerMetrics,
   OpportunityInsight,
 } from "@/types/dashboard";
+import type { ResumeProfile } from "@/types";
 
 const DEFAULT_JOB_METRICS: JobSeekerMetrics = {
   profileViews: 0,
@@ -30,44 +31,6 @@ function getDaysSince(timestamp: string | null | undefined) {
   return Math.floor(diff / DAYS_IN_MS);
 }
 
-export function calculateReadinessScore(
-  metrics: JobSeekerMetrics | null | undefined,
-  hasResume: boolean
-) {
-  const data = metrics ?? DEFAULT_JOB_METRICS;
-  if (!hasResume) return 20;
-
-  const qualityScore = clamp(data.quality, 0, 100) * 0.4; // 40 pts
-  const visibilityScore = clamp(data.profileViews, 0, 30) * (20 / 30); // 20 pts
-  const interestScore = clamp(data.contactRequests, 0, 10) * (15 / 10); // 15 pts
-  const engagementScore = clamp(data.downloads, 0, 10) * (15 / 10); // 15 pts
-  const freshnessPenalty = (() => {
-    const days = getDaysSince(data.lastUpdated);
-    if (days === null) return 10;
-    if (days <= 7) return 0;
-    if (days <= 21) return 5;
-    return 10;
-  })();
-
-  const base = 25; // credit for having a resume live
-  const score =
-    base +
-    qualityScore +
-    visibilityScore +
-    interestScore +
-    engagementScore -
-    freshnessPenalty;
-
-  return clamp(Math.round(score), 0, 100);
-}
-
-export function readinessLabel(score: number) {
-  if (score >= 85) return "Interview ready";
-  if (score >= 65) return "On track";
-  if (score >= 45) return "Momentum building";
-  return "Let's get moving";
-}
-
 export function formatLastUpdatedMessage(lastUpdated: string | null) {
   const days = getDaysSince(lastUpdated);
   if (days === null) return "No updates logged yet";
@@ -84,11 +47,25 @@ export function buildJobSeekerActionPlan(options: {
   hasResume: boolean;
   resumeId?: string | number | null;
   resumeUrl?: string | null;
+  tier?: string;
+  resumeData?: ResumeProfile;
+  userProfile?: { photoURL?: string } | null;
 }): ActionItem[] {
-  const { metrics, hasResume, resumeId, resumeUrl } = options;
+  const {
+    metrics,
+    hasResume,
+    resumeId,
+    resumeUrl,
+    tier,
+    resumeData,
+    userProfile,
+  } = options;
   const data = metrics ?? DEFAULT_JOB_METRICS;
   const items: ActionItem[] = [];
   const lastUpdatedDays = getDaysSince(data.lastUpdated);
+  const isBasic = tier === "basic";
+  const premiumTooltip =
+    "AI Edit feature is available for Premium or Enterprise users";
 
   if (!hasResume) {
     items.push({
@@ -120,6 +97,86 @@ export function buildJobSeekerActionPlan(options: {
   }
 
   // Resume exists
+  // 1. Quantify Impact (High Priority)
+  const hasNumbers = resumeData?.experience?.some((exp) =>
+    /\d+%|\d+\s?%|\$\d+|\d+\s?USD|\d+\+/.test(exp.description || "")
+  );
+  if (!hasNumbers && hasResume) {
+    items.push({
+      id: "quantify-impact",
+      title: "Quantify your impact",
+      description:
+        "Recruiters love numbers. Add percentages, dollar amounts, or headcounts to your bullet points to prove your value.",
+      status: "notStarted",
+      priority: "high",
+      cta: resumeId
+        ? {
+          label: "Add metrics",
+          href: isBasic ? undefined : `/resumes/${resumeId}/edit`,
+          disabled: isBasic,
+          tooltip: isBasic ? premiumTooltip : undefined,
+        }
+        : undefined,
+    });
+  }
+
+  // 2. Portfolio/Projects check
+  const hasProjects = (resumeData?.projects?.length ?? 0) > 0;
+  if (!hasProjects && hasResume) {
+    items.push({
+      id: "add-projects",
+      title: "Showcase your projects",
+      description:
+        "Add a recent project or link to your GitHub to provide concrete proof of your technical skills.",
+      status: "notStarted",
+      priority: "medium",
+      cta: resumeId
+        ? {
+          label: "Add projects",
+          href: isBasic ? undefined : `/resumes/${resumeId}/edit`,
+          disabled: isBasic,
+          tooltip: isBasic ? premiumTooltip : undefined,
+        }
+        : undefined,
+    });
+  }
+
+  // 3. Profile Picture check
+  if (userProfile && !userProfile.photoURL) {
+    items.push({
+      id: "add-photo",
+      title: "Add a profile photo",
+      description:
+        "Profiles with photos get 14x more views. Upload a professional headshot to build trust with recruiters.",
+      status: "notStarted",
+      priority: "medium",
+      cta: {
+        label: "Upload photo",
+        href: "/profile",
+      },
+    });
+  }
+
+  // 4. Share on LinkedIn
+  if (hasResume && resumeUrl) {
+    items.push({
+      id: "share-linkedin",
+      title: "Share on LinkedIn",
+      description:
+        "Broadcast your availability. Sharing your SwitchCV link on LinkedIn increases visibility by up to 40%.",
+      status: "notStarted",
+      priority: "high",
+      cta: {
+        label: "Share now",
+        href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(
+          resumeUrl
+        )}`,
+        target: "_blank",
+      },
+    });
+  }
+
+  // 5. Quality check
   if (data.quality < 70) {
     items.push({
       id: "improve-quality",
@@ -131,13 +188,16 @@ export function buildJobSeekerActionPlan(options: {
       meta: `Current score ${clamp(data.quality, 0, 100)}%`,
       cta: resumeId
         ? {
-            label: "Open editor",
-            href: `/resumes/${resumeId}/edit`,
-          }
+          label: "Open editor",
+          href: isBasic ? undefined : `/resumes/${resumeId}/edit`,
+          disabled: isBasic,
+          tooltip: isBasic ? premiumTooltip : undefined,
+        }
         : undefined,
     });
   }
 
+  // 6. Freshness check
   if (lastUpdatedDays === null || lastUpdatedDays > 14) {
     items.push({
       id: "refresh-resume",
@@ -149,56 +209,37 @@ export function buildJobSeekerActionPlan(options: {
       meta:
         lastUpdatedDays === null
           ? "No updates recorded"
-          : `Last update ${lastUpdatedDays} day${
-              lastUpdatedDays === 1 ? "" : "s"
-            } ago`,
+          : `Last update ${lastUpdatedDays} day${lastUpdatedDays === 1 ? "" : "s"
+          } ago`,
       cta: resumeId
         ? {
-            label: "Add update",
-            href: `/resumes/${resumeId}/edit`,
-          }
+          label: "Add update",
+          href: isBasic ? undefined : `/resumes/${resumeId}/edit`,
+          disabled: isBasic,
+          tooltip: isBasic ? premiumTooltip : undefined,
+        }
         : undefined,
     });
   }
 
-  if (data.profileViews < 10) {
+  // 7. Download PDF
+  if (hasResume && resumeId) {
     items.push({
-      id: "share-visibility",
-      title: "Increase profile visibility",
+      id: "download-pdf",
+      title: "Download your PDF",
       description:
-        "Share your resume with two recruiters or peers and ask for targeted feedback.",
+        "Keep a local copy of your latest resume ready for offline applications or email attachments.",
       status: "notStarted",
-      priority: "medium",
-      meta: `${data.profileViews} profile view${
-        data.profileViews === 1 ? "" : "s"
-      } recorded`,
-      cta: resumeUrl
-        ? {
-            label: "Copy resume link",
-            href: resumeUrl,
-            target: "_blank",
-          }
-        : undefined,
+      priority: "low",
+      cta: {
+        label: "View & Download",
+        href: `/resumes/${resumeId}`,
+        target: "_blank",
+      },
     });
   }
 
-  if (data.contactRequests === 0) {
-    items.push({
-      id: "contact-cta",
-      title: "Add a clear contact invitation",
-      description:
-        "Highlight a call-to-action in your summary so interested recruiters know how to reach you.",
-      status: "notStarted",
-      priority: "medium",
-      cta: resumeId
-        ? {
-            label: "Edit summary",
-            href: `/resumes/${resumeId}/edit`,
-          }
-        : undefined,
-    });
-  }
-
+  // 8. Interview Prep
   items.push({
     id: "prep-interview",
     title: "Practice your interview stories",
@@ -223,14 +264,14 @@ export function buildJobSeekerInsights(
     data.profileViews >= 15
       ? "positive"
       : data.profileViews === 0
-      ? "caution"
-      : "info";
+        ? "caution"
+        : "info";
   const requestsTone =
     data.contactRequests >= 3
       ? "positive"
       : data.contactRequests === 0
-      ? "caution"
-      : "info";
+        ? "caution"
+        : "info";
   const qualityTone =
     data.quality >= 80 ? "positive" : data.quality < 60 ? "caution" : "info";
 

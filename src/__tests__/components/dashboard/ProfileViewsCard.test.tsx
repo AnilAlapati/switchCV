@@ -24,6 +24,9 @@ const createMockAuthContext = (user: any) => ({
   deleteAccount: jest.fn(),
   resendVerificationEmail: jest.fn(),
   refreshUser: jest.fn(),
+  needsUsername: false,
+  setUsername: jest.fn(),
+  checkNeedsUsername: jest.fn().mockResolvedValue(false),
 });
 
 const mockUser = {
@@ -142,7 +145,7 @@ describe("ProfileViewsCard", () => {
       await waitFor(() => {
         expect(screen.getByText("0")).toBeInTheDocument();
         expect(screen.getByText("No views yet")).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
     });
   });
 

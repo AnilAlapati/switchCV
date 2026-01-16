@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactElement } from "react";
 import { logger } from "@/lib/logger";
 
 import { useEffect, useState } from "react";
@@ -13,7 +14,7 @@ interface AccessMetrics {
   denied: number;
 }
 
-export function AvailableResumesCard() {
+export function AvailableResumesCard(): ReactElement {
   const { user } = useAuth();
   const metricsContext = useOptionalDashboardMetricsContext();
   const usingContext = Boolean(
@@ -38,11 +39,15 @@ export function AvailableResumesCard() {
       return;
     }
 
-    const fetchMetrics = async () => {
+    const abortController = new AbortController();
+
+    const fetchMetrics = async (): Promise<void> => {
       try {
         const response = await fetch(
-          `/api/recruiter/metrics?userId=${user?.uid}`
+          `/api/recruiter/metrics?userId=${user?.uid}`,
+          { signal: abortController.signal }
         );
+        if (abortController.signal.aborted) return;
         if (response.ok) {
           const data = await response.json();
           const requests = data.accessRequests || {};
@@ -53,13 +58,23 @@ export function AvailableResumesCard() {
           });
         }
       } catch (error) {
-        logger.error({ err: error }, "Failed to fetch metrics for available resumes:");
+        if (abortController.signal.aborted) return;
+        logger.error(
+          { err: error },
+          "Failed to fetch metrics for available resumes:"
+        );
       } finally {
-        setLoading(false);
+        if (!abortController.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchMetrics();
+
+    return () => {
+      abortController.abort();
+    };
   }, [user, usingContext]);
 
   const displayMetrics = usingContext
@@ -71,12 +86,10 @@ export function AvailableResumesCard() {
 
   return (
     <Link href="/dashboard/recruiter/requests?tab=active">
-      <div className="group relative overflow-hidden backdrop-blur-xl rounded-3xl border border-white/20 bg-white/10 p-6 shadow-lg shadow-slate-950/40 transition-all duration-300 hover:border-blue-500/40 hover:bg-white/15 hover:scale-[1.02] cursor-pointer h-full flex flex-col justify-between">
-        <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-blue-500/10 blur-2xl transition-all group-hover:bg-blue-500/20"></div>
-
+      <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-6 transition-all duration-200 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] cursor-pointer h-full flex flex-col justify-between group">
         <div className="flex items-center relative z-10">
           <div className="flex-shrink-0">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-400 group-hover:text-blue-300 transition-colors">
+            <div className="flex h-12 w-12 items-center justify-center bg-black text-white">
               <svg
                 className="h-6 w-6"
                 fill="none"
@@ -94,39 +107,40 @@ export function AvailableResumesCard() {
           </div>
           <div className="ml-5 w-0 flex-1">
             <dl>
-              <dt className="text-sm font-medium text-slate-400 truncate group-hover:text-slate-300 transition-colors">
-                Available Resumes
+              <dt className="text-[10px] font-mono font-bold text-gray-500 uppercase tracking-widest">
+                Unlocked Talent Profiles
               </dt>
-              <dd className="text-2xl font-bold text-white">
+              <dd className="text-3xl font-serif font-bold text-black">
                 {loadingState ? "-" : availableCount}
               </dd>
             </dl>
           </div>
         </div>
-        <div className="mt-4 relative z-10 flex items-center justify-between">
-          <p className="text-sm text-slate-400 group-hover:text-slate-300 transition-colors">
+        <div className="mt-5 relative z-10 flex items-center justify-between">
+          <p className="text-sm font-sans text-gray-500">
             {loadingState
               ? "Loading..."
               : availableCount === 0
-              ? "No active grants"
-              : `${availableCount} resume${
-                  availableCount !== 1 ? "s" : ""
+                ? "No active grants"
+                : `${availableCount} resume${availableCount !== 1 ? "s" : ""
                 } unlocked`}
           </p>
           <div className="opacity-0 transform translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
-            <svg
-              className="w-5 h-5 text-blue-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
+            <div className="flex items-center justify-center h-8 w-8 bg-black">
+              <svg
+                className="w-4 h-4 text-white"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2.5}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </div>
           </div>
         </div>
       </div>

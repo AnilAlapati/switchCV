@@ -1,7 +1,8 @@
 import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
-import { HfInference } from "@huggingface/inference";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+// Lazy loaded imports
+// import { HfInference } from "@huggingface/inference";
+// import { GoogleGenerativeAI } from "@google/generative-ai";
 import cors from "cors";
 import helmet from "helmet";
 import {
@@ -16,13 +17,36 @@ import {
 } from "./utils/retryHandler";
 
 import { config } from "./config";
+import { checkRateLimit, type RateLimitConfig } from "./middleware/rateLimiter";
+
+type SubscriptionTier = "basic" | "premium" | "enterprise";
+type UsageWindow = "hour" | "day";
+
+const db = admin.firestore();
 
 // Initialize AI clients
 const HUGGINGFACE_TOKEN = process.env.HUGGINGFACE_TOKEN;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-const hf = new HfInference(HUGGINGFACE_TOKEN);
-const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
+// Lazy load clients
+let hf: any = null; // Type: HfInference
+let genAI: any = null; // Type: GoogleGenerativeAI
+
+async function getHfClient() {
+  if (!hf) {
+    const { HfInference } = await import("@huggingface/inference");
+    hf = new HfInference(HUGGINGFACE_TOKEN);
+  }
+  return hf;
+}
+
+async function getGenAIClient() {
+  if (!genAI && GEMINI_API_KEY) {
+    const { GoogleGenerativeAI } = await import("@google/generative-ai");
+    genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+  }
+  return genAI;
+}
 
 // Circuit breakers for AI services
 const geminiCircuitBreaker = new CircuitBreaker(5, 60000, 2);
@@ -58,9 +82,231 @@ const ALLOWED_MODELS = [
   "gemini-1.5-pro",
 ];
 
+const TIER_MODEL_ALLOWLIST: Record<SubscriptionTier, string[]> = {
+  basic: ["gemini-1.5-flash", "google/flan-t5-base", "distilgpt2"],
+  premium: [
+    "gemini-1.5-flash",
+    "google/flan-t5-base",
+    "mistralai/Mistral-7B-Instruct-v0.3",
+    "gpt2-medium",
+    "distilgpt2",
+  ],
+  enterprise: ALLOWED_MODELS,
+};
+
+const TIER_USAGE_LIMITS: Record<
+  SubscriptionTier,
+  Record<UsageWindow, RateLimitConfig>
+> = {
+  basic: {
+    hour: {
+      windowMs: 60 * 60 * 1000,
+      maxRequests: 2,
+      keyPrefix: "ai_resume_basic_hour",
+    },
+    day: {
+      windowMs: 24 * 60 * 60 * 1000,
+      maxRequests: 5,
+      keyPrefix: "ai_resume_basic_day",
+    },
+  },
+  premium: {
+    hour: {
+      windowMs: 60 * 60 * 1000,
+      maxRequests: 10,
+      keyPrefix: "ai_resume_premium_hour",
+    },
+    day: {
+      windowMs: 24 * 60 * 60 * 1000,
+      maxRequests: 40,
+      keyPrefix: "ai_resume_premium_day",
+    },
+  },
+  enterprise: {
+    hour: {
+      windowMs: 60 * 60 * 1000,
+      maxRequests: 30,
+      keyPrefix: "ai_resume_enterprise_hour",
+    },
+    day: {
+      windowMs: 24 * 60 * 60 * 1000,
+      maxRequests: 200,
+      keyPrefix: "ai_resume_enterprise_day",
+    },
+  },
+};
+
+async function resolveSubscriptionTier(
+  userId: string
+): Promise<SubscriptionTier> {
+  try {
+    const snapshot = await db.collection("users").doc(userId).get();
+    const tier = snapshot.data()?.subscriptionTier;
+    if (tier && TIER_MODEL_ALLOWLIST[tier as SubscriptionTier]) {
+      return tier as SubscriptionTier;
+    }
+  } catch (error) {
+    functions.logger.error("Failed to resolve subscription tier", {
+      userId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+  return "basic";
+}
+
+function isModelAllowedForTier(
+  modelId: string,
+  tier: SubscriptionTier
+): boolean {
+  const normalized = modelId || "gemini-1.5-flash";
+  const allowlist = TIER_MODEL_ALLOWLIST[tier] || [];
+  return allowlist.includes(normalized);
+}
+
+async function enforceTierUsage(
+  userId: string,
+  tier: SubscriptionTier
+): Promise<{ allowed: boolean; window?: UsageWindow; retryAfter?: number }> {
+  const limits = TIER_USAGE_LIMITS[tier];
+  for (const window of Object.keys(limits) as UsageWindow[]) {
+    const result = await checkRateLimit(userId, limits[window]);
+    if (!result.allowed) {
+      return { allowed: false, window, retryAfter: result.retryAfter };
+    }
+  }
+  return { allowed: true };
+}
+
+function describeAllowedModels(tier: SubscriptionTier) {
+  return TIER_MODEL_ALLOWLIST[tier].join(", ");
+}
+
 /**
  * Generate AI-powered resume content
  */
+const generateResumeContentHandler = async (
+  req: functions.https.Request,
+  res: functions.Response
+) => {
+  corsHandler(req, res, async () => {
+    helmetHandler(req, res, async () => {
+      if (req.method !== "POST") {
+        res.status(405).json({ error: "Method not allowed" });
+        return;
+      }
+
+      try {
+        const {
+          userId,
+          resumeData,
+          template = "modern",
+          tone = "professional",
+          modelId = "gemini-1.5-flash",
+        } = req.body as GenerateResumeRequest;
+
+        const normalizedModelId = modelId || "gemini-1.5-flash";
+
+        if (!userId || !resumeData) {
+          res.status(400).json({
+            error: "Missing required fields: userId and resumeData",
+          });
+          return;
+        }
+
+        // Validate model selection
+        if (
+          normalizedModelId &&
+          !ALLOWED_MODELS.includes(normalizedModelId)
+        ) {
+          res.status(400).json({
+            error: `Invalid model: ${normalizedModelId}. Allowed models: ${ALLOWED_MODELS.join(
+              ", "
+            )}`,
+          });
+          return;
+        }
+
+        // Verify user authentication
+        const authHeader = req.headers.authorization;
+        if (!authHeader?.startsWith("Bearer ")) {
+          res.status(401).json({ error: "Unauthorized" });
+          return;
+        }
+
+        const idToken = authHeader.split("Bearer ")[1];
+        let decodedToken;
+        try {
+          decodedToken = await admin.auth().verifyIdToken(idToken);
+        } catch {
+          res.status(401).json({ error: "Invalid token" });
+          return;
+        }
+
+        if (decodedToken.uid !== userId) {
+          res.status(403).json({ error: "Forbidden" });
+          return;
+        }
+
+        const subscriptionTier = await resolveSubscriptionTier(userId);
+
+        if (!isModelAllowedForTier(normalizedModelId, subscriptionTier)) {
+          res.status(403).json({
+            error: `Model ${normalizedModelId} is not available on the ${subscriptionTier} plan. Allowed models: ${describeAllowedModels(
+              subscriptionTier
+            )}`,
+          });
+          return;
+        }
+
+        const usageResult = await enforceTierUsage(userId, subscriptionTier);
+        if (!usageResult.allowed) {
+          res.status(429).json({
+            error:
+              usageResult.window === "hour"
+                ? "Hourly AI generation limit reached. Please wait before trying again."
+                : "Daily AI generation limit reached. Upgrade your plan for higher limits.",
+            retryAfter: usageResult.retryAfter,
+            tier: subscriptionTier,
+          });
+          return;
+        }
+
+        // Generate enhanced resume content using AI
+        const enhancedContent = await enhanceResumeWithAI(
+          resumeData,
+          tone,
+          normalizedModelId,
+          userId,
+          subscriptionTier
+        );
+
+        // Store the generated content
+        await db.collection("users").doc(userId).collection("resumes").add({
+          originalData: resumeData,
+          enhancedContent,
+          template,
+          tone,
+          generatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          version: "ai-enhanced-v1",
+        });
+
+        res.status(200).json({
+          success: true,
+          data: enhancedContent,
+        });
+      } catch (error) {
+        console.error("Error generating resume content:", error);
+        res.status(500).json({
+          error: "Failed to generate resume content",
+          details: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
+    });
+  });
+};
+
+export { generateResumeContentHandler };
+
 export const generateResumeContent = functions
   .runWith({
     secrets: [
@@ -68,95 +314,12 @@ export const generateResumeContent = functions
       "GEMINI_API_KEY",
       "GROQ_API_KEY",
       "OPENAI_API_KEY",
+      "XAI_API_KEY",
     ],
   })
-  .https.onRequest(async (req, res) => {
-    corsHandler(req, res, async () => {
-      helmetHandler(req, res, async () => {
-        if (req.method !== "POST") {
-          res.status(405).json({ error: "Method not allowed" });
-          return;
-        }
+  .https.onRequest(generateResumeContentHandler);
 
-        try {
-          const {
-            userId,
-            resumeData,
-            template = "modern",
-            tone = "professional",
-            modelId = "gemini-1.5-flash",
-          } = req.body as GenerateResumeRequest;
-
-          if (!userId || !resumeData) {
-            res.status(400).json({
-              error: "Missing required fields: userId and resumeData",
-            });
-            return;
-          }
-
-          // Validate model selection
-          if (modelId && !ALLOWED_MODELS.includes(modelId)) {
-            res.status(400).json({
-              error: `Invalid model: ${modelId}. Allowed models: ${ALLOWED_MODELS.join(
-                ", "
-              )}`,
-            });
-            return;
-          }
-
-          // Verify user authentication
-          const authHeader = req.headers.authorization;
-          if (!authHeader?.startsWith("Bearer ")) {
-            res.status(401).json({ error: "Unauthorized" });
-            return;
-          }
-
-          const idToken = authHeader.split("Bearer ")[1];
-          let decodedToken;
-          try {
-            decodedToken = await admin.auth().verifyIdToken(idToken);
-          } catch {
-            res.status(401).json({ error: "Invalid token" });
-            return;
-          }
-
-          if (decodedToken.uid !== userId) {
-            res.status(403).json({ error: "Forbidden" });
-            return;
-          }
-
-          // Generate enhanced resume content using AI
-          const enhancedContent = await enhanceResumeWithAI(
-            resumeData,
-            tone,
-            modelId
-          );
-
-          // Store the generated content
-          const db = admin.firestore();
-          await db.collection("users").doc(userId).collection("resumes").add({
-            originalData: resumeData,
-            enhancedContent,
-            template,
-            tone,
-            generatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            version: "ai-enhanced-v1",
-          });
-
-          res.status(200).json({
-            success: true,
-            data: enhancedContent,
-          });
-        } catch (error) {
-          console.error("Error generating resume content:", error);
-          res.status(500).json({
-            error: "Failed to generate resume content",
-            details: error instanceof Error ? error.message : "Unknown error",
-          });
-        }
-      });
-    });
-  });
+import { runAgenticWorkflow } from "./agentOrchestrator";
 
 /**
  * Enhance resume with AI suggestions
@@ -164,7 +327,9 @@ export const generateResumeContent = functions
 export async function enhanceResumeWithAI(
   resumeData: ResumeData,
   tone: string,
-  modelId: string
+  modelId: string,
+  userId?: string,
+  userTier?: string
 ): Promise<EnhancedResumeContent> {
   const startTime = Date.now();
   console.log("🤖 AI ENHANCEMENT STARTING", {
@@ -176,75 +341,151 @@ export async function enhanceResumeWithAI(
   try {
     const prompt = createResumeEnhancementPrompt(resumeData, tone);
     const isGemini = modelId.startsWith("gemini-");
-    const useGemini = isGemini && genAI;
+    const useGemini = isGemini && GEMINI_API_KEY;
     const useHuggingFace = !isGemini && HUGGINGFACE_TOKEN;
     const randomProvider = Math.random() < 0.5 ? "gemini" : "huggingface";
+
+    // Helper to execute AI calls (passed to orchestrator)
+    const aiExecutor = async (promptText: string, specificModel: string): Promise<string> => {
+      const isGeminiExec = specificModel.startsWith("gemini-");
+
+      if (isGeminiExec && GEMINI_API_KEY) {
+        const client = await getGenAIClient();
+        if (!client) throw new Error("Gemini client initialization failed");
+
+        return resilientCall(
+          async () => {
+            const model = client.getGenerativeModel({ model: specificModel });
+            const result = await model.generateContent(promptText);
+            const response = await result.response;
+            return response.text();
+          },
+          {
+            retryOptions: aiRetryOptions,
+            circuitBreaker: geminiCircuitBreaker,
+            timeoutMs: 30000,
+            operationName: "gemini-api-call-agentic",
+          }
+        );
+      } else if (HUGGINGFACE_TOKEN) {
+        const client = await getHfClient();
+        return resilientCall(
+          async () => {
+            const apiResult: any = await client.textGeneration({
+              model: specificModel,
+              inputs: promptText,
+              parameters: {
+                max_new_tokens: 300,
+                temperature: 0.7,
+                do_sample: true,
+                top_p: 0.9,
+              },
+            });
+            return apiResult.generated_text || "";
+          },
+          {
+            retryOptions: aiRetryOptions,
+            circuitBreaker: huggingFaceCircuitBreaker,
+            timeoutMs: 30000,
+            operationName: "hf-api-call-agentic"
+          }
+        );
+      }
+      throw new Error(`No provider for model ${specificModel}`);
+    };
 
     let enhancedText = "";
     let actualProvider = "";
 
-    if (useGemini || (randomProvider === "gemini" && genAI)) {
-      actualProvider = "Google Gemini";
-      const actualModel = modelId || "gemini-1.5-flash";
-      console.log(`✨ Using ${actualProvider}: ${actualModel}`);
-      console.log("📡 Calling Gemini API...");
-
-      enhancedText = await resilientCall(
-        async () => {
-          const model = genAI!.getGenerativeModel({
-            model: actualModel,
-          });
-          const result = await model.generateContent(prompt);
-          const response = await result.response;
-          return response.text();
-        },
+    // 1. Try Agentic Workflow first if user details provided
+    if (userId && userTier) {
+      const agenticResult = await runAgenticWorkflow(
+        userId,
+        userTier,
         {
-          retryOptions: aiRetryOptions,
-          circuitBreaker: geminiCircuitBreaker,
-          timeoutMs: 30000,
-          operationName: "gemini-api-call",
-        }
+          userResume: JSON.stringify(resumeData),
+          instructions: `Tone: ${tone}`,
+        },
+        aiExecutor
       );
 
-      console.log("✅ Gemini API Response Received", {
-        responseLength: enhancedText.length,
-        duration: `${Date.now() - startTime}ms`,
-      });
-    } else if (useHuggingFace || HUGGINGFACE_TOKEN) {
-      actualProvider = "Hugging Face";
-      const actualModel = modelId || "mistralai/Mistral-7B-Instruct-v0.3";
-      console.log(`✨ Using ${actualProvider}: ${actualModel}`);
-      console.log("📡 Calling Hugging Face API...");
+      if (agenticResult) {
+        enhancedText = agenticResult;
+        console.log("🚀 Agentic Workflow Execution Successful");
+        actualProvider = "Agentic Workflow";
+      }
+    }
 
-      const isMistral = actualModel === "mistralai/Mistral-7B-Instruct-v0.3";
-      const response = await resilientCall(
-        async () => {
-          return hf.textGeneration({
-            model: actualModel,
-            inputs: prompt,
-            parameters: {
-              max_new_tokens: isMistral ? 500 : 300,
-              temperature: isMistral ? 0.6 : 0.7,
-              do_sample: true,
-              top_p: 0.9,
-            },
-          });
-        },
-        {
-          retryOptions: aiRetryOptions,
-          circuitBreaker: huggingFaceCircuitBreaker,
-          timeoutMs: 30000,
-          operationName: "huggingface-api-call",
-        }
-      );
-      enhancedText = response.generated_text || "";
+    // 2. If Agentic didn't run or returned null (fallback), use Standard Flow
+    if (!enhancedText) {
+      if (useGemini || (randomProvider === "gemini" && GEMINI_API_KEY)) {
+        actualProvider = "Google Gemini";
+        const actualModel = modelId || "gemini-1.5-flash";
+        console.log(`✨ Using ${actualProvider}: ${actualModel}`);
+        console.log("📡 Calling Gemini API...");
 
-      console.log("✅ Hugging Face API Response Received", {
-        responseLength: enhancedText.length,
-        duration: `${Date.now() - startTime}ms`,
-      });
-    } else {
-      throw new Error("No AI provider available");
+        const client = await getGenAIClient();
+        if (!client) throw new Error("Gemini client initialization failed");
+
+        enhancedText = await resilientCall(
+          async () => {
+            const model = client.getGenerativeModel({
+              model: actualModel,
+            });
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            return response.text();
+          },
+          {
+            retryOptions: aiRetryOptions,
+            circuitBreaker: geminiCircuitBreaker,
+            timeoutMs: 30000,
+            operationName: "gemini-api-call",
+          }
+        );
+
+        console.log("✅ Gemini API Response Received", {
+          responseLength: enhancedText.length,
+          duration: `${Date.now() - startTime}ms`,
+        });
+      } else if (useHuggingFace || HUGGINGFACE_TOKEN) {
+        actualProvider = "Hugging Face";
+        const actualModel = modelId || "mistralai/Mistral-7B-Instruct-v0.3";
+        console.log(`✨ Using ${actualProvider}: ${actualModel}`);
+        console.log("📡 Calling Hugging Face API...");
+
+        const isMistral = actualModel === "mistralai/Mistral-7B-Instruct-v0.3";
+        const client = await getHfClient();
+
+        const response = await resilientCall(
+          async () => {
+            return client.textGeneration({
+              model: actualModel,
+              inputs: prompt,
+              parameters: {
+                max_new_tokens: isMistral ? 500 : 300,
+                temperature: isMistral ? 0.6 : 0.7,
+                do_sample: true,
+                top_p: 0.9,
+              },
+            });
+          },
+          {
+            retryOptions: aiRetryOptions,
+            circuitBreaker: huggingFaceCircuitBreaker,
+            timeoutMs: 30000,
+            operationName: "huggingface-api-call",
+          }
+        );
+        enhancedText = response.generated_text || "";
+
+        console.log("✅ Hugging Face API Response Received", {
+          responseLength: enhancedText.length,
+          duration: `${Date.now() - startTime}ms`,
+        });
+      } else {
+        throw new Error("No AI provider available");
+      }
     }
 
     console.log("🎯 AI Enhancement Complete", {
@@ -298,8 +539,8 @@ Current Summary: ${resumeData.summary}
 
 Experience:
 ${resumeData.experience
-  .map((exp) => `- ${exp.title} at ${exp.company}: ${exp.description}`)
-  .join("\n")}
+      .map((exp) => `- ${exp.title} at ${exp.company}: ${exp.description}`)
+      .join("\n")}
 
 Skills: ${resumeData.skills.join(", ")}
 

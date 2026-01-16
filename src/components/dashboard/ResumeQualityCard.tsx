@@ -39,30 +39,41 @@ export function ResumeQualityCard({ hasResume }: ResumeQualityCardProps) {
       return;
     }
 
+    const abortController = new AbortController();
+
     const fetchMetrics = async () => {
       try {
         const response = await fetch(
-          `/api/jobseeker/metrics?userId=${user?.uid}`
+          `/api/jobseeker/metrics?userId=${user?.uid}`,
+          { signal: abortController.signal }
         );
+        if (abortController.signal.aborted) return;
         if (response.ok) {
           const data = await response.json();
           setMetrics({ quality: data.quality || 0 });
         }
       } catch (error) {
+        if (abortController.signal.aborted) return;
         logger.error({ err: error }, "Failed to fetch resume quality:");
       } finally {
-        setLoading(false);
+        if (!abortController.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchMetrics();
+
+    return () => {
+      abortController.abort();
+    };
   }, [user, usingContext]);
 
   return (
-    <div className="backdrop-blur-xl rounded-3xl border border-white/20 bg-white/10 p-6 shadow-lg shadow-slate-950/40 transition hover:border-cyan-500/40">
+    <div className="glass-panel rounded-3xl p-6 transition hover:shadow-lg hover:shadow-[black]/10 hover:border-white">
       <div className="flex items-center">
         <div className="flex-shrink-0">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-slate-700 bg-slate-950 text-white">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-emerald-100 bg-emerald-50 text-emerald-600">
             <svg
               className="h-6 w-6"
               fill="none"
@@ -80,34 +91,34 @@ export function ResumeQualityCard({ hasResume }: ResumeQualityCardProps) {
         </div>
         <div className="ml-5 w-0 flex-1">
           <dl>
-            <dt className="text-sm font-medium text-slate-400 truncate">
+            <dt className="text-sm font-bold text-[black]/60 truncate">
               Resume Quality
             </dt>
-            <dd className="text-2xl font-bold text-white">
+            <dd className="text-2xl font-bold text-[black]">
               {loading ? "-" : `${qualityValue}%`}
             </dd>
           </dl>
         </div>
       </div>
       <div className="mt-4">
-        <div className="h-2 w-full rounded-full bg-slate-800">
+        <div className="h-2 w-full rounded-full bg-[black]/10">
           <div
-            className="h-2 rounded-full bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-600 transition-all duration-500"
+            className="h-2 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500 transition-all duration-500"
             style={{ width: loadingState ? "0%" : `${qualityValue}%` }}
           ></div>
         </div>
-        <p className="mt-2 text-sm text-slate-300">
+        <p className="mt-2 text-sm text-[black]/60">
           {loadingState
             ? "Loading..."
             : resumePrompt
-            ? "Create a resume to see quality insights"
-            : qualityValue === 0
-            ? "Generate your first analysis to view quality"
-            : qualityValue >= 80
-            ? "Well optimized resume"
-            : qualityValue >= 60
-            ? "Good resume quality"
-            : "Resume needs improvement"}
+              ? "Create a resume to see quality insights"
+              : qualityValue === 0
+                ? "Generate your first analysis to view quality"
+                : qualityValue >= 80
+                  ? "Well optimized resume"
+                  : qualityValue >= 60
+                    ? "Good resume quality"
+                    : "Resume needs improvement"}
         </p>
       </div>
     </div>

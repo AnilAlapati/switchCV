@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactElement } from "react";
+
 /**
  * Search Header Component for RecruiterSearchBox
  * Displays the workspace title, status indicator, and search readiness
@@ -15,32 +17,32 @@ export function SearchStatusIndicator({
   loading,
   aiSearching,
   searched,
-}: SearchStatusIndicatorProps) {
+}: SearchStatusIndicatorProps): ReactElement {
   const isSearching = loading || aiSearching;
   const statusColor = isSearching
-    ? "animate-pulse bg-amber-400 shadow-lg shadow-amber-400/50"
+    ? "animate-pulse bg-yellow-400"
     : searched
-    ? "bg-emerald-400 shadow-lg shadow-emerald-400/50"
-    : "bg-slate-500";
+      ? "bg-black"
+      : "bg-gray-400";
 
   const statusText = isSearching
     ? aiSearching
-      ? "AI Searching"
+      ? "Agent Searching"
       : "Searching"
     : searched
-    ? "Live Results"
-    : "Ready";
+      ? "Live Results"
+      : "Ready";
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <div className="flex items-center gap-2 rounded-full border border-white/10 bg-slate-950/60 px-4 py-2 backdrop-blur-sm">
-        <span className={`h-2.5 w-2.5 rounded-full ${statusColor}`}></span>
-        <span className="text-xs font-semibold text-slate-300">
+      <div className="flex items-center gap-2 border-2 border-black bg-white px-4 py-2">
+        <span className={`h-2.5 w-2.5 ${statusColor}`}></span>
+        <span className="text-xs font-mono font-bold text-black uppercase tracking-widest">
           {statusText}
         </span>
       </div>
       {searched && (
-        <span className="hidden text-xs text-slate-500 lg:inline">
+        <span className="hidden text-xs text-gray-500 font-sans lg:inline">
           Updated just now
         </span>
       )}
@@ -58,24 +60,21 @@ export function RecruiterSearchHeader({
   loading,
   aiSearching,
   searched,
-}: RecruiterSearchHeaderProps) {
+}: RecruiterSearchHeaderProps): ReactElement {
   return (
     <header className="space-y-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-3">
-          <div className="inline-flex items-center gap-2.5 rounded-full border border-cyan-400/40 bg-gradient-to-r from-cyan-500/15 to-blue-500/15 px-4 py-1.5 backdrop-blur-sm">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-cyan-400 shadow-lg shadow-cyan-400/50" />
-            <span className="text-xs font-bold uppercase tracking-wider text-cyan-100">
-              Recruiter Workspace
-            </span>
+          <div className="flex items-center gap-2 text-[10px] font-mono font-bold uppercase tracking-widest text-gray-500">
+            <span className="h-1 w-1 bg-black" />
+            Recruiter Workspace
           </div>
           <div>
-            <h2 className="bg-gradient-to-r from-white via-slate-100 to-slate-300 bg-clip-text text-3xl font-black text-transparent lg:text-4xl">
-              Resume Search
+            <h2 className="text-3xl font-serif font-bold text-black lg:text-4xl">
+              Talent <span className="text-blue-600">Discovery Agent</span>
             </h2>
-            <p className="mt-2 text-sm leading-relaxed text-slate-400 lg:text-base">
-              Discover talent instantly with advanced filters and real-time
-              insights
+            <p className="mt-2 text-sm leading-relaxed text-gray-600 font-sans lg:text-base">
+              Deploying autonomous intelligence to uncover your next hire.
             </p>
           </div>
         </div>
@@ -89,12 +88,12 @@ export function RecruiterSearchHeader({
   );
 }
 
-export function RecruiterSearchLoadingState() {
+export function RecruiterSearchLoadingState(): ReactElement {
   return (
     <section className="space-y-6">
-      <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900/90 via-slate-900/80 to-slate-950/90 p-6 shadow-2xl shadow-cyan-500/10 backdrop-blur-sm ring-1 ring-white/5 lg:p-8">
+      <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-6 lg:p-8">
         <div className="flex items-center justify-center py-12">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-cyan-400 border-t-transparent" />
+          <div className="h-8 w-8 animate-spin border-4 border-black border-t-transparent" />
         </div>
       </div>
     </section>

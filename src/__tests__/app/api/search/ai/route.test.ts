@@ -9,7 +9,6 @@ import {
   handleApiError,
 } from "@/lib/utils/api-helpers";
 import { aiSearchRateLimiter } from "@/lib/utils/distributedRateLimit";
-import { httpsCallable } from "firebase/functions";
 
 // Mock dependencies
 jest.mock("@/lib/utils/api-helpers", () => ({
@@ -28,17 +27,6 @@ jest.mock("@/lib/logger", () => ({
   },
 }));
 
-jest.mock("firebase/app", () => ({
-  getApp: jest.fn(),
-}));
-
-jest.mock("firebase/functions", () => ({
-  getFunctions: jest.fn(),
-  httpsCallable: jest.fn(),
-}));
-
-jest.mock("@/lib/firebase", () => ({}));
-
 // Cast mocks
 const mockGetAuthenticatedUserId =
   getAuthenticatedUserId as jest.MockedFunction<typeof getAuthenticatedUserId>;
@@ -48,9 +36,9 @@ const mockHandleApiError = handleApiError as jest.MockedFunction<
 const mockAiSearchRateLimiter = aiSearchRateLimiter as jest.MockedFunction<
   typeof aiSearchRateLimiter
 >;
-const mockHttpsCallable = httpsCallable as jest.MockedFunction<
-  typeof httpsCallable
->;
+
+// Mock global fetch
+global.fetch = jest.fn();
 
 function createRequest(body: unknown): NextRequest {
   return new NextRequest(new URL("http://localhost:3000/api/search/ai"), {
@@ -63,20 +51,28 @@ function createRequest(body: unknown): NextRequest {
 }
 
 describe("POST /api/search/ai", () => {
+  const originalEnv = process.env;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env = {
+      ...originalEnv,
+      NEXT_PUBLIC_FIREBASE_PROJECT_ID: "test-project",
+    };
 
     // Default successful auth
     mockGetAuthenticatedUserId.mockResolvedValue({
       userId: "test-user-id",
-      error: null,
+      error: undefined,
     });
 
     // Default rate limit allowed
     mockAiSearchRateLimiter.mockResolvedValue({
       allowed: true,
       remaining: 10,
-      reset: Date.now() + 1000,
+      resetIn: 1000,
+      limit: 10,
+      current: 0,
     });
 
     // Default handleApiError implementation
@@ -87,9 +83,13 @@ describe("POST /api/search/ai", () => {
     );
   });
 
+  afterAll(() => {
+    process.env = originalEnv;
+  });
+
   it("should return 401 if authentication fails", async () => {
     mockGetAuthenticatedUserId.mockResolvedValue({
-      userId: null,
+      userId: undefined,
       error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
     });
 
@@ -102,8 +102,8 @@ describe("POST /api/search/ai", () => {
 
   it("should return 401 if userId is missing", async () => {
     mockGetAuthenticatedUserId.mockResolvedValue({
-      userId: null,
-      error: null,
+      userId: undefined,
+      error: undefined,
     });
 
     const request = createRequest({ query: "valid query string" });
@@ -120,8 +120,10 @@ describe("POST /api/search/ai", () => {
   it("should return 429 if rate limit exceeded", async () => {
     mockAiSearchRateLimiter.mockResolvedValue({
       allowed: false,
+      resetIn: 1000,
+      limit: 30,
       remaining: 0,
-      reset: Date.now() + 1000,
+      current: 30,
     });
 
     const request = createRequest({ query: "valid query string" });
@@ -160,25 +162,31 @@ describe("POST /api/search/ai", () => {
   });
 
   it("should call cloud function and return results on success", async () => {
-    const mockCallable = jest.fn().mockResolvedValue({
-      data: {
-        results: [],
-        totalResults: 0,
-        quotaRemaining: 5,
-        quotaLimit: 10,
-      },
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: jest.fn().mockResolvedValue({
+        result: {
+          results: [],
+          totalResults: 0,
+          quotaRemaining: 5,
+          quotaLimit: 10,
+        },
+      }),
     });
-    mockHttpsCallable.mockReturnValue(mockCallable);
 
     const request = createRequest({ query: "experienced software engineer" });
     const response = await POST(request);
     const data = await response.json();
 
-    expect(mockHttpsCallable).toHaveBeenCalled();
-    expect(mockCallable).toHaveBeenCalledWith({
-      query: "experienced software engineer",
-      limit: 10,
-    });
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://us-central1-test-project.cloudfunctions.net/searchResumesAI",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          data: { query: "experienced software engineer", limit: 10 },
+        }),
+      })
+    );
     expect(response.status).toBe(200);
     expect(data).toEqual({
       results: [],
@@ -189,11 +197,13 @@ describe("POST /api/search/ai", () => {
   });
 
   it("should handle permission-denied error (quota exceeded)", async () => {
-    const mockCallable = jest.fn().mockRejectedValue({
-      code: "functions/permission-denied",
-      message: "QUOTA_EXCEEDED",
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      status: 403,
+      json: jest.fn().mockResolvedValue({
+        error: { message: "QUOTA_EXCEEDED" },
+      }),
     });
-    mockHttpsCallable.mockReturnValue(mockCallable);
 
     const request = createRequest({ query: "experienced software engineer" });
     const response = await POST(request);
@@ -201,17 +211,19 @@ describe("POST /api/search/ai", () => {
     expect(response.status).toBe(403);
     expect(mockHandleApiError).toHaveBeenCalledWith(
       expect.any(Error),
-      expect.stringContaining("QUOTA_EXCEEDED"),
+      "Search quota exceeded",
       403
     );
   });
 
   it("should handle permission-denied error (tier not allowed)", async () => {
-    const mockCallable = jest.fn().mockRejectedValue({
-      code: "functions/permission-denied",
-      message: "Tier not allowed",
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      status: 403,
+      json: jest.fn().mockResolvedValue({
+        error: { message: "Tier not allowed" },
+      }),
     });
-    mockHttpsCallable.mockReturnValue(mockCallable);
 
     const request = createRequest({ query: "experienced software engineer" });
     const response = await POST(request);
@@ -219,16 +231,19 @@ describe("POST /api/search/ai", () => {
     expect(response.status).toBe(403);
     expect(mockHandleApiError).toHaveBeenCalledWith(
       expect.any(Error),
-      expect.stringContaining("Tier not allowed"),
+      "AI search not available for your subscription tier",
       403
     );
   });
 
   it("should handle unauthenticated error", async () => {
-    const mockCallable = jest.fn().mockRejectedValue({
-      code: "functions/unauthenticated",
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: jest.fn().mockResolvedValue({
+        error: { message: "Unauthenticated" },
+      }),
     });
-    mockHttpsCallable.mockReturnValue(mockCallable);
 
     const request = createRequest({ query: "experienced software engineer" });
     const response = await POST(request);
@@ -242,11 +257,13 @@ describe("POST /api/search/ai", () => {
   });
 
   it("should handle invalid-argument error", async () => {
-    const mockCallable = jest.fn().mockRejectedValue({
-      code: "functions/invalid-argument",
-      message: "Invalid arguments",
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: jest.fn().mockResolvedValue({
+        error: { message: "Invalid arguments" },
+      }),
     });
-    mockHttpsCallable.mockReturnValue(mockCallable);
 
     const request = createRequest({ query: "experienced software engineer" });
     const response = await POST(request);
@@ -254,16 +271,13 @@ describe("POST /api/search/ai", () => {
     expect(response.status).toBe(400);
     expect(mockHandleApiError).toHaveBeenCalledWith(
       expect.any(Error),
-      "Invalid arguments",
+      "Invalid search request",
       400
     );
   });
 
   it("should handle generic errors", async () => {
-    const mockCallable = jest
-      .fn()
-      .mockRejectedValue(new Error("Unknown error"));
-    mockHttpsCallable.mockReturnValue(mockCallable);
+    (global.fetch as jest.Mock).mockRejectedValue(new Error("Network error"));
 
     const request = createRequest({ query: "experienced software engineer" });
     const response = await POST(request);

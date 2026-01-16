@@ -1,24 +1,31 @@
 "use client";
 
-import { logger } from "@/lib/logger";
-// src/app/profile/page.tsx
-
-import { useState } from "react";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useJobSeekerProfile } from "@/hooks/useJobSeekerProfile";
+import { ProfileEditorSkeleton } from "@/components/profile/ProfileEditorSkeleton";
 import { ResumeProfile } from "@/types";
+import { logger } from "@/lib/logger";
 
 export default function ProfileEditor() {
   const { user } = useAuth();
+  const { profile: serverProfile, loading, mutate } = useJobSeekerProfile();
+
   const [profile, setProfile] = useState<Partial<ResumeProfile>>({
     contact: {
       email: { value: "", visibility: "public" },
       phone: { value: "", visibility: "public" },
     },
   });
+
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (serverProfile) {
+      setProfile(serverProfile);
+    }
+  }, [serverProfile]);
 
   const updateProfile = (updates: Partial<ResumeProfile>) => {
     setProfile((prev) => ({ ...prev, ...updates }));
@@ -34,27 +41,37 @@ export default function ProfileEditor() {
     setSaveMessage(null);
 
     try {
-      // Save to Firestore
-      const profileRef = doc(db, "profiles", user.uid);
-      await setDoc(
-        profileRef,
-        {
-          ...profile,
-          userId: user.uid,
-          updatedAt: serverTimestamp(),
+      const response = await fetch("/api/jobseeker/profile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-        { merge: true }
-      );
+        body: JSON.stringify(profile),
+      });
 
-      logger.info({ userId: user.uid }, "Profile saved to Firestore");
+      if (!response.ok) {
+        throw new Error("Failed to save profile");
+      }
+
+      // Optimistic update: Update SWR cache immediately with current local state
+      // Disable revalidation to prevent fetching stale data from the 60s cache
+      await mutate(profile, { revalidate: false });
+
+      logger.info({ userId: user.uid }, "Profile saved successfully");
       setSaveMessage("Profile saved successfully!");
     } catch (error) {
       logger.error({ err: error, userId: user?.uid }, "Failed to save profile");
       setSaveMessage("Failed to save profile. Please try again.");
+      // Revalidate on error to ensure sync
+      await mutate();
     } finally {
       setSaving(false);
     }
   };
+
+  if (loading && !serverProfile) {
+    return <ProfileEditorSkeleton />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -135,11 +152,10 @@ export default function ProfileEditor() {
           <div className="flex justify-end items-center gap-4">
             {saveMessage && (
               <span
-                className={`text-sm ${
-                  saveMessage.includes("success")
-                    ? "text-green-600"
-                    : "text-red-600"
-                }`}
+                className={`text-sm ${saveMessage.includes("success")
+                  ? "text-green-600"
+                  : "text-red-600"
+                  }`}
               >
                 {saveMessage}
               </span>

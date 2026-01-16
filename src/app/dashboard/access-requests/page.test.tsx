@@ -38,35 +38,42 @@ jest.mock("@/context/DashboardMetricsContext", () => ({
   useOptionalDashboardMetricsContext: () => null,
 }));
 
-// Mock fetch
-const mockFetch = jest.fn();
-global.fetch = mockFetch;
+// Mock useAccessRequests hook
+const mockMutate = jest.fn();
+jest.mock("@/hooks/useAccessRequests", () => ({
+  useAccessRequests: jest.fn(),
+}));
+
+import { useAccessRequests } from "@/hooks/useAccessRequests";
 
 describe("AccessRequestsPage", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockFetch.mockReset();
   });
 
   it("renders loading state initially", () => {
-    mockFetch.mockImplementation(() => new Promise(() => {})); // Never resolves
+    (useAccessRequests as jest.Mock).mockReturnValue({
+      requests: [],
+      loading: true,
+      error: null,
+      mutate: mockMutate,
+    });
     render(<AccessRequestsPage />);
 
     expect(screen.getByText(/loading requests/i)).toBeInTheDocument();
   });
 
   it("renders empty state when no requests", async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ requests: [] }),
+    (useAccessRequests as jest.Mock).mockReturnValue({
+      requests: [],
+      loading: false,
+      error: null,
+      mutate: mockMutate,
     });
 
     render(<AccessRequestsPage />);
 
-    await waitFor(() => {
-      expect(screen.queryByText(/loading requests/i)).not.toBeInTheDocument();
-    });
-
+    expect(screen.queryByText(/loading requests/i)).not.toBeInTheDocument();
     expect(screen.getByText(/no pending access requests/i)).toBeInTheDocument();
   });
 
@@ -77,6 +84,7 @@ describe("AccessRequestsPage", () => {
         fromUserName: "Jane Recruiter",
         fromUserEmail: "jane@company.com",
         resumeTitle: "Software Engineer Resume",
+        resumeId: "res-1",
         status: "pending",
         requestedFields: ["email", "phone"],
         timestamp: new Date().toISOString(),
@@ -85,72 +93,42 @@ describe("AccessRequestsPage", () => {
       },
     ];
 
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ requests: mockRequests }),
+    (useAccessRequests as jest.Mock).mockReturnValue({
+      requests: mockRequests,
+      loading: false,
+      error: null,
+      mutate: mockMutate,
     });
 
     render(<AccessRequestsPage />);
 
-    await waitFor(() => {
-      expect(screen.getByText(/Jane Recruiter/i)).toBeInTheDocument();
-    });
+    expect(screen.getByText(/Jane Recruiter/i)).toBeInTheDocument();
   });
 
   it("handles API error gracefully", async () => {
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 500,
+    (useAccessRequests as jest.Mock).mockReturnValue({
+      requests: [],
+      loading: false,
+      error: "Failed to load requests",
+      mutate: mockMutate,
     });
 
     render(<AccessRequestsPage />);
 
-    await waitFor(() => {
-      expect(screen.getByText(/failed to load requests/i)).toBeInTheDocument();
-    });
-  });
-
-  it("handles fetch exception gracefully", async () => {
-    mockFetch.mockRejectedValue(new Error("Network error"));
-
-    render(<AccessRequestsPage />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/error occurred/i)).toBeInTheDocument();
-    });
-  });
-
-  it("fetches requests with correct authorization header", async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ requests: [] }),
-    });
-
-    render(<AccessRequestsPage />);
-
-    await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining("/api/jobseeker/access-requests"),
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            Authorization: "Bearer mock-token",
-          }),
-        })
-      );
-    });
+    expect(screen.getByText(/failed to load requests/i)).toBeInTheDocument();
   });
 
   it("displays tab navigation", async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ requests: [] }),
+    (useAccessRequests as jest.Mock).mockReturnValue({
+      requests: [],
+      loading: false,
+      error: null,
+      mutate: mockMutate,
     });
 
     render(<AccessRequestsPage />);
 
-    await waitFor(() => {
-      expect(screen.queryByText(/loading requests/i)).not.toBeInTheDocument();
-    });
+    expect(screen.queryByText(/loading requests/i)).not.toBeInTheDocument();
 
     // Tabs are buttons, not role="tab"
     expect(

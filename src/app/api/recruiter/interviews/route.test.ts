@@ -41,19 +41,31 @@ jest.mock("@/lib/firebase-admin", () => {
 
   return {
     adminDb: {
-      collection: jest.fn().mockImplementation(() => ({
-        doc: jest.fn().mockImplementation((id: string) => mockDocRef(id)),
-        where: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockReturnThis(),
-        get: jest.fn().mockResolvedValue({
-          docs: Array.from(mockFirestoreData.entries()).map(([id, data]) => ({
-            id,
-            data: () => data,
-            exists: true,
-          })),
-        }),
-      })),
+      collection: jest.fn().mockImplementation((collectionName: string) => {
+        if (collectionName === "users") {
+          return {
+            doc: jest.fn().mockImplementation((userId: string) => ({
+              get: jest.fn().mockResolvedValue({
+                exists: true,
+                data: () => ({ role: "recruiter" }),
+              }),
+            })),
+          };
+        }
+        return {
+          doc: jest.fn().mockImplementation((id: string) => mockDocRef(id)),
+          where: jest.fn().mockReturnThis(),
+          orderBy: jest.fn().mockReturnThis(),
+          limit: jest.fn().mockReturnThis(),
+          get: jest.fn().mockResolvedValue({
+            docs: Array.from(mockFirestoreData.entries()).map(([id, data]) => ({
+              id,
+              data: () => data,
+              exists: true,
+            })),
+          }),
+        };
+      }),
     },
     _mockData: mockFirestoreData,
   };
@@ -61,6 +73,25 @@ jest.mock("@/lib/firebase-admin", () => {
 
 // Get reference to the mock data
 const { _mockData: mockFirestoreData } = require("@/lib/firebase-admin");
+
+// Mock api-helpers
+jest.mock("@/lib/utils/api-helpers", () => ({
+  getAuthenticatedUserId: jest
+    .fn()
+    .mockResolvedValue({ userId: "test-user-id", error: null }),
+  handleApiError: jest.fn((error, message, status = 500) => {
+    const response = {
+      status,
+      json: async () => ({
+        error: message,
+        details: error?.message || message,
+      }),
+    };
+    return response;
+  }),
+  verifyRecruiterRole: jest.fn().mockResolvedValue(null),
+  verifyAdminRole: jest.fn().mockResolvedValue(null),
+}));
 
 // Mock the recruiterPipeline functions
 jest.mock("@/lib/recruiterPipeline", () => ({
@@ -114,6 +145,7 @@ describe("POST /api/recruiter/interviews", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/interviews",
         {
+headers: { "authorization": "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "schedule",
@@ -166,6 +198,7 @@ describe("POST /api/recruiter/interviews", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/interviews",
         {
+headers: { "authorization": "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "schedule",
@@ -206,6 +239,7 @@ describe("POST /api/recruiter/interviews", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/interviews",
         {
+headers: { "authorization": "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "update-status",
@@ -232,6 +266,7 @@ describe("POST /api/recruiter/interviews", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/interviews",
         {
+headers: { "authorization": "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "update-status",
@@ -287,6 +322,7 @@ describe("POST /api/recruiter/interviews", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/interviews",
         {
+headers: { "authorization": "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "add-feedback",
@@ -333,6 +369,7 @@ describe("POST /api/recruiter/interviews", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/interviews",
         {
+headers: { "authorization": "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "add-feedback",
@@ -376,6 +413,7 @@ describe("POST /api/recruiter/interviews", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/interviews",
         {
+headers: { "authorization": "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "get-upcoming",
@@ -400,6 +438,7 @@ describe("POST /api/recruiter/interviews", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/interviews",
         {
+headers: { "authorization": "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "get-upcoming",
@@ -419,6 +458,7 @@ describe("POST /api/recruiter/interviews", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/interviews",
         {
+headers: { "authorization": "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "invalid-action",
@@ -437,6 +477,7 @@ describe("POST /api/recruiter/interviews", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/interviews",
         {
+headers: { "authorization": "Bearer test-token" },
           method: "POST",
           body: "invalid json",
         }

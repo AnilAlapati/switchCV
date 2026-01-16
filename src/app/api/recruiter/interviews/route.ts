@@ -7,7 +7,9 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
+ 
 import { FieldValue } from "firebase-admin/firestore";
 import {
   Interview,
@@ -16,7 +18,10 @@ import {
   InterviewFeedback,
 } from "@/lib/recruiterDashboard.types";
 import { scheduleInterview } from "@/lib/recruiterPipeline";
-import { handleApiError } from "@/lib/utils/api-helpers";
+import {
+  getAuthenticatedUserId,
+  handleApiError,
+} from "@/lib/utils/api-helpers";
 import { logger } from "@/lib/logger";
 
 interface ScheduleRequest {
@@ -57,6 +62,15 @@ type InterviewRequest =
 const INTERVIEWS_COLLECTION = "recruiterInterviews";
 
 /**
+ * Helper to verify recruiter role
+ */
+async function verifyRecruiterRole(userId: string): Promise<boolean> {
+  const userSnap = await adminDb.collection("users").doc(userId).get();
+  const userData = userSnap.data();
+  return userData?.role === "recruiter" || userData?.role === "admin";
+}
+
+/**
  * Helper to convert Firestore doc to Interview object
  */
 function docToInterview(
@@ -74,7 +88,17 @@ function docToInterview(
 }
 
 export async function POST(request: NextRequest) {
+  const { userId: authUserId, error: authError } = await getAuthenticatedUserId(
+    request
+  );
+  if (authError || !authUserId)
+    return authError || handleApiError(null, "Unauthorized", 401);
+
   try {
+    if (!(await verifyRecruiterRole(authUserId))) {
+      return handleApiError(null, "Forbidden: Recruiter role required", 403);
+    }
+
     const body: InterviewRequest = await request.json();
 
     switch (body.action) {
@@ -258,7 +282,17 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const { userId: authUserId, error: authError } = await getAuthenticatedUserId(
+    request
+  );
+  if (authError || !authUserId)
+    return authError || handleApiError(null, "Unauthorized", 401);
+
   try {
+    if (!(await verifyRecruiterRole(authUserId))) {
+      return handleApiError(null, "Forbidden: Recruiter role required", 403);
+    }
+
     const interviewId = request.nextUrl.searchParams.get("id");
     const candidateId = request.nextUrl.searchParams.get("candidateId");
 

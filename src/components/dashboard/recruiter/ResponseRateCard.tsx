@@ -38,11 +38,15 @@ export function ResponseRateCard() {
       return;
     }
 
+    const abortController = new AbortController();
+
     const fetchMetrics = async () => {
       try {
         const response = await fetch(
-          `/api/recruiter/metrics?userId=${user?.uid}`
+          `/api/recruiter/metrics?userId=${user?.uid}`,
+          { signal: abortController.signal }
         );
+        if (abortController.signal.aborted) return;
         if (response.ok) {
           const data = await response.json();
           const requests = data.accessRequests || {};
@@ -53,13 +57,23 @@ export function ResponseRateCard() {
           });
         }
       } catch (error) {
-        logger.error({ err: error }, "Failed to fetch metrics for response rate:");
+        if (abortController.signal.aborted) return;
+        logger.error(
+          { err: error },
+          "Failed to fetch metrics for response rate:"
+        );
       } finally {
-        setLoading(false);
+        if (!abortController.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchMetrics();
+
+    return () => {
+      abortController.abort();
+    };
   }, [user, usingContext]);
 
   const displayMetrics = usingContext
@@ -74,7 +88,7 @@ export function ResponseRateCard() {
       : 0;
 
   return (
-    <Link href="/dashboard/recruiter/requests">
+    <Link href="/dashboard/recruiter/requests?tab=history">
       <div className="group relative overflow-hidden backdrop-blur-xl rounded-3xl border border-white/20 bg-white/10 p-6 shadow-lg shadow-slate-950/40 transition-all duration-300 hover:border-blue-500/40 hover:bg-white/15 hover:scale-[1.02] cursor-pointer">
         <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-blue-500/10 blur-2xl transition-all group-hover:bg-blue-500/20"></div>
 
@@ -112,8 +126,8 @@ export function ResponseRateCard() {
             {loadingState
               ? "Loading..."
               : totalProcessed === 0
-              ? "No requests processed yet"
-              : `${displayMetrics.approved} approved / ${totalProcessed} total`}
+                ? "No requests processed yet"
+                : `${displayMetrics.approved} approved / ${totalProcessed} total`}
           </p>
           <div className="opacity-0 transform translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
             <svg

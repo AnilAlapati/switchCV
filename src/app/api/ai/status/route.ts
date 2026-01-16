@@ -1,6 +1,7 @@
 import { logger } from "@/lib/logger";
 import { NextResponse } from "next/server";
 import { handleApiError } from "@/lib/utils/api-helpers";
+import { AI_ENDPOINTS } from "@/config/aiEndpoints";
 
 // Model preferences (in order of preference)
 const MODEL_PREFERENCES = [
@@ -20,7 +21,7 @@ const MODEL_PREFERENCES = [
 async function getBestGeminiModel(apiKey: string): Promise<string> {
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`,
+      AI_ENDPOINTS.GEMINI.MODELS(apiKey),
       { next: { revalidate: 3600 } } // Cache for 1 hour
     );
 
@@ -29,12 +30,17 @@ async function getBestGeminiModel(apiKey: string): Promise<string> {
     }
 
     const data = await response.json();
+    interface GeminiModel {
+      name: string;
+      supportedGenerationMethods: string[];
+    }
+
     const availableModels =
-      data.models
-        ?.filter((model: any) =>
+      (data.models as GeminiModel[] | undefined)
+        ?.filter((model) =>
           model.supportedGenerationMethods?.includes("generateContent")
         )
-        .map((model: any) => model.name.replace("models/", "")) || [];
+        .map((model) => model.name.replace("models/", "")) || [];
 
     // Try each preference in order
     for (const preferred of MODEL_PREFERENCES) {
@@ -56,16 +62,25 @@ async function getBestGeminiModel(apiKey: string): Promise<string> {
 
 export async function GET() {
   try {
-    // Check if AI services are configured
+    // Check what AI providers are actually available
     const hasGemini = !!process.env.GEMINI_API_KEY;
+    const hasOpenAI = !!process.env.OPENAI_API_KEY;
     const hasHuggingFace = !!process.env.HUGGINGFACE_TOKEN;
 
+    // Tier-based model selection (matches actual usage in aiProviderService)
+    // Primary is Gemini, fallback to OpenAI
     if (hasGemini) {
       const bestModel = await getBestGeminiModel(process.env.GEMINI_API_KEY!);
       return NextResponse.json({
         connected: true,
         model: bestModel,
         provider: "Google Gemini",
+      });
+    } else if (hasOpenAI) {
+      return NextResponse.json({
+        connected: true,
+        model: "gpt-4o-mini",
+        provider: "OpenAI",
       });
     } else if (hasHuggingFace) {
       return NextResponse.json({

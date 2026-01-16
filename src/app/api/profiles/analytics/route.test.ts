@@ -28,10 +28,44 @@ jest.mock("@/lib/services/analyticsService", () => ({
   trackAnalyticsEvent: jest.fn(),
 }));
 
+// Mock auth helpers
+jest.mock("@/lib/utils/api-helpers", () => ({
+  getAuthenticatedUserId: jest
+    .fn()
+    .mockResolvedValue({ userId: "user-123", error: null }),
+  fetchResumeDocument: jest.fn().mockResolvedValue({
+    data: { userId: "user-123" },
+    docSnap: { exists: true },
+    docRef: {},
+  }),
+  handleApiError: jest.fn((error, message, status = 500) => {
+    const res: any = { error: message };
+    if (error) {
+      res.details = error instanceof Error ? error.message : String(error);
+    }
+    return {
+      status,
+      json: async () => res,
+    };
+  }),
+}));
+
 import {
   getAnalytics,
   trackAnalyticsEvent,
 } from "@/lib/services/analyticsService";
+// eslint-disable-next-line no-restricted-imports
+import { adminDb } from "@/lib/firebase-admin";
+
+jest.mock("@/lib/firebase-admin", () => ({
+  adminDb: {
+    collection: jest.fn().mockReturnThis(),
+    doc: jest.fn().mockReturnThis(),
+    get: jest.fn() as any,
+    set: jest.fn().mockResolvedValue({}),
+    update: jest.fn().mockResolvedValue({}),
+  },
+}));
 
 const mockGetAnalytics = getAnalytics as jest.MockedFunction<
   typeof getAnalytics
@@ -45,12 +79,21 @@ describe("GET /api/profiles/analytics", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockRequest = {
-      nextUrl: {
-        searchParams: new URLSearchParams(),
+    ((adminDb as any).get as jest.Mock).mockResolvedValue({
+      exists: true,
+      data: () => ({ role: "admin" }),
+    });
+    mockRequest = new NextRequest("http://localhost:3000/api/profiles/analytics", {
+      headers: {
+        authorization: "Bearer test-token",
+        "x-user-id": "user-123"
       },
-    } as NextRequest;
+    });
+    // Ensure getAuthenticatedUserId returns user-123 consistently
+    const { getAuthenticatedUserId } = require("@/lib/utils/api-helpers");
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: "user-123", error: null });
   });
+
 
   it("should return analytics data for valid resumeId", async () => {
     const mockAnalyticsData = {
@@ -95,9 +138,12 @@ describe("GET /api/profiles/analytics", () => {
         requestTrendLast7Days: [],
       },
       resumeId: "resume-123",
+      ownerName: "Unknown User",
+      resumeTitle: "Resume #resume-123",
+      recentEvents: [],
     };
 
-    mockGetAnalytics.mockResolvedValue(mockAnalyticsData);
+    mockGetAnalytics.mockResolvedValue(mockAnalyticsData as any);
 
     mockRequest.nextUrl.searchParams.set("resumeId", "resume-123");
 
@@ -128,7 +174,7 @@ describe("GET /api/profiles/analytics", () => {
     const data = await response.json();
 
     expect(response.status).toBe(500);
-    expect(data.error).toBe("Failed to retrieve analytics");
+    expect(data.error).toBe("Failed to retrieve analytics data from service");
     expect(data.details).toBe(errorMessage);
     expect(mockGetAnalytics).toHaveBeenCalledWith("resume-123");
   });
@@ -142,7 +188,7 @@ describe("GET /api/profiles/analytics", () => {
     const data = await response.json();
 
     expect(response.status).toBe(500);
-    expect(data.error).toBe("Failed to retrieve analytics");
+    expect(data.error).toBe("Failed to retrieve analytics data from service");
     expect(data.details).toBe("String error");
   });
 });
@@ -152,13 +198,22 @@ describe("POST /api/profiles/analytics", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockRequest = {} as NextRequest;
+    mockRequest = new NextRequest("http://localhost:3000/api/profiles/analytics", {
+      headers: {
+        authorization: "Bearer test-token",
+        "x-user-id": "user-123"
+      },
+      method: "POST",
+    });
+    // Ensure getAuthenticatedUserId returns user-123 consistently
+    const { getAuthenticatedUserId } = require("@/lib/utils/api-helpers");
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: "user-123", error: null });
   });
 
   it("should successfully track analytics event with valid data", async () => {
     const trackingRequest = {
       resumeId: "resume-123",
-      userId: "user-456",
+      userId: "user-123",
       eventType: "view" as const,
       metadata: {
         viewedBy: "recruiter-789",
@@ -332,7 +387,7 @@ describe("POST /api/profiles/analytics", () => {
   it("should handle complex metadata correctly", async () => {
     const trackingRequest = {
       resumeId: "resume-123",
-      userId: "user-456",
+      userId: "user-123",
       eventType: "view" as const,
       metadata: {
         viewedBy: "recruiter-789",

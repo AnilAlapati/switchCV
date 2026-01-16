@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 /**
  * API Helpers Module
  *
@@ -31,6 +32,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import type { ResumeProfile, Visibility } from "@/types";
 import { checkRateLimit, RateLimitResult } from "@/lib/utils/rateLimit";
+import { validateCorsOrigin, createCorsHeaders } from "@/lib/utils/cors";
 
 /**
  * Resume document data as stored in Firestore.
@@ -48,7 +50,47 @@ export interface ResumeDocumentData extends Partial<ResumeProfile> {
   isPublic?: boolean;
   visibility?: Visibility;
 }
-import { logger } from "@/lib/logger";
+import { logger, sanitizeForLogging } from "@/lib/logger";
+
+/**alidates CORS origin for the request.
+ * Returns an error response if the origin is not allowed.
+ *
+ * @param request - The incoming Next.js request
+ * @returns Error NextResponse if origin not allowed, undefined if allowed
+ *
+ * @example
+ * ```typescript
+ * const corsError = validateCorsRequest(request);
+ * if (corsError) return corsError; // Returns 403 response
+ * ```
+ */
+export function validateCorsRequest(
+  request: NextRequest
+): NextResponse | undefined {
+  const corsValidation = validateCorsOrigin(request);
+
+  if (!corsValidation.allowed) {
+    logger.warn(
+      {
+        origin: request.headers.get("origin"),
+        path: request.nextUrl.pathname,
+        method: request.method,
+        reason: corsValidation.reason,
+      },
+      "CORS validation failed"
+    );
+
+    return NextResponse.json(
+      { error: "Origin not allowed" },
+      {
+        status: 403,
+        headers: createCorsHeaders(request),
+      }
+    );
+  }
+
+  return undefined;
+}
 
 /**
  * Verifies the authentication token from the request headers.
@@ -70,7 +112,13 @@ export async function getAuthenticatedUserId(
   const authHeader = request.headers.get("authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return {
-      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+      error: NextResponse.json(
+        { error: "Unauthorized" },
+        {
+          status: 401,
+          headers: createCorsHeaders(request),
+        }
+      ),
     };
   }
 
@@ -110,34 +158,45 @@ export async function maybeGetAuthenticatedUserId(
 
 /**
  * Fetches a resume document by ID, checking both 'resumes' and 'resumeProfiles' collections.
+ * Uses parallel queries for better performance - eliminates sequential fallback pattern.
  * Returns the document reference, snapshot, and data if found, or null if not.
  */
 export async function fetchResumeDocument(id: string) {
-  // 1. Try to fetch from 'resumes' collection (new system)
-  let docRef = adminDb.collection("resumes").doc(id);
-  let docSnap = await docRef.get();
+  // Fetch from both collections in parallel to avoid sequential N+1-like pattern
+  const resumesRef = adminDb.collection("resumes").doc(id);
+  const legacyRef = adminDb.collection("resumeProfiles").doc(id);
 
-  // 2. Fallback to 'resumeProfiles' (legacy)
-  if (!docSnap.exists) {
-    docRef = adminDb.collection("resumeProfiles").doc(id);
-    docSnap = await docRef.get();
+  const [resumesSnap, legacySnap] = await Promise.all([
+    resumesRef.get(),
+    legacyRef.get(),
+  ]);
+
+  // Prefer 'resumes' collection (new system), fallback to 'resumeProfiles' (legacy)
+  if (resumesSnap.exists) {
+    return {
+      docRef: resumesRef,
+      docSnap: resumesSnap,
+      data: resumesSnap.data(),
+    };
   }
 
-  if (!docSnap.exists) {
-    return null;
+  if (legacySnap.exists) {
+    return { docRef: legacyRef, docSnap: legacySnap, data: legacySnap.data() };
   }
 
-  return { docRef, docSnap, data: docSnap.data() };
+  return null;
 }
 
 /**
  * Standardized API error handler.
  * Logs the error and returns a JSON response with the appropriate status code.
+ * Automatically includes CORS headers in the response.
  */
 export function handleApiError(
   error: unknown,
   message = "Internal server error",
-  status = 500
+  status = 500,
+  request?: NextRequest
 ) {
   if (status >= 500) {
     logger.error({ err: error, status }, `API Error: ${message}`);
@@ -145,17 +204,24 @@ export function handleApiError(
     logger.warn({ err: error, status }, `API Warning: ${message}`);
   }
 
+  // Only include raw error details in development to prevent information leakage
+  const includeDetails = process.env.NODE_ENV === "development";
+
+  const headers = request ? createCorsHeaders(request) : {};
+
   return NextResponse.json(
     {
       error: message,
-      details:
-        error instanceof Error
-          ? error.message
-          : error
-          ? String(error)
-          : undefined,
+      ...(includeDetails && {
+        details:
+          error instanceof Error
+            ? error.message
+            : error
+            ? String(error)
+            : undefined,
+      }),
     },
-    { status }
+    { status, headers }
   );
 }
 
@@ -186,7 +252,13 @@ export async function verifyResumeOwnership(
   if (!resumeDoc) {
     return {
       success: false,
-      error: NextResponse.json({ error: "Resume not found" }, { status: 404 }),
+      error: NextResponse.json(
+        { error: "Resume not found" },
+        {
+          status: 404,
+          headers: createCorsHeaders(request),
+        }
+      ),
     };
   }
 
@@ -197,7 +269,13 @@ export async function verifyResumeOwnership(
     // Optional: Check for admin role here if needed, but for now strict ownership
     return {
       success: false,
-      error: NextResponse.json({ error: "Permission denied" }, { status: 403 }),
+      error: NextResponse.json(
+        { error: "Permission denied" },
+        {
+          status: 403,
+          headers: createCorsHeaders(request),
+        }
+      ),
     };
   }
 
@@ -257,19 +335,20 @@ export async function safeParseBody<T = unknown>(
  *
  * @example
  * ```typescript
- * const { allowed, response, result } = applyRateLimit(userId || request.ip);
+ * const { allowed, response, result } = await applyRateLimit(userId || request.ip);
  * if (!allowed) return response;
  * // Proceed with request handling
  * attachRateLimitHeaders(myResponse, result);
  * ```
  */
-export function applyRateLimit(
+export async function applyRateLimit(
   identifier: string,
   options?: { limit?: number; windowMs?: number }
-):
+): Promise<
   | { allowed: true; result: RateLimitResult }
-  | { allowed: false; response: NextResponse } {
-  const result = checkRateLimit(identifier, options);
+  | { allowed: false; response: NextResponse }
+> {
+  const result = await checkRateLimit(identifier, options);
 
   if (!result.allowed) {
     const response = NextResponse.json(
@@ -318,4 +397,156 @@ export function getClientIp(request: NextRequest): string {
     return forwarded.split(",")[0].trim();
   }
   return request.headers.get("x-real-ip") || "unknown";
+}
+
+/**
+ * Enhanced error handler that prevents information leakage
+ * Logs detailed errors server-side while returning generic messages to clients
+ *
+ * @param error - The error object
+ * @param options - Configuration options
+ * @returns NextResponse with appropriate error message
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   // ... your logic
+ * } catch (err) {
+ *   return handleSecureApiError(err, {
+ *     publicMessage: 'Failed to process request',
+ *     status: 500,
+ *     logDetails: true
+ *   });
+ * }
+ * ```
+ */
+export function handleSecureApiError(
+  error: unknown,
+  options: {
+    publicMessage?: string;
+    status?: number;
+    logDetails?: boolean;
+    userId?: string;
+    endpoint?: string;
+  } = {}
+): NextResponse {
+  const {
+    publicMessage = "An error occurred processing your request",
+    status = 500,
+    logDetails = true,
+    userId,
+    endpoint,
+  } = options;
+
+  // Determine error type for better logging
+  let errorType = "Unknown";
+  let errorMsg = "Unknown error";
+  let stack = undefined;
+
+  if (error instanceof Error) {
+    errorType = error.constructor.name;
+    errorMsg = error.message;
+    stack = error.stack;
+  } else if (typeof error === "object" && error !== null) {
+    errorMsg = JSON.stringify(error);
+  } else {
+    errorMsg = String(error);
+  }
+
+  // Log detailed error server-side with PII redaction
+  if (logDetails) {
+    // Sanitize error message and stack to prevent PII leakage
+    const sanitizedData = sanitizeForLogging({
+      errorType,
+      errorMsg,
+      stack,
+      userId, // Safe - just a UUID
+      endpoint,
+      status,
+    });
+
+    logger.error(sanitizedData, "API Error - Detailed Log");
+  }
+
+  // Return generic message to client (prevent info leakage)
+  return NextResponse.json(
+    {
+      error: publicMessage,
+      // Only include request ID in development or if explicitly requested
+      ...(process.env.NODE_ENV === "development" && {
+        requestId: Math.random().toString(36).substr(2, 9),
+      }),
+    },
+    { status }
+  );
+}
+
+/**
+ * Transform Firebase Auth errors to generic messages
+ * Prevents attackers from determining valid user emails
+ *
+ * @param error - Firebase Auth error
+ * @returns Generic error message safe for client display
+ */
+export function getSecureAuthErrorMessage(error: unknown): string {
+  const errorStr = error instanceof Error ? error.message : String(error);
+
+  // Generic message for all auth errors
+  const authErrors: Record<string, string> = {
+    "auth/user-not-found": "Invalid email or password",
+    "auth/wrong-password": "Invalid email or password",
+    "auth/email-already-in-use": "Invalid email or password",
+    "auth/weak-password": "Password does not meet requirements",
+    "auth/invalid-email": "Invalid email or password",
+    "auth/operation-not-allowed": "This operation is not available",
+    "auth/too-many-requests":
+      "Too many login attempts. Please try again later.",
+  };
+
+  for (const [key, message] of Object.entries(authErrors)) {
+    if (errorStr.includes(key)) {
+      return message;
+    }
+  }
+
+  // Default generic message
+  return "Authentication failed. Please try again.";
+}
+
+/**
+ * Transform Firestore errors to generic messages
+ * Prevents exposure of database structure
+ *
+ * @param error - Firestore error
+ * @returns Generic error message safe for client display
+ */
+export function getSecureFirestoreErrorMessage(error: unknown): string {
+  const errorStr = error instanceof Error ? error.message : String(error);
+
+  if (errorStr.includes("PERMISSION_DENIED")) {
+    return "You do not have permission to perform this action";
+  }
+
+  if (errorStr.includes("NOT_FOUND")) {
+    return "The requested resource was not found";
+  }
+
+  if (errorStr.includes("ALREADY_EXISTS")) {
+    return "This resource already exists";
+  }
+
+  if (errorStr.includes("FAILED_PRECONDITION")) {
+    return "Cannot perform this operation at this time";
+  }
+
+  if (errorStr.includes("RESOURCE_EXHAUSTED")) {
+    return "Service limit exceeded. Please try again later.";
+  }
+
+  if (errorStr.includes("UNAVAILABLE")) {
+    return "Service temporarily unavailable. Please try again later.";
+  }
+
+  // Default generic message
+  return "Unable to process your request. Please try again.";
 }

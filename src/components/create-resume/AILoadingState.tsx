@@ -1,5 +1,7 @@
 "use client";
 
+import { Bot } from "lucide-react";
+
 interface AILoadingStateProps {
   aiLoading: boolean;
   aiError: string | null;
@@ -10,32 +12,31 @@ export function AILoadingState({ aiLoading, aiError }: AILoadingStateProps) {
     return null;
   }
 
-  return (
-    <>
-      {/* AI Loading State */}
-      {aiLoading && (
-        <div className="flex flex-col items-center justify-center py-6 space-y-3 px-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-500"></div>
-          <div className="bg-blue-900/30 border border-blue-500/50 rounded-lg px-4 py-2">
-            <p className="text-blue-300 text-sm font-medium">
-              🤖 AI is generating your resume...
-            </p>
-            <p className="text-blue-400 text-xs mt-1">
-              Check browser console (F12) for live AI call details
-            </p>
-          </div>
+  if (aiError) {
+    return (
+      <div className="flex items-end gap-3 justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 border border-red-200">
+          <Bot className="w-5 h-5 text-red-600" />
         </div>
-      )}
+        <div className="max-w-[80%] p-4 rounded-2xl rounded-bl-none shadow-sm bg-red-50 border border-red-100 text-red-800">
+          <p className="text-sm font-medium">⚠️ {aiError}</p>
+        </div>
+      </div>
+    );
+  }
 
-      {/* AI Error Display */}
-      {aiError && (
-        <div className="bg-red-900/30 border border-red-500/50 rounded-lg p-4 mt-4 mx-4 mb-4">
-          <p className="text-red-300 text-sm">⚠️ AI Error: {aiError}</p>
-          <p className="text-red-400 text-xs mt-1">
-            Check browser console for error details
-          </p>
+  return (
+    <div className="flex items-end gap-3 justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
+      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 border border-primary/20">
+        <Bot className="w-5 h-5 text-primary" />
+      </div>
+      <div className="p-4 rounded-2xl rounded-bl-none shadow-sm bg-white/60 backdrop-blur-sm border border-white/40">
+        <div className="flex space-x-1.5 items-center h-5">
+          <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+          <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+          <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce"></div>
         </div>
-      )}
-    </>
+      </div>
+    </div>
   );
 }

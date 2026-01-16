@@ -7,7 +7,7 @@ describe("AccountInformation", () => {
     resumeId: "12345",
     hasResume: true,
     isRecruiter: false,
-    saving: false,
+    savingRecruiter: false,
     onRecruiterToggle: jest.fn(),
     onCopy: jest.fn(),
   };
@@ -18,7 +18,7 @@ describe("AccountInformation", () => {
 
   it("renders correctly with default props", () => {
     render(<AccountInformation {...mockProps} />);
-    expect(screen.getByText("Account Information")).toBeInTheDocument();
+    expect(screen.getByText("Account Settings")).toBeInTheDocument();
     expect(screen.getByText("test@example.com")).toBeInTheDocument();
     expect(screen.getByText("Resume ID")).toBeInTheDocument();
     expect(screen.getByText("12345")).toBeInTheDocument();
@@ -38,7 +38,7 @@ describe("AccountInformation", () => {
 
   it("calls onCopy when Copy button is clicked", () => {
     render(<AccountInformation {...mockProps} />);
-    const copyButton = screen.getByText("Copy");
+    const copyButton = screen.getByTitle("Copy Resume ID");
     fireEvent.click(copyButton);
     expect(mockProps.onCopy).toHaveBeenCalled();
   });
@@ -46,20 +46,15 @@ describe("AccountInformation", () => {
   it("displays correct text for Recruiter account type", () => {
     render(<AccountInformation {...mockProps} isRecruiter={true} />);
     expect(screen.getByText("Recruiter")).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "You have recruiter access and can search for candidates"
-      )
-    ).toBeInTheDocument();
+    expect(screen.getByText(/You have recruiter access/)).toBeInTheDocument();
   });
 
   it("calls onRecruiterToggle when toggle is clicked", () => {
     render(<AccountInformation {...mockProps} />);
-    // The toggle button has no text content directly inside, but we can find it by role or class if needed.
-    // Actually, there are two buttons. One is "Copy". The other is the toggle.
-    // Let's find the toggle specifically. It's the one that's not "Copy".
     const buttons = screen.getAllByRole("button");
-    const toggleButton = buttons.find((b) => !b.textContent?.includes("Copy"));
+    const toggleButton = buttons.find(
+      (b) => !b.getAttribute("title")?.includes("Copy")
+    );
 
     if (toggleButton) {
       fireEvent.click(toggleButton);
@@ -70,9 +65,11 @@ describe("AccountInformation", () => {
   });
 
   it("disables toggle when saving is true", () => {
-    render(<AccountInformation {...mockProps} saving={true} />);
+    render(<AccountInformation {...mockProps} savingRecruiter={true} />);
     const buttons = screen.getAllByRole("button");
-    const toggleButton = buttons.find((b) => !b.textContent?.includes("Copy"));
+    const toggleButton = buttons.find(
+      (b) => !b.getAttribute("title")?.includes("Copy")
+    );
 
     expect(toggleButton).toBeDisabled();
   });

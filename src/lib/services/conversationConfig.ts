@@ -30,24 +30,24 @@ export interface ConversationConfig {
 
 /**
  * Default configuration for beta mode
- * - Minimal questions (6 max in beta)
+ * - Minimal questions (4 max in beta for faster flow)
  * - Smart context window (20 messages)
  * - Prioritizes essential fields first
  */
 export const DEFAULT_CONFIG: ConversationConfig = {
   contextWindowSize: 20,
   maxQuestionsInBetaMode: true,
-  maxBetaQuestions: 6,
+  maxBetaQuestions: 4, // Reduced from 6 to 4 for faster completion
   enableSmartQuestions: true,
   priorityFields: [
     "name", // 1. Essential - must have
     "email", // 2. Essential - must have
-    "summary", // 3. Essential - professional summary
+    "targetRole", // 3. NEW - helps tailor resume
     "experience", // 4. Important - work history
     "education", // 5. Important - background
-    "skills", // 6. Nice to have - skills
+    "skills", // 6. Inferred if not explicit
   ],
-  minimumRequiredFields: ["name", "email", "summary"],
+  minimumRequiredFields: ["name", "email"],
   recommendedFields: [
     "name",
     "email",
@@ -58,7 +58,7 @@ export const DEFAULT_CONFIG: ConversationConfig = {
     "education",
     "skills",
   ],
-  completionThreshold: 60, // 60% completion = ready to create resume
+  completionThreshold: 50, // Lowered from 60% to 50% - offer creation earlier
   mode: "beta",
 };
 

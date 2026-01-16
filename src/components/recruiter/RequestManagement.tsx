@@ -29,12 +29,15 @@ export function RequestManagement({
     expired: 0,
   });
 
-  const loadRequests = useCallback(async () => {
+  const loadRequests = useCallback(async (signal?: AbortSignal) => {
     try {
       setLoading(true);
       const response = await fetch(
-        `/api/recruiters/request-contact?recruiterId=${recruiterId}`
+        `/api/recruiters/request-contact?recruiterId=${recruiterId}`,
+        { signal }
       );
+
+      if (signal?.aborted) return;
 
       if (!response.ok) {
         throw new Error("Failed to load requests");
@@ -44,14 +47,21 @@ export function RequestManagement({
       setRequests(data.requests || []);
       setStats(data.summary || {});
     } catch (err) {
+      if (signal?.aborted) return;
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) {
+        setLoading(false);
+      }
     }
   }, [recruiterId]);
 
   useEffect(() => {
-    loadRequests();
+    const abortController = new AbortController();
+    loadRequests(abortController.signal);
+    return () => {
+      abortController.abort();
+    };
   }, [loadRequests]);
 
   const filteredRequests = requests.filter((r) => r.status === activeTab);

@@ -1,87 +1,109 @@
 "use client";
 
+import Link from "next/link";
 import { UserProfileMenu } from "./UserProfileMenu";
-import { NotificationsMenu } from "./NotificationsMenu";
 
 interface DashboardHeaderProps {
   userEmail?: string | null;
   onLogout: () => void;
+  userRole?: string | null;
 }
 
-export function DashboardHeader({ userEmail, onLogout }: DashboardHeaderProps) {
+export function DashboardHeader({
+  userEmail,
+  onLogout,
+  userRole,
+}: DashboardHeaderProps) {
   const formattedDate = new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
   }).format(new Date());
 
+  const getRoleDisplay = (role: string | null | undefined) => {
+    if (!role) return null;
+    const isRecruiter = role === "recruiter" || role === "admin";
+    return {
+      label: isRecruiter ? "Recruiter" : "Job Seeker",
+      color: isRecruiter
+        ? "bg-blue-100 text-blue-800 border-blue-200"
+        : "bg-gray-100 text-gray-800 border-gray-200",
+    };
+  };
+
+  const roleInfo = getRoleDisplay(userRole);
+
   return (
-    <header className="relative z-40 border-b border-slate-800 bg-slate-950/80 backdrop-blur">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-24 -left-20 h-64 w-64 rounded-full bg-cyan-500/10 blur-3xl" />
-        <div className="absolute -bottom-16 right-0 h-56 w-56 rounded-full bg-purple-600/10 blur-3xl" />
-      </div>
+    <header className="relative z-50 border-b border-gray-200 bg-white">
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-6 py-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-4">
-            <div className="relative inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900 via-slate-900/80 to-slate-950 shadow-lg shadow-slate-950/40">
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-purple-600/10 blur" />
-              <svg
-                className="relative h-6 w-6 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-cyan-300/80">
-                  SwitchCV
+            <Link href="/" className="group flex items-start gap-4">
+              <div className="relative inline-flex h-12 w-12 items-center justify-center border-2 border-black bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-transform group-hover:-translate-y-0.5 group-hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                <svg
+                  className="relative h-6 w-6 text-black"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-black">
+                        SwitchCV
+                      </p>
+                      <span className="h-1 w-1 rounded-full bg-gray-300" />
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-blue-600">
+                        Agent
+                      </span>
+                    </div>
+                    <h1 className="text-2xl font-serif font-bold tracking-tight text-black group-hover:text-blue-600 transition-colors">
+                      {roleInfo?.label || "Career"}{" "}
+                      <span className="text-blue-600">Dashboard</span>
+                    </h1>
+                  </div>
+                </div>
+                <p className="max-w-xl text-sm text-gray-600 font-sans group-hover:text-gray-900 transition-colors">
+                  Harnessing autonomous intelligence to surface your next move.
                 </p>
-                <h1 className="text-3xl font-semibold tracking-tight text-white">
-                  SwitchCV Dashboard
-                </h1>
+                <div className="flex flex-wrap items-center gap-4 text-[10px] font-mono font-bold uppercase tracking-widest text-gray-400 pt-3">
+                  <div className="flex items-center gap-2">
+                    <span className="h-1 w-1 animate-pulse rounded-full bg-blue-600" />
+                    Live Momentum
+                  </div>
+                  <div className="h-3 w-[1px] bg-gray-200" />
+                  <div className="flex items-center gap-2">
+                    <svg
+                      className="h-3 w-3 opacity-50"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 6v6l3 3"
+                      />
+                    </svg>
+                    {formattedDate}
+                  </div>
+                </div>
               </div>
-              <p className="max-w-xl text-sm text-slate-300">
-                Surface the most actionable signals so you can respond faster,
-                nurture top candidates, and keep your pipeline moving toward the
-                next offer.
-              </p>
-              <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-slate-300">
-                <span className="inline-flex items-center gap-2 rounded-full border border-slate-700/60 bg-slate-900/70 px-3 py-1">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-                  Live momentum insights synced
-                </span>
-                <span className="hidden sm:inline-flex items-center gap-2 rounded-full border border-slate-800 bg-slate-950/80 px-3 py-1 text-slate-400">
-                  <svg
-                    className="h-3.5 w-3.5 text-cyan-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 6v6l3 3"
-                    />
-                  </svg>
-                  {formattedDate}
-                </span>
-              </div>
-            </div>
+            </Link>
           </div>
 
           {/* User Profile Menu */}
           <div className="flex items-center gap-4">
-            <NotificationsMenu />
             <UserProfileMenu userEmail={userEmail} onLogout={onLogout} />
           </div>
         </div>

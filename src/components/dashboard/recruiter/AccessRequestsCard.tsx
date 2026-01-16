@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactElement } from "react";
 import { logger } from "@/lib/logger";
 
 import { useEffect, useState } from "react";
@@ -13,7 +14,7 @@ interface AccessMetrics {
   denied: number;
 }
 
-export function AccessRequestsCard() {
+export function AccessRequestsCard(): ReactElement {
   const { user } = useAuth();
   const metricsContext = useOptionalDashboardMetricsContext();
   const usingContext = Boolean(
@@ -38,7 +39,7 @@ export function AccessRequestsCard() {
       return;
     }
 
-    const fetchMetrics = async () => {
+    const fetchMetrics = async (): Promise<void> => {
       try {
         const response = await fetch(
           `/api/recruiter/metrics?userId=${user?.uid}`
@@ -71,12 +72,10 @@ export function AccessRequestsCard() {
 
   return (
     <Link href="/dashboard/recruiter/requests">
-      <div className="group relative overflow-hidden backdrop-blur-xl rounded-3xl border border-white/20 bg-white/10 p-6 shadow-lg shadow-slate-950/40 transition-all duration-300 hover:border-amber-500/40 hover:bg-white/15 hover:scale-[1.02] cursor-pointer h-full flex flex-col justify-between">
-        <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-amber-500/10 blur-2xl transition-all group-hover:bg-amber-500/20"></div>
-
+      <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-6 transition-all duration-200 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] cursor-pointer h-full flex flex-col justify-between group">
         <div className="flex items-center relative z-10">
           <div className="flex-shrink-0">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-400 group-hover:text-amber-300 transition-colors">
+            <div className="flex h-12 w-12 items-center justify-center bg-black text-white">
               <svg
                 className="h-6 w-6"
                 fill="none"
@@ -94,28 +93,27 @@ export function AccessRequestsCard() {
           </div>
           <div className="ml-5 w-0 flex-1">
             <dl>
-              <dt className="text-sm font-medium text-slate-400 truncate group-hover:text-slate-300 transition-colors">
-                Pending Requests
+              <dt className="text-[10px] font-mono font-bold text-gray-500 uppercase tracking-widest">
+                Access Inquiries
               </dt>
-              <dd className="text-2xl font-bold text-white">
+              <dd className="text-3xl font-serif font-bold text-black">
                 {loadingState ? "-" : pendingCount}
               </dd>
             </dl>
           </div>
         </div>
         <div className="mt-4 relative z-10 flex items-center justify-between">
-          <p className="text-sm text-slate-400 group-hover:text-slate-300 transition-colors">
+          <p className="text-sm text-gray-500 font-sans">
             {loadingState
               ? "Loading..."
               : pendingCount === 0
-              ? "No pending requests"
-              : `${pendingCount} request${
-                  pendingCount !== 1 ? "s" : ""
+                ? "No pending requests"
+                : `${pendingCount} request${pendingCount !== 1 ? "s" : ""
                 } waiting`}
           </p>
           <div className="opacity-0 transform translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
             <svg
-              className="w-5 h-5 text-amber-400"
+              className="w-5 h-5 text-black"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"

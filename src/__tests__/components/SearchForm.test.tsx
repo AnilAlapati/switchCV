@@ -32,7 +32,7 @@ describe("SearchForm", () => {
   it("renders search input and buttons", () => {
     render(<SearchForm {...defaultProps} />);
     expect(
-      screen.getByPlaceholderText(/Search by name, username/)
+      screen.getByPlaceholderText(/Search by name, skills, role, or location/)
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Filters/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Search/ })).toBeInTheDocument();
@@ -42,7 +42,7 @@ describe("SearchForm", () => {
     const user = userEvent.setup();
     render(<SearchForm {...defaultProps} />);
 
-    const input = screen.getByPlaceholderText(/Search by name, username/);
+    const input = screen.getByPlaceholderText(/Search by name, skills, role, or location/);
     await user.type(input, "react");
     expect(mockHandlers.onQueryChange).toHaveBeenCalled();
   });
@@ -57,7 +57,7 @@ describe("SearchForm", () => {
 
   it("calls onSearch when form is submitted", async () => {
     const user = userEvent.setup();
-    render(<SearchForm {...defaultProps} />);
+    render(<SearchForm {...defaultProps} query="react" />);
 
     await user.click(screen.getByRole("button", { name: /Search/ }));
     expect(mockHandlers.onSearch).toHaveBeenCalled();
@@ -65,7 +65,7 @@ describe("SearchForm", () => {
 
   it("disables search button when loading", () => {
     render(<SearchForm {...defaultProps} isLoading={true} />);
-    const btn = screen.getByRole("button", { name: /Searching/ });
+    const btn = screen.getByRole("button", { name: /Searching.../ });
     expect(btn).toBeDisabled();
   });
 });

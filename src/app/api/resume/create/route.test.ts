@@ -1,5 +1,6 @@
 import { POST } from "./route";
 import { NextRequest } from "next/server";
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 import { generateNumericResumeId } from "@/lib/numericIdGenerator";
 import {
@@ -68,23 +69,10 @@ describe("POST /api/resume/create", () => {
     (generateNumericResumeId as jest.Mock).mockResolvedValue(mockResumeId);
 
     const mockSet = jest.fn();
-    // Need to handle nested collections properly
-
-    // adminDb.collection("users").doc(userId).collection("userResumes").doc(resumeId).set(...)
-
-    const mockUserResumesDoc = { set: mockSet };
-    const mockUserResumesCollection = {
-      doc: jest.fn().mockReturnValue(mockUserResumesDoc),
-    };
-    const mockUserDoc = {
-      collection: jest.fn().mockReturnValue(mockUserResumesCollection),
-    };
-
     const mockCollection = jest.fn((name) => {
-      if (name === "resumes")
+      if (name === "resumes") {
         return { doc: jest.fn().mockReturnValue({ set: mockSet }) };
-      if (name === "users")
-        return { doc: jest.fn().mockReturnValue(mockUserDoc) };
+      }
       return { doc: jest.fn() };
     });
 
@@ -105,6 +93,7 @@ describe("POST /api/resume/create", () => {
     expect(data.success).toBe(true);
     expect(data.resumeId).toBe(mockResumeId.toString());
     expect(data.numericId).toBe(mockResumeId);
+    expect(mockSet).toHaveBeenCalledTimes(1);
   });
 
   it("should handle errors", async () => {

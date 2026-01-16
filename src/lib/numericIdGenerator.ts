@@ -1,23 +1,10 @@
 /**
  * Numeric ID Generator Service
  *
- * Generates numeric-only IDs (1-8 digits) for resumes using Firestore atomic operations.
- * Designed to handle concurrent requests from millions of users without collisions.
- *
- * Architecture:
- * - Uses Firestore's atomic increment operation for guaranteed uniqueness
- * - Counter stored in a dedicated document in Firestore
- * - Supports IDs from 1 to 99,999,999 (8 digits max)
- * - No collisions even with simultaneous requests
- *
- * Why this approach:
- * - Firestore atomic operations are guaranteed to be consistent
- * - Each increment is atomic, preventing race conditions
- * - Scales horizontally without additional coordination
- * - Simple, fast, and reliable
- *
- * SECURITY NOTE: This service NEVER falls back to random IDs to prevent collisions.
- * If Firestore is unavailable, operations will fail fast with clear errors.
+ * Generates numeric-only IDs (1-8 digits) for resumes using Firestore distributed counters.
+ * The counter is sharded to avoid the single-document write bottleneck (1 write/s limit).
+ * Each shard issues IDs spaced by the shard count, guaranteeing global uniqueness while
+ * supporting high write throughput.
  */
 
 import { adminDb } from "@/lib/firebase-admin";
@@ -25,11 +12,22 @@ import { getRecycledIdFromPool } from "@/lib/resumeIdRecycler";
 import { logger } from "@/lib/logger";
 import { ID_GENERATION } from "@/config/constants";
 
-const { COUNTER_DOC_PATH: ID_COUNTER_DOC, MAX_NUMERIC_ID } = ID_GENERATION;
+const {
+  COUNTER_DOC_PATH,
+  SHARD_COLLECTION_PATH,
+  SHARD_COUNT,
+  MAX_NUMERIC_ID,
+  MAX_RETRIES,
+} = ID_GENERATION;
 
-interface IdCounterDoc {
-  currentId: number;
-  lastResetAt?: string;
+const shardCollection = adminDb.collection(SHARD_COLLECTION_PATH);
+
+interface CounterShardDoc {
+  shardId: number;
+  nextId: number;
+  lastIssued: number;
+  updatedAt?: string;
+  createdAt?: string;
 }
 
 /**
@@ -46,53 +44,100 @@ export class IdGenerationError extends Error {
   }
 }
 
-/**
- * Initialize the ID counter if it doesn't exist
- * Safe to call multiple times (idempotent)
- */
-export const initializeIdCounter = async (): Promise<void> => {
-  try {
-    const counterRef = adminDb.doc(ID_COUNTER_DOC);
-    const counterSnap = await counterRef.get();
+const nowIso = () => new Date().toISOString();
 
-    if (!counterSnap.exists) {
-      logger.info("Initializing resume ID counter...");
-      await counterRef.set({
-        currentId: 1, // Start at 1 so next ID is 2
-        lastResetAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-      });
-      logger.info("Resume ID counter initialized");
-    }
-  } catch (error) {
-    logger.error({ err: error }, "Error initializing ID counter");
-    throw new IdGenerationError("Failed to initialize ID counter", error, true);
+const shardDocRef = (shardId: number) => shardCollection.doc(String(shardId));
+
+const initialShardState = (
+  shardId: number,
+  startValue: number = 0
+): CounterShardDoc => ({
+  shardId,
+  nextId: startValue + shardId + 1,
+  lastIssued: startValue,
+  createdAt: nowIso(),
+  updatedAt: nowIso(),
+});
+
+const ensureShardInitialized = async (
+  shardId: number,
+  startValue: number = 0
+): Promise<void> => {
+  const ref = shardDocRef(shardId);
+  const snap = await ref.get();
+  if (!snap.exists) {
+    await ref.set(initialShardState(shardId, startValue));
   }
 };
 
 /**
- * Generate the next numeric resume ID
- *
- * Strategy:
- * 1. First tries to get a recycled ID from the deleted IDs pool
- * 2. If pool is empty, generates a new ID from the counter
- * 3. Uses Firestore atomic increment to ensure no collisions
- *
- * SECURITY FIX: No longer falls back to random IDs on error.
- * This prevents potential data collisions and integrity issues.
- * Callers should handle errors and implement their own retry logic.
- *
- * Benefits:
- * - Reuses IDs efficiently when resumes are deleted
- * - Maximizes utilization of numeric ID space
- * - Maintains collision-free generation
- * - Fails fast on errors for proper error handling
- *
- * @returns Promise<number> - Next available numeric ID (1-99999999)
- * @throws IdGenerationError if unable to generate ID
+ * Initialize the counter root metadata and all shards.
+ * Safe to call multiple times.
+ */
+export const initializeIdCounter = async (): Promise<void> => {
+  try {
+    const counterRef = adminDb.doc(COUNTER_DOC_PATH);
+    const counterSnap = await counterRef.get();
+
+    if (!counterSnap.exists) {
+      logger.info("Initializing resume ID counter root...");
+      await counterRef.set({
+        createdAt: nowIso(),
+        lastResetAt: nowIso(),
+      });
+    }
+
+    await Promise.all(
+      Array.from({ length: SHARD_COUNT }).map((_, shardId) =>
+        ensureShardInitialized(shardId)
+      )
+    );
+  } catch (error) {
+    logger.error({ err: error }, "Error initializing sharded counter");
+    throw new IdGenerationError("Failed to initialize ID counter", error, true);
+  }
+};
+
+const allocateFromShard = async (shardId: number): Promise<number> => {
+  const ref = shardDocRef(shardId);
+
+  return adminDb.runTransaction(async (transaction) => {
+    const snap = await transaction.get(ref);
+    const shardData = snap.data() as CounterShardDoc | undefined;
+
+    const nextId = shardData?.nextId ?? shardId + 1;
+
+    if (nextId > MAX_NUMERIC_ID) {
+      throw new IdGenerationError(
+        `Shard ${shardId} exhausted numeric ID space`,
+        undefined,
+        false
+      );
+    }
+
+    const updatedState: Partial<CounterShardDoc> = {
+      nextId: nextId + SHARD_COUNT,
+      lastIssued: nextId,
+      updatedAt: nowIso(),
+    };
+
+    if (snap.exists) {
+      transaction.update(ref, updatedState);
+    } else {
+      transaction.set(ref, {
+        ...initialShardState(shardId),
+        ...updatedState,
+      });
+    }
+
+    return nextId;
+  });
+};
+
+/**
+ * Generate the next numeric resume ID (recycled → sharded counter fallback).
  */
 export const generateNumericResumeId = async (): Promise<number> => {
-  // Step 1: Try to get a recycled ID from the pool first
   try {
     const recycledId = await getRecycledIdFromPool();
     if (recycledId !== null) {
@@ -103,88 +148,61 @@ export const generateNumericResumeId = async (): Promise<number> => {
       return recycledId;
     }
   } catch (poolError) {
-    // Log but continue - pool is optional optimization
     logger.warn(
       { err: poolError },
-      "Error checking recycled ID pool, continuing to counter"
+      "Failed to pull from recycle pool; falling back to shards"
     );
   }
 
-  // Step 2: Generate a new ID from the counter
-  try {
-    const counterRef = adminDb.doc(ID_COUNTER_DOC);
+  let lastError: unknown = null;
 
-    // Use a transaction to ensure atomic increment and retrieval
-    // This prevents race conditions where two requests might get the same ID
-    const nextId = await adminDb.runTransaction(async (transaction) => {
-      const counterDoc = await transaction.get(counterRef);
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    const shardId = Math.floor(Math.random() * SHARD_COUNT);
 
-      if (!counterDoc.exists) {
-        // Initialize if missing (should be rare as we check above, but good for safety)
-        transaction.set(counterRef, {
-          currentId: 1,
-          lastResetAt: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-        });
-        return 1;
+    try {
+      const allocated = await allocateFromShard(shardId);
+      logger.info(
+        { resumeId: allocated, source: "sharded-counter", shardId },
+        "Generated numeric resume ID"
+      );
+      return allocated;
+    } catch (error) {
+      lastError = error;
+      if (error instanceof IdGenerationError && !error.isRetryable) {
+        throw error;
       }
-
-      const currentId = counterDoc.data()?.currentId || 0;
-      // Skip ID 1 as it is reserved for system/demo use
-      const newId = currentId === 0 ? 2 : currentId + 1;
-
-      if (newId > MAX_NUMERIC_ID) {
-        throw new IdGenerationError(
-          `Maximum numeric ID limit reached: ${MAX_NUMERIC_ID}`,
-          undefined,
-          false // Not retryable - limit reached
-        );
-      }
-
-      transaction.update(counterRef, {
-        currentId: newId,
-      });
-
-      return newId;
-    });
-
-    logger.info(
-      { resumeId: nextId, source: "counter" },
-      "Generated numeric resume ID"
-    );
-    return nextId;
-  } catch (error) {
-    // SECURITY FIX: No longer falling back to random IDs
-    // Random IDs could cause collisions and data integrity issues
-    if (error instanceof IdGenerationError) {
-      throw error;
+      logger.warn(
+        { shardId, attempt, err: error },
+        "Shard allocation failed; retrying"
+      );
     }
-
-    logger.error({ err: error }, "Failed to generate numeric ID from counter");
-    throw new IdGenerationError(
-      "Failed to generate numeric ID. Please try again.",
-      error,
-      true // Retryable - temporary Firestore issue
-    );
   }
+
+  throw new IdGenerationError(
+    "Failed to allocate numeric ID from any shard",
+    lastError,
+    true
+  );
 };
 
 /**
- * Get the current ID counter value (for debugging/monitoring)
- * @returns Promise<number> - Current counter value
+ * Get the highest issued ID across shards (for monitoring/diagnostics).
  */
 export const getCurrentIdCounter = async (): Promise<number> => {
   try {
-    const counterRef = adminDb.doc(ID_COUNTER_DOC);
-    const counterSnap = await counterRef.get();
+    const snapshot = await shardCollection
+      .orderBy("lastIssued", "desc")
+      .limit(1)
+      .get();
 
-    if (!counterSnap.exists) {
+    if (snapshot.empty) {
       return 0;
     }
 
-    return (counterSnap.data() as IdCounterDoc).currentId;
+    const data = snapshot.docs[0].data() as CounterShardDoc;
+    return data.lastIssued || 0;
   } catch (error) {
-    logger.error({ err: error }, "Error getting current ID counter");
+    logger.error({ err: error }, "Error computing current ID counter");
     throw new IdGenerationError(
       "Failed to get current ID counter",
       error,
@@ -194,21 +212,61 @@ export const getCurrentIdCounter = async (): Promise<number> => {
 };
 
 /**
- * Reset the ID counter (ADMIN ONLY - for testing/reset scenarios)
- * WARNING: This should only be used in development or after data migration
- *
- * @param startValue - Starting value for the new counter (default: 0)
+ * Reset all shards to a given starting offset.
  */
 export const resetIdCounter = async (startValue: number = 0): Promise<void> => {
   try {
-    const counterRef = adminDb.doc(ID_COUNTER_DOC);
-    await counterRef.set({
-      currentId: startValue,
-      lastResetAt: new Date().toISOString(),
-    });
-    logger.info({ startValue }, "ID counter reset");
+    const counterRef = adminDb.doc(COUNTER_DOC_PATH);
+    const timestamp = nowIso();
+
+    await counterRef.set(
+      {
+        lastResetAt: timestamp,
+        resetTo: startValue,
+      },
+      { merge: true }
+    );
+
+    await Promise.all(
+      Array.from({ length: SHARD_COUNT }).map((_, shardId) =>
+        shardDocRef(shardId).set(
+          {
+            shardId,
+            nextId: startValue + shardId + 1,
+            lastIssued: startValue,
+            updatedAt: timestamp,
+            createdAt: timestamp,
+          },
+          { merge: true }
+        )
+      )
+    );
+
+    logger.info({ startValue }, "Sharded ID counter reset");
   } catch (error) {
     logger.error({ err: error, startValue }, "Error resetting ID counter");
     throw new IdGenerationError("Failed to reset ID counter", error, true);
   }
+};
+
+/**
+ * Check if a given ID is a honeypot (trap) ID.
+ * Honeypots are valid-looking IDs that never exist.
+ * Accessing them signals malicious scraping behavior.
+ */
+export const isHoneypotId = (id: number | string): boolean => {
+  const numId = typeof id === "string" ? parseInt(id, 10) : id;
+
+  if (isNaN(numId)) return false;
+
+  // Simple honeypot strategy:
+  // 1. Every 1000th ID starting at 500 (500, 1500, 2500...)
+  // 2. Specific patterns like repeated digits (55555, 77777)
+
+  if (numId % 1000 === 500) return true;
+
+  // Example specific trap
+  if (numId === 5050) return true;
+
+  return false;
 };

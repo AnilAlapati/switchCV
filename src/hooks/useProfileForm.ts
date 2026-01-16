@@ -28,6 +28,7 @@ export function useProfileForm(initialProfile?: Partial<ResumeProfile>) {
   // ===== Experience Management =====
   const addExperience = useCallback(() => {
     const newExperience: Experience = {
+      id: crypto.randomUUID(),
       company: "",
       role: "",
       startDate: "",
@@ -61,6 +62,7 @@ export function useProfileForm(initialProfile?: Partial<ResumeProfile>) {
   // ===== Education Management =====
   const addEducation = useCallback(() => {
     const newEducation: Education = {
+      id: crypto.randomUUID(),
       institution: "",
       degree: "",
       startDate: "",
@@ -93,6 +95,7 @@ export function useProfileForm(initialProfile?: Partial<ResumeProfile>) {
   // ===== Skills Management =====
   const addSkill = useCallback(() => {
     const newSkill: Skill = {
+      id: crypto.randomUUID(),
       name: "",
       level: "intermediate",
       visibility: "public",
@@ -121,6 +124,7 @@ export function useProfileForm(initialProfile?: Partial<ResumeProfile>) {
   // ===== Projects Management =====
   const addProject = useCallback(() => {
     const newProject: Project = {
+      id: crypto.randomUUID(),
       name: "",
       description: "",
       visibility: "public",

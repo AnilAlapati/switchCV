@@ -1,21 +1,37 @@
 import { logger } from "@/lib/logger";
 // src/app/api/recruiter/request-access/route.ts
 import { NextRequest, NextResponse } from "next/server";
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
+ 
 import { FieldValue } from "firebase-admin/firestore";
 import {
   handleApiError,
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
 import { getUserTier } from "@/lib/services/userService";
-import { RECRUITER_CONTACT_LIMITS } from "@/lib/config";
+import { getRecruiterContactLimits } from "@/lib/config.server";
 import { consumeQuota, QuotaExceededError } from "@/lib/services/quotaService";
+
+/**
+ * Helper to verify recruiter role
+ */
+async function verifyRecruiterRole(userId: string): Promise<boolean> {
+  const userSnap = await adminDb.collection("users").doc(userId).get();
+  const userData = userSnap.data();
+  return userData?.role === "recruiter" || userData?.role === "admin";
+}
 
 export async function POST(request: NextRequest) {
   try {
     const { userId: recruiterId, error: authError } =
       await getAuthenticatedUserId(request);
-    if (authError) return authError;
+    if (authError || !recruiterId)
+      return authError || handleApiError(null, "Unauthorized", 401);
+
+    if (!(await verifyRecruiterRole(recruiterId))) {
+      return handleApiError(null, "Forbidden: Recruiter role required", 403);
+    }
 
     const { resumeId, requestedFields = ["email", "phone"] } =
       await request.json();
@@ -26,7 +42,8 @@ export async function POST(request: NextRequest) {
 
     // Check Quota
     const tier = await getUserTier(recruiterId!);
-    const limitConfig = RECRUITER_CONTACT_LIMITS[tier];
+    const limitConfigs = await getRecruiterContactLimits();
+    const limitConfig = limitConfigs[tier];
 
     try {
       await consumeQuota({

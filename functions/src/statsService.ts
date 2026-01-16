@@ -47,7 +47,7 @@ const fetchCount = async (
 
       return rawCount;
     },
-    MetricType.DATABASE_QUERY,
+    MetricType.BACKGROUND_TASK,
     { metricName }
   );
 };
@@ -56,93 +56,86 @@ const fetchCount = async (
  * Aggregate global statistics (users, resumes) periodically.
  * Runs every hour.
  */
-export const aggregateGlobalStats = functions
-  .runWith({ timeoutSeconds: 120, memory: "256MB" })
-  .pubsub.schedule("0 * * * *")
-  .timeZone("UTC")
-  .onRun(async (context: functions.EventContext) => {
-    const start = Date.now();
-    functions.logger.info("Global stats aggregation started", {
-      eventId: context.eventId,
-    });
-
-    return performanceMonitor.measure(
-      "functions.aggregateGlobalStats",
-      async () => {
-        try {
-          const db = getFirestore();
-          const statsDocRef = db
-            .collection(ANALYTICS_COLLECTION)
-            .doc(GLOBAL_STATS_DOC);
-
-          const [userCount, resumeCount, jobSeekerCount, recruiterCount] =
-            await Promise.all([
-              fetchCount(db.collection(USERS_COLLECTION), "userCount"),
-              fetchCount(
-                db.collection(RESUME_COLLECTION).where("published", "==", true),
-                "resumeCount"
-              ),
-              fetchCount(
-                db
-                  .collection(USERS_COLLECTION)
-                  .where("role", "==", "jobseeker"),
-                "jobSeekerCount"
-              ),
-              fetchCount(
-                db
-                  .collection(USERS_COLLECTION)
-                  .where("role", "==", "recruiter"),
-                "recruiterCount"
-              ),
-            ]);
-
-          const payload = {
-            userCount,
-            resumeCount,
-            jobSeekerCount,
-            recruiterCount,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            lastRunEventId: context.eventId,
-          };
-
-          await resilientCall(() => statsDocRef.set(payload, { merge: true }), {
-            retryOptions: {
-              maxAttempts: databaseConfig.maxRetries,
-            },
-            timeoutMs: databaseConfig.timeoutMs,
-            operationName: "stats-write-global",
-          });
-
-          functions.logger.info("Global stats aggregation completed", {
-            userCount,
-            resumeCount,
-            jobSeekerCount,
-            recruiterCount,
-            durationMs: Date.now() - start,
-          });
-        } catch (error) {
-          const message =
-            error instanceof Error ? error.message : String(error);
-
-          await alertManager.sendAlert(
-            AlertSeverity.ERROR,
-            "Global stats aggregation failed",
-            message,
-            {
-              eventId: context.eventId,
-              stack: error instanceof Error ? error.stack : undefined,
-            }
-          );
-
-          functions.logger.error("Global stats aggregation failed", {
-            message,
-            stack: error instanceof Error ? error.stack : undefined,
-          });
-
-          throw error;
-        }
-      },
-      MetricType.FUNCTION_EXECUTION,
-      { eventId: context.eventId }
-    );
+export const aggregateGlobalStatsHandler = async (
+  context: functions.EventContext
+) => {
+  const start = Date.now();
+  functions.logger.info("Global stats aggregation started", {
+    eventId: context.eventId,
   });
+
+  return performanceMonitor.measure(
+    "functions.aggregateGlobalStats",
+    async () => {
+      try {
+        const db = getFirestore();
+        const statsDocRef = db
+          .collection(ANALYTICS_COLLECTION)
+          .doc(GLOBAL_STATS_DOC);
+
+        const [userCount, resumeCount, jobSeekerCount, recruiterCount] =
+          await Promise.all([
+            fetchCount(db.collection(USERS_COLLECTION), "userCount"),
+            fetchCount(
+              db.collection(RESUME_COLLECTION).where("published", "==", true),
+              "resumeCount"
+            ),
+            fetchCount(
+              db.collection(USERS_COLLECTION).where("role", "==", "jobseeker"),
+              "jobSeekerCount"
+            ),
+            fetchCount(
+              db.collection(USERS_COLLECTION).where("role", "==", "recruiter"),
+              "recruiterCount"
+            ),
+          ]);
+
+        const payload = {
+          userCount,
+          resumeCount,
+          jobSeekerCount,
+          recruiterCount,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          lastRunEventId: context.eventId,
+        };
+
+        await resilientCall(() => statsDocRef.set(payload, { merge: true }), {
+          retryOptions: {
+            maxAttempts: databaseConfig.maxRetries,
+          },
+          timeoutMs: databaseConfig.timeoutMs,
+          operationName: "stats-write-global",
+        });
+
+        functions.logger.info("Global stats aggregation completed", {
+          userCount,
+          resumeCount,
+          jobSeekerCount,
+          recruiterCount,
+          durationMs: Date.now() - start,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+
+        await alertManager.sendAlert(
+          AlertSeverity.ERROR,
+          "Global stats aggregation failed",
+          message,
+          {
+            eventId: context.eventId,
+            stack: error instanceof Error ? error.stack : undefined,
+          }
+        );
+
+        functions.logger.error("Global stats aggregation failed", {
+          message,
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+
+        throw error;
+      }
+    },
+    MetricType.BACKGROUND_TASK,
+    { eventId: context.eventId }
+  );
+};

@@ -7,10 +7,11 @@ describe("AuthBrand", () => {
     const { getByText, container } = render(<AuthBrand />);
 
     // heading
-    expect(getByText("SwitchCV")).toBeInTheDocument();
+    expect(getByText(/Switch/)).toBeInTheDocument();
+    expect(getByText(/CV/)).toBeInTheDocument();
 
     // tagline
-    expect(getByText("Your AI-powered resume platform")).toBeInTheDocument();
+    expect(getByText("Autonomous Career Agent")).toBeInTheDocument();
 
     // svg icon exists
     const svg = container.querySelector("svg");

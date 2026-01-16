@@ -5,12 +5,16 @@ import { logger } from "@/lib/logger";
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useResume } from "@/hooks/useResume";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { useRouter } from "next/navigation";
 import { DashboardBackground } from "@/components/dashboard/DashboardBackground";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { AccountInformation } from "@/components/settings/AccountInformation";
 import { ProfileDetails } from "@/components/settings/ProfileDetails";
 import { Notification } from "@/components/settings/Notification";
+import { getVerificationRoute } from "@/lib/config";
+
+const VERIFICATION_ROUTE = getVerificationRoute();
 
 interface UserSettings {
   isRecruiter: boolean;
@@ -18,6 +22,9 @@ interface UserSettings {
   companyName: string;
   updatedAt: string;
 }
+
+import { useUserSettings } from "@/hooks/useUserSettings";
+import { ProfileSettingsSkeleton } from "@/components/settings/ProfileSettingsSkeleton";
 
 export default function SettingsPage() {
   const {
@@ -28,18 +35,34 @@ export default function SettingsPage() {
   } = useAuth();
   const { resumeId, hasResume } = useResume();
   const router = useRouter();
+
+  // SWR Hook
+  const { settings: fetchedSettings, loading: settingsLoading, mutate: mutateSettings } = useUserSettings();
+  const { mutate: mutateProfile } = useUserProfile();
+
   const [settings, setSettings] = useState<UserSettings>({
     isRecruiter: false,
     displayName: "",
     companyName: "",
     updatedAt: new Date().toISOString(),
   });
-  const [saving, setSaving] = useState(false);
+
+  const [savingDisplayName, setSavingDisplayName] = useState(false);
+  const [savingCompanyName, setSavingCompanyName] = useState(false);
+  const [savingRecruiter, setSavingRecruiter] = useState(false);
   const [showCompanyInput, setShowCompanyInput] = useState(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
   } | null>(null);
+
+  // Sync fetched settings to local state
+  useEffect(() => {
+    if (fetchedSettings) {
+      setSettings(fetchedSettings);
+      setShowCompanyInput(fetchedSettings.isRecruiter);
+    }
+  }, [fetchedSettings]);
 
   const handleLogout = useCallback(async () => {
     try {
@@ -51,40 +74,12 @@ export default function SettingsPage() {
     }
   }, [logout, router]);
 
-  const fetchSettings = useCallback(async () => {
-    try {
-      if (!user) return;
-
-      const idToken = await user.getIdToken();
-      const response = await fetch(`/api/user/settings?userId=${user.uid}`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${idToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch settings");
-      }
-
-      const data = await response.json();
-      setSettings(data);
-      setShowCompanyInput(data.isRecruiter);
-    } catch (err) {
-      logger.error({ err: err }, "Error fetching settings:");
-    }
-  }, [user]);
-
   useEffect(() => {
     if (!authLoading && (!user || needsEmailVerification)) {
-      router.push("/auth?mode=verify-email");
+      router.push(VERIFICATION_ROUTE);
       return;
     }
-
-    if (user && !needsEmailVerification) {
-      fetchSettings();
-    }
-  }, [user, needsEmailVerification, authLoading, router, fetchSettings]);
+  }, [user, needsEmailVerification, authLoading, router]);
 
   const handleRecruiterToggle = async (checked: boolean) => {
     if (!user?.uid) {
@@ -95,7 +90,7 @@ export default function SettingsPage() {
       return;
     }
 
-    setSaving(true);
+    setSavingRecruiter(true);
     try {
       const idToken = await user.getIdToken();
       const response = await fetch("/api/user/settings", {
@@ -112,8 +107,26 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
-        await fetchSettings(); // Re-fetch to get the latest data
+        // Optimistic update: Update local cache immediately, then revalidate to ensure persistence
+        const newSettings = {
+          ...settings,
+          isRecruiter: checked,
+          // If switching to recruiter, keep existing name, if switching off, clear it
+          companyName: checked ? settings.companyName : ""
+        };
+        // First update the local cache optimistically for instant UI feedback
+        await mutateSettings(newSettings, { revalidate: false });
+        // Then also update local component state
+        setSettings(newSettings);
         setShowCompanyInput(checked);
+
+        // Force re-fetch of global user profile to sync header badge
+        await mutateProfile();
+
+        // Finally, revalidate the settings cache to ensure server data is fetched
+        // This ensures the cache is fresh when navigating away and back
+        await mutateSettings();
+
         setMessage({ type: "success", text: "Account type updated!" });
         setTimeout(() => setMessage(null), 3000);
       } else {
@@ -124,8 +137,10 @@ export default function SettingsPage() {
         type: "error",
         text: err instanceof Error ? err.message : "An error occurred",
       });
+      // Revalidate to sync with server in case of error mismatch
+      await mutateSettings();
     } finally {
-      setSaving(false);
+      setSavingRecruiter(false);
     }
   };
 
@@ -143,7 +158,7 @@ export default function SettingsPage() {
       return;
     }
 
-    setSaving(true);
+    setSavingDisplayName(true);
     try {
       const idToken = await user.getIdToken();
       const response = await fetch("/api/user/settings", {
@@ -159,7 +174,8 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
-        await fetchSettings(); // Re-fetch to get the latest data
+        // Optimistic update
+        await mutateSettings({ ...settings, displayName: settings.displayName }, { revalidate: false });
         setMessage({ type: "success", text: "Display name saved!" });
         setTimeout(() => setMessage(null), 3000);
       } else {
@@ -170,8 +186,9 @@ export default function SettingsPage() {
         type: "error",
         text: err instanceof Error ? err.message : "An error occurred",
       });
+      await mutateSettings();
     } finally {
-      setSaving(false);
+      setSavingDisplayName(false);
     }
   };
 
@@ -189,7 +206,7 @@ export default function SettingsPage() {
       return;
     }
 
-    setSaving(true);
+    setSavingCompanyName(true);
     try {
       const idToken = await user.getIdToken();
       const response = await fetch("/api/user/settings", {
@@ -205,7 +222,8 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
-        await fetchSettings(); // Re-fetch to get the latest data
+        // Optimistic update
+        await mutateSettings({ ...settings, companyName: settings.companyName }, { revalidate: false });
         setMessage({ type: "success", text: "Company name saved!" });
         setTimeout(() => setMessage(null), 3000);
       } else {
@@ -216,8 +234,9 @@ export default function SettingsPage() {
         type: "error",
         text: err instanceof Error ? err.message : "An error occurred",
       });
+      await mutateSettings();
     } finally {
-      setSaving(false);
+      setSavingCompanyName(false);
     }
   };
 
@@ -232,17 +251,8 @@ export default function SettingsPage() {
     }
   };
 
-  if (authLoading) {
-    return (
-      <DashboardBackground>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-16 h-16 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-slate-400 text-lg">Loading settings...</p>
-          </div>
-        </div>
-      </DashboardBackground>
-    );
+  if (settingsLoading && !fetchedSettings) {
+    return <ProfileSettingsSkeleton />;
   }
 
   if (!user || needsEmailVerification) {
@@ -253,41 +263,50 @@ export default function SettingsPage() {
     <DashboardBackground>
       <DashboardHeader userEmail={user.email} onLogout={handleLogout} />
 
-      <main className="relative z-10 max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-            Settings & Profile
+      <main className="relative z-10 max-w-6xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+        <div className="mb-12 text-center">
+          <h1 className="text-5xl font-serif font-bold text-black tracking-tight">
+            Your Profile
           </h1>
-          <p className="text-slate-400 text-lg mt-2">
-            Manage your account and profile information
+          <p className="text-gray-500 text-lg mt-4 font-sans max-w-2xl mx-auto">
+            Manage your personal information and account settings in one place.
           </p>
         </div>
 
-        <AccountInformation
-          email={user?.email}
-          resumeId={resumeId}
-          hasResume={hasResume}
-          isRecruiter={settings.isRecruiter}
-          saving={saving}
-          onRecruiterToggle={handleRecruiterToggle}
-          onCopy={handleCopyResumeId}
-        />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Left Column: Profile Details (Main Focus) */}
+          <div className="lg:col-span-7 space-y-8">
+            <ProfileDetails
+              displayName={settings.displayName}
+              companyName={settings.companyName}
+              updatedAt={settings.updatedAt}
+              showCompanyInput={showCompanyInput}
+              savingDisplayName={savingDisplayName}
+              savingCompanyName={savingCompanyName}
+              onDisplayNameChange={(value) =>
+                setSettings({ ...settings, displayName: value })
+              }
+              onCompanyNameChange={(value) =>
+                setSettings({ ...settings, companyName: value })
+              }
+              onSaveDisplayName={handleSaveDisplayName}
+              onSaveCompanyName={handleSaveCompanyName}
+            />
+          </div>
 
-        <ProfileDetails
-          displayName={settings.displayName}
-          companyName={settings.companyName}
-          updatedAt={settings.updatedAt}
-          showCompanyInput={showCompanyInput}
-          saving={saving}
-          onDisplayNameChange={(value) =>
-            setSettings({ ...settings, displayName: value })
-          }
-          onCompanyNameChange={(value) =>
-            setSettings({ ...settings, companyName: value })
-          }
-          onSaveDisplayName={handleSaveDisplayName}
-          onSaveCompanyName={handleSaveCompanyName}
-        />
+          {/* Right Column: Account Info (Secondary) */}
+          <div className="lg:col-span-5 space-y-8">
+            <AccountInformation
+              email={user?.email}
+              resumeId={resumeId}
+              hasResume={hasResume}
+              isRecruiter={settings.isRecruiter}
+              savingRecruiter={savingRecruiter}
+              onRecruiterToggle={handleRecruiterToggle}
+              onCopy={handleCopyResumeId}
+            />
+          </div>
+        </div>
 
         {message && <Notification type={message.type} text={message.text} />}
       </main>

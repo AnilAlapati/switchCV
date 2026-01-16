@@ -17,32 +17,36 @@ interface CandidateCardProps {
 
 function CandidateCard({ result, onSelect }: CandidateCardProps) {
   return (
-    <div className="border border-slate-800 bg-slate-900/50 rounded-lg p-4 hover:border-cyan-500/30 transition-all">
-      <div className="flex justify-between items-start mb-2">
+    <div className="bg-white p-5 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transition-all duration-200 border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[-2px]">
+      <div className="flex justify-between items-start mb-3">
         <div>
-          <h3 className="font-semibold text-white">{result.displayName}</h3>
+          <h3 className="font-bold font-serif text-slate-900 text-lg">
+            {result.displayName}
+          </h3>
           {result.role && (
-            <p className="text-sm text-slate-400 flex items-center gap-1">
+            <p className="text-sm text-slate-600 flex items-center gap-1 mt-1 font-medium">
               <span>💼</span>
               {result.role}
             </p>
           )}
           {result.location && (
-            <p className="text-sm text-slate-400 flex items-center gap-1">
+            <p className="text-sm text-slate-600 flex items-center gap-1 mt-0.5 font-medium">
               <span>📍</span>
               {result.location}
             </p>
           )}
         </div>
         {result.hasApproval && (
-          <span className="text-xs bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 px-2 py-1 rounded">
-            Already Approved
+          <span className="text-xs bg-emerald-100 text-emerald-900 border-2 border-black px-3 py-1 rounded-full font-bold">
+            ✓ Approved
           </span>
         )}
       </div>
 
       {result.bio && (
-        <p className="text-sm text-slate-300 mb-3 line-clamp-2">{result.bio}</p>
+        <p className="text-sm text-slate-700 mb-4 line-clamp-2">
+          {result.bio}
+        </p>
       )}
 
       {result.skills && result.skills.length > 0 && (
@@ -50,13 +54,13 @@ function CandidateCard({ result, onSelect }: CandidateCardProps) {
           {result.skills.slice(0, 4).map((skill) => (
             <span
               key={skill}
-              className="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded border border-slate-700"
+              className="text-xs bg-slate-50 text-slate-900 px-3 py-1 rounded-full border border-black font-bold"
             >
               {skill}
             </span>
           ))}
           {result.skills.length > 4 && (
-            <span className="text-xs text-slate-500 px-2 py-1">
+            <span className="text-xs text-slate-500 px-2 py-1 font-medium">
               +{result.skills.length - 4} more
             </span>
           )}
@@ -65,13 +69,15 @@ function CandidateCard({ result, onSelect }: CandidateCardProps) {
 
       <button
         onClick={onSelect}
-        className="w-full px-4 py-2 bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 rounded-lg hover:bg-cyan-500/20 transition-colors text-sm font-medium"
+        className="w-full px-4 py-2.5 bg-black text-white rounded-lg hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] transition-all text-sm font-bold border-2 border-black"
       >
         Request Contact Information
       </button>
     </div>
   );
 }
+
+import { SearchResultsSkeleton } from "@/components/recruiter/SearchResultsSkeleton";
 
 interface SearchResultsProps {
   results: SearchResult[];
@@ -87,36 +93,37 @@ export function SearchResults({
   onSelectCandidate,
 }: SearchResultsProps) {
   return (
-    <div className="space-y-3">
-      {isLoading && (
-        <div className="text-center py-8 text-slate-400">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-500"></div>
-          <p className="mt-2">Searching candidates...</p>
-        </div>
-      )}
+    <div className="space-y-4">
+      {isLoading && <SearchResultsSkeleton />}
 
       {!isLoading && results.length === 0 && query && (
-        <div className="text-center py-8 text-slate-400">
-          <div className="text-4xl mx-auto mb-2">🔍</div>
-          <p>No candidates found matching your criteria</p>
-          <p className="text-sm text-slate-500 mt-1">
-            Try adjusting your search filters
+        <div className="bg-white border-2 border-black rounded-xl text-center py-12 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          <div className="text-5xl mx-auto mb-3">🔍</div>
+          <p className="text-slate-900 font-bold font-serif text-lg mb-1">
+            No candidates found matching your criteria
+          </p>
+          <p className="text-sm text-slate-600 font-medium">
+            Try adjusting your search filters or using different keywords
           </p>
         </div>
       )}
 
       {!isLoading && results.length > 0 && (
         <>
-          <p className="text-sm text-slate-400">
-            Found {results.length} candidate{results.length !== 1 ? "s" : ""}
-          </p>
-          {results.map((result) => (
-            <CandidateCard
-              key={result.userId}
-              result={result}
-              onSelect={() => onSelectCandidate?.(result.userId, result)}
-            />
-          ))}
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm text-slate-600 font-bold uppercase tracking-wide">
+              Found {results.length} candidate{results.length !== 1 ? "s" : ""}
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-4">
+            {results.map((result) => (
+              <CandidateCard
+                key={result.userId}
+                result={result}
+                onSelect={() => onSelectCandidate?.(result.userId, result)}
+              />
+            ))}
+          </div>
         </>
       )}
     </div>

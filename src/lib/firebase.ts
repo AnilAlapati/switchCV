@@ -1,9 +1,15 @@
 import { initializeApp, type FirebaseApp } from "firebase/app";
-import { getAuth, type Auth } from "firebase/auth";
-import { getFirestore, type Firestore } from "firebase/firestore";
+import { getAuth, type Auth, connectAuthEmulator } from "firebase/auth";
+import {
+  getFirestore,
+  type Firestore,
+  connectFirestoreEmulator,
+  setLogLevel,
+} from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { getFunctions, type Functions } from "firebase/functions";
 import { getAnalytics, type Analytics, isSupported } from "firebase/analytics";
+import { logger } from "@/lib/logger";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "",
@@ -38,7 +44,46 @@ let storage: FirebaseStorage | null = null;
 let functions: Functions | null = null;
 let analytics: Analytics | null = null;
 
+type FirebaseClientName = "auth" | "db" | "storage" | "functions";
+
+const firebaseClientError = (name: FirebaseClientName): string =>
+  firebaseStatus.error ||
+  `Firebase ${name} client is not initialized. Check environment configuration.`;
+
+const createUnavailableClient = <T extends object>(
+  name: FirebaseClientName
+): T =>
+  new Proxy(
+    {},
+    {
+      get() {
+        throw new Error(firebaseClientError(name));
+      },
+      apply() {
+        throw new Error(firebaseClientError(name));
+      },
+    }
+  ) as T;
+
+const resolveClient = <T extends object>(
+  client: T | null,
+  name: FirebaseClientName
+): T => client ?? createUnavailableClient<T>(name);
+
 const canInitialize = firebaseStatus.isConfigured;
+const isProduction = process.env.NODE_ENV === "production";
+const enableFirestoreDebugLogs =
+  !isProduction && process.env.NEXT_PUBLIC_FIREBASE_DEBUG_LOGS === "true";
+const useFirebaseEmulators =
+  !isProduction && process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "true";
+const emulatorHost =
+  process.env.NEXT_PUBLIC_FIREBASE_EMULATOR_HOST || "127.0.0.1";
+const firestoreEmulatorPort = Number(
+  process.env.NEXT_PUBLIC_FIRESTORE_EMULATOR_PORT || 8080
+);
+const authEmulatorPort = Number(
+  process.env.NEXT_PUBLIC_AUTH_EMULATOR_PORT || 9099
+);
 
 try {
   if (canInitialize) {
@@ -49,11 +94,56 @@ try {
     functions = getFunctions(app);
 
     if (typeof window !== "undefined") {
-      isSupported().then((supported) => {
-        if (supported && app) {
-          analytics = getAnalytics(app);
+      isSupported()
+        .then((supported) => {
+          if (supported && app) {
+            analytics = getAnalytics(app);
+          }
+        })
+        .catch((error) => {
+          if (process.env.NODE_ENV !== "production") {
+            logger.warn(
+              { err: error },
+              "Skipping Firebase Analytics initialization"
+            );
+          }
+        });
+    }
+
+    if (enableFirestoreDebugLogs) {
+      setLogLevel("debug");
+      logger.info(
+        {
+          source: "firebase",
+        },
+        "Firebase Firestore debug logging enabled"
+      );
+    }
+
+    if (useFirebaseEmulators) {
+      if (db) {
+        connectFirestoreEmulator(db, emulatorHost, firestoreEmulatorPort);
+      }
+      if (auth) {
+        const emulatorOrigin = `http://${emulatorHost}:${authEmulatorPort}`;
+        try {
+          connectAuthEmulator(auth, emulatorOrigin, { disableWarnings: true });
+        } catch (error) {
+          logger.warn(
+            { err: error, source: "firebase.auth" },
+            "Auth emulator already configured"
+          );
         }
-      });
+      }
+      logger.info(
+        {
+          source: "firebase",
+          emulatorHost,
+          firestoreEmulatorPort,
+          authEmulatorPort,
+        },
+        "Connected Firebase clients to local emulators"
+      );
     }
 
     firebaseStatus.isReady = true;
@@ -88,12 +178,16 @@ const authClient = auth as Auth;
 const dbClient = db as Firestore;
 const storageClient = storage as FirebaseStorage;
 const functionsClient = functions as Functions;
+const safeAuthClient = resolveClient(authClient ?? null, "auth");
+const safeDbClient = resolveClient(dbClient ?? null, "db");
+const safeStorageClient = resolveClient(storageClient ?? null, "storage");
+const safeFunctionsClient = resolveClient(functionsClient ?? null, "functions");
 
 export {
-  authClient as auth,
-  dbClient as db,
-  storageClient as storage,
-  functionsClient as functions,
+  safeAuthClient as auth,
+  safeDbClient as db,
+  safeStorageClient as storage,
+  safeFunctionsClient as functions,
   analytics,
 };
 export default app;

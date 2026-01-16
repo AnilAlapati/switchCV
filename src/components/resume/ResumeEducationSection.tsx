@@ -31,7 +31,7 @@ export function ResumeEducationSection({
             const descriptionText = isLongDegree ? edu.degree : edu.description;
 
             return (
-              <div key={index} className="group">
+              <div key={edu.id || `edu-${index}`} className="group">
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div className="flex-1">
                     <h3 className="text-xl sm:text-2xl font-bold text-white group-hover:text-purple-400 transition-colors">

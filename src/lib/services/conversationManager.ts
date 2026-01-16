@@ -109,16 +109,26 @@ export class ConversationManager {
     "summary",
   ];
 
-  /** Recommended fields for a complete resume */
-  private static readonly RECOMMENDED_FIELDS = [
+  /** Core fields that SHOULD be collected */
+  private static readonly CORE_FIELDS = [
     "name",
     "email",
-    "phone",
-    "location",
     "summary",
     "experience",
     "education",
     "skills",
+  ];
+
+  /** Optional fields that are nice to have */
+  private static readonly OPTIONAL_FIELDS = [
+    "phone",
+    "location",
+  ];
+
+  /** All tracked fields */
+  private static readonly RECOGNIZED_FIELDS = [
+    ...ConversationManager.CORE_FIELDS,
+    ...ConversationManager.OPTIONAL_FIELDS,
   ];
 
   constructor(initialData?: Partial<ResumeDataRequirements>) {
@@ -149,20 +159,24 @@ export class ConversationManager {
     const collectedFields: string[] = [];
     const missingFields: string[] = [];
 
-    // Check each recommended field
-    for (const field of ConversationManager.RECOMMENDED_FIELDS) {
+    // Check all recognized fields
+    for (const field of ConversationManager.RECOGNIZED_FIELDS) {
       const value = this.collectedData[field as keyof ResumeDataRequirements];
 
       if (this.isFieldPopulated(field, value)) {
         collectedFields.push(field);
-      } else {
+      } else if (ConversationManager.CORE_FIELDS.includes(field)) {
+        // Only mark as missing if it's a CORE field
         missingFields.push(field);
       }
     }
 
+    // Calculate completeness based on CORE fields only
+    // This allows 100% completion without optional fields
+    const coreCollected = collectedFields.filter(f => ConversationManager.CORE_FIELDS.includes(f));
+
     const completenessPercentage = Math.round(
-      (collectedFields.length / ConversationManager.RECOMMENDED_FIELDS.length) *
-        100
+      (coreCollected.length / ConversationManager.CORE_FIELDS.length) * 100
     );
 
     const hasMinimumData = ConversationManager.MINIMUM_REQUIRED_FIELDS.every(
@@ -172,8 +186,10 @@ export class ConversationManager {
       }
     );
 
-    // Ready to create if we have minimum data OR completeness is >= 60%
-    const isReadyToCreate = hasMinimumData || completenessPercentage >= 60;
+    // Ready to create if we have minimum data (completeness logic can be adjusted)
+    // Here we stick to: Ready if minimums are met. 
+    // High bar for "completeness" is 100% of CORE fields.
+    const isReadyToCreate = hasMinimumData || completenessPercentage >= 80;
 
     return {
       completenessPercentage,

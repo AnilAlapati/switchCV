@@ -39,7 +39,7 @@ export function ProjectsStep({
         <div className="space-y-4">
           {projects.map((project, index) => (
             <ProjectCard
-              key={index}
+              key={project.id || `proj-${index}`}
               index={index}
               project={project}
               onUpdate={(updates) => onUpdate(index, updates)}

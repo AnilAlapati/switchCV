@@ -9,6 +9,10 @@ import {
 } from "@/config/supportFeedback";
 import { useAuth } from "@/hooks/useAuth";
 import { ContactFormFields } from "./form-fields";
+// import { BackgroundBlobs } from "@/components/ui/BackgroundBlobs"; // Removed in favor of DashboardBackground
+import { DashboardBackground } from "@/components/dashboard/DashboardBackground";
+import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { useRouter } from "next/navigation";
 
 interface FormState {
   name: string;
@@ -37,7 +41,8 @@ const getInitialFormState = (): FormState => ({
 });
 
 export default function ContactPage() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const router = useRouter();
   const [form, setForm] = useState<FormState>(getInitialFormState());
   const [status, setStatus] = useState<SubmissionState>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -164,27 +169,35 @@ export default function ContactPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
-      <div className="relative isolate overflow-hidden py-24 sm:py-32">
-        <div className="absolute inset-0 -z-10 opacity-30">
-          <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/20 via-blue-500/10 to-purple-500/20 blur-3xl" />
-        </div>
-        <div className="mx-auto max-w-6xl px-4 lg:px-8">
+    <DashboardBackground>
+      <DashboardHeader
+        userEmail={user?.email}
+        onLogout={async () => {
+          await logout();
+          router.push("/auth");
+        }}
+      />
+      <div className="min-h-screen text-[#1A2F25] relative overflow-hidden">
+        {/* <div className="fixed inset-0 z-0 pointer-events-none">
+        <BackgroundBlobs />
+      </div> */ }
+
+        <div className="relative z-10 mx-auto max-w-6xl px-4 lg:px-8 py-24 sm:py-32">
           <div className="grid gap-12 lg:grid-cols-[1.2fr,0.8fr]">
-            <section className="rounded-3xl border border-white/10 bg-slate-900/60 p-6 shadow-2xl shadow-cyan-500/10 sm:p-10">
+            <section className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-6 sm:p-10">
               <header className="mb-10 space-y-4">
-                <p className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.2em] text-cyan-300/80">
-                  <span className="h-2 w-2 rounded-full bg-cyan-300" />{" "}
+                <p className="inline-flex items-center gap-2 px-3 py-1 text-[10px] font-mono font-bold uppercase tracking-widest text-blue-600 bg-blue-50 border border-blue-200">
+                  <span className="h-2 w-2 bg-blue-600" />{" "}
                   Dedicated support
                 </p>
-                <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+                <h1 className="text-3xl font-serif font-bold tracking-tight text-black sm:text-4xl text-wrap">
                   Tell us what's working, what's not, or what you need next.
                 </h1>
-                <p className="text-base text-slate-300">
+                <p className="text-base text-gray-600 font-sans">
                   We read every message. Submissions route directly to{" "}
                   <Link
                     href={`mailto:${APP_CONFIG.SUPPORT_EMAIL}`}
-                    className="text-cyan-300 underline-offset-4 hover:text-cyan-200 hover:underline"
+                    className="text-blue-600 underline underline-offset-4 hover:text-black"
                   >
                     {APP_CONFIG.SUPPORT_EMAIL}
                   </Link>{" "}
@@ -193,12 +206,12 @@ export default function ContactPage() {
               </header>
 
               {showSuccess && referenceId && (
-                <div className="mb-8 rounded-2xl border border-emerald-400/40 bg-emerald-500/10 p-4 text-emerald-100">
-                  <p className="font-semibold text-emerald-200">
+                <div className="mb-8 border-2 border-blue-200 bg-blue-50 p-4 text-blue-900">
+                  <p className="font-bold text-blue-800">
                     Thanks for the signal! Reference ID:{" "}
                     <span className="font-mono">{referenceId}</span>
                   </p>
-                  <p className="text-sm text-emerald-100/80">
+                  <p className="text-sm text-blue-800/80 font-sans">
                     We replied via {APP_CONFIG.SUPPORT_EMAIL}. Keep this ID
                     handy if you follow up.
                   </p>
@@ -206,9 +219,9 @@ export default function ContactPage() {
               )}
 
               {error && (
-                <div className="mb-6 rounded-2xl border border-rose-400/40 bg-rose-500/10 p-4 text-rose-100">
-                  <p className="font-semibold">We couldn't send that.</p>
-                  <p className="text-sm opacity-80">{error}</p>
+                <div className="mb-6 border-2 border-red-200 bg-red-50 p-4 text-red-900">
+                  <p className="font-bold">We couldn't send that.</p>
+                  <p className="text-sm opacity-80 font-sans">{error}</p>
                 </div>
               )}
 
@@ -237,15 +250,15 @@ export default function ContactPage() {
                     handleChange(f as keyof FormState, v)
                   }
                 />
-                <div className="flex flex-col gap-4 text-sm text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-                  <p>
+                <div className="flex flex-col gap-4 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="font-sans">
                     Avg. weekday response time:{" "}
-                    <span className="text-white">&lt; 12 hrs</span>
+                    <span className="text-black font-bold">&lt; 12 hrs</span>
                   </p>
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-500 px-6 py-3 text-base font-semibold text-slate-950 shadow-lg shadow-cyan-500/30 transition-transform hover:-translate-y-0.5 hover:shadow-cyan-500/50 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex items-center justify-center bg-black px-6 py-3 text-base font-bold text-white border-2 border-black transition-all hover:bg-white hover:text-black disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {isSubmitting ? "Sending..." : "Send feedback"}
                   </button>
@@ -253,40 +266,42 @@ export default function ContactPage() {
               </form>
             </section>
 
-            <aside className="space-y-6 rounded-3xl border border-white/10 bg-white/5/60 p-6 backdrop-blur-lg">
-              <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-5">
-                <p className="text-sm uppercase tracking-[0.3em] text-slate-400">
-                  Direct inbox
-                </p>
-                <p className="mt-3 text-2xl font-semibold text-white">
-                  {APP_CONFIG.SUPPORT_EMAIL}
-                </p>
-                <p className="mt-2 text-sm text-slate-400">
-                  Mon–Fri · 9a–7p ET · Escalations routed instantly.
-                </p>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-5">
-                <p className="text-sm font-semibold text-white">What's next?</p>
-                <ul className="mt-3 space-y-3 text-sm text-slate-300">
-                  <li>• You receive a confirmation with your reference ID.</li>
-                  <li>• An on-call teammate triages within a business day.</li>
-                  <li>
-                    • Urgent recruiter workflows alert the ops channel
-                    immediately.
-                  </li>
-                </ul>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-5 text-sm text-slate-300">
-                <p className="font-semibold text-white">Prefer async?</p>
-                <p className="mt-2">
-                  Reply to the confirmation email with screenshots or Loom
-                  links. The same reference ID threads everything together.
-                </p>
+            <aside className="space-y-6">
+              <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-6">
+                <div className="border-2 border-gray-200 bg-gray-50 p-5 mb-4">
+                  <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-gray-500">
+                    Direct inbox
+                  </p>
+                  <p className="mt-3 text-2xl font-serif font-bold text-black">
+                    {APP_CONFIG.SUPPORT_EMAIL}
+                  </p>
+                  <p className="mt-2 text-sm text-gray-600 font-sans">
+                    Mon–Fri · 9a–7p ET · Escalations routed instantly.
+                  </p>
+                </div>
+                <div className="border-2 border-gray-200 bg-gray-50 p-5 mb-4">
+                  <p className="text-sm font-bold text-black">What's next?</p>
+                  <ul className="mt-3 space-y-3 text-sm text-gray-600 font-sans">
+                    <li>• You receive a confirmation with your reference ID.</li>
+                    <li>• An on-call teammate triages within a business day.</li>
+                    <li>
+                      • Urgent recruiter workflows alert the ops channel
+                      immediately.
+                    </li>
+                  </ul>
+                </div>
+                <div className="border-2 border-gray-200 bg-gray-50 p-5 text-sm text-gray-600 font-sans">
+                  <p className="font-bold text-black">Prefer async?</p>
+                  <p className="mt-2">
+                    Reply to the confirmation email with screenshots or Loom
+                    links. The same reference ID threads everything together.
+                  </p>
+                </div>
               </div>
             </aside>
           </div>
         </div>
       </div>
-    </div>
+    </DashboardBackground>
   );
 }

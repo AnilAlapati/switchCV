@@ -189,8 +189,8 @@ export function useRecruiterPipeline(): UseRecruiterPipelineReturn {
     if (!pipeline) {
       return {
         totalCandidates: 0,
-        stageDistribution: {} as any,
-        timeInStage: {} as any,
+        stageDistribution: {} as Record<string, number>,
+        timeInStage: {} as Record<string, number>,
         conversionRate: 0,
         averageTimeToHire: 0,
         hiredThisMonth: 0,

@@ -1,5 +1,6 @@
 /* eslint-disable no-console */
 import * as admin from "firebase-admin";
+import { logger } from "@/lib/logger";
 
 /**
  * Firebase Admin Environment Configuration Error
@@ -19,19 +20,19 @@ export function validateEnvironment(): void {
     process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT;
 
   if (!projectId) {
-    // Log available env vars for debugging (excluding secrets)
-    const safeEnv = Object.keys(process.env).reduce((acc, key) => {
-      if (
-        !key.includes("KEY") &&
-        !key.includes("SECRET") &&
-        !key.includes("PASS")
-      ) {
-        acc[key] = process.env[key];
-      }
-      return acc;
-    }, {} as Record<string, string | undefined>);
-
-    console.error("Missing Project ID. Available Env:", safeEnv);
+    // Dev-only, allowlisted env snapshot to help local debugging.
+    // Avoid logging arbitrary env vars (blocklists are easy to miss).
+    if (process.env.NODE_ENV !== "production") {
+      logger.error(
+        {
+          NODE_ENV: process.env.NODE_ENV,
+          GCLOUD_PROJECT: process.env.GCLOUD_PROJECT,
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID:
+            process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+        },
+        "Missing Project ID. Env snapshot:"
+      );
+    }
 
     throw new FirebaseAdminConfigError(
       "Missing required environment variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID or GCLOUD_PROJECT."
@@ -56,6 +57,11 @@ export function initializeFirebaseAdmin(): void {
     const projectId =
       process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT;
 
+    // Set GOOGLE_CLOUD_PROJECT for ADC quota project (required for identitytoolkit.googleapis.com)
+    if (!process.env.GOOGLE_CLOUD_PROJECT && projectId) {
+      process.env.GOOGLE_CLOUD_PROJECT = projectId;
+    }
+
     // Try to get service account from environment variable first
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
       const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
@@ -69,10 +75,10 @@ export function initializeFirebaseAdmin(): void {
         projectId,
       });
     }
-    console.log(
-      "Firebase Admin Initialized successfully with Project ID:",
-      projectId
-    );
+    // console.log(
+    //   "Firebase Admin Initialized successfully with Project ID:",
+    //   projectId
+    // );
   } catch (error) {
     console.error("Failed to initialize Firebase Admin SDK:", error);
     // We must throw here because the app cannot function without admin

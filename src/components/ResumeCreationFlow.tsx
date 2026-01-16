@@ -1,6 +1,7 @@
 "use client";
 
 import { logger } from "@/lib/logger";
+import { toast } from "sonner";
 
 import React, { useState, useCallback } from "react";
 import { ResumeQAForm } from "./ResumeQAForm";
@@ -8,6 +9,7 @@ import { ResumeGenerationLoader } from "./ResumeGenerationLoader";
 import { ResumeReviewModal } from "./ResumeReviewModal";
 import { useAIResume } from "@/hooks/useAIResume";
 import { Resume } from "@/lib/resumeComparison.types";
+import type { EnhancedExperience } from "@/types/aiResume.types";
 
 type FlowPhase = "questions" | "generating" | "review" | "saving";
 
@@ -116,12 +118,14 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
           title: candidateName + "'s Resume",
           summary: result.enhancedSummary,
           skills: [...resumeData.skills, ...result.skillSuggestions],
-          experience: result.enhancedExperience.map((exp: any) => ({
-            company: exp.company,
-            role: exp.title,
-            duration: exp.duration,
-            description: exp.enhancedDescription,
-          })),
+          experience: result.enhancedExperience.map(
+            (exp: EnhancedExperience) => ({
+              company: exp.company,
+              role: exp.title,
+              duration: exp.duration,
+              description: exp.enhancedDescription,
+            })
+          ),
           education: [],
           contact: {
             email: { value: resumeData.personalInfo.email },
@@ -176,7 +180,11 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
       }, 1500);
     } catch (error) {
       logger.error({ err: error }, "Resume save failed:");
-      alert(error instanceof Error ? error.message : "Failed to save resume.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to save resume. Please try again."
+      );
       setPhase("review");
     }
   }, [generatedResume, userId, onComplete]);
@@ -189,7 +197,7 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
       if (!generatedResume) return;
 
       if (retryCount >= 5) {
-        alert("Maximum rewrites reached. Please accept this version.");
+        toast.warning("Maximum rewrites reached. Please accept this version.");
         return;
       }
 
@@ -230,12 +238,14 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
           title: generatedResume.title,
           summary: result.enhancedSummary,
           skills: newSkills,
-          experience: result.enhancedExperience.map((exp: any) => ({
-            company: exp.company,
-            role: exp.title,
-            duration: exp.duration,
-            description: exp.enhancedDescription,
-          })),
+          experience: result.enhancedExperience.map(
+            (exp: EnhancedExperience) => ({
+              company: exp.company,
+              role: exp.title,
+              duration: exp.duration,
+              description: exp.enhancedDescription,
+            })
+          ),
           education: [],
           contact: generatedResume.contact,
         };
@@ -245,7 +255,7 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
       } catch (error) {
         logger.error({ err: error }, "Resume regeneration failed:");
         setPhase("review");
-        alert("Failed to regenerate resume. Please try again.");
+        toast.error("Failed to regenerate resume. Please try again.");
       }
     },
     [

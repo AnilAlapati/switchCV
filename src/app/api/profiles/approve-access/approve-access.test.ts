@@ -10,38 +10,45 @@ jest.mock("firebase-admin/firestore", () => ({
 }));
 jest.mock("@/lib/firebase-admin", () => ({
   adminDb: {
-    collection: jest.fn(),
+    collection: jest.fn((name) => ({
+      doc: jest.fn(() => ({
+        get: jest.fn(),
+        set: jest.fn(),
+        update: jest.fn(),
+      })),
+      add: jest.fn(),
+      where: jest.fn(() => ({
+        get: jest.fn(),
+      })),
+    })),
   },
   adminAuth: {
     verifyIdToken: jest.fn(),
   },
 }));
 
+import { NextRequest } from "next/server";
+import { POST } from "./route";
+
+// Mock AccessService
+jest.mock("@/lib/services/accessService", () => ({
+  AccessService: {
+    respondToRequest: jest.fn(),
+  },
+}));
+
+import { AccessService } from "@/lib/services/accessService";
+
 // Mock api-helpers
 jest.mock("@/lib/utils/api-helpers", () => ({
   getAuthenticatedUserId: jest.fn(),
-  handleApiError: jest.fn((error, message, status = 500) => {
-    return {
-      status: status,
-      json: async () => ({
-        error: message,
-        details: error instanceof Error ? error.message : "Unknown error",
-      }),
-    };
-  }),
-  verifyResumeOwnership: jest.fn(),
+  handleApiError: jest.requireActual("@/lib/utils/api-helpers").handleApiError,
 }));
 
-import { POST } from "@/app/api/profiles/approve-access/route";
-import { NextRequest } from "next/server";
-import { adminDb } from "@/lib/firebase-admin";
 import {
   getAuthenticatedUserId,
-  verifyResumeOwnership,
   handleApiError,
 } from "@/lib/utils/api-helpers";
-
-const mockAdminDb = adminDb as jest.Mocked<typeof adminDb>;
 
 const buildRequest = (
   payload: unknown,
@@ -68,81 +75,11 @@ let accessGrantsCollection: any;
 let notificationsDocRef: any;
 let messagesCollection: any;
 
-const setupFirestoreMocks = () => {
-  requestDocRef = {
-    get: jest.fn().mockResolvedValue({
-      exists: true,
-      data: () => ({
-        fromUserId: "requester-123",
-        fromUserName: "Requester",
-        resumeSlug: "resume-slug",
-      }),
-    }),
-    update: jest.fn().mockResolvedValue(undefined),
-  };
-
-  accessRequestsCollection = {
-    doc: jest.fn(() => requestDocRef),
-  };
-
-  accessGrantsCollection = {
-    add: jest.fn().mockResolvedValue({ id: "grant-123" }),
-  };
-
-  messagesCollection = {
-    add: jest.fn().mockResolvedValue({ id: "notification-123" }),
-  };
-
-  notificationsDocRef = {
-    collection: jest.fn(() => messagesCollection),
-  };
-
-  resumeDocRef = {
-    get: jest.fn().mockResolvedValue({
-      exists: true,
-      data: () => ({ userId: "owner-123", title: "Resume" }),
-    }),
-    collection: jest.fn((name: string) => {
-      if (name === "accessRequests") {
-        return accessRequestsCollection;
-      }
-      if (name === "accessGrants") {
-        return accessGrantsCollection;
-      }
-      return null;
-    }),
-  };
-
-  (mockAdminDb.collection as jest.Mock).mockImplementation((name: string) => {
-    switch (name) {
-      case "resumeProfiles":
-        return { doc: jest.fn(() => resumeDocRef) };
-      case "notifications":
-        return { doc: jest.fn(() => notificationsDocRef) };
-      case "recruiterMetrics":
-        return {
-          doc: jest.fn(() => ({
-            set: jest.fn().mockResolvedValue(undefined),
-          })),
-        };
-      default:
-        return { doc: jest.fn() };
-    }
-  });
-};
-
 describe("POST /api/profiles/approve-access", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    setupFirestoreMocks();
     (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
       userId: "owner-123",
-    });
-    (verifyResumeOwnership as jest.Mock).mockResolvedValue({
-      success: true,
-      userId: "owner-123",
-      docRef: resumeDocRef,
-      resumeData: { userId: "owner-123" },
     });
   });
 
@@ -153,16 +90,19 @@ describe("POST /api/profiles/approve-access", () => {
   };
 
   it("approves access and creates grant", async () => {
+    (AccessService.respondToRequest as jest.Mock).mockResolvedValue(undefined);
+
     const response = await POST(buildRequest(basePayload));
     const data = await response.json();
 
     expect(response.status).toBe(200);
     expect(data.success).toBe(true);
-    expect(accessGrantsCollection.add).toHaveBeenCalledWith(
-      expect.objectContaining({ grantedBy: "owner-123" })
-    );
-    expect(requestDocRef.update).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "approved" })
+    expect(AccessService.respondToRequest).toHaveBeenCalledWith(
+      "owner-123",
+      "resume-123",
+      "request-123",
+      "approve",
+      7
     );
   });
 
@@ -194,14 +134,9 @@ describe("POST /api/profiles/approve-access", () => {
   });
 
   it("returns 404 if resume not found", async () => {
-    (verifyResumeOwnership as jest.Mock).mockResolvedValue({
-      success: false,
-      error: handleApiError(
-        new Error("Resume not found"),
-        "Resume not found",
-        404
-      ),
-    });
+    (AccessService.respondToRequest as jest.Mock).mockRejectedValue(
+      new Error("not found")
+    );
 
     const response = await POST(buildRequest(basePayload));
 
@@ -209,24 +144,19 @@ describe("POST /api/profiles/approve-access", () => {
   });
 
   it("returns 403 if current user is not owner", async () => {
-    (verifyResumeOwnership as jest.Mock).mockResolvedValue({
-      success: false,
-      error: handleApiError(
-        new Error("Forbidden: You do not own this resume"),
-        "Forbidden: You do not own this resume",
-        403
-      ),
-    });
+    (AccessService.respondToRequest as jest.Mock).mockRejectedValue(
+      new Error("Unauthorized")
+    );
 
     const response = await POST(buildRequest(basePayload));
-    const data = await response.json();
 
     expect(response.status).toBe(403);
-    expect(data.error).toContain("Forbidden");
   });
 
   it("returns 404 if access request missing", async () => {
-    requestDocRef.get.mockResolvedValue({ exists: false });
+    (AccessService.respondToRequest as jest.Mock).mockRejectedValue(
+      new Error("not found")
+    );
 
     const response = await POST(buildRequest(basePayload));
 
@@ -234,24 +164,37 @@ describe("POST /api/profiles/approve-access", () => {
   });
 
   it("handles forever duration without expiry", async () => {
+    (AccessService.respondToRequest as jest.Mock).mockResolvedValue(undefined);
+
     await POST(buildRequest({ ...basePayload, duration: "forever" }));
 
-    const grantPayload = accessGrantsCollection.add.mock.calls[0][0];
-    expect(grantPayload.expiresAt).toBeNull();
+    expect(AccessService.respondToRequest).toHaveBeenCalledWith(
+      "owner-123",
+      "resume-123",
+      "request-123",
+      "approve",
+      3650
+    );
   });
 
   it("creates notification for requester", async () => {
+    (AccessService.respondToRequest as jest.Mock).mockResolvedValue(undefined);
+
     await POST(buildRequest(basePayload));
 
-    expect(messagesCollection.add).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: "requester-123" })
+    expect(AccessService.respondToRequest).toHaveBeenCalledWith(
+      "owner-123",
+      "resume-123",
+      "request-123",
+      "approve",
+      7
     );
   });
 
   it("handles errors gracefully", async () => {
-    // Mock verifyResumeOwnership to throw or return success but subsequent calls fail
-    // Here we want to test the try-catch block in the route
-    requestDocRef.get.mockRejectedValue(new Error("Firestore offline"));
+    (AccessService.respondToRequest as jest.Mock).mockRejectedValue(
+      new Error("Unexpected error")
+    );
 
     const response = await POST(buildRequest(basePayload));
     const data = await response.json();

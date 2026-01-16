@@ -1,7 +1,8 @@
-// src/__tests__/hooks/useResume.test.tsx
 import { renderHook, waitFor } from "@testing-library/react";
 import { useResume } from "@/hooks/useResume";
 import { getDocs } from "firebase/firestore";
+import { SWRConfig } from "swr";
+import React from "react";
 
 // Mock Firebase
 jest.mock("@/lib/firebase", () => ({
@@ -26,6 +27,12 @@ jest.mock("firebase/firestore", () => ({
 const mockedGetDocs = jest.mocked(getDocs);
 
 describe("useResume", () => {
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+      {children}
+    </SWRConfig>
+  );
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -33,7 +40,7 @@ describe("useResume", () => {
   it("should return initial state when no user", () => {
     mockUseAuth.mockReturnValue({ user: null });
 
-    const { result } = renderHook(() => useResume());
+    const { result } = renderHook(() => useResume(), { wrapper });
 
     expect(result.current.resume).toBeNull();
     expect(result.current.loading).toBe(false); // Hook sets loading to false when no user
@@ -67,7 +74,7 @@ describe("useResume", () => {
 
     mockedGetDocs.mockResolvedValue(mockQuerySnapshot as any);
 
-    const { result } = renderHook(() => useResume());
+    const { result } = renderHook(() => useResume(), { wrapper });
 
     // Wait for loading to complete
     await waitFor(() => {
@@ -99,7 +106,7 @@ describe("useResume", () => {
 
     mockedGetDocs.mockResolvedValue(mockQuerySnapshot as any);
 
-    const { result } = renderHook(() => useResume());
+    const { result } = renderHook(() => useResume(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -118,7 +125,7 @@ describe("useResume", () => {
 
     mockedGetDocs.mockRejectedValue(mockError);
 
-    const { result } = renderHook(() => useResume());
+    const { result } = renderHook(() => useResume(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -154,7 +161,7 @@ describe("useResume", () => {
 
     mockedGetDocs.mockResolvedValue(mockQuerySnapshot as any);
 
-    const { result } = renderHook(() => useResume());
+    const { result } = renderHook(() => useResume(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);

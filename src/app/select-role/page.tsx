@@ -1,12 +1,16 @@
+/* eslint-disable max-lines */
 "use client";
 
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useRouter } from "next/navigation";
-import { doc, setDoc, serverTimestamp, increment } from "firebase/firestore";
+import { doc, setDoc, increment } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { logger } from "@/lib/logger";
+
+import { BackgroundBlobs } from "@/components/ui/BackgroundBlobs";
+import { UserProfile } from "@/types";
 
 type Role = "jobseeker" | "recruiter";
 
@@ -35,10 +39,12 @@ const ROLES = [
       "Track who views your resume",
       "Control your contact info privacy",
     ],
-    gradient: "from-cyan-500 to-blue-600",
-    hoverGradient: "hover:from-cyan-400 hover:to-blue-500",
-    borderColor: "border-cyan-500",
-    bgColor: "bg-cyan-500/10",
+    // Updated for Aura theme
+    gradient: "from-teal-400 to-emerald-500",
+    hoverGradient: "hover:from-teal-300 hover:to-emerald-400",
+    borderColor: "border-teal-400/50",
+    bgColor: "bg-teal-400/5",
+    activeBg: "bg-teal-400/10",
   },
   {
     id: "recruiter" as Role,
@@ -64,16 +70,18 @@ const ROLES = [
       "Request contact information",
       "Manage candidate pipeline",
     ],
-    gradient: "from-purple-500 to-pink-600",
-    hoverGradient: "hover:from-purple-400 hover:to-pink-500",
-    borderColor: "border-purple-500",
-    bgColor: "bg-purple-500/10",
+    // Updated for Aura theme
+    gradient: "from-blue-400 to-indigo-500",
+    hoverGradient: "hover:from-blue-300 hover:to-indigo-400",
+    borderColor: "border-blue-400/50",
+    bgColor: "bg-blue-400/5",
+    activeBg: "bg-blue-400/10",
   },
 ];
 
 export default function SelectRolePage() {
   const { user, loading } = useAuth();
-  const { mutate } = useUserProfile();
+  const { mutate, role: existingRole, loading: profileLoading } = useUserProfile();
   const router = useRouter();
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -85,6 +93,19 @@ export default function SelectRolePage() {
     return null;
   }
 
+  // Redirect if role is already selected (safeguard)
+  // We use a separate useEffect/check here because user might be loaded but profile/role might take a moment
+  // This prevents the loop where dashboard sends back to select-role, but select-role doesn't check if role exists
+  if (!loading && user && selectedRole && ROLES.find(r => r.id === selectedRole)) {
+    // This state is handled by the mutation logic usually, but if we land here with a role in the DB
+    // we want to redirect.
+  }
+
+  if (!loading && !profileLoading && existingRole && (existingRole === 'jobseeker' || existingRole === 'recruiter')) {
+    router.replace("/dashboard");
+    return null;
+  }
+
   const handleSelectRole = async () => {
     if (!selectedRole || !user) return;
 
@@ -92,21 +113,39 @@ export default function SelectRolePage() {
     setError(null);
 
     try {
-      const userRef = doc(db, "users", user.uid);
-      await setDoc(
-        userRef,
-        {
-          role: selectedRole,
-          roleSelectedAt: serverTimestamp(),
+      // Get fresh ID token
+      const idToken = await user.getIdToken();
+
+      // Use API route to set role (bypasses client-side Firestore rules)
+      const response = await fetch("/api/user/role", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
         },
-        { merge: true }
-      );
+        body: JSON.stringify({ role: selectedRole }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to update role");
+      }
 
       // Increment the appropriate counter in global stats
-      const statsRef = doc(db, "analytics", "globalStats");
-      const statsField =
-        selectedRole === "jobseeker" ? "jobSeekerCount" : "recruiterCount";
-      await setDoc(statsRef, { [statsField]: increment(1) }, { merge: true });
+      // We keep this client-side as it might fail silently without blocking the user flow
+      // or we can move it to the API, but for now let's focus on unblocking the user.
+      // Actually, relying on client-side rules for stats is also risky.
+      // Ideally the API should do this, but let's leave the stats update here for now if it works,
+      // or wrapped in a try-catch so it doesn't fail the whole flow.
+      try {
+        const statsRef = doc(db, "analytics", "globalStats");
+        const statsField =
+          selectedRole === "jobseeker" ? "jobSeekerCount" : "recruiterCount";
+        await setDoc(statsRef, { [statsField]: increment(1) }, { merge: true });
+      } catch (statsErr) {
+        // Ignore stats error
+        logger.warn({ statsErr }, "Failed to update global stats");
+      }
 
       logger.info(
         { userId: user.uid, role: selectedRole },
@@ -114,7 +153,19 @@ export default function SelectRolePage() {
       );
 
       // Force refresh of user profile to update role in SWR cache
-      await mutate();
+      // We use optimistic update here to ensure the local cache has the new role immediately
+      // setting revalidate: false prevents SWR from fetching the stale data from the server (which might be cached by the browser)
+      await mutate(
+        (currentProfile: unknown) => {
+          if (!currentProfile) return null;
+          const profile = currentProfile as UserProfile;
+          return {
+            ...profile,
+            role: selectedRole,
+          };
+        },
+        { revalidate: false }
+      );
 
       // Redirect based on role
       if (selectedRole === "jobseeker") {
@@ -122,35 +173,34 @@ export default function SelectRolePage() {
       } else {
         router.push("/dashboard");
       }
-    } catch (err) {
-      logger.error({ err, userId: user?.uid }, "Failed to set user role");
-      setError("Something went wrong. Please try again.");
+    } catch (err: unknown) {
+      const error = err as { code?: string; message?: string };
+      logger.error(
+        { err, errorCode: error.code, userId: user?.uid },
+        "Failed to set user role"
+      );
+      setError(`Error: ${error.message || "Something went wrong"}`);
       setIsSubmitting(false);
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
-        <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[#FFFFF8]">
+        <div className="w-8 h-8 border-4 border-black border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
-      {/* Background effects */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
-      </div>
+    <div className="min-h-screen relative overflow-hidden flex flex-col items-center justify-center p-4">
+      <BackgroundBlobs />
 
-      <div className="relative z-10 max-w-4xl mx-auto px-4 py-16 sm:py-24">
-        {/* Header */}
+      <div className="relative z-10 w-full max-w-4xl mx-auto">
         <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-2xl mb-6">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-white border-2 border-black mb-6 shadow-lg">
             <svg
-              className="w-8 h-8 text-white"
+              className="w-8 h-8 text-black"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -163,37 +213,36 @@ export default function SelectRolePage() {
               />
             </svg>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold mb-3">
+          <h1 className="text-3xl sm:text-4xl font-serif font-bold mb-3 text-black">
             How will you use SwitchCV?
           </h1>
-          <p className="text-slate-400 text-lg max-w-xl mx-auto">
+          <p className="text-gray-600 text-lg max-w-xl mx-auto">
             Choose your role to get a personalized experience. You can always
             change this later in settings.
           </p>
         </div>
 
-        {/* Role Cards */}
         <div className="grid md:grid-cols-2 gap-6 mb-10">
           {ROLES.map((role) => (
             <button
               key={role.id}
+              type="button"
               onClick={() => setSelectedRole(role.id)}
               disabled={isSubmitting}
-              className={`relative p-6 rounded-2xl border-2 transition-all duration-300 text-left ${
-                selectedRole === role.id
-                  ? `${role.borderColor} ${role.bgColor}`
-                  : "border-white/10 hover:border-white/20 bg-white/5"
-              } ${
-                isSubmitting
+              className={`relative p-8 rounded-[2rem] border-2 transition-all duration-300 text-left group ${selectedRole === role.id
+                ? `${role.borderColor.replace("/50", "")} ${role.activeBg
+                } bg-white shadow-xl`
+                : "border-white/40 bg-white/40 hover:bg-white/60 hover:border-white/60 hover:shadow-lg"
+                } ${isSubmitting
                   ? "opacity-50 cursor-not-allowed"
                   : "cursor-pointer"
-              }`}
+                }`}
             >
               {/* Selected indicator */}
               {selectedRole === role.id && (
-                <div className="absolute top-4 right-4">
+                <div className="absolute top-6 right-6">
                   <div
-                    className={`w-6 h-6 rounded-full bg-gradient-to-r ${role.gradient} flex items-center justify-center`}
+                    className={`w-6 h-6 rounded-full bg-gradient-to-r ${role.gradient} flex items-center justify-center shadow-sm`}
                   >
                     <svg
                       className="w-4 h-4 text-white"
@@ -214,39 +263,48 @@ export default function SelectRolePage() {
 
               {/* Icon */}
               <div
-                className={`w-14 h-14 rounded-xl bg-gradient-to-r ${role.gradient} flex items-center justify-center mb-4`}
+                className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${role.gradient} flex items-center justify-center mb-6 shadow-md text-white group-hover:scale-105 transition-transform duration-300`}
               >
                 {role.icon}
               </div>
 
               {/* Content */}
-              <h2 className="text-xl font-semibold mb-1">{role.title}</h2>
-              <p className="text-slate-400 text-sm mb-4">{role.description}</p>
+              <h2 className="text-xl font-bold mb-2 text-black">
+                {role.title}
+              </h2>
+              <p className="text-gray-600 text-sm mb-6">
+                {role.description}
+              </p>
 
               {/* Features */}
-              <ul className="space-y-2">
+              <ul className="space-y-3">
                 {role.features.map((feature, idx) => (
                   <li
                     key={idx}
-                    className="flex items-center gap-2 text-sm text-slate-300"
+                    className="flex items-center gap-3 text-sm text-gray-700"
                   >
-                    <svg
-                      className={`w-4 h-4 ${
-                        selectedRole === role.id
-                          ? "text-cyan-400"
-                          : "text-slate-500"
-                      }`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+                    <div
+                      className={`p-1 rounded-full ${selectedRole === role.id
+                        ? role.id === "jobseeker"
+                          ? "bg-teal-100 text-teal-600"
+                          : "bg-blue-100 text-blue-600"
+                        : "bg-gray-100 text-gray-500"
+                        }`}
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
+                      <svg
+                        className="w-3 h-3"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    </div>
                     {feature}
                   </li>
                 ))}
@@ -255,27 +313,23 @@ export default function SelectRolePage() {
           ))}
         </div>
 
-        {/* Error message */}
         {error && (
-          <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-center">
+          <div className="mb-6 p-4 rounded-xl bg-red-50 text-red-600 border border-red-100 text-center text-sm font-medium">
             {error}
           </div>
         )}
 
-        {/* Continue Button */}
         <div className="flex justify-center">
           <button
+            type="button"
             onClick={handleSelectRole}
             disabled={!selectedRole || isSubmitting}
-            className={`px-8 py-4 rounded-2xl font-semibold text-white transition-all duration-200 ${
-              selectedRole && !isSubmitting
-                ? `bg-gradient-to-r ${
-                    ROLES.find((r) => r.id === selectedRole)?.gradient
-                  } ${
-                    ROLES.find((r) => r.id === selectedRole)?.hoverGradient
-                  } hover:shadow-lg hover:scale-105`
-                : "bg-slate-700 text-slate-400 cursor-not-allowed"
-            }`}
+            className={`px-10 py-4 rounded-2xl font-semibold text-white transition-all duration-300 shadow-lg ${selectedRole && !isSubmitting
+              ? `bg-gradient-to-r ${ROLES.find((r) => r.id === selectedRole)?.gradient
+              } ${ROLES.find((r) => r.id === selectedRole)?.hoverGradient
+              } hover:shadow-xl hover:scale-105 hover:-translate-y-0.5`
+              : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+              }`}
           >
             {isSubmitting ? (
               <span className="flex items-center gap-2">
@@ -301,13 +355,12 @@ export default function SelectRolePage() {
                 Setting up...
               </span>
             ) : (
-              "Continue"
+              "Continue to Dashboard"
             )}
           </button>
         </div>
 
-        {/* Footer note */}
-        <p className="text-center text-slate-500 text-sm mt-8">
+        <p className="text-center text-gray-400 text-sm mt-8 pb-8 font-sans">
           Your choice helps us show you the right features. Both roles have
           access to core functionality.
         </p>

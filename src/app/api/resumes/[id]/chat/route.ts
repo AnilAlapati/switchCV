@@ -1,7 +1,10 @@
 import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 import { generateText } from "@/lib/services/aiGenerationService";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
+import { BillingService } from "@/lib/services/billingService";
 import {
   buildResumeEditPrompt,
   extractResumeEditJSON,
@@ -47,7 +50,7 @@ async function getResumeDocument(id: string) {
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+): Promise<NextResponse> {
   try {
     const { id } = await params;
     if (!id) {
@@ -61,6 +64,23 @@ export async function GET(
     const { userId: requestUserId, error: authError } =
       await getAuthenticatedUserId(request);
     if (authError) return authError;
+
+    // Unified Rate Limiting
+    const userSnapshot = await adminDb.collection("users").doc(requestUserId!).get();
+    const userRole = (userSnapshot.data()?.subscriptionTier || "basic") as "basic" | "premium" | "enterprise";
+
+    const rateLimitResult = await checkDistributedRateLimit(requestUserId!, {
+      tier: userRole,
+      scope: "chat",
+    });
+
+    if (!rateLimitResult.allowed) {
+      return handleApiError(
+        new Error("Too many requests"),
+        "Too many requests. Please try again later.",
+        429
+      );
+    }
 
     const { docRef, snapshot } = await getResumeDocument(id);
     if (!snapshot.exists) {
@@ -110,7 +130,7 @@ export async function GET(
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+): Promise<NextResponse> {
   try {
     const { id } = await params;
     if (!id) {
@@ -169,15 +189,27 @@ export async function POST(
     const aiResult = await generateText(prompt, 2600, 0.6);
     const responseText = aiResult.text;
 
+    // Track Billing
+    await BillingService.trackUsage(requestUserId!, aiResult.model || "default", {
+      input: Math.ceil(prompt.length / 4),
+      output: Math.ceil(responseText.length / 4),
+    });
+
     const completionPayload = extractResumeEditJSON(responseText);
     const isComplete =
       isResumeEditCompletion(responseText) && !!completionPayload;
     const cleanedResponse = stripEditArtifacts(responseText);
 
     if (!isComplete || !completionPayload) {
+      // Even if incomplete, ensure we strip any partial JSON or artifacts
+      const safeResponse =
+        cleanedResponse || "Let me know what else you’d like to adjust.";
+      const finalResponse = safeResponse
+        .replace(/```json[\s\S]*$/, "") // aggressive strip if it trails
+        .trim();
+
       return NextResponse.json({
-        response:
-          cleanedResponse || "Let me know what else you’d like to adjust.",
+        response: finalResponse,
         model: aiResult.model,
         provider: aiResult.provider,
         completed: false,
@@ -197,16 +229,17 @@ export async function POST(
     }
 
     // Fix for missing visibility in skills from AI response
-    if (updatedProfile.skills && Array.isArray(updatedProfile.skills)) {
-      updatedProfile.skills = updatedProfile.skills.map((skill: any) => ({
-        ...skill,
-        visibility: skill.visibility ?? true,
+    if ("skills" in updatedProfile && Array.isArray(updatedProfile.skills)) {
+      updatedProfile.skills = (updatedProfile.skills as Record<string, unknown>[]).map((skill) => ({
+        name: (skill.name as string) || "",
+        level: (skill.level as "advanced" | "intermediate" | "beginner") || "intermediate",
+        visibility: (skill.visibility as boolean) ?? true,
       }));
     }
 
     const mergedResume = mergeProfileIntoResume(
       resumeData,
-      updatedProfile as any
+      updatedProfile as Record<string, unknown>
     );
     const normalizedUpdated = normalizeResumeForEditor(mergedResume);
     const sanitizedUpdate = sanitizeResumePayload(normalizedUpdated.resume);
@@ -221,48 +254,7 @@ export async function POST(
       { merge: true }
     );
 
-    try {
-      await adminDb
-        .collection("users")
-        .doc(ownerId)
-        .collection("resumes")
-        .doc(id)
-        .set(
-          {
-            ...sanitizedUpdate,
-            updatedAt: timestamp,
-            lastUpdatedAt: timestamp,
-            userId: ownerId,
-            numericId: resumeData.numericId,
-            isPublic: resumeData.isPublic,
-            visibility: resumeData.visibility,
-          },
-          { merge: true }
-        );
-    } catch (subError) {
-      logger.error(
-        { err: subError },
-        "Failed to update user resume subcollection:"
-      );
-    }
-
-    try {
-      await adminDb
-        .collection("allResumes")
-        .doc(id)
-        .set(
-          {
-            title: sanitizedUpdate.title ?? resumeData.title,
-            updatedAt: timestamp,
-            userId: ownerId,
-            numericId: resumeData.numericId,
-            isPublic: resumeData.isPublic,
-          },
-          { merge: true }
-        );
-    } catch (globalError) {
-      logger.error({ err: globalError }, "Failed to update allResumes index:");
-    }
+    // Fan-out Cloud Function keeps user + global indexes in sync.
 
     const updatedResume = {
       ...resumeData,
@@ -272,9 +264,15 @@ export async function POST(
       lastUpdatedAt: timestamp,
     };
 
+    // Ensure the response text doesn't contain the JSON
+    const finalCleanedResponse = cleanedResponse
+      .replace(/```json[\s\S]*?```/gi, "")
+      .replace(/RESUME_EDIT_COMPLETE/gi, "")
+      .trim();
+
     const successMessage = completionPayload.changeSummary
       ? `${completionPayload.changeSummary} — all set!`
-      : cleanedResponse || "All set! Your resume has been updated.";
+      : finalCleanedResponse || "All set! Your resume has been updated.";
 
     return NextResponse.json({
       response: successMessage,

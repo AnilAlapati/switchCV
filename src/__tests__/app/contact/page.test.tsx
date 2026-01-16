@@ -130,7 +130,7 @@ describe("ContactPage", () => {
       const urgentButton = screen.getByRole("button", { name: /urgent/i });
       fireEvent.click(urgentButton);
 
-      expect(urgentButton).toHaveClass("bg-cyan-500/90");
+      expect(urgentButton).toHaveClass("bg-black");
     });
 
     it("should toggle contact permission checkbox", () => {

@@ -1,7 +1,7 @@
 import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
-import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+// eslint-disable-next-line no-restricted-imports
+import admin, { adminDb } from "@/lib/firebase-admin";
 import { tokenGenerator, TokenVerificationResult } from "@/lib/tokenGenerator";
 import { SecureAccessToken } from "@/types/profileSearch";
 import { handleApiError } from "@/lib/utils/api-helpers";
@@ -35,9 +35,11 @@ export async function GET(request: NextRequest) {
     // If token ID provided, get from Firestore
     let tokenData: SecureAccessToken | null = null;
     if (tokenId) {
-      const tokenRef = doc(db, "accessTokens", tokenId);
-      const tokenDoc = await getDoc(tokenRef);
-      if (tokenDoc.exists()) {
+      const tokenDoc = await adminDb
+        .collection("accessTokens")
+        .doc(tokenId)
+        .get();
+      if (tokenDoc.exists) {
         tokenData = tokenDoc.data() as SecureAccessToken;
       }
     }
@@ -122,11 +124,13 @@ export async function GET(request: NextRequest) {
 
       // Track usage
       if (tokenId) {
-        const tokenRef = doc(db, "accessTokens", tokenId);
-        await updateDoc(tokenRef, {
-          usageCount: (tokenData.usageCount || 0) + 1,
-          lastUsedAt: serverTimestamp(),
-        });
+        await adminDb
+          .collection("accessTokens")
+          .doc(tokenId)
+          .update({
+            usageCount: (tokenData.usageCount || 0) + 1,
+            lastUsedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
       }
 
       const remainingSeconds = tokenGenerator.getRemainingTime(expiresAtNum);

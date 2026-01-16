@@ -1,51 +1,175 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Live Writer Theme (High Contrast, Editorial) */
+  --background: #FFFFF8;
+  /* Warm paper white */
+  --foreground: #111111;
+  /* Soft black */
+
+  /* Surface / Panels */
+  --card: #FFFFFF;
+  --card-foreground: #111111;
+
+  --popover: #FFFFFF;
+  --popover-foreground: #111111;
+
+  /* Primary Brand - Cobalt Blue for highlights (Link style), Black for Main */
+  --primary: #111111;
+  --primary-foreground: #FFFFFF;
+
+  --secondary: #F5F5F0;
+  /* Light gray/paper secondary */
+  --secondary-foreground: #111111;
+
+  --muted: #F3F4F6;
+  --muted-foreground: #6B7280;
+
+  --accent: #E0E7FF;
+  /* Light Indigo for subtle interactions */
+  --accent-foreground: #1e1b4b;
+
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+
+  --border: #E5E7EB;
+  /* Standard gray border */
+  --input: #FFFFFF;
+  --ring: #111111;
+  /* Focus ring is black */
+
+  --radius: 0.5rem;
+  /* Sharper corners for editorial feel */
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --font-sans: var(--font-geist-sans, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
+  --font-serif: var(--font-merriweather, ui-serif, Georgia, Cambria, "Times New Roman", Times, serif);
+  /* Added Serif */
+  --font-mono: var(--font-geist-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
+
+  --animate-blob: blob 7s infinite;
 }
 
 @media (prefers-color-scheme: dark) {
+
+  /* Forcing Light Mode Look for "Paper" aesthetic consistency, mostly, but providing readable dark fallbacks if system forces */
+  /* Actually, user requested "apply live writer theme", which implies the paper look. 
+     For now, we enforce the light paper theme as the 'brand' look even in dark mode to preserve the aesthetic,
+     or we can do a "Dark Mode Writer" (Dark Charcoal). Let's stick to the consistent Paper theme to match the landing page request. */
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Optional: Dark Paper Theme */
+    /* --background: #1a1a1a; */
+    /* --foreground: #e5e5e5; */
+    /* For now, sticking to Light Paper as it's the specific design requested */
   }
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
+  background-image: url('https://www.transparenttextures.com/patterns/cream-paper.png');
+  /* Subtle texture */
+  background-blend-mode: multiply;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  /* Default to sans for UI, use serif for headers/content */
+  @apply antialiased selection:bg-black selection:text-white;
+}
+
+/* Typography Utilities */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-serif);
+  @apply tracking-tight font-bold;
+}
+
+/* Glass Utility - REDEFINED for Writer Theme */
+/* Instead of blur, we use solid backgrounds with borders ("Card" look) */
+.glass-panel {
+  @apply bg-white border border-gray-200 shadow-sm rounded-lg;
+  /* Removed backdrop-blur to fit "paper" theme */
+}
+
+.glass-panel-deep {
+  @apply bg-white border-2 border-black rounded-xl;
+  box-shadow: 4px 4px 0px 0px rgba(0, 0, 0, 1);
+  /* Brutalist/Neo-brutalist touch for "deep" panels */
+}
+
+.glass-button {
+  @apply bg-black text-white hover:bg-gray-800 shadow-md transition-all rounded-md px-4 py-2 font-medium;
+}
+
+.glass-button-glow {
+  /* Mapped to a strong call to action */
+  @apply bg-blue-600 text-white hover:bg-blue-700 shadow-lg transition-all rounded-md px-6 py-3 font-bold;
+}
+
+.glass-input {
+  @apply bg-white border-b-2 border-gray-300 focus:border-black focus:ring-0 placeholder-gray-400 text-black transition-all rounded-none px-2 py-2;
+  /* Typewriter style input */
+}
+
+.text-glow {
+  /* Removed glow, replaced with simple underline or highlight */
+  @apply underline decoration-blue-200 decoration-4 underline-offset-2;
+}
+
+.bg-glow-mint {
+  /* Replaced with a subtle gray highlight */
+  background: radial-gradient(circle at center, rgba(0, 0, 0, 0.05) 0%, transparent 70%);
 }
 
 @keyframes blob {
-  0%,
-  100% {
-    transform: translate(0, 0) scale(1);
+  0% {
+    transform: translate(0px, 0px) scale(1);
   }
+
   33% {
     transform: translate(30px, -50px) scale(1.1);
   }
+
   66% {
     transform: translate(-20px, 20px) scale(0.9);
   }
+
+  100% {
+    transform: translate(0px, 0px) scale(1);
+  }
 }
 
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0);
-    opacity: 0.2;
-  }
-  50% {
-    transform: translateY(-12px);
-    opacity: 0.6;
-  }
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
 }

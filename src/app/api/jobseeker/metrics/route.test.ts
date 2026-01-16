@@ -1,6 +1,28 @@
 import { NextRequest } from "next/server";
 import { GET } from "./route";
 
+// Mock api-helpers
+jest.mock("@/lib/utils/api-helpers", () => ({
+  getAuthenticatedUserId: jest.fn().mockImplementation(async (req) => {
+    const url = new URL(req.url);
+    const userId = url.searchParams.get("userId") || "test-user-id";
+    return { userId, error: null };
+  }),
+  maybeGetAuthenticatedUserId: jest
+    .fn()
+    .mockResolvedValue({ userId: "test-user-id" }),
+  handleApiError: jest.fn((error, message, status = 500) => {
+    const res: any = { error: message };
+    if (error) {
+      res.details = error instanceof Error ? error.message : String(error);
+    }
+    return {
+      status,
+      json: async () => res,
+    };
+  }),
+}));
+
 // Mock Firebase admin
 jest.mock("@/lib/firebase-admin", () => ({
   adminDb: {
@@ -20,6 +42,7 @@ jest.mock("@/lib/firebase-admin", () => ({
   },
 }));
 
+// eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 
 const mockCollection = adminDb.collection as jest.MockedFunction<
@@ -80,9 +103,7 @@ describe("GET /api/jobseeker/metrics", () => {
       data: () => mockMetrics,
     });
 
-    const request = new NextRequest(
-      "http://localhost:3000/api/jobseeker/metrics?userId=user123"
-    );
+    const request = new NextRequest("http://localhost:3000/api/jobseeker/metrics?userId=test-user-id", { headers: { authorization: "Bearer test-token" },   });
 
     const response = await GET(request);
     const data = await response.json();
@@ -107,9 +128,8 @@ describe("GET /api/jobseeker/metrics", () => {
       data: () => null,
     });
 
-    const request = new NextRequest(
-      "http://localhost:3000/api/jobseeker/metrics?userId=user456"
-    );
+    const request = new NextRequest("http://localhost:3000/api/jobseeker/metrics?userId=user456"
+    , { headers: { authorization: "Bearer test-token" } });
 
     const response = await GET(request);
     const data = await response.json();
@@ -125,9 +145,8 @@ describe("GET /api/jobseeker/metrics", () => {
   });
 
   it("should return 400 when userId is missing", async () => {
-    const request = new NextRequest(
-      "http://localhost:3000/api/jobseeker/metrics"
-    );
+    const request = new NextRequest("http://localhost:3000/api/jobseeker/metrics"
+    , { headers: { authorization: "Bearer test-token" } });
 
     const response = await GET(request);
     const data = await response.json();
@@ -148,9 +167,8 @@ describe("GET /api/jobseeker/metrics", () => {
     // Mock resumes query to fail
     mockQueryGet.mockRejectedValueOnce(new Error("Database connection failed"));
 
-    const request = new NextRequest(
-      "http://localhost:3000/api/jobseeker/metrics?userId=user789"
-    );
+    const request = new NextRequest("http://localhost:3000/api/jobseeker/metrics?userId=user789"
+    , { headers: { authorization: "Bearer test-token" } });
 
     const response = await GET(request);
     const data = await response.json();
@@ -163,9 +181,8 @@ describe("GET /api/jobseeker/metrics", () => {
   });
 
   it("should handle empty userId parameter", async () => {
-    const request = new NextRequest(
-      "http://localhost:3000/api/jobseeker/metrics?userId="
-    );
+    const request = new NextRequest("http://localhost:3000/api/jobseeker/metrics?userId="
+    , { headers: { authorization: "Bearer test-token" } });
 
     const response = await GET(request);
     const data = await response.json();
@@ -196,9 +213,8 @@ describe("GET /api/jobseeker/metrics", () => {
       data: () => mockMetrics,
     });
 
-    const request = new NextRequest(
-      "http://localhost:3000/api/jobseeker/metrics?userId=user-123_special@test.com"
-    );
+    const request = new NextRequest("http://localhost:3000/api/jobseeker/metrics?userId=user-123_special@test.com"
+    , { headers: { authorization: "Bearer test-token" } });
 
     const response = await GET(request);
     const data = await response.json();

@@ -1,11 +1,14 @@
 "use client";
 
+import type { ReactElement } from "react";
+
 interface ProfileDetailsProps {
   displayName: string;
   companyName: string;
   updatedAt: string;
   showCompanyInput: boolean;
-  saving: boolean;
+  savingDisplayName: boolean;
+  savingCompanyName: boolean;
   onDisplayNameChange: (value: string) => void;
   onCompanyNameChange: (value: string) => void;
   onSaveDisplayName: () => void;
@@ -17,108 +20,115 @@ export function ProfileDetails({
   companyName,
   updatedAt,
   showCompanyInput,
-  saving,
+  savingDisplayName,
+  savingCompanyName,
   onDisplayNameChange,
   onCompanyNameChange,
   onSaveDisplayName,
   onSaveCompanyName,
-}: ProfileDetailsProps) {
+}: ProfileDetailsProps): ReactElement {
   return (
-    <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border border-white/20 rounded-2xl p-8 hover:border-cyan-500/30 transition-all duration-300 mb-6">
-      <div className="flex items-center mb-6">
-        <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-purple-500 to-pink-600 flex items-center justify-center mr-4">
-          <svg
-            className="w-6 h-6 text-white"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-            />
-          </svg>
-        </div>
-        <h2 className="text-2xl font-bold text-white">Profile Details</h2>
-      </div>
-
-      <div className="space-y-6">
-        {/* Display Name */}
-        <div className="pb-6 border-b border-white/10">
-          <label className="block text-sm font-semibold text-slate-300 mb-3">
-            Display Name
-          </label>
-          <div className="flex gap-3">
-            <input
-              type="text"
-              value={displayName}
-              onChange={(e) => onDisplayNameChange(e.target.value)}
-              placeholder="Enter your display name"
-              disabled={saving}
-              className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 focus:bg-white/15 transition-all duration-200 disabled:opacity-50"
-            />
-            <button
-              onClick={onSaveDisplayName}
-              disabled={saving}
-              className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-medium rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+    <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden transition-all duration-300">
+      <div className="p-8 sm:p-10">
+        <div className="flex items-center gap-4 mb-8 border-b-2 border-gray-100 pb-6">
+          <div className="w-12 h-12 bg-black flex items-center justify-center text-white">
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              {saving ? "Saving..." : "Save"}
-            </button>
-          </div>
-          <p className="text-slate-500 text-sm mt-2">
-            This name will be visible to other users on your profile
-          </p>
-        </div>
-
-        {/* Company Name - Recruiter Only */}
-        {showCompanyInput && (
-          <div className="pb-6 border-b border-white/10 animate-in fade-in slide-in-from-top-2">
-            <label className="block text-sm font-semibold text-slate-300 mb-3">
-              Company Name
-            </label>
-            <div className="flex gap-3">
-              <input
-                type="text"
-                value={companyName}
-                onChange={(e) => onCompanyNameChange(e.target.value)}
-                placeholder="Enter your company name"
-                disabled={saving}
-                className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 focus:bg-white/15 transition-all duration-200 disabled:opacity-50"
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
               />
-              <button
-                onClick={onSaveCompanyName}
-                disabled={saving}
-                className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-medium rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {saving ? "Saving..." : "Save"}
-              </button>
-            </div>
-            <p className="text-slate-500 text-sm mt-2">
-              Your company name will appear on your recruiter profile
+            </svg>
+          </div>
+          <div>
+            <h2 className="text-2xl font-serif font-bold text-black">
+              Public Profile
+            </h2>
+            <p className="text-gray-500 text-sm font-sans">
+              How others see you on the platform
             </p>
           </div>
-        )}
+        </div>
 
-        {/* Last Updated */}
-        <div>
-          <label className="block text-sm font-semibold text-slate-300 mb-2">
-            Last Updated
-          </label>
-          <div className="px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-slate-300 font-medium">
-            {updatedAt
-              ? new Date(updatedAt).toLocaleDateString("en-US", {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              : "Never"}
+        <div className="space-y-8">
+          {/* Display Name */}
+          <div className="group">
+            <label className="block text-[10px] font-mono font-bold text-gray-500 uppercase tracking-widest mb-2 ml-1">
+              Display Name
+            </label>
+            <div className="relative flex items-center">
+              <input
+                type="text"
+                value={displayName}
+                onChange={(e) => onDisplayNameChange(e.target.value)}
+                placeholder="Enter your display name"
+                disabled={savingDisplayName}
+                className="w-full bg-gray-50 border-2 border-gray-200 px-5 py-4 text-black font-medium placeholder-gray-400 focus:border-black focus:bg-white transition-all duration-200"
+              />
+              <button
+                onClick={onSaveDisplayName}
+                disabled={savingDisplayName}
+                className="absolute right-2 px-4 py-2 bg-black text-white text-sm font-bold border-2 border-black hover:bg-white hover:text-black transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {savingDisplayName ? "Saving..." : "Save"}
+              </button>
+            </div>
+            <p className="text-gray-400 text-xs mt-2 ml-1 font-sans">
+              Visible to recruiters and other candidates
+            </p>
           </div>
+
+          {/* Company Name - Recruiter Only */}
+          {showCompanyInput && (
+            <div className="group animate-in fade-in slide-in-from-top-4 duration-300">
+              <label className="block text-[10px] font-mono font-bold text-gray-500 uppercase tracking-widest mb-2 ml-1">
+                Company Name
+              </label>
+              <div className="relative flex items-center">
+                <input
+                  type="text"
+                  value={companyName}
+                  onChange={(e) => onCompanyNameChange(e.target.value)}
+                  placeholder="Enter your company name"
+                  disabled={savingCompanyName}
+                  className="w-full bg-gray-50 border-2 border-gray-200 px-5 py-4 text-black font-medium placeholder-gray-400 focus:border-black focus:bg-white transition-all duration-200"
+                />
+                <button
+                  onClick={onSaveCompanyName}
+                  disabled={savingCompanyName}
+                  className="absolute right-2 px-4 py-2 bg-black text-white text-sm font-bold border-2 border-black hover:bg-white hover:text-black transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {savingCompanyName ? "Saving..." : "Save"}
+                </button>
+              </div>
+              <p className="text-gray-400 text-xs mt-2 ml-1 font-sans">
+                Displayed on your recruiter profile and job postings
+              </p>
+            </div>
+          )}
         </div>
       </div>
+
+      {updatedAt && (
+        <div className="bg-gray-50 px-8 py-4 border-t-2 border-gray-100 flex justify-between items-center">
+          <span className="text-gray-400 text-xs font-sans">
+            Last updated
+          </span>
+          <span className="text-gray-600 text-xs font-mono">
+            {new Date(updatedAt).toLocaleDateString(undefined, {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
