@@ -106,3 +106,8 @@ coverage-final.json
 coverage-summary.json
 lcov.info
 lcov-report/
+
+# Snyk reports and scripts
+snyk-reports/
+snyk-scan-output.txt
+parse_snyk.js
