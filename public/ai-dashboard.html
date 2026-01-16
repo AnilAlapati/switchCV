@@ -156,6 +156,13 @@
   </div>
 
   <script>
+    // Security: Sanitize text to prevent XSS
+    function sanitizeHTML(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
     const PREFERRED_MODELS = [
       'gemini-2.5-flash-lite',
       'gemini-2.0-flash-lite',
@@ -253,16 +260,19 @@
             bestModel.replace('gemini-', '').replace('-', ' ');
 
           const modelsList = document.getElementById('models-list');
+          // Security: Sanitize model data before rendering
           modelsList.innerHTML = data.models.map(model => {
             const preferred = isPreferred(model.name);
             const selected = model.name === bestModel;
+            const safeName = sanitizeHTML(model.name);
+            const safeDisplayName = sanitizeHTML(model.displayName);
             return `
               <div class="model-item">
                 <div>
                   <div class="model-name">
-                    ${selected ? '⭐ ' : ''}${model.name}
+                    ${selected ? '⭐ ' : ''}${safeName}
                   </div>
-                  <div class="model-display">${model.displayName}</div>
+                  <div class="model-display">${safeDisplayName}</div>
                 </div>
                 <span class="model-badge ${preferred ? 'preferred' : ''}">
                   ${selected ? 'ACTIVE' : preferred ? 'PREFERRED' : 'AVAILABLE'}
@@ -281,8 +291,9 @@
           updateTokenStatus(data.error || 'Failed to refresh models', true);
         }
       } catch (error) {
+        // Security: Sanitize error message to prevent XSS
         document.getElementById('loading').innerHTML = 
-          `<div style="color: #ef4444;">Error loading models: ${error.message}</div>`;
+          `<div style="color: #ef4444;">Error loading models: ${sanitizeHTML(error.message)}</div>`;
         updateTokenStatus('Failed to load models. Check token and try again.', true);
       }
     }

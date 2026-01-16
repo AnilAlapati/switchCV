@@ -4,7 +4,8 @@ import { verifyUserEmail, deleteUserByEmail } from "./utils/firebase-admin";
 test.describe("Full Signup and Resume Creation Flow", () => {
   const timestamp = Date.now();
   const email = `test.e2e.${timestamp}@example.com`;
-  const password = "TestPassword123!";
+  // Security: Use environment variable for test password instead of hardcoding
+  const password = process.env.E2E_TEST_PASSWORD || "TestPassword123!";
   const username = `user_${timestamp}`;
 
   test.afterAll(async () => {
