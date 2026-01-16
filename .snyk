@@ -1,0 +1,47 @@
+# Snyk (https://snyk.io) policy file
+# This file contains rules to exclude specific vulnerabilities from Snyk scans
+version: v1.25.0
+
+# Ignore hardcoded credentials in test files
+# These are intentionally fake/mock credentials used for testing purposes only
+ignore:
+  # Firestore Security Rules Tests
+  'javascript/NoHardcodedCredentials':
+    - 'src/__tests__/firestore/security-rules.test.ts':
+        reason: Test file uses mock credentials intentionally
+        expires: '2027-01-16T00:00:00.000Z'
+    - 'src/__tests__/security-rules.test.ts':
+        reason: Test file uses mock credentials intentionally
+        expires: '2027-01-16T00:00:00.000Z'
+    - 'src/app/api/recruiter/pipeline/route.test.ts':
+        reason: Test file uses mock credentials intentionally
+        expires: '2027-01-16T00:00:00.000Z'
+
+  'javascript/NoHardcodedPasswords':
+    - 'functions/tests/configLoader.test.ts':
+        reason: Test file uses mock credentials intentionally
+        expires: '2027-01-16T00:00:00.000Z'
+    - 'src/__tests__/api/auth.critical.test.ts':
+        reason: Test file uses mock credentials intentionally
+        expires: '2027-01-16T00:00:00.000Z'
+    - 'src/__tests__/lib/logger-pii-redaction.test.ts':
+        reason: Test file uses mock credentials intentionally
+        expires: '2027-01-16T00:00:00.000Z'
+
+  'javascript/HardcodedNonCryptoSecret':
+    - 'src/app/api/resume/delete/route.test.ts':
+        reason: Test file uses mock credentials intentionally
+        expires: '2027-01-16T00:00:00.000Z'
+    - 'src/__tests__/lib/logger-pii-redaction.test.ts':
+        reason: Test file uses mock credentials intentionally
+        expires: '2027-01-16T00:00:00.000Z'
+
+# Exclude test directories from code analysis
+exclude:
+  global:
+    - '**/__tests__/**'
+    - '**/tests/**'
+    - '**/*.test.ts'
+    - '**/*.test.tsx'
+    - '**/*.spec.ts'
+    - '**/*.spec.tsx'

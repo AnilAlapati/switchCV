@@ -5,6 +5,8 @@
  * is properly redacted from logs to prevent data leakage.
  */
 
+/* snyk:file:ignore javascript/HardcodedNonCryptoSecret javascript/NoHardcodedPasswords - Test file uses mock credentials intentionally */
+
 import { sanitizeForLogging } from "@/lib/logger";
 
 describe("PII Redaction", () => {

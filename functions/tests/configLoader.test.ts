@@ -1,3 +1,5 @@
+/* snyk:file:ignore javascript/NoHardcodedPasswords - Test file uses mock credentials intentionally */
+
 import * as functions from "firebase-functions/v1";
 import { ConfigLoader } from "../src/lib/configLoader";
 

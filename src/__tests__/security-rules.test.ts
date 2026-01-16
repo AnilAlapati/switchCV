@@ -1,3 +1,5 @@
+/* snyk:file:ignore javascript/NoHardcodedCredentials - Test file uses mock credentials intentionally */
+
 import {
   assertFails,
   assertSucceeds,

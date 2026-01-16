@@ -1,3 +1,4 @@
+/* snyk:file:ignore javascript/NoHardcodedCredentials - Test file uses mock credentials intentionally */
 /* eslint-disable max-lines */
 
 import { NextRequest } from "next/server";

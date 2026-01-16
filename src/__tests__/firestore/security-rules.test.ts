@@ -6,6 +6,8 @@
  * @module __tests__/firestore/security-rules
  */
 
+/* snyk:file:ignore javascript/NoHardcodedCredentials - Test file uses mock credentials intentionally */
+
 import {
   initializeTestEnvironment,
   RulesTestEnvironment,

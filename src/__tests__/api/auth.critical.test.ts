@@ -11,6 +11,8 @@
  * @module __tests__/api/auth
  */
 
+/* snyk:file:ignore javascript/NoHardcodedPasswords - Test file uses mock credentials intentionally */
+
 import {
   createAuthenticatedRequest,
   createUnauthenticatedRequest,
