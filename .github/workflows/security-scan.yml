@@ -45,7 +45,7 @@ jobs:
           npm audit || echo "Vulnerabilities found - review audit-report.json" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload audit report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: security-audit-report
