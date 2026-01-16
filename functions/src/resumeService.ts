@@ -8,7 +8,6 @@ import helmet from "helmet";
 import {
   EnhancedResumeContent,
   ResumeData,
-  GenerateResumeRequest,
 } from "./types";
 import {
   resilientCall,
