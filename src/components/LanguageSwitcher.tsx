@@ -18,7 +18,7 @@ export function LanguageSwitcher() {
 
             // Note: Ideally we use a path-aware router from next-intl, but standard router works for MVP
             // by modifying the path manually if using path-based routing.
-            document.cookie = `NEXT_LOCALE=${nextLocale}; path=/; max-age=31536000; SameSite=Lax`;
+            document.cookie = `NEXT_LOCALE=${nextLocale}; path=/; max-age=31536000; SameSite=Lax; Secure`;
             router.refresh();
         });
     };

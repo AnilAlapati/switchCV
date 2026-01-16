@@ -31,14 +31,17 @@ class TokenGenerator {
 
   constructor(secret?: string) {
     // Require TOKEN_SECRET environment variable - no hardcoded fallback for security
-    this.secret = secret || process.env.TOKEN_SECRET;
+    const envSecret = secret || process.env.TOKEN_SECRET;
 
-    if (!this.secret) {
+    if (!envSecret) {
       throw new Error(
         "TOKEN_SECRET environment variable is required for secure token generation. " +
         "Please set TOKEN_SECRET in your .env.local file."
       );
     }
+
+    // After guard, we know envSecret is a string
+    this.secret = envSecret;
   }
 
   /**

@@ -195,7 +195,7 @@ describe("PII Redaction", () => {
         level1: {
           level2: {
             level3: {
-              password: "secret",
+              password: "[REDACTED_TEST_PASSWORD]",
               data: "Contact: john@example.com",
             },
           },

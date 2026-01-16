@@ -27,10 +27,10 @@ describe("Health API", () => {
     process.env = {
       ...originalEnv,
       HEALTHCHECK_RUN_FULL: "true",
-      GEMINI_API_KEY: "test-key",
+      GEMINI_API_KEY: "test-api-key", // Dummy key for testing
       SMTP_HOST: "smtp.test.com",
-      SMTP_USER: "user",
-      SMTP_PASS: "pass",
+      SMTP_USER: "test-user",
+      SMTP_PASS: "test-pass", // Dummy password for testing
       SMTP_PORT: "465",
     };
     jest.clearAllMocks();

@@ -82,12 +82,15 @@ describe.skip("Firestore Security Rules", () => {
       await assertFails(db.collection("users").doc(userId).get());
     });
 
+    const TEST_EMAIL = "user@example.com";
+    const OTHER_EMAIL = "other@example.com";
+
     test("should allow user to create own document", async () => {
       const db = testEnv.authenticatedContext(userId).firestore();
 
       await assertSucceeds(
         db.collection("users").doc(userId).set({
-          email: "user@example.com",
+          email: TEST_EMAIL,
           role: "jobseeker",
           createdAt: new Date(),
         })
@@ -99,7 +102,7 @@ describe.skip("Firestore Security Rules", () => {
 
       await assertFails(
         db.collection("users").doc(otherUserId).set({
-          email: "other@example.com",
+          email: OTHER_EMAIL,
           role: "jobseeker",
         })
       );

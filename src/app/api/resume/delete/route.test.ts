@@ -71,7 +71,7 @@ describe("POST /api/resume/delete", () => {
       ...originalEnv,
       FIREBASE_PROJECT_ID: "test-project",
       FIREBASE_CLIENT_EMAIL: "test@example.com",
-      FIREBASE_PRIVATE_KEY: "test-key",
+      FIREBASE_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQD\n-----END PRIVATE KEY-----", // Dummy key
     };
 
     // Re-require mocks

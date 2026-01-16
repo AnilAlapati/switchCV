@@ -12,7 +12,7 @@
     },
     "switchcv-dev": {
       "extensionInstances": {
-        "firestore-send-email": "53ec6e2b7c690e598570414f3e2026af3bada6081c82804cf81700c77929aad8"
+        "firestore-send-email": "365bc3fc1821b06bfa428ca27dd39a53afb7567b178e6b692327634cf14337c7"
       }
     }
   }

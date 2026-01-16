@@ -15,6 +15,19 @@ import {
   CircuitBreaker,
   RetryOptions,
 } from "./utils/retryHandler";
+import { z } from "zod";
+
+const GenerateResumeSchema = z.object({
+  userId: z.string().min(1),
+  resumeData: z.object({
+    summary: z.string(),
+    experience: z.array(z.any()), // Detailed validation can be added if ResumeData schema is available
+    skills: z.array(z.string()),
+  }).passthrough(),
+  template: z.string().optional().default("modern"),
+  tone: z.string().optional().default("professional"),
+  modelId: z.string().optional().default("gemini-1.5-flash"),
+});
 
 import { config } from "./config";
 import { checkRateLimit, type RateLimitConfig } from "./middleware/rateLimiter";
@@ -196,21 +209,30 @@ const generateResumeContentHandler = async (
       }
 
       try {
+        const parseResult = GenerateResumeSchema.safeParse(req.body);
+
+        if (!parseResult.success) {
+          res.status(400).json({
+            error: "Invalid request body",
+            details: parseResult.error.issues
+          });
+          return;
+        }
+
         const {
           userId,
           resumeData,
-          template = "modern",
-          tone = "professional",
-          modelId = "gemini-1.5-flash",
-        } = req.body as GenerateResumeRequest;
+          template,
+          tone,
+          modelId,
+        } = parseResult.data;
 
-        const normalizedModelId = modelId || "gemini-1.5-flash";
+        const normalizedModelId = modelId;
 
+        // Existing null checks are now redundant but kept for safety logic flow if needed, 
+        // though Zod handles most.
         if (!userId || !resumeData) {
-          res.status(400).json({
-            error: "Missing required fields: userId and resumeData",
-          });
-          return;
+          // specific logic
         }
 
         // Validate model selection
@@ -273,7 +295,7 @@ const generateResumeContentHandler = async (
 
         // Generate enhanced resume content using AI
         const enhancedContent = await enhanceResumeWithAI(
-          resumeData,
+          resumeData as unknown as ResumeData,
           tone,
           normalizedModelId,
           userId,

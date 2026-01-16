@@ -86,7 +86,7 @@ describe.skip("Firestore Security Rules", () => {
       await assertFails(
         db.collection("users").doc(userId).set({
           uid: userId,
-          email: "test@example.com",
+          email: "test.user@example.com",
           isAdmin: true, // Forbidden field
         })
       );

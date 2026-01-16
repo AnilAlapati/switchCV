@@ -114,8 +114,8 @@ jest.mock("@/lib/utils/api-helpers", () => ({
       error instanceof Error
         ? error.message
         : error
-        ? String(error)
-        : undefined;
+          ? String(error)
+          : undefined;
     return {
       status,
       json: async () => ({
@@ -246,7 +246,7 @@ describe("POST /api/recruiter/pipeline", () => {
             action: "add-candidate",
             pipelineId: "pipeline-123",
             name: "John Doe",
-            email: "john@example.com",
+            email: "test.candidate@example.com",
             position: "Developer",
             phone: "+1234567890",
             resumeUrl: "https://example.com/resume.pdf",

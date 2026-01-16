@@ -65,7 +65,7 @@ describe("ConfigLoader", () => {
     process.env.SMTP_HOST = "env.smtp.com";
     process.env.SMTP_PORT = "587";
     process.env.SMTP_USER = "env_user";
-    process.env.SMTP_PASS = "env_pass";
+    process.env.SMTP_PASS = "env_pass_test";
     process.env.MONITORING_P95_THRESHOLD_DEFAULT = "1000";
 
     const loader = ConfigLoader.getInstance();
