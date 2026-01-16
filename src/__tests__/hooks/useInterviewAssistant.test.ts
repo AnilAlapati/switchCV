@@ -117,7 +117,7 @@ describe("useInterviewAssistant", () => {
       mockNextQuestionResponse
     );
 
-    let answerResult: any;
+    let answerResult: unknown;
     act(() => {
       answerResult = result.current.answerQuestion("My answer", 10);
     });
@@ -200,7 +200,7 @@ describe("useInterviewAssistant", () => {
       mockCompletedSession
     );
 
-    let answerResult: any;
+    let answerResult: unknown;
     act(() => {
       answerResult = result.current.answerQuestion("My answer", 10);
     });

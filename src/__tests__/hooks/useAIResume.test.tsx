@@ -1,7 +1,7 @@
 // src/__tests__/hooks/useAIResume.test.tsx
 import { renderHook, waitFor, act } from "@testing-library/react";
-import { useAIResume } from "@/hooks/useAIResume";
-import { getAuth } from "firebase/auth";
+import { useAIResume, EnhancedResumeContent } from "@/hooks/useAIResume";
+import { getAuth, User, UserCredential } from "firebase/auth";
 import { generateMockEnhancedResume } from "@/lib/mockAIResume";
 import { getBestModelForTask } from "@/config/aiModels";
 import {
@@ -37,7 +37,7 @@ const mockGenerateMockEnhancedResume = jest.mocked(generateMockEnhancedResume);
 const mockGetBestModelForTask = jest.mocked(getBestModelForTask);
 
 describe("useAIResume", () => {
-  let mockUser: any;
+  let mockUser: Partial<User>;
   let mockGetIdToken: jest.Mock;
 
   beforeEach(() => {
@@ -50,7 +50,7 @@ describe("useAIResume", () => {
     };
 
     mockGetAuth.mockReturnValue({
-      currentUser: mockUser,
+      currentUser: mockUser as User,
     } as any);
     mockGenerateMockEnhancedResume.mockImplementation(
       () => mockFallbackContent
@@ -144,8 +144,7 @@ describe("useAIResume", () => {
       } as any);
 
       const { result } = renderHook(() => useAIResume());
-
-      let content: any;
+      let content: EnhancedResumeContent | null = null;
       await act(async () => {
         content = await result.current.generateResumeContent(mockResumeData);
       });
@@ -166,8 +165,7 @@ describe("useAIResume", () => {
       mockGetIdToken.mockRejectedValue(new Error("Token error"));
 
       const { result } = renderHook(() => useAIResume());
-
-      let content: any;
+      let content: EnhancedResumeContent | null = null;
       await act(async () => {
         content = await result.current.generateResumeContent(mockResumeData);
       });
@@ -188,8 +186,7 @@ describe("useAIResume", () => {
       mockFetch.mockResolvedValue(mockResponse);
 
       const { result } = renderHook(() => useAIResume());
-
-      let content: any;
+      let content: EnhancedResumeContent | null = null;
       await act(async () => {
         content = await result.current.generateResumeContent(mockResumeData);
       });
@@ -206,8 +203,7 @@ describe("useAIResume", () => {
       mockFetch.mockRejectedValue(new Error("Network error"));
 
       const { result } = renderHook(() => useAIResume());
-
-      let content: any;
+      let content: EnhancedResumeContent | null = null;
       await act(async () => {
         content = await result.current.generateResumeContent(mockResumeData);
       });
@@ -228,8 +224,7 @@ describe("useAIResume", () => {
       mockFetch.mockResolvedValue(mockResponse);
 
       const { result } = renderHook(() => useAIResume());
-
-      let content: any;
+      let content: EnhancedResumeContent | null = null;
       await act(async () => {
         content = await result.current.generateResumeContent(mockResumeData);
       });
@@ -243,7 +238,7 @@ describe("useAIResume", () => {
     it("should set loading state during request", async () => {
       mockGetIdToken.mockResolvedValue("mock-id-token");
 
-      let resolveFetch: (value: any) => void;
+      let resolveFetch: (value: unknown) => void;
       const fetchPromise = new Promise((resolve) => {
         resolveFetch = resolve;
       });

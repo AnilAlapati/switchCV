@@ -51,7 +51,7 @@ jest.mock("@/lib/firebase-admin", () => {
           : mockFirestoreData.get(id),
       id,
     })),
-    set: jest.fn().mockImplementation(async (data: any) => {
+    set: jest.fn().mockImplementation(async (data: Record<string, unknown>) => {
       const dataWithTimestamp = {
         ...data,
         createdAt: createMockTimestamp(),
@@ -66,7 +66,7 @@ jest.mock("@/lib/firebase-admin", () => {
         mockFirestoreData.set(id, dataWithTimestamp);
       }
     }),
-    update: jest.fn().mockImplementation(async (data: any) => {
+    update: jest.fn().mockImplementation(async (data: Record<string, unknown>) => {
       const store = parentId
         ? getSubcollection(parentId, parentCollection!)
         : mockFirestoreData;
@@ -148,8 +148,8 @@ jest.mock("@/lib/utils/api-helpers", () => ({
       error instanceof Error
         ? error.message
         : error
-        ? String(error)
-        : undefined;
+          ? String(error)
+          : undefined;
     return {
       status,
       json: async () => ({ error: message, ...(details ? { details } : {}) }),

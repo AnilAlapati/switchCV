@@ -5,7 +5,7 @@ import { UserProfileMenu } from "@/components/dashboard/UserProfileMenu";
 // Mock Next.js Link
 jest.mock("next/link", () => ({
   __esModule: true,
-  default: ({ children, href, onClick }: any) => (
+  default: ({ children, href, onClick }: { children: React.ReactNode; href: string; onClick?: () => void }) => (
     <a href={href} onClick={onClick}>
       {children}
     </a>

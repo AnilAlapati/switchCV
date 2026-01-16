@@ -53,29 +53,14 @@ const buildRequest = (
   });
 };
 
-const mockQuerySnapshot = (docs: any[]) => ({
-  empty: docs.length === 0,
-  docs: docs.map((doc) => ({
-    ...doc,
-    data: () => doc,
-  })),
-});
 
-let userDocRef: any;
-let resumeDocRef: any;
-let notificationsDocRef: any;
-let accessRequestsCollection: any;
-let accessGrantsCollection: any;
-let messagesCollection: any;
 
-const setupFirestoreMocks = () => {
-  // Keep minimal mocks if needed for other tests
-};
+
 
 describe("POST /api/profiles/request-access", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    setupFirestoreMocks();
+
     (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
       userId: "requester-123",
     });

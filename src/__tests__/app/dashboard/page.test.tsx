@@ -16,12 +16,12 @@ jest.mock("next/navigation");
 
 // Mock components
 jest.mock("@/components/dashboard/DashboardBackground", () => ({
-  DashboardBackground: ({ children }: any) => (
+  DashboardBackground: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="dashboard-background">{children}</div>
   ),
 }));
 jest.mock("@/components/dashboard/DashboardHeader", () => ({
-  DashboardHeader: ({ onLogout }: any) => (
+  DashboardHeader: ({ onLogout }: { onLogout: () => void }) => (
     <button onClick={onLogout}>Logout</button>
   ),
 }));
@@ -32,7 +32,7 @@ jest.mock("@/components/dashboard/RecruiterDashboard", () => ({
   RecruiterDashboard: () => <div data-testid="recruiter-dashboard" />,
 }));
 jest.mock("@/context/DashboardMetricsContext", () => ({
-  DashboardMetricsProvider: ({ children }: any) => (
+  DashboardMetricsProvider: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="metrics-provider">{children}</div>
   ),
 }));

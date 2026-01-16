@@ -67,7 +67,7 @@ jest.mock("@/lib/logger", () => ({
 // Mock draftService
 const mockGetDraft = jest.fn();
 jest.mock("@/lib/services/draftService", () => ({
-  getDraft: (...args: any[]) => mockGetDraft(...args),
+  getDraft: (...args: unknown[]) => mockGetDraft(...args),
 }));
 
 // Mock numericIdGenerator (for new resume IDs)
@@ -82,7 +82,7 @@ const mockReserveDraftId = jest.fn();
 
 jest.mock("@/lib/draftIdGenerator", () => ({
   generateUniqueDraftId: () => mockGenerateUniqueDraftId(),
-  reserveDraftId: (...args: any[]) => mockReserveDraftId(...args),
+  reserveDraftId: (...args: unknown[]) => mockReserveDraftId(...args),
 }));
 
 import {

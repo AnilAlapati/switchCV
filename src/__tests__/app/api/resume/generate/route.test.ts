@@ -38,8 +38,8 @@ jest.mock("@/lib/services/resumeDataExtractor", () => ({
 }));
 jest.mock("@/lib/services/conversationManager", () => ({
   ConversationManager: class {
-    constructor() {}
-    updateData() {}
+    constructor() { }
+    updateData() { }
     getData() {
       return {};
     }
@@ -98,7 +98,7 @@ describe("/api/resume/generate Route Limit", () => {
     (BillingService.checkBudget as jest.Mock).mockResolvedValue(true);
   });
 
-  function createRequest(body: any = {}) {
+  function createRequest(body: Record<string, unknown> = {}) {
     return new NextRequest("http://localhost:3000/api/resume/generate", {
       method: "POST",
       body: JSON.stringify(body),

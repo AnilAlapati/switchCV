@@ -26,7 +26,7 @@ jest.mock("@/hooks/useAuth.helpers", () => ({
     // Check if user has a password provider
     if (!user) return false;
     return (user.providerData || []).some(
-      (provider: any) => provider.providerId === "password"
+      (provider: { providerId: string }) => provider.providerId === "password"
     );
   }),
   sanitizeUsername: jest.fn((username) =>

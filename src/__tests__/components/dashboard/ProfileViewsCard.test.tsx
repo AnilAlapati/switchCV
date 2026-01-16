@@ -8,7 +8,7 @@ jest.mock("@/hooks/useAuth");
 
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 
-const createMockAuthContext = (user: any) => ({
+const createMockAuthContext = (user: { uid: string; email: string } | null) => ({
   user,
   loading: false,
   signIn: jest.fn(),

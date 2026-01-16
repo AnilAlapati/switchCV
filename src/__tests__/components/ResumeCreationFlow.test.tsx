@@ -6,9 +6,9 @@ import { MockResumeQAForm, MockResumeGenerationLoader, MockResumeReviewModal } f
 import { toast } from "sonner";
 
 jest.mock("@/hooks/useAIResume");
-jest.mock("@/components/ResumeQAForm", () => ({ ResumeQAForm: (props: any) => <MockResumeQAForm {...props} /> }));
-jest.mock("@/components/ResumeGenerationLoader", () => ({ ResumeGenerationLoader: (props: any) => <MockResumeGenerationLoader {...props} /> }));
-jest.mock("@/components/ResumeReviewModal", () => ({ ResumeReviewModal: (props: any) => <MockResumeReviewModal {...props} /> }));
+jest.mock("@/components/ResumeQAForm", () => ({ ResumeQAForm: (props: Record<string, unknown>) => <MockResumeQAForm {...props} /> }));
+jest.mock("@/components/ResumeGenerationLoader", () => ({ ResumeGenerationLoader: (props: Record<string, unknown>) => <MockResumeGenerationLoader {...props} /> }));
+jest.mock("@/components/ResumeReviewModal", () => ({ ResumeReviewModal: (props: Record<string, unknown>) => <MockResumeReviewModal {...props} /> }));
 jest.mock("sonner", () => ({
   toast: {
     error: jest.fn(),
@@ -68,7 +68,7 @@ describe("ResumeCreationFlow", () => {
     const { unmount } = render(<ResumeCreationFlow userId="user-123" onComplete={mockOnComplete} />);
     fireEvent.click(screen.getByText("Submit QA"));
     await waitFor(() => expect(screen.getByTestId("resume-review-modal")).toBeInTheDocument());
-    
+
     fireEvent.click(screen.getByText("Accept"));
     expect(screen.getByText(/Saving to your profile/)).toBeInTheDocument();
     await waitFor(() => expect(global.fetch).toHaveBeenCalledWith("/api/resumes/create", expect.objectContaining({ method: "POST" })));
@@ -88,10 +88,10 @@ describe("ResumeCreationFlow", () => {
   it("handles QA completion with various input formats", async () => {
     mockGenerateResumeContent.mockResolvedValue({ enhancedSummary: "Summary", skillSuggestions: [], enhancedExperience: [] });
     const { unmount } = render(<ResumeCreationFlow userId="user-123" />);
-    
+
     fireEvent.click(screen.getByText("Submit QA Edge Cases"));
     await waitFor(() => expect(mockGenerateResumeContent).toHaveBeenCalledWith(expect.objectContaining({ personalInfo: expect.objectContaining({ name: "John,Doe", email: "" }), skills: [], summary: "" }), "modern", "professional"));
-    
+
     unmount();
     render(<ResumeCreationFlow userId="user-123" />);
     fireEvent.click(screen.getByText("Submit String Skills"));

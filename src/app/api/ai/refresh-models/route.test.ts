@@ -20,10 +20,10 @@ jest.mock("@/lib/utils/api-helpers", () => {
         }),
       } as any;
     }),
-    getAuthenticatedUserId: (...args: any[]) =>
+    getAuthenticatedUserId: (...args: unknown[]) =>
       mockGetAuthenticatedUserId(...args),
-    applyRateLimit: (...args: any[]) => mockApplyRateLimit(...args),
-    getClientIp: (...args: any[]) => mockGetClientIp(...args),
+    applyRateLimit: (...args: unknown[]) => mockApplyRateLimit(...args),
+    getClientIp: (...args: unknown[]) => mockGetClientIp(...args),
   };
 });
 

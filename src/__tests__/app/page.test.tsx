@@ -61,7 +61,7 @@ jest.mock("../../hooks/useGlobalStats", () => ({
 
 // Mock useHeroBackground (internal) is hard, but we can mock subcomponents
 jest.mock("@/components/home/writer/WriterHero", () => ({
-  WriterHero: ({ stats }: any) => (
+  WriterHero: ({ stats }: { stats: { users: number; resumes: number } }) => (
     <div>
       <h1>SwitchCV</h1>
       <p>Autonomous Career Agent</p>

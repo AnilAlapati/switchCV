@@ -54,9 +54,9 @@ describe("POST /api/resume/delete", () => {
   const mockResumeId = "1001";
   const mockToken = "valid-token";
 
-  let POST: any;
-  let recyclerModule: any;
-  let apiHelpersModule: any;
+  let POST: (req: NextRequest) => Promise<Response>;
+  let recyclerModule: { addDeletedIdToPool: jest.Mock };
+  let apiHelpersModule: { getAuthenticatedUserId: jest.Mock };
 
   const DUMMY_PRIVATE_KEY = "MOCK_KEY_CONTENT";
 
@@ -109,7 +109,7 @@ describe("POST /api/resume/delete", () => {
     POST = routeModule.POST;
   });
 
-  const createRequest = (body: any, authHeader?: string) => {
+  const createRequest = (body: Record<string, unknown>, authHeader?: string) => {
     return new NextRequest("http://localhost/api/resume/delete", {
       method: "POST",
       headers: {

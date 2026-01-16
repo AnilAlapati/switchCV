@@ -6,11 +6,22 @@
  */
 /* eslint-disable @typescript-eslint/no-unsafe-function-type */
 
+import {
+  DocumentReference,
+  CollectionReference,
+  WriteBatch,
+  DocumentData,
+  QuerySnapshot,
+  Firestore,
+} from "firebase/firestore";
+import { Auth, User, Persistence } from "firebase/auth";
+import { FirebaseApp } from "firebase/app";
+
 // Mock Firebase App
 export const mockFirebaseApp = {
   name: "[DEFAULT]",
   automaticDataCollectionEnabled: true,
-};
+} as unknown as FirebaseApp;
 
 // Mock Firestore
 export const mockFirestore = {
@@ -56,7 +67,7 @@ export const mockUser = {
 
 // Helper function to create mock Firestore document data
 export const createMockFirestoreDoc = (
-  data: any = {},
+  data: DocumentData = {},
   id = "test-doc-123"
 ) => ({
   id,
@@ -66,7 +77,7 @@ export const createMockFirestoreDoc = (
 });
 
 // Helper function to create mock query snapshot
-export const createMockQuerySnapshot = (docs: any[] = []) => ({
+export const createMockQuerySnapshot = (docs: DocumentData[] = []) => ({
   docs:
     docs.length > 0
       ? docs.map((doc, index) => createMockFirestoreDoc(doc, `doc-${index}`))
@@ -88,7 +99,7 @@ export const createMockQuerySnapshot = (docs: any[] = []) => ({
 });
 
 // Mock Firestore DocumentReference
-export const mockDocRef: any = {
+export const mockDocRef = {
   firestore: mockFirestore,
   _key: { path: { segments: ["users", "test-user-123"] } },
   id: "test-user-123",
@@ -116,7 +127,7 @@ mockDocRef.collection.mockReturnValue({
 });
 
 // Mock Firestore CollectionReference
-export const mockCollectionRef: any = {
+export const mockCollectionRef = {
   firestore: mockFirestore,
   _key: { path: { segments: ["users"] } },
   id: "users",
@@ -154,7 +165,7 @@ mockCollectionRef.orderBy.mockReturnValue(setupChainableQuery());
 mockCollectionRef.limit.mockReturnValue(setupChainableQuery());
 
 // Mock batch writes
-export const mockBatch: any = {
+export const mockBatch = {
   set: jest.fn(function () {
     return this;
   }),
@@ -180,7 +191,7 @@ export const mockFirebaseModules = {
 export const mockFirestoreFunctions = {
   doc: jest.fn().mockReturnValue(mockDocRef),
   collection: jest.fn().mockReturnValue(mockCollectionRef),
-  query: jest.fn((collectionRef: any, ...constraints: any[]) => ({
+  query: jest.fn((collectionRef: CollectionReference, ...constraints: unknown[]) => ({
     _key: { path: { segments: [] } },
     constraints,
     get: jest.fn().mockResolvedValue(createMockQuerySnapshot([])),
@@ -189,7 +200,7 @@ export const mockFirestoreFunctions = {
       return jest.fn();
     }),
   })),
-  where: jest.fn((field: string, operator: string, value: any) => ({
+  where: jest.fn((field: string, operator: string, value: unknown) => ({
     field,
     operator,
     value,
@@ -199,12 +210,12 @@ export const mockFirestoreFunctions = {
     direction,
   })),
   limit: jest.fn((size: number) => ({ size })),
-  onSnapshot: jest.fn((ref: any, callback: Function) => {
+  onSnapshot: jest.fn((ref: DocumentReference | CollectionReference, callback: Function) => {
     callback(createMockQuerySnapshot([{ uid: "test-user-123" }]));
     return jest.fn();
   }),
   writeBatch: jest.fn().mockReturnValue(mockBatch),
-  runTransaction: jest.fn((db: any, updateFunction: Function) => {
+  runTransaction: jest.fn((db: Firestore, updateFunction: Function) => {
     const transaction = {
       get: jest
         .fn()
@@ -228,11 +239,11 @@ export const mockFirestoreFunctions = {
     id: "new-doc-123",
     path: "collection/new-doc-123",
   }),
-  arrayUnion: jest.fn((values: any) => ({
+  arrayUnion: jest.fn((values: unknown) => ({
     _type: "arrayUnion",
     elements: Array.isArray(values) ? values : [values],
   })),
-  arrayRemove: jest.fn((values: any) => ({
+  arrayRemove: jest.fn((values: unknown) => ({
     _type: "arrayRemove",
     elements: Array.isArray(values) ? values : [values],
   })),
@@ -247,7 +258,7 @@ export const mockFirestoreFunctions = {
 
 // Auth functions
 export const mockAuthFunctions = {
-  onAuthStateChanged: jest.fn((auth: any, callback: Function) => {
+  onAuthStateChanged: jest.fn((auth: Auth, callback: Function) => {
     callback(mockUser);
     return jest.fn(); // unsubscribe
   }),
@@ -265,7 +276,7 @@ export const mockAuthFunctions = {
 
 // Cloud Functions mocks
 export const mockCloudFunctions = {
-  httpsCallable: jest.fn((functions: any, name: string) => {
+  httpsCallable: jest.fn((functions: unknown, name: string) => {
     return jest.fn().mockResolvedValue({
       data: {
         success: true,
@@ -316,7 +327,7 @@ export const setupFirebaseMocks = () => {
 // Mock real-time listener setup
 export const setupRealtimeListener = (
   onSnapshot: jest.Mock,
-  data: any = {}
+  data: DocumentData = {}
 ) => {
   onSnapshot.mockImplementation((callback: Function) => {
     const unsubscribe = jest.fn();
@@ -328,9 +339,9 @@ export const setupRealtimeListener = (
 // Mock transaction setup
 export const setupTransaction = (
   runTransaction: jest.Mock,
-  documentData: any = {}
+  documentData: DocumentData = {}
 ) => {
-  runTransaction.mockImplementation((db: any, updateFunction: Function) => {
+  runTransaction.mockImplementation((db: Firestore, updateFunction: Function) => {
     const transaction = {
       get: jest.fn().mockResolvedValue(createMockFirestoreDoc(documentData)),
       set: jest.fn().mockReturnValue(undefined),

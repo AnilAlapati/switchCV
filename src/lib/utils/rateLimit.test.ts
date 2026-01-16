@@ -3,7 +3,7 @@
  */
 
 describe("Rate Limiting", () => {
-  let rateLimit: any;
+  let rateLimit: Record<string, unknown>;
 
   beforeEach(() => {
     jest.resetModules();

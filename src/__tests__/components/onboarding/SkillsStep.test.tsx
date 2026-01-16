@@ -3,25 +3,19 @@ import { SkillsStep } from "@/components/onboarding/steps/SkillsStep";
 import { Skill, Visibility } from "@/types";
 
 jest.mock("@/components/onboarding/FormComponents", () => ({
-  FormInput: ({ label, value, onChange }: any) => (
-    <div>
-      <label htmlFor={label}>{label}</label>
-      <input id={label} value={value} onChange={onChange} />
-    </div>
+  FormInput: ({ label, value, onChange }: { label: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void }) => (
+    <input aria-label={label} value={value} onChange={onChange} />
   ),
-  FormSelect: ({ label, value, onChange, options }: any) => (
-    <div>
-      <label htmlFor={label}>{label}</label>
-      <select id={label} value={value} onChange={onChange}>
-        {options.map((opt: any) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
-    </div>
+  FormSelect: ({ label, value, onChange, options }: { label: string; value: string; onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void; options: Array<{ value: string; label: string }> }) => (
+    <select aria-label={label} value={value} onChange={onChange}>
+      {options.map((opt) => (
+        <option key={opt.value} value={opt.value}>
+          {opt.label}
+        </option>
+      ))}
+    </select>
   ),
-  VisibilityControl: ({ value, onChange }: any) => (
+  VisibilityControl: ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
     <button onClick={() => onChange("public")}>Visibility: {value}</button>
   ),
 }));

@@ -128,7 +128,7 @@ describe("advancedSearch", () => {
     });
 
     it("should return the object if passed an object", () => {
-      const existing: any = {
+      const existing: Record<string, unknown> = {
         id: "1",
         name: "Existing",
         query: "",
@@ -142,7 +142,7 @@ describe("advancedSearch", () => {
 
   describe("setupSearchAlert", () => {
     it("should enable alerts on existing search object", () => {
-      const existing: any = {
+      const existing: Record<string, unknown> = {
         id: "1",
         name: "Existing",
         query: "",

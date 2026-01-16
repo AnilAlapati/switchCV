@@ -35,17 +35,17 @@ const mockGetAuthenticatedUserId =
   getAuthenticatedUserId as jest.MockedFunction<typeof getAuthenticatedUserId>;
 
 // Helper to create mock document snapshots
-const createMockDocSnapshot = (exists: boolean, data?: any, id?: string) => ({
+const createMockDocSnapshot = (exists: boolean, data?: Record<string, unknown>, id?: string) => ({
   exists,
   data: () => data,
   id: id || (exists ? "mock-doc-id" : ""),
 });
 
-const createMockQuerySnapshot = (docs: any[]) => ({
+const createMockQuerySnapshot = (docs: Array<{ id: string; data: () => Record<string, unknown> }>) => ({
   docs,
   empty: docs.length === 0,
   size: docs.length,
-  forEach: (callback: (doc: any) => void) => docs.forEach(callback),
+  forEach: (callback: (doc: { id: string; data: () => Record<string, unknown> }) => void) => docs.forEach(callback),
 });
 
 describe("POST /api/profiles/request-access", () => {

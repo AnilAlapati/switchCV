@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 
 describe("POST /api/seed/generate", () => {
-  let POST: any;
+  let POST: (req: NextRequest) => Promise<Response>;
   let mockGenerateText: jest.Mock;
   let mockGenerateTemplateResume: jest.Mock;
   let mockCategorizeProfession: jest.Mock;
@@ -18,7 +18,7 @@ describe("POST /api/seed/generate", () => {
     }
   }
 
-  const createRequest = (body: any) =>
+  const createRequest = (body: Record<string, unknown>) =>
     new NextRequest("http://localhost:3000/api/seed/generate", {
       method: "POST",
       body: JSON.stringify(body),

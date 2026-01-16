@@ -285,13 +285,13 @@ describe("access-status", () => {
         if (name === "accessRequests") {
           return {
             where: jest.fn().mockReturnThis(),
-            get: jest.fn().mockResolvedValue({ forEach: (cb: any) => mockRequestsSnapshot.forEach(cb) }),
+            get: jest.fn().mockResolvedValue({ forEach: (cb: (doc: { id: string; data: () => Record<string, unknown> }) => void) => mockRequestsSnapshot.forEach(cb) }),
           };
         }
         if (name === "accessGrants") {
           return {
             where: jest.fn().mockReturnThis(),
-            get: jest.fn().mockResolvedValue({ forEach: (cb: any) => mockGrantsSnapshot.forEach(cb) }),
+            get: jest.fn().mockResolvedValue({ forEach: (cb: (doc: { id: string; data: () => Record<string, unknown> }) => void) => mockGrantsSnapshot.forEach(cb) }),
           };
         }
       });

@@ -41,7 +41,7 @@ jest.mock("@/components/auth/UsernameInput", () => {
     status,
     message,
     suggestion,
-  }: any) {
+  }: { onSubmit: (username: string) => void }) {
     return (
       <div>
         <input

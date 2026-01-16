@@ -205,7 +205,7 @@ describe("System Analytics API", () => {
           })),
           get: jest.fn().mockResolvedValue({
             size: 3,
-            forEach: (cb: any) => mockUsers.forEach(cb),
+            forEach: (cb: (doc: { data: () => Record<string, unknown> }) => void) => mockUsers.forEach(cb),
           }),
         };
       }
@@ -213,12 +213,12 @@ describe("System Analytics API", () => {
         return {
           get: jest.fn().mockResolvedValue({
             size: 3,
-            forEach: (cb: any) => mockResumes.forEach(cb),
+            forEach: (cb: (doc: { data: () => Record<string, unknown> }) => void) => mockResumes.forEach(cb),
           }),
           orderBy: jest.fn(() => ({
             limit: jest.fn(() => ({
               get: jest.fn().mockResolvedValue({
-                forEach: (cb: any) => mockResumes.forEach(cb),
+                forEach: (cb: (doc: { data: () => Record<string, unknown> }) => void) => mockResumes.forEach(cb),
               }),
             })),
           })),
@@ -227,7 +227,7 @@ describe("System Analytics API", () => {
       if (col === "analytics") {
         return {
           get: jest.fn().mockResolvedValue({
-            forEach: (cb: any) => mockAnalytics.forEach(cb),
+            forEach: (cb: (doc: { data: () => Record<string, unknown> }) => void) => mockAnalytics.forEach(cb),
           }),
         };
       }
@@ -235,12 +235,12 @@ describe("System Analytics API", () => {
         return {
           get: jest.fn().mockResolvedValue({
             size: 1,
-            forEach: (cb: any) => mockContactRequests.forEach(cb),
+            forEach: (cb: (doc: { data: () => Record<string, unknown> }) => void) => mockContactRequests.forEach(cb),
           }),
           orderBy: jest.fn(() => ({
             limit: jest.fn(() => ({
               get: jest.fn().mockResolvedValue({
-                forEach: (cb: any) => mockContactRequests.forEach(cb),
+                forEach: (cb: (doc: { data: () => Record<string, unknown> }) => void) => mockContactRequests.forEach(cb),
               }),
             })),
           })),

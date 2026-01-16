@@ -4,13 +4,13 @@ import userEvent from "@testing-library/user-event";
 import { SearchInterface } from "@/components/recruiter/SearchInterface";
 
 jest.mock("@/components/recruiter/SearchForm", () => ({
-  SearchForm: ({ onSearch }: any) => (
-    <button onClick={(e: any) => onSearch(e)}>Search</button>
+  SearchForm: ({ onSearch }: { onSearch: (e: React.FormEvent) => void }) => (
+    <button onClick={(e: React.MouseEvent) => onSearch(e)}>Search</button>
   ),
 }));
 
 jest.mock("@/components/recruiter/SearchResults", () => ({
-  SearchResults: ({ results }: any) => (
+  SearchResults: ({ results }: { results: Array<{ id: string }> }) => (
     <div data-testid="results">{results.length} results</div>
   ),
 }));

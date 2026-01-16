@@ -411,7 +411,7 @@ describe("RecruiterSearchBox", () => {
 
   it("disables form during loading", async () => {
     // Mock a very slow response to ensure we can see loading state
-    let resolveSlowFetch: any;
+    let resolveSlowFetch: (value: Response) => void;
     const slowPromise = new Promise((resolve) => {
       resolveSlowFetch = resolve;
     });

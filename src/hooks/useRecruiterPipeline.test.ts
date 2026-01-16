@@ -7,6 +7,10 @@ import { useRecruiterPipeline } from "@/hooks/useRecruiterPipeline";
 import {
   PipelineStage,
   CandidatePriority,
+  Candidate,
+  RecruitmentPipeline,
+  PipelineColumn,
+  CandidateNote,
 } from "@/lib/recruiterDashboard.types";
 
 // Mock the recruiterPipeline functions
@@ -142,9 +146,9 @@ describe("useRecruiterPipeline", () => {
     );
 
     mockAddCandidateToPipeline.mockImplementation(
-      (pipeline: any, candidate: any) => ({
+      (pipeline: RecruitmentPipeline, candidate: Candidate) => ({
         ...pipeline,
-        columns: pipeline.columns.map((col: any) =>
+        columns: pipeline.columns.map((col: PipelineColumn) =>
           col.stage === PipelineStage.LEAD
             ? {
               ...col,
@@ -157,15 +161,15 @@ describe("useRecruiterPipeline", () => {
     );
 
     mockMoveCandidateInPipeline.mockImplementation(
-      (pipeline: any, candidate: any, newStage: any) => {
+      (pipeline: RecruitmentPipeline, candidate: Candidate, newStage: PipelineStage) => {
         const candidateId = candidate.id;
         // Find candidate in current stage
-        let candidateToMove: any = null;
-        let fromStage: any = null;
+        let candidateToMove: Candidate | null = null;
+        let fromStage: PipelineStage | null = null;
 
         for (const col of pipeline.columns) {
           const candidate = col.candidates.find(
-            (c: any) => c.id === candidateId
+            (c: Candidate) => c.id === candidateId
           );
           if (candidate) {
             candidateToMove = candidate;
@@ -178,12 +182,12 @@ describe("useRecruiterPipeline", () => {
 
         return {
           ...pipeline,
-          columns: pipeline.columns.map((col: any) => {
+          columns: pipeline.columns.map((col: PipelineColumn) => {
             if (col.stage === fromStage) {
               return {
                 ...col,
                 candidates: col.candidates.filter(
-                  (c: any) => c.id !== candidateId
+                  (c: Candidate) => c.id !== candidateId
                 ),
                 count: col.count - 1,
               };
@@ -193,7 +197,7 @@ describe("useRecruiterPipeline", () => {
                 ...col,
                 candidates: [
                   ...col.candidates,
-                  { ...candidateToMove, stage: newStage },
+                  { ...candidateToMove!, stage: newStage },
                 ],
                 count: col.count + 1,
               };
@@ -205,7 +209,7 @@ describe("useRecruiterPipeline", () => {
     );
 
     mockUpdateCandidatePriority.mockImplementation(
-      (candidate: any, priority: any) => ({
+      (candidate: Candidate, priority: CandidatePriority) => ({
         ...candidate,
         priority,
         updatedAt: new Date(),
@@ -214,12 +218,12 @@ describe("useRecruiterPipeline", () => {
 
     mockAddCandidateNote.mockImplementation(() => {
       // Mock implementation - in real app this would add to notes collection
-      return {} as any;
+      return {} as CandidateNote;
     });
 
     mockGetCandidatesByStage.mockImplementation(
-      (pipeline: any, stage: any) =>
-        pipeline.columns.find((col: any) => col.stage === stage)?.candidates ||
+      (pipeline: RecruitmentPipeline, stage: PipelineStage) =>
+        pipeline.columns.find((col: PipelineColumn) => col.stage === stage)?.candidates ||
         []
     );
 

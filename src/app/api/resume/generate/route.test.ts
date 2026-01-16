@@ -103,7 +103,7 @@ jest.mock("@/lib/firebase-admin", () => ({
   },
 }));
 
-function setupMockConversationManager(overrides: any = {}) {
+function setupMockConversationManager(overrides: Record<string, unknown> = {}) {
   const mock = {
     updateData: jest.fn(),
     getProgress: jest.fn().mockReturnValue({

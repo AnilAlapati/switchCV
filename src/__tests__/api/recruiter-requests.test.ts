@@ -7,7 +7,7 @@ import { decrementJobSeekerMetric, updateRecruiterAccessMetric } from "@/lib/ser
 // Mock dependencies
 jest.mock("@/lib/logger");
 
-const mockDoc: any = {
+const mockDoc: Record<string, unknown> = {
   get: jest.fn(),
   delete: jest.fn().mockReturnValue(Promise.resolve()),
   data: jest.fn(),
@@ -24,7 +24,7 @@ const mockDoc: any = {
   }
 };
 
-const mockCollection: any = {
+const mockCollection: Record<string, unknown> = {
   doc: jest.fn().mockReturnValue(mockDoc),
   where: jest.fn().mockReturnThis(),
   orderBy: jest.fn().mockReturnThis(),
@@ -78,7 +78,7 @@ describe("Recruiter Requests API Route", () => {
     it("should return 403 if not a recruiter", async () => {
       (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: mockUserId });
       mockDoc.get.mockResolvedValue({ data: () => ({ role: "jobseeker" }) });
-      
+
       const req = new NextRequest("http://localhost/api/recruiter/requests");
       const res = await route.GET(req);
       expect(res.status).toBe(403);
@@ -87,24 +87,24 @@ describe("Recruiter Requests API Route", () => {
     it("should return requests for recruiter and cover timestamp/expiry logic", async () => {
       (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: mockUserId });
       mockDoc.get.mockResolvedValueOnce({ data: () => ({ role: "recruiter" }) });
-      
+
       const mockRequestsSnap = {
         docs: [
           {
             id: "req-1",
-            data: () => ({ 
-              fromUserId: mockUserId, 
-              timestamp: { toDate: () => new Date() }, 
+            data: () => ({
+              fromUserId: mockUserId,
+              timestamp: { toDate: () => new Date() },
               status: "pending",
               approvedAt: "2023-01-01T00:00:00Z",
-              expiresAt: null 
+              expiresAt: null
             }),
             ref: { parent: { parent: { id: "resume-1" } } }
           },
           {
             id: "req-2",
-            data: () => ({ 
-              fromUserId: mockUserId, 
+            data: () => ({
+              fromUserId: mockUserId,
               timestamp: new Date(),
               status: "approved",
               expiresAt: { toDate: () => new Date(Date.now() - 10000) } // Expired
@@ -113,8 +113,8 @@ describe("Recruiter Requests API Route", () => {
           },
           {
             id: "req-3",
-            data: () => ({ 
-              fromUserId: mockUserId, 
+            data: () => ({
+              fromUserId: mockUserId,
               timestamp: "2023-01-01T00:00:00Z",
               status: "approved",
               expiresAt: { toDate: () => new Date(Date.now() + 10000) } // Not expired
@@ -123,8 +123,8 @@ describe("Recruiter Requests API Route", () => {
           },
           {
             id: "req-4",
-            data: () => ({ 
-              fromUserId: mockUserId, 
+            data: () => ({
+              fromUserId: mockUserId,
               timestamp: new Date("invalid"), // Should trigger catch in serializeTimestamp
               status: "pending"
             }),
@@ -133,11 +133,11 @@ describe("Recruiter Requests API Route", () => {
         ]
       };
       mockCollection.get.mockResolvedValueOnce(mockRequestsSnap);
-      
+
       // Resume and User lookups
-      mockDoc.get.mockResolvedValue({ 
-        exists: true, 
-        data: () => ({ title: "Resume", userId: "candidate" }) 
+      mockDoc.get.mockResolvedValue({
+        exists: true,
+        data: () => ({ title: "Resume", userId: "candidate" })
       });
 
       const req = new NextRequest("http://localhost/api/recruiter/requests");
@@ -150,7 +150,7 @@ describe("Recruiter Requests API Route", () => {
     it("should handle GET errors", async () => {
       (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: mockUserId });
       mockDoc.get.mockRejectedValue(new Error("Firestore error"));
-      
+
       const req = new NextRequest("http://localhost/api/recruiter/requests");
       const res = await route.GET(req);
       expect(res.status).toBe(500);
@@ -160,12 +160,12 @@ describe("Recruiter Requests API Route", () => {
   describe("DELETE", () => {
     it("should delete request and update metrics", async () => {
       (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: mockUserId });
-      
+
       mockDoc.get.mockResolvedValueOnce({
         exists: true,
         data: () => ({ fromUserId: mockUserId, status: "pending" })
       });
-      
+
       mockDoc.get.mockResolvedValueOnce({
         exists: true,
         data: () => ({ userId: "candidate-1" })

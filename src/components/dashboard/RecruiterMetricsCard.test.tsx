@@ -46,7 +46,7 @@ const createMockUser = (uid: string) => ({
 });
 
 // Create mock auth context
-const createMockAuthContext = (user: any) => ({
+const createMockAuthContext = (user: { uid?: string; email?: string }) => ({
   user,
   loading: false,
   signIn: jest.fn(),

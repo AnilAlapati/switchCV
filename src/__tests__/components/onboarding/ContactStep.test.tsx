@@ -3,13 +3,13 @@ import { ContactStep } from "@/components/onboarding/steps/ContactStep";
 import { Visibility } from "@/types";
 
 jest.mock("@/components/onboarding/FormComponents", () => ({
-  FormInput: ({ label, value, onChange }: any) => (
+  FormInput: ({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) => (
     <div>
       <label htmlFor={label}>{label}</label>
       <input id={label} value={value} onChange={onChange} />
     </div>
   ),
-  VisibilityControl: ({ value, onChange }: any) => (
+  VisibilityControl: ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
     <button onClick={() => onChange("public")}>Visibility: {value}</button>
   ),
 }));

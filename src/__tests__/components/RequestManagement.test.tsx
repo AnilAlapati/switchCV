@@ -8,7 +8,7 @@ jest.mock("@/components/recruiter/RequestStats", () => ({
 }));
 
 jest.mock("@/components/recruiter/RequestTabs", () => ({
-  RequestTabs: ({ onTabChange }: any) => (
+  RequestTabs: ({ onTabChange }: { onTabChange: (tab: string) => void }) => (
     <div data-testid="request-tabs">
       <button onClick={() => onTabChange("pending")}>Pending</button>
       <button onClick={() => onTabChange("approved")}>Approved</button>
@@ -17,7 +17,7 @@ jest.mock("@/components/recruiter/RequestTabs", () => ({
 }));
 
 jest.mock("@/components/recruiter/RequestCard", () => ({
-  RequestCard: ({ request, onSelect }: any) => (
+  RequestCard: ({ request, onSelect }: { request: { id: string; name: string }; onSelect: () => void }) => (
     <div data-testid="request-card" onClick={onSelect}>
       {request.id}
     </div>

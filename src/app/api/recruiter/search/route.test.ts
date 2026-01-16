@@ -62,15 +62,15 @@ const createSnapshot = (docs: MockDoc[]) => ({
   size: docs.length,
 });
 
-function valueAtPath(obj: Record<string, any>, path: string): any {
-  return path.split(".").reduce((value, key) => value?.[key], obj);
+function valueAtPath(obj: Record<string, unknown>, path: string): unknown {
+  return path.split(".").reduce((value: unknown, key: string) => (value as Record<string, unknown>)?.[key], obj as unknown);
 }
 
 function createCollectionMock(initialDocs: MockDoc[]) {
   let docs = [...initialDocs];
   let limitValue: number | null = null;
 
-  const chain: any = {
+  const chain: Record<string, jest.Mock> = {
     where: jest.fn(
       (field: string, op: FirebaseFirestore.WhereFilterOp, val) => {
         if (op !== "==") {

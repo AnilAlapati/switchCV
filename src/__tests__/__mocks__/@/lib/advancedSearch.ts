@@ -30,7 +30,7 @@ export interface SavedSearch {
 }
 
 export interface SearchResult {
-  profiles: any[];
+  profiles: Record<string, unknown>[];
   total: number;
   page: number;
   pageSize: number;

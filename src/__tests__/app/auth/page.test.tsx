@@ -34,7 +34,7 @@ jest.mock("@/components/auth/AuthFormInputs", () => ({
     onPasswordChange,
     onUsernameChange,
     showUsername,
-  }: any) => (
+  }: { email: string; password: string; isLogin: boolean; onSubmit: () => void; onToggleMode: () => void }) => (
     <div>
       <input
         aria-label="Email Address"
@@ -59,7 +59,7 @@ jest.mock("@/components/auth/AuthFormInputs", () => ({
   ),
 }));
 jest.mock("@/components/auth/EmailVerificationNotice", () => ({
-  EmailVerificationNotice: ({ onResend, onRefresh }: any) => (
+  EmailVerificationNotice: ({ onResend, onRefresh }: { onResend: () => void; onRefresh: () => void }) => (
     <div data-testid="verification-notice">
       <button onClick={onResend}>Resend</button>
       <button onClick={onRefresh}>Refresh</button>

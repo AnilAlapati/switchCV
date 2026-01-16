@@ -1,5 +1,31 @@
 import { FirestoreNotificationRepository } from "@/lib/notifications/repositories/firestoreRepository";
 import { adminDb } from "@/lib/firebase-admin";
+import {
+  Notification,
+  NotificationPreference,
+  NotificationLog,
+  NotificationType,
+} from "@/lib/notifications.types";
+
+interface MockDoc {
+  set: jest.Mock;
+  get: jest.Mock;
+  delete: jest.Mock;
+  ref: string;
+}
+
+interface MockCollection {
+  doc: jest.Mock;
+  where: jest.Mock;
+  orderBy: jest.Mock;
+  limit: jest.Mock;
+  get: jest.Mock;
+}
+
+interface MockBatch {
+  delete: jest.Mock;
+  commit: jest.Mock;
+}
 
 // Mock firebase-admin
 jest.mock("@/lib/firebase-admin", () => ({
@@ -33,9 +59,9 @@ jest.mock("firebase-admin/firestore", () => {
 
 describe("FirestoreNotificationRepository", () => {
   let repository: FirestoreNotificationRepository;
-  let mockCollection: any;
-  let mockDoc: any;
-  let mockBatch: any;
+  let mockCollection: MockCollection;
+  let mockDoc: MockDoc;
+  let mockBatch: MockBatch;
 
   beforeEach(() => {
     repository = new FirestoreNotificationRepository();
@@ -67,11 +93,11 @@ describe("FirestoreNotificationRepository", () => {
 
   describe("createNotification", () => {
     it("should create a notification", async () => {
-      const notification: any = {
+      const notification = {
         id: "1",
         createdAt: new Date(),
         updatedAt: new Date(),
-      };
+      } as Partial<Notification> as Notification;
 
       await repository.createNotification(notification);
 
@@ -128,7 +154,10 @@ describe("FirestoreNotificationRepository", () => {
 
   describe("updateNotification", () => {
     it("should update notification", async () => {
-      const notification: any = { id: "1", status: "read" };
+      const notification = {
+        id: "1",
+        status: "read",
+      } as Partial<Notification> as Notification;
       await repository.updateNotification(notification);
       expect(mockDoc.set).toHaveBeenCalledWith(expect.anything(), {
         merge: true,
@@ -146,7 +175,14 @@ describe("FirestoreNotificationRepository", () => {
   describe("getPreferences", () => {
     it("should return preferences", async () => {
       mockCollection.get.mockResolvedValue({
-        docs: [{ data: () => ({ userId: "user1", type: "email" }) }],
+        docs: [
+          {
+            data: () => ({
+              userId: "user1",
+              type: NotificationType.JOB_POSTED,
+            }),
+          },
+        ],
       });
 
       const result = await repository.getPreferences("user1");
@@ -159,16 +195,22 @@ describe("FirestoreNotificationRepository", () => {
 
   describe("savePreference", () => {
     it("should save preference", async () => {
-      const pref: any = { userId: "user1", type: "email" };
+      const pref = {
+        userId: "user1",
+        type: NotificationType.JOB_POSTED,
+      } as Partial<NotificationPreference> as NotificationPreference;
       await repository.savePreference(pref);
-      expect(mockCollection.doc).toHaveBeenCalledWith("user1_email");
+      expect(mockCollection.doc).toHaveBeenCalledWith("user1_job-posted");
       expect(mockDoc.set).toHaveBeenCalled();
     });
   });
 
   describe("logNotification", () => {
     it("should log notification", async () => {
-      const log: any = { id: "log1", notificationId: "1" };
+      const log = {
+        id: "log1",
+        notificationId: "1",
+      } as Partial<NotificationLog> as NotificationLog;
       await repository.logNotification(log);
       expect(adminDb.collection).toHaveBeenCalledWith("notification_logs");
       expect(mockDoc.set).toHaveBeenCalled();

@@ -1,6 +1,6 @@
 import React from "react";
 
-export const MockResumeQAForm = ({ onComplete, onCancel }: any) => (
+export const MockResumeQAForm = ({ onComplete, onCancel }: { onComplete: (data: Record<string, unknown>) => void; onCancel: () => void }) => (
   <div data-testid="resume-qa-form">
     <button
       onClick={() =>
@@ -66,13 +66,13 @@ export const MockResumeQAForm = ({ onComplete, onCancel }: any) => (
   </div>
 );
 
-export const MockResumeGenerationLoader = ({ status, message }: any) => (
+export const MockResumeGenerationLoader = ({ status, message }: { status: string; message: string }) => (
   <div data-testid="resume-loader">
     Status: {status}, Message: {message}
   </div>
 );
 
-export const MockResumeReviewModal = ({ onAccept, onRewrite, resume }: any) => (
+export const MockResumeReviewModal = ({ onAccept, onRewrite, resume }: { onAccept: () => void; onRewrite: () => void; resume: Record<string, unknown> }) => (
   <div data-testid="resume-review-modal">
     <h1>{resume.title}</h1>
     <p>{resume.summary}</p>

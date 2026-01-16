@@ -61,7 +61,7 @@ describe("UserProfileSettings", () => {
     // Ensure a POST request to update role was made
     await waitFor(() => {
       const calls = (global.fetch as jest.Mock).mock.calls;
-      const hasPost = calls.some((c: any) => c[1] && c[1].method === "POST");
+      const hasPost = calls.some((c: [string, { method?: string }]) => c[1] && c[1].method === "POST");
       expect(hasPost).toBe(true);
     });
   });
@@ -96,7 +96,7 @@ describe("UserProfileSettings", () => {
       // verify PUT was called with updated company name
       await waitFor(() => {
         const calls = (global.fetch as jest.Mock).mock.calls;
-        const putCall = calls.find((c: any) => c[1] && c[1].method === "PUT");
+        const putCall = calls.find((c: [string, { method?: string }]) => c[1] && c[1].method === "PUT");
         expect(putCall).toBeTruthy();
         const body = JSON.parse(putCall[1].body);
         expect(body.companyName).toBe("NewCo");

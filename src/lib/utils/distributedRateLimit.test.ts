@@ -33,9 +33,9 @@ describe("distributedRateLimit", () => {
   const mockIdentifier = "test-user";
   const mockDocId = "default_test-user"; // scope_identifier
 
-  let mockTransaction: any;
-  let mockDocRef: any;
-  let mockDocSnapshot: any;
+  let mockTransaction: Record<string, unknown>;
+  let mockDocRef: Record<string, unknown>;
+  let mockDocSnapshot: Record<string, unknown>;
 
   beforeEach(() => {
     jest.clearAllMocks();

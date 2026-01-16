@@ -22,7 +22,7 @@ jest.mock("@/components/create-resume/CreateResumeHeader", () => ({
   CreateResumeHeader: () => <div data-testid="create-resume-header" />,
 }));
 jest.mock("@/components/create-resume/CreateResumeInputForm", () => ({
-  CreateResumeInputForm: ({ onInputChange, onSubmit, currentInput }: any) => (
+  CreateResumeInputForm: ({ onInputChange, onSubmit, currentInput }: { onInputChange: (value: string) => void; onSubmit: () => void; currentInput: string }) => (
     <form onSubmit={onSubmit} data-testid="input-form">
       <input
         value={currentInput}
@@ -34,7 +34,7 @@ jest.mock("@/components/create-resume/CreateResumeInputForm", () => ({
   ),
 }));
 jest.mock("@/components/create-resume/AILoadingState", () => ({
-  AILoadingState: ({ aiLoading, aiError }: any) => (
+  AILoadingState: ({ aiLoading, aiError }: { aiLoading: boolean; aiError: string | null }) => (
     <div data-testid="ai-loading-state">
       {aiLoading && "Loading..."}
       {aiError && `Error: ${aiError}`}
@@ -42,7 +42,7 @@ jest.mock("@/components/create-resume/AILoadingState", () => ({
   ),
 }));
 jest.mock("@/components/create-resume/ResumeProgress", () => ({
-  ResumeProgress: ({ progress }: any) => (
+  ResumeProgress: ({ progress }: { progress: number }) => (
     <div data-testid="resume-progress">{progress}%</div>
   ),
 }));

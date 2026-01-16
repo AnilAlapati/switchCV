@@ -81,7 +81,7 @@ describe("POST /api/recruiter/search-resumes", () => {
     });
   });
 
-  const createRequest = (body: any) => {
+  const createRequest = (body: Record<string, unknown>) => {
     return new NextRequest("http://localhost/api/recruiter/search-resumes", {
       method: "POST",
       body: JSON.stringify(body),

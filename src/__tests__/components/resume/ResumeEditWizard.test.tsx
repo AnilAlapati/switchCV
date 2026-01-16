@@ -7,7 +7,7 @@ jest.mock("@/components/onboarding/steps/BasicInfoStep", () => ({
   BasicInfoStep: () => <div data-testid="basic-info-step">Basic Info</div>,
 }));
 jest.mock("@/components/onboarding/steps/ExperienceStep", () => ({
-  ExperienceStep: ({ onAdd, onUpdate, onRemove }: any) => (
+  ExperienceStep: ({ onAdd, onUpdate, onRemove }: { onAdd: () => void; onUpdate: (index: number, data: Record<string, unknown>) => void; onRemove: (index: number) => void }) => (
     <div data-testid="experience-step">
       <button onClick={onAdd}>Add</button>
       <button onClick={() => onUpdate(0, {})}>Update</button>

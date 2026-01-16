@@ -69,7 +69,7 @@ export function setMockGetIdTokenError(error: Error) {
 }
 
 // Helper to set up Firestore document response
-export function mockFirestoreDoc(data: any) {
+export function mockFirestoreDoc(data: Record<string, unknown>) {
   mockFirestore.getDoc = (jest.fn() as any).mockResolvedValue({
     exists: () => !!data,
     data: () => data,
@@ -78,7 +78,7 @@ export function mockFirestoreDoc(data: any) {
 }
 
 // Helper to set up Firestore collection response
-export function mockFirestoreCollection(docs: any[]) {
+export function mockFirestoreCollection(docs: Record<string, unknown>[]) {
   mockFirestore.getDocs = (jest.fn() as any).mockResolvedValue({
     docs: docs.map((data) => ({
       data: () => data,

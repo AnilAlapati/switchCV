@@ -21,7 +21,7 @@ jest.mock("@/lib/services/analyticsService", () => ({
 jest.mock("@/lib/utils/api-helpers", () => ({
   getAuthenticatedUserId: jest.fn(),
   handleApiError: jest.fn((error, message, status = 500) => {
-    const res: any = { error: message };
+    const res: Record<string, unknown> = { error: message };
     if (error) {
       res.details = error instanceof Error ? error.message : String(error);
     }
@@ -111,7 +111,7 @@ describe("System Analytics API", () => {
     // Mock Firestore collections
     const mockUsersSnapshot = {
       size: 150,
-      forEach: (callback: any) => {
+      forEach: (callback: (doc: { data: () => Record<string, unknown> }) => void) => {
         callback({ data: () => ({ role: "jobseeker", tier: "basic" }) });
         callback({
           data: () => ({
@@ -125,7 +125,7 @@ describe("System Analytics API", () => {
 
     const mockResumesSnapshot = {
       size: 300,
-      forEach: (callback: any) => {
+      forEach: (callback: (doc: { data: () => Record<string, unknown> }) => void) => {
         callback({ data: () => ({ industry: "Technology" }) });
         callback({ data: () => ({ industry: "Finance" }) });
       },
@@ -133,7 +133,7 @@ describe("System Analytics API", () => {
 
     const mockAnalyticsSnapshot = {
       size: 250,
-      forEach: (callback: any) => {
+      forEach: (callback: (doc: { data: () => Record<string, unknown> }) => void) => {
         callback({
           data: () => ({
             viewCount: 100,
@@ -148,7 +148,7 @@ describe("System Analytics API", () => {
     };
 
     const mockRecentResumes = {
-      forEach: (callback: any) => {
+      forEach: (callback: (doc: { data: () => Record<string, unknown> }) => void) => {
         callback({
           data: () => ({
             title: "Software Engineer Resume",
@@ -159,7 +159,7 @@ describe("System Analytics API", () => {
     };
 
     const mockRecentRequests = {
-      forEach: (callback: any) => {
+      forEach: (callback: (doc: { data: () => Record<string, unknown> }) => void) => {
         callback({
           data: () => ({
             status: "pending",

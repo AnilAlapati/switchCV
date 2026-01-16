@@ -24,7 +24,7 @@ jest.mock("firebase/firestore", () => ({
 }));
 // Mock resume utility functions
 jest.mock("@/lib/utils/resumeVisibility", () => ({
-  renderContactField: (field: any) => field?.value || "Not provided",
+  renderContactField: (field: { value?: string }) => field?.value || "Not provided",
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   parseEnhancedContent: (_content: string) => ({
     enhancedSummary: "Professional summary",
@@ -32,7 +32,7 @@ jest.mock("@/lib/utils/resumeVisibility", () => ({
     skillSuggestions: [],
   }),
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  countVisibility: (_items: any[]) => ({
+  countVisibility: (_items: Array<{ visibility: string }>) => ({
     public: 2,
     masked: 1,
     request: 1,

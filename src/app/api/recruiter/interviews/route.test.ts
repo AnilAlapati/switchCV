@@ -22,14 +22,14 @@ jest.mock("@/lib/firebase-admin", () => {
       data: () => mockFirestoreData.get(id),
       id,
     })),
-    set: jest.fn().mockImplementation(async (data: any) => {
+    set: jest.fn().mockImplementation(async (data: Record<string, unknown>) => {
       mockFirestoreData.set(id, {
         ...data,
         createdAt: createMockTimestamp(),
         updatedAt: createMockTimestamp(),
       });
     }),
-    update: jest.fn().mockImplementation(async (data: any) => {
+    update: jest.fn().mockImplementation(async (data: Record<string, unknown>) => {
       const existing = mockFirestoreData.get(id) || {};
       mockFirestoreData.set(id, {
         ...existing,
@@ -145,7 +145,7 @@ describe("POST /api/recruiter/interviews", () => {
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/interviews",
         {
-headers: { "authorization": "Bearer test-token" },
+          headers: { "authorization": "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "schedule",
@@ -198,7 +198,7 @@ headers: { "authorization": "Bearer test-token" },
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/interviews",
         {
-headers: { "authorization": "Bearer test-token" },
+          headers: { "authorization": "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "schedule",
@@ -239,7 +239,7 @@ headers: { "authorization": "Bearer test-token" },
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/interviews",
         {
-headers: { "authorization": "Bearer test-token" },
+          headers: { "authorization": "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "update-status",
@@ -266,7 +266,7 @@ headers: { "authorization": "Bearer test-token" },
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/interviews",
         {
-headers: { "authorization": "Bearer test-token" },
+          headers: { "authorization": "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "update-status",
@@ -322,7 +322,7 @@ headers: { "authorization": "Bearer test-token" },
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/interviews",
         {
-headers: { "authorization": "Bearer test-token" },
+          headers: { "authorization": "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "add-feedback",
@@ -369,7 +369,7 @@ headers: { "authorization": "Bearer test-token" },
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/interviews",
         {
-headers: { "authorization": "Bearer test-token" },
+          headers: { "authorization": "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "add-feedback",
@@ -413,7 +413,7 @@ headers: { "authorization": "Bearer test-token" },
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/interviews",
         {
-headers: { "authorization": "Bearer test-token" },
+          headers: { "authorization": "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "get-upcoming",
@@ -432,13 +432,13 @@ headers: { "authorization": "Bearer test-token" },
     });
 
     it("should use default 7 days when days not specified", async () => {
-      const mockUpcoming: any[] = [];
+      const mockUpcoming: Record<string, unknown>[] = [];
       (getUpcomingInterviews as jest.Mock).mockReturnValue(mockUpcoming);
 
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/interviews",
         {
-headers: { "authorization": "Bearer test-token" },
+          headers: { "authorization": "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "get-upcoming",
@@ -458,7 +458,7 @@ headers: { "authorization": "Bearer test-token" },
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/interviews",
         {
-headers: { "authorization": "Bearer test-token" },
+          headers: { "authorization": "Bearer test-token" },
           method: "POST",
           body: JSON.stringify({
             action: "invalid-action",
@@ -477,7 +477,7 @@ headers: { "authorization": "Bearer test-token" },
       const request = new NextRequest(
         "http://localhost:3000/api/recruiter/interviews",
         {
-headers: { "authorization": "Bearer test-token" },
+          headers: { "authorization": "Bearer test-token" },
           method: "POST",
           body: "invalid json",
         }

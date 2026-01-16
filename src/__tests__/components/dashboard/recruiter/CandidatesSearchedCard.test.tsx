@@ -25,7 +25,7 @@ const mockFetch = jest.fn();
 global.fetch = mockFetch;
 const fetchSpy = jest.spyOn(global, "fetch");
 
-const createMockAuthContext = (user: any) => ({
+const createMockAuthContext = (user: { uid: string; email: string } | null) => ({
   user,
   loading: false,
   signIn: jest.fn(),

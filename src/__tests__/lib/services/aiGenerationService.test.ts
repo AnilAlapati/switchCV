@@ -7,7 +7,7 @@ jest.mock("@/lib/utils/retry", () => ({
 
 describe("aiGenerationService", () => {
   const originalEnv = process.env;
-  let generateText: any;
+  let generateText: (prompt: string, maxTokens?: number, temperature?: number, model?: string) => Promise<{ text: string; model: string; provider: string }>;
 
   beforeEach(async () => {
     jest.resetModules();
@@ -286,9 +286,10 @@ describe("aiGenerationService", () => {
       try {
         await generateText("prompt");
         fail("Should have thrown error");
-      } catch (error: any) {
-        expect(error.message).toContain("All AI providers failed");
-        expect(error.message).toContain("Model is loading");
+      } catch (error) {
+        const err = error as Error;
+        expect(err.message).toContain("All AI providers failed");
+        expect(err.message).toContain("Model is loading");
       }
     });
 
@@ -324,9 +325,10 @@ describe("aiGenerationService", () => {
       try {
         await generateText("prompt");
         fail("Should have thrown error");
-      } catch (error: any) {
-        expect(error.message).toContain("All AI providers failed");
-        expect(error.message).toContain("Some other error");
+      } catch (error) {
+        const err = error as Error;
+        expect(err.message).toContain("All AI providers failed");
+        expect(err.message).toContain("Some other error");
       }
     });
 
@@ -362,9 +364,10 @@ describe("aiGenerationService", () => {
       try {
         await generateText("prompt");
         fail("Should have thrown error");
-      } catch (error: any) {
-        expect(error.message).toContain("All AI providers failed");
-        expect(error.message).toContain(
+      } catch (error) {
+        const err = error as Error;
+        expect(err.message).toContain("All AI providers failed");
+        expect(err.message).toContain(
           "Unexpected HuggingFace response format"
         );
       }

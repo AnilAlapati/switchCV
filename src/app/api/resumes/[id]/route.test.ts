@@ -157,7 +157,7 @@ jest.mock("next/server", () => {
     ...actual,
     NextResponse: {
       ...actual.NextResponse,
-      json: (body: any, init: any) => {
+      json: (body: unknown, init: { status?: number }) => {
         return Response.json(body, init);
       },
     },

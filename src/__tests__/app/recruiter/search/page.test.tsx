@@ -14,12 +14,17 @@ jest.mock("next/navigation", () => ({
 // Mock useRecruiterSearch hook with configurable values
 const mockUseRecruiterSearch = jest.fn();
 jest.mock("@/hooks/useRecruiterSearch", () => ({
-  useRecruiterSearch: (filters: any) => mockUseRecruiterSearch(filters),
+  useRecruiterSearch: (filters: Record<string, unknown>) => mockUseRecruiterSearch(filters),
 }));
 
 // Mock SearchInterface component
 jest.mock("@/components/recruiter/SearchInterface", () => ({
-  SearchInterface: ({ onSearch, results, isLoading, error }: any) => (
+  SearchInterface: ({ onSearch, results, isLoading, error }: {
+    onSearch: (params: { query: string }) => void;
+    results: Array<{ id: string; name: string }>;
+    isLoading: boolean;
+    error: string | Error | null;
+  }) => (
     <div data-testid="search-interface">
       <button onClick={() => onSearch({ query: "test" })}>
         Basic Search Button
@@ -28,7 +33,7 @@ jest.mock("@/components/recruiter/SearchInterface", () => ({
       {error && (
         <div>Error: {typeof error === "string" ? error : error.message}</div>
       )}
-      {results.map((r: any) => (
+      {results.map((r) => (
         <div key={r.id}>{r.name}</div>
       ))}
     </div>
@@ -132,7 +137,7 @@ describe("RecruiterSearchPage", () => {
 
     // Track state changes through the mock
     let hasSearched = false;
-    mockUseRecruiterSearch.mockImplementation((filters: any) => {
+    mockUseRecruiterSearch.mockImplementation((filters: Record<string, unknown>) => {
       if (filters?.query) {
         hasSearched = true;
       }
@@ -172,7 +177,7 @@ describe("RecruiterSearchPage", () => {
     });
 
     // Mock to return error when a query is made
-    mockUseRecruiterSearch.mockImplementation((filters: any) => {
+    mockUseRecruiterSearch.mockImplementation((filters: Record<string, unknown>) => {
       if (filters?.query) {
         return {
           results: [],

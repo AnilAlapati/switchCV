@@ -66,9 +66,9 @@ const mockGetDraftIdMapping = jest.fn();
 
 jest.mock("@/lib/draftIdGenerator", () => ({
   generateUniqueDraftId: () => mockGenerateUniqueDraftId(),
-  reserveDraftId: (...args: any[]) => mockReserveDraftId(...args),
-  releaseDraftId: (...args: any[]) => mockReleaseDraftId(...args),
-  getDraftIdMapping: (...args: any[]) => mockGetDraftIdMapping(...args),
+  reserveDraftId: (...args: unknown[]) => mockReserveDraftId(...args),
+  releaseDraftId: (...args: unknown[]) => mockReleaseDraftId(...args),
+  getDraftIdMapping: (...args: unknown[]) => mockGetDraftIdMapping(...args),
 }));
 
 import {

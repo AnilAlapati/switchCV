@@ -284,7 +284,7 @@ describe("Search Utils", () => {
       });
 
       it("should handle JSON stringify errors", () => {
-        const circularRef: any = {};
+        const circularRef: Record<string, unknown> = {};
         circularRef.self = circularRef;
 
         expect(() => {

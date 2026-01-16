@@ -34,7 +34,7 @@ const mockRunTransaction = jest.fn();
 jest.mock("@/lib/firebase-admin", () => ({
   __esModule: true,
   adminAuth: {
-    verifyIdToken: (...args: any[]) => mockVerifyIdToken(...args),
+    verifyIdToken: (...args: unknown[]) => mockVerifyIdToken(...args),
   },
   adminDb: {
     collection: jest.fn(() => ({
@@ -43,7 +43,7 @@ jest.mock("@/lib/firebase-admin", () => ({
       })),
       add: mockFirestoreAdd,
     })),
-    runTransaction: (...args: any[]) => mockRunTransaction(...args),
+    runTransaction: (...args: unknown[]) => mockRunTransaction(...args),
   },
   default: {
     firestore: {
@@ -83,7 +83,7 @@ jest.mock("@/lib/services/billingService", () => ({
   },
 }));
 
-const createRequest = (body: any) => {
+const createRequest = (body: Record<string, unknown>) => {
   return new NextRequest("http://localhost:3000/api/ai/generate", {
     method: "POST",
     headers: {

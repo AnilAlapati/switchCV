@@ -283,7 +283,7 @@ describe("access-status", () => {
         return {
           where: jest.fn().mockReturnThis(),
           get: jest.fn().mockResolvedValue({
-            forEach: (cb: any) => snapshot.forEach(cb),
+            forEach: (cb: (doc: Record<string, unknown>) => void) => snapshot.forEach(cb),
           }),
         };
       });

@@ -20,8 +20,8 @@ jest.mock("@/lib/utils/api-helpers", () => ({
       error instanceof Error
         ? error.message
         : error
-        ? String(error)
-        : undefined;
+          ? String(error)
+          : undefined;
     return {
       status,
       json: async () => ({ error: message, ...(details ? { details } : {}) }),
@@ -43,14 +43,14 @@ jest.mock("@/lib/firebase-admin", () => {
       data: () => mockData.get(id),
       id,
     })),
-    set: jest.fn().mockImplementation(async (data: any) => {
+    set: jest.fn().mockImplementation(async (data: Record<string, unknown>) => {
       mockData.set(id, {
         ...data,
         createdAt: createMockTimestamp(),
         updatedAt: createMockTimestamp(),
       });
     }),
-    update: jest.fn().mockImplementation(async (data: any) => {
+    update: jest.fn().mockImplementation(async (data: Record<string, unknown>) => {
       const existing = mockData.get(id) || {};
       const processedData = { ...data };
       // Handle FieldValue.serverTimestamp()
@@ -698,7 +698,7 @@ describe("GET /api/recruiter/bulk-actions", () => {
     expect(response.status).toBe(200);
     expect(data.success).toBe(true);
     expect(
-      data.bulkActions.every((action: any) => action.status === "pending")
+      data.bulkActions.every((action: { status: string }) => action.status === "pending")
     ).toBe(true);
   });
 });

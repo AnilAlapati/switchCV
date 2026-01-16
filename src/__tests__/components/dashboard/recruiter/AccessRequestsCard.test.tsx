@@ -14,7 +14,7 @@ const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
-const createMockAuthContext = (user: any) => ({
+const createMockAuthContext = (user: { uid: string; email: string } | null) => ({
   user,
   loading: false,
   signIn: jest.fn(),

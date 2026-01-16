@@ -28,7 +28,7 @@ describe("Admin Migrate Numeric IDs API", () => {
     jest.clearAllMocks();
   });
 
-  const createRequest = (body: any) => {
+  const createRequest = (body: Record<string, unknown>) => {
     return new NextRequest(
       new URL("http://localhost:3000/api/admin/migrate-numeric-ids"),
       {

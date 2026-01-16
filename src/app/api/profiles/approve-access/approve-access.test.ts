@@ -68,12 +68,7 @@ const buildRequest = (
   });
 };
 
-let resumeDocRef: any;
-let requestDocRef: any;
-let accessRequestsCollection: any;
-let accessGrantsCollection: any;
-let notificationsDocRef: any;
-let messagesCollection: any;
+
 
 describe("POST /api/profiles/approve-access", () => {
   beforeEach(() => {

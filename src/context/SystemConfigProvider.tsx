@@ -145,6 +145,14 @@ export const SystemConfigProvider = ({
     let interval: ReturnType<typeof setInterval> | undefined;
 
     const bootstrap = async () => {
+      // In development, we want to clear the cache to ensure we don't get stuck in maintenance mode
+      // due to stale production data in localStorage.
+      if (process.env.NODE_ENV === "development") {
+        try {
+          window.localStorage.removeItem(CONFIG_CACHE_KEY);
+        } catch { /* ignore */ }
+      }
+
       const cached = readCachedConfig();
       if (cached) {
         setConfig(cached);

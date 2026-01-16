@@ -53,19 +53,19 @@ jest.mock("@/hooks/useUserProfile", () => ({
 
 // Mock child components to keep test focused
 jest.mock("@/components/dashboard/DashboardBackground", () => ({
-  DashboardBackground: ({ children }: any) => (
+  DashboardBackground: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="db-bg">{children}</div>
   ),
 }));
 
 jest.mock("@/components/dashboard/DashboardHeader", () => ({
-  DashboardHeader: ({ userEmail }: any) => (
+  DashboardHeader: ({ userEmail }: { userEmail: string }) => (
     <div data-testid="db-header">{userEmail}</div>
   ),
 }));
 
 jest.mock("@/components/settings/AccountInformation", () => ({
-  AccountInformation: ({ onRecruiterToggle }: any) => (
+  AccountInformation: ({ onRecruiterToggle }: { onRecruiterToggle: (value: boolean) => void }) => (
     <div data-testid="account-info">
       <button
         data-testid="toggle-recruiter"
@@ -85,7 +85,14 @@ jest.mock("@/components/settings/ProfileDetails", () => ({
     onSaveCompanyName,
     displayName,
     companyName,
-  }: any) => (
+  }: {
+    onDisplayNameChange: (value: string) => void;
+    onCompanyNameChange: (value: string) => void;
+    onSaveDisplayName: () => void;
+    onSaveCompanyName: () => void;
+    displayName: string;
+    companyName: string;
+  }) => (
     <div data-testid="profile-details">
       <input
         data-testid="display-name-input"
@@ -108,7 +115,7 @@ jest.mock("@/components/settings/ProfileDetails", () => ({
 }));
 
 jest.mock("@/components/settings/Notification", () => ({
-  Notification: ({ text }: any) => <div data-testid="notification">{text}</div>,
+  Notification: ({ text }: { text: string }) => <div data-testid="notification">{text}</div>,
 }));
 
 import SettingsPage from "@/app/profile/settings/page";

@@ -274,7 +274,7 @@ describe("PII Redaction", () => {
     });
 
     it("should prevent infinite recursion with max depth", () => {
-      const circular: any = { level: 1 };
+      const circular: Record<string, unknown> = { level: 1 };
       circular.child = { level: 2, parent: circular };
 
       const result = sanitizeForLogging(circular);

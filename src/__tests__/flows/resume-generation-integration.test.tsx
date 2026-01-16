@@ -10,19 +10,19 @@ import {
 // Mock hooks and components
 jest.mock("@/hooks/useAIResume");
 jest.mock("@/components/ResumeGenerationLoader", () => ({
-  ResumeGenerationLoader: (props: any) => (
+  ResumeGenerationLoader: (props: Record<string, unknown>) => (
     <MockResumeGenerationLoader {...props} />
   ),
 }));
 jest.mock("@/components/ResumeReviewModal", () => ({
-  ResumeReviewModal: (props: any) => <MockResumeReviewModal {...props} />,
+  ResumeReviewModal: (props: Record<string, unknown>) => <MockResumeReviewModal {...props} />,
 }));
 
 // Custom mock for ResumeQAForm to allow controlling the submitted data
-let mockOnCompleteCallback: ((data: any) => Promise<void> | void) | null = null;
+let mockOnCompleteCallback: ((data: Record<string, unknown>) => Promise<void> | void) | null = null;
 
 jest.mock("@/components/ResumeQAForm", () => ({
-  ResumeQAForm: ({ onComplete }: any) => {
+  ResumeQAForm: ({ onComplete }: { onComplete: (data: Record<string, unknown>) => Promise<void> | void }) => {
     mockOnCompleteCallback = onComplete;
     return <div data-testid="resume-qa-form">QA Form</div>;
   },

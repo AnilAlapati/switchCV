@@ -4,7 +4,7 @@ import { getAuth } from "firebase/auth";
 import { getBestModelForTask } from "@/config/aiModels";
 import { generateMockEnhancedResume } from "@/lib/mockAIResume";
 
-interface ResumeData {
+export interface ResumeData {
   personalInfo: {
     name: string;
     email: string;
@@ -36,7 +36,7 @@ interface ResumeData {
   }>;
 }
 
-interface EnhancedResumeContent {
+export interface EnhancedResumeContent {
   enhancedSummary: string;
   enhancedExperience: Array<{
     title: string;

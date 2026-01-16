@@ -26,7 +26,7 @@ jest.mock("@/components/resume/LegacyResumeRenderer", () => ({
   LegacyResumeRenderer: () => <div data-testid="legacy-renderer" />,
 }));
 jest.mock("@/components/resume/ResumeAccessBlock", () => ({
-  ResumeAccessBlock: ({ config }: any) => (
+  ResumeAccessBlock: ({ config }: { config: Record<string, unknown> }) => (
     <div data-testid="access-block">{config.title}</div>
   ),
 }));
@@ -34,7 +34,7 @@ jest.mock("@/components/resume/ResumeToastOverlay", () => ({
   ResumeToastOverlay: () => <div data-testid="toast-overlay" />,
 }));
 jest.mock("@/components/resume/PrivacyMenu", () => ({
-  PrivacyMenu: ({ onToggleVisibility }: any) => (
+  PrivacyMenu: ({ onToggleVisibility }: { onToggleVisibility: (visibility: string) => void }) => (
     <button onClick={onToggleVisibility}>Toggle Visibility</button>
   ),
 }));

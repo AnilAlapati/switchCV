@@ -10,7 +10,7 @@ jest.mock("@/lib/utils/api-helpers", () => ({
     .mockResolvedValue({ userId: "user123", error: null }),
   applyRateLimit: jest.fn(),
   handleApiError: jest.fn((error, message, status = 500) => {
-    const res: any = { error: message };
+    const res: Record<string, unknown> = { error: message };
     if (error) {
       res.details = error instanceof Error ? error.message : String(error);
     }
