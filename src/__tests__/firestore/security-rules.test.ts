@@ -113,7 +113,7 @@ describe.skip("Firestore Security Rules", () => {
 
       await assertFails(
         db.collection("users").doc(userId).set({
-          email: "user@example.com",
+          email: TEST_EMAIL,
         })
       );
     });
@@ -123,7 +123,7 @@ describe.skip("Firestore Security Rules", () => {
 
       // First create
       await db.collection("users").doc(userId).set({
-        email: "user@example.com",
+        email: TEST_EMAIL,
         role: "jobseeker",
       });
 
@@ -139,7 +139,7 @@ describe.skip("Firestore Security Rules", () => {
       const db = testEnv.authenticatedContext(userId).firestore();
 
       await db.collection("users").doc(userId).set({
-        email: "user@example.com",
+        email: TEST_EMAIL,
         role: "jobseeker",
       });
 
@@ -155,7 +155,7 @@ describe.skip("Firestore Security Rules", () => {
       const db = testEnv.authenticatedContext(userId).firestore();
 
       await db.collection("users").doc(userId).set({
-        email: "user@example.com",
+        email: TEST_EMAIL,
       });
 
       // Users shouldn't be able to delete their own document

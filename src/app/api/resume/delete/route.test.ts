@@ -57,6 +57,9 @@ describe("POST /api/resume/delete", () => {
   let recyclerModule: any;
   let apiHelpersModule: any;
 
+  const DUMMY_PRIVATE_KEY = "MOCK_KEY_CONTENT";
+
+  // describe("DELETE /api/resume/delete", () => { // Removed erroneous nested block
   const originalEnv = process.env;
 
   afterEach(() => {
@@ -71,7 +74,7 @@ describe("POST /api/resume/delete", () => {
       ...originalEnv,
       FIREBASE_PROJECT_ID: "test-project",
       FIREBASE_CLIENT_EMAIL: "test@example.com",
-      FIREBASE_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQD\n-----END PRIVATE KEY-----", // Dummy key
+      FIREBASE_PRIVATE_KEY: DUMMY_PRIVATE_KEY,
     };
 
     // Re-require mocks

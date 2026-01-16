@@ -8,6 +8,8 @@ import {
 } from "@/lib/recruiterDashboard.types";
 
 // Mock firebase-admin
+const TEST_CANDIDATE_EMAIL = "candidate_placeholder_at_example_com";
+
 jest.mock("@/lib/firebase-admin", () => {
   const mockFirestoreData = new Map<string, any>();
   const mockSubcollections = new Map<string, Map<string, any>>();
@@ -220,7 +222,7 @@ describe("POST /api/recruiter/pipeline", () => {
       const mockCandidate = {
         id: "candidate-123",
         name: "John Doe",
-        email: "john@example.com",
+        email: "test-candidate@example.com",
         position: "Developer",
         stage: PipelineStage.LEAD,
         priority: CandidatePriority.MEDIUM,
@@ -278,7 +280,7 @@ describe("POST /api/recruiter/pipeline", () => {
             action: "add-candidate",
             pipelineId: "non-existent-pipeline",
             name: "John Doe",
-            email: "john@example.com",
+            email: "test-candidate@example.com",
             position: "Developer",
           }),
         }
@@ -297,7 +299,7 @@ describe("POST /api/recruiter/pipeline", () => {
       const mockCandidate = {
         id: "candidate-123",
         name: "John Doe",
-        email: "john@example.com",
+        email: TEST_CANDIDATE_EMAIL,
         position: "Developer",
         stage: PipelineStage.LEAD,
         priority: CandidatePriority.MEDIUM,
@@ -398,7 +400,7 @@ describe("POST /api/recruiter/pipeline", () => {
       const mockCandidate = {
         id: "candidate-123",
         name: "John Doe",
-        email: "john@example.com",
+        email: TEST_CANDIDATE_EMAIL,
         position: "Developer",
         stage: PipelineStage.SCREENED,
         priority: CandidatePriority.MEDIUM,

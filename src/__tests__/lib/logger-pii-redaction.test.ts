@@ -123,7 +123,7 @@ describe("PII Redaction", () => {
     it("should redact password fields", () => {
       const input = {
         username: "john",
-        password: "secret123",
+        password: "test_val",
       };
       const result = sanitizeForLogging(input) as any;
       expect(result.username).toBe("john");
@@ -143,7 +143,7 @@ describe("PII Redaction", () => {
     it("should redact API keys", () => {
       const input = {
         service: "gemini",
-        apiKey: "sk-1234567890abcdef",
+        apiKey: "test_key",
       };
       const result = sanitizeForLogging(input) as any;
       expect(result.service).toBe("gemini");

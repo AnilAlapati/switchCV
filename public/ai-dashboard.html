@@ -329,8 +329,9 @@
         }
       } catch (error) {
         // Security: Sanitize error message to prevent XSS
-        document.getElementById('loading').innerHTML =
-          `<div style="color: #ef4444;">Error loading models: ${sanitizeHTML(error.message)}</div>`;
+        const loadingEl = document.getElementById('loading');
+        loadingEl.style.color = '#ef4444';
+        loadingEl.textContent = `Error loading models: ${error.message}`;
         updateTokenStatus('Failed to load models. Check token and try again.', true);
       }
     }

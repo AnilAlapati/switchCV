@@ -38,7 +38,7 @@ describe("Authentication Flow - Critical Path Tests", () => {
         "POST",
         {
           email: "invalid-email",
-          password: process.env.TEST_PASSWORD || "SecurePassword123!",
+          password: process.env.TEST_PASSWORD || "test-placeholder-val",
         }
       );
 
@@ -66,7 +66,7 @@ describe("Authentication Flow - Critical Path Tests", () => {
         "POST",
         {
           email: "newuser@example.com",
-          password: process.env.TEST_PASSWORD || "SecurePassword123!",
+          password: process.env.TEST_PASSWORD || "test-placeholder-val",
           name: "New User",
         }
       );
@@ -81,7 +81,7 @@ describe("Authentication Flow - Critical Path Tests", () => {
         "POST",
         {
           email: "existing@example.com",
-          password: process.env.TEST_PASSWORD || "SecurePassword123!",
+          password: process.env.TEST_PASSWORD || "test-placeholder-val",
         }
       );
 
@@ -95,7 +95,7 @@ describe("Authentication Flow - Critical Path Tests", () => {
         "POST",
         {
           email: "existing@example.com",
-          password: process.env.TEST_PASSWORD || "SecurePassword123!",
+          password: process.env.TEST_PASSWORD || "test-placeholder-val",
         }
       );
 
@@ -109,7 +109,7 @@ describe("Authentication Flow - Critical Path Tests", () => {
         "POST",
         {
           email: "user@example.com",
-          password: process.env.TEST_PASSWORD || "SecurePassword123!",
+          password: process.env.TEST_PASSWORD || "test-placeholder-val",
           role: "jobseeker",
         }
       );
@@ -166,7 +166,7 @@ describe("Authentication Flow - Critical Path Tests", () => {
         "POST",
         {
           email: "user@example.com",
-          password: process.env.TEST_PASSWORD || "SecurePassword123!",
+          password: process.env.TEST_PASSWORD || "test-placeholder-val",
         }
       );
 
@@ -200,7 +200,7 @@ describe("Authentication Flow - Critical Path Tests", () => {
         "POST",
         {
           email: "deleted@example.com",
-          password: process.env.TEST_PASSWORD || "SecurePassword123!",
+          password: process.env.TEST_PASSWORD || "test-placeholder-val",
         }
       );
 

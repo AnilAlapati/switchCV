@@ -11,6 +11,7 @@ const PROJECT_ID = "switchcv-test-rules";
 const RULES_PATH = path.resolve(__dirname, "../../firestore.rules");
 
 let testEnv: RulesTestEnvironment;
+const TEST_EMAIL = "test_user_placeholder_at_example_com";
 
 beforeAll(async () => {
   // Load the rules file
@@ -71,7 +72,7 @@ describe.skip("Firestore Security Rules", () => {
       await assertSucceeds(
         db.collection("users").doc(userId).set({
           uid: userId,
-          email: "test@example.com",
+          email: TEST_EMAIL,
           role: "jobseeker",
           subscriptionTier: "basic",
           isRecruiter: false,
@@ -86,7 +87,7 @@ describe.skip("Firestore Security Rules", () => {
       await assertFails(
         db.collection("users").doc(userId).set({
           uid: userId,
-          email: "test.user@example.com",
+          email: TEST_EMAIL,
           isAdmin: true, // Forbidden field
         })
       );
