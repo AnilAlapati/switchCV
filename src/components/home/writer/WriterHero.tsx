@@ -54,7 +54,7 @@ export function WriterHero({ stats }: WriterHeroProps) {
                 </motion.div>
 
                 <div className="min-h-[160px]">
-                    <h1 className="text-7xl sm:text-8xl lg:text-9xl font-normal leading-[0.9] tracking-tighter">
+                    <h1 className="text-6xl sm:text-7xl lg:text-8xl font-normal leading-[0.9] tracking-tighter">
                         {typedTitle}
                         <span className="inline-block w-4 h-[0.7em] bg-blue-600 ml-2 animate-pulse align-baseline" />
                     </h1>
