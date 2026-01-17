@@ -24,12 +24,16 @@ jobs:
           RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 30 "$HEALTHCHECK_URL")
           BODY=$(echo "$RESPONSE" | head -n -1)
           STATUS_CODE=$(echo "$RESPONSE" | tail -n 1)
+          
+          # Use a unique delimiter to avoid conflicts with response content
+          DELIMITER="BODY_EOF_$(date +%s)"
           {
-            echo "body<<EOF"
+            echo "body<<${DELIMITER}"
             echo "$BODY"
-            echo "EOF"
+            echo "${DELIMITER}"
             echo "status_code=$STATUS_CODE"
           } >> "$GITHUB_OUTPUT"
+          
           if [ "$STATUS_CODE" -ne 200 ] && [ "$STATUS_CODE" -ne 503 ]; then
             echo "::error::Health endpoint returned HTTP $STATUS_CODE"
             echo "$BODY" | jq '.' || echo "$BODY"
