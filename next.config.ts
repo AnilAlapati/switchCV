@@ -7,18 +7,20 @@ const isDev = process.env.NODE_ENV === "development";
 const cspDirectives = [
   "default-src 'self'",
   // In development, allow eval for hot reload. In production, use stricter policy
-  `script-src 'self' ${
-    isDev ? "'unsafe-eval'" : ""
-  } 'unsafe-inline' https://www.googletagmanager.com https://apis.google.com`.trim(),
+  // blob: needed for Three.js/R3F workers and postprocessing
+  `script-src 'self' ${isDev ? "'unsafe-eval'" : ""
+    } 'unsafe-inline' blob: https://www.googletagmanager.com https://apis.google.com`.trim(),
   // Style-src requires unsafe-inline for Next.js styled-jsx and inline styles
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: https:",
+  "img-src 'self' data: https: blob:",
   "font-src 'self' data:",
   "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net https://firestore.googleapis.com wss://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.google-analytics.com",
   "frame-src 'self' https://*.firebaseapp.com https://*.googleapis.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
+  // Worker-src for Three.js postprocessing and WebGL workers
+  "worker-src 'self' blob:",
   "upgrade-insecure-requests",
 ];
 

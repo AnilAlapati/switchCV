@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion, useScroll, useTransform } from "motion/react";
 import { useRef } from "react";
 // Using fixed strings instead of translations for the variant to ensure it works without complex setup
 // or we can reuse existing keys if they map well. For now, I'll accept props or hardcode based on HomeHero.

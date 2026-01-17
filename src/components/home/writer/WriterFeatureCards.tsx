@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 
 const FEATURE_CARDS = [
     {
@@ -25,7 +25,7 @@ const FEATURE_CARDS = [
 
 export function WriterFeatureCards() {
     return (
-        <section className="space-y-20 py-24 relative z-10 border-t border-black text-black">
+        <section id="features" className="space-y-20 py-24 relative z-10 border-t border-black text-black">
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}

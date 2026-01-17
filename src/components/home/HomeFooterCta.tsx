@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 
 export function HomeFooterCta() {
   return (
@@ -34,13 +34,13 @@ export function HomeFooterCta() {
             href="/auth?mode=signup"
             className="inline-flex items-center justify-center bg-black text-white px-10 py-5 font-bold transition-all hover:bg-gray-800 active:scale-95 border-2 border-black"
           >
-            Create my resume
+            Generate Resume Now
           </Link>
           <Link
             href="/auth"
             className="inline-flex items-center justify-center px-10 py-5 border-2 border-black text-black hover:bg-gray-100 transition-all font-bold"
           >
-            Explore the dashboard
+            See a Live Example
           </Link>
         </div>
 

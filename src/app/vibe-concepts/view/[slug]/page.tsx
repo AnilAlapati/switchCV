@@ -4,7 +4,7 @@ import { use } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ConceptRegistry, ConceptSlug } from '@/components/vibe-concepts/ConceptRegistry';
-import { motion } from 'framer-motion';
+import { motion } from "motion/react";
 
 export default function ConceptViewPage({ params }: { params: Promise<{ slug: string }> }) {
     const { slug } = use(params);

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { useState, useEffect } from "react";
 
 export function WriterHeader() {
@@ -45,7 +45,6 @@ export function WriterHeader() {
 
                     <nav className="hidden md:flex items-center gap-8 font-sans text-sm font-medium tracking-wide">
                         <a href="#features" className="hover:text-blue-600 hover:underline hover:decoration-2 hover:underline-offset-4 transition-all">Features</a>
-                        <a href="#manifesto" className="hover:text-blue-600 hover:underline hover:decoration-2 hover:underline-offset-4 transition-all">Manifesto</a>
                     </nav>
 
                     <div className="flex items-center gap-6">
@@ -59,7 +58,7 @@ export function WriterHeader() {
                             href="/auth?mode=signup"
                             className="px-6 py-3 bg-black text-white font-sans font-bold text-sm tracking-wide hover:bg-blue-600 transition-colors"
                         >
-                            Get Started
+                            Generate First CV
                         </Link>
                     </div>
                 </div>

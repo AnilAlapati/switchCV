@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { useState, useEffect } from "react";
 
 interface HeroStats {
@@ -61,7 +61,7 @@ export function WriterHero({ stats }: WriterHeroProps) {
                 </div>
 
                 <p className="text-2xl text-gray-600 font-light leading-relaxed max-w-xl font-sans">
-                    An intelligent agent that transforms your professional experience into a compelling narrative.
+                    An AI agent that continuously improves your resume for better interviews.
                 </p>
 
                 <div className="flex flex-col sm:flex-row gap-6 pt-4">
@@ -69,14 +69,14 @@ export function WriterHero({ stats }: WriterHeroProps) {
                         href="/auth?mode=signup"
                         className="group relative inline-flex items-center justify-start overflow-hidden px-8 py-4 bg-black text-white transition-all hover:bg-white hover:text-black border border-black"
                     >
-                        <span className="relative text-lg font-medium tracking-wide">Start Writing</span>
+                        <span className="relative text-lg font-medium tracking-wide">Generate Resume</span>
                         <div className="absolute inset-0 bg-white transform translate-x-full group-hover:translate-x-0 transition-transform duration-300 mix-blend-difference"></div>
                     </Link>
                     <Link
                         href="/auth"
                         className="inline-flex items-center justify-center text-black border-b border-black px-4 py-4 hover:border-blue-600 hover:text-blue-600 transition-colors"
                     >
-                        <span className="text-lg font-medium">Continue Draft</span>
+                        <span className="text-lg font-medium">Try with One Role</span>
                     </Link>
                 </div>
 
@@ -112,7 +112,7 @@ export function WriterHero({ stats }: WriterHeroProps) {
                     </div>
 
                     {/* Snapshot Section */}
-                    <div className="bg-white rounded-xl p-6 border border-black/5">
+                    <div className="bg-white rounded-xl p-6 border border-black/5 mb-6">
                         <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-gray-400 block mb-4">Snapshot</span>
 
                         <h2 className="text-3xl font-bold tracking-tight text-black mb-4">
@@ -150,6 +150,36 @@ export function WriterHero({ stats }: WriterHeroProps) {
                                 ))}
                             </div>
                             <span className="text-xs font-mono uppercase text-blue-700 bg-blue-100 px-3 py-1.5 font-bold">Score: 98/100</span>
+                        </div>
+                    </div>
+
+                    {/* Before/After "Aha" Section - Below Snapshot */}
+                    <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl p-6 border border-black/5">
+                        <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-gray-400 block mb-4">✨ AI Enhancement</span>
+
+                        <div className="space-y-4">
+                            <div className="flex items-start gap-3">
+                                <span className="text-xs font-bold text-gray-400 bg-gray-200 px-2 py-1 rounded shrink-0">BEFORE</span>
+                                <p className="text-gray-500 line-through text-sm italic">"Worked on various projects"</p>
+                            </div>
+                            <motion.div
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 1.5, duration: 0.5 }}
+                                className="flex items-center gap-2 text-blue-600"
+                            >
+                                <span className="text-lg">↓</span>
+                                <span className="text-xs font-bold">AI Enhanced</span>
+                            </motion.div>
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ delay: 2, duration: 0.6 }}
+                                className="flex items-start gap-3"
+                            >
+                                <span className="text-xs font-bold text-green-600 bg-green-100 px-2 py-1 rounded shrink-0">AFTER</span>
+                                <p className="text-black font-medium text-sm">"Led 3 cross-functional teams to ship a design system adopted by 1M+ users"</p>
+                            </motion.div>
                         </div>
                     </div>
                 </div>
