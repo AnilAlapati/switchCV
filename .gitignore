@@ -41,10 +41,12 @@ yarn-error.log*
 .env
 .env.local
 .env.local.backup
+.env.local.dev-backup
+.env.local.prod-backup
+.env.local.prod-db
 .env*.local
 .env.dev
 .env.production
-.env.local.prod-db
 functions/.env.dev
 functions/.env.default
 !.env.example
