@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { Html, Center, Text } from "@react-three/drei";
+import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { Stage } from "@/hooks/useAnimationSequence";
@@ -134,8 +134,8 @@ function SuggestionItem({ text, match }: { text: string; match: boolean }) {
     return (
         <div
             className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${match
-                    ? "bg-blue-500/20 border border-blue-500/30"
-                    : "bg-white/5 hover:bg-white/10"
+                ? "bg-blue-500/20 border border-blue-500/30"
+                : "bg-white/5 hover:bg-white/10"
                 }`}
         >
             <span className={match ? "text-blue-400" : "text-white/50"}>
@@ -144,9 +144,6 @@ function SuggestionItem({ text, match }: { text: string; match: boolean }) {
             <span className={match ? "text-white font-medium" : "text-white/70"}>
                 {text}
             </span>
-            {match && (
-                <span className="ml-auto text-xs text-blue-400 font-mono">98% match</span>
-            )}
         </div>
     );
 }

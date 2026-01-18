@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { motion } from "motion/react";
 import { useState, useEffect } from "react";
+import { CreativeCopyButton } from "./CreativeCopyButton";
 
 interface HeroStats {
     resumes: string;
@@ -100,8 +101,9 @@ export function WriterHero({ stats }: WriterHeroProps) {
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <span className="px-4 py-2 border-2 border-blue-500 text-blue-600 font-mono text-sm font-bold rounded">
-                                    switchcv.com/resumes/1
+                                    switchcv.com/demo-resumes/1
                                 </span>
+                                <CreativeCopyButton text="switchcv.com/demo-resumes/1" />
                                 <span className="w-2 h-2 rounded-full bg-blue-500"></span>
                             </div>
                             <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 border border-green-200 rounded-full">
@@ -149,7 +151,6 @@ export function WriterHero({ stats }: WriterHeroProps) {
                                     </div>
                                 ))}
                             </div>
-                            <span className="text-xs font-mono uppercase text-blue-700 bg-blue-100 px-3 py-1.5 font-bold">Score: 98/100</span>
                         </div>
                     </div>
 

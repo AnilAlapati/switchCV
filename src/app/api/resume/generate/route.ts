@@ -287,28 +287,44 @@ export async function POST(request: NextRequest) {
     // Step 5: Check if AI indicates completion or if we have enough data
     const aiIndicatesCompletion = isCompletionResponse(responseText);
 
+    // CRITICAL FIX: Sync generated JSON with ConversationManager
+    // If the AI generated the final JSON, we must capture it immediately to update our state
+    // This prevents the "Split Brain" where AI says "Done" but Extractor says "50%"
+    let updatedProgress = progress;
+    const generatedJson = extractResumeJSON(responseText);
+
+    if (generatedJson) {
+      logger.info("🧠 Syncing AI-generated JSON back to ConversationManager");
+      conversationManager.updateData(generatedJson);
+      conversationManager.markAsComplete(); // FORCE 100% PROGRESS
+      updatedProgress = conversationManager.getProgress();
+    }
+
     // In beta mode, use completion threshold from config; otherwise use readiness
     let shouldCreateResume = false;
     if (config.maxQuestionsInBetaMode) {
       // Beta mode: create resume when threshold is met OR user asks for it OR AI says so
       shouldCreateResume =
         aiIndicatesCompletion ||
-        progress.completenessPercentage >= config.completionThreshold ||
-        (userWantsToCreate && progress.hasMinimumData);
+        updatedProgress.completenessPercentage >= config.completionThreshold ||
+        (userWantsToCreate && updatedProgress.hasMinimumData);
     } else {
       // Production mode: create when AI says or when ready OR user asks for it
       shouldCreateResume =
         aiIndicatesCompletion ||
-        progress.isReadyToCreate ||
-        (userWantsToCreate && progress.hasMinimumData);
+        updatedProgress.isReadyToCreate ||
+        (userWantsToCreate && updatedProgress.hasMinimumData);
     }
+
+    // Ensure we use the latest progress for the rest of the flow
+    // (We'll use updatedProgress instead of progress in the next block)
 
     logger.info(
       {
         aiIndicatesCompletion,
         userWantsToCreate,
-        isReadyToCreate: progress.isReadyToCreate,
-        completenessPercentage: progress.completenessPercentage,
+        isReadyToCreate: updatedProgress.isReadyToCreate,
+        completenessPercentage: updatedProgress.completenessPercentage,
         completionThreshold: config.completionThreshold,
         shouldCreateResume,
       },
@@ -316,7 +332,7 @@ export async function POST(request: NextRequest) {
     );
 
     // Step 6: Create resume if ready
-    if (shouldCreateResume && progress.hasMinimumData) {
+    if (shouldCreateResume && updatedProgress.hasMinimumData) {
       try {
         // Extract any JSON data from AI response
         let resumeData = extractResumeJSON(responseText);
@@ -345,10 +361,10 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({
             response: safeResponse,
             model: aiResponse.model,
-            progress: progress.completenessPercentage,
+            progress: updatedProgress.completenessPercentage,
             sessionData: {
               collectedData: conversationManager.getData(),
-              progress,
+              progress: updatedProgress,
             },
           });
         }
@@ -361,13 +377,17 @@ export async function POST(request: NextRequest) {
           resumeData as GeneratedResumeInput
         );
 
+        // Sanitize response: Don't show raw JSON to the user
+        // We only want the conversational part if it exists, or just a generic success message
+        // For now, let's just send a clean success message to ensure no JSON leak
+        const cleanResponse = "One moment, I'm finalizing your resume...";
+
         logger.info({ data: resumeId }, "✅ Resume created successfully:");
 
         // Return success with resume ID
+        // The frontend will treat this as the final message before redirect
         return NextResponse.json({
-          response:
-            responseText +
-            `\n\n✅ Great! I've created your resume. You can view it now!`,
+          response: cleanResponse,
           model: aiResponse.model,
           resumeId,
           numericId,
@@ -385,10 +405,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       response: responseText,
       model: aiResponse.model,
-      progress: progress.completenessPercentage,
+      progress: updatedProgress.completenessPercentage,
       sessionData: {
         collectedData: conversationManager.getData(),
-        progress,
+        progress: updatedProgress,
       },
     });
   } catch (error: unknown) {

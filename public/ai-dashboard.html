@@ -217,8 +217,9 @@
 
     function requireLocalhost() {
       if (!isLocalhost()) {
-        document.getElementById('loading').innerHTML =
-          '<div style="color:#fff;">AI dashboard is only available from localhost for security reasons.</div>';
+        const loadingEl = document.getElementById('loading');
+        loadingEl.style.color = '#fff';
+        loadingEl.textContent = 'AI dashboard is only available from localhost for security reasons.';
         return false;
       }
       return true;
@@ -263,8 +264,7 @@
 
       const headers = getAuthHeaders();
       if (!headers) {
-        document.getElementById('loading').innerHTML =
-          '<div style="color:#ef4444;">Authorization token missing.</div>';
+        document.getElementById('loading').textContent = 'Authorization token missing.';
         return;
       }
 

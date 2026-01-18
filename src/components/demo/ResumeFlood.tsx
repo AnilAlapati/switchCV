@@ -24,43 +24,65 @@ interface ResumeData {
     isHero: boolean;
 }
 
-export function ResumeFlood({ stage, role, onFloodComplete }: ResumeFloodProps) {
+export function ResumeFlood({ stage, onFloodComplete }: ResumeFloodProps) {
     const groupRef = useRef<THREE.Group>(null);
-    const [floodProgress, setFloodProgress] = useState(0);
     const [hasTriggeredComplete, setHasTriggeredComplete] = useState(false);
 
     // Generate resume data
     const resumes = useMemo<ResumeData[]>(() => {
+        const START_SEED = 123;
+        const seededRandom = (currentSeed: number) => {
+            const nextSeed = (currentSeed * 16807) % 2147483647;
+            return [nextSeed, (nextSeed - 1) / 2147483646] as const;
+        };
+
         const data: ResumeData[] = [];
-        const heroIndex = Math.floor(Math.random() * RESUME_COUNT);
+        let current = START_SEED;
+
+        // Determine hero index deterministically
+        const [sHero, rHero] = seededRandom(current);
+        current = sHero;
+        const heroIndex = Math.floor(rHero * RESUME_COUNT);
 
         for (let i = 0; i < RESUME_COUNT; i++) {
-            // Random starting position (outside viewport)
-            const angle = Math.random() * Math.PI * 2;
-            const distance = 30 + Math.random() * 20;
+            const [s1, r1] = seededRandom(current);
+            const [s2, r2] = seededRandom(s1);
+            const [s3, r3] = seededRandom(s2);
+            const [s4, r4] = seededRandom(s3);
+            const [s5, r5] = seededRandom(s4);
+            const [s6, r6] = seededRandom(s5);
+            const [s7, r7] = seededRandom(s6);
+            const [s8, r8] = seededRandom(s7);
+            const [s9, r9] = seededRandom(s8);
+            const [s10, r10] = seededRandom(s9);
+            const [s11, r11] = seededRandom(s10);
+            const [s12, _r12] = seededRandom(s11);
+            current = s12;
+
+            const angle = r1 * Math.PI * 2;
+            const distance = 30 + r2 * 20;
             const startX = Math.cos(angle) * distance;
             const startY = Math.sin(angle) * distance;
-            const startZ = -10 + Math.random() * 20;
+            const startZ = -10 + r3 * 20;
 
-            // Target position (in a sphere around center)
-            const targetAngle = Math.random() * Math.PI * 2;
-            const targetPhi = Math.random() * Math.PI;
-            const targetRadius = 3 + Math.random() * 8;
+            const targetAngle = r4 * Math.PI * 2;
+            const targetPhi = r5 * Math.PI;
+            const targetRadius = 3 + r6 * 8;
             const targetX = Math.cos(targetAngle) * Math.sin(targetPhi) * targetRadius;
-            const targetY = (Math.random() - 0.5) * 10;
+            const targetY = (r7 - 0.5) * 10;
             const targetZ = Math.sin(targetAngle) * Math.sin(targetPhi) * targetRadius - 5;
 
             data.push({
                 id: i,
                 position: new THREE.Vector3(startX, startY, startZ),
                 rotation: new THREE.Euler(
-                    Math.random() * Math.PI,
-                    Math.random() * Math.PI,
-                    Math.random() * Math.PI
+                    r8 * Math.PI,
+                    r9 * Math.PI,
+                    r10 * Math.PI
                 ),
                 targetPosition: new THREE.Vector3(targetX, targetY, targetZ),
                 velocity: new THREE.Vector3(),
-                scale: 0.3 + Math.random() * 0.3,
+                scale: 0.3 + r11 * 0.3,
                 isHero: i === heroIndex,
             });
         }
@@ -109,8 +131,8 @@ interface ResumeInstanceProps {
 
 function ResumeInstance({ data, index, stage }: ResumeInstanceProps) {
     const ref = useRef<THREE.InstancedMesh>(null);
-    const [position] = useState(() => data.position.clone());
-    const [rotation] = useState(() => data.rotation.clone());
+    const positionRef = useRef(data.position.clone());
+    const rotationRef = useRef(data.rotation.clone());
 
     useFrame((state, delta) => {
         if (!ref.current) return;
@@ -123,35 +145,35 @@ function ResumeInstance({ data, index, stage }: ResumeInstanceProps) {
             const progress = Math.min(1, Math.max(0, (time - delayOffset) * 0.5));
             const eased = easeOutExpo(progress);
 
-            position.lerpVectors(data.position, data.targetPosition, eased);
+            positionRef.current.lerpVectors(data.position, data.targetPosition, eased);
 
             // Gentle rotation
-            rotation.x += delta * 0.1;
-            rotation.y += delta * 0.15;
+            rotationRef.current.x += delta * 0.1;
+            rotationRef.current.y += delta * 0.15;
         } else if (stage === "search" || stage === "discovery") {
             // Orbit around center
             const orbitSpeed = 0.1 + index * 0.0001;
             const orbitRadius = data.targetPosition.length();
             const orbitAngle = time * orbitSpeed + index * 0.1;
 
-            position.x = Math.cos(orbitAngle) * orbitRadius * (data.isHero ? 0.3 : 1);
-            position.z = Math.sin(orbitAngle) * orbitRadius * 0.5 - 5;
-            position.y += Math.sin(time + index) * delta * 0.1;
+            positionRef.current.x = Math.cos(orbitAngle) * orbitRadius * (data.isHero ? 0.3 : 1);
+            positionRef.current.z = Math.sin(orbitAngle) * orbitRadius * 0.5 - 5;
+            positionRef.current.y += Math.sin(time + index) * delta * 0.1;
 
             // Slow down rotation
-            rotation.x += delta * 0.02;
-            rotation.y += delta * 0.03;
+            rotationRef.current.x += delta * 0.02;
+            rotationRef.current.y += delta * 0.03;
 
             // If discovery stage and this is hero, move to center
             if (stage === "discovery" && data.isHero) {
-                position.lerp(new THREE.Vector3(0, 0, 2), delta * 2);
+                positionRef.current.lerp(new THREE.Vector3(0, 0, 2), delta * 2);
                 ref.current.scale.setScalar(THREE.MathUtils.lerp(ref.current.scale.x, 2, delta * 2));
             }
         }
 
         // Apply transforms
-        ref.current.position.copy(position);
-        ref.current.rotation.copy(rotation);
+        ref.current.position.copy(positionRef.current);
+        ref.current.rotation.set(rotationRef.current.x, rotationRef.current.y, rotationRef.current.z);
 
         // Fade out non-hero cards in discovery stage
         if (stage === "discovery" && !data.isHero) {
@@ -171,8 +193,8 @@ function ResumeInstance({ data, index, stage }: ResumeInstanceProps) {
     return (
         <Instance
             ref={ref}
-            position={position}
-            rotation={rotation}
+            position={data.position}
+            rotation={data.rotation}
             scale={data.scale}
         />
     );

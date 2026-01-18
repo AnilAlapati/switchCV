@@ -141,7 +141,7 @@ export function HomeHero({ stats, highlights }: HomeHeroProps) {
               </p>
               <div className="flex items-center gap-2">
                 <p className="text-sm font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 inline-block">
-                  switchcv.com/resumes/1
+                  switchcv.com/demo-resumes/1
                 </p>
                 <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div>
               </div>

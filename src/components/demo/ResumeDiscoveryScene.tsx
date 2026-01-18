@@ -1,7 +1,7 @@
 "use client";
 
 import { Canvas } from "@react-three/fiber";
-import { Suspense, useState, useCallback } from "react";
+import { Suspense, useCallback } from "react";
 import {
     EffectComposer,
     Bloom,

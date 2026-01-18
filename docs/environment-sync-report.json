@@ -1,0 +1,119 @@
+{
+  "timestamp": "2026-01-18T02:32:41.664Z",
+  "results": [
+    {
+      "category": "Collections",
+      "check": "users",
+      "status": "pass",
+      "message": "Collection 'users' present in both environments"
+    },
+    {
+      "category": "Collections",
+      "check": "resumes",
+      "status": "pass",
+      "message": "Collection 'resumes' present in both environments"
+    },
+    {
+      "category": "Collections",
+      "check": "allResumes",
+      "status": "pass",
+      "message": "Collection 'allResumes' present in both environments"
+    },
+    {
+      "category": "Collections",
+      "check": "drafts",
+      "status": "pass",
+      "message": "Collection 'drafts' present in both environments"
+    },
+    {
+      "category": "Collections",
+      "check": "notifications",
+      "status": "pass",
+      "message": "Collection 'notifications' present in both environments"
+    },
+    {
+      "category": "Collections",
+      "check": "system",
+      "status": "pass",
+      "message": "Collection 'system' present in both environments"
+    },
+    {
+      "category": "Collections",
+      "check": "resumeProfiles",
+      "status": "pass",
+      "message": "Collection 'resumeProfiles' present in both environments"
+    },
+    {
+      "category": "Collections",
+      "check": "analytics",
+      "status": "pass",
+      "message": "Collection 'analytics' present in both environments"
+    },
+    {
+      "category": "Collections",
+      "check": "accessRequests",
+      "status": "pass",
+      "message": "Collection 'accessRequests' present in both environments"
+    },
+    {
+      "category": "Collections",
+      "check": "conversations",
+      "status": "pass",
+      "message": "Collection 'conversations' present in both environments"
+    },
+    {
+      "category": "Collections",
+      "check": "messages",
+      "status": "pass",
+      "message": "Collection 'messages' present in both environments"
+    },
+    {
+      "category": "Collections",
+      "check": "monitoring",
+      "status": "pass",
+      "message": "Collection 'monitoring' present in both environments"
+    },
+    {
+      "category": "System Documents",
+      "check": "system/resumeIdCounter",
+      "status": "pass",
+      "message": "Document 'system/resumeIdCounter' validated"
+    },
+    {
+      "category": "System Documents",
+      "check": "system/billing",
+      "status": "pass",
+      "message": "Document 'system/billing' validated"
+    },
+    {
+      "category": "System Documents",
+      "check": "system/stats",
+      "status": "pass",
+      "message": "Document 'system/stats' not required (absent in both)"
+    },
+    {
+      "category": "Subcollections",
+      "check": "system/resumeIdCounter/shards",
+      "status": "pass",
+      "message": "Subcollection 'system/resumeIdCounter/shards' has 16 docs (ok)"
+    },
+    {
+      "category": "Security Rules",
+      "check": "firestore.rules",
+      "status": "pass",
+      "message": "Firestore rules are deployed (manual comparison recommended)"
+    },
+    {
+      "category": "Indexes",
+      "check": "firestore.indexes.json",
+      "status": "pass",
+      "message": "17 indexes defined locally (deploy with 'firebase deploy --only firestore:indexes')"
+    }
+  ],
+  "summary": {
+    "total": 18,
+    "passed": 18,
+    "warnings": 0,
+    "failures": 0
+  }
+}

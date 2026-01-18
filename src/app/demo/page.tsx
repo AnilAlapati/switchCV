@@ -92,13 +92,20 @@ function ResumeSea({ view }: { view: ViewState }) {
 
     const particles = useMemo(() => {
         const temp = [];
+        // Use a simple seeded random to maintain purity
+        let seed = 123;
+        const seededRandom = () => {
+            seed = (seed * 16807) % 2147483647;
+            return (seed - 1) / 2147483646;
+        };
+
         for (let i = 0; i < count; i++) {
             // Start them HIGH up for the cascade effect
-            const x = (Math.random() - 0.5) * 60;
-            const y = 30 + Math.random() * 40; // Start high
-            const z = (Math.random() - 0.5) * 30;
-            const speed = 0.5 + Math.random();
-            const factor = 0.2 + Math.random();
+            const x = (seededRandom() - 0.5) * 60;
+            const y = 30 + seededRandom() * 40; // Start high
+            const z = (seededRandom() - 0.5) * 30;
+            const speed = 0.5 + seededRandom();
+            const factor = 0.2 + seededRandom();
             temp.push({ x, y, z, originalY: y, speed, factor });
         }
         return temp;
@@ -208,7 +215,7 @@ function HeroCard({ view }: { view: ViewState }) {
                 <Text position={[0, 1.5, 0.01]} fontSize={0.4} color="white" anchorX="center" anchorY="middle">
                     Sarah Chen
                 </Text>
-                <Text position={[0, 0.8, 0.01]} fontSize={0.2} color="#888">AI Architect • 98% Match</Text>
+                <Text position={[0, 0.8, 0.01]} fontSize={0.2} color="#888">AI Architect</Text>
                 <Text position={[0, -1, 0.01]} fontSize={0.15} color="#444" maxWidth={3} textAlign="center">
                     Specialized in autonomous agents and large scale reasoning models.
                 </Text>

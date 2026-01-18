@@ -230,38 +230,34 @@ export const TemplateRenderer: React.FC<TemplateRendererProps> = ({
   const isSnapshot = viewerAccess.isSnapshot === true;
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-8 text-white">
-      <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-900/40 p-10 shadow-[0_30px_80px_rgba(2,6,23,0.75)]">
-        <div className="absolute inset-0 -z-10 opacity-40">
-          <div className="absolute -left-20 top-10 h-80 w-80 rounded-full bg-cyan-500 blur-[140px]" />
-          <div className="absolute bottom-0 right-0 h-72 w-72 rounded-full bg-blue-600 blur-[120px]" />
-        </div>
+    <div className="relative z-10 mx-auto flex max-w-5xl flex-col gap-8 text-black">
+      <section className="relative overflow-hidden border border-black/10 bg-[#F5F5F0] p-10 shadow-2xl">
         <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.5em] text-slate-300">
+            <p className="text-xs font-mono font-bold uppercase tracking-[0.2em] text-gray-400">
               {template.name}
             </p>
-            <h1 className="mt-4 text-4xl font-bold tracking-tight text-white md:text-5xl">
+            <h1 className="mt-4 text-4xl font-serif font-bold tracking-tight text-black md:text-5xl">
               {heroName}
             </h1>
             {heroTitle && (
-              <p className="mt-2 text-lg text-slate-200">{heroTitle}</p>
+              <p className="mt-2 text-lg text-gray-600">{heroTitle}</p>
             )}
             {data.summary && (
-              <p className="mt-4 max-w-2xl text-base text-slate-200/80">
+              <p className="mt-4 max-w-2xl text-base text-gray-600 leading-relaxed">
                 {data.summary}
               </p>
             )}
           </div>
           {contactItems.length > 0 && (
-            <div className="flex flex-wrap gap-3 text-sm text-slate-200">
+            <div className="flex flex-wrap gap-3 text-sm text-gray-700">
               {contactItems.map((item) => (
                 <a
                   key={item.label}
                   href={item.href}
                   target={item.href ? "_blank" : undefined}
                   rel={item.href ? "noreferrer" : undefined}
-                  className="group inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 transition hover:border-cyan-400/60 hover:text-white"
+                  className="group inline-flex items-center gap-2 border border-black/10 bg-white px-4 py-2 transition hover:border-blue-600 hover:text-blue-600"
                 >
                   <item.icon />
                   <span>{item.label}</span>
@@ -292,12 +288,11 @@ export const TemplateRenderer: React.FC<TemplateRendererProps> = ({
           ))}
 
         {isSnapshot && (
-          <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-slate-900/50 p-8 text-center backdrop-blur-sm">
-            <div className="absolute inset-0 -z-10 bg-gradient-to-b from-transparent to-slate-900/90" />
-            <h3 className="mb-2 text-xl font-semibold text-white">
+          <div className="relative overflow-hidden border border-black/10 bg-gradient-to-r from-gray-50 to-blue-50 p-8 text-center">
+            <h3 className="mb-2 text-xl font-serif font-bold text-black">
               Want to see the full resume?
             </h3>
-            <p className="mb-6 text-slate-400">
+            <p className="mb-6 text-gray-600">
               {isAuthenticated
                 ? "Request access to view detailed work experience, education, and projects."
                 : "Sign in or request access to view detailed work experience, education, and projects."}
@@ -305,16 +300,18 @@ export const TemplateRenderer: React.FC<TemplateRendererProps> = ({
             {isAuthenticated ? (
               <button
                 onClick={onRequestAccess}
-                className="inline-flex items-center justify-center rounded-full bg-blue-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900"
+                className="group relative inline-flex items-center justify-center overflow-hidden px-8 py-3 bg-black text-white transition-all hover:bg-white hover:text-black border border-black text-sm font-medium tracking-wide"
               >
                 Request Access
+                <div className="absolute inset-0 bg-white transform translate-x-full group-hover:translate-x-0 transition-transform duration-300 mix-blend-difference" />
               </button>
             ) : (
               <a
                 href="/auth"
-                className="inline-flex items-center justify-center rounded-full bg-blue-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900"
+                className="group relative inline-flex items-center justify-center overflow-hidden px-8 py-3 bg-black text-white transition-all hover:bg-white hover:text-black border border-black text-sm font-medium tracking-wide"
               >
                 Sign in to View Full Profile
+                <div className="absolute inset-0 bg-white transform translate-x-full group-hover:translate-x-0 transition-transform duration-300 mix-blend-difference" />
               </a>
             )}
           </div>

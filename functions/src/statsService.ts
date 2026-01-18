@@ -10,7 +10,6 @@ import {
 import { resilientCall } from "./utils/retryHandler";
 
 const USERS_COLLECTION = "users";
-const RESUME_COLLECTION = "resumeProfiles";
 const ANALYTICS_COLLECTION = "analytics";
 const GLOBAL_STATS_DOC = "globalStats";
 
@@ -76,8 +75,9 @@ export const aggregateGlobalStatsHandler = async (
         const [userCount, resumeCount, jobSeekerCount, recruiterCount] =
           await Promise.all([
             fetchCount(db.collection(USERS_COLLECTION), "userCount"),
+            // Fixed: Query 'allResumes' collection (the actual production collection)
             fetchCount(
-              db.collection(RESUME_COLLECTION).where("published", "==", true),
+              db.collection("allResumes"),
               "resumeCount"
             ),
             fetchCount(

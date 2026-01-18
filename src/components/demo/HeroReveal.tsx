@@ -111,15 +111,15 @@ export function HeroReveal({ stage, role, onRevealComplete }: HeroRevealProps) {
                                 </p>
                             </div>
 
-                            {/* Score badge */}
+                            {/* Status badge */}
                             <div className="flex flex-col items-center">
-                                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-green-500 flex items-center justify-center">
                                     <span className="text-white font-bold text-xl">
-                                        {isRecruiter ? HERO_CANDIDATE.score : "⭐"}
+                                        {isRecruiter ? "✓" : "⭐"}
                                     </span>
                                 </div>
-                                <span className="text-xs font-mono text-gray-500 mt-1">
-                                    {isRecruiter ? "/100" : "Top Pick"}
+                                <span className="text-xs font-mono text-gray-500 mt-1 uppercase tracking-tighter">
+                                    {isRecruiter ? "Verified" : "Top Pick"}
                                 </span>
                             </div>
                         </div>

@@ -209,7 +209,8 @@ export default function ResumeView() {
     }
   };
 
-  if (loading && !resume && !accessBlock && !error) {
+  // Show skeleton while loading - prevents flash of "Resume not found"
+  if (loading) {
     return <ResumeViewSkeleton />;
   }
 
@@ -219,17 +220,23 @@ export default function ResumeView() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white flex-col gap-2">
-        <p className="text-red-400 text-xl">Error: {error}</p>
-        {user && <p className="text-gray-400 text-sm">User ID: {user.uid}</p>}
+      <div className="min-h-screen bg-[#FFFFF8] flex items-center justify-center text-black flex-col gap-2 relative overflow-hidden selection:bg-black selection:text-white">
+        <div className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] mix-blend-multiply bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')]" />
+        <div className="relative z-10 bg-[#F5F5F0] border border-black/10 p-10 shadow-2xl">
+          <p className="text-red-600 text-xl font-serif">Error: {error}</p>
+          {user && <p className="text-gray-500 text-sm font-sans mt-2">User ID: {user.uid}</p>}
+        </div>
       </div>
     );
   }
 
   if (!resume) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
-        Resume not found
+      <div className="min-h-screen bg-[#FFFFF8] flex items-center justify-center text-black relative overflow-hidden selection:bg-black selection:text-white">
+        <div className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] mix-blend-multiply bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')]" />
+        <div className="relative z-10 bg-[#F5F5F0] border border-black/10 p-10 shadow-2xl font-serif">
+          Resume not found
+        </div>
       </div>
     );
   }
@@ -238,9 +245,13 @@ export default function ResumeView() {
   if (template) {
     return (
       <div
-        className={`min-h-screen ${template.id === "masonry-v1" ? "" : "bg-gray-900 text-white"
-          } p-8 font-sans relative`}
+        className={`min-h-screen ${template.id === "masonry-v1" ? "" : "bg-[#FFFFF8] text-black selection:bg-black selection:text-white"
+          } p-8 font-sans relative overflow-hidden`}
       >
+        {/* Paper texture overlay */}
+        {template.id !== "masonry-v1" && (
+          <div className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] mix-blend-multiply bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')]" />
+        )}
         <ResumeToastOverlay toast={toast} onDismiss={() => setToast(null)} />
         {countdownBanner}
         {editingBanner}

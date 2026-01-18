@@ -20,7 +20,11 @@ const GenerateResumeSchema = z.object({
   userId: z.string().min(1),
   resumeData: z.object({
     summary: z.string(),
-    experience: z.array(z.any()), // Detailed validation can be added if ResumeData schema is available
+    experience: z.array(z.object({
+      title: z.string(),
+      company: z.string(),
+      description: z.string(),
+    }).passthrough()),
     skills: z.array(z.string()),
   }).passthrough(),
   template: z.string().optional().default("modern"),

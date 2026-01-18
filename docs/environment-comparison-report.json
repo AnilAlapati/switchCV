@@ -1,0 +1,152 @@
+{
+  "timestamp": "2026-01-18T02:26:54.327Z",
+  "collections": [
+    {
+      "name": "users",
+      "devExists": true,
+      "prodExists": true,
+      "devCount": 24,
+      "prodCount": 4,
+      "countDiff": 20,
+      "status": "ok",
+      "notes": []
+    },
+    {
+      "name": "resumes",
+      "devExists": true,
+      "prodExists": true,
+      "devCount": 3,
+      "prodCount": 21,
+      "countDiff": -18,
+      "status": "ok",
+      "notes": []
+    },
+    {
+      "name": "allResumes",
+      "devExists": true,
+      "prodExists": true,
+      "devCount": 3,
+      "prodCount": 1,
+      "countDiff": 2,
+      "status": "ok",
+      "notes": []
+    },
+    {
+      "name": "drafts",
+      "devExists": false,
+      "prodExists": false,
+      "devCount": 0,
+      "prodCount": 0,
+      "countDiff": 0,
+      "status": "ok",
+      "notes": []
+    },
+    {
+      "name": "notifications",
+      "devExists": false,
+      "prodExists": false,
+      "devCount": 0,
+      "prodCount": 0,
+      "countDiff": 0,
+      "status": "ok",
+      "notes": []
+    },
+    {
+      "name": "system",
+      "devExists": true,
+      "prodExists": true,
+      "devCount": 3,
+      "prodCount": 3,
+      "countDiff": 0,
+      "status": "ok",
+      "notes": []
+    },
+    {
+      "name": "resumeProfiles",
+      "devExists": false,
+      "prodExists": false,
+      "devCount": 0,
+      "prodCount": 0,
+      "countDiff": 0,
+      "status": "ok",
+      "notes": []
+    },
+    {
+      "name": "analytics",
+      "devExists": true,
+      "prodExists": true,
+      "devCount": 2,
+      "prodCount": 1,
+      "countDiff": 1,
+      "status": "ok",
+      "notes": []
+    }
+  ],
+  "documents": [
+    {
+      "path": "system/resumeIdCounter",
+      "devExists": true,
+      "prodExists": true,
+      "devFields": [
+        "currentId",
+        "description",
+        "createdAt",
+        "lastResetAt"
+      ],
+      "prodFields": [
+        "nextId",
+        "migrationNote",
+        "createdAt",
+        "migratedAt",
+        "currentId",
+        "description",
+        "lastResetAt"
+      ],
+      "missingInProd": [],
+      "missingInDev": [],
+      "status": "ok"
+    },
+    {
+      "path": "system/billing",
+      "devExists": true,
+      "prodExists": true,
+      "devFields": [
+        "totalCost",
+        "lastAggregated"
+      ],
+      "prodFields": [
+        "totalCost",
+        "lastAggregated"
+      ],
+      "missingInProd": [],
+      "missingInDev": [],
+      "status": "ok"
+    },
+    {
+      "path": "system/stats",
+      "devExists": false,
+      "prodExists": false,
+      "devFields": [],
+      "prodFields": [],
+      "missingInProd": [],
+      "missingInDev": [],
+      "status": "ok"
+    }
+  ],
+  "subcollections": [
+    {
+      "parentPath": "system/resumeIdCounter",
+      "subcollection": "shards",
+      "devExists": true,
+      "devCount": 16,
+      "prodExists": true,
+      "prodCount": 16,
+      "status": "ok"
+    }
+  ],
+  "summary": {
+    "totalIssues": 0,
+    "criticalIssues": 0,
+    "warnings": 0
+  }
+}

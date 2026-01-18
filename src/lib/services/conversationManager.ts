@@ -101,6 +101,7 @@ export interface ResumeCreationFormat {
  */
 export class ConversationManager {
   private collectedData: Partial<ResumeDataRequirements>;
+  private isComplete: boolean = false;
 
   /** Minimum required fields to create a basic resume */
   private static readonly MINIMUM_REQUIRED_FIELDS = [
@@ -146,6 +147,14 @@ export class ConversationManager {
   }
 
   /**
+   * explicitly mark the conversation as complete (e.g. valid JSON generated)
+   * This forces the progress to 100% regardless of individual field validation
+   */
+  markAsComplete(): void {
+    this.isComplete = true;
+  }
+
+  /**
    * Get current collected data
    */
   getData(): Partial<ResumeDataRequirements> {
@@ -156,6 +165,16 @@ export class ConversationManager {
    * Get conversation progress metrics
    */
   getProgress(): ConversationProgress {
+    if (this.isComplete) {
+      return {
+        completenessPercentage: 100,
+        collectedFields: ConversationManager.RECOGNIZED_FIELDS,
+        missingFields: [],
+        isReadyToCreate: true,
+        hasMinimumData: true,
+      };
+    }
+
     const collectedFields: string[] = [];
     const missingFields: string[] = [];
 

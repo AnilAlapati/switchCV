@@ -93,20 +93,35 @@ export function RoleSelection({ onSelect }: RoleSelectionProps) {
 // Floating geometric shapes in background
 function FloatingGeometrics() {
     const shapes = useMemo(
-        () =>
-            Array.from({ length: 15 }, (_, i) => ({
-                position: [
-                    (Math.random() - 0.5) * 40,
-                    (Math.random() - 0.5) * 20,
-                    -10 - Math.random() * 15,
-                ] as [number, number, number],
-                rotation: Math.random() * Math.PI,
-                scale: 0.3 + Math.random() * 0.7,
-                speed: 0.2 + Math.random() * 0.5,
-                type: ["box", "octahedron", "icosahedron", "torus"][
-                    Math.floor(Math.random() * 4)
-                ],
-            })),
+        () => {
+            const START_SEED = 456;
+            const seededRandom = (currentSeed: number) => {
+                const nextSeed = (currentSeed * 16807) % 2147483647;
+                return [nextSeed, (nextSeed - 1) / 2147483646] as const;
+            };
+
+            // Generate sequence of seeds first to avoid reassignment in loop
+            const result = [];
+            let current = START_SEED;
+            for (let i = 0; i < 15; i++) {
+                const [s1, r1] = seededRandom(current);
+                const [s2, r2] = seededRandom(s1);
+                const [s3, r3] = seededRandom(s2);
+                const [s4, r4] = seededRandom(s3);
+                const [s5, r5] = seededRandom(s4);
+                const [s6, r6] = seededRandom(s5);
+                const [s7, r7] = seededRandom(s6);
+                current = s7;
+                result.push({
+                    position: [(r1 - 0.5) * 40, (r2 - 0.5) * 20, -10 - r3 * 15] as [number, number, number],
+                    rotation: r4 * Math.PI,
+                    scale: 0.3 + r5 * 0.7,
+                    speed: 0.2 + r6 * 0.5,
+                    type: ["box", "octahedron", "icosahedron", "torus"][Math.floor(r7 * 4)],
+                });
+            }
+            return result;
+        },
         []
     );
 
@@ -250,14 +265,29 @@ function RoleCard3D({
 
     // Orbiting icons around the card
     const orbitingIcons = useMemo(
-        () =>
-            Array.from({ length: 6 }, (_, i) => ({
-                angle: (i / 6) * Math.PI * 2,
-                radius: 3.5,
-                speed: 0.5 + Math.random() * 0.3,
-                yOffset: (Math.random() - 0.5) * 2,
-                scale: 0.2 + Math.random() * 0.2,
-            })),
+        () => {
+            const START_SEED = 789;
+            const seededRandom = (currentSeed: number) => {
+                const nextSeed = (currentSeed * 16807) % 2147483647;
+                return [nextSeed, (nextSeed - 1) / 2147483646] as const;
+            };
+
+            const result = [];
+            let current = START_SEED;
+            for (let i = 0; i < 6; i++) {
+                const [s1, r1] = seededRandom(current);
+                const [s2, r2] = seededRandom(s1);
+                current = s2;
+                result.push({
+                    angle: (i / 6) * Math.PI * 2,
+                    radius: 3.5,
+                    speed: 0.5 + r1 * 0.3,
+                    yOffset: (r2 - 0.5) * 2,
+                    scale: 0.2 + r2 * 0.2, // Use r2 again for scale to save seeds
+                });
+            }
+            return result;
+        },
         []
     );
 
@@ -409,8 +439,8 @@ function RoleCard3D({
                             <button
                                 onClick={handleClick}
                                 className={`w-full py-3 px-4 rounded-lg font-bold text-sm transition-all duration-300 ${hovered
-                                        ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/50 scale-105"
-                                        : "bg-white/10 text-white/80 border border-white/20"
+                                    ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/50 scale-105"
+                                    : "bg-white/10 text-white/80 border border-white/20"
                                     }`}
                             >
                                 {hovered ? "✨ Enter Experience" : "Begin Experience →"}

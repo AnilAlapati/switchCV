@@ -17,23 +17,27 @@ export const ResumeAccessBlock: React.FC<ResumeAccessBlockProps> = ({
   const { title, description, primaryAction, secondaryAction } = config;
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white px-4 py-16">
-      <div className="mx-auto flex max-w-xl flex-col items-center justify-center gap-6 rounded-2xl border border-white/10 bg-slate-900/80 p-10 text-center shadow-xl">
-        <h1 className="text-2xl font-semibold text-white">{title}</h1>
-        <p className="text-sm text-slate-300">{description}</p>
+    <div className="min-h-screen bg-[#FFFFF8] text-black px-4 py-16 relative overflow-hidden selection:bg-black selection:text-white">
+      {/* Paper texture overlay */}
+      <div className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] mix-blend-multiply bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')]" />
+
+      <div className="relative z-10 mx-auto flex max-w-xl flex-col items-center justify-center gap-6 rounded-none border border-black/10 bg-[#F5F5F0] p-10 text-center shadow-2xl mt-20">
+        <h1 className="text-2xl font-serif font-bold text-black">{title}</h1>
+        <p className="text-sm text-gray-600 font-sans">{description}</p>
         <div className="flex flex-wrap items-center justify-center gap-3">
           {primaryAction && (
             <a
               href={primaryAction.href}
-              className="rounded-full bg-blue-600 px-5 py-2 text-sm font-medium text-white shadow hover:bg-blue-500"
+              className="group relative inline-flex items-center justify-center overflow-hidden px-6 py-3 bg-black text-white transition-all hover:bg-white hover:text-black border border-black text-sm font-medium tracking-wide"
             >
               {primaryAction.label}
+              <div className="absolute inset-0 bg-white transform translate-x-full group-hover:translate-x-0 transition-transform duration-300 mix-blend-difference" />
             </a>
           )}
           {secondaryAction && (
             <a
               href={secondaryAction.href}
-              className="rounded-full border border-white/20 px-5 py-2 text-sm font-medium text-slate-200 hover:border-white/40"
+              className="inline-flex items-center justify-center text-black border-b border-black px-4 py-3 hover:border-blue-600 hover:text-blue-600 transition-colors text-sm font-medium"
             >
               {secondaryAction.label}
             </a>

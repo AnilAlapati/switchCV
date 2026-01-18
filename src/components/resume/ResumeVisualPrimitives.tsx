@@ -17,16 +17,16 @@ export const SectionCard = ({
   title: string;
   children: React.ReactNode;
 }) => (
-  <section className="rounded-3xl border border-white/10 bg-slate-900/60 p-6 shadow-[0_20px_60px_rgba(2,6,23,0.65)]">
-    <header className="mb-6 flex items-center gap-3 border-b border-white/5 pb-4">
-      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500/20 to-cyan-400/20 text-lg font-semibold text-cyan-200">
+  <section className="border border-black/10 bg-white p-6 shadow-lg">
+    <header className="mb-6 flex items-center gap-3 border-b border-black/5 pb-4">
+      <div className="flex h-12 w-12 items-center justify-center bg-black text-lg font-serif font-bold text-white">
         {title.slice(0, 1)}
       </div>
       <div>
-        <p className="text-xs uppercase tracking-[0.4em] text-slate-400">
+        <p className="text-xs uppercase tracking-[0.4em] text-gray-400 font-sans">
           Section
         </p>
-        <h3 className="text-xl font-semibold text-white">{title}</h3>
+        <h3 className="text-xl font-serif font-bold text-black">{title}</h3>
       </div>
     </header>
     <div>{children}</div>
@@ -34,7 +34,7 @@ export const SectionCard = ({
 );
 
 const iconBase =
-  "flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-slate-200";
+  "flex h-8 w-8 items-center justify-center rounded-full bg-black/5 text-gray-700";
 
 const IconWrapper = ({ children }: { children: React.ReactNode }) => (
   <span className={iconBase} aria-hidden>
