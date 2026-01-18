@@ -34,8 +34,16 @@ src/
 
 functions/         # Firebase Cloud Functions
 scripts/           # Utility & maintenance scripts
-docs/              # Architecture & deployment docs
+docs/              # Architecture & deployment docs (See docs/README.md)
 ```
+
+## 📚 Documentation
+
+For complete project documentation, including security audits, coding standards, and quality guides, see the [Documentation Hub](docs/README.md).
+
+- **[Master Index](docs/README.md)**
+- **[Quality Guide & Watch Mode](docs/development/QUALITY_GUIDE.md)**
+- **[Security Overview](docs/security/OVERVIEW.md)**
 
 ## 🔧 Development Mode
 
@@ -92,9 +100,11 @@ See [docs/SYSTEM.md](docs/SYSTEM.md) for full diagrams and architecture deep-div
 ## 🚢 Deployment
 
 Run the production deployment script for a safe release:
+
 ```bash
 npm run deploy:prod
 ```
+
 See [docs/OPERATIONS.md](docs/OPERATIONS.md) for the full guide and checklists.
 
 ## 🔐 Environment Variables
@@ -121,15 +131,14 @@ npm run test:coverage # With coverage report
 
 ## 📖 Documentation Index
 
-| Feature | Description |
-| :--- | :--- |
-| **[System Architecture](docs/SYSTEM.md)** | Tech stack, high-level diagrams, and schema. |
-| **[Security & Compliance](docs/SECURITY.md)** | Auth, PII protection, and vulnerability reports. |
-| **[Platform Features](docs/FEATURES.md)** | AI search, Tier logic, and Feature Locks. |
-| **[Operations & Deploy](docs/OPERATIONS.md)** | Production release guide and runbook. |
-| **[Troubleshooting](docs/TROUBLESHOOTING.md)** | Google Sign-in fixes and common errors. |
-| **[Development Guide](docs/DEVELOPMENT.md)** | Local setup and dev-mode overrides. |
-
+| Feature                                        | Description                                      |
+| :--------------------------------------------- | :----------------------------------------------- |
+| **[System Architecture](docs/SYSTEM.md)**      | Tech stack, high-level diagrams, and schema.     |
+| **[Security & Compliance](docs/SECURITY.md)**  | Auth, PII protection, and vulnerability reports. |
+| **[Platform Features](docs/FEATURES.md)**      | AI search, Tier logic, and Feature Locks.        |
+| **[Operations & Deploy](docs/OPERATIONS.md)**  | Production release guide and runbook.            |
+| **[Troubleshooting](docs/TROUBLESHOOTING.md)** | Google Sign-in fixes and common errors.          |
+| **[Development Guide](docs/DEVELOPMENT.md)**   | Local setup and dev-mode overrides.              |
 
 ## 🛠️ Key Technologies
 
