@@ -1,6 +1,6 @@
 {
   "name": "switchcv",
-  "version": "0.0.219",
+  "version": "0.0.220",
   "private": true,
   "scripts": {
     "dev": "bash scripts/dev-with-secrets.sh",
@@ -41,7 +41,9 @@
     "test:rules": "jest security-rules.test.ts",
     "emulator": "firebase emulators:start --only firestore",
     "health-check": "bash scripts/check-repo-health.sh",
-    "release": "node scripts/increment-version.js"
+    "release": "node scripts/increment-version.js",
+    "backup:local": "bash scripts/backup-env-safe.sh",
+    "test:security": "jest tests/security --testPathPattern=backup"
   },
   "dependencies": {
     "@next/third-parties": "^16.0.10",
