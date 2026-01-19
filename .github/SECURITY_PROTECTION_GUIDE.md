@@ -5,17 +5,20 @@
 ### ✅ Layer 1: Prevention (Local - Client-side)
 
 **Pre-commit Hook** (`/.husky/pre-commit`)
+
 - Scans all staged files before commit
 - Detects patterns: Firebase, OpenAI, Groq, Hugging Face, etc.
 - **Can be bypassed:** `git commit --no-verify`
 
 **Pre-push Hook** (`/.git/hooks/pre-push`) - **NEWLY ADDED**
+
 - Scans commits BEFORE pushing to remote
 - Blocks any push with secrets or backup files
 - **Much harder to bypass** (would require modifying .git/hooks)
 - Runs: `git push origin develop` automatically triggers this
 
 **Gitignore Patterns** (`.gitignore`)
+
 - `.env.local.*-backup` - Prevents any env backup file
 - `.env-backups/` - Directory for local backups (not committed)
 - `firebase_config_*_backup.json` - Prevents config backups
@@ -26,6 +29,7 @@
 ### ✅ Layer 2: Detection (Server-side - GitHub Actions)
 
 **Secret Protection Workflow** (`.github/workflows/secret-protection.yml`) - **NEWLY ADDED**
+
 - Runs on every `push` and `pull_request`
 - **Checks entire git history** for secrets
 - Scans for backup files in git tracking
@@ -37,6 +41,7 @@
 ### ✅ Layer 3: Enforcement (Repository Rules)
 
 **TODO - Enable in GitHub (One-time setup):**
+
 1. Go to Settings → Code security & analysis
 2. Toggle **"Secret scanning"** ON
 3. Toggle **"Push protection"** ON (blocks pushes with secrets)
@@ -48,12 +53,14 @@ This adds GitHub's native secret scanning on top of your script.
 ### ✅ Layer 4: Automation (Prevents mistakes)
 
 **Safe Backup Script** (`scripts/backup-env-safe.sh`)
+
 - Command: `npm run backup:local`
 - Creates backups in `.env-backups/` directory
 - Backups are **local only, never committed**
 - File pattern: `.env.local.20260119_120000.backup`
 
 **Example:**
+
 ```bash
 npm run backup:local
 # Output:
@@ -63,6 +70,7 @@ npm run backup:local
 ```
 
 **Security Test** (`tests/security/backup-files.test.ts`)
+
 - Run: `npm run test:security`
 - Fails if backup files found in git
 - Runs in CI/CD pipeline
@@ -111,6 +119,7 @@ GITHUB ACTIONS catches it ✅
 ### ✅ CORRECT WAY (How to work going forward)
 
 **First time setup:**
+
 ```bash
 # Create env file (never commit this)
 cp .env.example .env.local
@@ -118,6 +127,7 @@ cp .env.example .env.local
 ```
 
 **If you need a backup:**
+
 ```bash
 npm run backup:local
 # Creates: .env-backups/.env.local.20260119_120000.backup
@@ -125,11 +135,13 @@ npm run backup:local
 ```
 
 **To restore a backup:**
+
 ```bash
 cp .env-backups/.env.local.20260119_120000.backup .env.local
 ```
 
 **Normal git workflow:**
+
 ```bash
 git add .
 git commit -m "feat: something"
@@ -165,6 +177,7 @@ git push --force-with-lease
 ## Testing the Protection
 
 ### Test Pre-commit Hook
+
 ```bash
 # This should FAIL at pre-commit
 echo "AIzaSyTest123456789012345678901" > test-secret.txt
@@ -174,6 +187,7 @@ git commit -m "test"
 ```
 
 ### Test Pre-push Hook
+
 ```bash
 # This should FAIL at pre-push
 echo "test" > .env.local-backup
@@ -184,6 +198,7 @@ git push origin develop
 ```
 
 ### Test CI/CD Protection
+
 ```bash
 # Create a PR with a secret
 echo "sk-proj-test" > test.txt
@@ -198,6 +213,7 @@ git push origin feature-branch
 ## Maintenance & Audits
 
 ### Monthly Audit (takes 2 minutes)
+
 ```bash
 # Verify no backup files in git
 git ls-files | grep -E '\-backup|\-secret'
@@ -209,6 +225,7 @@ git log --all --source --remotes -S "AIzaSy" --
 ```
 
 ### Quarterly Review
+
 - Verify GitHub Push Protection is still enabled
 - Check `.github/workflows/secret-protection.yml` is up to date
 - Review any failed secret-protection checks in GitHub Actions
@@ -232,6 +249,7 @@ git push origin --force-with-lease develop
 ```
 
 **Then:**
+
 1. Rotate all exposed API keys
 2. Notify team to `git fetch --all` and `git reset --hard origin/develop`
 
@@ -239,12 +257,12 @@ git push origin --force-with-lease develop
 
 ## Summary: No More Recurring Leaks
 
-| Layer | Method | Bypass Difficulty |
-|---|---|---|
-| **1. Pre-commit** | Regex scan of staged files | Easy (`--no-verify`) |
-| **2. Pre-push** | Regex scan before push | Hard (requires .git access) |
-| **3. GitHub Actions** | History + pattern check | Very hard (requires GitHub access) |
-| **4. GitHub Secret Scanning** | Native scanning + push protection | Impossible (server-side) |
+| Layer                         | Method                            | Bypass Difficulty                  |
+| ----------------------------- | --------------------------------- | ---------------------------------- |
+| **1. Pre-commit**             | Regex scan of staged files        | Easy (`--no-verify`)               |
+| **2. Pre-push**               | Regex scan before push            | Hard (requires .git access)        |
+| **3. GitHub Actions**         | History + pattern check           | Very hard (requires GitHub access) |
+| **4. GitHub Secret Scanning** | Native scanning + push protection | Impossible (server-side)           |
 
 **Result:** You'd need to bypass 4 independent systems to expose a secret.
 
