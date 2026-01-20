@@ -97,7 +97,7 @@ describe("SessionRestoreDialog", () => {
     );
 
     const continueButton = screen.getByRole("button", {
-      name: /continue previous session/i,
+      name: /continue where i left off/i,
     });
     fireEvent.click(continueButton);
 
@@ -134,7 +134,7 @@ describe("SessionRestoreDialog", () => {
 
     // Check that both buttons are accessible
     expect(
-      screen.getByRole("button", { name: /continue previous session/i })
+      screen.getByRole("button", { name: /continue where i left off/i })
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /start fresh resume/i })
@@ -150,8 +150,8 @@ describe("SessionRestoreDialog", () => {
       />
     );
 
-    // The AlertCircle icon should be rendered
-    const iconContainer = container.querySelector(".bg-amber-500\\/10");
+    // The RefreshCw icon container should be rendered
+    const iconContainer = container.querySelector(".bg-black\\/5");
     expect(iconContainer).toBeInTheDocument();
   });
 });

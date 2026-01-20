@@ -285,7 +285,7 @@ describe("POST /api/search/ai", () => {
     expect(response.status).toBe(500);
     expect(mockHandleApiError).toHaveBeenCalledWith(
       expect.any(Error),
-      "Search failed. Please try again."
+      "Search failed. Please try again: Network error"
     );
   });
 });

@@ -89,9 +89,9 @@ describe("retry", () => {
     // @ts-expect-error - testing private module isolation
     const promise = isolatedWithRetry(fn, 1, 100);
 
-    // In production mode, it should use the full delay (100ms)
+    // In production mode, it should use the full delay (100ms) + jitter
     // But since we are still in Jest, we can use fake timers to advance it
-    await jest.advanceTimersByTimeAsync(100);
+    await jest.advanceTimersByTimeAsync(200);
 
     const result = await promise;
     expect(result).toBe("success");

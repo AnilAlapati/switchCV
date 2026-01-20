@@ -129,10 +129,10 @@ describe("POST /api/notifications", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
-      userId: "user-123",
+      userId: "user123",
       error: undefined,
     });
-    (applyRateLimit as jest.Mock).mockResolvedValue({
+    (checkRateLimit as jest.Mock).mockResolvedValue({
       allowed: true,
       result: { remaining: 10, limit: 100, resetIn: 3600 },
     });

@@ -9,6 +9,7 @@ process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = 'test-auth-domain';
 process.env.GEMINI_API_KEY = 'test-gemini-key';
 process.env.OPENAI_API_KEY = 'test-openai-key';
 process.env.GROQ_API_KEY = 'test-groq-key';
+process.env.TOKEN_SECRET = 'test-token-secret';
 
 // Handle "use client" directive in tests
 // The babel plugin handles this, but we add a fallback
@@ -269,9 +270,9 @@ jest.mock('@/lib/firebase-admin', () => ({
         where: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
-        get: jest.fn().mockResolvedValue({ 
-          docs: [], 
-          empty: true, 
+        get: jest.fn().mockResolvedValue({
+          docs: [],
+          empty: true,
           size: 0,
           forEach: jest.fn(() => [])
         }),

@@ -18,17 +18,21 @@ jest.mock("@/lib/services/analyticsService", () => ({
 }));
 
 // Mock auth helpers
-jest.mock("@/lib/utils/api-helpers", () => ({
-  getAuthenticatedUserId: jest.fn(),
-  handleApiError: jest.fn((error, message, status = 500) => {
-    const res: Record<string, unknown> = { error: message };
-    if (error) {
-      res.details = error instanceof Error ? error.message : String(error);
-    }
-    return NextResponse.json(res, { status });
-  }),
-  validateCorsRequest: jest.fn(() => null),
-}));
+jest.mock("@/lib/utils/api-helpers", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { NextResponse } = require("next/server");
+  return {
+    getAuthenticatedUserId: jest.fn(),
+    handleApiError: jest.fn((error, message, status = 500) => {
+      const res: Record<string, unknown> = { error: message };
+      if (error) {
+        res.details = error instanceof Error ? error.message : String(error);
+      }
+      return NextResponse.json(res, { status });
+    }),
+    validateCorsRequest: jest.fn(() => null),
+  };
+});
 
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 import { getSystemAnalytics } from "@/lib/services/analyticsService";

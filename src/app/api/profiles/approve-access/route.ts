@@ -63,6 +63,14 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    return handleApiError(error, "Failed to approve access: " + errorMessage);
+
+    let status = 500;
+    if (errorMessage.includes("not found")) {
+      status = 404;
+    } else if (errorMessage.includes("Unauthorized") || errorMessage.includes("Permission denied")) {
+      status = 403;
+    }
+
+    return handleApiError(error, "Failed to approve access: " + errorMessage, status);
   }
 }

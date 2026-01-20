@@ -35,7 +35,7 @@ describe("ResumeProgress", () => {
 
     // Now the fields should be visible
     await waitFor(() => {
-      expect(screen.getByText("✓ Collected:")).toBeInTheDocument();
+      expect(screen.getByText("Collected")).toBeInTheDocument();
     });
     expect(screen.getByText("Name")).toBeInTheDocument();
     expect(screen.getByText("Email")).toBeInTheDocument();
@@ -57,7 +57,7 @@ describe("ResumeProgress", () => {
     await fireEvent.click(expandButton);
 
     await waitFor(() => {
-      expect(screen.getByText("⏳ Still need:")).toBeInTheDocument();
+      expect(screen.getByText("Still Need")).toBeInTheDocument();
     });
     expect(screen.getByText("Field1")).toBeInTheDocument();
     expect(screen.getByText("Field5")).toBeInTheDocument();
@@ -79,7 +79,7 @@ describe("ResumeProgress", () => {
         missingFields={missingFields}
       />
     );
-    expect(screen.queryByText("⏳ Still need:")).not.toBeInTheDocument();
+    expect(screen.queryByText("Still Need")).not.toBeInTheDocument();
   });
 
   it("renders completion message when progress is 100 and expanded", async () => {
@@ -92,9 +92,7 @@ describe("ResumeProgress", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(
-          "✨ All information collected! Creating your resume..."
-        )
+        screen.getByText("✨ Creating your resume...")
       ).toBeInTheDocument();
     });
   });
@@ -107,7 +105,7 @@ describe("ResumeProgress", () => {
         missingFields={[]}
       />
     );
-    expect(screen.queryByText("⏳ Still need:")).not.toBeInTheDocument();
+    expect(screen.queryByText("Still Need")).not.toBeInTheDocument();
   });
 
   it("does not render collected fields if empty", () => {
