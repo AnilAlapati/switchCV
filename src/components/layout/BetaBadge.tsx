@@ -16,7 +16,7 @@ export function BetaBadge() {
                         <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500"></span>
                     </span>
                     <span className="text-xs font-bold tracking-widest text-white/90 uppercase">
-                        Beta <span className="text-cyan-400 font-black">v1.2</span>
+                        Beta <span className="text-cyan-400 font-black">v{process.env.NEXT_PUBLIC_APP_VERSION}</span>
                     </span>
                 </div>
             </div>

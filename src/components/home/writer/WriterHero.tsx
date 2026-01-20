@@ -23,7 +23,7 @@ interface WriterHeroProps {
 
 // CREATION_STEPS moved to commented for potential future use
 
-export function WriterHero({ stats }: WriterHeroProps) {
+export function WriterHero({ stats, highlights }: WriterHeroProps) {
     const [typedTitle, setTypedTitle] = useState("");
     const fullTitle = "Write your future.";
 
@@ -79,6 +79,27 @@ export function WriterHero({ stats }: WriterHeroProps) {
                     >
                         <span className="text-lg font-medium">Try with One Role</span>
                     </Link>
+                </div>
+
+                {/* Feature Highlights */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6 pt-8">
+                    {highlights.map((highlight, index) => (
+                        <motion.div
+                            key={highlight.title}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.5 + (index * 0.1) }}
+                            className="space-y-1"
+                        >
+                            <h3 className="font-serif font-bold text-lg flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 bg-blue-600 rounded-full" />
+                                {highlight.title}
+                            </h3>
+                            <p className="text-sm text-gray-600 font-sans pl-3.5 leading-relaxed">
+                                {highlight.description}
+                            </p>
+                        </motion.div>
+                    ))}
                 </div>
 
                 <div className="grid grid-cols-3 gap-8 pt-12 border-t border-black/10">

@@ -37,7 +37,7 @@ export function WriterFeatureCards() {
                     The Process
                 </h2>
                 <p className="text-xl font-sans text-gray-600 max-w-2xl leading-relaxed border-l border-black pl-6 ml-2">
-                    Building a career is a story of evolution. We provide the tools to edit, refine, and publish your best version.
+                    Building a career is a story of evolution. We provide the tools to edit, refine, and publish your best version. You get a permanent shareable link for your resume.
                 </p>
             </motion.div>
 
@@ -63,10 +63,7 @@ export function WriterFeatureCards() {
                             {card.description}
                         </p>
 
-                        <div className="mt-8 opacity-0 group-hover:opacity-100 transition-opacity duration-500 transform translate-y-4 group-hover:translate-y-0 text-blue-600 font-sans text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                            <span>Read More</span>
-                            <span>&rarr;</span>
-                        </div>
+
                     </motion.article>
                 ))}
             </div>

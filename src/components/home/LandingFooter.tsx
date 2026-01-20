@@ -69,7 +69,7 @@ export function LandingFooter() {
                     <div className="flex items-center gap-2">
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-100 text-[10px] font-bold text-blue-700 font-mono uppercase tracking-widest">
                             <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                            BETA v1.2
+                            BETA v{process.env.NEXT_PUBLIC_APP_VERSION}
                         </span>
                     </div>
                 </div>

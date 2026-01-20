@@ -1,6 +1,6 @@
 {
   "name": "switchcv",
-  "version": "0.0.222",
+  "version": "0.0.234",
   "private": true,
   "scripts": {
     "dev": "bash scripts/dev-with-secrets.sh",
