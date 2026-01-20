@@ -38,6 +38,7 @@ function initializeFirebase(): admin.firestore.Firestore {
   return admin.firestore();
 }
 
+
 function createTransport() {
   const host = process.env.SMTP_HOST || "smtp.titan.email";
   const port = parseInt(process.env.SMTP_PORT || "465", 10);
@@ -48,6 +49,8 @@ function createTransport() {
     throw new Error("Missing SMTP_PASS for daily digest");
   }
 
+  console.log(`📧 Configuring SMTP transport: ${host}:${port} (${user})`);
+
   return nodemailer.createTransport({
     host,
     port,
@@ -56,6 +59,10 @@ function createTransport() {
       user,
       pass,
     },
+    // Add timeouts to fail faster if connection is stuck
+    connectionTimeout: 10000, // 10 seconds
+    greetingTimeout: 5000, // 5 seconds
+    socketTimeout: 10000, // 10 seconds
   });
 }
 
@@ -113,19 +120,17 @@ function buildDigestHtml(
 ) {
   const alertSection = alerts.length
     ? `<ul>${alerts
-        .slice(0, 10)
-        .map((alert) => {
-          const ts = alert.timestamp?.toDate?.()?.toISOString?.() ?? "unknown";
-          const meta = alert.metadata
-            ? `<pre>${JSON.stringify(alert.metadata, null, 2)}</pre>`
-            : "<em>No metadata</em>";
-          return `<li><strong>${
-            alert.severity?.toUpperCase?.() || "UNKNOWN"
-          }</strong> — ${alert.title}<br/><small>${ts}</small><p>${
-            alert.message
+      .slice(0, 10)
+      .map((alert) => {
+        const ts = alert.timestamp?.toDate?.()?.toISOString?.() ?? "unknown";
+        const meta = alert.metadata
+          ? `<pre>${JSON.stringify(alert.metadata, null, 2)}</pre>`
+          : "<em>No metadata</em>";
+        return `<li><strong>${alert.severity?.toUpperCase?.() || "UNKNOWN"
+          }</strong> — ${alert.title}<br/><small>${ts}</small><p>${alert.message
           }</p>${meta}</li>`;
-        })
-        .join("")}</ul>`
+      })
+      .join("")}</ul>`
     : "<p>No alerts in the last 24 hours 🎉</p>";
 
   const metricRows = metrics
@@ -137,9 +142,8 @@ function buildDigestHtml(
           <td>${metric.type}</td>
           <td>${metric.name}</td>
           <td style="text-align:right;">${metric.count || 0}</td>
-          <td style="text-align:right;">${
-            metric.avgValue?.toFixed?.(2) ?? "0"
-          }</td>
+          <td style="text-align:right;">${metric.avgValue?.toFixed?.(2) ?? "0"
+        }</td>
           <td style="text-align:right;">${metric.errorCount || 0}</td>
         </tr>`
     )
@@ -182,9 +186,8 @@ function buildDigestText(
     .slice(0, 10)
     .map((alert) => {
       const ts = alert.timestamp?.toDate?.()?.toISOString?.() ?? "unknown";
-      return `- [${alert.severity?.toUpperCase?.() || "UNKNOWN"}] ${
-        alert.title
-      } (${ts})\n  ${alert.message}`;
+      return `- [${alert.severity?.toUpperCase?.() || "UNKNOWN"}] ${alert.title
+        } (${ts})\n  ${alert.message}`;
     })
     .join("\n");
 
@@ -192,26 +195,29 @@ function buildDigestText(
     .slice(0, 10)
     .map(
       (metric) =>
-        `- ${metric.type} :: ${metric.name} :: count=${
-          metric.count || 0
-        }, avg=${metric.avgValue?.toFixed?.(2) ?? "0"}ms, errors=${
-          metric.errorCount || 0
+        `- ${metric.type} :: ${metric.name} :: count=${metric.count || 0
+        }, avg=${metric.avgValue?.toFixed?.(2) ?? "0"}ms, errors=${metric.errorCount || 0
         }`
     )
     .join("\n");
 
-  return `SwitchCV Monitoring Digest (${dateLabel})\n\nAlerts (${
-    alerts.length
-  })\n${alertsText || "  None"}\n\nMetrics\n${metricsText || "  None"}`;
+  return `SwitchCV Monitoring Digest (${dateLabel})\n\nAlerts (${alerts.length
+    })\n${alertsText || "  None"}\n\nMetrics\n${metricsText || "  None"}`;
 }
 
 async function main() {
+  console.log("🚀 Starting daily digest script...");
+
   try {
+    console.log("🔥 Initializing Firebase...");
     const db = initializeFirebase();
+
+    console.log("📊 Fetching alerts and metrics...");
     const [alerts, metricResult] = await Promise.all([
       fetchRecentAlerts(db),
       fetchLatestMetrics(db),
     ]);
+    console.log(`✅ Fetched ${alerts.length} alerts and ${metricResult.metrics.length} metrics (generated at ${metricResult.generatedAt?.toISOString()})`);
 
     const digestDate = new Intl.DateTimeFormat("en-US", {
       dateStyle: "full",
@@ -225,19 +231,27 @@ async function main() {
     const recipient = process.env.DIGEST_EMAIL_TO || DEFAULT_DIGEST_RECIPIENT;
     const prefix = process.env.DIGEST_SUBJECT_PREFIX || DEFAULT_SUBJECT_PREFIX;
 
+    console.log("🔌 Verifying SMTP connection...");
+    await transporter.verify();
+    console.log("✅ SMTP connection verified");
+
+    console.log(`📨 Sending digest to ${recipient}...`);
     await transporter.sendMail({
-      from: `${process.env.SMTP_USER || "SwitchCV"} <${
-        process.env.SMTP_USER || DEFAULT_DIGEST_RECIPIENT
-      }>`,
+      from: `${process.env.SMTP_USER || "SwitchCV"} <${process.env.SMTP_USER || DEFAULT_DIGEST_RECIPIENT
+        }>`,
       to: recipient,
       subject: `${prefix} ${digestDate}`,
       html,
       text,
     });
 
-    console.log(`✅ Digest sent to ${recipient}`);
+    console.log(`✅ Digest sent successfully to ${recipient}`);
+    process.exit(0);
   } catch (error) {
     console.error("❌ Failed to send daily digest:", error);
+    if (error instanceof Error) {
+      console.error("Stack:", error.stack);
+    }
     process.exit(1);
   }
 }
