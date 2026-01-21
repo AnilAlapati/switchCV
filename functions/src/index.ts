@@ -66,7 +66,7 @@ export const onRecruiterRequestApproved = functions.firestore
 
 export const sendProfileViewDigest = functions.pubsub
   .schedule("every monday 09:00")
-  .timeZone("America/New_York")
+  .timeZone("UTC")
   .onRun(async (context) => {
     if (!isProductionEnvironment()) {
       functions.logger.info(
@@ -96,7 +96,7 @@ export const resendVerificationEmail = functions.https.onCall(
 
 export const cleanupAuditLogs = functions.pubsub
   .schedule("every day 02:00")
-  .timeZone("America/New_York")
+  .timeZone("UTC")
   .onRun(async (context) => {
     if (!isProductionEnvironment()) {
       functions.logger.info(
