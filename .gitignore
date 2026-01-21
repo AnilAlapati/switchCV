@@ -114,3 +114,11 @@ lcov-report/
 snyk-reports/
 snyk-scan-output.txt
 parse_snyk.js
+
+# Ignored dangerous scripts
+scripts/dev-with-secrets.sh
+scripts/rotate-secret.sh
+scripts/setup-firestore-backup.sh
+scripts/setup-secrets.sh
+scripts/sync-secrets-from-firebase.sh
+src/app/api/admin/test-secrets/route.ts

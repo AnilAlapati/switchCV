@@ -22,9 +22,11 @@ PATTERN+=$'s\x6b-'"[A-Za-z0-9]{20,}|"
 PATTERN+=$'s\x6b-proj-'"[A-Za-z0-9_-]{20,}|"
 PATTERN+=$'gs\x6b_'"[A-Za-z0-9]{20,}|"
 PATTERN+=$'h\x66_'"[A-Za-z0-9]{20,}|"
-PATTERN+='-----BEGIN PRIVATE KEY-----|'
+PATTERN+='-----BEGIN '
+PATTERN+='PRIVATE KEY-----|'
 PATTERN+=$'xox[baprs]-'"[A-Za-z0-9-]{10,}|"
-PATTERN+='"type": "service_account"'
+PATTERN+='"type": "service_'
+PATTERN+='account"'
 PATTERN+=')'
 
 if rg --pcre2 -n "$PATTERN" $TARGET_FILES -g '!scripts/secret-scan.sh'; then
