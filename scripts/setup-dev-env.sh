@@ -23,9 +23,7 @@ firebase use dev
 echo "🛡️ Deploying Firestore Rules and Indexes..."
 firebase deploy --only firestore:rules,firestore:indexes,storage
 
-# 4.5 Setup Secrets
-echo "🔑 Setting up Secrets..."
-./scripts/setup-secrets.sh
+
 
 # 5. Deploy Functions (Slow)
 echo "⚡ Deploying Cloud Functions (this may take a few minutes)..."
