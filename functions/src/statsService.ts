@@ -29,6 +29,7 @@ const fetchCount = async (
   return performanceMonitor.measure(
     `stats.${metricName}`,
     async () => {
+      const start = Date.now();
       const snapshot = await resilientCall(() => query.count().get(), {
         retryOptions: {
           maxAttempts: databaseConfig.maxRetries,
@@ -39,6 +40,12 @@ const fetchCount = async (
 
       const data = snapshot.data();
       const rawCount = data?.count;
+      const duration = Date.now() - start;
+
+      functions.logger.info(`Stats count completed: ${metricName}`, {
+        count: rawCount,
+        durationMs: duration,
+      });
 
       if (typeof rawCount !== "number" || rawCount < 0) {
         throw new Error(`Unable to read aggregate count for ${metricName}`);

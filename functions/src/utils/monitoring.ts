@@ -431,7 +431,7 @@ export class AlertManager {
     // External API calls (non-AI)
     external_api: 1000,
     // Background tasks/aggregations
-    background_task: 5000,
+    background_task: 12000,
     // AI/LLM operations - inherently slow
     ai_api_call: 5000,
     // Default fallback
@@ -544,9 +544,8 @@ export class AlertManager {
 
       await emailService.sendCustomEmail({
         to: this.alertEmailTo,
-        subject: `${
-          this.alertEmailSubjectPrefix
-        } ${severity.toUpperCase()}: ${title}`,
+        subject: `${this.alertEmailSubjectPrefix
+          } ${severity.toUpperCase()}: ${title}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px;">
             <h2>${title}</h2>
