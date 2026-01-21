@@ -124,6 +124,7 @@ export class ConfigLoader {
       "p95_threshold_database_query",
       "p95_threshold_function_execution",
       "p95_threshold_external_api",
+      "p95_threshold_background_task",
     ];
 
     monitoringKeys.forEach((key) => {

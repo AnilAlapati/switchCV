@@ -98,14 +98,19 @@ while IFS=' ' read -r local_ref local_sha remote_ref remote_sha; do
   fi
   
   # Check for secrets in commits being pushed
-  if git rev-list "$range" | while read commit; do
+  FOUND_SECRET=0
+  for commit in $(git rev-list "$range"); do
     if git show "$commit" | grep -qE 'AIzaSy[A-Za-z0-9_-]{30,}|sk-proj-[A-Za-z0-9_-]{20,}|gsk_[A-Za-z0-9_-]{20,}|hf_[A-Za-z0-9_-]{20,}'; then
       echo "❌ SECURITY: Potential secret detected in commit $commit"
-      exit 1
+      FOUND_SECRET=1
+      break
     fi
-  done; then
+  done
+  
+  if [ "$FOUND_SECRET" -eq 1 ]; then
     exit 1
   fi
+
 done
 
 # Check for backup files

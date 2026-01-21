@@ -273,41 +273,55 @@ function calculateEngagementMetrics(
 
 /**
  * Get view trend for the last 7 days
+ * Optimized: Single query with in-memory grouping instead of 7 sequential queries
  */
 export async function getViewTrendLast7Days(
   analyticsId: string
 ): Promise<ViewTrendData[]> {
-  const trend: ViewTrendData[] = [];
   const eventsRef = db
     .collection("analytics")
     .doc(analyticsId)
     .collection("events");
 
+  // Calculate date range
+  const now = new Date();
+  const sevenDaysAgo = new Date(now);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+  sevenDaysAgo.setHours(0, 0, 0, 0);
+
+  // Single query for entire 7-day range
+  const eventsSnap = await resilientCall(
+    () =>
+      eventsRef
+        .where("timestamp", ">=", sevenDaysAgo.toISOString())
+        .where("eventType", "==", "view")
+        .get(),
+    {
+      retryOptions: { maxAttempts: databaseConfig.maxRetries },
+      timeoutMs: databaseConfig.timeoutMs,
+      operationName: "analytics-trend-fetch-batch",
+    }
+  );
+
+  // Group events by date in-memory (fast)
+  const countsByDate = new Map<string, number>();
+  eventsSnap.docs.forEach((doc) => {
+    const timestamp = doc.data().timestamp;
+    if (timestamp) {
+      const date = timestamp.split("T")[0];
+      countsByDate.set(date, (countsByDate.get(date) || 0) + 1);
+    }
+  });
+
+  // Build trend array for last 7 days
+  const trend: ViewTrendData[] = [];
   for (let i = 6; i >= 0; i--) {
-    const startOfDay = new Date();
-    startOfDay.setDate(startOfDay.getDate() - i);
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date(startOfDay);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    const dayEventsSnap = await resilientCall(
-      () =>
-        eventsRef
-          .where("timestamp", ">=", startOfDay.toISOString())
-          .where("timestamp", "<=", endOfDay.toISOString())
-          .where("eventType", "==", "view")
-          .get(),
-      {
-        retryOptions: { maxAttempts: databaseConfig.maxRetries },
-        timeoutMs: databaseConfig.timeoutMs,
-        operationName: "analytics-trend-fetch",
-      }
-    );
-
+    const day = new Date(now);
+    day.setDate(day.getDate() - i);
+    const dateStr = day.toISOString().split("T")[0];
     trend.push({
-      date: startOfDay.toISOString().split("T")[0],
-      count: dayEventsSnap.docs.length,
+      date: dateStr,
+      count: countsByDate.get(dateStr) || 0,
     });
   }
 
