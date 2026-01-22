@@ -1,5 +1,9 @@
 # Release Notes
 
+## [AI.0.0.240] - 2026-01-22
+### Changed
+- Automated version increment.
+
 ## [AI.0.0.239] - 2026-01-22
 ### Changed
 - Automated version increment.

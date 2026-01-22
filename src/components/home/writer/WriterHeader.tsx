@@ -47,16 +47,16 @@ export function WriterHeader() {
                         <a href="#features" className="hover:text-blue-600 hover:underline hover:decoration-2 hover:underline-offset-4 transition-all">Features</a>
                     </nav>
 
-                    <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-3 md:gap-6">
                         <Link
                             href="/auth"
-                            className="text-black font-sans font-medium hover:text-blue-600 text-sm italic"
+                            className="text-black font-sans font-medium hover:text-blue-600 text-sm italic whitespace-nowrap"
                         >
                             Log In
                         </Link>
                         <Link
                             href="/auth?mode=signup"
-                            className="px-6 py-3 bg-black text-white font-sans font-bold text-sm tracking-wide hover:bg-blue-600 transition-colors"
+                            className="px-4 py-2 md:px-6 md:py-3 bg-black text-white font-sans font-bold text-xs md:text-sm tracking-wide hover:bg-blue-600 transition-colors whitespace-nowrap"
                         >
                             Generate First CV
                         </Link>

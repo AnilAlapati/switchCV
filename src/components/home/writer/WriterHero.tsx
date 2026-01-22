@@ -62,7 +62,7 @@ export function WriterHero({ stats, highlights }: WriterHeroProps) {
                 </div>
 
                 <p className="text-2xl text-gray-600 font-light leading-relaxed max-w-xl font-sans">
-                    An AI agent that continuously improves your resume for better interviews.{' '}
+                    Five specialized AI agents that continuously improve your resume for better interviews.{' '}
                     <Link
                         href="/how-it-works"
                         className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 underline underline-offset-2 font-medium text-lg whitespace-nowrap"
