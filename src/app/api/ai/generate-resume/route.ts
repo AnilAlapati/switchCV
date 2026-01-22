@@ -38,6 +38,7 @@ interface GenerateResumeRequest {
     }>;
   };
   tone?: "professional" | "creative" | "concise";
+  mode?: "standard" | "autonomous"; // Added mode parameter
 }
 
 /**
@@ -106,7 +107,7 @@ export async function POST(request: NextRequest) {
         request
       );
     }
-    const { resumeData, tone = "professional" } = body;
+    const { resumeData, tone = "professional", mode = "standard" } = body;
 
     // Validate resumeData
     if (!resumeData) {
@@ -132,6 +133,7 @@ export async function POST(request: NextRequest) {
     const agenticResult = await runAgenticWorkflow(userId, userRole, {
       userResume: JSON.stringify(resumeData),
       jobDescription: "", // Not provided in current API schema
+      mode: mode as "standard" | "autonomous", // Pass mode to orchestrator
       outputFormatInstruction: `
                 Please provide enhancements in the following JSON format (IMPORTANT - respond ONLY with valid JSON):
                 {

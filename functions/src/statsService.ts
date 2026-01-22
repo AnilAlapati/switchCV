@@ -26,36 +26,29 @@ const fetchCount = async (
   query: FirebaseFirestore.Query,
   metricName: string
 ): Promise<number> => {
-  return performanceMonitor.measure(
-    `stats.${metricName}`,
-    async () => {
-      const start = Date.now();
-      const snapshot = await resilientCall(() => query.count().get(), {
-        retryOptions: {
-          maxAttempts: databaseConfig.maxRetries,
-        },
-        timeoutMs: databaseConfig.timeoutMs,
-        operationName: `stats-count-${metricName}`,
-      });
-
-      const data = snapshot.data();
-      const rawCount = data?.count;
-      const duration = Date.now() - start;
-
-      functions.logger.info(`Stats count completed: ${metricName}`, {
-        count: rawCount,
-        durationMs: duration,
-      });
-
-      if (typeof rawCount !== "number" || rawCount < 0) {
-        throw new Error(`Unable to read aggregate count for ${metricName}`);
-      }
-
-      return rawCount;
+  const start = Date.now();
+  const snapshot = await resilientCall(() => query.count().get(), {
+    retryOptions: {
+      maxAttempts: databaseConfig.maxRetries,
     },
-    MetricType.BACKGROUND_TASK,
-    { metricName }
-  );
+    timeoutMs: databaseConfig.timeoutMs,
+    operationName: `stats-count-${metricName}`,
+  });
+
+  const data = snapshot.data();
+  const rawCount = data?.count;
+  const duration = Date.now() - start;
+
+  functions.logger.info(`Stats count completed: ${metricName}`, {
+    count: rawCount,
+    durationMs: duration,
+  });
+
+  if (typeof rawCount !== "number" || rawCount < 0) {
+    throw new Error(`Unable to read aggregate count for ${metricName}`);
+  }
+
+  return rawCount;
 };
 
 /**

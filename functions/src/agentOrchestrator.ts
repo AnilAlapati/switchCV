@@ -71,9 +71,24 @@ export async function runAgenticWorkflow(
         }
     }
 
-    // 4. MODEL SELECTION
-    const planningModel = isFreeTier ? "gemini-1.5-pro" : "gemini-1.5-pro";
-    const executionModel = isFreeTier ? "gemini-1.5-flash" : "gemini-1.5-pro";
+    // 4. MODEL SELECTION - Use tier-based models
+    // Basic/Free: Cheap models (gemini-2.0-flash)
+    // Premium: Standard models (gemini-2.5-flash)
+    // Enterprise: Best models (gemini-2.5-pro)
+    const getTierModels = (role: string): { planning: string; execution: string } => {
+        if (["basic", "jobseeker", "free"].includes(role)) {
+            // Free tier: Use cheapest models
+            return { planning: "gemini-2.0-flash", execution: "gemini-2.0-flash" };
+        } else if (role === "enterprise") {
+            // Enterprise: Use best models
+            return { planning: "gemini-2.5-pro", execution: "gemini-2.5-pro" };
+        } else {
+            // Premium: Use standard models
+            return { planning: "gemini-2.5-flash", execution: "gemini-2.5-flash" };
+        }
+    };
+
+    const { planning: planningModel, execution: executionModel } = getTierModels(userRole);
 
     try {
         functions.logger.info(`Starting Agentic Workflow for ${userId} (${userRole})`);

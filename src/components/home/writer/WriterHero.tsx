@@ -25,7 +25,7 @@ interface WriterHeroProps {
 
 export function WriterHero({ stats, highlights }: WriterHeroProps) {
     const [typedTitle, setTypedTitle] = useState("");
-    const fullTitle = "Write your future.";
+    const fullTitle = "Your story. Our craft. Dreams happen.";
 
     useEffect(() => {
         let index = 0;
@@ -55,14 +55,20 @@ export function WriterHero({ stats, highlights }: WriterHeroProps) {
                 </motion.div>
 
                 <div className="min-h-[160px]">
-                    <h1 className="text-6xl sm:text-7xl lg:text-8xl font-normal leading-[0.9] tracking-tighter">
+                    <h1 className="text-5xl sm:text-6xl lg:text-7xl font-normal leading-[0.9] tracking-tighter">
                         {typedTitle}
                         <span className="inline-block w-4 h-[0.7em] bg-blue-600 ml-2 animate-pulse align-baseline" />
                     </h1>
                 </div>
 
                 <p className="text-2xl text-gray-600 font-light leading-relaxed max-w-xl font-sans">
-                    An AI agent that continuously improves your resume for better interviews.
+                    An AI agent that continuously improves your resume for better interviews.{' '}
+                    <Link
+                        href="/how-it-works"
+                        className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 underline underline-offset-2 font-medium text-lg whitespace-nowrap"
+                    >
+                        Learn how →
+                    </Link>
                 </p>
 
                 <div className="flex flex-col sm:flex-row gap-6 pt-4">

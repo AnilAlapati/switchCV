@@ -1,5 +1,3 @@
-"use client";
-
 import React from "react";
 import { TemplateRenderer } from "@/components/resume/TemplateRenderer";
 import { DashboardResume } from "@/types";
@@ -9,8 +7,137 @@ import { notFound } from "next/navigation";
 
 // --- Demo Resume Database ---
 const DEMO_RESUMES: Record<string, DashboardResume> = {
-  // 1. Fresh Graduate - Entry Level
+  // 1. ORIGINAL - Anil A. - Senior Software Engineer (DO NOT REMOVE)
   "1": {
+    id: "demo-anil-a",
+    versionId: "v1",
+    title: "Senior Software Engineer / Team Lead",
+    slug: "anil-a",
+    lastUpdatedAt: new Date().toISOString(),
+    isPublic: true,
+    visibility: "public",
+    personalInfo: {
+      name: "Anil A.",
+      title: "Senior Software Engineer / Team Lead",
+      email: "anil.a@example.com",
+      phone: "+91 90000 00000",
+      location: "Hyderabad, India",
+      linkedin: "linkedin.com/in/anil-a-dev",
+      github: "github.com/anil-a-dev",
+    },
+    contact: {
+      email: { value: "anil.a@example.com", visibility: "public" },
+      phone: { value: "+91 90000 00000", visibility: "public" },
+    },
+    summary:
+      "Accomplished Senior Software Engineer and Team Lead targeting a Staff-level product development role. Proven leader in designing and delivering large-scale automation and reliability platforms. Drove a 40% reduction in manual operational work by building a foundational, event-driven system, shifting the organization from reactive firefighting to proactive, data-driven development.",
+    experience: [
+      {
+        id: "exp-1",
+        company: "Company XYZ",
+        role: "Senior Software Engineer / Team Lead",
+        startDate: "2021-01",
+        endDate: "Present",
+        description:
+          "Led the end-to-end design and delivery of a reliability and automation platform to reduce operational friction and improve decision-making.\n• Architected a modular, event-driven system with standardized APIs and robust observability into system health and usage patterns.\n• Mentored a team of 5 engineers and drove sprint planning and technical direction.",
+        visibility: "public",
+      },
+      {
+        id: "exp-2",
+        company: "Tech Solutions Pvt. Ltd.",
+        role: "Software Engineer II",
+        startDate: "2018-06",
+        endDate: "2020-12",
+        description:
+          "Developed and maintained microservices for a high-traffic e-commerce platform serving 2M+ users.\n• Reduced API latency by 50% through caching strategies and query optimization.\n• Implemented CI/CD pipelines reducing deployment time from hours to minutes.",
+        visibility: "public",
+      },
+      {
+        id: "exp-3",
+        company: "StartupHub India",
+        role: "Full Stack Developer",
+        startDate: "2016-07",
+        endDate: "2018-05",
+        description:
+          "Built MVPs for multiple fintech products using React and Node.js.\n• Scaled user base from 0 to 50,000 in the first year through rapid feature iteration.\n• Integrated multiple payment gateways including Razorpay and PayU.",
+        visibility: "public",
+      },
+    ],
+    education: [
+      {
+        id: "edu-1",
+        institution: "Jawaharlal Nehru Technological University (JNTU)",
+        degree: "Bachelor of Technology (B.Tech)",
+        startDate: "2012",
+        endDate: "2016",
+        visibility: "public",
+      },
+    ],
+    skills: [
+      {
+        id: "s1",
+        name: "System Design",
+        level: "Expert",
+        visibility: "public",
+      },
+      { id: "s2", name: "Automation", level: "Expert", visibility: "public" },
+      {
+        id: "s3",
+        name: "API Development",
+        level: "Expert",
+        visibility: "public",
+      },
+      {
+        id: "s4",
+        name: "Observability",
+        level: "Advanced",
+        visibility: "public",
+      },
+      {
+        id: "s5",
+        name: "Team Leadership",
+        level: "Advanced",
+        visibility: "public",
+      },
+      {
+        id: "s6",
+        name: "React & Next.js",
+        level: "Expert",
+        visibility: "public",
+      },
+      {
+        id: "s7",
+        name: "Node.js & TypeScript",
+        level: "Expert",
+        visibility: "public",
+      },
+      { id: "s8", name: "AWS & GCP", level: "Advanced", visibility: "public" },
+    ],
+    projects: [
+      {
+        id: "p1",
+        name: "Reliability Automation Platform",
+        description:
+          "Designed and delivered an enterprise-grade automation platform handling 500K+ events daily. Reduced incident response time by 60%.",
+        visibility: "public",
+      },
+      {
+        id: "p2",
+        name: "Event-Driven Observability System",
+        description:
+          "Built a real-time observability stack with custom dashboards and alerting. Improved system visibility across 50+ microservices.",
+        visibility: "public",
+      },
+    ],
+    generatedText: {
+      draft: "",
+      polished: "",
+      lastGeneratedAt: new Date().toISOString(),
+    },
+  },
+
+  // 2. Fresh Graduate - Entry Level
+  "2": {
     id: "demo-fresh-grad",
     versionId: "v1",
     title: "Computer Science Graduate | Full Stack Developer",
@@ -140,8 +267,8 @@ const DEMO_RESUMES: Record<string, DashboardResume> = {
     },
   },
 
-  // 2. SDE 1 - Junior Developer
-  "2": {
+  // 3. SDE 1 - Junior Developer
+  "3": {
     id: "demo-sde1",
     versionId: "v1",
     title: "Software Development Engineer I",
@@ -253,8 +380,8 @@ const DEMO_RESUMES: Record<string, DashboardResume> = {
     },
   },
 
-  // 3. SDE 2 - Mid-Level Engineer
-  "3": {
+  // 4. SDE 2 - Mid-Level Engineer
+  "4": {
     id: "demo-sde2",
     versionId: "v1",
     title: "Software Development Engineer II",
@@ -384,8 +511,8 @@ const DEMO_RESUMES: Record<string, DashboardResume> = {
     },
   },
 
-  // 4. SDE 3 - Senior Engineer
-  "4": {
+  // 5. SDE 3 - Senior Engineer
+  "5": {
     id: "demo-sde3",
     versionId: "v1",
     title: "Software Development Engineer III | Senior Backend Engineer",
@@ -531,8 +658,8 @@ const DEMO_RESUMES: Record<string, DashboardResume> = {
     },
   },
 
-  // 5. Staff Engineer
-  "5": {
+  // 6. Staff Engineer
+  "6": {
     id: "demo-staff-engineer",
     versionId: "v1",
     title: "Staff Software Engineer | Technical Lead",
@@ -683,8 +810,8 @@ const DEMO_RESUMES: Record<string, DashboardResume> = {
     },
   },
 
-  // 6. Principal Engineer
-  "6": {
+  // 7. Principal Engineer
+  "7": {
     id: "demo-principal-engineer",
     versionId: "v1",
     title: "Principal Software Engineer | Infrastructure Architect",
@@ -844,8 +971,8 @@ const DEMO_RESUMES: Record<string, DashboardResume> = {
     },
   },
 
-  // 7. Engineering Manager
-  "7": {
+  // 8. Engineering Manager
+  "8": {
     id: "demo-eng-manager",
     versionId: "v1",
     title: "Engineering Manager | Team Lead",
@@ -996,8 +1123,8 @@ const DEMO_RESUMES: Record<string, DashboardResume> = {
     },
   },
 
-  // 8. Senior Engineering Manager
-  "8": {
+  // 9. Senior Engineering Manager
+  "9": {
     id: "demo-senior-em",
     versionId: "v1",
     title: "Senior Engineering Manager",
@@ -1157,8 +1284,8 @@ const DEMO_RESUMES: Record<string, DashboardResume> = {
     },
   },
 
-  // 9. Director of Engineering
-  "9": {
+  // 10. Director of Engineering
+  "10": {
     id: "demo-dir-engineering",
     versionId: "v1",
     title: "Director of Engineering",
@@ -1318,8 +1445,8 @@ const DEMO_RESUMES: Record<string, DashboardResume> = {
     },
   },
 
-  // 10. VP of Engineering
-  "10": {
+  // 11. VP of Engineering
+  "11": {
     id: "demo-vp-engineering",
     versionId: "v1",
     title: "Vice President of Engineering",
@@ -1479,8 +1606,8 @@ const DEMO_RESUMES: Record<string, DashboardResume> = {
     },
   },
 
-  // 11. CTO
-  "11": {
+  // 12. CTO
+  "12": {
     id: "demo-cto",
     versionId: "v1",
     title: "Chief Technology Officer",
@@ -1649,8 +1776,8 @@ const DEMO_RESUMES: Record<string, DashboardResume> = {
     },
   },
 
-  // 12. Technical Project Manager
-  "12": {
+  // 13. Technical Project Manager
+  "13": {
     id: "demo-project-manager",
     versionId: "v1",
     title: "Technical Project Manager",
@@ -1787,8 +1914,8 @@ const DEMO_RESUMES: Record<string, DashboardResume> = {
     },
   },
 
-  // 13. Senior Technical Project Manager
-  "13": {
+  // 14. Senior Technical Project Manager
+  "14": {
     id: "demo-senior-pm",
     versionId: "v1",
     title: "Senior Technical Project Manager",
@@ -1925,8 +2052,8 @@ const DEMO_RESUMES: Record<string, DashboardResume> = {
     },
   },
 
-  // 14. Product Manager
-  "14": {
+  // 15. Product Manager
+  "15": {
     id: "demo-product-manager",
     versionId: "v1",
     title: "Product Manager",
@@ -2064,8 +2191,8 @@ const DEMO_RESUMES: Record<string, DashboardResume> = {
     },
   },
 
-  // 15. Senior Product Manager
-  "15": {
+  // 16. Senior Product Manager
+  "16": {
     id: "demo-senior-pm-product",
     versionId: "v1",
     title: "Senior Product Manager",
@@ -2203,8 +2330,8 @@ const DEMO_RESUMES: Record<string, DashboardResume> = {
     },
   },
 
-  // 16. DevOps Engineer
-  "16": {
+  // 17. DevOps Engineer
+  "17": {
     id: "demo-devops-engineer",
     versionId: "v1",
     title: "DevOps Engineer | SRE",
@@ -2341,8 +2468,8 @@ const DEMO_RESUMES: Record<string, DashboardResume> = {
     },
   },
 
-  // 17. Security Engineer
-  "17": {
+  // 18. Security Engineer
+  "18": {
     id: "demo-security-engineer",
     versionId: "v1",
     title: "Security Engineer | AppSec Specialist",
@@ -2479,8 +2606,8 @@ const DEMO_RESUMES: Record<string, DashboardResume> = {
     },
   },
 
-  // 18. Data Scientist
-  "18": {
+  // 19. Data Scientist
+  "19": {
     id: "demo-data-scientist",
     versionId: "v1",
     title: "Data Scientist | ML Engineer",
@@ -2619,8 +2746,8 @@ const DEMO_RESUMES: Record<string, DashboardResume> = {
     },
   },
 
-  // 19. Solutions Architect
-  "19": {
+  // 20. Solutions Architect
+  "20": {
     id: "demo-solutions-architect",
     versionId: "v1",
     title: "Solutions Architect | Cloud Architect",
@@ -2758,8 +2885,8 @@ const DEMO_RESUMES: Record<string, DashboardResume> = {
     },
   },
 
-  // 20. CEO (Tech Background)
-  "20": {
+  // 21. CEO (Tech Background)
+  "21": {
     id: "demo-ceo",
     versionId: "v1",
     title: "Chief Executive Officer | Co-Founder",
@@ -2943,9 +3070,34 @@ export default async function DemoResumePage({
     notFound();
   }
 
-  // Use 'masonry-v1' for the creative Bento-box layout
+  // Assign different templates to different resumes for visual variety
+  const templateMap: Record<string, string> = {
+    "1": "masonry-v1", // Original Anil A. - portfolio
+    "2": "modern-creative-v1", // Fresh grad - creative
+    "3": "standard-v1", // SDE1 - professional
+    "4": "masonry-v1", // SDE2 - portfolio style
+    "5": "standard-v1", // SDE3 - professional
+    "6": "executive-v1", // Staff - executive
+    "7": "masonry-v1", // Principal - portfolio
+    "8": "executive-v1", // Engineering Manager
+    "9": "standard-v1", // Senior EM
+    "10": "executive-v1", // Director
+    "11": "executive-v1", // VP
+    "12": "executive-v1", // CTO
+    "13": "modern-creative-v1", // TPM - creative
+    "14": "standard-v1", // Senior TPM
+    "15": "modern-creative-v1", // PM - creative
+    "16": "masonry-v1", // Senior PM - portfolio
+    "17": "standard-v1", // DevOps
+    "18": "standard-v1", // Security
+    "19": "masonry-v1", // Data Scientist
+    "20": "standard-v1", // Solutions Architect
+    "21": "executive-v1", // CEO
+  };
+
+  const templateId = templateMap[id] || "standard-v1";
   const template =
-    RESUME_TEMPLATES.find((t) => t.id === "masonry-v1") || RESUME_TEMPLATES[0];
+    RESUME_TEMPLATES.find((t) => t.id === templateId) || RESUME_TEMPLATES[0];
 
   return (
     <div className="min-h-screen relative overflow-hidden">

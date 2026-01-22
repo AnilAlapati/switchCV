@@ -58,7 +58,8 @@ export const useAIResume = () => {
     resumeData: ResumeData,
     template: string = "modern",
     tone: "professional" | "creative" | "concise" = "professional",
-    modelId?: string // Optional - will auto-select if not provided
+    modelId?: string, // Optional - will auto-select if not provided
+    mode: "standard" | "autonomous" = "standard"
   ): Promise<EnhancedResumeContent | null> => {
     setLoading(true);
     setError(null);
@@ -113,6 +114,7 @@ export const useAIResume = () => {
           template,
           tone,
           modelId,
+          mode,
         }),
       });
 

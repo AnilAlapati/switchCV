@@ -1,19 +1,133 @@
 import { getSystemConfig } from "@/lib/getSystemConfig";
 import { checkBudget, trackCost } from "./costControlService";
-import { generateText } from "./aiGenerationService";
 import { logger } from "@/lib/logger";
+import {
+  ResearchAgent,
+  PlanningAgent,
+  ExecutionAgent,
+  ValidationAgent,
+  PolishAgent,
+  type AgentContext,
+} from "./agents";
 
 interface AgenticWorkflowData {
   jobDescription?: string;
-  userResume?: string; // Text content
+  userResume?: string;
   instructions?: string;
-  outputFormatInstruction?: string; // e.g. "Output valid JSON..."
+  outputFormatInstruction?: string;
+  mode?: "standard" | "autonomous";
 }
 
-const ESTIMATED_COST_PER_RUN = 0.005; // $0.005 per run estimate (blended)
+// Mode-aware cost estimation
+const COST_PER_RUN = {
+  standard: 0.003,
+  autonomous: 0.008,
+};
 
 /**
- * Runs the agentic workflow if enabled/safe, otherwise falls back to standard generation.
+ * Get tier-based model configuration
+ */
+function getTierModels(role: string): { planning: string; execution: string } {
+  if (["basic", "jobseeker", "free"].includes(role)) {
+    return { planning: "gemini-2.0-flash", execution: "gemini-2.0-flash" };
+  } else if (role === "enterprise") {
+    return { planning: "gemini-2.5-pro", execution: "gemini-2.5-pro" };
+  } else {
+    return { planning: "gemini-2.5-flash", execution: "gemini-2.5-flash" };
+  }
+}
+
+/**
+ * Run the autonomous 5-agent workflow using refactored agent classes
+ */
+async function runAutonomousWorkflow(
+  context: AgentContext,
+  planningModel: string,
+  executionModel: string
+): Promise<string> {
+  // Step 1: Research Agent
+  const researchAgent = new ResearchAgent(planningModel);
+  const researchResult = await researchAgent.run(undefined, context);
+  if (!researchResult.success || !researchResult.data) {
+    throw new Error(`ResearchAgent failed: ${researchResult.error}`);
+  }
+
+  // Step 2: Planning Agent
+  const planningAgent = new PlanningAgent(planningModel);
+  const planResult = await planningAgent.run(
+    { researchOutput: researchResult.data },
+    context
+  );
+  if (!planResult.success || !planResult.data) {
+    throw new Error(`PlanningAgent failed: ${planResult.error}`);
+  }
+
+  // Step 3: Execution Agent
+  const executionAgent = new ExecutionAgent(executionModel);
+  const executionResult = await executionAgent.run(
+    { planOutput: planResult.data },
+    context
+  );
+  if (!executionResult.success || !executionResult.data) {
+    throw new Error(`ExecutionAgent failed: ${executionResult.error}`);
+  }
+
+  // Step 4: Validation Agent
+  const validationAgent = new ValidationAgent(planningModel);
+  const validationResult = await validationAgent.run(
+    { executionOutput: executionResult.data },
+    context
+  );
+  if (!validationResult.success || !validationResult.data) {
+    throw new Error(`ValidationAgent failed: ${validationResult.error}`);
+  }
+
+  // Step 5: Polish Agent
+  const polishAgent = new PolishAgent(executionModel);
+  const polishResult = await polishAgent.run(
+    {
+      executionOutput: executionResult.data,
+      validationOutput: validationResult.data,
+    },
+    context
+  );
+  if (!polishResult.success || !polishResult.data) {
+    throw new Error(`PolishAgent failed: ${polishResult.error}`);
+  }
+
+  return polishResult.data.finalResumeMarkdown;
+}
+
+/**
+ * Run the standard 2-agent workflow (Planning -> Execution)
+ */
+async function runStandardWorkflow(
+  context: AgentContext,
+  planningModel: string,
+  executionModel: string
+): Promise<string> {
+  // Step 1: Planning Agent
+  const planningAgent = new PlanningAgent(planningModel);
+  const planResult = await planningAgent.run({}, context);
+  if (!planResult.success || !planResult.data) {
+    throw new Error(`PlanningAgent failed: ${planResult.error}`);
+  }
+
+  // Step 2: Execution Agent
+  const executionAgent = new ExecutionAgent(executionModel);
+  const executionResult = await executionAgent.run(
+    { planOutput: planResult.data },
+    context
+  );
+  if (!executionResult.success || !executionResult.data) {
+    throw new Error(`ExecutionAgent failed: ${executionResult.error}`);
+  }
+
+  return executionResult.data.resumeMarkdown;
+}
+
+/**
+ * Main entry point: Runs the agentic workflow if enabled/safe
  */
 export async function runAgenticWorkflow(
   userId: string,
@@ -60,73 +174,48 @@ export async function runAgenticWorkflow(
   }
 
   // 4. MODEL SELECTION
-  const planningModel = isFreeTier ? "gemini-1.5-pro" : "gemini-1.5-pro";
-  const executionModel = isFreeTier ? "gemini-1.5-flash" : "gemini-1.5-pro";
+  const { planning: planningModel, execution: executionModel } =
+    getTierModels(userRole);
+
+  // 5. BUILD AGENT CONTEXT
+  const context: AgentContext = {
+    userId,
+    jobDescription: data.jobDescription,
+    userResume: data.userResume,
+    model: planningModel,
+    outputFormatInstruction: data.outputFormatInstruction,
+  };
+
+  const mode = data.mode || "standard";
 
   try {
-    logger.info({ userId, role: userRole }, "Starting Agentic Workflow");
+    logger.info({ userId, role: userRole, mode }, "Starting Agentic Workflow");
 
-    // --- STEP 1: PLANNING AGENT ---
-    // The "Brain" - Analyzes the job description and user resume to create a strategy.
-    const planningPrompt = `
-      You are an expert Resume Strategist. 
-      Analyze the following Job Description and User Resume. 
-      Create a bulleted plan to tailor the resume for this specific job. 
-      Focus on keywords, structure, and highlighting relevant experience.
+    let finalResume: string;
 
-      JOB DESCRIPTION:
-      ${data.jobDescription || "No specific job description provided."}
+    if (mode === "autonomous") {
+      finalResume = await runAutonomousWorkflow(
+        context,
+        planningModel,
+        executionModel
+      );
+    } else {
+      finalResume = await runStandardWorkflow(
+        context,
+        planningModel,
+        executionModel
+      );
+    }
 
-      USER RESUME:
-      ${data.userResume || "No specific resume content provided."}
-    `;
-
-    const planResult = await generateText(
-      planningPrompt,
-      1000,
-      0.7,
-      planningModel
-    );
-    const plan = planResult.text;
-    logger.info({ userId }, "Agentic Planning Complete");
-
-    // --- STEP 2: EXECUTION AGENT ("The Writer") ---
-    // The "Muscle" - Writes the actual resume content based on the plan.
-    const executionPrompt = `
-      You are a professional Resume Writer. 
-      Using the following Plan, rewrite the user's resume.
-      Adhere strictly to the plan.
-
-      PLAN:
-      ${plan}
-
-      USER RESUME:
-      ${data.userResume}
-
-      ${data.jobDescription}
-      
-      ${data.outputFormatInstruction ||
-      "Output the full resume content in Markdown format. DO NOT include explanations."
-      }
-    `;
-
-    const executionResult = await generateText(
-      executionPrompt,
-      2500,
-      0.7,
-      executionModel
-    );
-    const finalResume = executionResult.text;
-
-    // --- TRACK COST (Only against 'Growth Budget' if user is Free) ---
+    // TRACK COST (Mode-aware)
     if (isFreeTier) {
-      // Fire and forget cost tracking
-      trackCost(userId, ESTIMATED_COST_PER_RUN, "agentic_workflow").catch((err) =>
+      const cost = COST_PER_RUN[mode];
+      trackCost(userId, cost, "agentic_workflow").catch((err) =>
         logger.error({ err }, "Failed to track cost")
       );
     }
 
-    // --- TRACK USAGE ---
+    // TRACK USAGE
     try {
       const { adminDb } = await import("@/lib/firebase-admin");
       const { FieldValue } = await import("firebase-admin/firestore");
@@ -139,6 +228,7 @@ export async function runAgenticWorkflow(
             agentic: {
               usageCount: FieldValue.increment(1),
               lastRunAt: new Date().toISOString(),
+              lastMode: mode,
             },
           },
           { merge: true }
@@ -149,10 +239,7 @@ export async function runAgenticWorkflow(
 
     return finalResume;
   } catch (error) {
-    logger.error(
-      { error },
-      "Agentic workflow failed, falling back to standard."
-    );
+    logger.error({ error }, "Agentic workflow failed, falling back to standard.");
     return null;
   }
 }

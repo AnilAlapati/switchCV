@@ -6,13 +6,13 @@ export interface Question {
   placeholder?: string;
   options?: string[];
   category:
-    | "personal"
-    | "experience"
-    | "education"
-    | "skills"
-    | "projects"
-    | "summary"
-    | "preferences";
+  | "personal"
+  | "experience"
+  | "education"
+  | "skills"
+  | "projects"
+  | "summary"
+  | "preferences";
   followUp?: string[];
   validation?: {
     pattern?: string;
@@ -243,6 +243,18 @@ export const resumeQuestions: Question[] = [
     type: "select",
     required: true,
     options: ["professional", "concise", "storytelling", "academic"],
+    category: "preferences",
+  },
+  {
+    id: "preferences_mode",
+    question: "Choose your AI Workflow Mode:",
+    type: "select",
+    required: true,
+    options: [
+      "Standard (Fast, 2-Agent)",
+      "Autonomous (Deep, 5-Agent)"
+    ],
+    placeholder: "Select workflow mode",
     category: "preferences",
   },
 ];

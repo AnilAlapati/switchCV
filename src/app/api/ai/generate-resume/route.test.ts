@@ -152,6 +152,32 @@ describe("POST /api/ai/generate-resume", () => {
     expect(runAgenticWorkflow).toHaveBeenCalled();
   });
 
+  it("should pass autonomous mode to workflow", async () => {
+    (runAgenticWorkflow as jest.Mock).mockResolvedValue(
+      JSON.stringify({
+        enhancedSummary: "Autonomous Summary",
+      })
+    );
+
+    const req = new NextRequest("http://localhost/api/ai/generate-resume", {
+      method: "POST",
+      body: JSON.stringify({
+        resumeData: mockResumeData,
+        mode: "autonomous"
+      }),
+    });
+
+    await POST(req);
+
+    expect(runAgenticWorkflow).toHaveBeenCalledWith(
+      expect.any(String), // userId
+      expect.any(String), // userRole
+      expect.objectContaining({
+        mode: "autonomous"
+      })
+    );
+  });
+
   it("should handle AI service errors", async () => {
     (runAgenticWorkflow as jest.Mock).mockRejectedValue(
       new Error("AI Service Error")

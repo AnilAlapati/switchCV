@@ -14,6 +14,7 @@ import { IntlProvider } from "@/components/providers/IntlProvider";
 import { Toaster } from "sonner";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import { BetaBadge } from "@/components/layout/BetaBadge";
+import { MobileNotice } from "@/components/layout/MobileNotice";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -70,6 +71,7 @@ export default function RootLayout({
                     </div>
                     <DevModeBanner />
                     <BetaBadge />
+                    <MobileNotice />
                   </SWRProvider>
                 </AuthProvider>
               </BlockingGuard>

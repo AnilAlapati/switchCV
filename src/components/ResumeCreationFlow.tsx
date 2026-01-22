@@ -34,9 +34,11 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
   const [preferences, setPreferences] = useState<{
     template: string;
     tone: string;
+    mode: string;
   }>({
     template: "modern",
     tone: "professional",
+    mode: "standard",
   });
 
   const { generateResumeContent, loading: isGenerating } = useAIResume();
@@ -81,8 +83,8 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
           skills: Array.isArray(answers.skills)
             ? answers.skills
             : typeof answers.skills === "string"
-            ? answers.skills.split(",").map((s: string) => s.trim())
-            : [],
+              ? answers.skills.split(",").map((s: string) => s.trim())
+              : [],
         };
 
         const selectedTemplate =
@@ -94,13 +96,22 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
             ? answers.preferences_tone
             : "professional";
 
-        setPreferences({ template: selectedTemplate, tone: selectedTone });
+        const modeSelection =
+          typeof answers.preferences_mode === "string"
+            ? answers.preferences_mode
+            : "Standard (Fast, 2-Agent)";
+
+        const selectedMode = modeSelection.includes("Autonomous") ? "autonomous" : "standard";
+
+        setPreferences({ template: selectedTemplate, tone: selectedTone, mode: selectedMode });
 
         // Call AI to enhance resume
         const result = await generateResumeContent(
           resumeData,
           selectedTemplate,
-          selectedTone as "creative" | "professional" | "concise"
+          selectedTone as "creative" | "professional" | "concise",
+          undefined, // modelId (auto)
+          selectedMode as "standard" | "autonomous"
         );
 
         if (!result) {
@@ -223,7 +234,9 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
         const result = await generateResumeContent(
           resumeData,
           preferences.template,
-          preferences.tone as "creative" | "professional" | "concise"
+          preferences.tone as "creative" | "professional" | "concise",
+          undefined,
+          preferences.mode as "standard" | "autonomous"
         );
 
         if (!result) {
@@ -264,6 +277,7 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
       generateResumeContent,
       preferences.template,
       preferences.tone,
+      preferences.mode,
     ]
   );
 
@@ -282,8 +296,8 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
             phase === "saving"
               ? "saving"
               : isGenerating
-              ? "generating"
-              : "complete"
+                ? "generating"
+                : "complete"
           }
           message={generationMessage}
         />
