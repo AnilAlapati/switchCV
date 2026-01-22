@@ -7,9 +7,9 @@ require('dotenv').config({ path: '.env.local' });
 async function testGemini() {
   const apiKey = process.env.GEMINI_API_KEY;
   console.log('Testing Gemini API Key:', apiKey?.substring(0, 20) + '...');
-  
+
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -19,7 +19,7 @@ async function testGemini() {
       })
     }
   );
-  
+
   const text = await response.text();
   console.log('Status:', response.status);
   console.log('Response:', text);
@@ -29,7 +29,7 @@ async function testGemini() {
 async function testOpenAI() {
   const apiKey = process.env.OPENAI_API_KEY;
   console.log('Testing OpenAI API Key:', apiKey?.substring(0, 20) + '...');
-  
+
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -42,7 +42,7 @@ async function testOpenAI() {
       max_tokens: 10
     })
   });
-  
+
   const text = await response.text();
   console.log('Status:', response.status);
   console.log('Response:', text);
@@ -52,7 +52,7 @@ async function testOpenAI() {
 async function testGroq() {
   const apiKey = process.env.GROQ_API_KEY;
   console.log('Testing Groq API Key:', apiKey?.substring(0, 20) + '...');
-  
+
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -65,7 +65,7 @@ async function testGroq() {
       max_tokens: 10
     })
   });
-  
+
   const text = await response.text();
   console.log('Status:', response.status);
   console.log('Response:', text);

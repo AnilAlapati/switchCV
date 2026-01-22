@@ -37,13 +37,13 @@ export type {
 export const AI_MODELS: AIModelConfig[] = [
   // CHEAP TIER - Gemini Flash
   {
-    id: "gemini-2.0-flash",
-    name: "Gemini 2.0 Flash",
+    id: "gemini-2.5-flash-lite",
+    name: "Gemini 2.5 Flash Lite",
     provider: "google",
-    costPer1MTokens: 0.1,
+    costPer1MTokens: 0.2, // ~Weighted avg of $0.10 in / $0.40 out
     quality: 7,
     speed: 9,
-    maxTokens: 8192,
+    maxTokens: 32768, // Flash Lite has distinct limits
     tier: "cheap",
   },
   // STANDARD TIER - GPT-4o-mini, Gemini Flash
@@ -61,10 +61,10 @@ export const AI_MODELS: AIModelConfig[] = [
     id: "gemini-2.5-flash",
     name: "Gemini 2.5 Flash",
     provider: "google",
-    costPer1MTokens: 0.15,
+    costPer1MTokens: 1.0, // ~Weighted avg of $0.30 in / $2.50 out
     quality: 8,
     speed: 9,
-    maxTokens: 8192,
+    maxTokens: 32768,
     tier: "standard",
   },
   // PREMIUM TIER - Best models

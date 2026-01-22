@@ -9,7 +9,7 @@ const agents = [
         id: "research",
         name: "Research Agent",
         nickname: "The Scout",
-        modelFree: "gemini-2.0-flash",
+        modelFree: "gemini-2.5-flash-lite",
         modelPremium: "gemini-2.5-flash",
         icon: Target,
         color: "purple",
@@ -24,7 +24,7 @@ const agents = [
         id: "planning",
         name: "Planning Agent",
         nickname: "The Strategist",
-        modelFree: "gemini-2.0-flash",
+        modelFree: "gemini-2.5-flash-lite",
         modelPremium: "gemini-2.5-flash",
         icon: Brain,
         color: "blue",
@@ -39,7 +39,7 @@ const agents = [
         id: "execution",
         name: "Execution Agent",
         nickname: "The Writer",
-        modelFree: "gemini-2.0-flash",
+        modelFree: "gemini-2.5-flash-lite",
         modelPremium: "gemini-2.5-flash",
         icon: Zap,
         color: "amber",
@@ -54,7 +54,7 @@ const agents = [
         id: "validation",
         name: "Validation Agent",
         nickname: "The Auditor",
-        modelFree: "gemini-2.0-flash",
+        modelFree: "gemini-2.5-flash-lite",
         modelPremium: "gemini-2.5-flash",
         icon: Sparkles,
         color: "green",
@@ -69,7 +69,7 @@ const agents = [
         id: "polish",
         name: "Polish Agent",
         nickname: "The Editor",
-        modelFree: "gemini-2.0-flash",
+        modelFree: "gemini-2.5-flash-lite",
         modelPremium: "gemini-2.5-flash",
         icon: Users,
         color: "rose",
@@ -264,13 +264,8 @@ export default function HowItWorksPage() {
                             <ul className="space-y-3 text-sm">
                                 <li className="flex items-center gap-3">
                                     <Brain className="w-4 h-4 text-blue-600" />
-                                    <span><strong>Planning:</strong> Gemini 2.0 Flash</span>
+                                    <span><strong>All 5 Agents:</strong> Gemini 2.5 Flash Lite</span>
                                     <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Fast</span>
-                                </li>
-                                <li className="flex items-center gap-3">
-                                    <Zap className="w-4 h-4 text-amber-500" />
-                                    <span><strong>Execution:</strong> Gemini 2.0 Flash</span>
-                                    <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">Fast</span>
                                 </li>
                             </ul>
                             <p className="text-xs text-gray-500 mt-4">5 free agent runs included</p>
@@ -283,13 +278,8 @@ export default function HowItWorksPage() {
                             <ul className="space-y-3 text-sm">
                                 <li className="flex items-center gap-3">
                                     <Brain className="w-4 h-4 text-blue-400" />
-                                    <span><strong>Planning:</strong> Gemini 2.5 Flash</span>
+                                    <span><strong>All 5 Agents:</strong> Gemini 2.5 Flash</span>
                                     <span className="text-xs bg-blue-900 text-blue-300 px-2 py-0.5 rounded">Smart</span>
-                                </li>
-                                <li className="flex items-center gap-3">
-                                    <Zap className="w-4 h-4 text-amber-400" />
-                                    <span><strong>Execution:</strong> Gemini 2.5 Flash</span>
-                                    <span className="text-xs bg-amber-900 text-amber-300 px-2 py-0.5 rounded">Premium</span>
                                 </li>
                             </ul>
                             <p className="text-xs text-gray-400 mt-4">Unlimited runs + priority processing</p>
@@ -302,7 +292,7 @@ export default function HowItWorksPage() {
             <section className="py-16 md:py-24 px-6 md:px-12 bg-black text-white">
                 <div className="max-w-4xl mx-auto text-center">
                     <h2 className="text-3xl md:text-4xl font-serif font-bold mb-6">
-                        Why Two Agents Beat One
+                        Why Five Agents Beat One
                     </h2>
                     <p className="text-lg text-gray-300 mb-10 max-w-2xl mx-auto">
                         Single-shot AI often produces generic results. Our specialized 5-agent team works like a professional career firm—each focused on what they do best.
@@ -310,7 +300,7 @@ export default function HowItWorksPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-left">
                         <div className="p-6 border border-white/20 rounded-lg">
                             <h3 className="font-bold text-lg mb-2">🧠 Smarter Strategy</h3>
-                            <p className="text-sm text-gray-400">The Planning Agent uses Gemini Pro to deeply understand the job requirements before any writing begins.</p>
+                            <p className="text-sm text-gray-400">The Planning Agent uses Gemini 2.5 to deeply understand the job requirements before any writing begins.</p>
                         </div>
                         <div className="p-6 border border-white/20 rounded-lg">
                             <h3 className="font-bold text-lg mb-2">⚡ Faster Execution</h3>
@@ -318,7 +308,7 @@ export default function HowItWorksPage() {
                         </div>
                         <div className="p-6 border border-white/20 rounded-lg">
                             <h3 className="font-bold text-lg mb-2">🎯 Better Results</h3>
-                            <p className="text-sm text-gray-400">Two-pass processing catches opportunities a single pass would miss. Strategy + Execution = Interview-ready.</p>
+                            <p className="text-sm text-gray-400">Multi-stage processing catches opportunities a single pass would miss. Research + Strategy + Execution = Interview-ready.</p>
                         </div>
                     </div>
                 </div>

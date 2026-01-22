@@ -132,22 +132,22 @@ async function runAllTests() {
   console.log('│ BASIC TIER (Cheapest models - for free users)                │');
   console.log('└──────────────────────────────────────────────────────────────┘');
   await testProvider('Groq Llama 3.1 8B ($0.05/1M) [PRIMARY]', () => testGroq('llama-3.1-8b-instant'));
-  await testProvider('Gemini 2.0 Flash ($0.10/1M)', () => testGemini('gemini-2.0-flash'));
-  
+  await testProvider('Gemini 2.5 Flash Lite ($0.075/1M)', () => testGemini('gemini-2.5-flash-lite'));
+
   console.log('\n┌──────────────────────────────────────────────────────────────┐');
   console.log('│ PREMIUM TIER (Better models - for paying users)              │');
   console.log('└──────────────────────────────────────────────────────────────┘');
   await testProvider('Gemini 2.5 Flash ($0.15/1M) [PRIMARY]', () => testGemini('gemini-2.5-flash'));
   await testProvider('GPT-4o-mini ($0.60/1M)', () => testOpenAI('gpt-4o-mini'));
   await testProvider('Groq Llama 3.3 70B ($0.59/1M)', () => testGroq('llama-3.3-70b-versatile'));
-  
+
   console.log('\n┌──────────────────────────────────────────────────────────────┐');
   console.log('│ ENTERPRISE TIER (Best models - for enterprise users)         │');
   console.log('└──────────────────────────────────────────────────────────────┘');
   await testProvider('GPT-4o ($10/1M) [PRIMARY]', () => testOpenAI('gpt-4o'));
   // Note: Gemini 2.5 Pro can consume a large internal "thoughts" budget.
   await testProvider('Gemini 2.5 Pro ($2.50/1M)', () => testGemini('gemini-2.5-pro', 1024));
-  
+
   console.log('\n╔══════════════════════════════════════════════════════════════╗');
   console.log('║                      TEST COMPLETE                            ║');
   console.log('╚══════════════════════════════════════════════════════════════╝\n');

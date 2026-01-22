@@ -123,7 +123,7 @@ describe("POST /api/ai/generate", () => {
   it("should successfully generate text with valid prompt", async () => {
     const mockResult = {
       text: "Generated text content",
-      model: "gemini-2.0-flash-lite",
+      model: "gemini-2.5-flash-lite",
       provider: "google",
     };
 
@@ -151,7 +151,7 @@ describe("POST /api/ai/generate", () => {
   it("should use default values for optional parameters", async () => {
     const mockResult = {
       text: "Default parameters text",
-      model: "gemini-2.0-flash-lite",
+      model: "gemini-2.5-flash-lite",
       provider: "google",
     };
 
@@ -283,7 +283,7 @@ describe("POST /api/ai/generate", () => {
   it("should handle maximum allowed parameter values", async () => {
     const mockResult = {
       text: "Maximum parameters result",
-      model: "gemini-2.0-flash-lite",
+      model: "gemini-2.5-flash-lite",
       provider: "google",
     };
 
@@ -341,7 +341,7 @@ describe("POST /api/ai/generate", () => {
     const longPrompt = "A".repeat(1000);
     const mockResult = {
       text: "Long prompt result",
-      model: "gemini-2.0-flash-lite",
+      model: "gemini-2.5-flash-lite",
       provider: "google",
     };
 

@@ -78,7 +78,7 @@ export async function runAgenticWorkflow(
     const getTierModels = (role: string): { planning: string; execution: string } => {
         if (["basic", "jobseeker", "free"].includes(role)) {
             // Free tier: Use cheapest models
-            return { planning: "gemini-2.0-flash", execution: "gemini-2.0-flash" };
+            return { planning: "gemini-2.5-flash-lite", execution: "gemini-2.5-flash-lite" };
         } else if (role === "enterprise") {
             // Enterprise: Use best models
             return { planning: "gemini-2.5-pro", execution: "gemini-2.5-pro" };

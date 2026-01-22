@@ -25,7 +25,7 @@ describe("GET /api/ai/status", () => {
       json: async () => ({
         models: [
           {
-            name: "models/gemini-2.0-flash-lite",
+            name: "models/gemini-2.5-flash-lite",
             supportedGenerationMethods: ["generateContent"],
           },
         ],
@@ -37,7 +37,7 @@ describe("GET /api/ai/status", () => {
 
     expect(data.connected).toBe(true);
     expect(data.provider).toBe("Google Gemini");
-    expect(data.model).toBe("gemini-2.0-flash-lite");
+    expect(data.model).toBe("gemini-2.5-flash-lite");
   });
 
   it("should return HuggingFace status when Gemini is missing but HF is present", async () => {

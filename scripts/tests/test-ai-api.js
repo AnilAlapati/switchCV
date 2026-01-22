@@ -23,7 +23,7 @@ function log(message, color = 'reset') {
 // Test Gemini API
 async function testGemini() {
   const apiKey = process.env.GEMINI_API_KEY;
-  
+
   if (!apiKey) {
     log('❌ GEMINI_API_KEY not found in environment', 'red');
     return false;
@@ -43,7 +43,7 @@ async function testGemini() {
 
   const options = {
     hostname: 'generativelanguage.googleapis.com',
-    path: `/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    path: `/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -54,7 +54,7 @@ async function testGemini() {
   return new Promise((resolve) => {
     const req = https.request(options, (res) => {
       let body = '';
-      
+
       res.on('data', (chunk) => {
         body += chunk;
       });
@@ -97,7 +97,7 @@ async function testGemini() {
 // Test HuggingFace API
 async function testHuggingFace() {
   const token = process.env.HUGGINGFACE_TOKEN;
-  
+
   if (!token) {
     log('❌ HUGGINGFACE_TOKEN not found in environment', 'red');
     return false;
@@ -128,7 +128,7 @@ async function testHuggingFace() {
   return new Promise((resolve) => {
     const req = https.request(options, (res) => {
       let body = '';
-      
+
       res.on('data', (chunk) => {
         body += chunk;
       });
@@ -173,12 +173,12 @@ async function testHuggingFace() {
 // Main test function
 async function runTests() {
   log('\n🧪 Testing AI API Configuration\n', 'blue');
-  
+
   // Check for .env.local file
   const fs = require('fs');
   const path = require('path');
   const envPath = path.join(__dirname, '.env.local');
-  
+
   if (!fs.existsSync(envPath)) {
     log('⚠️  Warning: .env.local file not found!', 'yellow');
     log('   Create it from .env.local.example', 'yellow');
@@ -199,11 +199,11 @@ async function runTests() {
   const geminiWorks = await testGemini();
   log(''); // Empty line
   const hfWorks = await testHuggingFace();
-  
+
   log('\n📊 Test Results:', 'blue');
   log(`   Gemini: ${geminiWorks ? '✅ Ready' : '❌ Not configured'}`, geminiWorks ? 'green' : 'red');
   log(`   HuggingFace: ${hfWorks ? '✅ Ready' : '❌ Not configured'}`, hfWorks ? 'green' : 'red');
-  
+
   if (geminiWorks || hfWorks) {
     log('\n🎉 At least one AI provider is working! You\'re ready to go!', 'green');
     log('   Run: npm run dev', 'green');
@@ -211,7 +211,7 @@ async function runTests() {
     log('\n❌ No AI providers are configured correctly', 'red');
     log('   See AI_SETUP.md for setup instructions', 'yellow');
   }
-  
+
   log(''); // Empty line
 }
 

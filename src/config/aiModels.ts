@@ -164,6 +164,30 @@ export const AVAILABLE_AI_MODELS: AIModel[] = [
     tier: "premium",
   },
   {
+    id: "gemini-2.5-flash-lite",
+    name: "Gemini 2.5 Flash Lite",
+    description:
+      "Lightweight and cost-effective multimodal model from Google, ideal for high-volume tasks",
+    provider: "google",
+    modelId: "gemini-2.5-flash-lite",
+    maxTokens: 8192,
+    costPerToken: 0.0000005,
+    capabilities: [
+      "text-generation",
+      "instruction-following",
+      "reasoning",
+      "analysis",
+      "multimodal",
+    ],
+    recommendedFor: [
+      "quick-edits",
+      "basic-suggestions",
+      "high-volume-tasks",
+    ],
+    isEnabled: true,
+    tier: "free",
+  },
+  {
     id: "gemini-2.0-flash",
     name: "Gemini 2.0 Flash",
     description:
@@ -185,7 +209,7 @@ export const AVAILABLE_AI_MODELS: AIModel[] = [
       "skill-analysis",
       "quick-edits",
     ],
-    isEnabled: true,
+    isEnabled: false,
     tier: "free",
   },
   {

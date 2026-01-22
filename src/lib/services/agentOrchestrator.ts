@@ -29,7 +29,7 @@ const COST_PER_RUN = {
  */
 function getTierModels(role: string): { planning: string; execution: string } {
   if (["basic", "jobseeker", "free"].includes(role)) {
-    return { planning: "gemini-2.0-flash", execution: "gemini-2.0-flash" };
+    return { planning: "gemini-2.5-flash-lite", execution: "gemini-2.5-flash-lite" };
   } else if (role === "enterprise") {
     return { planning: "gemini-2.5-pro", execution: "gemini-2.5-pro" };
   } else {

@@ -236,13 +236,13 @@ jest.mock('@/lib/firebase-admin', () => ({
             costPerSearch: 0.5
           },
           ai: {
-            defaultModel: 'gemini-2.0-flash-lite',
+            defaultModel: 'gemini-2.5-flash-lite',
             embeddingModel: 'text-embedding-004',
             embeddingDimension: 768,
             maxRetries: 3,
             timeoutMs: 30000,
             maxTokens: 4096,
-            preferredModels: ['gemini-2.0-flash-lite', 'gemini-2.5-flash', 'gpt-4o-mini', 'groq/llama-3.1-8b'],
+            preferredModels: ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gpt-4o-mini', 'groq/llama-3.1-8b'],
             enableCostWarnings: true
           },
           validation: {

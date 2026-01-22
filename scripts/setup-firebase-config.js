@@ -89,14 +89,14 @@ const DEV_CONFIG = {
     costPerSearch: 0.5
   },
   ai: {
-    defaultModel: "gemini-2.0-flash-lite",
+    defaultModel: "gemini-2.5-flash-lite",
     embeddingModel: "text-embedding-004",
     embeddingDimension: 768,
     maxRetries: 3,
     timeoutMs: 30000,
     maxTokens: 4096,
     preferredModels: [
-      "gemini-2.0-flash-lite",
+      "gemini-2.5-flash-lite",
       "gemini-2.5-flash",
       "gpt-4o-mini",
       "groq/llama-3.1-8b"
@@ -194,14 +194,14 @@ const PROD_CONFIG = {
     costPerSearch: 0.5
   },
   ai: {
-    defaultModel: "gemini-2.0-flash-lite",
+    defaultModel: "gemini-2.5-flash-lite",
     embeddingModel: "text-embedding-004",
     embeddingDimension: 768,
     maxRetries: 2,
     timeoutMs: 30000,
     maxTokens: 2048,
     preferredModels: [
-      "gemini-2.0-flash-lite",
+      "gemini-2.5-flash-lite",
       "gemini-2.5-flash",
       "gpt-4o-mini",
       "groq/llama-3.1-8b"
@@ -228,7 +228,7 @@ const PROD_CONFIG = {
 
 async function setupFirebaseConfig(environment) {
   const env = environment.toLowerCase();
-  
+
   if (env !== 'dev' && env !== 'prod') {
     console.error('❌ Invalid environment. Use "dev" or "prod"');
     process.exit(1);
@@ -236,15 +236,15 @@ async function setupFirebaseConfig(environment) {
 
   const config = env === 'dev' ? DEV_CONFIG : PROD_CONFIG;
   const projectId = env === 'dev' ? 'switchcv-dev' : 'switchcv-e5136';
-  
+
   console.log(`\n🔥 Setting up Firebase config for ${env.toUpperCase()} environment`);
   console.log(`📦 Project ID: ${projectId}`);
-  
+
   try {
     // Initialize Firebase Admin
     if (!admin.apps.length) {
       const serviceAccountPath = path.join(__dirname, '..', 'key.json');
-      
+
       if (!fs.existsSync(serviceAccountPath)) {
         console.error('❌ Service account key not found at:', serviceAccountPath);
         console.log('💡 Please download your service account key and save it as key.json');
@@ -256,7 +256,7 @@ async function setupFirebaseConfig(environment) {
       }
 
       const serviceAccount = require(serviceAccountPath);
-      
+
       // Verify project ID matches
       if (serviceAccount.project_id !== projectId) {
         console.error(`❌ Service account key is for project "${serviceAccount.project_id}"`);
@@ -275,7 +275,7 @@ async function setupFirebaseConfig(environment) {
 
     const db = admin.firestore();
     const docRef = db.collection('config').doc('system');
-    
+
     // Check if document already exists
     const doc = await docRef.get();
     if (doc.exists) {
@@ -284,10 +284,10 @@ async function setupFirebaseConfig(environment) {
       console.log('\n❓ Do you want to overwrite it? (This action cannot be undone)');
       // For automated scripts, you may want to add confirmation logic here
     }
-    
+
     // Write the configuration
     await docRef.set(config);
-    
+
     console.log('✅ Successfully created config/system document!');
     console.log('\n📋 Configuration Summary:');
     console.log(`   Environment: ${env.toUpperCase()}`);
@@ -297,15 +297,15 @@ async function setupFirebaseConfig(environment) {
     console.log(`   Basic Tier Can Edit: ${config.tiers.basic.canEdit ? 'Yes' : 'No'}`);
     console.log(`   AI Model: ${config.ai.defaultModel}`);
     console.log(`   Config Cache TTL: ${config.cache.systemConfigTtlMs / 1000}s`);
-    
+
     console.log('\n🎉 Setup complete! You can now:');
     console.log('   1. View the config in Firebase Console');
     console.log('   2. Edit values directly in Firestore');
     console.log('   3. Changes will be picked up within the cache TTL');
-    
+
   } catch (error) {
     console.error('❌ Error setting up Firebase config:', error.message);
-    
+
     if (error.message.includes('PERMISSION_DENIED') || error.message.includes('insufficient permissions')) {
       console.log('\n🔐 Permission Error Detected!');
       console.log('\n💡 Solutions:');
@@ -315,10 +315,10 @@ async function setupFirebaseConfig(environment) {
       console.log(`   4. Current project should be: ${projectId}`);
       console.log('\n   OR use manual setup (see docs/MIGRATION_STATUS.md)');
     }
-    
+
     process.exit(1);
   }
-  
+
   process.exit(0);
 }
 

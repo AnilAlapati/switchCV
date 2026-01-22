@@ -220,7 +220,7 @@ describe("AI Provider Service", () => {
         generateTextWithTier({
           prompt: "test",
           userTier: "basic",
-          modelId: "gemini-2.0-flash", // Force specific model to ensure provider selection
+          modelId: "gemini-2.5-flash-lite", // Force specific model to ensure provider selection
         })
       ).rejects.toThrow("AI service is currently unavailable");
     });

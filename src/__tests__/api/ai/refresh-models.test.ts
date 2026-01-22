@@ -29,12 +29,12 @@ global.fetch = mockFetch;
 process.env.GEMINI_API_KEY = "test-gemini-key";
 
 const createRequest = () =>
-  ({
-    headers: new Headers({
-      authorization: "Bearer test-token",
-      "x-forwarded-for": "203.0.113.10",
-    }),
-  } as unknown as NextRequest);
+({
+  headers: new Headers({
+    authorization: "Bearer test-token",
+    "x-forwarded-for": "203.0.113.10",
+  }),
+} as unknown as NextRequest);
 
 describe("/api/ai/refresh-models route", () => {
   beforeEach(() => {
@@ -49,7 +49,7 @@ describe("/api/ai/refresh-models route", () => {
       allowed: true,
       result: { limit: 5, remaining: 4, resetIn: 1000 },
     });
-    (attachRateLimitHeaders as jest.Mock).mockImplementation(() => {});
+    (attachRateLimitHeaders as jest.Mock).mockImplementation(() => { });
   });
 
   it("should successfully refresh models list", async () => {
@@ -63,8 +63,8 @@ describe("/api/ai/refresh-models route", () => {
             supportedGenerationMethods: ["generateContent"],
           },
           {
-            name: "models/gemini-2.0-flash-lite",
-            displayName: "Gemini 2.0 Flash Lite",
+            name: "models/gemini-2.5-flash-lite",
+            displayName: "Gemini 2.5 Flash Lite",
             supportedGenerationMethods: ["generateContent"],
           },
           {
@@ -286,8 +286,8 @@ describe("/api/ai/refresh-models route", () => {
             supportedGenerationMethods: ["generateContent"],
           },
           {
-            name: "models/gemini-2.0-flash",
-            displayName: "Gemini 2.0 Flash",
+            name: "models/gemini-2.5-flash-lite",
+            displayName: "Gemini 2.5 Flash Lite",
             supportedGenerationMethods: ["generateContent"],
           },
         ],
@@ -300,7 +300,7 @@ describe("/api/ai/refresh-models route", () => {
     const data = await response.json();
 
     expect(data.models[0].displayName).toBe("Gemini 2.5 Flash - Latest");
-    expect(data.models[1].displayName).toBe("Gemini 2.0 Flash");
+    expect(data.models[1].displayName).toBe("Gemini 2.5 Flash Lite");
   });
 
   it("should include supported methods in response", async () => {
