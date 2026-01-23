@@ -63,20 +63,20 @@ else
 
     if [ ! -z "$IMAGES" ]; then
         IMAGE_COUNT=$(echo "$IMAGES" | wc -l | tr -d ' ')
-        DELETE_COUNT=$((IMAGE_COUNT - 2))
+        DELETE_COUNT=$((IMAGE_COUNT - 3))
         
         if [ "$DELETE_COUNT" -gt 0 ]; then
             echo -e "${YELLOW}  Found $IMAGE_COUNT images, deleting oldest $DELETE_COUNT...${NC}"
-            echo "$IMAGES" | tail -n +3 | while read OLD_IMAGE; do
+            echo "$IMAGES" | tail -n +4 | while read OLD_IMAGE; do
                 echo -e "  ${YELLOW}➜${NC} Deleting: $(basename $OLD_IMAGE)"
                 gcloud artifacts docker images delete "$OLD_IMAGE" \
                     --delete-tags \
                     --quiet \
                     --project=switchcv-dev 2>/dev/null || echo "    (failed, may already be deleted)"
             done
-            echo -e "${GREEN}✅ Cleanup complete - kept latest 2 images${NC}"
+            echo -e "${GREEN}✅ Cleanup complete - kept latest 3 images${NC}"
         else
-            echo -e "${GREEN}✅ Only $IMAGE_COUNT images found - no cleanup needed${NC}"
+            echo -e "${GREEN}✅ Only $IMAGE_COUNT images found - no cleanup needed (limit 3)${NC}"
         fi
     else
         echo -e "${YELLOW}⚠️  No images found or unable to list${NC}"

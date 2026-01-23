@@ -123,9 +123,46 @@ else
     echo "USE_LEGACY_CONFIG=true" > functions/.env
 fi
 
-# Deploy everything (Hosting, Functions, Firestore, Storage)
-# Using -P default which usually points to the production project alias
-firebase deploy -P default
+# ---------------------------------------------------------
+# 6. CLEANUP OLD ARTIFACT IMAGES
+# ---------------------------------------------------------
+echo ""
+echo -e "${YELLOW}🧹 [6/6] Cleaning up old Artifact Registry images...${NC}"
+
+# Check if gcloud is available
+if ! command -v gcloud &> /dev/null; then
+    echo -e "${YELLOW}⚠️  gcloud CLI not found, skipping artifact cleanup${NC}"
+    echo -e "${YELLOW}   Install: https://cloud.google.com/sdk/docs/install${NC}"
+else
+    # List images and keep only the latest 10
+    IMAGES=$(gcloud artifacts docker images list \
+        "us-central1-docker.pkg.dev/switchcv-e5136/gcf-artifacts" \
+        --sort-by=~CREATE_TIME \
+        --limit=999 \
+        --format='value(IMAGE)' \
+        --project=switchcv-e5136 2>/dev/null || echo "")
+
+    if [ ! -z "$IMAGES" ]; then
+        IMAGE_COUNT=$(echo "$IMAGES" | wc -l | tr -d ' ')
+        DELETE_COUNT=$((IMAGE_COUNT - 3))
+        
+        if [ "$DELETE_COUNT" -gt 0 ]; then
+            echo -e "${YELLOW}  Found $IMAGE_COUNT images, deleting oldest $DELETE_COUNT...${NC}"
+            echo "$IMAGES" | tail -n +4 | while read OLD_IMAGE; do
+                echo -e "  ${YELLOW}➜${NC} Deleting: $(basename $OLD_IMAGE)"
+                gcloud artifacts docker images delete "$OLD_IMAGE" \
+                    --delete-tags \
+                    --quiet \
+                    --project=switchcv-e5136 2>/dev/null || echo "    (failed, may already be deleted)"
+            done
+            echo -e "${GREEN}✅ Cleanup complete - kept latest 3 images${NC}"
+        else
+            echo -e "${GREEN}✅ Only $IMAGE_COUNT images found - no cleanup needed (limit 3)${NC}"
+        fi
+    else
+        echo -e "${YELLOW}⚠️  No images found or unable to list${NC}"
+    fi
+fi
 
 echo ""
 echo -e "${GREEN}✅ SUCCESS: Application deployed to Production!${NC}"

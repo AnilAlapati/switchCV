@@ -1,10 +1,6 @@
 name: Auto Cleanup & Health Check
 
 on:
-  push:
-    branches: [feature/Nov_15, develop, main]
-  pull_request:
-    branches: [feature/Nov_15, develop, main]
   schedule:
     # Run daily at 2 AM UTC
     - cron: "0 2 * * *"

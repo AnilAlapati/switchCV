@@ -1,12 +1,11 @@
 name: Deploy to Firebase Hosting on merge
 # Automatic deployment disabled - use manual deployment instead
 # To re-enable, uncomment the 'on: push' section below
-# on:
-#   push:
-#     branches:
-#       - develop
 on:
-  workflow_dispatch: # Manual trigger only
+  push:
+    branches:
+      - develop
+  workflow_dispatch: # Manual trigger also allowed
 permissions:
   contents: read
   id-token: write
@@ -21,14 +20,25 @@ jobs:
           node-version: "20"
           cache: "npm"
 
-      - run: npm ci
-      - run: npm run build
+      - name: Install Root Dependencies
+        run: npm ci
 
-      - name: Install and Build Functions
+      - name: Install Functions Dependencies (Cached)
+        uses: actions/cache@v4
+        id: functions-cache
+        with:
+          path: functions/node_modules
+          key: ${{ runner.os }}-functions-${{ hashFiles('functions/package-lock.json') }}
+
+      - name: Install Functions Deps
+        if: steps.functions-cache.outputs.cache-hit != 'true'
+        run: cd functions && npm ci
+
+      - name: Build Application and Functions
         run: |
-          cd functions
-          npm ci
-          npm run build
+          npm run build &
+          (cd functions && npm run build) &
+          wait
 
       - id: "auth"
         uses: "google-github-actions/auth@v2"
