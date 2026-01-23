@@ -45,11 +45,12 @@ yarn-error.log*
 .env.local.prod-db
 .env*.local
 .env.dev
-.env.production
+.env.production.secrets.backup
 functions/.env.dev
 functions/.env.default
 .env-backups/
 !.env.example
+!.env.production
 !functions/.env.example
 
 # vercel
