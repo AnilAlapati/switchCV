@@ -12,24 +12,24 @@ import { WriterHeader } from "@/components/home/writer/WriterHeader";
 
 const HERO_HIGHLIGHTS = [
   {
-    title: "Resume view tracking",
+    title: "Real-time Interest Tracking",
     description:
-      "See how many times your agent-built resume has been viewed and track recruiter interest.",
+      "Gain deep insights into recruiter behavior with live view alerts and engagement analytics for every resume you share.",
   },
   {
-    title: "Privacy-first sharing",
+    title: "Secure Data Governance",
     description:
-      "Share secure links and control who can see your contact information.",
+      "Maintain total control over your contact information. Share resumes via encrypted, trackable links with granular access levels.",
   },
   {
-    title: "Autonomous Career Agent",
+    title: "5-Agent Collaborative Core",
     description:
-      "Your agent builds professional resumes through guided reasoning and strategic optimization.",
+      "Your personal team of five specialized agents — Research, Planning, Execution, Validation, and Polish — crafting your perfect professional identity.",
   },
   {
-    title: "AI Interview Preparation",
+    title: "Agent-Led Interview Prep",
     description:
-      "Get personalized interview coaching and practice sessions tailored to your target roles.",
+      "Train for your dream role with personalized coaching and real-time feedback from our interview intelligence agents.",
   },
 ];
 

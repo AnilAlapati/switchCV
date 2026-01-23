@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import { ResumeProfile, ResumeTemplate } from "@/types";
 import { MailIcon, LinkIcon } from "./ResumeVisualPrimitives";
