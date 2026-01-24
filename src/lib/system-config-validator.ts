@@ -133,7 +133,7 @@ export const SystemConfigSchema = z.object({
 
 export function validateSystemConfig(
   data: unknown,
-  defaultConfig: SystemConfig
+  defaultConfig: SystemConfig,
 ): SystemConfig {
   try {
     return SystemConfigSchema.parse(data);
@@ -153,6 +153,9 @@ export function validateAICosts(config: SystemConfig): void {
 
   const cost = expensiveModels[config.ai.defaultModel];
   if (cost && config.ai.enableCostWarnings) {
-    logger.warn({ comparison: `Cost: $${cost}/1M tokens vs $0.15 for Gemini Flash` }, `🚨 WARNING: Expensive AI model selected: ${config.ai.defaultModel}`);
+    logger.warn(
+      { comparison: `Cost: $${cost}/1M tokens vs $0.15 for Gemini Flash` },
+      `🚨 WARNING: Expensive AI model selected: ${config.ai.defaultModel}`,
+    );
   }
 }

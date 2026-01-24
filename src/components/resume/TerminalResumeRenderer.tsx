@@ -260,7 +260,9 @@ export const TerminalResumeRenderer: React.FC<TerminalResumeRendererProps> = ({
                 {activeSection === "experience" && (
                   <div className="space-y-2">
                     <div>
-                        <span className="text-[#8B949E]">{"// experience.json"}</span>
+                      <span className="text-[#8B949E]">
+                        {"// experience.json"}
+                      </span>
                     </div>
                     <div className="h-2" />
                     <div className="text-[#7EE787]">{"["}</div>

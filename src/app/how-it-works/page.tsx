@@ -18,7 +18,7 @@ import {
 // Hook to detect if user prefers reduced motion
 function usePrefersReducedMotion() {
   const [prefersReduced, setPrefersReduced] = useState(() => {
-    if (typeof window === 'undefined') return false;
+    if (typeof window === "undefined") return false;
     return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   });
 
