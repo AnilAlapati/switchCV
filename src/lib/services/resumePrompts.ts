@@ -19,6 +19,9 @@ export interface CollectedResumeData {
   email?: string;
   phone?: string;
   location?: string;
+  github?: string;
+  linkedin?: string;
+  twitter?: string;
   summary?: string;
   experience?: Array<{
     title: string;
@@ -73,6 +76,9 @@ Example 1 - Software Engineer:
   "email": "sarah.chen@email.com",
   "phone": "+1-555-123-4567",
   "location": "San Francisco, CA",
+  "github": "https://github.com/sarahchen",
+  "linkedin": "https://linkedin.com/in/sarahchen",
+  "twitter": "",
   "summary": "Full-stack engineer with 5+ years building scalable web apps. Led a team that reduced API latency by 40% and improved user retention by 25%. Passionate about clean code and mentoring junior developers.",
   "experience": [
     {
@@ -103,6 +109,9 @@ Example 2 - Marketing Manager:
   "email": "marcus.j@gmail.com",
   "phone": "",
   "location": "Chicago, IL",
+  "github": "",
+  "linkedin": "https://linkedin.com/in/marcusjohnson",
+  "twitter": "https://x.com/marcusj",
   "summary": "Data-driven marketing leader with 7 years driving B2B growth. Scaled inbound pipeline from $2M to $8M ARR. Expert in SEO, content strategy, and marketing automation.",
   "experience": [
     {
@@ -322,6 +331,9 @@ export function getFollowUpQuestion(missingFields: string[]): string {
     phone:
       "Would you like to add a phone number? It's optional - you can say 'skip' or 'N/A' if you prefer not to share it.",
     location: "What city are you located in? (Optional)",
+    github: "Do you have a GitHub profile you'd like to include? (Optional - great for tech roles!)",
+    linkedin: "What's your LinkedIn profile URL? (Optional but recommended)",
+    twitter: "Do you have an X (Twitter) profile to include? (Optional)",
     summary:
       "Tell me a bit about yourself and your career goals. What kind of position are you seeking?",
     experience:

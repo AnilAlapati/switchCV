@@ -144,6 +144,16 @@ export type RegistrationConfig = {
 };
 
 // =============================================================================
+// DEMO RESUMES CONFIGURATION
+// =============================================================================
+export type DemoResumesConfig = {
+  /** Array of allowed demo resume IDs (e.g., ["1", "4", "23", "24"]) */
+  allowedIds: string[];
+  /** Default demo resume ID shown on landing page */
+  defaultId: string;
+};
+
+// =============================================================================
 // MASTER SYSTEM CONFIGURATION TYPE
 // =============================================================================
 export type SystemConfig = {
@@ -162,4 +172,5 @@ export type SystemConfig = {
   cache: CacheConfig;
   agentic: AgenticConfig;
   registrations: RegistrationConfig;
+  demoResumes: DemoResumesConfig;
 };

@@ -8,7 +8,7 @@ interface ResumeContactSectionProps {
 }
 
 export function ResumeContactSection({ resume }: ResumeContactSectionProps) {
-  const hasPhone = resume.contact.phone.value;
+  const hasPhone = resume.contact.phone?.value;
 
   return (
     <div className="space-y-8">
@@ -21,13 +21,13 @@ export function ResumeContactSection({ resume }: ResumeContactSectionProps) {
           {renderContactField(
             resume.contact.email.value,
             resume.contact.email.visibility,
-            "email"
+            "email",
           )}
         </p>
       </div>
 
       {/* Phone */}
-      {hasPhone && (
+      {hasPhone && resume.contact.phone && (
         <div>
           <p className="text-xs uppercase tracking-widest text-slate-400 font-semibold mb-3">
             Phone
@@ -36,7 +36,7 @@ export function ResumeContactSection({ resume }: ResumeContactSectionProps) {
             {renderContactField(
               resume.contact.phone.value,
               resume.contact.phone.visibility,
-              "phone"
+              "phone",
             )}
           </p>
         </div>

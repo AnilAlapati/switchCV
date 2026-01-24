@@ -19,6 +19,12 @@ export interface ResumeDataRequirements {
   phone?: string;
   /** Location/city (optional) */
   location?: string;
+  /** GitHub profile URL (optional) */
+  github?: string;
+  /** LinkedIn profile URL (optional) */
+  linkedin?: string;
+  /** X (Twitter) profile URL (optional) */
+  twitter?: string;
   /** Professional summary or objective */
   summary: string;
   /** Work experience entries */
@@ -80,6 +86,9 @@ export interface ResumeCreationFormat {
     email: string;
     phone: string;
     location: string;
+    github?: string;
+    linkedin?: string;
+    twitter?: string;
   };
   /** Professional summary */
   summary: string;
@@ -124,6 +133,9 @@ export class ConversationManager {
   private static readonly OPTIONAL_FIELDS = [
     "phone",
     "location",
+    "github",
+    "linkedin",
+    "twitter",
   ];
 
   /** All tracked fields */
@@ -360,6 +372,9 @@ export class ConversationManager {
         email: this.collectedData.email || "",
         phone: this.collectedData.phone || "",
         location: this.collectedData.location || "",
+        github: this.collectedData.github,
+        linkedin: this.collectedData.linkedin,
+        twitter: this.collectedData.twitter,
       },
       summary: this.collectedData.summary || "",
       experience: this.collectedData.experience || [],

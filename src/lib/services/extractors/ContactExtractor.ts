@@ -67,7 +67,40 @@ export class ContactExtractor implements IExtractor {
       }
     }
 
-    // 5. Extract Summary
+    // 5. Extract GitHub URL
+    const githubRegex = /(?:github\.com\/|@)([a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)/i;
+    const githubUrlRegex = /https?:\/\/(?:www\.)?github\.com\/[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\/)?/i;
+    const githubUrlMatch = trimmedText.match(githubUrlRegex);
+    if (githubUrlMatch) {
+      data.github = githubUrlMatch[0].replace(/\/$/, ''); // Remove trailing slash
+    } else {
+      const githubMatch = trimmedText.match(githubRegex);
+      if (githubMatch) {
+        data.github = `https://github.com/${githubMatch[1]}`;
+      }
+    }
+
+    // 6. Extract LinkedIn URL
+    const linkedinUrlRegex = /https?:\/\/(?:www\.)?linkedin\.com\/in\/[a-zA-Z0-9-]+(?:\/)?/i;
+    const linkedinUrlMatch = trimmedText.match(linkedinUrlRegex);
+    if (linkedinUrlMatch) {
+      data.linkedin = linkedinUrlMatch[0].replace(/\/$/, '');
+    }
+
+    // 7. Extract X (Twitter) URL
+    const twitterUrlRegex = /https?:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/[a-zA-Z0-9_]+(?:\/)?/i;
+    const twitterHandleRegex = /@([a-zA-Z0-9_]{1,15})\b/;
+    const twitterUrlMatch = trimmedText.match(twitterUrlRegex);
+    if (twitterUrlMatch) {
+      data.twitter = twitterUrlMatch[0].replace(/\/$/, '');
+    } else if (!data.github) { // Avoid confusing GitHub @username with Twitter
+      const twitterHandleMatch = trimmedText.match(twitterHandleRegex);
+      if (twitterHandleMatch && twitterHandleMatch[1].toLowerCase() !== 'gmail' && twitterHandleMatch[1].toLowerCase() !== 'email') {
+        data.twitter = `https://x.com/${twitterHandleMatch[1]}`;
+      }
+    }
+
+    // 8. Extract Summary
     const summaryPatterns = [
       /(?:summary|professional summary|objective|about me):\s*(.+)(?:\n|$)/i,
       /^Summary:\s*(.+)/m,

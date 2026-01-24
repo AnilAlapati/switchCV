@@ -121,6 +121,10 @@ export const SystemConfigSchema = z.object({
     enabled: z.boolean(),
     waitlistMode: z.boolean(),
   }),
+  demoResumes: z.object({
+    allowedIds: z.array(z.string()),
+    defaultId: z.string(),
+  }),
 });
 
 // =============================================================================

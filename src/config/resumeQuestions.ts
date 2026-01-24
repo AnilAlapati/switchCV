@@ -78,6 +78,14 @@ export const resumeQuestions: Question[] = [
     placeholder: "e.g., https://github.com/johndoe",
     category: "personal",
   },
+  {
+    id: "personal_twitter",
+    question: "What's your X (Twitter) profile URL? (optional)",
+    type: "text",
+    required: false,
+    placeholder: "e.g., https://x.com/johndoe",
+    category: "personal",
+  },
 
   // Professional Summary
   {

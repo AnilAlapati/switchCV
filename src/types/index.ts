@@ -5,7 +5,7 @@ export type Visibility = "public" | "masked" | "request";
 
 export interface ContactInfo {
   email: { value: string; visibility: Visibility };
-  phone: { value: string; visibility: Visibility };
+  phone?: { value: string; visibility: Visibility };
 }
 
 export interface Skill {
@@ -40,6 +40,7 @@ export interface Project {
   name: string;
   url?: string;
   description: string;
+  technologies?: string[];
   visibility: Visibility;
 }
 
@@ -73,6 +74,7 @@ export interface ResumeTemplate {
   id: string;
   name: string;
   description: string;
+  tier?: "free" | "premium" | "enterprise";
   sections: TemplateSection[];
 }
 

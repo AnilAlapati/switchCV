@@ -9,6 +9,7 @@ import type {
   AIConfig,
   ValidationConfig,
   CacheConfig,
+  DemoResumesConfig,
 } from "./system-config-types";
 
 // Re-export types for convenience
@@ -23,6 +24,7 @@ export type {
   AIConfig,
   ValidationConfig,
   CacheConfig,
+  DemoResumesConfig,
 };
 
 // =============================================================================
@@ -190,6 +192,10 @@ export const defaultSystemConfig: SystemConfig = {
     enabled: true,
     waitlistMode: false,
   },
+  demoResumes: {
+    allowedIds: ["1", "4", "23", "24"],
+    defaultId: "1",
+  },
 };
 
 // =============================================================================
@@ -208,7 +214,7 @@ const deepMerge = <T extends object>(target: T, source?: Partial<T>): T => {
 };
 
 export const mergeWithDefaultConfig = (
-  partial?: Partial<SystemConfig>
+  partial?: Partial<SystemConfig>,
 ): SystemConfig => ({
   maintenance: deepMerge(defaultSystemConfig.maintenance, partial?.maintenance),
   auth: deepMerge(defaultSystemConfig.auth, partial?.auth),
@@ -216,44 +222,44 @@ export const mergeWithDefaultConfig = (
   rateLimits: {
     api: deepMerge(
       defaultSystemConfig.rateLimits.api,
-      partial?.rateLimits?.api
+      partial?.rateLimits?.api,
     ),
     search: deepMerge(
       defaultSystemConfig.rateLimits.search,
-      partial?.rateLimits?.search
+      partial?.rateLimits?.search,
     ),
     aiEnhancement: {
       basic: deepMerge(
         defaultSystemConfig.rateLimits.aiEnhancement.basic,
-        partial?.rateLimits?.aiEnhancement?.basic
+        partial?.rateLimits?.aiEnhancement?.basic,
       ),
       premium: deepMerge(
         defaultSystemConfig.rateLimits.aiEnhancement.premium,
-        partial?.rateLimits?.aiEnhancement?.premium
+        partial?.rateLimits?.aiEnhancement?.premium,
       ),
       enterprise: deepMerge(
         defaultSystemConfig.rateLimits.aiEnhancement.enterprise,
-        partial?.rateLimits?.aiEnhancement?.enterprise
+        partial?.rateLimits?.aiEnhancement?.enterprise,
       ),
     },
     usernameCheck: deepMerge(
       defaultSystemConfig.rateLimits.usernameCheck,
-      partial?.rateLimits?.usernameCheck
+      partial?.rateLimits?.usernameCheck,
     ),
     supportFeedback: deepMerge(
       defaultSystemConfig.rateLimits.supportFeedback,
-      partial?.rateLimits?.supportFeedback
+      partial?.rateLimits?.supportFeedback,
     ),
   },
   tiers: {
     basic: deepMerge(defaultSystemConfig.tiers.basic, partial?.tiers?.basic),
     premium: deepMerge(
       defaultSystemConfig.tiers.premium,
-      partial?.tiers?.premium
+      partial?.tiers?.premium,
     ),
     enterprise: deepMerge(
       defaultSystemConfig.tiers.enterprise,
-      partial?.tiers?.enterprise
+      partial?.tiers?.enterprise,
     ),
   },
   search: deepMerge(defaultSystemConfig.search, partial?.search),
@@ -261,15 +267,15 @@ export const mergeWithDefaultConfig = (
   validation: {
     username: deepMerge(
       defaultSystemConfig.validation.username,
-      partial?.validation?.username
+      partial?.validation?.username,
     ),
     fields: deepMerge(
       defaultSystemConfig.validation.fields,
-      partial?.validation?.fields
+      partial?.validation?.fields,
     ),
     resume: deepMerge(
       defaultSystemConfig.validation.resume,
-      partial?.validation?.resume
+      partial?.validation?.resume,
     ),
   },
   cache: {
@@ -286,6 +292,7 @@ export const mergeWithDefaultConfig = (
   agentic: deepMerge(defaultSystemConfig.agentic, partial?.agentic),
   registrations: deepMerge(
     defaultSystemConfig.registrations,
-    partial?.registrations
+    partial?.registrations,
   ),
+  demoResumes: deepMerge(defaultSystemConfig.demoResumes, partial?.demoResumes),
 });

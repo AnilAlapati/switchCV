@@ -17,7 +17,12 @@ import {
 } from "./templateRendererUtils";
 import { renderContactField } from "@/lib/utils/resumeVisibility";
 import { renderTemplateField } from "./renderTemplateField";
-import { MasonryResumeRenderer } from "./MasonryResumeRenderer"; // [NEW]
+import { MasonryResumeRenderer } from "./MasonryResumeRenderer";
+import { BentoResumeRenderer } from "./BentoResumeRenderer";
+import { TerminalResumeRenderer } from "./TerminalResumeRenderer";
+import { EditorialResumeRenderer } from "./EditorialResumeRenderer";
+import { NoirResumeRenderer } from "./NoirResumeRenderer";
+import { CREATIVE_TEMPLATES_ENABLED } from "@/lib/features/creativeTemplates";
 
 type VisibilityLevel = "public" | "masked" | "request";
 type ContactField = "email" | "phone";
@@ -64,9 +69,55 @@ export const TemplateRenderer: React.FC<TemplateRendererProps> = ({
   isAuthenticated = false,
   onRequestAccess,
 }) => {
+  // Route to specialized renderers for premium templates
   if (template.id === "masonry-v1") {
     return (
       <MasonryResumeRenderer
+        template={template}
+        data={data}
+        isAuthenticated={isAuthenticated}
+        onRequestAccess={onRequestAccess}
+      />
+    );
+  }
+
+  if (template.id === "bento-v1") {
+    return (
+      <BentoResumeRenderer
+        template={template}
+        data={data}
+        isAuthenticated={isAuthenticated}
+        onRequestAccess={onRequestAccess}
+      />
+    );
+  }
+
+  if (template.id === "terminal-v1") {
+    return (
+      <TerminalResumeRenderer
+        template={template}
+        data={data}
+        isAuthenticated={isAuthenticated}
+        onRequestAccess={onRequestAccess}
+      />
+    );
+  }
+
+  // Enterprise templates (only if feature enabled)
+  if (CREATIVE_TEMPLATES_ENABLED && template.id === "editorial-v1") {
+    return (
+      <EditorialResumeRenderer
+        template={template}
+        data={data}
+        isAuthenticated={isAuthenticated}
+        onRequestAccess={onRequestAccess}
+      />
+    );
+  }
+
+  if (CREATIVE_TEMPLATES_ENABLED && template.id === "noir-v1") {
+    return (
+      <NoirResumeRenderer
         template={template}
         data={data}
         isAuthenticated={isAuthenticated}
@@ -284,7 +335,7 @@ export const TemplateRenderer: React.FC<TemplateRendererProps> = ({
           .map((section) => (
             <SectionCard key={section.id} title={section.title}>
               {section.fields.map((field) =>
-                renderTemplateField(field, getFieldValue(field.id))
+                renderTemplateField(field, getFieldValue(field.id)),
               )}
             </SectionCard>
           ))}

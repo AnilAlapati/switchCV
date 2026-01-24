@@ -172,6 +172,9 @@ export class ResumeDataExtractor {
     if (extracted.email) existing.email = extracted.email;
     if (extracted.phone) existing.phone = extracted.phone;
     if (extracted.location) existing.location = extracted.location;
+    if (extracted.github) existing.github = extracted.github;
+    if (extracted.linkedin) existing.linkedin = extracted.linkedin;
+    if (extracted.twitter) existing.twitter = extracted.twitter;
     if (extracted.summary) existing.summary = extracted.summary;
 
     // Merge arrays with deduplication
@@ -184,7 +187,7 @@ export class ResumeDataExtractor {
           !existingExp.some(
             (existingItem) =>
               existingItem.company.toLowerCase() ===
-                newItem.company.toLowerCase() &&
+              newItem.company.toLowerCase() &&
               existingItem.title.toLowerCase() === newItem.title.toLowerCase()
           )
       );
@@ -199,7 +202,7 @@ export class ResumeDataExtractor {
           !existingEdu.some(
             (existingItem) =>
               existingItem.institution.toLowerCase() ===
-                newItem.institution.toLowerCase() &&
+              newItem.institution.toLowerCase() &&
               existingItem.degree.toLowerCase() === newItem.degree.toLowerCase()
           )
       );

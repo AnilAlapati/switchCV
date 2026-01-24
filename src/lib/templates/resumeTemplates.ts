@@ -323,7 +323,8 @@ export const RESUME_TEMPLATES: ResumeTemplate[] = [
   {
     id: "masonry-v1",
     name: "Masonry Portfolio",
-    description: "A dynamic, grid-based layout inspired by modern portfolio sites.",
+    description:
+      "A dynamic, grid-based layout inspired by modern portfolio sites.",
     sections: [
       {
         id: "personal_info",
@@ -420,6 +421,484 @@ export const RESUME_TEMPLATES: ResumeTemplate[] = [
             type: "complex_list",
             required: true,
             description: "Degrees",
+          },
+        ],
+      },
+    ],
+  },
+  // === PREMIUM TEMPLATES ===
+  {
+    id: "bento-v1",
+    name: "Bento",
+    description:
+      "Apple-inspired modular grid layout with animated cards and modern aesthetics. Perfect for product managers and designers.",
+    tier: "premium",
+    sections: [
+      {
+        id: "personal_info",
+        title: "Personal Information",
+        order: 1,
+        fields: [
+          {
+            id: "name",
+            label: "Full Name",
+            type: "text",
+            required: true,
+            description: "Your full name",
+          },
+          {
+            id: "title",
+            label: "Professional Title",
+            type: "text",
+            required: true,
+            description: "e.g. Product Manager",
+          },
+          {
+            id: "email",
+            label: "Email",
+            type: "text",
+            required: true,
+            description: "Contact email",
+          },
+          {
+            id: "location",
+            label: "Location",
+            type: "text",
+            required: false,
+            description: "City, State",
+          },
+        ],
+      },
+      {
+        id: "summary",
+        title: "About",
+        order: 2,
+        fields: [
+          {
+            id: "summary",
+            label: "Summary",
+            type: "textarea",
+            required: true,
+            description: "Brief overview",
+          },
+        ],
+      },
+      {
+        id: "experience",
+        title: "Experience",
+        order: 3,
+        fields: [
+          {
+            id: "experience",
+            label: "Experience",
+            type: "complex_list",
+            required: true,
+            description: "Work history",
+          },
+        ],
+      },
+      {
+        id: "projects",
+        title: "Projects",
+        order: 4,
+        fields: [
+          {
+            id: "projects",
+            label: "Projects",
+            type: "complex_list",
+            required: false,
+            description: "Key projects",
+          },
+        ],
+      },
+      {
+        id: "skills",
+        title: "Skills",
+        order: 5,
+        fields: [
+          {
+            id: "skills",
+            label: "Skills",
+            type: "list",
+            required: true,
+            description: "Core skills",
+          },
+        ],
+      },
+      {
+        id: "education",
+        title: "Education",
+        order: 6,
+        fields: [
+          {
+            id: "education",
+            label: "Education",
+            type: "complex_list",
+            required: false,
+            description: "Degrees",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "terminal-v1",
+    name: "Terminal",
+    description:
+      "Developer-focused VS Code theme with syntax highlighting and file tree navigation. Ideal for engineers and open-source contributors.",
+    tier: "premium",
+    sections: [
+      {
+        id: "personal_info",
+        title: "Personal Information",
+        order: 1,
+        fields: [
+          {
+            id: "name",
+            label: "Full Name",
+            type: "text",
+            required: true,
+            description: "Your full name",
+          },
+          {
+            id: "title",
+            label: "Professional Title",
+            type: "text",
+            required: true,
+            description: "e.g. Software Engineer",
+          },
+          {
+            id: "email",
+            label: "Email",
+            type: "text",
+            required: true,
+            description: "Contact email",
+          },
+          {
+            id: "github",
+            label: "GitHub",
+            type: "text",
+            required: false,
+            description: "GitHub profile URL",
+          },
+          {
+            id: "location",
+            label: "Location",
+            type: "text",
+            required: false,
+            description: "City, State",
+          },
+        ],
+      },
+      {
+        id: "summary",
+        title: "README",
+        order: 2,
+        fields: [
+          {
+            id: "summary",
+            label: "About",
+            type: "textarea",
+            required: true,
+            description: "Your readme",
+          },
+        ],
+      },
+      {
+        id: "experience",
+        title: "Experience",
+        order: 3,
+        fields: [
+          {
+            id: "experience",
+            label: "Experience",
+            type: "complex_list",
+            required: true,
+            description: "Git log",
+          },
+        ],
+      },
+      {
+        id: "projects",
+        title: "Projects",
+        order: 4,
+        fields: [
+          {
+            id: "projects",
+            label: "Projects",
+            type: "complex_list",
+            required: false,
+            description: "Repos",
+          },
+        ],
+      },
+      {
+        id: "skills",
+        title: "Dependencies",
+        order: 5,
+        fields: [
+          {
+            id: "skills",
+            label: "Skills",
+            type: "list",
+            required: true,
+            description: "package.json",
+          },
+        ],
+      },
+      {
+        id: "education",
+        title: "Education",
+        order: 6,
+        fields: [
+          {
+            id: "education",
+            label: "Education",
+            type: "complex_list",
+            required: false,
+            description: "Degrees",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "editorial-v1",
+    name: "Editorial",
+    description:
+      "Magazine-style typography with Playfair Display serifs, multi-column layouts, and pull quotes. Perfect for executives and consultants.",
+    tier: "enterprise",
+    sections: [
+      {
+        id: "personal_info",
+        title: "Personal Information",
+        order: 1,
+        fields: [
+          {
+            id: "name",
+            label: "Full Name",
+            type: "text",
+            required: true,
+            description: "Your full name",
+          },
+          {
+            id: "title",
+            label: "Professional Title",
+            type: "text",
+            required: true,
+            description: "e.g. Chief Executive Officer",
+          },
+          {
+            id: "email",
+            label: "Email",
+            type: "text",
+            required: true,
+            description: "Contact email",
+          },
+          {
+            id: "linkedIn",
+            label: "LinkedIn",
+            type: "text",
+            required: false,
+            description: "LinkedIn profile URL",
+          },
+          {
+            id: "location",
+            label: "Location",
+            type: "text",
+            required: false,
+            description: "City, Country",
+          },
+        ],
+      },
+      {
+        id: "summary",
+        title: "Executive Summary",
+        order: 2,
+        fields: [
+          {
+            id: "summary",
+            label: "Summary",
+            type: "textarea",
+            required: true,
+            description: "Your career overview",
+          },
+        ],
+      },
+      {
+        id: "experience",
+        title: "Career Highlights",
+        order: 3,
+        fields: [
+          {
+            id: "experience",
+            label: "Experience",
+            type: "complex_list",
+            required: true,
+            description: "Leadership positions",
+          },
+        ],
+      },
+      {
+        id: "projects",
+        title: "Featured Work",
+        order: 4,
+        fields: [
+          {
+            id: "projects",
+            label: "Projects",
+            type: "complex_list",
+            required: false,
+            description: "Key achievements",
+          },
+        ],
+      },
+      {
+        id: "skills",
+        title: "Expertise Index",
+        order: 5,
+        fields: [
+          {
+            id: "skills",
+            label: "Skills",
+            type: "list",
+            required: true,
+            description: "Areas of expertise",
+          },
+        ],
+      },
+      {
+        id: "education",
+        title: "Education",
+        order: 6,
+        fields: [
+          {
+            id: "education",
+            label: "Education",
+            type: "complex_list",
+            required: false,
+            description: "Academic credentials",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "noir-v1",
+    name: "Noir",
+    description:
+      "Dark luxury aesthetic with pure black background, gradient accent glows, and premium typography. The ultimate VIP template.",
+    tier: "enterprise",
+    sections: [
+      {
+        id: "personal_info",
+        title: "Personal Information",
+        order: 1,
+        fields: [
+          {
+            id: "name",
+            label: "Full Name",
+            type: "text",
+            required: true,
+            description: "Your full name",
+          },
+          {
+            id: "title",
+            label: "Professional Title",
+            type: "text",
+            required: true,
+            description: "e.g. Founder & CEO",
+          },
+          {
+            id: "email",
+            label: "Email",
+            type: "text",
+            required: true,
+            description: "Contact email",
+          },
+          {
+            id: "linkedIn",
+            label: "LinkedIn",
+            type: "text",
+            required: false,
+            description: "LinkedIn profile URL",
+          },
+          {
+            id: "location",
+            label: "Location",
+            type: "text",
+            required: false,
+            description: "City, Country",
+          },
+        ],
+      },
+      {
+        id: "summary",
+        title: "About",
+        order: 2,
+        fields: [
+          {
+            id: "summary",
+            label: "Summary",
+            type: "textarea",
+            required: true,
+            description: "Your story",
+          },
+        ],
+      },
+      {
+        id: "experience",
+        title: "Experience",
+        order: 3,
+        fields: [
+          {
+            id: "experience",
+            label: "Experience",
+            type: "complex_list",
+            required: true,
+            description: "Career journey",
+          },
+        ],
+      },
+      {
+        id: "projects",
+        title: "Projects",
+        order: 4,
+        fields: [
+          {
+            id: "projects",
+            label: "Projects",
+            type: "complex_list",
+            required: false,
+            description: "Notable projects",
+          },
+        ],
+      },
+      {
+        id: "skills",
+        title: "Expertise",
+        order: 5,
+        fields: [
+          {
+            id: "skills",
+            label: "Skills",
+            type: "list",
+            required: true,
+            description: "Core competencies",
+          },
+        ],
+      },
+      {
+        id: "education",
+        title: "Education",
+        order: 6,
+        fields: [
+          {
+            id: "education",
+            label: "Education",
+            type: "complex_list",
+            required: false,
+            description: "Academic background",
           },
         ],
       },
