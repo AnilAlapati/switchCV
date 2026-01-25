@@ -37,26 +37,43 @@ scripts/           # Utility & maintenance scripts
 docs/              # Architecture & deployment docs (See docs/README.md)
 ```
 
-## ⚠️ SECURITY: Environment Variables
+## ⚠️ SECURITY: Secret Management
 
-**Never commit actual secrets to `.env.production` or any `.env*` file!**
+**All production secrets are now stored in Firebase Secret Manager** ✅
 
-### What's safe to commit:
-- ✅ `NEXT_PUBLIC_*` variables that are genuinely public (Firebase project ID, auth domain)
-- ✅ `NEXT_PUBLIC_GA_ID` (Google Analytics ID)
+### Production Deployment (Vercel/Cloud Run)
+- **No `.env.production` file needed!**
+- Secrets are fetched from Firebase Secret Manager at runtime
+- See [Firebase Secret Manager Migration Guide](docs/FIREBASE_SECRET_MANAGER_MIGRATION.md)
 
-### What's NOT safe (even with NEXT_PUBLIC_ prefix):
-- ❌ `NEXT_PUBLIC_FIREBASE_API_KEY` - authenticates API calls
-- ❌ `NEXT_PUBLIC_HUGGINGFACE_TOKEN` - authenticates HF requests
-- ❌ Any token, secret, or key with actual credentials
+### Local Development
+- Use `.env.local` (git-ignored) for development
+- Automatically falls back when Secret Manager is unavailable
+- See `.env.example` for template structure
 
-### Secret Management:
-- Store server-side secrets in **Firebase Secret Manager**
-- Use `.env.local` for local development (ignored by git)
-- Reference `.env.production.example` for template structure
-- Run `scripts/secret-scan.sh --all` before every commit
+### Setup Production Secrets (One-time)
 
-See [`.env.production.example`](.env.production.example) for safe template.
+```bash
+# Add secrets to Firebase Secret Manager
+./scripts/setup-firebase-secrets.sh prod
+
+# Verify secrets were created
+gcloud secrets list --project=switchcv-e5136
+```
+
+### What's Safe vs Unsafe
+
+✅ **Safe to commit:**
+- `NEXT_PUBLIC_FIREBASE_PROJECT_ID` - public project identifier
+- `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` - public auth domain
+- `NEXT_PUBLIC_GA_ID` - Google Analytics ID
+
+❌ **NEVER commit (even with NEXT_PUBLIC_ prefix):**
+- `NEXT_PUBLIC_FIREBASE_API_KEY` - authenticates API calls
+- `NEXT_PUBLIC_HUGGINGFACE_TOKEN` - authenticates HF requests
+- Any token, secret, or key with actual credentials
+
+**For complete details:** [Firebase Secret Manager Migration](docs/FIREBASE_SECRET_MANAGER_MIGRATION.md)
 
 ## 📚 Documentation
 

@@ -7,6 +7,7 @@
  * @see docs/SECRET_ROTATION_IMPLEMENTATION.md
  */
 
+import { SecretManagerServiceClient } from "@google-cloud/secret-manager";
 import { logger } from "@/lib/logger";
 
 interface SecretMetadata {
@@ -41,9 +42,36 @@ export class SecretManagerService {
   private static instance: SecretManagerService;
   private cache: Map<string, CachedSecret> = new Map();
   private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+  private secretClient: SecretManagerServiceClient | null = null;
+  private projectId: string | null = null;
 
   private constructor() {
-    logger.info("SecretManagerService initialized");
+    // Initialize Secret Manager client only in server context
+    if (typeof window === "undefined") {
+      try {
+        this.projectId =
+          process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
+          process.env.GCLOUD_PROJECT ||
+          null;
+
+        if (this.projectId) {
+          this.secretClient = new SecretManagerServiceClient();
+          logger.info(
+            { projectId: this.projectId },
+            "SecretManagerService initialized with Firebase Secret Manager"
+          );
+        } else {
+          logger.warn(
+            "Project ID not found - falling back to environment variables"
+          );
+        }
+      } catch (error) {
+        logger.error(
+          { err: error },
+          "Failed to initialize Secret Manager client - falling back to env vars"
+        );
+      }
+    }
   }
 
   static getInstance(): SecretManagerService {
@@ -98,11 +126,50 @@ export class SecretManagerService {
   }
 
   /**
-   * Fetch secret from storage (currently process.env, will migrate to Secret Manager)
+   * Fetch secret from storage
+   * Uses Firebase Secret Manager in production, falls back to process.env in dev
    */
   private async fetchSecret(name: string): Promise<string> {
-    // Phase 1: Use process.env (current state)
-    // Phase 2: Will use Firebase Secret Manager API
+    // If Secret Manager client is available, use it
+    if (this.secretClient && this.projectId) {
+      try {
+        const secretPath = `projects/${this.projectId}/secrets/${name}/versions/latest`;
+        const [version] = await this.secretClient.accessSecretVersion({
+          name: secretPath,
+        });
+
+        const payload = version.payload?.data;
+        if (!payload) {
+          throw new Error(`Secret ${name} has no payload`);
+        }
+
+        // Decode the secret value
+        const secretValue =
+          typeof payload === "string"
+            ? payload
+            : Buffer.from(payload as Uint8Array).toString("utf8");
+
+        logger.debug(
+          { secretName: name, projectId: this.projectId },
+          "Retrieved secret from Firebase Secret Manager"
+        );
+
+        return secretValue;
+      } catch (error) {
+        // Log error but fall back to env vars for development
+        logger.warn(
+          { err: error, secretName: name },
+          "Failed to fetch from Secret Manager, falling back to env vars"
+        );
+        return process.env[name] || "";
+      }
+    }
+
+    // Fallback to process.env for local development
+    logger.debug(
+      { secretName: name },
+      "Using process.env (dev mode or Secret Manager unavailable)"
+    );
     return process.env[name] || "";
   }
 

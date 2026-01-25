@@ -242,7 +242,8 @@ async function generateWithGemini(
   temperature: number = 0.7,
   model?: string,
 ): Promise<{ text: string; model: string; usage?: TokenUsage }> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const { getSecret } = await import("@/lib/services/secretManagerService");
+  const apiKey = await getSecret("GEMINI_API_KEY");
 
   if (!apiKey) {
     throw new Error("Gemini API key not configured");
@@ -374,7 +375,8 @@ async function generateWithOpenAI(
   maxTokens: number = 150,
   temperature: number = 0.7,
 ): Promise<{ text: string; model: string; usage?: TokenUsage }> {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const { getSecret } = await import("@/lib/services/secretManagerService");
+  const apiKey = await getSecret("OPENAI_API_KEY");
 
   if (!apiKey) {
     throw new Error("OpenAI API key not configured");
@@ -437,7 +439,8 @@ async function generateWithGroq(
   maxTokens: number = 150,
   temperature: number = 0.7,
 ): Promise<{ text: string; model: string; usage?: TokenUsage }> {
-  const apiKey = process.env.GROQ_API_KEY;
+  const { getSecret } = await import("@/lib/services/secretManagerService");
+  const apiKey = await getSecret("GROQ_API_KEY");
 
   if (!apiKey) {
     throw new Error("Groq API key not configured");
@@ -500,7 +503,8 @@ async function generateWithHuggingFace(
   maxTokens: number = 150,
   temperature: number = 0.7,
 ): Promise<string> {
-  const token = process.env.HUGGINGFACE_TOKEN;
+  const { getSecret } = await import("@/lib/services/secretManagerService");
+  const token = await getSecret("HUGGINGFACE_TOKEN");
 
   if (!token) {
     throw new Error("HuggingFace token not configured");
@@ -651,7 +655,8 @@ export async function generateText(
  * Model: models/embedding-001 (768 dimensions)
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const { getSecret } = await import("@/lib/services/secretManagerService");
+  const apiKey = await getSecret("GEMINI_API_KEY");
   if (!apiKey) throw new Error("Gemini API key missing");
 
   // model: "models/embedding-001" or "models/text-embedding-004"

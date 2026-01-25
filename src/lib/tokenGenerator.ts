@@ -30,7 +30,7 @@ class TokenGenerator {
   private algorithm = "HS256";
 
   constructor(secret?: string) {
-    // Require TOKEN_SECRET environment variable - no hardcoded fallback for security
+    // Require TOKEN_SECRET - will be loaded from Secret Manager in production
     const envSecret = secret || process.env.TOKEN_SECRET;
 
     if (!envSecret) {
