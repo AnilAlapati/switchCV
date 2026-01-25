@@ -37,7 +37,7 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files - NEVER commit actual secrets
 .env
 .env.local
 .env.local.backup
@@ -45,12 +45,14 @@ yarn-error.log*
 .env.local.prod-db
 .env*.local
 .env.dev
+.env.production
 .env.production.secrets.backup
 functions/.env.dev
 functions/.env.default
 .env-backups/
+# Only allow example/template files (no real credentials)
 !.env.example
-!.env.production
+!.env.*.example
 !functions/.env.example
 
 # vercel

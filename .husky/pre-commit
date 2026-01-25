@@ -31,7 +31,29 @@ if ! git ls-files >/dev/null 2>&1; then
     git reset 2>/dev/null || true
 fi
 
-echo "✅ Health check passed. Checking for API keys in staged files..."
+echo "✅ Health check passed. Checking for dangerous files..."
+
+# PERMANENT BLOCK: Never allow .env.production to be committed
+# This prevents AI from making judgment errors about "safe" env files
+if git diff --cached --name-only | grep -q "^\.env\.production$"; then
+    echo "❌ BLOCKED: .env.production must NEVER be committed!"
+    echo ""
+    echo "   ⛔ This file is permanently blocked from version control."
+    echo "   📝 Use .env.production.example for templates (with placeholders)"
+    echo "   🔒 Store real secrets in .env.local or Firebase Secret Manager"
+    echo ""
+    echo "   To unstage: git reset HEAD .env.production"
+    exit 1
+fi
+
+# Block .gitignore changes that whitelist .env files (prevents AI bypass)
+if git diff --cached .gitignore | grep -q "^+.*!\.env"; then
+    echo "❌ BLOCKED: Cannot whitelist .env* files in .gitignore!"
+    echo ""
+    echo "   ⛔ Whitelisting .env files bypasses secret protection."
+    echo "   📝 Only .env.example and .env.*.example files are allowed."
+    exit 1
+fi
 
 # Block any files with actual API keys/tokens (catch AI mistakes)
 if git diff --cached --name-only | xargs grep -l "AIzaSy" 2>/dev/null || \
