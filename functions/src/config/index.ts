@@ -33,8 +33,9 @@ export class ConfigManager {
 
     // AI service configuration
     this.config.set("ai", {
-      huggingfaceToken: process.env.HUGGINGFACE_TOKEN,
       geminiApiKey: process.env.GEMINI_API_KEY,
+      groqApiKey: process.env.GROQ_API_KEY,
+      openaiApiKey: process.env.OPENAI_API_KEY,
       defaultModel: process.env.AI_DEFAULT_MODEL || "gemini-1.5-flash",
       timeout: parseInt(process.env.AI_TIMEOUT_MS || "30000", 10),
       maxRetries: parseInt(process.env.AI_MAX_RETRIES || "3", 10),
@@ -133,18 +134,8 @@ export class ConfigManager {
 
     // Check AI configuration
     const aiConfig = this.config.get("ai");
-    if (!aiConfig.huggingfaceToken) {
-      warnings.push(
-        "HUGGINGFACE_TOKEN not set. Hugging Face features disabled."
-      );
-    }
     if (!aiConfig.geminiApiKey) {
-      warnings.push("GEMINI_API_KEY not set. Gemini features disabled.");
-    }
-    if (!aiConfig.huggingfaceToken && !aiConfig.geminiApiKey) {
-      warnings.push(
-        "No AI service configured. AI-dependent functions will not work."
-      );
+      warnings.push("GEMINI_API_KEY not set. AI features disabled.");
     }
 
     // Check email configuration
@@ -181,8 +172,9 @@ export class ConfigManager {
     functions.logger.info("Configuration loaded successfully", {
       environment: appConfig.environment,
       aiProviders: {
-        huggingface: !!aiConfig.huggingfaceToken,
         gemini: !!aiConfig.geminiApiKey,
+        groq: !!aiConfig.groqApiKey,
+        openai: !!aiConfig.openaiApiKey,
       },
       emailEnabled: emailConfig.enabled,
       rateLimitEnabled: this.config.get("security").enableRateLimit,

@@ -29,7 +29,6 @@ const envSchema = z.object({
   OPENAI_API_KEY: z.string().min(1).optional(), // OpenAI GPT models
   GROQ_API_KEY: z.string().min(1).optional(), // Groq (fast & free tier)
   ANTHROPIC_API_KEY: z.string().min(1).optional(), // Claude (future)
-  HUGGINGFACE_TOKEN: z.string().min(1).optional(),
 
   // Application URLs
   NEXT_PUBLIC_BASE_URL: z.string().url().optional(),

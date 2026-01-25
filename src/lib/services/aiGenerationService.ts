@@ -495,74 +495,6 @@ async function generateWithGroq(
   };
 }
 
-/**
- * Generate text using HuggingFace API
- */
-async function generateWithHuggingFace(
-  prompt: string,
-  maxTokens: number = 150,
-  temperature: number = 0.7,
-): Promise<string> {
-  const { getSecret } = await import("@/lib/services/secretManagerService");
-  const token = await getSecret("HUGGINGFACE_TOKEN");
-
-  if (!token) {
-    throw new Error("HuggingFace token not configured");
-  }
-
-  // HuggingFace Inference API - using text-generation endpoint
-  await validateContextWindow(prompt, "flan-t5-base");
-
-  const response = await withRetry(() =>
-    fetchWithTimeout(AI_ENDPOINTS.HUGGINGFACE.MODELS("google/flan-t5-base"), {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        inputs: prompt,
-        parameters: {
-          max_new_tokens: maxTokens,
-          temperature,
-          stop_sequences: [...DEFAULT_STOP_SEQUENCES],
-        },
-      }),
-    }),
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`HuggingFace API error (${response.status}): ${errorText}`);
-  }
-
-  const data = await response.json();
-
-  // Handle different response formats
-  if (Array.isArray(data)) {
-    const text = data[0]?.generated_text;
-    if (!text) {
-      throw new Error("No text generated from HuggingFace");
-    }
-    return text.trim();
-  }
-
-  if (data.error) {
-    // If model is loading, throw with helpful message
-    if (data.error.includes("loading")) {
-      throw new Error("Model is loading, please try again in a moment");
-    }
-    throw new Error(`HuggingFace error: ${data.error}`);
-  }
-
-  // Single object response
-  if (data.generated_text) {
-    return data.generated_text.trim();
-  }
-
-  throw new Error("Unexpected HuggingFace response format");
-}
-
 import { providerFallback } from "@/lib/services/ai/ProviderFallbackChain";
 import { aiCircuitBreaker } from "@/lib/services/ai/CircuitBreaker";
 
@@ -604,14 +536,6 @@ export async function generateText(
           break;
         case "groq":
           result = await generateWithGroq(prompt, maxTokens, temperature);
-          break;
-        case "huggingface":
-          const text = await generateWithHuggingFace(
-            prompt,
-            maxTokens,
-            temperature,
-          );
-          result = { text, model: "flan-t5-base", usage: undefined };
           break;
         default:
           throw new Error(`Unknown provider: ${provider}`);

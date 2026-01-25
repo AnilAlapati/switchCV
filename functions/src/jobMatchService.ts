@@ -1,6 +1,5 @@
 import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
-import { HfInference } from "@huggingface/inference";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import cors from "cors";
 import helmet from "helmet";
@@ -40,13 +39,10 @@ const securityConfig = config.get("security");
 const rateLimitConfig = config.get("rateLimit");
 const defaultModel = aiConfig.defaultModel || "gemini-1.5-flash";
 
-const HUGGINGFACE_TOKEN = aiConfig.huggingfaceToken;
 const GEMINI_API_KEY = aiConfig.geminiApiKey;
-const hf = HUGGINGFACE_TOKEN ? new HfInference(HUGGINGFACE_TOKEN) : null;
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 
 // Circuit breakers for AI services
-const huggingFaceCircuitBreaker = new CircuitBreaker(5, 60000, 2);
 const geminiCircuitBreaker = new CircuitBreaker(5, 60000, 2);
 
 // Retry options
@@ -67,13 +63,11 @@ const helmetHandler: RequestHandler = securityConfig.enableHelmet
   : (_req, _res, next) => next();
 
 const ALLOWED_MODELS = [
-  "gpt2-medium",
-  "gpt2",
-  "google/flan-t5-base",
-  "distilgpt2",
-  "mistralai/Mistral-7B-Instruct-v0.3",
   "gemini-1.5-flash",
   "gemini-1.5-pro",
+  "gemini-2.0-flash",
+  "gemini-2.5-flash",
+  "gemini-2.5-pro",
 ];
 
 const jobMatchRateLimit = {
@@ -304,7 +298,6 @@ export { generateJobMatchSuggestionsHandler };
 export const generateJobMatchSuggestions = functions
   .runWith({
     secrets: [
-      "HUGGINGFACE_TOKEN",
       "GEMINI_API_KEY",
       "GROQ_API_KEY",
       "OPENAI_API_KEY",
@@ -436,47 +429,28 @@ async function generateAiAnalysis(
   modelId: string
 ): Promise<string> {
   try {
-    if (modelId.startsWith("gemini") && genAI) {
-      const model = genAI.getGenerativeModel({ model: modelId });
-      const result = await resilientCall(
-        async () => {
-          const response = await model.generateContent(prompt);
-          const generated = await response.response;
-          return generated.text();
-        },
-        {
-          retryOptions: aiRetryOptions,
-          circuitBreaker: geminiCircuitBreaker,
-          timeoutMs: aiConfig.timeout || 30000,
-          operationName: "job-match-gemini",
-        }
-      );
-      return generatedTextOrFallback(result);
+    if (!genAI) {
+      throw new Error("No AI provider configured - GEMINI_API_KEY required");
     }
 
-    if (hf && HUGGINGFACE_TOKEN) {
-      const response = await resilientCall(
-        async () =>
-          hf.textGeneration({
-            model: modelId,
-            inputs: prompt,
-            parameters: {
-              max_new_tokens:
-                modelId === "mistralai/Mistral-7B-Instruct-v0.3" ? 300 : 200,
-              temperature: 0.6,
-            },
-          }),
-        {
-          retryOptions: aiRetryOptions,
-          circuitBreaker: huggingFaceCircuitBreaker,
-          timeoutMs: aiConfig.timeout || 30000,
-          operationName: "job-match-huggingface",
-        }
-      );
-      return generatedTextOrFallback(response.generated_text);
-    }
-
-    throw new Error("No AI provider configured for job matching");
+    // Default to gemini-1.5-flash if a non-Gemini model is requested
+    const actualModel = modelId.startsWith("gemini-") ? modelId : "gemini-1.5-flash";
+    const model = genAI.getGenerativeModel({ model: actualModel });
+    
+    const result = await resilientCall(
+      async () => {
+        const response = await model.generateContent(prompt);
+        const generated = await response.response;
+        return generated.text();
+      },
+      {
+        retryOptions: aiRetryOptions,
+        circuitBreaker: geminiCircuitBreaker,
+        timeoutMs: aiConfig.timeout || 30000,
+        operationName: "job-match-gemini",
+      }
+    );
+    return generatedTextOrFallback(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     functions.logger.error("AI analysis failed", { message, modelId });

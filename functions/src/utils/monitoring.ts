@@ -516,8 +516,7 @@ export class AlertManager {
     }
     if (
       lowerName.includes("external") ||
-      lowerName.includes("webhook") ||
-      lowerName.includes("huggingface")
+      lowerName.includes("webhook")
     ) {
       return "external_api";
     }

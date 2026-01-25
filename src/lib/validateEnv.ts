@@ -22,7 +22,6 @@ interface RequiredEnv {
 
   // AI Provider APIs (server-side only)
   GEMINI_API_KEY?: string;
-  HUGGINGFACE_TOKEN?: string;
 
   // Public Firebase config (can be public)
   NEXT_PUBLIC_FIREBASE_API_KEY: string;

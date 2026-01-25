@@ -5,7 +5,6 @@ export type AIProvider =
   | "openai"
   | "groq"
   | "anthropic"
-  | "huggingface"
   | "xai";
 
 export interface AIModelConfig {

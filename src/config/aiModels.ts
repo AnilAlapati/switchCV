@@ -3,7 +3,7 @@ export interface AIModel {
   id: string;
   name: string;
   description: string;
-  provider: "huggingface" | "openai" | "anthropic" | "google";
+  provider: "openai" | "anthropic" | "google" | "groq";
   modelId: string;
   maxTokens: number;
   costPerToken: number; // in USD
@@ -14,104 +14,6 @@ export interface AIModel {
 }
 
 export const AVAILABLE_AI_MODELS: AIModel[] = [
-  {
-    id: "gpt2-medium",
-    name: "GPT-2 Medium",
-    description:
-      "General-purpose text generation model, good for creative writing and basic enhancements",
-    provider: "huggingface",
-    modelId: "gpt2-medium",
-    maxTokens: 300,
-    costPerToken: 0.000001, // Very low cost on Hugging Face
-    capabilities: ["text-generation", "creative-writing", "basic-enhancement"],
-    recommendedFor: ["resume-summaries", "basic-descriptions"],
-    isEnabled: true,
-    tier: "free",
-  },
-  {
-    id: "gpt2",
-    name: "GPT-2 Base",
-    description:
-      "Fast and lightweight text generation, perfect for quick enhancements",
-    provider: "huggingface",
-    modelId: "gpt2",
-    maxTokens: 200,
-    costPerToken: 0.0000008,
-    capabilities: ["text-generation", "fast-processing"],
-    recommendedFor: ["quick-edits", "basic-suggestions"],
-    isEnabled: true,
-    tier: "free",
-  },
-  {
-    id: "flan-t5-base",
-    name: "FLAN-T5 Base",
-    description:
-      "Instruction-tuned model, excellent for structured tasks and following specific instructions",
-    provider: "huggingface",
-    modelId: "google/flan-t5-base",
-    maxTokens: 250,
-    costPerToken: 0.000002,
-    capabilities: ["instruction-following", "structured-output", "analysis"],
-    recommendedFor: [
-      "job-matching",
-      "skill-analysis",
-      "structured-enhancement",
-    ],
-    isEnabled: true,
-    tier: "free",
-  },
-  {
-    id: "microsoft-dialgpt-medium",
-    name: "DialoGPT Medium",
-    description:
-      "Conversational AI model, good for natural language interactions",
-    provider: "huggingface",
-    modelId: "microsoft/DialoGPT-medium",
-    maxTokens: 200,
-    costPerToken: 0.0000015,
-    capabilities: ["conversational", "natural-language"],
-    recommendedFor: ["interactive-features", "chat-based-enhancement"],
-    isEnabled: false,
-    tier: "free",
-  },
-  {
-    id: "distilgpt2",
-    name: "DistilGPT-2",
-    description:
-      "Lightweight distilled version of GPT-2, fastest processing with good quality",
-    provider: "huggingface",
-    modelId: "distilgpt2",
-    maxTokens: 150,
-    costPerToken: 0.0000005,
-    capabilities: ["fast-processing", "text-generation"],
-    recommendedFor: ["quick-responses", "cost-sensitive-applications"],
-    isEnabled: true,
-    tier: "free",
-  },
-  {
-    id: "mistral-7b-instruct-v0.3",
-    name: "Mistral-7B-Instruct-v0.3",
-    description:
-      "Advanced instruction-tuned model with excellent reasoning and instruction-following capabilities",
-    provider: "huggingface",
-    modelId: "mistralai/Mistral-7B-Instruct-v0.3",
-    maxTokens: 4096,
-    costPerToken: 0.000002, // Estimated cost for local inference
-    capabilities: [
-      "text-generation",
-      "instruction-following",
-      "reasoning",
-      "function-calling",
-    ],
-    recommendedFor: [
-      "resume-enhancement",
-      "job-matching",
-      "skill-analysis",
-      "complex-tasks",
-    ],
-    isEnabled: true,
-    tier: "premium",
-  },
   {
     id: "gemini-2.5-flash",
     name: "Gemini 2.5 Flash",
@@ -286,7 +188,7 @@ export const DEFAULT_MODELS = {
   "resume-enhancement": "gemini-2.5-flash", // Use latest Gemini for speed and quality
   "job-matching": "gemini-2.5-pro",
   "skill-analysis": "gemini-2.5-flash",
-  "quick-edit": "distilgpt2",
+  "quick-edit": "gemini-2.5-flash-lite", // Lightweight model for quick edits
 } as const;
 
 // Get a random enabled model for a task
@@ -298,8 +200,9 @@ export const getRandomModelForTask = (task: string): AIModel | undefined => {
 };
 
 // Get random provider (for load balancing)
-export const getRandomProvider = (): "huggingface" | "google" => {
-  return Math.random() < 0.5 ? "huggingface" : "google";
+// Note: Currently only using Google Gemini, but this can be extended
+export const getRandomProvider = (): "google" => {
+  return "google";
 };
 
 // Get best model for task (randomly picks between top providers)

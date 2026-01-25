@@ -1,7 +1,6 @@
 import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
 // Lazy loaded imports
-// import { HfInference } from "@huggingface/inference";
 // import { GoogleGenerativeAI } from "@google/generative-ai";
 import cors from "cors";
 import helmet from "helmet";
@@ -41,20 +40,10 @@ type UsageWindow = "hour" | "day";
 const db = admin.firestore();
 
 // Initialize AI clients
-const HUGGINGFACE_TOKEN = process.env.HUGGINGFACE_TOKEN;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 // Lazy load clients
-let hf: any = null; // Type: HfInference
 let genAI: any = null; // Type: GoogleGenerativeAI
-
-async function getHfClient() {
-  if (!hf) {
-    const { HfInference } = await import("@huggingface/inference");
-    hf = new HfInference(HUGGINGFACE_TOKEN);
-  }
-  return hf;
-}
 
 async function getGenAIClient() {
   if (!genAI && GEMINI_API_KEY) {
@@ -66,7 +55,6 @@ async function getGenAIClient() {
 
 // Circuit breakers for AI services
 const geminiCircuitBreaker = new CircuitBreaker(5, 60000, 2);
-const huggingFaceCircuitBreaker = new CircuitBreaker(5, 60000, 2);
 
 // Retry options for AI calls
 const aiRetryOptions: RetryOptions = {
@@ -89,23 +77,19 @@ const helmetHandler = helmet({
 });
 
 const ALLOWED_MODELS = [
-  "gpt2-medium",
-  "gpt2",
-  "google/flan-t5-base",
-  "distilgpt2",
-  "mistralai/Mistral-7B-Instruct-v0.3",
   "gemini-1.5-flash",
   "gemini-1.5-pro",
+  "gemini-2.0-flash",
+  "gemini-2.5-flash",
+  "gemini-2.5-pro",
 ];
 
 const TIER_MODEL_ALLOWLIST: Record<SubscriptionTier, string[]> = {
-  basic: ["gemini-1.5-flash", "google/flan-t5-base", "distilgpt2"],
+  basic: ["gemini-1.5-flash", "gemini-2.5-flash-lite"],
   premium: [
     "gemini-1.5-flash",
-    "google/flan-t5-base",
-    "mistralai/Mistral-7B-Instruct-v0.3",
-    "gpt2-medium",
-    "distilgpt2",
+    "gemini-2.0-flash",
+    "gemini-2.5-flash",
   ],
   enterprise: ALLOWED_MODELS,
 };
@@ -335,7 +319,6 @@ export { generateResumeContentHandler };
 export const generateResumeContent = functions
   .runWith({
     secrets: [
-      "HUGGINGFACE_TOKEN",
       "GEMINI_API_KEY",
       "GROQ_API_KEY",
       "OPENAI_API_KEY",
@@ -365,58 +348,33 @@ export async function enhanceResumeWithAI(
 
   try {
     const prompt = createResumeEnhancementPrompt(resumeData, tone);
-    const isGemini = modelId.startsWith("gemini-");
-    const useGemini = isGemini && GEMINI_API_KEY;
-    const useHuggingFace = !isGemini && HUGGINGFACE_TOKEN;
-    const randomProvider = Math.random() < 0.5 ? "gemini" : "huggingface";
 
     // Helper to execute AI calls (passed to orchestrator)
     const aiExecutor = async (promptText: string, specificModel: string): Promise<string> => {
-      const isGeminiExec = specificModel.startsWith("gemini-");
-
-      if (isGeminiExec && GEMINI_API_KEY) {
-        const client = await getGenAIClient();
-        if (!client) throw new Error("Gemini client initialization failed");
-
-        return resilientCall(
-          async () => {
-            const model = client.getGenerativeModel({ model: specificModel });
-            const result = await model.generateContent(promptText);
-            const response = await result.response;
-            return response.text();
-          },
-          {
-            retryOptions: aiRetryOptions,
-            circuitBreaker: geminiCircuitBreaker,
-            timeoutMs: 30000,
-            operationName: "gemini-api-call-agentic",
-          }
-        );
-      } else if (HUGGINGFACE_TOKEN) {
-        const client = await getHfClient();
-        return resilientCall(
-          async () => {
-            const apiResult: any = await client.textGeneration({
-              model: specificModel,
-              inputs: promptText,
-              parameters: {
-                max_new_tokens: 300,
-                temperature: 0.7,
-                do_sample: true,
-                top_p: 0.9,
-              },
-            });
-            return apiResult.generated_text || "";
-          },
-          {
-            retryOptions: aiRetryOptions,
-            circuitBreaker: huggingFaceCircuitBreaker,
-            timeoutMs: 30000,
-            operationName: "hf-api-call-agentic"
-          }
-        );
+      if (!GEMINI_API_KEY) {
+        throw new Error("GEMINI_API_KEY is required");
       }
-      throw new Error(`No provider for model ${specificModel}`);
+
+      const client = await getGenAIClient();
+      if (!client) throw new Error("Gemini client initialization failed");
+
+      // Default to gemini-1.5-flash if a non-Gemini model is requested
+      const actualModel = specificModel.startsWith("gemini-") ? specificModel : "gemini-1.5-flash";
+
+      return resilientCall(
+        async () => {
+          const model = client.getGenerativeModel({ model: actualModel });
+          const result = await model.generateContent(promptText);
+          const response = await result.response;
+          return response.text();
+        },
+        {
+          retryOptions: aiRetryOptions,
+          circuitBreaker: geminiCircuitBreaker,
+          timeoutMs: 30000,
+          operationName: "gemini-api-call-agentic",
+        }
+      );
     };
 
     let enhancedText = "";
@@ -443,74 +401,39 @@ export async function enhanceResumeWithAI(
 
     // 2. If Agentic didn't run or returned null (fallback), use Standard Flow
     if (!enhancedText) {
-      if (useGemini || (randomProvider === "gemini" && GEMINI_API_KEY)) {
-        actualProvider = "Google Gemini";
-        const actualModel = modelId || "gemini-1.5-flash";
-        console.log(`✨ Using ${actualProvider}: ${actualModel}`);
-        console.log("📡 Calling Gemini API...");
-
-        const client = await getGenAIClient();
-        if (!client) throw new Error("Gemini client initialization failed");
-
-        enhancedText = await resilientCall(
-          async () => {
-            const model = client.getGenerativeModel({
-              model: actualModel,
-            });
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-            return response.text();
-          },
-          {
-            retryOptions: aiRetryOptions,
-            circuitBreaker: geminiCircuitBreaker,
-            timeoutMs: 30000,
-            operationName: "gemini-api-call",
-          }
-        );
-
-        console.log("✅ Gemini API Response Received", {
-          responseLength: enhancedText.length,
-          duration: `${Date.now() - startTime}ms`,
-        });
-      } else if (useHuggingFace || HUGGINGFACE_TOKEN) {
-        actualProvider = "Hugging Face";
-        const actualModel = modelId || "mistralai/Mistral-7B-Instruct-v0.3";
-        console.log(`✨ Using ${actualProvider}: ${actualModel}`);
-        console.log("📡 Calling Hugging Face API...");
-
-        const isMistral = actualModel === "mistralai/Mistral-7B-Instruct-v0.3";
-        const client = await getHfClient();
-
-        const response = await resilientCall(
-          async () => {
-            return client.textGeneration({
-              model: actualModel,
-              inputs: prompt,
-              parameters: {
-                max_new_tokens: isMistral ? 500 : 300,
-                temperature: isMistral ? 0.6 : 0.7,
-                do_sample: true,
-                top_p: 0.9,
-              },
-            });
-          },
-          {
-            retryOptions: aiRetryOptions,
-            circuitBreaker: huggingFaceCircuitBreaker,
-            timeoutMs: 30000,
-            operationName: "huggingface-api-call",
-          }
-        );
-        enhancedText = response.generated_text || "";
-
-        console.log("✅ Hugging Face API Response Received", {
-          responseLength: enhancedText.length,
-          duration: `${Date.now() - startTime}ms`,
-        });
-      } else {
-        throw new Error("No AI provider available");
+      if (!GEMINI_API_KEY) {
+        throw new Error("No AI provider available - GEMINI_API_KEY required");
       }
+
+      actualProvider = "Google Gemini";
+      const actualModel = modelId.startsWith("gemini-") ? modelId : "gemini-1.5-flash";
+      console.log(`✨ Using ${actualProvider}: ${actualModel}`);
+      console.log("📡 Calling Gemini API...");
+
+      const client = await getGenAIClient();
+      if (!client) throw new Error("Gemini client initialization failed");
+
+      enhancedText = await resilientCall(
+        async () => {
+          const model = client.getGenerativeModel({
+            model: actualModel,
+          });
+          const result = await model.generateContent(prompt);
+          const response = await result.response;
+          return response.text();
+        },
+        {
+          retryOptions: aiRetryOptions,
+          circuitBreaker: geminiCircuitBreaker,
+          timeoutMs: 30000,
+          operationName: "gemini-api-call",
+        }
+      );
+
+      console.log("✅ Gemini API Response Received", {
+        responseLength: enhancedText.length,
+        duration: `${Date.now() - startTime}ms`,
+      });
     }
 
     console.log("🎯 AI Enhancement Complete", {

@@ -21,7 +21,7 @@ async function getBestGeminiModel(apiKey: string): Promise<string> {
   try {
     const response = await fetch(
       AI_ENDPOINTS.GEMINI.MODELS(apiKey),
-      { next: { revalidate: 3600 } } // Cache for 1 hour
+      { next: { revalidate: 3600 } }, // Cache for 1 hour
     );
 
     if (!response.ok) {
@@ -37,14 +37,14 @@ async function getBestGeminiModel(apiKey: string): Promise<string> {
     const availableModels =
       (data.models as GeminiModel[] | undefined)
         ?.filter((model) =>
-          model.supportedGenerationMethods?.includes("generateContent")
+          model.supportedGenerationMethods?.includes("generateContent"),
         )
         .map((model) => model.name.replace("models/", "")) || [];
 
     // Try each preference in order
     for (const preferred of MODEL_PREFERENCES) {
       const match = availableModels.find((model: string) =>
-        model.toLowerCase().includes(preferred.toLowerCase())
+        model.toLowerCase().includes(preferred.toLowerCase()),
       );
       if (match) {
         return match;
@@ -64,7 +64,6 @@ export async function GET() {
     // Check what AI providers are actually available
     const hasGemini = !!process.env.GEMINI_API_KEY;
     const hasOpenAI = !!process.env.OPENAI_API_KEY;
-    const hasHuggingFace = !!process.env.HUGGINGFACE_TOKEN;
 
     // Tier-based model selection (matches actual usage in aiProviderService)
     // Primary is Gemini, fallback to OpenAI
@@ -80,12 +79,6 @@ export async function GET() {
         connected: true,
         model: "gpt-4o-mini",
         provider: "OpenAI",
-      });
-    } else if (hasHuggingFace) {
-      return NextResponse.json({
-        connected: true,
-        model: "mistralai/Mistral-7B-Instruct-v0.3",
-        provider: "Hugging Face",
       });
     } else {
       return NextResponse.json({

@@ -33,7 +33,6 @@ const SECRET_CONFIG: Record<
   GEMINI_API_KEY: { rotationPeriod: 90, required: true },
   OPENAI_API_KEY: { rotationPeriod: 90, required: false },
   GROQ_API_KEY: { rotationPeriod: 90, required: false },
-  HUGGINGFACE_TOKEN: { rotationPeriod: 90, required: false },
   TOKEN_SECRET: { rotationPeriod: 30, required: true },
   SMTP_PASS: { rotationPeriod: 90, required: true },
 };

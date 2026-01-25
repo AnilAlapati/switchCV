@@ -40,12 +40,7 @@ class ProviderFallbackChain {
   }
 
   private initializeHealth() {
-    const providers: ProviderType[] = [
-      "gemini",
-      "openai",
-      "groq",
-      "huggingface",
-    ];
+    const providers: ProviderType[] = ["gemini", "openai", "groq"];
     providers.forEach((p) => {
       this.health.set(p, {
         consecutiveFailures: 0,

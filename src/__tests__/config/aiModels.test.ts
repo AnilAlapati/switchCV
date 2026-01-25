@@ -32,7 +32,7 @@ describe("AI Models Configuration", () => {
       const models = getModelsForTask("resume-enhancement");
       expect(models.length).toBeGreaterThan(0);
       expect(
-        models.some((model) => model.id === "mistral-7b-instruct-v0.3")
+        models.some((model) => model.id === "gemini-2.5-flash")
       ).toBe(true);
     });
 
@@ -52,10 +52,10 @@ describe("AI Models Configuration", () => {
 
   describe("getModelById", () => {
     it("should return correct model for valid id", () => {
-      const model = getModelById("gpt2-medium");
+      const model = getModelById("gemini-2.5-flash");
       expect(model).toBeDefined();
-      expect(model?.id).toBe("gpt2-medium");
-      expect(model?.name).toBe("GPT-2 Medium");
+      expect(model?.id).toBe("gemini-2.5-flash");
+      expect(model?.name).toBe("Gemini 2.5 Flash");
     });
 
     it("should return undefined for invalid id", () => {
@@ -66,9 +66,9 @@ describe("AI Models Configuration", () => {
 
   describe("estimateCost", () => {
     it("should calculate cost correctly", () => {
-      const model = getModelById("gpt2-medium");
+      const model = getModelById("gemini-2.5-flash");
       if (model) {
-        const cost = estimateCost("gpt2-medium", 100);
+        const cost = estimateCost("gemini-2.5-flash", 100);
         expect(cost).toBe(model.costPerToken * 100);
       }
     });
@@ -81,7 +81,7 @@ describe("AI Models Configuration", () => {
 
   describe("getCostTier", () => {
     it("should return correct tier for model", () => {
-      const tier = getCostTier("mistral-7b-instruct-v0.3");
+      const tier = getCostTier("gemini-2.5-pro");
       expect(tier).toBe("premium");
     });
 
@@ -109,7 +109,7 @@ describe("AI Models Configuration", () => {
     });
 
     it("should have valid provider values", () => {
-      const validProviders = ["huggingface", "openai", "anthropic", "google"];
+      const validProviders = ["openai", "anthropic", "google", "groq"];
       AVAILABLE_AI_MODELS.forEach((model) => {
         expect(validProviders).toContain(model.provider);
       });

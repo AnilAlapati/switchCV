@@ -23,7 +23,6 @@ function isProductionEnvironment(): boolean {
 export const generateJobMatchSuggestions = functions
   .runWith({
     secrets: [
-      "HUGGINGFACE_TOKEN",
       "GEMINI_API_KEY",
       "GROQ_API_KEY",
       "OPENAI_API_KEY",
@@ -180,7 +179,6 @@ export const syncAdminWhitelist = functions.firestore
 export const generateResumeContent = functions
   .runWith({
     secrets: [
-      "HUGGINGFACE_TOKEN",
       "GEMINI_API_KEY",
       "GROQ_API_KEY",
       "OPENAI_API_KEY",
@@ -195,7 +193,6 @@ export const generateResumeContent = functions
 export const processResumeGenerationAsync = functions
   .runWith({
     secrets: [
-      "HUGGINGFACE_TOKEN",
       "GEMINI_API_KEY",
       "GROQ_API_KEY",
       "OPENAI_API_KEY",
