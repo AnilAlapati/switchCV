@@ -8,16 +8,15 @@ import {
   decrementJobSeekerMetric,
   incrementRecruiterMetric,
   updateRecruiterAccessMetric,
+  getJobSeekerMetrics,
+  getRecruiterMetrics,
 } from "@/lib/services/metricsService";
 
 // Mock Firebase admin
 jest.mock("@/lib/firebase-admin", () => ({
   adminDb: {
-    collection: jest.fn(() => ({
-      doc: jest.fn(() => ({
-        set: jest.fn(),
-      })),
-    })),
+    collection: jest.fn(),
+    collectionGroup: jest.fn(),
   },
 }));
 
@@ -25,30 +24,62 @@ jest.mock("@/lib/firebase-admin", () => ({
 jest.mock("@/lib/logger", () => ({
   logger: {
     error: jest.fn(),
+    info: jest.fn(),
   },
 }));
 
 describe("Metrics Service", () => {
   let mockCollection: jest.Mock;
+  let mockCollectionGroup: jest.Mock;
   let mockDoc: jest.Mock;
   let mockSet: jest.Mock;
+  let mockGet: jest.Mock;
+  let mockWhere: jest.Mock;
+  let mockCount: jest.Mock;
   let mockLoggerError: jest.Mock;
+  let mockLoggerInfo: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
 
-    // Get the mocked functions
-    mockCollection = require("@/lib/firebase-admin").adminDb.collection;
-    mockDoc = jest.fn(() => ({ set: mockSet }));
-    mockSet = jest.fn();
-    mockLoggerError = require("@/lib/logger").logger.error;
+    const { adminDb } = require("@/lib/firebase-admin");
+    const { logger } = require("@/lib/logger");
 
-    // Set up the mock chain
+    mockCollection = adminDb.collection;
+    mockCollectionGroup = adminDb.collectionGroup;
+    mockLoggerError = logger.error;
+    mockLoggerInfo = logger.info;
+
+    mockSet = jest.fn().mockResolvedValue(undefined);
+    mockGet = jest.fn();
+    mockWhere = jest.fn();
+    mockCount = jest.fn();
+
+    mockDoc = jest.fn(() => ({
+      set: mockSet,
+      get: mockGet,
+      collection: jest.fn(() => ({
+        where: mockWhere,
+      })),
+    }));
+
     mockCollection.mockReturnValue({
       doc: mockDoc,
+      where: mockWhere,
     });
-    mockDoc.mockReturnValue({
-      set: mockSet,
+
+    mockCollectionGroup.mockReturnValue({
+      where: mockWhere,
+    });
+
+    mockWhere.mockReturnValue({
+      get: mockGet,
+      where: mockWhere,
+      count: mockCount,
+    });
+
+    mockCount.mockReturnValue({
+      get: mockGet,
     });
   });
 
@@ -67,7 +98,7 @@ describe("Metrics Service", () => {
           [metric]: expect.any(Object), // FieldValue.increment
           lastUpdated: expect.any(Object), // FieldValue.serverTimestamp
         },
-        { merge: true }
+        { merge: true },
       );
     });
 
@@ -82,7 +113,7 @@ describe("Metrics Service", () => {
           [metric]: expect.any(Object),
           lastUpdated: expect.any(Object),
         },
-        { merge: true }
+        { merge: true },
       );
     });
 
@@ -134,7 +165,7 @@ describe("Metrics Service", () => {
 
       expect(mockLoggerError).toHaveBeenCalledWith(
         { err: error, userId, metric, value: 1 },
-        "Failed to increment job seeker metric"
+        "Failed to increment job seeker metric",
       );
     });
   });
@@ -154,7 +185,7 @@ describe("Metrics Service", () => {
           [metric]: expect.any(Object), // FieldValue.increment with negative value
           lastUpdated: expect.any(Object),
         },
-        { merge: true }
+        { merge: true },
       );
     });
 
@@ -169,7 +200,7 @@ describe("Metrics Service", () => {
           [metric]: expect.any(Object),
           lastUpdated: expect.any(Object),
         },
-        { merge: true }
+        { merge: true },
       );
     });
 
@@ -192,7 +223,7 @@ describe("Metrics Service", () => {
 
       expect(mockLoggerError).toHaveBeenCalledWith(
         { err: error, userId, metric, value: 1 },
-        "Failed to decrement job seeker metric"
+        "Failed to decrement job seeker metric",
       );
     });
   });
@@ -212,7 +243,7 @@ describe("Metrics Service", () => {
           [metric]: expect.any(Object),
           lastUpdated: expect.any(Object),
         },
-        { merge: true }
+        { merge: true },
       );
     });
 
@@ -227,7 +258,7 @@ describe("Metrics Service", () => {
           [metric]: expect.any(Object),
           lastUpdated: expect.any(Object),
         },
-        { merge: true }
+        { merge: true },
       );
     });
 
@@ -271,7 +302,7 @@ describe("Metrics Service", () => {
 
       expect(mockLoggerError).toHaveBeenCalledWith(
         { err: error, userId, metric, value: 1 },
-        "Failed to increment recruiter metric"
+        "Failed to increment recruiter metric",
       );
     });
   });
@@ -291,7 +322,7 @@ describe("Metrics Service", () => {
           [`accessRequests.${status}`]: expect.any(Object),
           lastUpdated: expect.any(Object),
         },
-        { merge: true }
+        { merge: true },
       );
     });
 
@@ -341,7 +372,7 @@ describe("Metrics Service", () => {
 
       expect(mockLoggerError).toHaveBeenCalledWith(
         { err: error, userId, status, change },
-        "Failed to update recruiter access metric"
+        "Failed to update recruiter access metric",
       );
     });
   });
@@ -354,12 +385,12 @@ describe("Metrics Service", () => {
       });
 
       await expect(
-        incrementJobSeekerMetric("user123", "profileViews", 1)
+        incrementJobSeekerMetric("user123", "profileViews", 1),
       ).resolves.not.toThrow();
 
       expect(mockLoggerError).toHaveBeenCalledWith(
         { err: error, userId: "user123", metric: "profileViews", value: 1 },
-        "Failed to increment job seeker metric"
+        "Failed to increment job seeker metric",
       );
     });
 
@@ -370,7 +401,7 @@ describe("Metrics Service", () => {
       });
 
       await expect(
-        incrementRecruiterMetric("recruiter123", "searchQueries", 1)
+        incrementRecruiterMetric("recruiter123", "searchQueries", 1),
       ).resolves.not.toThrow();
 
       expect(mockLoggerError).toHaveBeenCalledWith(
@@ -380,7 +411,158 @@ describe("Metrics Service", () => {
           metric: "searchQueries",
           value: 1,
         },
-        "Failed to increment recruiter metric"
+        "Failed to increment recruiter metric",
+      );
+    });
+  });
+
+  describe("getJobSeekerMetrics", () => {
+    it("should return metrics when document exists", async () => {
+      const userId = "user123";
+      const mockData = {
+        profileViews: 10,
+        contactRequests: 5,
+      };
+
+      mockGet.mockResolvedValueOnce({
+        exists: true,
+        data: () => mockData,
+      });
+
+      const result = await getJobSeekerMetrics(userId);
+
+      expect(result).toEqual({
+        profileViews: 10,
+        contactRequests: 5,
+      });
+      expect(mockCollection).toHaveBeenCalledWith("jobSeekerMetrics");
+    });
+
+    it("should trigger lazy migration if contactRequests is missing", async () => {
+      const userId = "user123";
+      // Document exists but missing contactRequests
+      mockGet.mockResolvedValueOnce({
+        exists: true,
+        data: () => ({ profileViews: 10 }),
+      });
+
+      // Mock resumes query
+      const mockCollectionRef = {
+        where: jest.fn().mockReturnValue({
+          count: jest.fn().mockReturnValue({
+            get: jest.fn().mockResolvedValueOnce({
+              data: () => ({ count: 3 }),
+            }),
+          }),
+        }),
+      };
+      const mockResumeRef = {
+        collection: jest.fn().mockReturnValue(mockCollectionRef),
+      };
+      mockGet.mockResolvedValueOnce({
+        docs: [{ ref: mockResumeRef }],
+      });
+
+      const result = await getJobSeekerMetrics(userId);
+
+      expect(result.contactRequests).toBe(3);
+      expect(mockSet).toHaveBeenCalledWith(
+        expect.objectContaining({ contactRequests: 3 }),
+        { merge: true },
+      );
+    });
+
+    it("should return empty metrics when document doesn't exist", async () => {
+      const userId = "user123";
+      mockGet.mockResolvedValueOnce({
+        exists: false,
+      });
+
+      // Lazy migration will trigger because contactRequests is undefined
+      mockGet.mockResolvedValueOnce({ docs: [] });
+
+      const result = await getJobSeekerMetrics(userId);
+
+      expect(result).toEqual({
+        contactRequests: 0,
+      });
+    });
+  });
+
+  describe("getRecruiterMetrics", () => {
+    it("should return metrics when document exists", async () => {
+      const userId = "recruiter123";
+      const mockData = {
+        totalSearches: 10,
+        accessRequests: { pending: 1, approved: 2, denied: 0 },
+      };
+
+      mockGet.mockResolvedValueOnce({
+        exists: true,
+        data: () => mockData,
+      });
+
+      const result = await getRecruiterMetrics(userId);
+
+      expect(result).toEqual(mockData);
+    });
+
+    it("should trigger lazy migration if accessRequests is missing", async () => {
+      const userId = "recruiter123";
+      mockGet.mockResolvedValueOnce({
+        exists: true,
+        data: () => ({ totalSearches: 10 }),
+      });
+
+      // Mock collectionGroup("accessRequests") query
+      mockGet.mockResolvedValueOnce({
+        forEach: (cb: any) => {
+          cb({ data: () => ({ status: "pending" }) });
+          cb({ data: () => ({ status: "approved" }) });
+          cb({ data: () => ({ status: "denied" }) });
+        },
+      });
+
+      // Mock collectionGroup("accessGrants") query
+      mockGet.mockResolvedValueOnce({
+        forEach: (cb: any) => {
+          cb({ data: () => ({}) });
+        },
+      });
+
+      const result = await getRecruiterMetrics(userId);
+
+      expect(result.accessRequests).toEqual({
+        pending: 1,
+        approved: 2, // 1 from accessRequests + 1 from accessGrants
+        denied: 1,
+      });
+      expect(mockLoggerInfo).toHaveBeenCalledWith(
+        { userId },
+        "Performing lazy migration for recruiter access metrics",
+      );
+    });
+
+    it("should handle error during lazy migration", async () => {
+      const userId = "recruiter123";
+      mockGet.mockResolvedValueOnce({
+        exists: true,
+        data: () => ({ totalSearches: 10 }),
+      });
+
+      const error = new Error("Migration failed");
+      mockGet.mockRejectedValueOnce(error);
+
+      const result = await getRecruiterMetrics(userId);
+
+      expect(result.accessRequests).toEqual({
+        pending: 0,
+        approved: 0,
+        denied: 0,
+      });
+      expect(mockLoggerError).toHaveBeenCalledWith(
+        { err: error, userId },
+        "Failed lazy migration for recruiter access metrics",
       );
     });
   });

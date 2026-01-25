@@ -29,7 +29,7 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
   const [generatedResume, setGeneratedResume] = useState<Resume | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [generationMessage, setGenerationMessage] = useState(
-    "Generating your professional resume with AI..."
+    "Generating your professional resume with AI...",
   );
   const [preferences, setPreferences] = useState<{
     template: string;
@@ -78,8 +78,10 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
             typeof answers.summary === "string"
               ? answers.summary
               : String(answers.summary || ""),
-          experience: [],
-          education: [],
+          experience: Array.isArray(answers.experience)
+            ? answers.experience
+            : [],
+          education: Array.isArray(answers.education) ? answers.education : [],
           skills: Array.isArray(answers.skills)
             ? answers.skills
             : typeof answers.skills === "string"
@@ -101,9 +103,15 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
             ? answers.preferences_mode
             : "Standard (Fast, 2-Agent)";
 
-        const selectedMode = modeSelection.includes("Autonomous") ? "autonomous" : "standard";
+        const selectedMode = modeSelection.includes("Autonomous")
+          ? "autonomous"
+          : "standard";
 
-        setPreferences({ template: selectedTemplate, tone: selectedTone, mode: selectedMode });
+        setPreferences({
+          template: selectedTemplate,
+          tone: selectedTone,
+          mode: selectedMode,
+        });
 
         // Call AI to enhance resume
         const result = await generateResumeContent(
@@ -111,7 +119,7 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
           selectedTemplate,
           selectedTone as "creative" | "professional" | "concise",
           undefined, // modelId (auto)
-          selectedMode as "standard" | "autonomous"
+          selectedMode as "standard" | "autonomous",
         );
 
         if (!result) {
@@ -135,7 +143,7 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
               role: exp.title,
               duration: exp.duration,
               description: exp.enhancedDescription,
-            })
+            }),
           ),
           education: [],
           contact: {
@@ -156,7 +164,7 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
         }, 2000);
       }
     },
-    [generateResumeContent]
+    [generateResumeContent],
   );
 
   const handleAcceptResume = useCallback(async () => {
@@ -184,6 +192,9 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
       }
 
       const data = await response.json();
+      if (!data.resumeId) {
+        throw new Error("Invalid response: missing resume ID");
+      }
       setGenerationMessage("✅ Resume created successfully!");
 
       setTimeout(() => {
@@ -194,7 +205,7 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to save resume. Please try again."
+          : "Failed to save resume. Please try again.",
       );
       setPhase("review");
     }
@@ -236,7 +247,7 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
           preferences.template,
           preferences.tone as "creative" | "professional" | "concise",
           undefined,
-          preferences.mode as "standard" | "autonomous"
+          preferences.mode as "standard" | "autonomous",
         );
 
         if (!result) {
@@ -257,7 +268,7 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
               role: exp.title,
               duration: exp.duration,
               description: exp.enhancedDescription,
-            })
+            }),
           ),
           education: [],
           contact: generatedResume.contact,
@@ -278,7 +289,7 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
       preferences.template,
       preferences.tone,
       preferences.mode,
-    ]
+    ],
   );
 
   return (

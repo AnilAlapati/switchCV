@@ -15,14 +15,22 @@ jest.mock("@/components/ResumeGenerationLoader", () => ({
   ),
 }));
 jest.mock("@/components/ResumeReviewModal", () => ({
-  ResumeReviewModal: (props: Record<string, unknown>) => <MockResumeReviewModal {...props} />,
+  ResumeReviewModal: (props: Record<string, unknown>) => (
+    <MockResumeReviewModal {...props} />
+  ),
 }));
 
 // Custom mock for ResumeQAForm to allow controlling the submitted data
-let mockOnCompleteCallback: ((data: Record<string, unknown>) => Promise<void> | void) | null = null;
+let mockOnCompleteCallback:
+  | ((data: Record<string, unknown>) => Promise<void> | void)
+  | null = null;
 
 jest.mock("@/components/ResumeQAForm", () => ({
-  ResumeQAForm: ({ onComplete }: { onComplete: (data: Record<string, unknown>) => Promise<void> | void }) => {
+  ResumeQAForm: ({
+    onComplete,
+  }: {
+    onComplete: (data: Record<string, unknown>) => Promise<void> | void;
+  }) => {
     mockOnCompleteCallback = onComplete;
     return <div data-testid="resume-qa-form">QA Form</div>;
   },
@@ -112,13 +120,15 @@ describe("Resume Generation Integration Flow", () => {
           summary: "Senior Software Engineer with 10 years of experience.",
         }),
         "technical", // Template preference
-        "concise" // Tone preference
+        "concise", // Tone preference
+        undefined, // Model ID (auto-select)
+        "standard", // Mode
       );
     });
 
     // 7. Verify Review Modal appears
     await waitFor(() =>
-      expect(screen.getByTestId("resume-review-modal")).toBeInTheDocument()
+      expect(screen.getByTestId("resume-review-modal")).toBeInTheDocument(),
     );
   });
 
@@ -146,7 +156,9 @@ describe("Resume Generation Integration Flow", () => {
       expect(mockGenerateResumeContent).toHaveBeenCalledWith(
         expect.anything(),
         "modern", // Default template
-        "professional" // Default tone
+        "professional", // Default tone
+        undefined, // Model ID (auto-select)
+        "standard", // Default mode
       );
     });
   });

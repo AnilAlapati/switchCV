@@ -1,7 +1,6 @@
 import { TimelineItem } from "./ResumeVisualPrimitives";
 
-const normalizeDate = (value?: string) => {
-  if (!value) return "";
+const normalizeDate = (value: string) => {
   if (!Number.isNaN(Date.parse(value))) {
     return new Date(value).toLocaleDateString(undefined, {
       month: "short",
@@ -37,14 +36,21 @@ export const normalizeTimelineItems = (value: unknown): TimelineItem[] => {
   if (!Array.isArray(value)) return [];
   return value
     .map((item: Record<string, unknown>) => ({
-      headline: (item?.title || item?.role || item?.degree || item?.name) as string,
-      subline: (item?.company || item?.institution || item?.organization) as string,
-      meta:
-        (item?.duration ||
-          formatRange(item?.startDate as string, item?.endDate as string) ||
-          item?.year) as string,
+      headline: (item?.title ||
+        item?.role ||
+        item?.degree ||
+        item?.name) as string,
+      subline: (item?.company ||
+        item?.institution ||
+        item?.organization ||
+        item?.school) as string,
+      meta: (item?.duration ||
+        formatRange(item?.startDate as string, item?.endDate as string) ||
+        item?.year) as string,
       description: (item?.description || item?.summary) as string,
-      bullets: (item?.achievements || item?.highlights || item?.responsibilities) as string[],
+      bullets: (item?.achievements ||
+        item?.highlights ||
+        item?.responsibilities) as string[],
       technologies: item?.technologies as string[],
       url: item?.url as string,
     }))

@@ -17,7 +17,7 @@ import { deduplicateRequest, resumeCache } from "@/lib/utils/cache";
 import { generateNumericResumeId } from "@/lib/numericIdGenerator";
 
 export const fetchResumeBySlug = async (
-  slug: string
+  slug: string,
 ): Promise<ResumeProfile | null> => {
   return deduplicateRequest(`resume:${slug}`, async () => {
     const cached = resumeCache.get(`resume:${slug}`) as ResumeProfile | null;
@@ -31,7 +31,7 @@ export const fetchResumeBySlug = async (
 };
 
 const _fetchResumeBySlugInternal = async (
-  slug: string
+  slug: string,
 ): Promise<ResumeProfile | null> => {
   try {
     const resumesRef = collection(db, "resumes");
@@ -62,8 +62,8 @@ export const trackResumeView = async (resumeId: string): Promise<void> => {
       query(
         viewsRef,
         where("resumeId", "==", resumeId),
-        where("timestamp", "==", timestamp)
-      )
+        where("timestamp", "==", timestamp),
+      ),
     );
 
     // Track view would go here
@@ -88,7 +88,7 @@ export const trackResumeView = async (resumeId: string): Promise<void> => {
  */
 export async function publishDraft(
   draftId: string,
-  userId: string
+  userId: string,
 ): Promise<PublishedResume> {
   // Get the draft (verifies ownership)
   const draft = await getDraft(draftId, userId);
@@ -129,7 +129,7 @@ export async function publishDraft(
   // Write to resumes collection
   batch.set(
     adminDb.collection("resumes").doc(resumeId.toString()),
-    publishedResume
+    publishedResume,
   );
 
   // Create ID mapping for new resumes
@@ -154,7 +154,7 @@ export async function publishDraft(
 
   // Release the draft ID mapping
   batch.delete(
-    adminDb.collection(DRAFT_CONFIG.ID_MAPPING_COLLECTION).doc(draftId)
+    adminDb.collection(DRAFT_CONFIG.ID_MAPPING_COLLECTION).doc(draftId),
   );
 
   // Execute atomically with error recovery
@@ -164,21 +164,22 @@ export async function publishDraft(
     // Log the error for debugging
     logger.error(
       { err: error, resumeId, draftId, userId },
-      "Batch commit failed during publish"
+      "Batch commit failed during publish",
     );
 
     // Attempt to clean up partial state if possible
     // Note: In production, consider using a saga pattern or two-phase commit
     // for more robust error recovery
     throw new Error(
-      `Failed to publish draft: ${error instanceof Error ? error.message : "Unknown error"
-      }. Please try again.`
+      `Failed to publish draft: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }. Please try again.`,
     );
   }
 
   logger.info(
     { resumeId, draftId, userId, isNewResume },
-    "Draft published successfully"
+    "Draft published successfully",
   );
 
   return publishedResume;
@@ -189,7 +190,7 @@ export async function publishDraft(
  * Used to preserve the original publish date when republishing.
  */
 async function getExistingPublishedAt(
-  resumeId: number
+  resumeId: number,
 ): Promise<string | null> {
   const doc = await adminDb
     .collection("resumes")
@@ -215,7 +216,7 @@ async function getExistingPublishedAt(
  */
 export async function unpublishResume(
   resumeId: number,
-  userId: string
+  userId: string,
 ): Promise<DraftResume> {
   // Get the published resume
   const resumeDoc = await adminDb
@@ -238,14 +239,13 @@ export async function unpublishResume(
   if (publishedResume.isBeingEdited) {
     throw new Error(
       `Resume ${resumeId} is already being edited. ` +
-      `Draft ID: ${publishedResume.editingDraftId}`
+        `Draft ID: ${publishedResume.editingDraftId}`,
     );
   }
 
   // Import here to avoid circular dependency
-  const { generateUniqueDraftId, reserveDraftId } = await import(
-    "@/lib/draftIdGenerator"
-  );
+  const { generateUniqueDraftId, reserveDraftId } =
+    await import("@/lib/draftIdGenerator");
 
   // Generate new draft ID
   const draftId = await generateUniqueDraftId();
@@ -281,7 +281,7 @@ export async function unpublishResume(
     // Log the error for debugging
     logger.error(
       { err: error, resumeId, draftId, userId },
-      "Batch commit failed during unpublish"
+      "Batch commit failed during unpublish",
     );
 
     // Clean up the draft ID mapping if the batch failed
@@ -294,13 +294,14 @@ export async function unpublishResume(
     } catch (cleanupError) {
       logger.warn(
         { err: cleanupError, draftId },
-        "Failed to clean up draft ID mapping after batch failure"
+        "Failed to clean up draft ID mapping after batch failure",
       );
     }
 
     throw new Error(
-      `Failed to unpublish resume: ${error instanceof Error ? error.message : "Unknown error"
-      }. Please try again.`
+      `Failed to unpublish resume: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }. Please try again.`,
     );
   }
 
@@ -317,7 +318,7 @@ export async function unpublishResume(
  * @returns The published resume or null if not found
  */
 export async function getPublishedResume(
-  resumeId: number
+  resumeId: number,
 ): Promise<PublishedResume | null> {
   const doc = await adminDb
     .collection("resumes")
@@ -339,7 +340,7 @@ export async function getPublishedResume(
  * @returns Object with editing status
  */
 export async function getResumeEditingStatus(
-  resumeId: number
+  resumeId: number,
 ): Promise<{ exists: boolean; isBeingEdited: boolean }> {
   const resume = await getPublishedResume(resumeId);
 
@@ -414,7 +415,7 @@ export interface GeneratedResumeInput {
  */
 export async function saveGeneratedResume(
   userId: string,
-  resumeData: GeneratedResumeInput
+  resumeData: GeneratedResumeInput,
 ) {
   // Generate numeric ID
   const numericId = await generateNumericResumeId();
@@ -502,7 +503,7 @@ export async function getResumeCount(userId: string): Promise<number> {
  */
 export async function getResume(
   id: string,
-  userId?: string
+  userId?: string,
 ): Promise<{
   resume: PublishedResume | null;
   access: "owner" | "admin" | "granted" | "public_snapshot" | "none";
@@ -551,9 +552,8 @@ export async function getResume(
     data.visibility === "public" ||
     data.published === true
   ) {
-    const { sanitizeResumeForPublicView } = await import(
-      "@/lib/utils/resumeVisibility"
-    );
+    const { sanitizeResumeForPublicView } =
+      await import("@/lib/utils/resumeVisibility");
     const sanitized = sanitizeResumeForPublicView(data);
     return {
       resume: {
@@ -572,7 +572,7 @@ export async function getResume(
  */
 export async function checkPrivateResumeAccess(
   resumeId: string,
-  viewerId: string
+  viewerId: string,
 ): Promise<boolean> {
   try {
     const resumeRef = adminDb.collection("resumes").doc(resumeId);
@@ -598,7 +598,7 @@ export async function checkPrivateResumeAccess(
   } catch (error) {
     logger.error(
       { err: error, resumeId, viewerId },
-      "Error checking access grant"
+      "Error checking access grant",
     );
     return false;
   }
@@ -610,7 +610,7 @@ export async function checkPrivateResumeAccess(
 export async function updateResume(
   id: string,
   userId: string,
-  data: Partial<ResumeProfile>
+  data: Partial<ResumeProfile>,
 ): Promise<void> {
   const { sanitizeResumePayload } = await import("@/lib/utils/resumeEditor");
   const sanitized = sanitizeResumePayload(data);
@@ -625,7 +625,7 @@ export async function updateResume(
         updatedAt: timestamp,
         lastUpdatedAt: timestamp,
       },
-      { merge: true }
+      { merge: true },
     );
 }
 
@@ -656,7 +656,7 @@ export async function deleteResume(id: string, userId: string): Promise<void> {
   } catch (error) {
     logger.warn(
       { err: error, userId, resumeId: id },
-      "Failed to delete userResume reference"
+      "Failed to delete userResume reference",
     );
   }
 
@@ -664,7 +664,10 @@ export async function deleteResume(id: string, userId: string): Promise<void> {
   const numericId = parseInt(id, 10);
   if (!isNaN(numericId)) {
     addDeletedIdToPool(numericId).catch((err) =>
-      logger.error({ err, numericId }, "Failed to recycle resume ID in service")
+      logger.error(
+        { err, numericId },
+        "Failed to recycle resume ID in service",
+      ),
     );
   }
 }
@@ -675,22 +678,26 @@ export async function deleteResume(id: string, userId: string): Promise<void> {
  */
 export async function updateResumeEmbedding(
   resumeId: string,
-  data: PublishedResume
+  data: PublishedResume,
 ): Promise<void> {
-  const { generateEmbedding } = await import(
-    "@/lib/services/aiGenerationService"
-  );
+  const { generateEmbedding } =
+    await import("@/lib/services/aiGenerationService");
 
   // Construct text representation
-  const profile = data.profile;
+  const profile = data.profile || data;
   const parts = [
     profile.title,
     profile.summary,
-    ...profile.experience.map(
-      (e) => `${e.role} at ${e.company}: ${e.description}`
+    ...(profile.experience || []).map(
+      (e: any) =>
+        `${e.role || e.title || ""} at ${e.company || ""}: ${e.description || ""}`,
     ),
-    ...profile.skills.map((s) => s.name),
-    ...profile.projects.map((p) => `${p.name}: ${p.description}`),
+    ...(profile.skills || []).map((s: any) =>
+      typeof s === "string" ? s : s.name,
+    ),
+    ...(profile.projects || []).map(
+      (p: any) => `${p.name || ""}: ${p.description || ""}`,
+    ),
   ].filter(Boolean);
 
   const searchText = parts.join("\n\n");

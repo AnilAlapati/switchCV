@@ -158,6 +158,9 @@ jest.mock('firebase-admin', () => ({
   firestore: {
     FieldValue: {
       serverTimestamp: jest.fn(() => ({ _type: 'serverTimestamp' })),
+      increment: jest.fn((val) => ({ _type: 'increment', value: val })),
+      arrayUnion: jest.fn((...args) => ({ _type: 'arrayUnion', value: args })),
+      arrayRemove: jest.fn((...args) => ({ _type: 'arrayRemove', value: args })),
     },
     Timestamp: {
       now: jest.fn(() => new Date()),
@@ -176,6 +179,7 @@ jest.mock('@/lib/firebase-admin', () => ({
     firestore: {
       FieldValue: {
         serverTimestamp: jest.fn(() => ({ _type: 'serverTimestamp' })),
+        increment: jest.fn((val) => ({ _type: 'increment', value: val })),
       },
     },
   },
@@ -287,12 +291,15 @@ jest.mock('@/lib/firebase-admin', () => ({
     return {
       collection: jest.fn(() => mockCollection()),
       doc: jest.fn((path) => mockDoc(path)),
-      batch: jest.fn(() => ({
-        set: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
-        commit: jest.fn().mockResolvedValue(undefined),
-      })),
+      batch: jest.fn(() => {
+        const b = {
+          set: jest.fn(() => b),
+          update: jest.fn(() => b),
+          delete: jest.fn(() => b),
+          commit: jest.fn().mockResolvedValue(undefined),
+        };
+        return b;
+      }),
       runTransaction: jest.fn(async (fn) => {
         const mockTransaction = {
           get: jest.fn().mockResolvedValue({ exists: true, data: jest.fn(() => ({})) }),

@@ -7,7 +7,11 @@ import { createMockFirebaseUser } from "@/__tests__/support/mocks/firebase";
 
 // Mock Firebase modules
 jest.mock("firebase/auth");
-jest.mock("firebase/firestore");
+jest.mock("firebase/firestore", () => ({
+  getDoc: jest.fn(),
+  doc: jest.fn(),
+  serverTimestamp: jest.fn(),
+}));
 jest.mock("@/lib/firebase");
 jest.mock("@/context/ConnectivityStatusProvider", () => ({
   useConnectivityStatus: jest.fn(() => ({
@@ -16,12 +20,15 @@ jest.mock("@/context/ConnectivityStatusProvider", () => ({
 }));
 jest.mock("@/lib/errorReporter");
 jest.mock("@/lib/logger");
+
+const mockAuthHelpers = {
+  reserveUsername: jest.fn().mockResolvedValue("username"),
+  ensureUserProfile: jest.fn().mockResolvedValue({ needsUsername: false }),
+  releaseUsernameReservation: jest.fn(),
+};
+
 jest.mock("@/hooks/useAuth.helpers", () => ({
-  createAuthProfileHelpers: jest.fn(() => ({
-    reserveUsername: jest.fn().mockResolvedValue("username"),
-    ensureUserProfile: jest.fn().mockResolvedValue({ needsUsername: false }),
-    releaseUsernameReservation: jest.fn(),
-  })),
+  createAuthProfileHelpers: jest.fn(() => mockAuthHelpers),
   isPasswordProvider: jest.fn((user) => {
     // Check if user has a password provider
     if (!user) return false;
@@ -331,5 +338,192 @@ describe("useAuth hook - State Management", () => {
     await waitFor(() => {
       expect(screen.getByTestId("loading")).toHaveTextContent("ready");
     });
+  });
+});
+
+describe("useAuth hook - Auth Actions", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    // Reset connectivity to positive state
+    const { useConnectivityStatus } = require("@/context/ConnectivityStatusProvider");
+    (useConnectivityStatus as jest.Mock).mockReturnValue({
+      firebase: { isReady: true, error: null },
+    });
+
+    (firebase.onAuthStateChanged as jest.Mock).mockImplementation((auth, cb) => {
+      cb(null);
+      return jest.fn();
+    });
+  });
+
+  const ActionTestComponent = ({ onAuthReady }: { onAuthReady: (auth: any) => void }) => {
+    const auth = useAuth();
+    React.useEffect(() => {
+      if (!auth.loading) onAuthReady(auth);
+    }, [auth.loading]);
+    return null;
+  };
+
+  it("should successfully sign in", async () => {
+    const mockUser = { email: "test@example.com" };
+    (firebase.signInWithEmailAndPassword as jest.Mock).mockResolvedValue({ user: mockUser });
+    const { ensureUserProfile } = require("@/hooks/useAuth.helpers").createAuthProfileHelpers();
+    (ensureUserProfile as jest.Mock).mockClear();
+
+    let authInstance: any;
+    render(
+      <AuthProvider>
+        <ActionTestComponent onAuthReady={(a) => { authInstance = a; }} />
+      </AuthProvider>
+    );
+
+    await waitFor(() => expect(authInstance).toBeDefined());
+    await authInstance.signIn("test@example.com", "password");
+
+    expect(firebase.signInWithEmailAndPassword).toHaveBeenCalled();
+    expect(ensureUserProfile).toHaveBeenCalledWith(mockUser);
+  });
+
+  it("should successfully sign up", async () => {
+    const mockUser = { uid: "new-uid", email: "new@test.com", getIdToken: jest.fn().mockResolvedValue("tok") };
+    (firebase.createUserWithEmailAndPassword as jest.Mock).mockResolvedValue({ user: mockUser });
+    const { createAuthProfileHelpers } = require("@/hooks/useAuth.helpers");
+    const mockHelpers = createAuthProfileHelpers();
+
+    let authInstance: any;
+    render(
+      <AuthProvider>
+        <ActionTestComponent onAuthReady={(a) => { authInstance = a; }} />
+      </AuthProvider>
+    );
+
+    await waitFor(() => expect(authInstance).toBeDefined());
+    await authInstance.signUp("new@test.com", "password", "newuser");
+
+    expect(firebase.createUserWithEmailAndPassword).toHaveBeenCalled();
+    expect(mockHelpers.reserveUsername).toHaveBeenCalledWith("new-uid", "newuser", expect.anything());
+  });
+
+  it("should rollback on signUp failure", async () => {
+    const mockUser = { uid: "bad-uid", delete: jest.fn() };
+    (firebase.createUserWithEmailAndPassword as jest.Mock).mockResolvedValue({ user: mockUser });
+    const { createAuthProfileHelpers } = require("@/hooks/useAuth.helpers");
+    const mockHelpers = createAuthProfileHelpers();
+    (mockHelpers.reserveUsername as jest.Mock).mockRejectedValue(new Error("Username taken"));
+
+    let authInstance: any;
+    render(
+      <AuthProvider>
+        <ActionTestComponent onAuthReady={(a) => { authInstance = a; }} />
+      </AuthProvider>
+    );
+
+    await waitFor(() => expect(authInstance).toBeDefined());
+    await expect(authInstance.signUp("bad@test.com", "pw", "taken")).rejects.toThrow();
+
+    expect(mockUser.delete).toHaveBeenCalled();
+  });
+
+  it("should successfully logout", async () => {
+    const mockUser = { uid: "uid123" };
+    (firebase.onAuthStateChanged as jest.Mock).mockImplementation((auth, cb) => {
+      cb(mockUser);
+      return jest.fn();
+    });
+
+    let authInstance: any;
+    render(
+      <AuthProvider>
+        <ActionTestComponent onAuthReady={(a) => { authInstance = a; }} />
+      </AuthProvider>
+    );
+
+    await waitFor(() => expect(authInstance).toBeDefined());
+    await authInstance.logout();
+
+    expect(firebase.signOut).toHaveBeenCalled();
+  });
+
+  it("should sign in with Google", async () => {
+    const mockUser = { email: "g@test.com" };
+    (firebase.signInWithPopup as jest.Mock).mockResolvedValue({ user: mockUser });
+    const { createAuthProfileHelpers } = require("@/hooks/useAuth.helpers");
+    const mockHelpers = createAuthProfileHelpers();
+    (mockHelpers.ensureUserProfile as jest.Mock).mockResolvedValue({ needsUsername: true });
+
+    let authInstance: any;
+    render(
+      <AuthProvider>
+        <ActionTestComponent onAuthReady={(a) => { authInstance = a; }} />
+      </AuthProvider>
+    );
+
+    await waitFor(() => expect(authInstance).toBeDefined());
+    const result = await authInstance.signInWithGoogle();
+
+    expect(result.needsUsername).toBe(true);
+  });
+
+  it("should refresh user", async () => {
+    const mockUser = { reload: jest.fn(), getIdToken: jest.fn() };
+    require("@/lib/firebase").auth.currentUser = mockUser;
+
+    let authInstance: any;
+    render(
+      <AuthProvider>
+        <ActionTestComponent onAuthReady={(a) => { authInstance = a; }} />
+      </AuthProvider>
+    );
+
+    await waitFor(() => expect(authInstance).toBeDefined());
+    await authInstance.refreshUser();
+
+    expect(mockUser.reload).toHaveBeenCalled();
+    expect(mockUser.getIdToken).toHaveBeenCalledWith(true);
+  });
+
+  it("should check if needs username", async () => {
+    const mockUser = { uid: "uid123" };
+    (firebase.onAuthStateChanged as jest.Mock).mockImplementation((auth, cb) => {
+      cb(mockUser);
+      return jest.fn();
+    });
+
+    (firestore.getDoc as jest.Mock).mockResolvedValue({
+      exists: () => true,
+      data: () => ({ username: null, needsUsername: true })
+    });
+
+    let authInstance: any;
+    render(
+      <AuthProvider>
+        <ActionTestComponent onAuthReady={(a) => { authInstance = a; }} />
+      </AuthProvider>
+    );
+
+    await waitFor(() => expect(authInstance).toBeDefined());
+    const needs = await authInstance.checkNeedsUsername();
+
+    expect(needs).toBe(true);
+  });
+
+  it("should resend verification email", async () => {
+    const { httpsCallable } = require("firebase/functions");
+    const mockResend = jest.fn().mockResolvedValue({});
+    httpsCallable.mockReturnValue(mockResend);
+    require("@/lib/firebase").auth.currentUser = { email: "test@test.com" };
+
+    let authInstance: any;
+    render(
+      <AuthProvider>
+        <ActionTestComponent onAuthReady={(a) => { authInstance = a; }} />
+      </AuthProvider>
+    );
+
+    await waitFor(() => expect(authInstance).toBeDefined());
+    await authInstance.resendVerificationEmail();
+
+    expect(mockResend).toHaveBeenCalled();
   });
 });

@@ -1,5 +1,13 @@
 import { adminDb } from "@/lib/firebase-admin";
-import { getUserTier, getUserRole } from "@/lib/services/userService";
+import {
+  getUserTier,
+  getUserRole,
+  verifyAdminRole,
+  getUserProfile,
+  createUserProfile,
+  updateUserProfile,
+  setUserRole,
+} from "@/lib/services/userService";
 import { userTierCache, userRoleCache } from "@/lib/utils/cache";
 
 // Initial mock for production mode
@@ -17,7 +25,8 @@ jest.mock("@/lib/firebase-admin", () => ({
 
 describe("userService", () => {
   const mockGet = jest.fn();
-  const mockDoc = jest.fn(() => ({ get: mockGet }));
+  const mockSet = jest.fn();
+  const mockDoc = jest.fn(() => ({ get: mockGet, set: mockSet }));
   const mockCollection = jest.fn(() => ({ doc: mockDoc }));
 
   beforeEach(() => {
@@ -25,6 +34,8 @@ describe("userService", () => {
     (adminDb.collection as jest.Mock).mockImplementation(mockCollection);
     userTierCache.clear();
     userRoleCache.clear();
+
+    mockSet.mockResolvedValue(undefined);
   });
 
   describe("getUserTier (Production)", () => {
@@ -113,6 +124,118 @@ describe("userService", () => {
       const { getUserRole } = require("@/lib/services/userService");
       const role = await getUserRole("user123");
       expect(role).toBe("admin");
+    });
+  });
+
+  describe("Caching", () => {
+    it("should cache the tier result", async () => {
+      mockGet.mockResolvedValue({
+        data: () => ({ subscriptionTier: "premium" }),
+      });
+      await getUserTier("user123");
+      await getUserTier("user123");
+
+      expect(mockGet).toHaveBeenCalledTimes(1);
+    });
+
+    it("should cache the role result", async () => {
+      mockGet.mockResolvedValue({ data: () => ({ role: "recruiter" }) });
+      await getUserRole("user-role-123");
+      await getUserRole("user-role-123");
+
+      expect(mockGet).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("verifyAdminRole", () => {
+    it("should return true if user is admin", async () => {
+      mockGet.mockResolvedValue({ data: () => ({ role: "admin" }) });
+      const isAdmin = await verifyAdminRole("admin-uid");
+      expect(isAdmin).toBe(true);
+    });
+
+    it("should return false if user is jobseeker", async () => {
+      mockGet.mockResolvedValue({ data: () => ({ role: "jobseeker" }) });
+      const isAdmin = await verifyAdminRole("job-uid");
+      expect(isAdmin).toBe(false);
+    });
+  });
+
+  describe("getUserProfile", () => {
+    it("should return data if user exists", async () => {
+      const mockData = { email: "test@test.com", displayName: "Test User" };
+      mockGet.mockResolvedValue({ exists: true, data: () => mockData });
+      const profile = await getUserProfile("u1");
+      expect(profile).toEqual(mockData);
+    });
+
+    it("should return null if user missing", async () => {
+      mockGet.mockResolvedValue({ exists: false });
+      const profile = await getUserProfile("missing");
+      expect(profile).toBeNull();
+    });
+  });
+
+  describe("createUserProfile", () => {
+    it("should successfully create a valid profile", async () => {
+      const input = {
+        uid: "new-uid",
+        email: "new@test.com",
+        displayName: "New User",
+        companyName: "Corp",
+      };
+      const result = await createUserProfile(input);
+
+      expect(result).toHaveProperty("uid", "new-uid");
+      expect(result).toHaveProperty("subscriptionTier", "basic");
+      expect(mockSet).toHaveBeenCalledWith(
+        expect.objectContaining({ email: "new@test.com" }),
+        { merge: true },
+      );
+    });
+
+    it("should throw error on invalid input", async () => {
+      const input = { uid: "", email: "bad-email" } as any;
+      await expect(createUserProfile(input)).rejects.toThrow(
+        "Validation failed",
+      );
+    });
+  });
+
+  describe("updateUserProfile", () => {
+    it("should successfully update profile", async () => {
+      const result = await updateUserProfile("uid1", {
+        displayName: "Updated Name",
+      });
+      expect(result).toHaveProperty("displayName", "Updated Name");
+      expect(mockSet).toHaveBeenCalledWith(
+        expect.objectContaining({ displayName: "Updated Name" }),
+        { merge: true },
+      );
+    });
+
+    it("should throw error on invalid update", async () => {
+      await expect(updateUserProfile("", {} as any)).rejects.toThrow(
+        "Validation failed",
+      );
+    });
+  });
+
+  describe("setUserRole", () => {
+    it("should set recruiter role correctly", async () => {
+      const result = await setUserRole("u1", "recruiter");
+      expect(result.role).toBe("recruiter");
+      expect(result.isRecruiter).toBe(true);
+      expect(mockSet).toHaveBeenCalledWith(
+        expect.objectContaining({ role: "recruiter", isRecruiter: true }),
+        { merge: true },
+      );
+    });
+
+    it("should set jobseeker role correctly", async () => {
+      const result = await setUserRole("u1", "jobseeker");
+      expect(result.role).toBe("jobseeker");
+      expect(result.isRecruiter).toBe(false);
     });
   });
 });

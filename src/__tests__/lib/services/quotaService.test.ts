@@ -2,8 +2,10 @@ import {
   consumeQuota,
   QuotaExceededError,
   refundQuota,
+  getQuotaUsage,
 } from "@/lib/services/quotaService";
 import { adminDb } from "@/lib/firebase-admin";
+import { quotaCache } from "@/lib/utils/cache";
 
 // Mock firebase-admin
 jest.mock("@/lib/firebase-admin", () => {
@@ -24,7 +26,7 @@ jest.mock("@/lib/firebase-admin", () => {
   const mockDb = {
     collection: jest.fn().mockReturnValue(mockCollection),
     runTransaction: jest.fn(
-      async (callback) => await callback(mockTransaction)
+      async (callback) => await callback(mockTransaction),
     ),
   };
 
@@ -56,7 +58,7 @@ describe("quotaService", () => {
     (adminDb.runTransaction as jest.Mock).mockImplementation(
       async (callback) => {
         return await callback(mockTransaction);
-      }
+      },
     );
   });
 
@@ -142,17 +144,17 @@ describe("quotaService", () => {
       });
 
       await expect(consumeQuota(baseRequest)).rejects.toThrow(
-        QuotaExceededError
+        QuotaExceededError,
       );
       expect(mockTransaction.set).not.toHaveBeenCalled();
     });
 
     it("should throw error for invalid limit", async () => {
       await expect(consumeQuota({ ...baseRequest, limit: 0 })).rejects.toThrow(
-        QuotaExceededError
+        QuotaExceededError,
       );
       await expect(consumeQuota({ ...baseRequest, limit: -1 })).rejects.toThrow(
-        QuotaExceededError
+        QuotaExceededError,
       );
     });
 
@@ -207,7 +209,7 @@ describe("quotaService", () => {
         expect.anything(),
         expect.objectContaining({
           count: 2,
-        })
+        }),
       );
     });
 
@@ -238,7 +240,7 @@ describe("quotaService", () => {
 
       expect(result.refunded).toBe(false);
       expect(result.reason).toBe(
-        "Quota period has changed, refund not applicable"
+        "Quota period has changed, refund not applicable",
       );
       expect(mockTransaction.update).not.toHaveBeenCalled();
     });
@@ -288,6 +290,132 @@ describe("quotaService", () => {
 
       expect(result.refunded).toBe(true);
       expect(result.currentCount).toBe(4);
+    });
+  });
+
+  describe("getQuotaUsage", () => {
+    const subjectId = "user123";
+    const scope = "ai_generation";
+    const period = "daily" as const;
+
+    beforeEach(() => {
+      quotaCache.clear();
+    });
+
+    it("should return cached value if available", async () => {
+      const now = new Date();
+      const key = `${now.getUTCFullYear()}-${(now.getUTCMonth() + 1).toString().padStart(2, "0")}-${now.getUTCDate().toString().padStart(2, "0")}`;
+      const cacheKey = `quota:${scope}:${subjectId}:${key}`;
+
+      quotaCache.set(cacheKey, 10);
+
+      const usage = await getQuotaUsage(subjectId, scope, period);
+      expect(usage).toBe(10);
+      expect(adminDb.collection).not.toHaveBeenCalled();
+    });
+
+    it("should fetch from DB and cache on cache miss", async () => {
+      const now = new Date();
+      const key = `${now.getUTCFullYear()}-${(now.getUTCMonth() + 1).toString().padStart(2, "0")}-${now.getUTCDate().toString().padStart(2, "0")}`;
+
+      const mockDoc = {
+        get: jest.fn().mockResolvedValue({
+          data: () => ({
+            periodKey: key,
+            count: 5,
+          }),
+        }),
+      };
+
+      (adminDb.collection as jest.Mock).mockReturnValue({
+        doc: jest.fn().mockReturnValue(mockDoc),
+      });
+
+      const usage = await getQuotaUsage(subjectId, scope, period);
+      expect(usage).toBe(5);
+      expect(adminDb.collection).toHaveBeenCalledWith("usageQuotas");
+    });
+
+    it("should return 0 if doc does not exist", async () => {
+      const mockDoc = {
+        get: jest.fn().mockResolvedValue({
+          data: () => null,
+        }),
+      };
+
+      (adminDb.collection as jest.Mock).mockReturnValue({
+        doc: jest.fn().mockReturnValue(mockDoc),
+      });
+
+      const usage = await getQuotaUsage(subjectId, scope, period);
+      expect(usage).toBe(0);
+    });
+
+    it("should return 0 if periodKey does not match", async () => {
+      const mockDoc = {
+        get: jest.fn().mockResolvedValue({
+          data: () => ({
+            periodKey: "old-key",
+            count: 10,
+          }),
+        }),
+      };
+
+      (adminDb.collection as jest.Mock).mockReturnValue({
+        doc: jest.fn().mockReturnValue(mockDoc),
+      });
+
+      const usage = await getQuotaUsage(subjectId, scope, period);
+      expect(usage).toBe(0);
+    });
+  });
+
+  describe("Extra Coverage", () => {
+    it("should handle lifetime period in getPeriodMetadata", async () => {
+      mockTransaction.get.mockResolvedValue({
+        exists: false,
+        data: () => null,
+      });
+
+      const result = await consumeQuota({
+        subjectId: "user123",
+        scope: "test",
+        limit: 1,
+        period: "lifetime",
+      });
+
+      expect(result.count).toBe(1);
+      // resetTime for lifetime is a very large number
+      expect(result.resetTime).toBeGreaterThan(Date.now() + 1000000000);
+    });
+
+    it("should throw error if limit is not finite or <= 0", async () => {
+      await expect(
+        consumeQuota({
+          subjectId: "user123",
+          scope: "test",
+          limit: 0,
+          period: "daily",
+        }),
+      ).rejects.toThrow(QuotaExceededError);
+
+      await expect(
+        consumeQuota({
+          subjectId: "user123",
+          scope: "test",
+          limit: -1,
+          period: "daily",
+        }),
+      ).rejects.toThrow(QuotaExceededError);
+
+      await expect(
+        consumeQuota({
+          subjectId: "user123",
+          scope: "test",
+          limit: Infinity, // Wait, Number.isFinite(Infinity) is false
+          period: "daily",
+        }),
+      ).rejects.toThrow();
     });
   });
 });

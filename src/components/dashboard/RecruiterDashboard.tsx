@@ -42,6 +42,9 @@ export function RecruiterDashboard({
   searchSectionRef,
   resumes,
 }: RecruiterDashboardProps) {
+  const pipelinePanelEnabled =
+    process.env.NEXT_PUBLIC_FEATURE_PIPELINE_PANEL === "true";
+
   const pipelinePanelData = useMemo(() => {
     if (!pipelinePanelEnabled) {
       return null;

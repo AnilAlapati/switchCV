@@ -53,7 +53,7 @@ describe("useAIResume", () => {
       currentUser: mockUser as User,
     } as any);
     mockGenerateMockEnhancedResume.mockImplementation(
-      () => mockFallbackContent
+      () => mockFallbackContent,
     );
     mockGetBestModelForTask.mockReturnValue({
       modelId: "mock-model-id",
@@ -73,9 +73,8 @@ describe("useAIResume", () => {
 
       const { result } = renderHook(() => useAIResume());
 
-      const content = await result.current.generateResumeContent(
-        mockResumeData
-      );
+      const content =
+        await result.current.generateResumeContent(mockResumeData);
 
       expect(mockGetAuth).toHaveBeenCalled();
       expect(mockGetIdToken).toHaveBeenCalled();
@@ -89,7 +88,7 @@ describe("useAIResume", () => {
             "Content-Type": "application/json",
             Authorization: "Bearer mock-id-token",
           }),
-        })
+        }),
       );
 
       const [, fetchOptions] = mockFetch.mock.calls[0];
@@ -99,6 +98,7 @@ describe("useAIResume", () => {
         template: "modern",
         tone: "professional",
         modelId: "mock-model-id",
+        mode: "standard",
       });
 
       expect(content).toEqual(mockEnhancedContent);
@@ -121,12 +121,12 @@ describe("useAIResume", () => {
         mockResumeData,
         "minimalist",
         "creative",
-        "gpt-4"
+        "gpt-4",
       );
 
       expect(mockFetch).toHaveBeenCalledWith(
         "/api/ai/generate-resume",
-        expect.anything()
+        expect.anything(),
       );
       const [, fetchOptions] = mockFetch.mock.calls.at(-1)!;
       const parsedBody = JSON.parse((fetchOptions?.body as string) || "{}");
@@ -135,6 +135,7 @@ describe("useAIResume", () => {
         template: "minimalist",
         tone: "creative",
         modelId: "gpt-4",
+        mode: "standard",
       });
     });
 
@@ -155,7 +156,7 @@ describe("useAIResume", () => {
         mockResumeData.personalInfo.name,
         "Professional",
         "Your Organization",
-        mockResumeData.skills
+        mockResumeData.skills,
       );
       expect(result.current.error).toBeNull();
       expect(result.current.loading).toBe(false);
@@ -297,7 +298,7 @@ describe("useAIResume", () => {
       };
       mockFetch.mockResolvedValueOnce(mockSuccessResponse);
       mockGenerateMockEnhancedResume.mockImplementation(
-        () => mockFallbackContent
+        () => mockFallbackContent,
       );
 
       await act(async () => {

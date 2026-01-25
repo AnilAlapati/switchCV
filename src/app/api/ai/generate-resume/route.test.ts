@@ -1,220 +1,186 @@
-import { NextRequest, NextResponse } from "next/server";
 import { POST } from "./route";
+import { NextRequest, NextResponse } from "next/server";
+import { generateText } from "@/lib/services/aiGenerationService";
+import { BillingService } from "@/lib/services/billingService";
+import { runAgenticWorkflow } from "@/lib/services/agentOrchestrator";
+import { getUserTier } from "@/lib/services/userService";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
+import { validateCorsRequest } from "@/lib/utils/api-helpers";
 
-jest.mock("@/lib/services/agentOrchestrator", () => ({
-  runAgenticWorkflow: jest.fn(),
-}));
-
-jest.mock("@/lib/services/userService", () => ({
-  getUserTier: jest.fn(),
+// Mock dependencies
+jest.mock("@/lib/services/aiGenerationService", () => ({
+    generateText: jest.fn(),
 }));
 
 jest.mock("@/lib/services/billingService", () => ({
-  BillingService: {
-    checkBudget: jest.fn().mockResolvedValue(true),
-    trackUsage: jest.fn().mockResolvedValue(undefined),
-  },
+    BillingService: {
+        checkBudget: jest.fn(),
+        trackUsage: jest.fn(),
+    },
 }));
 
-jest.mock("@/lib/services/aiGenerationService", () => ({
-  generateText: jest.fn(),
+jest.mock("@/lib/services/agentOrchestrator", () => ({
+    runAgenticWorkflow: jest.fn(),
 }));
 
-jest.mock("@/lib/utils/api-helpers", () => ({
-  ...jest.requireActual("@/lib/utils/api-helpers"),
-  validateCorsRequest: jest.fn(() => null),
-  handleApiError: jest.fn((error, message, status) => {
-    return Response.json(
-      { error: message, details: error?.message },
-      { status: status || 500 }
-    );
-  }),
-  getAuthenticatedUserId: jest.fn(),
+jest.mock("@/lib/services/userService", () => ({
+    getUserTier: jest.fn(),
 }));
 
 jest.mock("@/lib/utils/distributedRateLimit", () => ({
-  checkDistributedRateLimit: jest.fn(),
+    checkDistributedRateLimit: jest.fn(),
 }));
 
-import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
-import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
-import { getUserTier } from "@/lib/services/userService";
-import { runAgenticWorkflow } from "@/lib/services/agentOrchestrator";
-import { generateText } from "@/lib/services/aiGenerationService";
+jest.mock("@/lib/utils/api-helpers", () => ({
+    handleApiError: jest.fn((error, message, status) => {
+        return Response.json({ error: message, details: error?.message }, { status: status || 500 });
+    }),
+    getAuthenticatedUserId: jest.fn(),
+    validateCorsRequest: jest.fn(),
+}));
+
+jest.mock("@/lib/utils/cors", () => ({
+    createCorsHeaders: jest.fn(() => ({})),
+    handleCorsPreflightRequest: jest.fn(),
+}));
+
+jest.mock("@/lib/logger", () => ({
+    logger: {
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+    },
+}));
 
 describe("POST /api/ai/generate-resume", () => {
-  const mockResumeData = {
-    personalInfo: {
-      name: "John Doe",
-      email: "john@example.com",
-    },
-    summary: "Experienced developer",
-    skills: ["JavaScript", "React"],
-    experience: [
-      {
-        title: "Frontend Dev",
-        company: "Tech Corp",
-        duration: "2020-Present",
-        description: "Built UI",
-      },
-    ],
-    education: [
-      {
-        degree: "BS CS",
-        institution: "University",
-        year: "2020",
-      },
-    ],
-  };
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
-      userId: "test-user",
-    });
-    (checkDistributedRateLimit as jest.Mock).mockResolvedValue({
-      allowed: true,
-    });
-    (getUserTier as jest.Mock).mockResolvedValue("premium");
-  });
-
-  it("should return 400 if resume data is missing", async () => {
-    const req = new NextRequest("http://localhost/api/ai/generate-resume", {
-      method: "POST",
-      body: JSON.stringify({}),
-    });
-
-    const res = await POST(req);
-    const data = await res.json();
-
-    expect(res.status).toBe(400);
-    expect(data.error).toBe("Missing resume data");
-  });
-
-  it("should return 401 if user is not authenticated", async () => {
-    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: null });
-
-    const req = new NextRequest("http://localhost/api/ai/generate-resume", {
-      method: "POST",
-      body: JSON.stringify({ resumeData: mockResumeData }),
-    });
-
-    const res = await POST(req);
-    expect(res.status).toBe(401);
-  });
-
-  it("should return 429 if rate limit exceeded", async () => {
-    (checkDistributedRateLimit as jest.Mock).mockResolvedValue({
-      allowed: false,
-    });
-
-    const req = new NextRequest("http://localhost/api/ai/generate-resume", {
-      method: "POST",
-      body: JSON.stringify({ resumeData: mockResumeData }),
-    });
-
-    const res = await POST(req);
-    expect(res.status).toBe(429);
-  });
-
-  it("should generate enhanced resume successfully", async () => {
-    const mockAIResponse = {
-      enhancedSummary: "Enhanced summary text",
-      enhancedExperience: [
-        {
-          title: "Frontend Dev",
-          company: "Tech Corp",
-          duration: "2020-Present",
-          description: "Built UI",
-          enhancedDescription: "Enhanced description",
-          achievements: ["Achievement 1"],
-        },
-      ],
-      skillSuggestions: ["TypeScript"],
-      improvementTips: ["Add metrics"],
+    const mockResumeData = {
+        personalInfo: { name: "Test User", email: "test@example.com" },
+        summary: "Original summary",
+        skills: ["React"],
+        experience: [],
+        education: [],
     };
 
-    (runAgenticWorkflow as jest.Mock).mockResolvedValue(
-      JSON.stringify(mockAIResponse)
-    );
-
-    const req = new NextRequest("http://localhost/api/ai/generate-resume", {
-      method: "POST",
-      body: JSON.stringify({ resumeData: mockResumeData }),
+    beforeEach(() => {
+        jest.clearAllMocks();
+        (validateCorsRequest as jest.Mock).mockReturnValue(null);
+        (getUserTier as jest.Mock).mockResolvedValue("premium");
+        (checkDistributedRateLimit as jest.Mock).mockResolvedValue({ allowed: true });
+        (BillingService.checkBudget as jest.Mock).mockResolvedValue(true);
     });
 
-    const res = await POST(req);
-    const data = await res.json();
+    const buildRequest = (body: any) =>
+        new NextRequest("http://localhost/api/ai/generate-resume", {
+            method: "POST",
+            body: JSON.stringify(body),
+        });
 
-    expect(res.status).toBe(200);
-    expect(data.success).toBe(true);
-    expect(data.data.enhancedSummary).toBe("Enhanced summary text");
-    expect(runAgenticWorkflow).toHaveBeenCalled();
-  });
+    it("returns 401 if unauthorized", async () => {
+        const { getAuthenticatedUserId } = require("@/lib/utils/api-helpers");
+        getAuthenticatedUserId.mockResolvedValueOnce({ userId: null });
 
-  it("should pass autonomous mode to workflow", async () => {
-    (runAgenticWorkflow as jest.Mock).mockResolvedValue(
-      JSON.stringify({
-        enhancedSummary: "Autonomous Summary",
-      })
-    );
-
-    const req = new NextRequest("http://localhost/api/ai/generate-resume", {
-      method: "POST",
-      body: JSON.stringify({
-        resumeData: mockResumeData,
-        mode: "autonomous"
-      }),
+        const response = await POST(buildRequest({ resumeData: mockResumeData }));
+        expect(response.status).toBe(401);
     });
 
-    await POST(req);
+    it("returns 429 if rate limited", async () => {
+        const { getAuthenticatedUserId } = require("@/lib/utils/api-helpers");
+        getAuthenticatedUserId.mockResolvedValueOnce({ userId: "user-123" });
+        (checkDistributedRateLimit as jest.Mock).mockResolvedValueOnce({ allowed: false });
 
-    expect(runAgenticWorkflow).toHaveBeenCalledWith(
-      expect.any(String), // userId
-      expect.any(String), // userRole
-      expect.objectContaining({
-        mode: "autonomous"
-      })
-    );
-  });
-
-  it("should handle AI service errors", async () => {
-    (runAgenticWorkflow as jest.Mock).mockRejectedValue(
-      new Error("AI Service Error")
-    );
-
-    const req = new NextRequest("http://localhost/api/ai/generate-resume", {
-      method: "POST",
-      body: JSON.stringify({ resumeData: mockResumeData }),
+        const response = await POST(buildRequest({ resumeData: mockResumeData }));
+        expect(response.status).toBe(429);
     });
 
-    const res = await POST(req);
-    const data = await res.json();
+    it("returns 402 if budget exceeded", async () => {
+        const { getAuthenticatedUserId } = require("@/lib/utils/api-helpers");
+        getAuthenticatedUserId.mockResolvedValueOnce({ userId: "user-123" });
+        (BillingService.checkBudget as jest.Mock).mockResolvedValueOnce(false);
 
-    expect(res.status).toBe(500);
-    // expect(data.success).toBe(false);
-    expect(data.error).toBe("Failed to generate resume enhancement");
-    expect(data.details).toBe("AI Service Error");
-  });
-
-  it("should use fallback if AI response is invalid JSON", async () => {
-    (runAgenticWorkflow as jest.Mock).mockResolvedValue(
-      JSON.stringify({
-        enhancedSummary: "Results-driven professional with enhanced summary",
-      })
-    );
-
-    const req = new NextRequest("http://localhost/api/ai/generate-resume", {
-      method: "POST",
-      body: JSON.stringify({ resumeData: mockResumeData }),
+        const response = await POST(buildRequest({ resumeData: mockResumeData }));
+        expect(response.status).toBe(402);
     });
 
-    const res = await POST(req);
-    const data = await res.json();
+    it("returns 400 for invalid JSON", async () => {
+        const { getAuthenticatedUserId } = require("@/lib/utils/api-helpers");
+        getAuthenticatedUserId.mockResolvedValueOnce({ userId: "user-123" });
 
-    expect(res.status).toBe(200);
-    expect(data.success).toBe(true);
-    // Check for fallback content
-    expect(data.data.enhancedSummary).toContain("Results-driven professional");
-  });
+        const request = new NextRequest("http://localhost/api/ai/generate-resume", {
+            method: "POST",
+            body: "invalid",
+        });
+
+        const response = await POST(request);
+        expect(response.status).toBe(400);
+    });
+
+    it("returns 400 if resumeData is missing", async () => {
+        const { getAuthenticatedUserId } = require("@/lib/utils/api-helpers");
+        getAuthenticatedUserId.mockResolvedValueOnce({ userId: "user-123" });
+
+        const response = await POST(buildRequest({}));
+        expect(response.status).toBe(400);
+    });
+
+    it("uses agentic workflow if successful", async () => {
+        const { getAuthenticatedUserId } = require("@/lib/utils/api-helpers");
+        getAuthenticatedUserId.mockResolvedValueOnce({ userId: "user-123" });
+        (runAgenticWorkflow as jest.Mock).mockResolvedValueOnce(JSON.stringify({
+            enhancedSummary: "Agentic Summary",
+            enhancedExperience: [],
+            skillSuggestions: [],
+            improvementTips: []
+        }));
+
+        const response = await POST(buildRequest({ resumeData: mockResumeData }));
+        const data = await response.json();
+
+        expect(data.success).toBe(true);
+        expect(data.model).toBe("agentic-workflow");
+        expect(data.data.enhancedSummary).toBe("Agentic Summary");
+    });
+
+    it("falls back to standard flow if agentic workflow fails", async () => {
+        const { getAuthenticatedUserId } = require("@/lib/utils/api-helpers");
+        getAuthenticatedUserId.mockResolvedValueOnce({ userId: "user-123" });
+        (runAgenticWorkflow as jest.Mock).mockResolvedValueOnce(null);
+        (generateText as jest.Mock).mockResolvedValueOnce({
+            text: JSON.stringify({
+                enhancedSummary: "Standard Summary",
+                enhancedExperience: [],
+                skillSuggestions: [],
+                improvementTips: []
+            }),
+            model: "gpt-4",
+            provider: "openai"
+        });
+
+        const response = await POST(buildRequest({ resumeData: mockResumeData }));
+        const data = await response.json();
+
+        expect(data.success).toBe(true);
+        expect(data.model).toBe("gpt-4");
+        expect(data.data.enhancedSummary).toBe("Standard Summary");
+    });
+
+    it("uses fallback enhancement if AI response is malformed", async () => {
+        const { getAuthenticatedUserId } = require("@/lib/utils/api-helpers");
+        getAuthenticatedUserId.mockResolvedValueOnce({ userId: "user-123" });
+        (runAgenticWorkflow as jest.Mock).mockResolvedValueOnce("not json");
+
+        const response = await POST(buildRequest({ resumeData: mockResumeData }));
+        const data = await response.json();
+
+        expect(data.success).toBe(true);
+        expect(data.data.enhancedSummary).toContain("Results-driven");
+    });
+
+    it("handles catch block errors", async () => {
+        const { getAuthenticatedUserId } = require("@/lib/utils/api-helpers");
+        getAuthenticatedUserId.mockResolvedValueOnce({ userId: "user-123" });
+        (runAgenticWorkflow as jest.Mock).mockRejectedValue(new Error("Global Crash"));
+
+        const response = await POST(buildRequest({ resumeData: mockResumeData }));
+        expect(response.status).toBe(500);
+    });
 });

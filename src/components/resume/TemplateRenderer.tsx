@@ -50,11 +50,7 @@ interface ContactDisplay {
   href?: string;
 }
 
-const buildContactHref = (field: ContactField, value?: string) => {
-  if (!value) {
-    return undefined;
-  }
-
+const buildContactHref = (field: ContactField, value: string) => {
   if (field === "email") {
     return `mailto:${value}`;
   }
@@ -127,7 +123,7 @@ export const TemplateRenderer: React.FC<TemplateRendererProps> = ({
   }
 
   const personalInfo = data.personalInfo || {};
-  const viewerAccess = (data.viewerAccess as ViewerAccessMeta) ?? {};
+  const viewerAccess = (data.viewerAccess as ViewerAccessMeta) || {};
   const allowsFullContact =
     viewerAccess.isOwner === true ||
     (viewerAccess.scope
@@ -162,16 +158,11 @@ export const TemplateRenderer: React.FC<TemplateRendererProps> = ({
     }
 
     if (isMaskedView) {
-      const maskedLabel =
-        entryValue ||
-        personalValue ||
-        (visibility === "request"
-          ? "Available upon request"
-          : baseValue
-            ? renderContactField(baseValue, "masked", field)
-            : "Available upon request");
-
-      return maskedLabel ? { label: maskedLabel } : null;
+      const valueToMask = entryValue || personalValue;
+      if (valueToMask) {
+        return { label: renderContactField(valueToMask, "masked", field) };
+      }
+      return { label: "Available upon request" };
     }
 
     if (visibility === "public") {
@@ -269,7 +260,7 @@ export const TemplateRenderer: React.FC<TemplateRendererProps> = ({
       case "projects":
         return normalizeProjects(data.projects);
       default:
-        return null;
+        return (data as any)[fieldId] || null;
     }
   };
 
@@ -304,9 +295,9 @@ export const TemplateRenderer: React.FC<TemplateRendererProps> = ({
           </div>
           {contactItems.length > 0 && (
             <div className="flex flex-wrap gap-3 text-sm text-gray-700">
-              {contactItems.map((item) => (
+              {contactItems.map((item, idx) => (
                 <a
-                  key={item.label}
+                  key={`${item.label}-${idx}`}
                   href={item.href}
                   target={item.href ? "_blank" : undefined}
                   rel={item.href ? "noreferrer" : undefined}

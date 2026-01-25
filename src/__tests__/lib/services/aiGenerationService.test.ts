@@ -7,7 +7,7 @@ jest.mock("@/lib/utils/retry", () => ({
 
 describe("aiGenerationService", () => {
   const originalEnv = process.env;
-  let generateText: (prompt: string, maxTokens?: number, temperature?: number, model?: string) => Promise<{ text: string; model: string; provider: string }>;
+  let generateText: (prompt: string, maxTokens?: number, temperature?: number, model?: string) => Promise<{ text: string; model: string; provider: string; usage?: any }>;
 
   beforeEach(async () => {
     jest.resetModules();
@@ -371,6 +371,287 @@ describe("aiGenerationService", () => {
           "Unexpected HuggingFace response format"
         );
       }
+    });
+
+    it("should validate context window and throw if exceeded", async () => {
+      process.env.GEMINI_API_KEY = "test-key";
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({ models: [{ name: "gemini", supportedGenerationMethods: ["generateContent"] }] }),
+      });
+
+      const longPrompt = "a".repeat(150000); // Exceeds MAX_TOKENS_GEMINI (30000 * 4 = 120000 chars)
+      await expect(generateText(longPrompt)).rejects.toThrow(/Prompt exceeds/);
+    });
+
+    it("should use a specific model if requested", async () => {
+      process.env.GEMINI_API_KEY = "test-key";
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          candidates: [{ content: { parts: [{ text: "Override text" }] } }],
+        }),
+      });
+
+      const result = await generateText("prompt", 100, 0.7, "requested-model");
+      expect(result.model).toBe("requested-model");
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("requested-model"),
+        expect.anything()
+      );
+    });
+
+    it("should use requested model override in Gemini", async () => {
+      process.env.GEMINI_API_KEY = "test-gemini-key";
+
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            models: [{ name: "models/cached-model", supportedGenerationMethods: ["generateContent"] }]
+          })
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            candidates: [{ content: { parts: [{ text: "Override result" }] } }],
+          }),
+        });
+
+      const result = await generateText("prompt", 150, 0.7, "custom-model");
+
+      expect(result.text).toBe("Override result");
+      expect(result.model).toBe("custom-model");
+      // Note: currently loadModelSelection is called even if model override is provided
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+      expect((global.fetch as jest.Mock).mock.calls[1][0]).toContain("custom-model");
+    });
+  });
+
+  describe("cache management", () => {
+    it("should invalidate cache and get correctly reported status", async () => {
+      const { invalidateModelCache, getCacheStatus } = await import("@/lib/services/aiGenerationService");
+
+      // Initially no cache
+      expect(getCacheStatus().isCached).toBe(false);
+
+      process.env.GEMINI_API_KEY = "test-gemini-key";
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ models: [{ name: "models/gemini-1", supportedGenerationMethods: ["generateContent"] }] })
+      }).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ candidates: [{ content: { parts: [{ text: "text" }] } }] })
+      });
+
+      await generateText("prompt");
+
+      expect(getCacheStatus().isCached).toBe(true);
+      expect(getCacheStatus().modelsCount).toBe(1);
+
+      invalidateModelCache();
+      expect(getCacheStatus().isCached).toBe(false);
+    });
+  });
+
+  describe("context window validation", () => {
+    it("should throw error when prompt is too long for gemini", async () => {
+      process.env.GEMINI_API_KEY = "test-gemini-key";
+      // MAX_TOKENS_GEMINI = 30000, TOKENS_PER_CHAR = 0.25 -> 120000 chars
+      const longPrompt = "a".repeat(130000);
+
+      await expect(generateText(longPrompt, 150, 0.7, "gemini-model")).rejects.toThrow(/Prompt exceeds/);
+    });
+
+    it("should throw error when prompt is too long for gpt-4", async () => {
+      process.env.OPENAI_API_KEY = "test-openai-key";
+      // gpt-4 limit 8000 -> 32000 chars
+      const longPrompt = "a".repeat(40000);
+
+      // Force OpenAI by making Gemini fail or missing key
+      delete process.env.GEMINI_API_KEY;
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ choices: [{ message: { content: "ok" } }] })
+      });
+
+      // Note: generateText doesn't take model for OpenAI yet, it's hardcoded to gpt-4o-mini
+      // But we can check if it throws if we could pass it. 
+      // Actually generateWithOpenAI is called which calls validateContextWindow(prompt, "gpt-4o-mini").
+      // Wait, let's check the code: model = "gpt-4o-mini"; await validateContextWindow(prompt, model);
+      // gpt-4o-mini is not explicitly mentioned in if/else if in validateContextWindow, so it uses MAX_TOKENS_DEFAULT (4000)
+
+      const promptForDefault = "a".repeat(35000); // 35000 * 0.25 = 8750 tokens > 8000
+      await expect(generateText(promptForDefault)).rejects.toThrow(/Prompt exceeds/);
+    });
+  });
+
+  describe("generateWithOpenAI", () => {
+    it("should use OpenAI when Gemini is not available", async () => {
+      delete process.env.GEMINI_API_KEY;
+      process.env.OPENAI_API_KEY = "test-openai-key";
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { content: "OpenAI response" } }],
+          usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 }
+        })
+      });
+
+      const result = await generateText("prompt");
+      expect(result.text).toBe("OpenAI response");
+      expect(result.provider).toBe("openai");
+      expect(result.usage).toEqual({
+        promptTokens: 10,
+        completionTokens: 20,
+        totalTokens: 30
+      });
+    });
+
+    it("should handle OpenAI error", async () => {
+      delete process.env.GEMINI_API_KEY;
+      process.env.OPENAI_API_KEY = "test-openai-key";
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        text: () => Promise.resolve("Invalid API Key")
+      });
+
+      await expect(generateText("prompt")).rejects.toThrow(/All AI providers failed/);
+    });
+  });
+
+  describe("generateWithGroq", () => {
+    it("should use Groq when others unavailable", async () => {
+      delete process.env.GEMINI_API_KEY;
+      delete process.env.OPENAI_API_KEY;
+      process.env.GROQ_API_KEY = "test-groq-key";
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { content: "Groq response" } }],
+          usage: { prompt_tokens: 5, completion_tokens: 10, total_tokens: 15 }
+        })
+      });
+
+      const result = await generateText("prompt");
+      expect(result.text).toBe("Groq response");
+      expect(result.provider).toBe("groq");
+    });
+  });
+
+  describe("generateEmbedding", () => {
+    it("should generate embeddings using Gemini", async () => {
+      const { generateEmbedding } = await import("@/lib/services/aiGenerationService");
+      process.env.GEMINI_API_KEY = "test-gemini-key";
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          embedding: { values: [0.1, 0.2, 0.3] }
+        })
+      });
+
+      const result = await generateEmbedding("text to embed");
+      expect(result).toEqual([0.1, 0.2, 0.3]);
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("text-embedding-004:embedContent"),
+        expect.any(Object)
+      );
+    });
+
+    it("should throw error on embedding failure", async () => {
+      const { generateEmbedding } = await import("@/lib/services/aiGenerationService");
+      process.env.GEMINI_API_KEY = "test-gemini-key";
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        text: () => Promise.resolve("Internal Server Error")
+      });
+
+      await expect(generateEmbedding("text")).rejects.toThrow(/Embedding failed/);
+    });
+
+    it("should throw error if Gemini API key is missing for embedding", async () => {
+      const { generateEmbedding } = await import("@/lib/services/aiGenerationService");
+      delete process.env.GEMINI_API_KEY;
+
+      await expect(generateEmbedding("text")).rejects.toThrow("Gemini API key missing");
+    });
+
+    it("should handle invalid embedding response structure", async () => {
+      const { generateEmbedding } = await import("@/lib/services/aiGenerationService");
+      process.env.GEMINI_API_KEY = "test-key";
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ foo: "bar" })
+      });
+      await expect(generateEmbedding("text")).rejects.toThrow("Invalid embedding response structure");
+    });
+  });
+
+  describe("API error handling", () => {
+    it("should handle failed model fetch in Gemini", async () => {
+      process.env.GEMINI_API_KEY = "test-key";
+      // 1. Gemini Models fetch fails
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 500
+      });
+      // 2. Gemini Generation success (falls back to preferences)
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          candidates: [{ content: { parts: [{ text: "fallback text" }] } }]
+        })
+      });
+
+      const result = await generateText("prompt");
+      expect(result.provider).toBe("gemini");
+      expect(result.text).toBe("fallback text");
+    });
+
+    it("should handle empty response from Gemini", async () => {
+      process.env.GEMINI_API_KEY = "test-key";
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ models: [{ name: "gemini", supportedGenerationMethods: ["generateContent"] }] })
+      }).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ candidates: [] })
+      });
+      // Falls back to other providers or throws if all fail
+      await expect(generateText("prompt")).rejects.toThrow();
+    });
+
+    it("should handle empty response from OpenAI", async () => {
+      delete process.env.GEMINI_API_KEY;
+      process.env.OPENAI_API_KEY = "test-key";
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ choices: [] })
+      });
+      await expect(generateText("prompt")).rejects.toThrow();
+    });
+
+    it("should handle Groq API key missing", async () => {
+      delete process.env.GEMINI_API_KEY;
+      delete process.env.OPENAI_API_KEY;
+      delete process.env.GROQ_API_KEY;
+      process.env.HUGGINGFACE_TOKEN = "test-key";
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ generated_text: "hf" })
+      });
+
+      const result = await generateText("prompt");
+      expect(result.provider).toBe("huggingface");
     });
   });
 });

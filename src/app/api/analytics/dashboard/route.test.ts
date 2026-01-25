@@ -30,9 +30,30 @@ const mockDocObj = {
 };
 
 // Circular references
-mockCollectionObj.doc.mockReturnValue(mockDocObj);
+mockCollectionObj.doc.mockImplementation((id: string) => {
+  if (id === "admin-user") {
+    return {
+      ...mockDocObj,
+      get: jest.fn().mockResolvedValue({
+        exists: true,
+        data: () => ({ role: "admin" }),
+      }),
+    };
+  }
+  if (id === "non-admin-user") {
+    return {
+      ...mockDocObj,
+      get: jest.fn().mockResolvedValue({
+        exists: true,
+        data: () => ({ role: "seeker" }),
+      }),
+    };
+  }
+  return mockDocObj;
+});
 mockCollectionObj.orderBy.mockReturnValue(mockCollectionObj);
 mockCollectionObj.limit.mockReturnValue(mockCollectionObj);
+// Use a function to return the *current* collection obj to handle recursive calls if any
 mockDocObj.collection.mockReturnValue(mockCollectionObj);
 
 jest.mock("@/lib/firebase-admin", () => ({
@@ -167,6 +188,46 @@ describe("GET /api/analytics/dashboard", () => {
       expect(data.data.attractivenessScore).toBeGreaterThanOrEqual(50);
       expect(data.data.attractivenessScore).toBeLessThanOrEqual(85);
       expect(data.timestamp).toBeDefined();
+    });
+
+    it("should return analytics for admin when userId is different", async () => {
+      // Mock getAuthenticatedUserId to return an admin
+      const mockGetAuthenticatedUserId = require("@/lib/utils/api-helpers")
+        .getAuthenticatedUserId as jest.Mock;
+      mockGetAuthenticatedUserId.mockResolvedValueOnce({ userId: "admin-user", error: null });
+
+      // Mock admin role check
+      // Mock admin role check handled by doc implementation
+
+
+      const request = new NextRequest(
+        "http://localhost:3000/api/analytics/dashboard?resumeId=test-resume&userId=other-user",
+        { headers: { authorization: "Bearer admin-token" }, method: "GET" }
+      );
+
+      const response = await GET(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+    });
+
+    it("should return 403 when non-admin tries to access other user's analytics", async () => {
+      const mockGetAuthenticatedUserId = require("@/lib/utils/api-helpers")
+        .getAuthenticatedUserId as jest.Mock;
+      mockGetAuthenticatedUserId.mockResolvedValueOnce({ userId: "non-admin-user", error: null });
+
+      // Mock non-admin role check
+      // Mock non-admin role check handled by doc implementation
+
+
+      const request = new NextRequest(
+        "http://localhost:3000/api/analytics/dashboard?resumeId=test-resume&userId=other-user",
+        { headers: { authorization: "Bearer token" }, method: "GET" }
+      );
+
+      const response = await GET(request);
+      expect(response.status).toBe(403);
     });
 
     it("should return 400 when resumeId is missing", async () => {
@@ -318,6 +379,42 @@ describe("GET /api/analytics/dashboard", () => {
       expect(data.data).toEqual(mockDashboard);
       expect(data.timestamp).toBeDefined();
       expect(getDashboardAnalytics).toHaveBeenCalled();
+    });
+
+    it("should return 401 when auth error occurs in POST", async () => {
+      const mockGetAuthenticatedUserId = require("@/lib/utils/api-helpers")
+        .getAuthenticatedUserId as jest.Mock;
+      mockGetAuthenticatedUserId.mockResolvedValueOnce({
+        userId: null,
+        error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+      });
+
+      const request = new NextRequest("http://localhost:3000/api/analytics/dashboard", {
+        method: "POST",
+        body: JSON.stringify({ resumeId: "test" }),
+      });
+
+      const response = await POST(request);
+      expect(response.status).toBe(401);
+    });
+
+    it("should allow admin to access other user's dashboard in POST", async () => {
+      const mockGetAuthenticatedUserId = require("@/lib/utils/api-helpers")
+        .getAuthenticatedUserId as jest.Mock;
+      mockGetAuthenticatedUserId.mockResolvedValueOnce({ userId: "admin-user", error: null });
+
+      mockGet.mockResolvedValueOnce({
+        exists: true,
+        data: () => ({ role: "admin" }),
+      });
+
+      const request = new NextRequest("http://localhost:3000/api/analytics/dashboard", {
+        method: "POST",
+        body: JSON.stringify({ resumeId: "test", userId: "other-user" }),
+      });
+
+      const response = await POST(request);
+      expect(response.status).toBe(200);
     });
 
     it("should return 400 when resumeId is missing from body", async () => {

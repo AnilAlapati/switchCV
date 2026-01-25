@@ -1,10 +1,12 @@
 import React from "react";
-import { render, screen } from "../__support__/testUtils";
+import { render, screen, fireEvent } from "../__support__/testUtils";
 import { ResumePageLayout } from "@/components/resume/ResumePageLayout";
+
+const mockPush = jest.fn();
 
 jest.mock("next/navigation", () => ({
   useRouter: () => ({
-    push: jest.fn(),
+    push: mockPush,
   }),
 }));
 
@@ -38,40 +40,49 @@ describe("ResumePageLayout", () => {
     enhancedSummary: "Optimized summary",
   };
 
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it("renders layout with title", () => {
     render(
       <ResumePageLayout
         resume={mockResume}
-        enhancedContent={mockEnhanced}
+        enhancedContent={mockEnhanced as any}
         requestOnlyFields={false}
-      />
+      />,
     );
 
     expect(screen.getByText("Senior Developer")).toBeInTheDocument();
   });
 
   it("displays last updated date", () => {
+    const date = new Date("2023-01-01");
+    mockResume.lastUpdatedAt = date.toISOString();
+
     render(
       <ResumePageLayout
         resume={mockResume}
-        enhancedContent={mockEnhanced}
+        enhancedContent={mockEnhanced as any}
         requestOnlyFields={false}
-      />
+      />,
     );
 
-    expect(screen.getByText(/Last Updated/)).toBeInTheDocument();
+    expect(screen.getByText("January 1, 2023")).toBeInTheDocument();
   });
 
-  it("renders back button", () => {
+  it("calls router.push when back button is clicked", () => {
     render(
       <ResumePageLayout
         resume={mockResume}
-        enhancedContent={mockEnhanced}
+        enhancedContent={mockEnhanced as any}
         requestOnlyFields={false}
-      />
+      />,
     );
 
-    expect(screen.getByRole("button", { name: /Back/ })).toBeInTheDocument();
+    const backButton = screen.getByRole("button", { name: /Back/ });
+    fireEvent.click(backButton);
+    expect(mockPush).toHaveBeenCalledWith("/");
   });
 
   it("shows default title when title contains undefined", () => {
@@ -80,21 +91,49 @@ describe("ResumePageLayout", () => {
     render(
       <ResumePageLayout
         resume={invalidResume}
-        enhancedContent={mockEnhanced}
+        enhancedContent={mockEnhanced as any}
         requestOnlyFields={false}
-      />
+      />,
     );
 
     expect(screen.getByText("Professional Resume")).toBeInTheDocument();
+  });
+
+  it("shows default title when title is empty", () => {
+    const invalidResume = { title: "" } as any;
+
+    render(
+      <ResumePageLayout
+        resume={invalidResume}
+        enhancedContent={mockEnhanced as any}
+        requestOnlyFields={false}
+      />,
+    );
+
+    expect(screen.getByText("Professional Resume")).toBeInTheDocument();
+  });
+
+  it("shows lock badge when requestOnlyFields is true", () => {
+    render(
+      <ResumePageLayout
+        resume={mockResume}
+        enhancedContent={mockEnhanced as any}
+        requestOnlyFields={true}
+      />,
+    );
+
+    expect(
+      screen.getByText(/Some information available upon request/),
+    ).toBeInTheDocument();
   });
 
   it("renders all resume sections", () => {
     render(
       <ResumePageLayout
         resume={mockResume}
-        enhancedContent={mockEnhanced}
+        enhancedContent={mockEnhanced as any}
         requestOnlyFields={false}
-      />
+      />,
     );
 
     expect(screen.getByTestId("contact")).toBeInTheDocument();

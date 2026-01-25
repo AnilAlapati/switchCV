@@ -98,7 +98,14 @@ export function verifyCsrfToken(sessionId: string, token: string): boolean {
   }
 
   // Use constant-time comparison to prevent timing attacks
-  return crypto.timingSafeEqual(Buffer.from(stored.token), Buffer.from(token));
+  const storedBuffer = Buffer.from(stored.token);
+  const tokenBuffer = Buffer.from(token);
+
+  if (storedBuffer.length !== tokenBuffer.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(storedBuffer, tokenBuffer);
 }
 
 /**
@@ -153,7 +160,7 @@ async function extractCsrfToken(request: NextRequest): Promise<string | null> {
   const cookieHeader = request.headers.get("cookie");
   if (cookieHeader) {
     const match = cookieHeader.match(
-      new RegExp(`${CSRF_CONFIG.COOKIE_NAME}=([^;]+)`)
+      new RegExp(`${CSRF_CONFIG.COOKIE_NAME}=([^;]+)`),
     );
     if (match) {
       return decodeURIComponent(match[1]);
@@ -169,7 +176,7 @@ async function extractCsrfToken(request: NextRequest): Promise<string | null> {
  * @returns {Promise<{valid: boolean; error?: NextResponse}>} Validation result
  */
 export async function validateCsrfToken(
-  request: NextRequest
+  request: NextRequest,
 ): Promise<{ valid: boolean; error?: NextResponse }> {
   // Skip CSRF validation for safe methods
   if (!PROTECTED_METHODS.includes(request.method)) {
@@ -187,7 +194,7 @@ export async function validateCsrfToken(
           error: "CSRF token missing",
           code: "CSRF_TOKEN_MISSING",
         },
-        { status: 403 }
+        { status: 403 },
       ),
     };
   }
@@ -200,7 +207,7 @@ export async function validateCsrfToken(
           error: "CSRF token invalid or expired",
           code: "CSRF_TOKEN_INVALID",
         },
-        { status: 403 }
+        { status: 403 },
       ),
     };
   }
@@ -246,7 +253,7 @@ export function csrfMiddleware() {
  */
 export function withCsrfToken(
   response: NextResponse,
-  sessionId: string
+  sessionId: string,
 ): NextResponse {
   const token = createCsrfToken(sessionId);
 
