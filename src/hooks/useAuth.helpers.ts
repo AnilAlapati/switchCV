@@ -22,9 +22,9 @@ export const sanitizeUsername = (value: string) =>
     .replace(/[^a-z0-9-_]/g, "")
     .replace(/-{2,}/g, "-");
 
-const PROPAGATION_TIMEOUT_MS = 7000;
-const PROPAGATION_POLL_INTERVAL_MS = 250;
-const RETRY_BASE_DELAY_MS = 300;
+const PROPAGATION_TIMEOUT_MS = 3000; // Reduced from 7s to 3s
+const PROPAGATION_POLL_INTERVAL_MS = 150; // Reduced from 250ms to 150ms for faster checks
+const RETRY_BASE_DELAY_MS = 200; // Reduced from 300ms to 200ms
 
 const delay = (ms: number) =>
   new Promise((resolve) => {
@@ -45,14 +45,14 @@ const isPermissionError = (error: { code?: string; message?: string }) => {
 
 export const isPasswordProvider = (firebaseUser: User | null) =>
   !!firebaseUser?.providerData.some(
-    (provider) => provider.providerId === "password"
+    (provider) => provider.providerId === "password",
   );
 
 export function createAuthProfileHelpers(db: Firestore | null | undefined) {
   const firestoreUnavailable = !db || (db as { __isMock?: boolean }).__isMock;
 
   const waitForAuthPropagation = async (
-    profileRef: DocumentReference
+    profileRef: DocumentReference,
   ): Promise<void> => {
     if (firestoreUnavailable || !db) {
       return;
@@ -72,19 +72,19 @@ export function createAuthProfileHelpers(db: Firestore | null | undefined) {
     }
 
     throw new Error(
-      "We're finalizing your account setup. Please try again in a few seconds."
+      "We're finalizing your account setup. Please try again in a few seconds.",
     );
   };
 
   const reserveUsername = async (
     uid: string,
     username: string,
-    profileData?: Record<string, unknown>
+    profileData?: Record<string, unknown>,
   ) => {
     const normalized = sanitizeUsername(username);
     if (!normalized || !USERNAME_REGEX.test(normalized)) {
       throw new Error(
-        "Usernames must be 3-30 characters and can include lowercase letters, numbers, hyphens, and underscores."
+        "Usernames must be 3-30 characters and can include lowercase letters, numbers, hyphens, and underscores.",
       );
     }
 
@@ -103,9 +103,14 @@ export function createAuthProfileHelpers(db: Firestore | null | undefined) {
     // Retry logic with exponential backoff to handle Firebase Auth-to-Firestore
     // propagation delay. After creating a user, there can be a 0-2 second delay
     // before Firestore security rules can validate the auth token.
-    const maxRetries = 5;
+    const maxRetries = 3; // Reduced from 5 to 3 for faster failure
 
-    await waitForAuthPropagation(profileRef);
+    // Only wait for auth propagation if the profile doesn't exist yet
+    // For existing users (e.g., Google OAuth setting username), skip this wait
+    const profileSnapshot = await getDoc(profileRef);
+    if (!profileSnapshot.exists()) {
+      await waitForAuthPropagation(profileRef);
+    }
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
@@ -113,7 +118,7 @@ export function createAuthProfileHelpers(db: Firestore | null | undefined) {
           const usernameSnapshot = await transaction.get(usernameRef);
           if (usernameSnapshot.exists()) {
             const err: UsernameReservationError = new Error(
-              "This username is already taken."
+              "This username is already taken.",
             );
             err.code = "username-taken";
             throw err;
@@ -132,7 +137,7 @@ export function createAuthProfileHelpers(db: Firestore | null | undefined) {
               updatedAt: serverTimestamp(),
               ...identitySafeProfile,
             },
-            { merge: true }
+            { merge: true },
           );
         });
 
@@ -161,7 +166,7 @@ export function createAuthProfileHelpers(db: Firestore | null | undefined) {
       return;
     }
 
-    const attempts = 5;
+    const attempts = 3; // Reduced from 5 to 3 for faster completion
     let lastError: unknown;
     for (let attempt = 0; attempt < attempts; attempt++) {
       const suffix =
@@ -185,15 +190,19 @@ export function createAuthProfileHelpers(db: Firestore | null | undefined) {
 
   const ensureUserProfile = async (
     firebaseUser: User,
-    options?: { username?: string; autoGenerate?: boolean }
+    options?: { username?: string; autoGenerate?: boolean },
   ): Promise<{ isNewUser: boolean; needsUsername: boolean }> => {
     if (firestoreUnavailable || !db) {
       return { isNewUser: false, needsUsername: false };
     }
 
-    // Ensure we have a fresh token before writing to Firestore
-    // This prevents "Missing or insufficient permissions" errors due to race conditions
-    await firebaseUser.getIdToken(true);
+    // Get current token without forcing refresh - only refresh if needed
+    // This significantly reduces latency for users who just signed in
+    try {
+      await firebaseUser.getIdToken(false); // Don't force refresh
+    } catch {
+      await firebaseUser.getIdToken(true); // Force refresh only on error
+    }
 
     const profileRef = doc(db, "users", firebaseUser.uid);
     const profileSnapshot = await getDoc(profileRef);
@@ -202,7 +211,7 @@ export function createAuthProfileHelpers(db: Firestore | null | undefined) {
 
     // Check if user is signing in via Google (OAuth)
     const isGoogleAuth = firebaseUser.providerData.some(
-      (provider) => provider.providerId === "google.com"
+      (provider) => provider.providerId === "google.com",
     );
 
     if (isNewUser) {
@@ -235,7 +244,7 @@ export function createAuthProfileHelpers(db: Firestore | null | undefined) {
         await setDoc(
           profileRef,
           { needsUsername: false, updatedAt: serverTimestamp() },
-          { merge: true }
+          { merge: true },
         );
         return { isNewUser: true, needsUsername: false };
       }
@@ -265,7 +274,7 @@ export function createAuthProfileHelpers(db: Firestore | null | undefined) {
         await setDoc(
           profileRef,
           { needsUsername: false, updatedAt: serverTimestamp() },
-          { merge: true }
+          { merge: true },
         );
         return { isNewUser: false, needsUsername: false };
       }
@@ -277,7 +286,7 @@ export function createAuthProfileHelpers(db: Firestore | null | undefined) {
 
   const releaseUsernameReservation = async (
     uid: string,
-    username?: string
+    username?: string,
   ): Promise<void> => {
     if (firestoreUnavailable || !db || !username) {
       return;
