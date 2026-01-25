@@ -59,11 +59,11 @@ export function RecruiterDashboard({
       totalProfileViews: metrics?.totalProfileViews ?? 0,
       totalCandidatesInteracted: metrics?.totalCandidatesInteracted ?? 0,
     };
-  }, [metrics]);
+  }, [metrics, pipelinePanelEnabled]);
 
   const actionItems = useMemo(
     () => buildRecruiterActionPlan({ metrics, onLaunchSearch }),
-    [metrics, onLaunchSearch]
+    [metrics, onLaunchSearch],
   );
 
   const insights = useMemo(() => buildRecruiterInsights(metrics), [metrics]);

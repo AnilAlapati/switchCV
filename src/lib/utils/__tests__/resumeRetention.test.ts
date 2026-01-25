@@ -51,7 +51,7 @@ describe("resumeRetention utility", () => {
     });
 
     it("should handle invalid dates by returning safe status", () => {
-      // @ts-ignore - testing runtime safety
+      // @ts-expect-error - testing runtime safety
       const status = calculateRetentionStatus("", "", "basic");
       expect(status.isExpiring).toBe(false);
       expect(status.urgencyLevel).toBe("safe");

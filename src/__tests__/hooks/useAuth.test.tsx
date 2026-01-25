@@ -33,11 +33,11 @@ jest.mock("@/hooks/useAuth.helpers", () => ({
     // Check if user has a password provider
     if (!user) return false;
     return (user.providerData || []).some(
-      (provider: { providerId: string }) => provider.providerId === "password"
+      (provider: { providerId: string }) => provider.providerId === "password",
     );
   }),
   sanitizeUsername: jest.fn((username) =>
-    username?.toLowerCase().replace(/\s+/g, "_")
+    username?.toLowerCase().replace(/\s+/g, "_"),
   ),
   USERNAME_REGEX: /^[a-z0-9_-]{3,30}$/,
 }));
@@ -70,13 +70,13 @@ describe("useAuth hook - State Management", () => {
       (auth, callback) => {
         setTimeout(() => callback(null), 0);
         return jest.fn();
-      }
+      },
     );
 
     render(
       <AuthProvider>
         <TestComponent />
-      </AuthProvider>
+      </AuthProvider>,
     );
 
     // Initially loading
@@ -99,13 +99,13 @@ describe("useAuth hook - State Management", () => {
       (auth, callback) => {
         callback(mockUser);
         return jest.fn();
-      }
+      },
     );
 
     render(
       <AuthProvider>
         <TestComponent />
-      </AuthProvider>
+      </AuthProvider>,
     );
 
     await waitFor(() => {
@@ -124,18 +124,18 @@ describe("useAuth hook - State Management", () => {
       (auth, callback) => {
         callback(mockUser);
         return jest.fn();
-      }
+      },
     );
 
     render(
       <AuthProvider>
         <TestComponent />
-      </AuthProvider>
+      </AuthProvider>,
     );
 
     await waitFor(() => {
       expect(screen.getByTestId("verificationEmail")).toHaveTextContent(
-        "newuser@example.com"
+        "newuser@example.com",
       );
     });
   });
@@ -145,13 +145,13 @@ describe("useAuth hook - State Management", () => {
       (auth, callback) => {
         callback(null);
         return jest.fn();
-      }
+      },
     );
 
     render(
       <AuthProvider>
         <TestComponent />
-      </AuthProvider>
+      </AuthProvider>,
     );
 
     await waitFor(() => {
@@ -171,7 +171,7 @@ describe("useAuth hook - State Management", () => {
       (auth, callback) => {
         callback(mockUser);
         return jest.fn();
-      }
+      },
     );
 
     const VerificationTestComponent = () => {
@@ -186,12 +186,12 @@ describe("useAuth hook - State Management", () => {
     render(
       <AuthProvider>
         <VerificationTestComponent />
-      </AuthProvider>
+      </AuthProvider>,
     );
 
     await waitFor(() => {
       expect(screen.getByTestId("needs-verification")).toHaveTextContent(
-        "required"
+        "required",
       );
     });
   });
@@ -208,7 +208,7 @@ describe("useAuth hook - State Management", () => {
       (auth, callback) => {
         callback(mockUser);
         return jest.fn();
-      }
+      },
     );
 
     const VerificationTestComponent = () => {
@@ -223,12 +223,12 @@ describe("useAuth hook - State Management", () => {
     render(
       <AuthProvider>
         <VerificationTestComponent />
-      </AuthProvider>
+      </AuthProvider>,
     );
 
     await waitFor(() => {
       expect(screen.getByTestId("needs-verification")).toHaveTextContent(
-        "not-required"
+        "not-required",
       );
     });
   });
@@ -238,7 +238,7 @@ describe("useAuth hook - State Management", () => {
       (auth, callback) => {
         callback(null);
         return jest.fn();
-      }
+      },
     );
 
     const HookTestComponent = () => {
@@ -272,7 +272,7 @@ describe("useAuth hook - State Management", () => {
     render(
       <AuthProvider>
         <HookTestComponent />
-      </AuthProvider>
+      </AuthProvider>,
     );
 
     await waitFor(() => {
@@ -313,7 +313,7 @@ describe("useAuth hook - State Management", () => {
       (auth, callback) => {
         callback(null);
         return jest.fn();
-      }
+      },
     );
 
     const ConnectivityTestComponent = () => {
@@ -331,7 +331,7 @@ describe("useAuth hook - State Management", () => {
     render(
       <AuthProvider>
         <ConnectivityTestComponent />
-      </AuthProvider>
+      </AuthProvider>,
     );
 
     // When Firebase is not ready, loading should become false
@@ -346,36 +346,51 @@ describe("useAuth hook - Auth Actions", () => {
     jest.clearAllMocks();
 
     // Reset connectivity to positive state
-    const { useConnectivityStatus } = require("@/context/ConnectivityStatusProvider");
+    const {
+      useConnectivityStatus,
+    } = require("@/context/ConnectivityStatusProvider");
     (useConnectivityStatus as jest.Mock).mockReturnValue({
       firebase: { isReady: true, error: null },
     });
 
-    (firebase.onAuthStateChanged as jest.Mock).mockImplementation((auth, cb) => {
-      cb(null);
-      return jest.fn();
-    });
+    (firebase.onAuthStateChanged as jest.Mock).mockImplementation(
+      (auth, cb) => {
+        cb(null);
+        return jest.fn();
+      },
+    );
   });
 
-  const ActionTestComponent = ({ onAuthReady }: { onAuthReady: (auth: any) => void }) => {
+  const ActionTestComponent = ({
+    onAuthReady,
+  }: {
+    onAuthReady: (auth: any) => void;
+  }) => {
     const auth = useAuth();
     React.useEffect(() => {
       if (!auth.loading) onAuthReady(auth);
-    }, [auth.loading]);
+    }, [auth.loading, auth, onAuthReady]);
     return null;
   };
 
   it("should successfully sign in", async () => {
     const mockUser = { email: "test@example.com" };
-    (firebase.signInWithEmailAndPassword as jest.Mock).mockResolvedValue({ user: mockUser });
-    const { ensureUserProfile } = require("@/hooks/useAuth.helpers").createAuthProfileHelpers();
+    (firebase.signInWithEmailAndPassword as jest.Mock).mockResolvedValue({
+      user: mockUser,
+    });
+    const { ensureUserProfile } =
+      require("@/hooks/useAuth.helpers").createAuthProfileHelpers();
     (ensureUserProfile as jest.Mock).mockClear();
 
     let authInstance: any;
     render(
       <AuthProvider>
-        <ActionTestComponent onAuthReady={(a) => { authInstance = a; }} />
-      </AuthProvider>
+        <ActionTestComponent
+          onAuthReady={(a) => {
+            authInstance = a;
+          }}
+        />
+      </AuthProvider>,
     );
 
     await waitFor(() => expect(authInstance).toBeDefined());
@@ -386,57 +401,87 @@ describe("useAuth hook - Auth Actions", () => {
   });
 
   it("should successfully sign up", async () => {
-    const mockUser = { uid: "new-uid", email: "new@test.com", getIdToken: jest.fn().mockResolvedValue("tok") };
-    (firebase.createUserWithEmailAndPassword as jest.Mock).mockResolvedValue({ user: mockUser });
+    const mockUser = {
+      uid: "new-uid",
+      email: "new@test.com",
+      getIdToken: jest.fn().mockResolvedValue("tok"),
+    };
+    (firebase.createUserWithEmailAndPassword as jest.Mock).mockResolvedValue({
+      user: mockUser,
+    });
     const { createAuthProfileHelpers } = require("@/hooks/useAuth.helpers");
     const mockHelpers = createAuthProfileHelpers();
 
     let authInstance: any;
     render(
       <AuthProvider>
-        <ActionTestComponent onAuthReady={(a) => { authInstance = a; }} />
-      </AuthProvider>
+        <ActionTestComponent
+          onAuthReady={(a) => {
+            authInstance = a;
+          }}
+        />
+      </AuthProvider>,
     );
 
     await waitFor(() => expect(authInstance).toBeDefined());
     await authInstance.signUp("new@test.com", "password", "newuser");
 
     expect(firebase.createUserWithEmailAndPassword).toHaveBeenCalled();
-    expect(mockHelpers.reserveUsername).toHaveBeenCalledWith("new-uid", "newuser", expect.anything());
+    expect(mockHelpers.reserveUsername).toHaveBeenCalledWith(
+      "new-uid",
+      "newuser",
+      expect.anything(),
+    );
   });
 
   it("should rollback on signUp failure", async () => {
     const mockUser = { uid: "bad-uid", delete: jest.fn() };
-    (firebase.createUserWithEmailAndPassword as jest.Mock).mockResolvedValue({ user: mockUser });
+    (firebase.createUserWithEmailAndPassword as jest.Mock).mockResolvedValue({
+      user: mockUser,
+    });
     const { createAuthProfileHelpers } = require("@/hooks/useAuth.helpers");
     const mockHelpers = createAuthProfileHelpers();
-    (mockHelpers.reserveUsername as jest.Mock).mockRejectedValue(new Error("Username taken"));
+    (mockHelpers.reserveUsername as jest.Mock).mockRejectedValue(
+      new Error("Username taken"),
+    );
 
     let authInstance: any;
     render(
       <AuthProvider>
-        <ActionTestComponent onAuthReady={(a) => { authInstance = a; }} />
-      </AuthProvider>
+        <ActionTestComponent
+          onAuthReady={(a) => {
+            authInstance = a;
+          }}
+        />
+      </AuthProvider>,
     );
 
     await waitFor(() => expect(authInstance).toBeDefined());
-    await expect(authInstance.signUp("bad@test.com", "pw", "taken")).rejects.toThrow();
+    await expect(
+      authInstance.signUp("bad@test.com", "pw", "taken"),
+    ).rejects.toThrow();
 
     expect(mockUser.delete).toHaveBeenCalled();
   });
 
   it("should successfully logout", async () => {
     const mockUser = { uid: "uid123" };
-    (firebase.onAuthStateChanged as jest.Mock).mockImplementation((auth, cb) => {
-      cb(mockUser);
-      return jest.fn();
-    });
+    (firebase.onAuthStateChanged as jest.Mock).mockImplementation(
+      (auth, cb) => {
+        cb(mockUser);
+        return jest.fn();
+      },
+    );
 
     let authInstance: any;
     render(
       <AuthProvider>
-        <ActionTestComponent onAuthReady={(a) => { authInstance = a; }} />
-      </AuthProvider>
+        <ActionTestComponent
+          onAuthReady={(a) => {
+            authInstance = a;
+          }}
+        />
+      </AuthProvider>,
     );
 
     await waitFor(() => expect(authInstance).toBeDefined());
@@ -447,16 +492,24 @@ describe("useAuth hook - Auth Actions", () => {
 
   it("should sign in with Google", async () => {
     const mockUser = { email: "g@test.com" };
-    (firebase.signInWithPopup as jest.Mock).mockResolvedValue({ user: mockUser });
+    (firebase.signInWithPopup as jest.Mock).mockResolvedValue({
+      user: mockUser,
+    });
     const { createAuthProfileHelpers } = require("@/hooks/useAuth.helpers");
     const mockHelpers = createAuthProfileHelpers();
-    (mockHelpers.ensureUserProfile as jest.Mock).mockResolvedValue({ needsUsername: true });
+    (mockHelpers.ensureUserProfile as jest.Mock).mockResolvedValue({
+      needsUsername: true,
+    });
 
     let authInstance: any;
     render(
       <AuthProvider>
-        <ActionTestComponent onAuthReady={(a) => { authInstance = a; }} />
-      </AuthProvider>
+        <ActionTestComponent
+          onAuthReady={(a) => {
+            authInstance = a;
+          }}
+        />
+      </AuthProvider>,
     );
 
     await waitFor(() => expect(authInstance).toBeDefined());
@@ -472,8 +525,12 @@ describe("useAuth hook - Auth Actions", () => {
     let authInstance: any;
     render(
       <AuthProvider>
-        <ActionTestComponent onAuthReady={(a) => { authInstance = a; }} />
-      </AuthProvider>
+        <ActionTestComponent
+          onAuthReady={(a) => {
+            authInstance = a;
+          }}
+        />
+      </AuthProvider>,
     );
 
     await waitFor(() => expect(authInstance).toBeDefined());
@@ -485,21 +542,27 @@ describe("useAuth hook - Auth Actions", () => {
 
   it("should check if needs username", async () => {
     const mockUser = { uid: "uid123" };
-    (firebase.onAuthStateChanged as jest.Mock).mockImplementation((auth, cb) => {
-      cb(mockUser);
-      return jest.fn();
-    });
+    (firebase.onAuthStateChanged as jest.Mock).mockImplementation(
+      (auth, cb) => {
+        cb(mockUser);
+        return jest.fn();
+      },
+    );
 
     (firestore.getDoc as jest.Mock).mockResolvedValue({
       exists: () => true,
-      data: () => ({ username: null, needsUsername: true })
+      data: () => ({ username: null, needsUsername: true }),
     });
 
     let authInstance: any;
     render(
       <AuthProvider>
-        <ActionTestComponent onAuthReady={(a) => { authInstance = a; }} />
-      </AuthProvider>
+        <ActionTestComponent
+          onAuthReady={(a) => {
+            authInstance = a;
+          }}
+        />
+      </AuthProvider>,
     );
 
     await waitFor(() => expect(authInstance).toBeDefined());
@@ -517,8 +580,12 @@ describe("useAuth hook - Auth Actions", () => {
     let authInstance: any;
     render(
       <AuthProvider>
-        <ActionTestComponent onAuthReady={(a) => { authInstance = a; }} />
-      </AuthProvider>
+        <ActionTestComponent
+          onAuthReady={(a) => {
+            authInstance = a;
+          }}
+        />
+      </AuthProvider>,
     );
 
     await waitFor(() => expect(authInstance).toBeDefined());

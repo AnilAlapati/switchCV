@@ -11,8 +11,8 @@ export const MockResumeQAForm = ({
     <button
       onClick={() =>
         onComplete({
-          name: "John Doe",
-          email: "john@example.com",
+          personal_name: "John Doe",
+          personal_email: "john@example.com",
           skills: ["React", "TypeScript"],
           summary: "Experienced developer",
         })
@@ -23,8 +23,8 @@ export const MockResumeQAForm = ({
     <button
       onClick={() =>
         onComplete({
-          name: ["John", "Doe"], // Invalid name type
-          email: null, // Invalid email type
+          personal_name: ["John", "Doe"], // Invalid name type
+          personal_email: null, // Invalid email type
           skills: null, // Invalid skills type
           summary: null, // Invalid summary
         })
@@ -35,8 +35,8 @@ export const MockResumeQAForm = ({
     <button
       onClick={() =>
         onComplete({
-          name: "", // Empty name
-          email: "john@example.com",
+          personal_name: "", // Empty name
+          personal_email: "john@example.com",
           skills: ["React", "TypeScript"],
           summary: "Experienced developer",
         })
@@ -48,7 +48,7 @@ export const MockResumeQAForm = ({
       onClick={() =>
         onComplete({
           // name missing
-          email: "john@example.com",
+          personal_email: "john@example.com",
           skills: ["React", "TypeScript"],
           summary: "Experienced developer",
         })
@@ -59,8 +59,8 @@ export const MockResumeQAForm = ({
     <button
       onClick={() =>
         onComplete({
-          name: "John Doe",
-          email: "john@example.com",
+          personal_name: "John Doe",
+          personal_email: "john@example.com",
           skills: "React, TypeScript",
           summary: "Experienced developer",
         })
@@ -71,8 +71,8 @@ export const MockResumeQAForm = ({
     <button
       onClick={() =>
         onComplete({
-          name: "John Doe",
-          email: "john@example.com",
+          personal_name: "John Doe",
+          personal_email: "john@example.com",
           skills: ["React", "TypeScript"],
           summary: "Experienced developer",
           preferences_template: "minimalist",
@@ -85,8 +85,8 @@ export const MockResumeQAForm = ({
     <button
       onClick={() =>
         onComplete({
-          name: "",
-          email: "",
+          personal_name: "",
+          personal_email: "",
           skills: [],
           summary: "",
         })
@@ -97,29 +97,23 @@ export const MockResumeQAForm = ({
     <button
       onClick={() =>
         onComplete({
-          name: "Complex User",
-          email: "complex@example.com",
-          location: "Complex City",
-          linkedin: "https://linkedin.com/in/complex",
-          github: "https://github.com/complex",
-          phone: "+1-234-567-8900",
+          personal_name: "Complex User",
+          personal_email: "complex@example.com",
+          personal_location: "Complex City",
+          personal_linkedin: "https://linkedin.com/in/complex",
+          personal_github: "https://github.com/complex",
+          personal_phone: "+1-234-567-8900",
           skills: ["React", "TypeScript", "Node.js"],
           summary: "Complex professional summary",
-          experience: [
-            {
-              title: "Senior Developer",
-              company: "Tech Corp",
-              duration: "2019-2023",
-              description: "Led development team",
-            },
-          ],
-          education: [
-            {
-              degree: "MS Computer Science",
-              institution: "Tech University",
-              year: "2023",
-            },
-          ],
+          experience_count: "1",
+          experience_1_title: "Senior Developer",
+          experience_1_company: "Tech Corp",
+          experience_1_duration: "2019-2023",
+          experience_1_description: "Led development team",
+          education_count: "1",
+          education_1_degree: "MS Computer Science",
+          education_1_institution: "Tech University",
+          education_1_year: "2023",
           preferences_template: "technical",
           preferences_tone: "concise",
         })

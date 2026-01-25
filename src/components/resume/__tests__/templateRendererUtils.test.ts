@@ -100,7 +100,7 @@ describe("templateRendererUtils", () => {
 
     it("handles null/undefined values in date normalization", () => {
       const items = [{ title: "Dev", startDate: null, endDate: "2021" }];
-      // @ts-ignore
+      // @ts-expect-error - testing undefined startDate which is restricted by type
       const items2 = [{ title: "Dev2", startDate: undefined, endDate: "2022" }];
       const normalized = normalizeTimelineItems([...items, ...items2]);
       expect(normalized[0].meta).toBe("2021");

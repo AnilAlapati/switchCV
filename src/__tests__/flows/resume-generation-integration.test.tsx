@@ -51,10 +51,10 @@ describe("Resume Generation Integration Flow", () => {
   it("passes complex resume data and preferences to the AI generator", async () => {
     // 1. Setup complex input data (simulating "Import LinkedIn" result)
     const complexResumeData = {
-      name: "Jane Engineer",
-      email: "jane@tech.com",
-      location: "San Francisco, CA",
-      linkedin: "https://linkedin.com/in/jane",
+      personal_name: "Jane Engineer",
+      personal_email: "jane@tech.com",
+      personal_location: "San Francisco, CA",
+      personal_linkedin: "https://linkedin.com/in/jane",
       summary: "Senior Software Engineer with 10 years of experience.",
       skills: ["React", "Node.js", "AWS", "System Design"],
       // Preferences

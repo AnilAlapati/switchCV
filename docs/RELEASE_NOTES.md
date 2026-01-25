@@ -1,5 +1,17 @@
 # Release Notes
 
+## [AI.0.0.267] - 2026-01-25
+### Changed
+- Automated version increment.
+
+## [AI.0.0.266] - 2026-01-25
+### Changed
+- Automated version increment.
+
+## [AI.0.0.265] - 2026-01-25
+### Changed
+- Automated version increment.
+
 ## [AI.0.0.264] - 2026-01-24
 ### Changed
 - Automated version increment.

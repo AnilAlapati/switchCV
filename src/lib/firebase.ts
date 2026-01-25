@@ -51,7 +51,7 @@ const firebaseClientError = (name: FirebaseClientName): string =>
   `Firebase ${name} client is not initialized. Check environment configuration.`;
 
 const createUnavailableClient = <T extends object>(
-  name: FirebaseClientName
+  name: FirebaseClientName,
 ): T =>
   new Proxy(
     {},
@@ -62,12 +62,12 @@ const createUnavailableClient = <T extends object>(
       apply() {
         throw new Error(firebaseClientError(name));
       },
-    }
+    },
   ) as T;
 
 const resolveClient = <T extends object>(
   client: T | null,
-  name: FirebaseClientName
+  name: FirebaseClientName,
 ): T => client ?? createUnavailableClient<T>(name);
 
 const canInitialize = firebaseStatus.isConfigured;
@@ -79,10 +79,10 @@ const useFirebaseEmulators =
 const emulatorHost =
   process.env.NEXT_PUBLIC_FIREBASE_EMULATOR_HOST || "127.0.0.1";
 const firestoreEmulatorPort = Number(
-  process.env.NEXT_PUBLIC_FIRESTORE_EMULATOR_PORT || 8080
+  process.env.NEXT_PUBLIC_FIRESTORE_EMULATOR_PORT || 8080,
 );
 const authEmulatorPort = Number(
-  process.env.NEXT_PUBLIC_AUTH_EMULATOR_PORT || 9099
+  process.env.NEXT_PUBLIC_AUTH_EMULATOR_PORT || 9099,
 );
 
 try {
@@ -93,7 +93,11 @@ try {
     storage = getStorage(app);
     functions = getFunctions(app);
 
-    if (typeof window !== "undefined") {
+    // Only initialize Analytics in production to avoid API key restriction errors in dev
+    if (
+      typeof window !== "undefined" &&
+      process.env.NODE_ENV === "production"
+    ) {
       isSupported()
         .then((supported) => {
           if (supported && app) {
@@ -101,12 +105,10 @@ try {
           }
         })
         .catch((error) => {
-          if (process.env.NODE_ENV !== "production") {
-            logger.warn(
-              { err: error },
-              "Skipping Firebase Analytics initialization"
-            );
-          }
+          logger.warn(
+            { err: error },
+            "Skipping Firebase Analytics initialization",
+          );
         });
     }
 
@@ -116,7 +118,7 @@ try {
         {
           source: "firebase",
         },
-        "Firebase Firestore debug logging enabled"
+        "Firebase Firestore debug logging enabled",
       );
     }
 
@@ -131,7 +133,7 @@ try {
         } catch (error) {
           logger.warn(
             { err: error, source: "firebase.auth" },
-            "Auth emulator already configured"
+            "Auth emulator already configured",
           );
         }
       }
@@ -142,14 +144,14 @@ try {
           firestoreEmulatorPort,
           authEmulatorPort,
         },
-        "Connected Firebase clients to local emulators"
+        "Connected Firebase clients to local emulators",
       );
     }
 
     firebaseStatus.isReady = true;
   } else {
     firebaseStatus.error = `Missing Firebase config keys: ${firebaseStatus.missingKeys.join(
-      ", "
+      ", ",
     )}`;
 
     if (process.env.NODE_ENV === "test") {

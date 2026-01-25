@@ -61,7 +61,7 @@ describe("supportFeedbackService", () => {
         sendSupportFeedback({
           email: "",
           message: "This is a test message that is at least 20 chars.",
-        })
+        }),
       ).rejects.toThrow(SupportFeedbackError);
     });
 
@@ -70,7 +70,7 @@ describe("supportFeedbackService", () => {
         sendSupportFeedback({
           email: "not-an-email",
           message: "This is a test message that is at least 20 chars.",
-        })
+        }),
       ).rejects.toThrow("Enter a valid email address");
     });
 
@@ -79,7 +79,7 @@ describe("supportFeedbackService", () => {
         sendSupportFeedback({
           email: "test@example.com",
           message: "",
-        })
+        }),
       ).rejects.toThrow("cannot be empty");
     });
 
@@ -88,7 +88,7 @@ describe("supportFeedbackService", () => {
         sendSupportFeedback({
           email: "test@example.com",
           message: "Too short",
-        })
+        }),
       ).rejects.toThrow("at least 20 characters");
     });
 
@@ -98,7 +98,7 @@ describe("supportFeedbackService", () => {
           email: "test@example.com",
           message: "This is a valid message of sufficient length.",
           category: "invalid-category" as any,
-        })
+        }),
       ).rejects.toThrow("Unsupported feedback category");
     });
 
@@ -108,7 +108,7 @@ describe("supportFeedbackService", () => {
           email: "test@example.com",
           message: "This is a valid message of sufficient length.",
           urgency: "invalid-urgency" as any,
-        })
+        }),
       ).rejects.toThrow("Unsupported urgency level");
     });
 
@@ -141,7 +141,7 @@ describe("supportFeedbackService", () => {
         {
           ipAddress: "127.0.0.1",
           userAgent: "jest-test/1.0",
-        }
+        },
       );
 
       expect(result.success).toBe(true);
@@ -222,7 +222,7 @@ describe("supportFeedbackService", () => {
         sendSupportFeedback({
           email: "test@example.com",
           message: "This is a valid message of sufficient length.",
-        })
+        }),
       ).rejects.toThrow("We could not send your feedback right now");
     });
 
@@ -283,10 +283,87 @@ describe("supportFeedbackService", () => {
     it("should include expected urgency levels", () => {
       const options = getFeedbackOptions();
       const urgencyValues = options.urgencyLevels.map((u) => u.value);
-
       expect(urgencyValues).toContain("low");
       expect(urgencyValues).toContain("normal");
       expect(urgencyValues).toContain("high");
+    });
+  });
+
+  describe("rate limiting", () => {
+    it("should allow requests within limit", () => {
+      const ip = "1.2.3.4";
+      const {
+        checkRateLimit,
+        getRateLimitRemaining,
+      } = require("@/lib/services/supportFeedbackService");
+      expect(checkRateLimit(ip)).toBe(false);
+      expect(getRateLimitRemaining(ip)).toBeGreaterThan(0);
+    });
+
+    it("should return false if no IP provided", () => {
+      const {
+        checkRateLimit,
+        getRateLimitRemaining,
+      } = require("@/lib/services/supportFeedbackService");
+      expect(checkRateLimit(null)).toBe(false);
+      expect(getRateLimitRemaining(undefined)).toBeGreaterThan(0);
+    });
+
+    it("should block after max requests", () => {
+      const ip = "5.6.7.8";
+      const {
+        checkRateLimit,
+        getRateLimitRemaining,
+      } = require("@/lib/services/supportFeedbackService");
+      // Current limit is 5 in code
+      for (let i = 0; i < 5; i++) {
+        checkRateLimit(ip);
+      }
+      expect(checkRateLimit(ip)).toBe(true);
+      expect(getRateLimitRemaining(ip)).toBe(0);
+    });
+
+    it("should reset after window has passed", () => {
+      jest.useFakeTimers();
+      const ip = "9.10.11.12";
+      const {
+        checkRateLimit,
+      } = require("@/lib/services/supportFeedbackService");
+      checkRateLimit(ip);
+
+      // Advance time by window + 1ms (1 hour = 3600000ms)
+      jest.advanceTimersByTime(3600001);
+
+      expect(checkRateLimit(ip)).toBe(false);
+      jest.useRealTimers();
+    });
+  });
+
+  describe("error paths", () => {
+    it("should throw if support email destination is missing", async () => {
+      const originalEnv = process.env.SUPPORT_FEEDBACK_TO;
+      delete process.env.SUPPORT_FEEDBACK_TO;
+
+      const config = require("@/config/constants");
+      // We need to bypass the 'readonly' by cast or just acknowledge we can't easily edit a const export if it's not a mockable object.
+      // But APP_CONFIG is exported as a const object. In Jest/Node we can often still mutate properties of objects unless strictly prevented.
+      // Actually APP_CONFIG has 'as const' so TS will complain but JS might allowed it.
+      // However, it's safer to mock it if required.
+
+      const originalEmail = config.APP_CONFIG.SUPPORT_EMAIL;
+      // @ts-expect-error - testing with invalid config value
+      config.APP_CONFIG.SUPPORT_EMAIL = "";
+
+      await expect(
+        sendSupportFeedback({
+          email: "test@example.com",
+          message: "Valid message long enough",
+        }),
+      ).rejects.toThrow("Support email destination is not set");
+
+      process.env.SUPPORT_FEEDBACK_TO = originalEnv;
+      // @ts-expect-error - restoring readonly config value
+      config.APP_CONFIG.SUPPORT_EMAIL = originalEmail;
     });
   });
 });

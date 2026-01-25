@@ -5,7 +5,7 @@ import {
   getResume,
   updateResume,
   deleteResume,
-  trackResumeView
+  trackResumeView,
 } from "@/lib/services/resumeService";
 
 // Mock services
@@ -22,7 +22,10 @@ jest.mock("@/lib/services/resumeService", () => ({
 
 jest.mock("@/lib/utils/api-helpers", () => ({
   handleApiError: jest.fn((error, message, status) => {
-    return Response.json({ error: message, details: error?.message }, { status: status || 500 });
+    return Response.json(
+      { error: message, details: error?.message },
+      { status: status || 500 },
+    );
   }),
   maybeGetAuthenticatedUserId: jest.fn(),
   getAuthenticatedUserId: jest.fn(),
@@ -36,7 +39,10 @@ jest.mock("@/lib/security/accessMonitor", () => ({
   checkSequentialAccess: jest.fn(),
 }));
 
-import { maybeGetAuthenticatedUserId, getAuthenticatedUserId } from "@/lib/utils/api-helpers";
+import {
+  maybeGetAuthenticatedUserId,
+  getAuthenticatedUserId,
+} from "@/lib/utils/api-helpers";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
 import { checkSequentialAccess } from "@/lib/security/accessMonitor";
 
@@ -47,7 +53,12 @@ const mockDeleteResume = deleteResume as jest.Mock;
 const mockCheckRateLimit = checkRateLimit as jest.Mock;
 const mockCheckSequentialAccess = checkSequentialAccess as jest.Mock;
 
-const buildRequest = (url: string, method: string, body?: Record<string, unknown>, headers?: HeadersInit) =>
+const buildRequest = (
+  url: string,
+  method: string,
+  body?: Record<string, unknown>,
+  headers?: HeadersInit,
+) =>
   new NextRequest(url, {
     method,
     body: body ? JSON.stringify(body) : undefined,
@@ -60,11 +71,15 @@ describe("PATCH /api/resumes/[id]", () => {
   });
 
   it("updates resume visibility", async () => {
-    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: "user-123" });
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "user-123",
+    });
     mockGetResume.mockResolvedValue({ access: "owner" });
     mockUpdateResume.mockResolvedValue(undefined);
 
-    const request = buildRequest("http://localhost/api/resumes/42", "PATCH", { isPublic: true });
+    const request = buildRequest("http://localhost/api/resumes/42", "PATCH", {
+      isPublic: true,
+    });
     const response = await PATCH(request, {
       params: Promise.resolve({ id: "42" }),
     });
@@ -74,15 +89,23 @@ describe("PATCH /api/resumes/[id]", () => {
     const data = await response.json();
     expect(data.success).toBe(true);
     expect(data.isPublic).toBe(true);
-    expect(mockUpdateResume).toHaveBeenCalledWith("42", "user-123", expect.objectContaining({
-      isPublic: true,
-      visibility: "public"
-    }));
+    expect(mockUpdateResume).toHaveBeenCalledWith(
+      "42",
+      "user-123",
+      expect.objectContaining({
+        isPublic: true,
+        visibility: "public",
+      }),
+    );
   });
 
   it("returns 400 for invalid visibility state", async () => {
-    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: "user-123" });
-    const request = buildRequest("http://localhost/api/resumes/42", "PATCH", { isPublic: "not-a-bool" });
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "user-123",
+    });
+    const request = buildRequest("http://localhost/api/resumes/42", "PATCH", {
+      isPublic: "not-a-bool",
+    });
     const response = await PATCH(request, {
       params: Promise.resolve({ id: "42" }),
     });
@@ -91,10 +114,14 @@ describe("PATCH /api/resumes/[id]", () => {
   });
 
   it("returns 403 when non-owner tries to update visibility", async () => {
-    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: "user-456" });
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "user-456",
+    });
     mockGetResume.mockResolvedValue({ access: "granted" }); // Recruiter, not owner
 
-    const request = buildRequest("http://localhost/api/resumes/42", "PATCH", { isPublic: true });
+    const request = buildRequest("http://localhost/api/resumes/42", "PATCH", {
+      isPublic: true,
+    });
     const response = await PATCH(request, {
       params: Promise.resolve({ id: "42" }),
     });
@@ -107,7 +134,9 @@ describe("PATCH /api/resumes/[id]", () => {
       userId: null,
       error: Response.json({ error: "Unauthorized" }, { status: 401 }),
     });
-    const request = buildRequest("http://localhost/api/resumes/42", "PATCH", { isPublic: true });
+    const request = buildRequest("http://localhost/api/resumes/42", "PATCH", {
+      isPublic: true,
+    });
     const response = await PATCH(request, {
       params: Promise.resolve({ id: "42" }),
     });
@@ -122,7 +151,9 @@ describe("DELETE /api/resumes/[id]", () => {
   });
 
   it("successfully deletes own resume", async () => {
-    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: "user-123" });
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "user-123",
+    });
     mockDeleteResume.mockResolvedValue(undefined);
 
     const request = buildRequest("http://localhost/api/resumes/42", "DELETE");
@@ -149,16 +180,22 @@ describe("DELETE /api/resumes/[id]", () => {
   });
 
   it("returns 400 if ID is missing in DELETE", async () => {
-    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: "user-123" });
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "user-123",
+    });
     const request = buildRequest("http://localhost/api/resumes/", "DELETE");
-    // @ts-ignore
-    const response = await DELETE(request, { params: Promise.resolve({ id: "" }) });
+    // @ts-expect-error - testing missing ID in DELETE
+    const response = await DELETE(request, {
+      params: Promise.resolve({ id: "" }),
+    });
     if (!response) throw new Error("Response is undefined");
     expect(response.status).toBe(400);
   });
 
   it("returns 403 when user is not authorized to delete", async () => {
-    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: "user-123" });
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "user-123",
+    });
     mockDeleteResume.mockRejectedValue(new Error("Unauthorized"));
 
     const request = buildRequest("http://localhost/api/resumes/42", "DELETE");
@@ -177,9 +214,14 @@ describe("PUT /api/resumes/[id]", () => {
   });
 
   it("returns 401 when authorization header is missing", async () => {
-    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: null, error: Response.json({ error: "Unauthorized" }, { status: 401 }) });
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: null,
+      error: Response.json({ error: "Unauthorized" }, { status: 401 }),
+    });
 
-    const request = buildRequest("http://localhost/api/resumes/42", "PUT", { resume: { title: "Updated" } });
+    const request = buildRequest("http://localhost/api/resumes/42", "PUT", {
+      resume: { title: "Updated" },
+    });
     const response = await PUT(request, {
       params: Promise.resolve({ id: "42" }),
     });
@@ -188,12 +230,16 @@ describe("PUT /api/resumes/[id]", () => {
   });
 
   it("returns 403 when user does not own the resume", async () => {
-    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: "another-user" });
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "another-user",
+    });
     mockGetResume.mockResolvedValue({ access: "none", resume: null });
 
-    const request = buildRequest("http://localhost/api/resumes/42", "PUT",
+    const request = buildRequest(
+      "http://localhost/api/resumes/42",
+      "PUT",
       { resume: { title: "Updated" } },
-      { authorization: "Bearer token" }
+      { authorization: "Bearer token" },
     );
 
     const response = await PUT(request, {
@@ -204,13 +250,20 @@ describe("PUT /api/resumes/[id]", () => {
   });
 
   it("returns 403 when basic user tries to edit", async () => {
-    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: "user-123" });
-    mockGetResume.mockResolvedValue({ access: "owner", resume: { userId: "user-123" } });
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "user-123",
+    });
+    mockGetResume.mockResolvedValue({
+      access: "owner",
+      resume: { userId: "user-123" },
+    });
     mockGetUserTier.mockResolvedValue("basic");
 
-    const request = buildRequest("http://localhost/api/resumes/42", "PUT",
+    const request = buildRequest(
+      "http://localhost/api/resumes/42",
+      "PUT",
       { resume: { title: "Updated" } },
-      { authorization: "Bearer token" }
+      { authorization: "Bearer token" },
     );
 
     const response = await PUT(request, {
@@ -223,19 +276,26 @@ describe("PUT /api/resumes/[id]", () => {
   });
 
   it("updates resume content and returns updated payload", async () => {
-    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: "user-123" });
-    mockGetResume.mockResolvedValue({ access: "owner", resume: { userId: "user-123", title: "Original" } });
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "user-123",
+    });
+    mockGetResume.mockResolvedValue({
+      access: "owner",
+      resume: { userId: "user-123", title: "Original" },
+    });
     mockGetUserTier.mockResolvedValue("premium");
     mockUpdateResume.mockResolvedValue(undefined);
 
-    const request = buildRequest("http://localhost/api/resumes/42", "PUT",
+    const request = buildRequest(
+      "http://localhost/api/resumes/42",
+      "PUT",
       {
         resume: {
           title: "Updated Title",
           summary: "New summary",
         },
       },
-      { authorization: "Bearer token" }
+      { authorization: "Bearer token" },
     );
 
     const response = await PUT(request, {
@@ -247,19 +307,30 @@ describe("PUT /api/resumes/[id]", () => {
     expect(data.success).toBe(true);
     expect(data.resume.title).toBe("Updated Title");
 
-    expect(mockUpdateResume).toHaveBeenCalledWith("42", "user-123", expect.objectContaining({
-      title: "Updated Title",
-    }));
+    expect(mockUpdateResume).toHaveBeenCalledWith(
+      "42",
+      "user-123",
+      expect.objectContaining({
+        title: "Updated Title",
+      }),
+    );
   });
 
   it("returns 400 for missing title in PUT body", async () => {
-    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: "user-123" });
-    mockGetResume.mockResolvedValue({ access: "owner", resume: { userId: "user-123" } });
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "user-123",
+    });
+    mockGetResume.mockResolvedValue({
+      access: "owner",
+      resume: { userId: "user-123" },
+    });
     mockGetUserTier.mockResolvedValue("premium");
 
-    const request = buildRequest("http://localhost/api/resumes/42", "PUT",
+    const request = buildRequest(
+      "http://localhost/api/resumes/42",
+      "PUT",
       { resume: { summary: "New summary" } }, // missing title
-      { authorization: "Bearer token" }
+      { authorization: "Bearer token" },
     );
 
     const response = await PUT(request, {
@@ -270,10 +341,16 @@ describe("PUT /api/resumes/[id]", () => {
   });
 
   it("returns 400 if ID is missing in PUT", async () => {
-    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: "user-123" });
-    const request = buildRequest("http://localhost/api/resumes/", "PUT", { resume: { title: "New" } });
-    // @ts-ignore
-    const response = await PUT(request, { params: Promise.resolve({ id: "" }) });
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "user-123",
+    });
+    const request = buildRequest("http://localhost/api/resumes/", "PUT", {
+      resume: { title: "New" },
+    });
+    // @ts-expect-error - testing missing ID in PUT
+    const response = await PUT(request, {
+      params: Promise.resolve({ id: "" }),
+    });
     if (!response) throw new Error("Response is undefined");
     expect(response.status).toBe(400);
   });
@@ -289,7 +366,7 @@ describe("GET /api/resumes/[id]", () => {
   it("returns 200 and cache headers for public resumes", async () => {
     mockGetResume.mockResolvedValue({
       access: "public_snapshot",
-      resume: { title: "Public Resume" }
+      resume: { title: "Public Resume" },
     });
 
     const request = buildRequest("http://localhost/api/resumes/42", "GET");
@@ -299,7 +376,7 @@ describe("GET /api/resumes/[id]", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe(
-      "public, s-maxage=60, stale-while-revalidate=300"
+      "public, s-maxage=60, stale-while-revalidate=300",
     );
   });
 
@@ -334,7 +411,10 @@ describe("GET /api/resumes/[id]", () => {
 
   it("returns 404 for non-existent resume", async () => {
     mockGetResume.mockResolvedValue({ resume: null, access: "none" });
-    const request = buildRequest("http://localhost/api/resumes/non-existent", "GET");
+    const request = buildRequest(
+      "http://localhost/api/resumes/non-existent",
+      "GET",
+    );
     const response = await GET(request, {
       params: Promise.resolve({ id: "non-existent" }),
     });
@@ -344,7 +424,7 @@ describe("GET /api/resumes/[id]", () => {
   it("returns 200 for owner access with correct metadata", async () => {
     mockGetResume.mockResolvedValue({
       access: "owner",
-      resume: { id: "42", title: "My Resume", isBeingEdited: true }
+      resume: { id: "42", title: "My Resume", isBeingEdited: true },
     });
     const request = buildRequest("http://localhost/api/resumes/42", "GET");
     const response = await GET(request, {
@@ -359,7 +439,7 @@ describe("GET /api/resumes/[id]", () => {
   it("returns 200 for admin access", async () => {
     mockGetResume.mockResolvedValue({
       access: "admin",
-      resume: { title: "User Resume" }
+      resume: { title: "User Resume" },
     });
     const request = buildRequest("http://localhost/api/resumes/42", "GET");
     const response = await GET(request, {
@@ -373,7 +453,7 @@ describe("GET /api/resumes/[id]", () => {
   it("returns 200 for granted (recruiter) access", async () => {
     mockGetResume.mockResolvedValue({
       access: "granted",
-      resume: { title: "Shared Resume" }
+      resume: { title: "Shared Resume" },
     });
     const request = buildRequest("http://localhost/api/resumes/42", "GET");
     const response = await GET(request, {
@@ -385,8 +465,10 @@ describe("GET /api/resumes/[id]", () => {
 
   it("returns 400 if ID is missing in GET", async () => {
     const request = buildRequest("http://localhost/api/resumes/", "GET");
-    // @ts-ignore
-    const response = await GET(request, { params: Promise.resolve({ id: "" }) });
+    // @ts-expect-error - testing missing ID in GET
+    const response = await GET(request, {
+      params: Promise.resolve({ id: "" }),
+    });
     if (!response) throw new Error("Response is undefined");
     expect(response.status).toBe(400);
   });
@@ -400,7 +482,7 @@ describe("GET /api/resumes/[id]", () => {
 
     expect(mockCheckRateLimit).toHaveBeenCalledWith(
       expect.stringContaining("ip:"),
-      expect.objectContaining({ limit: 10 })
+      expect.objectContaining({ limit: 10 }),
     );
   });
 
@@ -413,7 +495,7 @@ describe("GET /api/resumes/[id]", () => {
 
     expect(mockCheckRateLimit).toHaveBeenCalledWith(
       expect.stringContaining("user:user-123"),
-      expect.objectContaining({ limit: 30 })
+      expect.objectContaining({ limit: 30 }),
     );
   });
 });
@@ -425,7 +507,10 @@ jest.mock("next/server", () => {
     ...actual,
     NextResponse: {
       ...actual.NextResponse,
-      json: (body: unknown, init: { status?: number, headers?: HeadersInit }) => {
+      json: (
+        body: unknown,
+        init: { status?: number; headers?: HeadersInit },
+      ) => {
         return Response.json(body, init);
       },
     },

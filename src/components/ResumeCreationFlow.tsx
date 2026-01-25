@@ -7,7 +7,7 @@ import React, { useState, useCallback } from "react";
 import { ResumeQAForm } from "./ResumeQAForm";
 import { ResumeGenerationLoader } from "./ResumeGenerationLoader";
 import { ResumeReviewModal } from "./ResumeReviewModal";
-import { useAIResume } from "@/hooks/useAIResume";
+import { useAIResume, type ResumeData } from "@/hooks/useAIResume";
 import { Resume } from "@/lib/resumeComparison.types";
 import type { EnhancedExperience } from "@/types/aiResume.types";
 
@@ -51,43 +51,72 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
 
       try {
         // Convert form answers to ResumeData structure
-        const resumeData = {
+        const resumeData: ResumeData = {
           personalInfo: {
-            name:
-              typeof answers.name === "string"
-                ? answers.name
-                : String(answers.name || "Professional"),
-            email:
-              typeof answers.email === "string"
-                ? answers.email
-                : String(answers.email || ""),
-            phone:
-              typeof answers.phone === "string" ? answers.phone : undefined,
-            location:
-              typeof answers.location === "string"
-                ? answers.location
-                : undefined,
-            linkedin:
-              typeof answers.linkedin === "string"
-                ? answers.linkedin
-                : undefined,
-            github:
-              typeof answers.github === "string" ? answers.github : undefined,
+            name: String(answers.personal_name ?? "Professional"),
+            email: String(answers.personal_email ?? ""),
+            phone: answers.personal_phone
+              ? String(answers.personal_phone)
+              : undefined,
+            location: answers.personal_location
+              ? String(answers.personal_location)
+              : undefined,
+            linkedin: answers.personal_linkedin
+              ? String(answers.personal_linkedin)
+              : undefined,
+            github: answers.personal_github
+              ? String(answers.personal_github)
+              : undefined,
           },
-          summary:
-            typeof answers.summary === "string"
-              ? answers.summary
-              : String(answers.summary || ""),
-          experience: Array.isArray(answers.experience)
-            ? answers.experience
-            : [],
-          education: Array.isArray(answers.education) ? answers.education : [],
+          summary: String(answers.summary ?? ""),
+          experience: [],
+          education: [],
           skills: Array.isArray(answers.skills)
             ? answers.skills
             : typeof answers.skills === "string"
-              ? answers.skills.split(",").map((s: string) => s.trim())
+              ? answers.skills
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter(Boolean)
               : [],
         };
+
+        // Extract experience entries
+        const expCountStr = answers.experience_count as string;
+        const expCount = parseInt(expCountStr?.replace("+", "") || "0", 10);
+        for (let i = 1; i <= Math.min(expCount, 5); i++) {
+          const title = answers[`experience_${i}_title`] as string;
+          const company = answers[`experience_${i}_company`] as string;
+          const duration = answers[`experience_${i}_duration`] as string;
+          const description = answers[`experience_${i}_description`] as string;
+
+          if (title && company) {
+            resumeData.experience.push({
+              title,
+              company,
+              duration,
+              description,
+              achievements: [],
+            });
+          }
+        }
+
+        // Extract education entries
+        const eduCountStr = answers.education_count as string;
+        const eduCount = parseInt(eduCountStr || "0", 10);
+        for (let i = 1; i <= Math.min(eduCount, 3); i++) {
+          const degree = answers[`education_${i}_degree`] as string;
+          const institution = answers[`education_${i}_institution`] as string;
+          const year = answers[`education_${i}_year`] as string;
+
+          if (degree && institution) {
+            resumeData.education.push({
+              degree,
+              institution,
+              year,
+            });
+          }
+        }
 
         const selectedTemplate =
           typeof answers.preferences_template === "string"
@@ -128,8 +157,8 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
 
         // Create Resume object
         const candidateName =
-          typeof answers.name === "string" && answers.name
-            ? answers.name
+          typeof answers.personal_name === "string" && answers.personal_name
+            ? answers.personal_name
             : "Professional";
 
         const resume: Resume = {
@@ -232,14 +261,25 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
         const currentTitle = generatedResume.title;
         const nameFromTitle = currentTitle.replace("'s Resume", "");
 
-        const resumeData = {
+        const resumeData: ResumeData = {
           personalInfo: {
             name: nameFromTitle,
-            email: "",
+            email: generatedResume.contact.email.value,
+            phone: generatedResume.contact.phone?.value,
           },
           summary: generatedResume.summary || "",
-          experience: [],
-          education: [],
+          experience: generatedResume.experience.map((exp) => ({
+            title: exp.role,
+            company: exp.company,
+            duration: exp.duration,
+            description: exp.description,
+            achievements: exp.achievements || [],
+          })),
+          education: (generatedResume.education || []).map((edu) => ({
+            degree: edu.degree,
+            institution: edu.institution,
+            year: String(edu.year),
+          })),
           skills: generatedResume.skills,
         };
         const result = await generateResumeContent(

@@ -10,7 +10,7 @@ const AI_REQUEST_TIMEOUT = 30000; // 30 seconds
  */
 async function fetchWithTimeout(
   url: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), AI_REQUEST_TIMEOUT);
@@ -107,7 +107,7 @@ async function getAvailableGeminiModels(apiKey: string): Promise<string[]> {
     inflightModelFetch = (async () => {
       try {
         const response = await withRetry(() =>
-          fetchWithTimeout(AI_ENDPOINTS.GEMINI.MODELS(apiKey))
+          fetchWithTimeout(AI_ENDPOINTS.GEMINI.MODELS(apiKey)),
         );
 
         if (!response.ok) {
@@ -118,7 +118,7 @@ async function getAvailableGeminiModels(apiKey: string): Promise<string[]> {
         const models =
           data.models
             ?.filter((model: GeminiModel) =>
-              model.supportedGenerationMethods?.includes("generateContent")
+              model.supportedGenerationMethods?.includes("generateContent"),
             )
             .map((model: GeminiModel) => model.name.replace("models/", "")) ||
           [];
@@ -169,7 +169,7 @@ function estimateTokenCount(text: string): number {
 
 async function validateContextWindow(
   prompt: string,
-  modelName: string = "default"
+  modelName: string = "default",
 ): Promise<boolean> {
   const tokenCount = estimateTokenCount(prompt);
   let maxTokens = MAX_TOKENS_DEFAULT;
@@ -187,10 +187,10 @@ async function validateContextWindow(
   if (tokenCount > maxTokens) {
     logger.warn(
       { tokenCount, maxTokens, modelName },
-      "Context window limit exceeded"
+      "Context window limit exceeded",
     );
     throw new Error(
-      `Prompt exceeds ${maxTokens} tokens (estimated: ${tokenCount}) for model ${modelName}`
+      `Prompt exceeds ${maxTokens} tokens (estimated: ${tokenCount}) for model ${modelName}`,
     );
   }
 
@@ -205,14 +205,10 @@ async function validateContextWindow(
 async function selectBestModel(availableModels: string[]): Promise<string> {
   const constants = await getAIConstants();
 
-  if (!availableModels.length) {
-    return constants.FALLBACK_MODEL;
-  }
-
   // Try each preference in order
   for (const preferred of constants.MODEL_PREFERENCES) {
     const match = availableModels.find((model) =>
-      model.toLowerCase().includes(preferred.toLowerCase())
+      model.toLowerCase().includes(preferred.toLowerCase()),
     );
     if (match) {
       logger.info({ model: match }, "Selected model");
@@ -221,16 +217,11 @@ async function selectBestModel(availableModels: string[]): Promise<string> {
   }
 
   // If no preference matched, use the first available model
-  if (availableModels.length > 0) {
-    logger.warn(
-      { model: availableModels[0] },
-      "Using fallback model from available list"
-    );
-    return availableModels[0];
-  }
-
-  // Last resort: try the current known model
-  return constants.FALLBACK_MODEL;
+  logger.warn(
+    { model: availableModels[0] },
+    "Using fallback model from available list",
+  );
+  return availableModels[0];
 }
 
 /**
@@ -249,7 +240,7 @@ async function generateWithGemini(
   prompt: string,
   maxTokens: number = 150,
   temperature: number = 0.7,
-  model?: string
+  model?: string,
 ): Promise<{ text: string; model: string; usage?: TokenUsage }> {
   const apiKey = process.env.GEMINI_API_KEY;
 
@@ -274,7 +265,7 @@ async function generateWithGemini(
 
   while (selection.models.length) {
     const candidatePool = selection.models.filter(
-      (m) => !attemptedModels.has(m)
+      (m) => !attemptedModels.has(m),
     );
 
     if (!candidatePool.length) {
@@ -324,7 +315,7 @@ async function generateWithGemini(
               stopSequences: [...DEFAULT_STOP_SEQUENCES],
             },
           }),
-        })
+        }),
       );
     } catch (error) {
       lastError =
@@ -337,7 +328,7 @@ async function generateWithGemini(
     if (!response.ok) {
       const errorText = await response.text();
       lastError = new Error(
-        `Gemini API error (${response.status}): ${errorText}`
+        `Gemini API error (${response.status}): ${errorText}`,
       );
 
       if (response.status === 404) {
@@ -381,7 +372,7 @@ async function generateWithGemini(
 async function generateWithOpenAI(
   prompt: string,
   maxTokens: number = 150,
-  temperature: number = 0.7
+  temperature: number = 0.7,
 ): Promise<{ text: string; model: string; usage?: TokenUsage }> {
   const apiKey = process.env.OPENAI_API_KEY;
 
@@ -407,7 +398,7 @@ async function generateWithOpenAI(
         temperature,
         stop: [...DEFAULT_STOP_SEQUENCES],
       }),
-    })
+    }),
   );
 
   if (!response.ok) {
@@ -444,7 +435,7 @@ async function generateWithOpenAI(
 async function generateWithGroq(
   prompt: string,
   maxTokens: number = 150,
-  temperature: number = 0.7
+  temperature: number = 0.7,
 ): Promise<{ text: string; model: string; usage?: TokenUsage }> {
   const apiKey = process.env.GROQ_API_KEY;
 
@@ -470,7 +461,7 @@ async function generateWithGroq(
         temperature,
         stop: [...DEFAULT_STOP_SEQUENCES],
       }),
-    })
+    }),
   );
 
   if (!response.ok) {
@@ -507,7 +498,7 @@ async function generateWithGroq(
 async function generateWithHuggingFace(
   prompt: string,
   maxTokens: number = 150,
-  temperature: number = 0.7
+  temperature: number = 0.7,
 ): Promise<string> {
   const token = process.env.HUGGINGFACE_TOKEN;
 
@@ -533,7 +524,7 @@ async function generateWithHuggingFace(
           stop_sequences: [...DEFAULT_STOP_SEQUENCES],
         },
       }),
-    })
+    }),
   );
 
   if (!response.ok) {
@@ -578,7 +569,7 @@ export async function generateText(
   prompt: string,
   maxTokens: number = 150,
   temperature: number = 0.7,
-  model?: string
+  model?: string,
 ): Promise<{
   text: string;
   model: string;
@@ -601,7 +592,7 @@ export async function generateText(
             prompt,
             maxTokens,
             temperature,
-            model
+            model,
           );
           break;
         case "openai":
@@ -614,7 +605,7 @@ export async function generateText(
           const text = await generateWithHuggingFace(
             prompt,
             maxTokens,
-            temperature
+            temperature,
           );
           result = { text, model: "flan-t5-base", usage: undefined };
           break;
@@ -626,7 +617,7 @@ export async function generateText(
       const duration = Date.now() - startTime;
       logger.info(
         { provider, model: result.model, duration },
-        "Generation success"
+        "Generation success",
       );
 
       providerFallback.reportSuccess(provider, duration);
@@ -675,7 +666,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
         content: { parts: [{ text }] },
         model,
       }),
-    }
+    },
   );
 
   if (!result.ok) {
