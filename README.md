@@ -37,6 +37,27 @@ scripts/           # Utility & maintenance scripts
 docs/              # Architecture & deployment docs (See docs/README.md)
 ```
 
+## ⚠️ SECURITY: Environment Variables
+
+**Never commit actual secrets to `.env.production` or any `.env*` file!**
+
+### What's safe to commit:
+- ✅ `NEXT_PUBLIC_*` variables that are genuinely public (Firebase project ID, auth domain)
+- ✅ `NEXT_PUBLIC_GA_ID` (Google Analytics ID)
+
+### What's NOT safe (even with NEXT_PUBLIC_ prefix):
+- ❌ `NEXT_PUBLIC_FIREBASE_API_KEY` - authenticates API calls
+- ❌ `NEXT_PUBLIC_HUGGINGFACE_TOKEN` - authenticates HF requests
+- ❌ Any token, secret, or key with actual credentials
+
+### Secret Management:
+- Store server-side secrets in **Firebase Secret Manager**
+- Use `.env.local` for local development (ignored by git)
+- Reference `.env.production.example` for template structure
+- Run `scripts/secret-scan.sh --all` before every commit
+
+See [`.env.production.example`](.env.production.example) for safe template.
+
 ## 📚 Documentation
 
 For complete project documentation, including security audits, coding standards, and quality guides, see the [Documentation Hub](docs/README.md).
