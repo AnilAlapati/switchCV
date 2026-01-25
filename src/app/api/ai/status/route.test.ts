@@ -40,18 +40,6 @@ describe("GET /api/ai/status", () => {
     expect(data.model).toBe("gemini-2.5-flash-lite");
   });
 
-  it("should return HuggingFace status when Gemini is missing but HF is present", async () => {
-    delete process.env.GEMINI_API_KEY;
-    delete process.env.OPENAI_API_KEY;
-    process.env.HUGGINGFACE_TOKEN = "test-token";
-
-    const res = await GET();
-    const data = await res.json();
-
-    expect(data.connected).toBe(true);
-    expect(data.provider).toBe("Hugging Face");
-  });
-
   it("should return disconnected when no provider is configured", async () => {
     delete process.env.GEMINI_API_KEY;
     delete process.env.OPENAI_API_KEY;

@@ -81,11 +81,7 @@ export const AVAILABLE_AI_MODELS: AIModel[] = [
       "analysis",
       "multimodal",
     ],
-    recommendedFor: [
-      "quick-edits",
-      "basic-suggestions",
-      "high-volume-tasks",
-    ],
+    recommendedFor: ["quick-edits", "basic-suggestions", "high-volume-tasks"],
     isEnabled: true,
     tier: "free",
   },
@@ -174,7 +170,7 @@ export const getEnabledModels = (): AIModel[] => {
 export const getModelsForTask = (task: string): AIModel[] => {
   return getEnabledModels().filter(
     (model) =>
-      model.recommendedFor.includes(task) || model.capabilities.includes(task)
+      model.recommendedFor.includes(task) || model.capabilities.includes(task),
   );
 };
 

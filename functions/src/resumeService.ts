@@ -4,10 +4,7 @@ import * as admin from "firebase-admin";
 // import { GoogleGenerativeAI } from "@google/generative-ai";
 import cors from "cors";
 import helmet from "helmet";
-import {
-  EnhancedResumeContent,
-  ResumeData,
-} from "./types";
+import { EnhancedResumeContent, ResumeData } from "./types";
 import {
   resilientCall,
   CircuitBreaker,
@@ -17,15 +14,21 @@ import { z } from "zod";
 
 const GenerateResumeSchema = z.object({
   userId: z.string().min(1),
-  resumeData: z.object({
-    summary: z.string(),
-    experience: z.array(z.object({
-      title: z.string(),
-      company: z.string(),
-      description: z.string(),
-    }).passthrough()),
-    skills: z.array(z.string()),
-  }).passthrough(),
+  resumeData: z
+    .object({
+      summary: z.string(),
+      experience: z.array(
+        z
+          .object({
+            title: z.string(),
+            company: z.string(),
+            description: z.string(),
+          })
+          .passthrough(),
+      ),
+      skills: z.array(z.string()),
+    })
+    .passthrough(),
   template: z.string().optional().default("modern"),
   tone: z.string().optional().default("professional"),
   modelId: z.string().optional().default("gemini-1.5-flash"),
@@ -67,7 +70,7 @@ const aiRetryOptions: RetryOptions = {
 
 // SECURITY: CORS configuration from config (specific origins, not 'true')
 const securityConfig = config.get<{ corsOrigin: string[] | boolean }>(
-  "security"
+  "security",
 );
 const corsHandler = cors({ origin: securityConfig.corsOrigin });
 
@@ -86,11 +89,7 @@ const ALLOWED_MODELS = [
 
 const TIER_MODEL_ALLOWLIST: Record<SubscriptionTier, string[]> = {
   basic: ["gemini-1.5-flash", "gemini-2.5-flash-lite"],
-  premium: [
-    "gemini-1.5-flash",
-    "gemini-2.0-flash",
-    "gemini-2.5-flash",
-  ],
+  premium: ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-2.5-flash"],
   enterprise: ALLOWED_MODELS,
 };
 
@@ -137,7 +136,7 @@ const TIER_USAGE_LIMITS: Record<
 };
 
 async function resolveSubscriptionTier(
-  userId: string
+  userId: string,
 ): Promise<SubscriptionTier> {
   try {
     const snapshot = await db.collection("users").doc(userId).get();
@@ -156,7 +155,7 @@ async function resolveSubscriptionTier(
 
 function isModelAllowedForTier(
   modelId: string,
-  tier: SubscriptionTier
+  tier: SubscriptionTier,
 ): boolean {
   const normalized = modelId || "gemini-1.5-flash";
   const allowlist = TIER_MODEL_ALLOWLIST[tier] || [];
@@ -165,7 +164,7 @@ function isModelAllowedForTier(
 
 async function enforceTierUsage(
   userId: string,
-  tier: SubscriptionTier
+  tier: SubscriptionTier,
 ): Promise<{ allowed: boolean; window?: UsageWindow; retryAfter?: number }> {
   const limits = TIER_USAGE_LIMITS[tier];
   for (const window of Object.keys(limits) as UsageWindow[]) {
@@ -186,7 +185,7 @@ function describeAllowedModels(tier: SubscriptionTier) {
  */
 const generateResumeContentHandler = async (
   req: functions.https.Request,
-  res: functions.Response
+  res: functions.Response,
 ) => {
   corsHandler(req, res, async () => {
     helmetHandler(req, res, async () => {
@@ -201,35 +200,27 @@ const generateResumeContentHandler = async (
         if (!parseResult.success) {
           res.status(400).json({
             error: "Invalid request body",
-            details: parseResult.error.issues
+            details: parseResult.error.issues,
           });
           return;
         }
 
-        const {
-          userId,
-          resumeData,
-          template,
-          tone,
-          modelId,
-        } = parseResult.data;
+        const { userId, resumeData, template, tone, modelId } =
+          parseResult.data;
 
         const normalizedModelId = modelId;
 
-        // Existing null checks are now redundant but kept for safety logic flow if needed, 
+        // Existing null checks are now redundant but kept for safety logic flow if needed,
         // though Zod handles most.
         if (!userId || !resumeData) {
           // specific logic
         }
 
         // Validate model selection
-        if (
-          normalizedModelId &&
-          !ALLOWED_MODELS.includes(normalizedModelId)
-        ) {
+        if (normalizedModelId && !ALLOWED_MODELS.includes(normalizedModelId)) {
           res.status(400).json({
             error: `Invalid model: ${normalizedModelId}. Allowed models: ${ALLOWED_MODELS.join(
-              ", "
+              ", ",
             )}`,
           });
           return;
@@ -261,7 +252,7 @@ const generateResumeContentHandler = async (
         if (!isModelAllowedForTier(normalizedModelId, subscriptionTier)) {
           res.status(403).json({
             error: `Model ${normalizedModelId} is not available on the ${subscriptionTier} plan. Allowed models: ${describeAllowedModels(
-              subscriptionTier
+              subscriptionTier,
             )}`,
           });
           return;
@@ -286,7 +277,7 @@ const generateResumeContentHandler = async (
           tone,
           normalizedModelId,
           userId,
-          subscriptionTier
+          subscriptionTier,
         );
 
         // Store the generated content
@@ -337,7 +328,7 @@ export async function enhanceResumeWithAI(
   tone: string,
   modelId: string,
   userId?: string,
-  userTier?: string
+  userTier?: string,
 ): Promise<EnhancedResumeContent> {
   const startTime = Date.now();
   console.log("🤖 AI ENHANCEMENT STARTING", {
@@ -350,7 +341,10 @@ export async function enhanceResumeWithAI(
     const prompt = createResumeEnhancementPrompt(resumeData, tone);
 
     // Helper to execute AI calls (passed to orchestrator)
-    const aiExecutor = async (promptText: string, specificModel: string): Promise<string> => {
+    const aiExecutor = async (
+      promptText: string,
+      specificModel: string,
+    ): Promise<string> => {
       if (!GEMINI_API_KEY) {
         throw new Error("GEMINI_API_KEY is required");
       }
@@ -359,7 +353,9 @@ export async function enhanceResumeWithAI(
       if (!client) throw new Error("Gemini client initialization failed");
 
       // Default to gemini-1.5-flash if a non-Gemini model is requested
-      const actualModel = specificModel.startsWith("gemini-") ? specificModel : "gemini-1.5-flash";
+      const actualModel = specificModel.startsWith("gemini-")
+        ? specificModel
+        : "gemini-1.5-flash";
 
       return resilientCall(
         async () => {
@@ -373,7 +369,7 @@ export async function enhanceResumeWithAI(
           circuitBreaker: geminiCircuitBreaker,
           timeoutMs: 30000,
           operationName: "gemini-api-call-agentic",
-        }
+        },
       );
     };
 
@@ -389,7 +385,7 @@ export async function enhanceResumeWithAI(
           userResume: JSON.stringify(resumeData),
           instructions: `Tone: ${tone}`,
         },
-        aiExecutor
+        aiExecutor,
       );
 
       if (agenticResult) {
@@ -406,7 +402,9 @@ export async function enhanceResumeWithAI(
       }
 
       actualProvider = "Google Gemini";
-      const actualModel = modelId.startsWith("gemini-") ? modelId : "gemini-1.5-flash";
+      const actualModel = modelId.startsWith("gemini-")
+        ? modelId
+        : "gemini-1.5-flash";
       console.log(`✨ Using ${actualProvider}: ${actualModel}`);
       console.log("📡 Calling Gemini API...");
 
@@ -427,7 +425,7 @@ export async function enhanceResumeWithAI(
           circuitBreaker: geminiCircuitBreaker,
           timeoutMs: 30000,
           operationName: "gemini-api-call",
-        }
+        },
       );
 
       console.log("✅ Gemini API Response Received", {
@@ -448,7 +446,7 @@ export async function enhanceResumeWithAI(
         ...exp,
         enhancedDescription: enhanceExperienceDescription(
           exp.description,
-          enhancedText
+          enhancedText,
         ),
       })),
       skillSuggestions: extractSkillSuggestions(enhancedText),
@@ -479,7 +477,7 @@ export async function enhanceResumeWithAI(
  */
 function createResumeEnhancementPrompt(
   resumeData: ResumeData,
-  tone: string
+  tone: string,
 ): string {
   return `You are an expert resume writer. Enhance the following resume content to make it more compelling and professional.
 
@@ -487,8 +485,8 @@ Current Summary: ${resumeData.summary}
 
 Experience:
 ${resumeData.experience
-      .map((exp) => `- ${exp.title} at ${exp.company}: ${exp.description}`)
-      .join("\n")}
+  .map((exp) => `- ${exp.title} at ${exp.company}: ${exp.description}`)
+  .join("\n")}
 
 Skills: ${resumeData.skills.join(", ")}
 
@@ -509,7 +507,7 @@ Make the content more impactful with quantifiable achievements and strong action
 function enhanceSummary(originalSummary: string, aiResponse: string): string {
   const lines = aiResponse.split("\n");
   const summaryLine = lines.find((line) =>
-    line.toLowerCase().includes("summary")
+    line.toLowerCase().includes("summary"),
   );
   return summaryLine
     ? summaryLine.replace(/^(enhanced summary|summary):/i, "").trim()
@@ -521,11 +519,11 @@ function enhanceSummary(originalSummary: string, aiResponse: string): string {
  */
 function enhanceExperienceDescription(
   originalDesc: string,
-  aiResponse?: string
+  aiResponse?: string,
 ): string {
   if (aiResponse) {
     const descMatch = aiResponse.match(
-      /enhanced description[s]?:?\s*([^.!?\n]+)/i
+      /enhanced description[s]?:?\s*([^.!?\n]+)/i,
     );
     if (descMatch) {
       return descMatch[1].trim();
@@ -539,7 +537,7 @@ function enhanceExperienceDescription(
  */
 function extractSkillSuggestions(aiResponse: string): string[] {
   const skillMatches = aiResponse.match(
-    /(?:additional skills?|skills?):?\s*([^.!?]*)/i
+    /(?:additional skills?|skills?):?\s*([^.!?]*)/i,
   );
   if (skillMatches) {
     return skillMatches[1]

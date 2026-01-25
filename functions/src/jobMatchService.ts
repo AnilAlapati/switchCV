@@ -87,7 +87,7 @@ const MAX_CACHE_ENTRIES = 250;
 const tokenCache = new Map<string, CachedToken>();
 
 async function verifyIdTokenCached(
-  token: string
+  token: string,
 ): Promise<admin.auth.DecodedIdToken> {
   const cacheKey = createHash("sha256").update(token).digest("hex");
   const cached = tokenCache.get(cacheKey);
@@ -103,7 +103,7 @@ async function verifyIdTokenCached(
   const decoded = await admin.auth().verifyIdToken(token);
   const expiresAt = Math.min(
     now + TOKEN_CACHE_TTL_MS,
-    decoded.exp ? decoded.exp * 1000 : now + TOKEN_CACHE_TTL_MS
+    decoded.exp ? decoded.exp * 1000 : now + TOKEN_CACHE_TTL_MS,
   );
 
   // Remove if exists to update position
@@ -133,7 +133,7 @@ function extractKeywords(text: string): string[] {
 
 function deriveDeterministicInsights(
   jobDescription: string,
-  resumeData: ResumeData
+  resumeData: ResumeData,
 ): {
   matchScore: number;
   missingSkills: string[];
@@ -142,10 +142,10 @@ function deriveDeterministicInsights(
   skillOverlapPercent: number;
 } {
   const jobSkills = extractKeywords(jobDescription).filter(
-    (token) => token.length <= 40
+    (token) => token.length <= 40,
   );
   const resumeSkills = new Set(
-    resumeData.skills.map((skill) => normalize(skill))
+    resumeData.skills.map((skill) => normalize(skill)),
   );
   const overlapSkills = jobSkills.filter((skill) => resumeSkills.has(skill));
   const missingSkills = jobSkills.filter((skill) => !resumeSkills.has(skill));
@@ -158,7 +158,7 @@ function deriveDeterministicInsights(
     .map((exp) => `${exp.title} ${exp.description}`.toLowerCase())
     .join(" ");
   const experienceMatches = jobSkills.filter((skill) =>
-    experienceCorpus.includes(skill)
+    experienceCorpus.includes(skill),
   );
   const experienceScore = jobSkills.length
     ? experienceMatches.length / jobSkills.length
@@ -166,7 +166,7 @@ function deriveDeterministicInsights(
 
   const combinedScore = Math.max(
     0,
-    Math.min(100, Math.round((skillScore * 0.6 + experienceScore * 0.4) * 100))
+    Math.min(100, Math.round((skillScore * 0.6 + experienceScore * 0.4) * 100)),
   );
 
   const recommendations: string[] = [];
@@ -174,21 +174,21 @@ function deriveDeterministicInsights(
     recommendations.push(
       `Highlight or build familiarity with: ${missingSkills
         .slice(0, 5)
-        .join(", ")}`
+        .join(", ")}`,
     );
   }
   if (experienceScore < 0.6) {
     recommendations.push(
-      "Add measurable outcomes that mirror the responsibilities in the job description."
+      "Add measurable outcomes that mirror the responsibilities in the job description.",
     );
   }
   if (skillScore < 0.5) {
     recommendations.push(
-      "Expand the skills section to cover the core stack mentioned by the employer."
+      "Expand the skills section to cover the core stack mentioned by the employer.",
     );
   }
   recommendations.push(
-    "Quantify recent achievements to make comparisons easier for recruiters."
+    "Quantify recent achievements to make comparisons easier for recruiters.",
   );
 
   return {
@@ -205,7 +205,7 @@ function deriveDeterministicInsights(
  */
 const generateJobMatchSuggestionsHandler = async (
   req: functions.https.Request,
-  res: functions.Response
+  res: functions.Response,
 ) => {
   corsHandler(req, res, async () => {
     helmetHandler(req, res, async () => {
@@ -235,7 +235,7 @@ const generateJobMatchSuggestionsHandler = async (
             if (!authHeader?.startsWith("Bearer ")) {
               throw new functions.https.HttpsError(
                 "unauthenticated",
-                "Missing bearer token"
+                "Missing bearer token",
               );
             }
 
@@ -245,7 +245,7 @@ const generateJobMatchSuggestionsHandler = async (
             if (decodedToken.uid !== normalizedUserId) {
               throw new functions.https.HttpsError(
                 "permission-denied",
-                "Authenticated user mismatch"
+                "Authenticated user mismatch",
               );
             }
 
@@ -258,7 +258,7 @@ const generateJobMatchSuggestionsHandler = async (
             if (securityConfig.enableRateLimit) {
               const limitResult = await checkRateLimit(
                 normalizedUserId,
-                jobMatchRateLimit
+                jobMatchRateLimit,
               );
               if (!limitResult.allowed) {
                 functions.logger.warn("Job match rate limit hit", {
@@ -272,13 +272,13 @@ const generateJobMatchSuggestionsHandler = async (
             const suggestions = await generateJobMatchingSuggestions(
               validatedDescription,
               resumePayload,
-              selectedModel
+              selectedModel,
             );
 
             return suggestions;
           },
           MetricType.FUNCTION_EXECUTION,
-          { path: req.path || req.url }
+          { path: req.path || req.url },
         );
 
         res.status(200).json({
@@ -297,11 +297,7 @@ export { generateJobMatchSuggestionsHandler };
 
 export const generateJobMatchSuggestions = functions
   .runWith({
-    secrets: [
-      "GEMINI_API_KEY",
-      "GROQ_API_KEY",
-      "OPENAI_API_KEY",
-    ],
+    secrets: ["GEMINI_API_KEY", "GROQ_API_KEY", "OPENAI_API_KEY"],
     timeoutSeconds: 60,
     memory: "512MB",
   })
@@ -309,7 +305,7 @@ export const generateJobMatchSuggestions = functions
 
 async function handleJobMatchError(
   error: unknown,
-  req: functions.https.Request
+  req: functions.https.Request,
 ): Promise<{ status: number; payload: Record<string, unknown> }> {
   const requestId =
     (req.headers["x-cloud-trace-context"] as string) ||
@@ -353,7 +349,7 @@ async function handleJobMatchError(
     {
       requestId,
       path: req.path || req.url,
-    }
+    },
   );
 
   return {
@@ -363,7 +359,7 @@ async function handleJobMatchError(
 }
 
 function mapHttpsCodeToStatus(
-  code: functions.https.FunctionsErrorCode
+  code: functions.https.FunctionsErrorCode,
 ): number {
   switch (code) {
     case "unauthenticated":
@@ -385,7 +381,7 @@ function mapHttpsCodeToStatus(
 export async function generateJobMatchingSuggestions(
   jobDescription: string,
   resumeData: ResumeData,
-  modelId: string
+  modelId: string,
 ): Promise<JobMatchSuggestions> {
   return performanceMonitor.measure(
     "services.jobMatch.generate",
@@ -397,8 +393,8 @@ ${jobDescription}
 
 Resume Skills: ${resumeData.skills.join(", ")}
 Resume Experience: ${resumeData.experience
-          .map((exp) => `${exp.title} at ${exp.company}`)
-          .join(", ")}
+        .map((exp) => `${exp.title} at ${exp.company}`)
+        .join(", ")}
 
 Provide:
 1. Skills match percentage
@@ -409,9 +405,11 @@ Provide:
       const aiAnalysis = await generateAiAnalysis(prompt, modelId);
       const insights = deriveDeterministicInsights(jobDescription, resumeData);
 
-      const deterministicSummary = `Deterministic insights:\n- Skill overlap: ${insights.skillOverlapPercent
-        }%\n- Missing skills: ${insights.missingSkills.slice(0, 5).join(", ") || "None"
-        }`;
+      const deterministicSummary = `Deterministic insights:\n- Skill overlap: ${
+        insights.skillOverlapPercent
+      }%\n- Missing skills: ${
+        insights.missingSkills.slice(0, 5).join(", ") || "None"
+      }`;
 
       return {
         analysis: `${aiAnalysis}\n\n${deterministicSummary}`.trim(),
@@ -420,13 +418,13 @@ Provide:
       };
     },
     MetricType.AI_API_CALL,
-    { modelId }
+    { modelId },
   );
 }
 
 async function generateAiAnalysis(
   prompt: string,
-  modelId: string
+  modelId: string,
 ): Promise<string> {
   try {
     if (!genAI) {
@@ -434,9 +432,11 @@ async function generateAiAnalysis(
     }
 
     // Default to gemini-1.5-flash if a non-Gemini model is requested
-    const actualModel = modelId.startsWith("gemini-") ? modelId : "gemini-1.5-flash";
+    const actualModel = modelId.startsWith("gemini-")
+      ? modelId
+      : "gemini-1.5-flash";
     const model = genAI.getGenerativeModel({ model: actualModel });
-    
+
     const result = await resilientCall(
       async () => {
         const response = await model.generateContent(prompt);
@@ -448,7 +448,7 @@ async function generateAiAnalysis(
         circuitBreaker: geminiCircuitBreaker,
         timeoutMs: aiConfig.timeout || 30000,
         operationName: "job-match-gemini",
-      }
+      },
     );
     return generatedTextOrFallback(result);
   } catch (error) {
@@ -458,7 +458,7 @@ async function generateAiAnalysis(
       AlertSeverity.WARNING,
       "Job match AI analysis fallback",
       message,
-      { modelId }
+      { modelId },
     );
     return "Unable to generate AI analysis at this time.";
   }

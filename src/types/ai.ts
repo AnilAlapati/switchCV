@@ -1,11 +1,6 @@
 export type UserTier = "basic" | "premium" | "enterprise";
 
-export type AIProvider =
-  | "google"
-  | "openai"
-  | "groq"
-  | "anthropic"
-  | "xai";
+export type AIProvider = "google" | "openai" | "groq" | "anthropic" | "xai";
 
 export interface AIModelConfig {
   id: string;

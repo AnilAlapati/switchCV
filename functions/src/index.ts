@@ -22,18 +22,13 @@ function isProductionEnvironment(): boolean {
 
 export const generateJobMatchSuggestions = functions
   .runWith({
-    secrets: [
-      "GEMINI_API_KEY",
-      "GROQ_API_KEY",
-      "OPENAI_API_KEY",
-    ],
+    secrets: ["GEMINI_API_KEY", "GROQ_API_KEY", "OPENAI_API_KEY"],
     timeoutSeconds: 60,
     memory: "512MB",
   })
   .https.onRequest(async (req, res) => {
-    const { generateJobMatchSuggestionsHandler } = await import(
-      "./jobMatchService"
-    );
+    const { generateJobMatchSuggestionsHandler } =
+      await import("./jobMatchService");
     return generateJobMatchSuggestionsHandler(req, res);
   });
 
@@ -48,18 +43,16 @@ export const onUserCreated = functions.auth.user().onCreate(async (user) => {
 export const onRecruiterRequestCreated = functions.firestore
   .document("recruiterRequests/{requestId}")
   .onCreate(async (snap, context) => {
-    const { onRecruiterRequestCreatedHandler } = await import(
-      "./emailFunctions"
-    );
+    const { onRecruiterRequestCreatedHandler } =
+      await import("./emailFunctions");
     return onRecruiterRequestCreatedHandler(snap, context);
   });
 
 export const onRecruiterRequestApproved = functions.firestore
   .document("recruiterRequests/{requestId}")
   .onUpdate(async (change, context) => {
-    const { onRecruiterRequestApprovedHandler } = await import(
-      "./emailFunctions"
-    );
+    const { onRecruiterRequestApprovedHandler } =
+      await import("./emailFunctions");
     return onRecruiterRequestApprovedHandler(change, context);
   });
 
@@ -69,7 +62,7 @@ export const sendProfileViewDigest = functions.pubsub
   .onRun(async (context) => {
     if (!isProductionEnvironment()) {
       functions.logger.info(
-        "[COST GUARD] sendProfileViewDigest blocked in dev environment"
+        "[COST GUARD] sendProfileViewDigest blocked in dev environment",
       );
       return { skipped: true, reason: "dev environment" };
     }
@@ -79,18 +72,17 @@ export const sendProfileViewDigest = functions.pubsub
 
 export const notifyAdminSuspiciousActivity = functions.https.onCall(
   async (data, context) => {
-    const { notifyAdminSuspiciousActivityHandler } = await import(
-      "./emailFunctions"
-    );
+    const { notifyAdminSuspiciousActivityHandler } =
+      await import("./emailFunctions");
     return notifyAdminSuspiciousActivityHandler(data, context);
-  }
+  },
 );
 
 export const resendVerificationEmail = functions.https.onCall(
   async (data, context) => {
     const { resendVerificationEmailHandler } = await import("./emailFunctions");
     return resendVerificationEmailHandler(data, context);
-  }
+  },
 );
 
 export const cleanupAuditLogs = functions.pubsub
@@ -99,7 +91,7 @@ export const cleanupAuditLogs = functions.pubsub
   .onRun(async (context) => {
     if (!isProductionEnvironment()) {
       functions.logger.info(
-        "[COST GUARD] cleanupAuditLogs blocked in dev environment"
+        "[COST GUARD] cleanupAuditLogs blocked in dev environment",
       );
       return { skipped: true, reason: "dev environment" };
     }
@@ -112,9 +104,8 @@ export const cleanupAuditLogs = functions.pubsub
 export const fanOutResumeDocuments = functions.firestore
   .document("resumes/{resumeId}")
   .onWrite(async (change, context) => {
-    const { fanOutResumeDocumentsHandler } = await import(
-      "./resumeFanoutService"
-    );
+    const { fanOutResumeDocumentsHandler } =
+      await import("./resumeFanoutService");
     return fanOutResumeDocumentsHandler(change, context);
   });
 
@@ -178,11 +169,7 @@ export const syncAdminWhitelist = functions.firestore
 
 export const generateResumeContent = functions
   .runWith({
-    secrets: [
-      "GEMINI_API_KEY",
-      "GROQ_API_KEY",
-      "OPENAI_API_KEY",
-    ],
+    secrets: ["GEMINI_API_KEY", "GROQ_API_KEY", "OPENAI_API_KEY"],
   })
   .https.onRequest(async (req, res) => {
     const { generateResumeContentHandler } = await import("./resumeService");
@@ -192,18 +179,13 @@ export const generateResumeContent = functions
 // Async resume generation processor (Cloud Task handler)
 export const processResumeGenerationAsync = functions
   .runWith({
-    secrets: [
-      "GEMINI_API_KEY",
-      "GROQ_API_KEY",
-      "OPENAI_API_KEY",
-    ],
+    secrets: ["GEMINI_API_KEY", "GROQ_API_KEY", "OPENAI_API_KEY"],
     timeoutSeconds: 540, // 9 minutes max
     memory: "1GB",
   })
   .https.onRequest(async (req, res) => {
-    const { processResumeGenerationHandler } = await import(
-      "./processResumeGeneration"
-    );
+    const { processResumeGenerationHandler } =
+      await import("./processResumeGeneration");
     return processResumeGenerationHandler(req, res);
   });
 
@@ -216,7 +198,7 @@ export const aggregateGlobalStats = functions
   .onRun(async (context) => {
     if (!isProductionEnvironment()) {
       functions.logger.info(
-        "[COST GUARD] aggregateGlobalStats blocked in dev environment"
+        "[COST GUARD] aggregateGlobalStats blocked in dev environment",
       );
       return { skipped: true, reason: "dev environment" };
     }
@@ -230,13 +212,12 @@ export const aggregateAnalyticsDaily = functions.pubsub
   .onRun(async (context) => {
     if (!isProductionEnvironment()) {
       functions.logger.info(
-        "[COST GUARD] aggregateAnalyticsDaily blocked in dev environment"
+        "[COST GUARD] aggregateAnalyticsDaily blocked in dev environment",
       );
       return { skipped: true, reason: "dev environment" };
     }
-    const { aggregateAnalyticsDailyHandler } = await import(
-      "./analyticsService"
-    );
+    const { aggregateAnalyticsDailyHandler } =
+      await import("./analyticsService");
     return aggregateAnalyticsDailyHandler(context);
   });
 
@@ -246,13 +227,12 @@ export const cleanupAnalyticsEvents = functions.pubsub
   .onRun(async (context) => {
     if (!isProductionEnvironment()) {
       functions.logger.info(
-        "[COST GUARD] cleanupAnalyticsEvents blocked in dev environment"
+        "[COST GUARD] cleanupAnalyticsEvents blocked in dev environment",
       );
       return { skipped: true, reason: "dev environment" };
     }
-    const { cleanupAnalyticsEventsHandler } = await import(
-      "./analyticsService"
-    );
+    const { cleanupAnalyticsEventsHandler } =
+      await import("./analyticsService");
     return cleanupAnalyticsEventsHandler(context);
   });
 
@@ -264,13 +244,12 @@ export const cleanupExpiredResumes = functions.pubsub
   .onRun(async (context) => {
     if (!isProductionEnvironment()) {
       functions.logger.info(
-        "[COST GUARD] cleanupExpiredResumes blocked in dev environment"
+        "[COST GUARD] cleanupExpiredResumes blocked in dev environment",
       );
       return { skipped: true, reason: "dev environment" };
     }
-    const { cleanupExpiredResumesHandler } = await import(
-      "./resumeCleanupService"
-    );
+    const { cleanupExpiredResumesHandler } =
+      await import("./resumeCleanupService");
     return cleanupExpiredResumesHandler(context);
   });
 
@@ -280,13 +259,12 @@ export const cleanupRateLimits = functions.pubsub
   .onRun(async (context) => {
     if (!isProductionEnvironment()) {
       functions.logger.info(
-        "[COST GUARD] cleanupRateLimits blocked in dev environment"
+        "[COST GUARD] cleanupRateLimits blocked in dev environment",
       );
       return { skipped: true, reason: "dev environment" };
     }
-    const { cleanupRateLimitsHandler } = await import(
-      "./rateLimitCleanupService"
-    );
+    const { cleanupRateLimitsHandler } =
+      await import("./rateLimitCleanupService");
     return cleanupRateLimitsHandler(context);
   });
 
@@ -296,13 +274,12 @@ export const cleanupRecruiterSearchHistory = functions.pubsub
   .onRun(async (context) => {
     if (!isProductionEnvironment()) {
       functions.logger.info(
-        "[COST GUARD] cleanupRecruiterSearchHistory blocked in dev environment"
+        "[COST GUARD] cleanupRecruiterSearchHistory blocked in dev environment",
       );
       return { skipped: true, reason: "dev environment" };
     }
-    const { cleanupRecruiterSearchHistoryHandler } = await import(
-      "./recruiterService"
-    );
+    const { cleanupRecruiterSearchHistoryHandler } =
+      await import("./recruiterService");
     return cleanupRecruiterSearchHistoryHandler(context);
   });
 

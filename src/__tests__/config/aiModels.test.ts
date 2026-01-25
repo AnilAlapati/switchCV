@@ -21,7 +21,7 @@ describe("AI Models Configuration", () => {
       const enabledModels = getEnabledModels();
       const disabledModelIds = enabledModels.map((model) => model.id);
       const hasDisabledModel = AVAILABLE_AI_MODELS.filter(
-        (model) => !model.isEnabled
+        (model) => !model.isEnabled,
       ).some((model) => disabledModelIds.includes(model.id));
       expect(hasDisabledModel).toBe(false);
     });
@@ -31,16 +31,16 @@ describe("AI Models Configuration", () => {
     it("should return models recommended for resume-enhancement", () => {
       const models = getModelsForTask("resume-enhancement");
       expect(models.length).toBeGreaterThan(0);
-      expect(
-        models.some((model) => model.id === "gemini-2.5-flash")
-      ).toBe(true);
+      expect(models.some((model) => model.id === "gemini-2.5-flash")).toBe(
+        true,
+      );
     });
 
     it("should return models with text-generation capability", () => {
       const models = getModelsForTask("text-generation");
       expect(models.length).toBeGreaterThan(0);
       expect(
-        models.every((model) => model.capabilities.includes("text-generation"))
+        models.every((model) => model.capabilities.includes("text-generation")),
       ).toBe(true);
     });
 

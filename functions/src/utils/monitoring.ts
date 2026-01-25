@@ -82,7 +82,7 @@ export class PerformanceMonitor {
     name: string,
     fn: () => Promise<T>,
     type: MetricType = MetricType.FUNCTION_EXECUTION,
-    metadata?: Record<string, any>
+    metadata?: Record<string, any>,
   ): Promise<T> {
     const startTime = Date.now();
     let error: Error | undefined;
@@ -142,7 +142,7 @@ export class PerformanceMonitor {
           metrics: admin.firestore.FieldValue.arrayUnion(...aggregated),
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         },
-        { merge: true }
+        { merge: true },
       );
 
       await batch.commit();
@@ -317,7 +317,7 @@ export class AlertManager {
     severity: AlertSeverity,
     title: string,
     message: string,
-    metadata?: Record<string, any>
+    metadata?: Record<string, any>,
   ): Promise<void> {
     const alert = {
       severity,
@@ -368,7 +368,7 @@ export class AlertManager {
     functionName: string,
     errorCount: number,
     totalCount: number,
-    threshold: number = 0.1
+    threshold: number = 0.1,
   ): Promise<void> {
     const errorRate = totalCount > 0 ? errorCount / totalCount : 0;
 
@@ -377,7 +377,7 @@ export class AlertManager {
         AlertSeverity.WARNING,
         `High error rate detected: ${functionName}`,
         `Error rate: ${(errorRate * 100).toFixed(
-          2
+          2,
         )}% (${errorCount}/${totalCount})`,
         {
           functionName,
@@ -385,7 +385,7 @@ export class AlertManager {
           totalCount,
           errorRate,
           threshold,
-        }
+        },
       );
     }
   }
@@ -397,7 +397,7 @@ export class AlertManager {
     functionName: string,
     avgDuration: number,
     baseline: number,
-    threshold: number = 1.5
+    threshold: number = 1.5,
   ): Promise<void> {
     const ratio = avgDuration / baseline;
 
@@ -414,7 +414,7 @@ export class AlertManager {
           baseline,
           ratio,
           threshold,
-        }
+        },
       );
     }
   }
@@ -450,7 +450,7 @@ export class AlertManager {
   async checkP95(
     functionName: string,
     p95Value: number,
-    operationType?: string
+    operationType?: string,
   ): Promise<void> {
     const monitoringConfig = configLoader.getMonitoringConfig();
 
@@ -483,7 +483,7 @@ export class AlertManager {
           p95Value,
           threshold,
           operationType: opType,
-        }
+        },
       );
     }
   }
@@ -514,10 +514,7 @@ export class AlertManager {
     ) {
       return "database_query";
     }
-    if (
-      lowerName.includes("external") ||
-      lowerName.includes("webhook")
-    ) {
+    if (lowerName.includes("external") || lowerName.includes("webhook")) {
       return "external_api";
     }
     return "function_execution";
@@ -530,7 +527,7 @@ export class AlertManager {
     severity: AlertSeverity,
     title: string,
     message: string,
-    metadata?: Record<string, any>
+    metadata?: Record<string, any>,
   ): Promise<void> {
     if (!this.alertEmailTo) {
       return;
@@ -543,8 +540,9 @@ export class AlertManager {
 
       await emailService.sendCustomEmail({
         to: this.alertEmailTo,
-        subject: `${this.alertEmailSubjectPrefix
-          } ${severity.toUpperCase()}: ${title}`,
+        subject: `${
+          this.alertEmailSubjectPrefix
+        } ${severity.toUpperCase()}: ${title}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px;">
             <h2>${title}</h2>
@@ -556,7 +554,7 @@ export class AlertManager {
           </div>
         `,
         text: `${title} - ${message}\nSeverity: ${severity}\nMetadata: ${JSON.stringify(
-          metadata || {}
+          metadata || {},
         )}`,
       });
     } catch (error) {
@@ -578,12 +576,12 @@ export const alertManager = AlertManager.getInstance();
  */
 export function monitored(
   name?: string,
-  type: MetricType = MetricType.FUNCTION_EXECUTION
+  type: MetricType = MetricType.FUNCTION_EXECUTION,
 ) {
   return function (
     target: any,
     propertyKey: string,
-    descriptor: PropertyDescriptor
+    descriptor: PropertyDescriptor,
   ) {
     const originalMethod = descriptor.value;
     const metricName = name || `${target.constructor.name}.${propertyKey}`;
@@ -592,7 +590,7 @@ export function monitored(
       return performanceMonitor.measure(
         metricName,
         () => originalMethod.apply(this, args),
-        type
+        type,
       );
     };
 

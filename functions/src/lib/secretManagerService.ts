@@ -125,7 +125,7 @@ export class SecretManagerService {
           rotationPeriod: config.rotationPeriod,
           nextRotation: this.calculateNextRotation(
             lastRotated,
-            config.rotationPeriod
+            config.rotationPeriod,
           ),
           version: metadata?.version || "unknown",
         });
@@ -208,7 +208,7 @@ export class SecretManagerService {
    */
   private async logSecretAccess(
     secretName: string,
-    context?: string
+    context?: string,
   ): Promise<void> {
     try {
       // Log to Firestore with automatic cleanup after 90 days
@@ -245,7 +245,7 @@ export class SecretManagerService {
     const sevenDaysFromNow = Date.now() + 7 * 24 * 60 * 60 * 1000;
 
     return allSecrets.filter(
-      (secret) => secret.nextRotation.getTime() < sevenDaysFromNow
+      (secret) => secret.nextRotation.getTime() < sevenDaysFromNow,
     );
   }
 }
@@ -255,7 +255,7 @@ export class SecretManagerService {
  */
 export async function getSecret(
   name: string,
-  context?: string
+  context?: string,
 ): Promise<string> {
   const service = SecretManagerService.getInstance();
   return service.getSecret(name, context);
@@ -266,7 +266,7 @@ export async function getSecret(
  */
 export async function updateSecretMetadata(
   name: string,
-  rotatedBy: string
+  rotatedBy: string,
 ): Promise<void> {
   const service = SecretManagerService.getInstance();
   return service.updateSecretMetadata(name, rotatedBy);

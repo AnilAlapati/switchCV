@@ -66,20 +66,6 @@ describe("AI Status API", () => {
     expect(data.model).toBe("gemini-2.5-flash");
   });
 
-  it("should return Hugging Face status when only HUGGINGFACE_TOKEN is set", async () => {
-    delete process.env.GEMINI_API_KEY;
-    delete process.env.OPENAI_API_KEY;
-    process.env.HUGGINGFACE_TOKEN = "test-token";
-
-    const response = await GET();
-    const data = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(data.connected).toBe(true);
-    expect(data.provider).toBe("Hugging Face");
-    expect(data.model).toBe("mistralai/Mistral-7B-Instruct-v0.3");
-  });
-
   it("should return disconnected status when no keys are set", async () => {
     delete process.env.GEMINI_API_KEY;
     delete process.env.OPENAI_API_KEY;

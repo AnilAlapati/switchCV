@@ -52,15 +52,15 @@ export class ConfigManager {
     this.config.set("rateLimit", {
       aiGenerationPerHour: parseInt(
         process.env.RATE_LIMIT_AI_GENERATION || "10",
-        10
+        10,
       ),
       jobMatchingPerHour: parseInt(
         process.env.RATE_LIMIT_JOB_MATCHING || "20",
-        10
+        10,
       ),
       analyticsPerMinute: parseInt(
         process.env.RATE_LIMIT_ANALYTICS || "100",
-        10
+        10,
       ),
     });
 
@@ -78,12 +78,12 @@ export class ConfigManager {
     const corsOrigin = process.env.CORS_ORIGIN
       ? process.env.CORS_ORIGIN.split(",").map((o) => o.trim())
       : isDev
-      ? [
-          ...defaultCorsOrigins,
-          "http://localhost:3000",
-          "http://localhost:3001",
-        ]
-      : defaultCorsOrigins;
+        ? [
+            ...defaultCorsOrigins,
+            "http://localhost:3000",
+            "http://localhost:3001",
+          ]
+        : defaultCorsOrigins;
 
     this.config.set("security", {
       enableRateLimit: process.env.ENABLE_RATE_LIMIT !== "false",
@@ -105,19 +105,19 @@ export class ConfigManager {
         process.env.SEARCH_EMBEDDING_MODEL || "text-embedding-004",
       vectorDimension: parseInt(
         process.env.SEARCH_VECTOR_DIMENSION || "768",
-        10
+        10,
       ),
       maxResults: parseInt(process.env.SEARCH_MAX_RESULTS || "10", 10),
       minSimilarityScore: parseFloat(
-        process.env.SEARCH_MIN_SIMILARITY || "0.5"
+        process.env.SEARCH_MIN_SIMILARITY || "0.5",
       ),
       premiumMonthlyQuota: parseInt(
         process.env.SEARCH_QUOTA_PREMIUM || "50",
-        10
+        10,
       ),
       enterpriseMonthlyQuota: parseInt(
         process.env.SEARCH_QUOTA_ENTERPRISE || "999999",
-        10
+        10,
       ),
       quotaCollection: process.env.SEARCH_QUOTA_COLLECTION || "searchQuotas",
     });
@@ -142,7 +142,7 @@ export class ConfigManager {
     const emailConfig = this.config.get("email");
     if (emailConfig.enabled && (!emailConfig.user || !emailConfig.password)) {
       warnings.push(
-        "Email credentials not configured. Email features may not work."
+        "Email credentials not configured. Email features may not work.",
       );
     }
 
