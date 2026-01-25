@@ -31,7 +31,23 @@ if ! git ls-files >/dev/null 2>&1; then
     git reset 2>/dev/null || true
 fi
 
-echo "✅ Health check passed. Running secret scan..."
+echo "✅ Health check passed. Checking for API keys in staged files..."
+
+# Block any files with actual API keys/tokens (catch AI mistakes)
+if git diff --cached --name-only | xargs grep -l "AIzaSy" 2>/dev/null || \
+   git diff --cached --name-only | xargs grep -l "hf_[A-Za-z0-9]" 2>/dev/null || \
+   git diff --cached --name-only | xargs grep -l "sk-[A-Za-z0-9]" 2>/dev/null; then
+    echo "❌ ERROR: Actual API key detected in staged files!"
+    echo "   Firebase API keys start with 'AIzaSy'"
+    echo "   HuggingFace tokens start with 'hf_'"
+    echo "   OpenAI keys start with 'sk-'"
+    echo ""
+    echo "   Use placeholders like 'your-api-key-here' in .env.example files"
+    echo "   Store real keys in .env.local (git-ignored) or Firebase Secret Manager"
+    exit 1
+fi
+
+echo "✅ No API keys detected. Running secret scan..."
 
 scripts/secret-scan.sh
 
