@@ -36,7 +36,7 @@ class TokenGenerator {
     if (!envSecret) {
       throw new Error(
         "TOKEN_SECRET environment variable is required for secure token generation. " +
-        "Please set TOKEN_SECRET in your .env.local file."
+          "Please set TOKEN_SECRET in your .env.local file.",
       );
     }
 
@@ -70,7 +70,7 @@ class TokenGenerator {
 
     // Create JWT-like token
     const header = this.base64urlEncode(
-      JSON.stringify({ alg: this.algorithm, typ: "JWT" })
+      JSON.stringify({ alg: this.algorithm, typ: "JWT" }),
     );
     const body = this.base64urlEncode(JSON.stringify(fullPayload));
 
@@ -204,7 +204,7 @@ class TokenGenerator {
     str += "=".repeat(4 - (str.length % 4));
     return Buffer.from(
       str.replace(/-/g, "+").replace(/_/g, "/"),
-      "base64"
+      "base64",
     ).toString("utf-8");
   }
 

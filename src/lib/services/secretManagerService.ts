@@ -58,17 +58,17 @@ export class SecretManagerService {
           this.secretClient = new SecretManagerServiceClient();
           logger.info(
             { projectId: this.projectId },
-            "SecretManagerService initialized with Firebase Secret Manager"
+            "SecretManagerService initialized with Firebase Secret Manager",
           );
         } else {
           logger.warn(
-            "Project ID not found - falling back to environment variables"
+            "Project ID not found - falling back to environment variables",
           );
         }
       } catch (error) {
         logger.error(
           { err: error },
-          "Failed to initialize Secret Manager client - falling back to env vars"
+          "Failed to initialize Secret Manager client - falling back to env vars",
         );
       }
     }
@@ -151,7 +151,7 @@ export class SecretManagerService {
 
         logger.debug(
           { secretName: name, projectId: this.projectId },
-          "Retrieved secret from Firebase Secret Manager"
+          "Retrieved secret from Firebase Secret Manager",
         );
 
         return secretValue;
@@ -159,7 +159,7 @@ export class SecretManagerService {
         // Log error but fall back to env vars for development
         logger.warn(
           { err: error, secretName: name },
-          "Failed to fetch from Secret Manager, falling back to env vars"
+          "Failed to fetch from Secret Manager, falling back to env vars",
         );
         return process.env[name] || "";
       }
@@ -168,7 +168,7 @@ export class SecretManagerService {
     // Fallback to process.env for local development
     logger.debug(
       { secretName: name },
-      "Using process.env (dev mode or Secret Manager unavailable)"
+      "Using process.env (dev mode or Secret Manager unavailable)",
     );
     return process.env[name] || "";
   }
@@ -188,14 +188,14 @@ export class SecretManagerService {
           rotationPeriod: config.rotationPeriod,
           nextRotation: this.calculateNextRotation(
             metadata?.lastRotated || new Date(0),
-            config.rotationPeriod
+            config.rotationPeriod,
           ),
           version: metadata?.version || "unknown",
         });
       } catch (error) {
         logger.error(
           { err: error, secretName },
-          "Failed to get metadata for secret"
+          "Failed to get metadata for secret",
         );
       }
     }
@@ -230,7 +230,7 @@ export class SecretManagerService {
   async rotateSecret(
     name: string,
     newValue: string,
-    rotatedBy: string
+    rotatedBy: string,
   ): Promise<void> {
     try {
       // Validate secret strength
@@ -250,7 +250,7 @@ export class SecretManagerService {
 
       logger.info(
         { secretName: name, rotatedBy },
-        "Secret rotated successfully"
+        "Secret rotated successfully",
       );
     } catch (error) {
       logger.error({ err: error, secretName: name }, "Failed to rotate secret");
@@ -263,7 +263,7 @@ export class SecretManagerService {
    */
   private async updateSecretMetadata(
     name: string,
-    rotatedBy: string
+    rotatedBy: string,
   ): Promise<void> {
     // TODO: Save to Firestore collection 'secretMetadata'
     const metadata = {
@@ -282,7 +282,7 @@ export class SecretManagerService {
    */
   private async logSecretAccess(
     secretName: string,
-    userId?: string
+    userId?: string,
   ): Promise<void> {
     // TODO: Save to Firestore collection 'secretAccessLogs' with retention policy
     // For now, just log to application logs
@@ -293,7 +293,7 @@ export class SecretManagerService {
         accessedAt: new Date().toISOString(),
         environment: process.env.NODE_ENV,
       },
-      "Secret accessed"
+      "Secret accessed",
     );
   }
 
@@ -339,7 +339,7 @@ export class SecretManagerService {
     const sevenDaysFromNow = Date.now() + 7 * 24 * 60 * 60 * 1000;
 
     return allSecrets.filter(
-      (secret) => secret.nextRotation.getTime() < sevenDaysFromNow
+      (secret) => secret.nextRotation.getTime() < sevenDaysFromNow,
     );
   }
 
@@ -357,7 +357,7 @@ export class SecretManagerService {
  */
 export async function getSecret(
   name: string,
-  userId?: string
+  userId?: string,
 ): Promise<string> {
   const service = SecretManagerService.getInstance();
   return service.getSecret(name, userId);
@@ -369,7 +369,7 @@ export async function getSecret(
 export async function rotateSecret(
   name: string,
   newValue: string,
-  rotatedBy: string
+  rotatedBy: string,
 ): Promise<void> {
   const service = SecretManagerService.getInstance();
   return service.rotateSecret(name, newValue, rotatedBy);

@@ -42,11 +42,13 @@ docs/              # Architecture & deployment docs (See docs/README.md)
 **All production secrets are now stored in Firebase Secret Manager** ✅
 
 ### Production Deployment (Vercel/Cloud Run)
+
 - **No `.env.production` file needed!**
 - Secrets are fetched from Firebase Secret Manager at runtime
 - See [Firebase Secret Manager Migration Guide](docs/FIREBASE_SECRET_MANAGER_MIGRATION.md)
 
 ### Local Development
+
 - Use `.env.local` (git-ignored) for development
 - Automatically falls back when Secret Manager is unavailable
 - See `.env.example` for template structure
@@ -64,11 +66,13 @@ gcloud secrets list --project=switchcv-e5136
 ### What's Safe vs Unsafe
 
 ✅ **Safe to commit:**
+
 - `NEXT_PUBLIC_FIREBASE_PROJECT_ID` - public project identifier
 - `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` - public auth domain
 - `NEXT_PUBLIC_GA_ID` - Google Analytics ID
 
-❌ **NEVER commit (even with NEXT_PUBLIC_ prefix):**
+❌ **NEVER commit (even with NEXT*PUBLIC* prefix):**
+
 - `NEXT_PUBLIC_FIREBASE_API_KEY` - authenticates API calls
 - `NEXT_PUBLIC_HUGGINGFACE_TOKEN` - authenticates HF requests
 - Any token, secret, or key with actual credentials
