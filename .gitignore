@@ -123,3 +123,4 @@ scripts/setup-firestore-backup.sh
 scripts/setup-secrets.sh
 scripts/sync-secrets-from-firebase.sh
 src/app/api/admin/test-secrets/route.ts
+.env.production
