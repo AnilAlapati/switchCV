@@ -234,6 +234,21 @@
       "density": "SPARSE_ALL"
     },
     {
+      "collectionGroup": "resumes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "published",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "skillsNormalized",
+          "arrayConfig": "CONTAINS"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
       "collectionGroup": "searchQuotas",
       "queryScope": "COLLECTION",
       "fields": [

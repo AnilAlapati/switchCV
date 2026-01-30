@@ -163,43 +163,44 @@ export function RecruiterSearchForm({
               <button
                 type="button"
                 onClick={() => handleModeSwitch("ai")}
-                className={`group relative flex h-full flex-col justify-between gap-4 rounded-2xl border-2 p-5 text-left transition-all duration-300 ${searchMode === "ai"
-                  ? "border-[black] bg-[black] text-white shadow-lg shadow-[black]/20"
-                  : "border-slate-200/80 bg-white/80 hover:border-[black]/50 hover:bg-[black]/5 hover:shadow-md hover:scale-[1.01]"
-                  }`}
+                className={`group relative flex h-full flex-col justify-between gap-4 rounded-2xl border-2 p-5 text-left transition-all duration-300 ${
+                  searchMode === "ai"
+                    ? "border-teal-400 bg-gradient-to-br from-cyan-100 to-teal-100 text-slate-800 shadow-lg shadow-teal-200/50"
+                    : "border-slate-200/80 bg-white/80 hover:border-teal-300 hover:bg-teal-50/40 hover:shadow-md hover:scale-[1.01]"
+                }`}
               >
                 <div className="flex w-full items-start justify-between">
                   <div
-                    className={`flex h-12 w-12 items-center justify-center rounded-xl text-xl transition-all duration-300 ${searchMode === "ai"
-                      ? "bg-white/20 text-white"
-                      : "bg-slate-100 text-slate-500 group-hover:bg-[black]/10 group-hover:text-[black]"
-                      }`}
+                    className={`flex h-12 w-12 items-center justify-center rounded-xl text-xl transition-all duration-300 ${
+                      searchMode === "ai"
+                        ? "bg-white/20 text-white"
+                        : "bg-indigo-100 text-indigo-500 group-hover:bg-indigo-200 group-hover:text-indigo-600"
+                    }`}
                   >
                     ✨
                   </div>
                   <span
-                    className={`text-[10px] font-black uppercase tracking-widest ${searchMode === "ai"
-                      ? "text-white/60"
-                      : "text-[black]/40"
-                      }`}
+                    className={`text-[10px] font-black uppercase tracking-widest ${
+                      searchMode === "ai" ? "text-teal-700" : "text-indigo-400"
+                    }`}
                   >
                     Agentic
                   </span>
                 </div>
                 <div>
                   <span
-                    className={`block font-bold ${searchMode === "ai"
-                      ? "text-white"
-                      : "text-[black] group-hover:text-[black]"
-                      }`}
+                    className={`block font-bold ${
+                      searchMode === "ai"
+                        ? "text-teal-900"
+                        : "text-slate-800 group-hover:text-indigo-700"
+                    }`}
                   >
                     Agent Search
                   </span>
                   <p
-                    className={`mt-1 text-xs leading-relaxed ${searchMode === "ai"
-                      ? "text-gray-200"
-                      : "text-slate-500"
-                      }`}
+                    className={`mt-1 text-xs leading-relaxed ${
+                      searchMode === "ai" ? "text-teal-700" : "text-slate-500"
+                    }`}
                   >
                     Natural language search powered by autonomous agents
                   </p>
@@ -212,33 +213,37 @@ export function RecruiterSearchForm({
           <button
             type="button"
             onClick={() => handleModeSwitch("basic")}
-            className={`group relative flex h-full flex-col justify-between gap-4 rounded-2xl border-2 p-5 text-left transition-all duration-300 ${searchMode === "basic"
-              ? "border-[black] bg-[black] text-white shadow-lg shadow-[black]/20"
-              : "border-slate-200/80 bg-white/80 hover:border-[black]/50 hover:bg-[black]/5 hover:shadow-md hover:scale-[1.01]"
-              }`}
+            className={`group relative flex h-full flex-col justify-between gap-4 rounded-2xl border-2 p-5 text-left transition-all duration-300 ${
+              searchMode === "basic"
+                ? "border-blue-400 bg-gradient-to-br from-blue-100 to-sky-100 text-slate-800 shadow-lg shadow-blue-200/50"
+                : "border-slate-200/80 bg-white/80 hover:border-blue-300 hover:bg-blue-50/40 hover:shadow-md hover:scale-[1.01]"
+            }`}
           >
             <div className="flex w-full items-start justify-between">
               <div
-                className={`flex h-12 w-12 items-center justify-center rounded-xl text-base font-black transition-all duration-300 ${searchMode === "basic"
-                  ? "bg-white/20 text-white"
-                  : "bg-slate-100 text-slate-500 group-hover:bg-[black]/10 group-hover:text-[black]"
-                  }`}
+                className={`flex h-12 w-12 items-center justify-center rounded-xl text-base font-black transition-all duration-300 ${
+                  searchMode === "basic"
+                    ? "bg-blue-200/50 text-blue-700"
+                    : "bg-slate-100 text-slate-500 group-hover:bg-slate-200 group-hover:text-slate-700"
+                }`}
               >
                 ID
               </div>
             </div>
             <div>
               <span
-                className={`block text-base font-bold transition-colors ${searchMode === "basic"
-                  ? "text-white"
-                  : "text-[black] group-hover:text-[black]"
-                  }`}
+                className={`block text-base font-bold transition-colors ${
+                  searchMode === "basic"
+                    ? "text-blue-900"
+                    : "text-slate-800 group-hover:text-slate-900"
+                }`}
               >
                 Basic Lookup
               </span>
               <p
-                className={`mt-1.5 text-xs leading-relaxed ${searchMode === "basic" ? "text-emerald-100" : "text-slate-500"
-                  }`}
+                className={`mt-1.5 text-xs leading-relaxed ${
+                  searchMode === "basic" ? "text-blue-700" : "text-slate-500"
+                }`}
               >
                 Quickly retrieve a Specific candidate using their Resume ID
               </p>
@@ -292,35 +297,39 @@ export function RecruiterSearchForm({
               <button
                 type="button"
                 onClick={() => handleModeSwitch("premium")}
-                className={`group relative flex h-full flex-col justify-between gap-4 rounded-2xl border-2 p-5 text-left transition-all duration-300 ${searchMode === "premium"
-                  ? "border-[black] bg-[black] text-white shadow-lg shadow-[black]/20"
-                  : "border-slate-200/80 bg-white/80 hover:border-[black]/50 hover:bg-[black]/5 hover:shadow-md hover:scale-[1.01]"
-                  }`}
+                className={`group relative flex h-full flex-col justify-between gap-4 rounded-2xl border-2 p-5 text-left transition-all duration-300 ${
+                  searchMode === "premium"
+                    ? "border-rose-300 bg-gradient-to-br from-rose-100 to-pink-100 text-slate-800 shadow-lg shadow-rose-200/50"
+                    : "border-slate-200/80 bg-white/80 hover:border-rose-300 hover:bg-rose-50/40 hover:shadow-md hover:scale-[1.01]"
+                }`}
               >
                 <div className="flex w-full items-start justify-between">
                   <div
-                    className={`flex h-12 w-12 items-center justify-center rounded-xl text-lg transition-all duration-300 ${searchMode === "premium"
-                      ? "bg-white/20 text-white"
-                      : "bg-slate-100 text-slate-500 group-hover:bg-[black]/10 group-hover:text-[black]"
-                      }`}
+                    className={`flex h-12 w-12 items-center justify-center rounded-xl text-lg transition-all duration-300 ${
+                      searchMode === "premium"
+                        ? "bg-rose-200/50 text-rose-700"
+                        : "bg-amber-100 text-amber-500 group-hover:bg-amber-200 group-hover:text-amber-600"
+                    }`}
                   >
                     ★
                   </div>
                 </div>
                 <div>
                   <span
-                    className={`block text-base font-bold transition-colors ${searchMode === "premium"
-                      ? "text-white"
-                      : "text-[black] group-hover:text-[black]"
-                      }`}
+                    className={`block text-base font-bold transition-colors ${
+                      searchMode === "premium"
+                        ? "text-rose-900"
+                        : "text-slate-800 group-hover:text-amber-700"
+                    }`}
                   >
                     Premium Filters
                   </span>
                   <p
-                    className={`mt-1.5 text-xs leading-relaxed ${searchMode === "premium"
-                      ? "text-gray-200"
-                      : "text-slate-500"
-                      }`}
+                    className={`mt-1.5 text-xs leading-relaxed ${
+                      searchMode === "premium"
+                        ? "text-rose-700"
+                        : "text-slate-500"
+                    }`}
                   >
                     Advanced search with skills and location filters
                   </p>
@@ -335,9 +344,9 @@ export function RecruiterSearchForm({
         onSubmit={
           searchMode === "ai"
             ? (e) => {
-              e.preventDefault();
-              onAiSearch?.();
-            }
+                e.preventDefault();
+                onAiSearch?.();
+              }
             : onSearch
         }
         className="space-y-5"

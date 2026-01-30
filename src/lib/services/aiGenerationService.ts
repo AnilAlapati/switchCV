@@ -57,6 +57,38 @@ async function getAIConstants() {
   return aiConstants;
 }
 
+// Global Safety Rate Limiter
+// Prevents any infinite loop bug from spamming APIs, regardless of logic context
+const SAFETY_LIMIT_WINDOW_MS = 60000; // 1 minute
+// Default to 1000 in production to allow high traffic, 100 in dev for stricter checks
+// Can be overridden by AI_GLOBAL_SAFETY_LIMIT env var
+const DEFAULT_SAFETY_LIMIT = process.env.NODE_ENV === "production" ? 1000 : 100;
+const SAFETY_LIMIT_MAX_REQUESTS = Number(process.env.AI_GLOBAL_SAFETY_LIMIT) || DEFAULT_SAFETY_LIMIT;
+
+let globalRequestCount = 0;
+let globalWindowStart = Date.now();
+
+function checkGlobalSafetyLimit() {
+  const now = Date.now();
+  if (now - globalWindowStart > SAFETY_LIMIT_WINDOW_MS) {
+    // Reset window
+    globalWindowStart = now;
+    globalRequestCount = 0;
+  }
+
+  globalRequestCount++;
+
+  if (globalRequestCount > SAFETY_LIMIT_MAX_REQUESTS) {
+    logger.error(
+      { globalRequestCount, windowMs: SAFETY_LIMIT_WINDOW_MS },
+      "⛔️ GLOBAL AI SAFETY STOP: Rate limit exceeded. Blocking API calls.",
+    );
+    throw new Error(
+      "Global AI Safety Limit Exceeded: Potential infinite loop detected. Please wait 1 minute.",
+    );
+  }
+}
+
 /**
  * Check if the model cache is valid
  */
@@ -264,7 +296,16 @@ async function generateWithGemini(
     };
   }
 
+  let loopCount = 0;
+  const MAX_LOOP_ITERATIONS = 10; // Safety brake
+
   while (selection.models.length) {
+    loopCount++;
+    if (loopCount > MAX_LOOP_ITERATIONS) {
+      logger.error("Gemini context loop exceeded safety limit - breaking infinite loop");
+      break;
+    }
+
     const candidatePool = selection.models.filter(
       (m) => !attemptedModels.has(m),
     );
@@ -350,10 +391,10 @@ async function generateWithGemini(
     // Parse usageMetadata from Gemini response
     const usage: TokenUsage | undefined = data.usageMetadata
       ? {
-          promptTokens: data.usageMetadata.promptTokenCount || 0,
-          completionTokens: data.usageMetadata.candidatesTokenCount || 0,
-          totalTokens: data.usageMetadata.totalTokenCount || 0,
-        }
+        promptTokens: data.usageMetadata.promptTokenCount || 0,
+        completionTokens: data.usageMetadata.candidatesTokenCount || 0,
+        totalTokens: data.usageMetadata.totalTokenCount || 0,
+      }
       : undefined;
 
     return {
@@ -418,10 +459,10 @@ async function generateWithOpenAI(
   // Parse usage from OpenAI response
   const usage: TokenUsage | undefined = data.usage
     ? {
-        promptTokens: data.usage.prompt_tokens || 0,
-        completionTokens: data.usage.completion_tokens || 0,
-        totalTokens: data.usage.total_tokens || 0,
-      }
+      promptTokens: data.usage.prompt_tokens || 0,
+      completionTokens: data.usage.completion_tokens || 0,
+      totalTokens: data.usage.total_tokens || 0,
+    }
     : undefined;
 
   return {
@@ -482,10 +523,10 @@ async function generateWithGroq(
   // Parse usage from Groq response (OpenAI-compatible format)
   const usage: TokenUsage | undefined = data.usage
     ? {
-        promptTokens: data.usage.prompt_tokens || 0,
-        completionTokens: data.usage.completion_tokens || 0,
-        totalTokens: data.usage.total_tokens || 0,
-      }
+      promptTokens: data.usage.prompt_tokens || 0,
+      completionTokens: data.usage.completion_tokens || 0,
+      totalTokens: data.usage.total_tokens || 0,
+    }
     : undefined;
 
   return {
@@ -512,6 +553,9 @@ export async function generateText(
   provider: string;
   usage?: TokenUsage;
 }> {
+  // 1. GLOBAL SAFETY CHECK (The "Kill Switch")
+  checkGlobalSafetyLimit();
+
   const providers = providerFallback.getPrioritizedProviders();
   const errors: Record<string, string> = {};
 

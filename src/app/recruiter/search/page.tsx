@@ -1,18 +1,21 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   SearchInterface,
   RecruiterSearchFilters,
 } from "@/components/recruiter/SearchInterface";
 import { SmartSearch } from "@/components/search/SmartSearch";
+import { JDUpload, type ParsedJDPreview } from "@/components/recruiter/JDUpload";
+import { SearchResults, type SearchResult } from "@/components/recruiter/SearchResults";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useRouter } from "next/navigation";
 import { getVerificationRoute } from "@/lib/config";
 import { DashboardBackground } from "@/components/dashboard/DashboardBackground";
+import { Search, FileText, Sparkles } from "lucide-react";
 
-type SearchMode = "ai" | "basic";
+type SearchMode = "ai" | "basic" | "jd";
 
 const VERIFICATION_ROUTE = getVerificationRoute();
 
@@ -32,6 +35,12 @@ export default function RecruiterSearchPage() {
     error: searchError,
   } = useRecruiterSearch(activeFilters);
 
+  // JD Search state
+  const [jdResults, setJdResults] = useState<SearchResult[]>([]);
+  const [jdLoading, setJdLoading] = useState(false);
+  const [jdError, setJdError] = useState<string | null>(null);
+  const [parsedJD, setParsedJD] = useState<ParsedJDPreview | null>(null);
+
   // Initialize search mode based on tier
   const [searchMode, setSearchMode] = useState<SearchMode>("basic");
   const [hasInitializedMode, setHasInitializedMode] = useState(false);
@@ -44,7 +53,7 @@ export default function RecruiterSearchPage() {
 
   // Initialize search mode when tier is available (avoiding setState in effect)
   React.useEffect(() => {
-    if (!loading && tier && !hasInitializedMode) {
+    if (!loading && tier !== undefined && !hasInitializedMode) {
       // Only set mode once during initialization
       const initialMode = tier !== "basic" ? "ai" : "basic";
       setSearchMode(initialMode);
@@ -63,6 +72,56 @@ export default function RecruiterSearchPage() {
       }
     }
   }, [loading, user, needsEmailVerification, role, router]);
+
+  const handleSearch = async (filters: RecruiterSearchFilters) => {
+    setActiveFilters(filters);
+    // State update triggers re-render -> hook runs -> data fetched
+  };
+
+  const handleJDSearch = useCallback(async (jdText: string, useAI: boolean) => {
+    if (!user) {
+      setJdError("Please sign in to search");
+      return;
+    }
+
+    setJdLoading(true);
+    setJdError(null);
+    setParsedJD(null);
+    setJdResults([]);
+
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch("/api/recruiter/jd-search", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({ jdText, useAI }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Search failed");
+      }
+
+      setParsedJD(data.parsedJD);
+      setJdResults(data.results.map((r: Record<string, unknown>) => ({
+        userId: r.userId as string,
+        userName: r.userName as string || "Unknown",
+        title: r.title as string || "",
+        skills: (r.skills as string[]) || [],
+        matchScore: r.matchScore as number || 0,
+        matchReason: r.matchReason as string || "",
+        location: r.location as string || undefined,
+      })));
+    } catch (err) {
+      setJdError(err instanceof Error ? err.message : "Search failed");
+    } finally {
+      setJdLoading(false);
+    }
+  }, [user]);
 
   if (loading) {
     return (
@@ -88,11 +147,6 @@ export default function RecruiterSearchPage() {
     );
   }
 
-  const handleSearch = async (filters: RecruiterSearchFilters) => {
-    setActiveFilters(filters);
-    // State update triggers re-render -> hook runs -> data fetched
-  };
-
   return (
     <DashboardBackground>
       <div className="min-h-screen text-slate-900 relative">
@@ -102,32 +156,43 @@ export default function RecruiterSearchPage() {
           </h1>
 
           {/* Search Mode Tabs */}
-          <div className="flex gap-3 mb-6">
+          <div className="flex gap-2 mb-6 p-1 bg-gray-100 rounded-lg w-fit">
             <button
               onClick={() => !isBasicTier && setSearchMode("ai")}
               disabled={isBasicTier}
-              className={`px-4 py-2 rounded-lg font-bold transition-all flex items-center gap-2 border-2 text-sm ${isBasicTier
-                ? "bg-slate-100 border-slate-200 opacity-50 cursor-not-allowed text-slate-400"
+              className={`px-4 py-2 rounded-md font-medium transition-all flex items-center gap-2 text-sm ${isBasicTier
+                ? "opacity-50 cursor-not-allowed text-gray-400"
                 : searchMode === "ai"
-                  ? "bg-black border-black text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)]"
-                  : "bg-white border-black text-slate-900 hover:bg-slate-50"
+                  ? "bg-white text-black shadow-sm"
+                  : "text-gray-600 hover:text-gray-900"
                 }`}
             >
-              <span>✨</span>
+              <Sparkles className="w-4 h-4" />
               AI Search
-              <span className="text-xs px-1.5 py-0.5 bg-white/20 rounded font-bold border border-white/50">
+              <span className="text-xs px-1.5 py-0.5 bg-black/10 rounded font-medium">
                 Premium
               </span>
             </button>
             <button
               onClick={() => setSearchMode("basic")}
-              className={`px-4 py-2 rounded-lg font-bold transition-all flex items-center gap-2 border-2 text-sm ${searchMode === "basic"
-                ? "bg-black border-black text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)]"
-                : "bg-white border-black text-slate-900 hover:bg-slate-50"
+              className={`px-4 py-2 rounded-md font-medium transition-all flex items-center gap-2 text-sm ${searchMode === "basic"
+                ? "bg-white text-black shadow-sm"
+                : "text-gray-600 hover:text-gray-900"
                 }`}
             >
-              <span>🔍</span>
+              <Search className="w-4 h-4" />
               Basic Search
+            </button>
+            <button
+              onClick={() => setSearchMode("jd")}
+              className={`px-4 py-2 rounded-md font-medium transition-all flex items-center gap-2 text-sm ${searchMode === "jd"
+                ? "bg-white text-black shadow-sm"
+                : "text-gray-600 hover:text-gray-900"
+                }`}
+              data-testid="jd-search-tab"
+            >
+              <FileText className="w-4 h-4" />
+              Upload JD
             </button>
           </div>
 
@@ -137,7 +202,7 @@ export default function RecruiterSearchPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center border-2 border-slate-200">
-                    <span className="text-xl">✨</span>
+                    <Sparkles className="w-5 h-5 text-white" />
                   </div>
                   <div>
                     <h3 className="font-bold text-slate-900 mb-1">
@@ -175,8 +240,41 @@ export default function RecruiterSearchPage() {
               error={error}
             />
           )}
+
+          {/* JD Upload Search Mode */}
+          {searchMode === "jd" && (
+            <div className="space-y-6">
+              <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-lg p-6">
+                <div className="mb-4">
+                  <h2 className="text-xl font-bold text-gray-900 mb-1">
+                    Search by Job Description
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    Paste or upload a job description to automatically find matching candidates.
+                    Our AI extracts requirements and ranks candidates by fit.
+                  </p>
+                </div>
+                <JDUpload
+                  onSearch={handleJDSearch}
+                  isLoading={jdLoading}
+                  parsedJD={parsedJD}
+                  error={jdError}
+                />
+              </div>
+
+              {/* JD Search Results */}
+              {(jdResults.length > 0 || jdLoading) && (
+                <SearchResults
+                  results={jdResults}
+                  isLoading={jdLoading}
+                  query={parsedJD?.title || "Job Description Search"}
+                />
+              )}
+            </div>
+          )}
         </div>
       </div>
     </DashboardBackground>
   );
 }
+

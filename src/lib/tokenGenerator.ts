@@ -1,4 +1,3 @@
-import { logger } from "@/lib/logger";
 import crypto from "crypto";
 
 /**
@@ -36,7 +35,7 @@ class TokenGenerator {
     if (!envSecret) {
       throw new Error(
         "TOKEN_SECRET environment variable is required for secure token generation. " +
-          "Please set TOKEN_SECRET in your .env.local file.",
+        "Please set TOKEN_SECRET in your .env.local file.",
       );
     }
 

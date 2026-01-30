@@ -4,6 +4,27 @@ import { getAuthenticatedUserId, handleApiError } from "@/lib/utils/api-helpers"
 import { logger } from "@/lib/logger";
 import { trackCost } from "@/lib/services/costControlService";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
+import { z } from "zod";
+
+const OutreachRequestSchema = z.object({
+    candidate: z.object({
+        name: z.string().optional(),
+        title: z.string().optional(),
+        skills: z.array(z.string()).optional(),
+        bio: z.string().optional(),
+        experience: z.string().optional(),
+    }),
+    job: z.object({
+        title: z.string(),
+        description: z.string().optional(),
+        requirements: z.array(z.string()).optional(),
+        location: z.string().optional(),
+    }),
+    recruiter: z.object({
+        recruiterName: z.string().optional(),
+        companyName: z.string().optional(),
+    }).optional(),
+});
 
 const ESTIMATED_COST_OUTREACH = 0.002; // $0.002 per run (Gemini 1.5 Pro)
 const RATE_LIMIT_OUTREACH = 50; // 50 requests per day per user
@@ -24,12 +45,14 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json();
-        const { candidate, job, recruiter } = body;
 
-        // TODO: Add strict validation library (zod) if needed, for now basic checks
-        if (!candidate || !job) {
-            return handleApiError(new Error("Missing data"), "Missing candidate or job data", 400);
+        // 2. Validation
+        const result = OutreachRequestSchema.safeParse(body);
+        if (!result.success) {
+            return handleApiError(null, "Invalid request body: " + result.error.message, 400);
         }
+
+        const { candidate, job, recruiter } = result.data;
 
         // NOTE: Intentionally BYPASSING tier checks here as requested.
         // In production, we would check if user.subscriptionTier === 'premium' | 'enterprise'

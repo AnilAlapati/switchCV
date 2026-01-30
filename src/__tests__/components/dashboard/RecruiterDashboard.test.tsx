@@ -3,7 +3,9 @@ import { RecruiterDashboard } from "@/components/dashboard/RecruiterDashboard";
 
 // Mock sub-components
 jest.mock("@/components/dashboard/ActionPlanCard", () => ({ ActionPlanCard: () => <div /> }));
-jest.mock("@/components/dashboard/OpportunityInsightsCard", () => ({ OpportunityInsightsCard: () => <div data-testid="insights" /> }));
+jest.mock("@/components/dashboard/OpportunityInsightsCard", () => ({
+    OpportunityInsightsCard: ({ title }: any) => <div data-testid="insights">{title}</div>
+}));
 jest.mock("@/components/dashboard/ResourceLinksCard", () => ({ ResourceLinksCard: () => <div /> }));
 jest.mock("@/components/dashboard/RecruiterSearchBox", () => ({ RecruiterSearchBox: () => <div /> }));
 jest.mock("@/components/dashboard/recruiter/CandidatesSearchedCard", () => ({ CandidatesSearchedCard: () => <div /> }));
@@ -45,39 +47,38 @@ describe("RecruiterDashboard", () => {
         expect(screen.getByTestId("skeleton")).toBeInTheDocument();
     });
 
-    it("renders pipeline integrity panel when feature flag is on", () => {
+    it("renders pipeline insights panel", () => {
         render(
             <RecruiterDashboard
                 metrics={{} as any}
                 metricsLoading={false}
             />
         );
-        expect(screen.getByText("Pipeline Integrity")).toBeInTheDocument();
-        expect(screen.getByText("Start Discovery")).toBeInTheDocument();
+        expect(screen.getByText("Pipeline Insights")).toBeInTheDocument();
+        expect(screen.getByText("Try Now →")).toBeInTheDocument();
     });
 
-    it("hides pipeline integrity panel when feature flag is off", () => {
-        process.env.NEXT_PUBLIC_FEATURE_PIPELINE_PANEL = "false";
+    it("renders AI Discovery banner with correct text", () => {
         render(
             <RecruiterDashboard
                 metrics={{} as any}
                 metricsLoading={false}
             />
         );
-        expect(screen.queryByText("Pipeline Integrity")).not.toBeInTheDocument();
+        expect(screen.getByText(/AI-Powered Talent Discovery/i)).toBeInTheDocument();
+        expect(screen.getByText(/Try Now →/i)).toBeInTheDocument();
     });
 
-    it("triggers onLaunchSearch when Discovery is clicked", () => {
-        const mockLaunch = jest.fn();
+
+    it("renders AI Discovery banner with correct text", () => {
         render(
             <RecruiterDashboard
                 metrics={{} as any}
                 metricsLoading={false}
-                onLaunchSearch={mockLaunch}
             />
         );
-        fireEvent.click(screen.getByText(/Start Discovery/i));
-        expect(mockLaunch).toHaveBeenCalled();
+        expect(screen.getByText(/AI-Powered Talent Discovery/i)).toBeInTheDocument();
+        expect(screen.getByText(/Try Now →/i)).toBeInTheDocument();
     });
 
     it("renders all core components when loaded", () => {

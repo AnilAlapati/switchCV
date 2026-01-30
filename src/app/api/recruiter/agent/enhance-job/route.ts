@@ -1,0 +1,47 @@
+import { NextRequest, NextResponse } from "next/server";
+import { RecruiterAgentService } from "@/lib/services/recruiterAgentService";
+import { getAuthenticatedUserId, handleApiError } from "@/lib/utils/api-helpers";
+import { logger } from "@/lib/logger";
+import { trackCost } from "@/lib/services/costControlService";
+import { checkRateLimit } from "@/lib/utils/rateLimit";
+
+const ESTIMATED_COST_ENHANCE_JOB = 0.002; // $0.002 per run (Gemini 1.5 Pro)
+const RATE_LIMIT_ENHANCE_JOB = 20; // 20 requests per day (job descriptions are less frequent)
+
+export async function POST(req: NextRequest) {
+    try {
+        const { userId, error } = await getAuthenticatedUserId(req);
+        if (error) return error;
+
+        // 1. Rate Limiting
+        const rateLimit = await checkRateLimit(`${userId}:agent:enhance-job`, {
+            limit: RATE_LIMIT_ENHANCE_JOB,
+            windowMs: 24 * 60 * 60 * 1000, // 24 hours
+        });
+
+        if (!rateLimit.allowed) {
+            return handleApiError(null, "Daily job enhancement limit exceeded", 429);
+        }
+
+        const body = await req.json();
+        const { job } = body;
+
+        if (!job || !job.title) {
+            return handleApiError(new Error("Missing data"), "Missing job data with title", 400);
+        }
+
+        logger.info({ userId, jobTitle: job.title }, "Enhancing job description via Agent");
+
+        const result = await RecruiterAgentService.enhanceJobDescription(job);
+
+        // 2. Cost Tracking (Fire & Forget)
+        trackCost(userId!, ESTIMATED_COST_ENHANCE_JOB, "agent_enhance_job").catch((err) =>
+            logger.error({ err }, "Failed to track cost for job enhancement")
+        );
+
+        return NextResponse.json(result);
+    } catch (err) {
+        logger.error({ err }, "Job enhancement API failed");
+        return handleApiError(err, "Failed to enhance job description");
+    }
+}
