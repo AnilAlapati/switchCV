@@ -58,7 +58,7 @@
     "firebase-admin": "^13.6.0",
     "lucide-react": "^0.561.0",
     "motion": "^12.26.2",
-    "next": "^15.1.6",
+    "next": "^16.1.6",
     "next-intl": "^4.7.0",
     "nodemailer": "^7.0.11",
     "path-browserify": "^1.0.1",
