@@ -1,5 +1,6 @@
 import { AccessService } from "@/lib/services/accessService";
 import { adminDb } from "@/lib/firebase-admin";
+import { getTierForRole } from "@/lib/services/userService";
 
 // Mock Firebase admin
 const mockDocGet = jest.fn();
@@ -63,6 +64,11 @@ jest.mock("@/lib/config.server", () => ({
 jest.mock("@/lib/services/metricsService", () => ({
   updateRecruiterAccessMetric: jest.fn().mockResolvedValue(undefined),
 }));
+jest.mock("@/lib/services/userService", () => ({
+  getTierForRole: jest.fn().mockResolvedValue("premium"),
+  getUserRole: jest.fn().mockResolvedValue("recruiter"),
+  getUserTier: jest.fn().mockResolvedValue("premium"),
+}));
 
 describe("AccessService", () => {
   const mockRequesterId = "requester-123";
@@ -108,8 +114,11 @@ describe("AccessService", () => {
 
       const result = await AccessService.requestAccess({
         requesterId: mockRequesterId,
+        requesterName: "Recruiter",
         resumeId: mockResumeId,
         message: "Hire me",
+        durationLabel: "30 days",
+        durationDays: 30,
       });
 
       expect(result).toHaveProperty("requestId", "mock-add-id");
@@ -123,7 +132,10 @@ describe("AccessService", () => {
       await expect(
         AccessService.requestAccess({
           requesterId: "missing",
+          requesterName: "Recruiter",
           resumeId: mockResumeId,
+          durationLabel: "30 days",
+          durationDays: 30,
         }),
       ).rejects.toThrow("User not found");
     });
@@ -137,12 +149,16 @@ describe("AccessService", () => {
       await expect(
         AccessService.requestAccess({
           requesterId: mockRequesterId,
+          requesterName: "Recruiter",
           resumeId: mockResumeId,
+          durationLabel: "30 days",
+          durationDays: 30,
         }),
       ).rejects.toThrow("Company name is required to request access.");
     });
 
     it("should throw error if limit is reached", async () => {
+      (getTierForRole as jest.Mock).mockResolvedValueOnce("basic");
       mockDocGet.mockResolvedValueOnce({
         exists: true,
         data: () => ({ subscriptionTier: "basic", companyName: "Basic Corp" }),
@@ -157,7 +173,10 @@ describe("AccessService", () => {
       await expect(
         AccessService.requestAccess({
           requesterId: mockRequesterId,
+          requesterName: "Recruiter",
           resumeId: mockResumeId,
+          durationLabel: "30 days",
+          durationDays: 30,
         }),
       ).rejects.toThrow("Limit reached: 2 requests total. Upgrade plan.");
     });
@@ -190,12 +209,16 @@ describe("AccessService", () => {
       await expect(
         AccessService.requestAccess({
           requesterId: mockRequesterId,
+          requesterName: "Recruiter",
           resumeId: mockResumeId,
+          durationLabel: "30 days",
+          durationDays: 30,
         }),
       ).rejects.toThrow("Pending request already exists");
     });
 
     it("should handle missing index fallback for accessGrants", async () => {
+      (getTierForRole as jest.Mock).mockResolvedValueOnce("enterprise");
       // 1. User (DocGet #1)
       mockDocGet.mockResolvedValueOnce({
         exists: true,
@@ -247,7 +270,10 @@ describe("AccessService", () => {
       await expect(
         AccessService.requestAccess({
           requesterId: mockRequesterId,
+          requesterName: "Recruiter",
           resumeId: mockResumeId,
+          durationLabel: "30 days",
+          durationDays: 30,
         }),
       ).rejects.toThrow("Cannot request access to own resume");
     });
@@ -277,7 +303,10 @@ describe("AccessService", () => {
       await expect(
         AccessService.requestAccess({
           requesterId: mockRequesterId,
+          requesterName: "Recruiter",
           resumeId: mockResumeId,
+          durationLabel: "30 days",
+          durationDays: 30,
         }),
       ).rejects.toThrow("Already have access");
     });

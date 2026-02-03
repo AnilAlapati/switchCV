@@ -36,43 +36,12 @@ const nextConfig: NextConfig = {
       "framer-motion",
     ],
   },
-  serverExternalPackages: ["pino", "pino-pretty", "firebase-admin"],
+  // Removing serverExternalPackages, transpilePackages, and webpack/turbopack configs
+  // and relying on Next.js 16 defaults for the Firebase environment.
   transpilePackages: ["path-scurry"],
-  webpack: (config, { isServer }) => {
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      "node:process": "process",
-      "node:path": "path",
-      "node:fs": "fs",
-      "node:url": "url",
-      "node:util": "util",
-      "node:vm": "vm",
-      "node:module": "module",
-    };
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        process: require.resolve("process/browser"),
-        path: require.resolve("path-browserify"),
-        fs: false,
-        "pino-pretty": false,
-      };
-    }
-
-    // Exclude pino-pretty from Edge Runtime to prevent process.stdout.isTTY errors
-    config.externals = config.externals || [];
-    if (Array.isArray(config.externals)) {
-      config.externals.push({
-        "pino-pretty": "pino-pretty",
-      });
-    }
-
-    return config;
-  },
   env: {
     NEXT_PUBLIC_APP_VERSION: packageJson.version,
   },
-  /* config options here */
   async headers() {
     return [
       {
@@ -126,12 +95,6 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  typescript: {
-    // Strict type checking enabled for production quality
-    // Run `npx tsc --noEmit` to see all type errors before building
-    ignoreBuildErrors: false,
-  },
-
   images: {
     remotePatterns: [
       {
@@ -140,18 +103,8 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-
-  turbopack: {
-    resolveAlias: {
-      "node:process": "process",
-      "node:path": "path",
-      "node:fs": "fs",
-      "node:url": "url",
-      "node:util": "util",
-      "node:vm": "vm",
-      "node:module": "module",
-    },
-  },
+  // Silence the Turbopack warning/error in Next.js 16 by providing an empty object
+  turbopack: {},
 };
 
 export default nextConfig;

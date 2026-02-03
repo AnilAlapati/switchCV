@@ -1,6 +1,7 @@
 "use client";
 
-import { useTier } from "@/hooks/useTier";
+import { useState } from "react";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { useTierLimits } from "@/hooks/useTierLimits";
 import { SubscriptionTier } from "@/lib/config";
 import { DashboardBackground } from "@/components/dashboard/DashboardBackground";
@@ -30,10 +31,15 @@ function SparklesIcon({ className }: { className?: string }) {
 export default function SubscriptionPage() {
   const { user, logout } = useAuth();
   const router = useRouter();
-  const { tier, loading: tierLoading } = useTier();
+  const { jobSeekerTier, recruiterTier, role: currentRole, loading: profileLoading } = useUserProfile();
   const { limits, loading: limitsLoading } = useTierLimits();
 
-  const loading = tierLoading || limitsLoading;
+  // Default to current role view, fallback to jobseeker
+  const [viewRole, setViewRole] = useState<"jobseeker" | "recruiter">(
+    currentRole === "recruiter" ? "recruiter" : "jobseeker"
+  );
+
+  const loading = profileLoading || limitsLoading;
 
   if (loading) {
     return (
@@ -44,62 +50,96 @@ export default function SubscriptionPage() {
     );
   }
 
-  const tiers: {
-    id: SubscriptionTier;
-    name: string;
-    price: string;
-    description: string;
-    features: string[];
-    highlight?: boolean;
-  }[] = [
+  const getTiersForRole = (role: "jobseeker" | "recruiter") => {
+    if (role === "recruiter") {
+      return [
+        {
+          id: "basic",
+          name: "Recruiter Basic",
+          price: "Free",
+          description: "Essential tools for finding talent.",
+          features: [
+            `${limits.basic.recruiterSearchLimit} AI Searches / month`,
+            `${limits.basic.recruiterContactLimit.amount} Contact Requests (${limits.basic.recruiterContactLimit.interval === "lifetime" ? "total" : "per month"})`,
+            "Basic profile insights",
+            "Resume viewing (Basic)",
+          ],
+        },
+        {
+          id: "premium",
+          name: "Recruiter Premium",
+          price: "$29",
+          description: "High-volume recruitment with priority outreach.",
+          highlight: true,
+          features: [
+            `${limits.premium.recruiterSearchLimit === 9999 ? "Unlimited" : limits.premium.recruiterSearchLimit} AI Searches`,
+            `${limits.premium.recruiterContactLimit.amount} Contact Requests / month`,
+            "Advanced fit scoring",
+            "Priority talent alerts",
+            "Export candidate data",
+          ],
+        },
+        {
+          id: "enterprise",
+          name: "Enterprise",
+          price: "Custom",
+          description: "Complete agency solution with custom scaling.",
+          features: [
+            "Unlimited Searches & Contacts",
+            "Team collaboration seats",
+            "API Access for ATS integration",
+            "Custom branding",
+            "Dedicated account manager",
+          ],
+        },
+      ];
+    }
+
+    return [
       {
         id: "basic",
-        name: "Basic",
+        name: "Standard",
         price: "Free",
-        description: "Essential features for job seekers starting their journey.",
+        description: "Everything you need to get noticed.",
         features: [
           `${limits.basic.resumeCreationLimit} Active Resume`,
-          limits.basic.resumeEditingAllowed
-            ? "Resume Editing"
-            : "No Resume Editing",
-          `${limits.basic.resumeRetentionDays || "Forever"
-          } Days Resume Retention`,
-          limits.basic.recruiterSearchLimit > 0
-            ? `${limits.basic.recruiterSearchLimit} AI Searches (Recruiter)`
-            : "AI Search not available",
-          `${limits.basic.recruiterContactLimit.amount} Contact Requests (${limits.basic.recruiterContactLimit.interval})`,
+          "AI Enhancement (Basic)",
+          `${limits.basic.resumeRetentionDays} Days Data Retention`,
+          "Basic Skill Analysis",
         ],
       },
       {
         id: "premium",
-        name: "Premium",
-        price: "",
-        description: "Advanced AI tools for serious candidates and recruiters.",
+        name: "Premium Job Seeker",
+        price: "$12",
+        description: "Dominate the market with AI-powered career growth.",
         highlight: true,
         features: [
-          `${limits.premium.resumeCreationLimit} Tailored Resume Versions`,
-          limits.premium.resumeEditingAllowed
-            ? "Unlimited Resume Editing"
-            : "No Resume Editing",
-          "Forever Resume Retention",
-          `${limits.premium.recruiterSearchLimit} AI Searches (Recruiter)`,
-          `${limits.premium.recruiterContactLimit.amount} Contact Requests (${limits.premium.recruiterContactLimit.interval})`,
+          `${limits.premium.resumeCreationLimit === 9999 ? "Unlimited" : limits.premium.resumeCreationLimit} Resumes`,
+          "Unlimited AI Fine-tuning",
+          "Forever Data Retention",
+          "Priority AI Agent access",
+          "Advanced Interview Prep",
         ],
       },
       {
         id: "enterprise",
-        name: "Enterprise",
-        price: "Custom",
-        description: "Complete solution for high-volume recruitment agencies.",
+        name: "Career Mastery",
+        price: "$49",
+        description: "Total career orchestration and exclusive networks.",
         features: [
-          "Unlimited Resume Management",
-          "Unlimited Resume Editing",
-          "Forever Resume Retention",
-          "Unlimited AI Searches",
-          "Unlimited Contact Requests",
+          "Personalized Agent Orchestrator",
+          "Exclusive Recruiter Network access",
+          "Shadowing & Mentorship AI",
+          "Unlimited Everything",
+          "Direct Resume Promotion",
         ],
       },
     ];
+  };
+
+  const currentTiers = getTiersForRole(viewRole);
+  const currentRoleTier = viewRole === "recruiter" ? recruiterTier : jobSeekerTier;
 
   return (
     <DashboardBackground>
@@ -136,40 +176,67 @@ export default function SubscriptionPage() {
 
           <WillingnessToPaySurvey />
 
-          <div className="text-center mb-20">
+          <div className="text-center mb-12">
             <h2 className="text-[black] font-bold tracking-wide uppercase text-sm mb-3">
               Upgrade Your Potential
             </h2>
-            <h1 className="text-4xl md:text-5xl font-bold text-[black] tracking-tight mb-6">
+            <h1 className="text-4xl md:text-5xl font-bold text-[black] tracking-tight mb-8">
               Choose your{" "}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
                 Power Level
               </span>
             </h1>
+
+            {/* Role Switcher Tabs */}
+            <div className="flex justify-center mb-12">
+              <div className="inline-flex p-1 bg-gray-100 rounded-xl border border-gray-200">
+                <button
+                  onClick={() => setViewRole("jobseeker")}
+                  className={`px-8 py-3 text-sm font-bold transition-all duration-300 rounded-lg ${viewRole === "jobseeker"
+                    ? "bg-white text-black shadow-md border border-gray-100"
+                    : "text-gray-500 hover:text-black"
+                    }`}
+                >
+                  For Job Seekers
+                </button>
+                <button
+                  onClick={() => setViewRole("recruiter")}
+                  className={`px-8 py-3 text-sm font-bold transition-all duration-300 rounded-lg ${viewRole === "recruiter"
+                    ? "bg-white text-black shadow-md border border-gray-100 shadow-indigo-500/5 style={{ boxShadow: '0 4px 14px 0 rgba(0, 0, 0, 0.05)' }}"
+                    : "text-gray-500 hover:text-black"
+                    }`}
+                >
+                  For Recruiters
+                </button>
+              </div>
+            </div>
+
             <p className="max-w-2xl mx-auto text-lg text-[black]/70">
-              Unlock advanced AI capabilities, unlimited searches, and premium
-              features designed to accelerate your career or hiring pipeline.
+              {viewRole === "jobseeker"
+                ? "Accelerate your career with AI-powered resume fine-tuning and priority agent access."
+                : "Source top talent faster with proprietary AI search and high-volume contact outreach."
+              }
             </p>
           </div>
 
           {/* Pricing Cards */}
           <div className="grid gap-6 lg:grid-cols-3 lg:gap-x-8 items-stretch bg-transparent">
-            {tiers.map((plan) => {
-              const isCurrent = tier === plan.id;
+            {currentTiers.map((plan) => {
+              const isCurrent = currentRoleTier === plan.id;
 
               return (
                 <div
                   key={plan.id}
                   className={`relative group flex flex-col h-full transition-all duration-500 rounded-xl ${isCurrent
-                      ? "scale-105 z-10 shadow-2xl"
-                      : "hover:scale-105 z-0 hover:shadow-xl"
+                    ? "scale-105 z-10 shadow-2xl"
+                    : "hover:scale-105 z-0 hover:shadow-xl"
                     }`}
                 >
                   {/* Card Boarder/Background */}
                   <div
                     className={`absolute inset-0 rounded-xl border-2 transition-colors duration-300 ${isCurrent
-                        ? "border-black bg-white"
-                        : "border-gray-200 bg-white group-hover:border-black/50"
+                      ? "border-black bg-white"
+                      : "border-gray-200 bg-white group-hover:border-black/50"
                       }`}
                   />
 
@@ -217,8 +284,8 @@ export default function SubscriptionPage() {
                         >
                           <span
                             className={`mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${isCurrent
-                                ? "bg-blue-600"
-                                : "bg-gray-300 group-hover/item:bg-black"
+                              ? "bg-blue-600"
+                              : "bg-gray-300 group-hover/item:bg-black"
                               } transition-colors`}
                           />
                           <span className="text-sm text-gray-700 font-medium tracking-tight group-hover/item:text-black transition-colors">
@@ -232,8 +299,8 @@ export default function SubscriptionPage() {
                     <button
                       disabled={true}
                       className={`w-full py-4 px-4 text-xs font-bold uppercase tracking-widest transition-all duration-300 rounded-lg border-2 ${isCurrent
-                          ? "bg-black border-black text-white"
-                          : "bg-transparent border-gray-200 text-gray-400"
+                        ? "bg-black border-black text-white"
+                        : "bg-transparent border-gray-200 text-gray-400"
                         }`}
                     >
                       {isCurrent ? "Active Plan" : "Select Plan"}

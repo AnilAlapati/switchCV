@@ -6,6 +6,23 @@ import { runAgenticWorkflow } from "@/lib/services/agentOrchestrator";
 jest.mock("@/lib/services/aiGenerationService");
 jest.mock("@/lib/services/agentOrchestrator");
 jest.mock("@/lib/logger");
+
+jest.mock("@/lib/services/billingService", () => ({
+  BillingService: {
+    checkBudget: jest.fn(() => Promise.resolve(true)),
+    trackUsage: jest.fn(() => Promise.resolve()),
+  },
+}));
+
+jest.mock("@/lib/services/userService", () => ({
+  getTierForRole: jest.fn(() => Promise.resolve("premium")),
+}));
+
+jest.mock("@/lib/utils/cors", () => ({
+  createCorsHeaders: jest.fn(() => new Headers()),
+  handleCorsPreflightRequest: jest.fn(),
+}));
+
 jest.mock("@/lib/utils/api-helpers", () => ({
   handleApiError: jest.fn((err, msg, status) =>
     require("next/server").NextResponse.json(
@@ -64,8 +81,8 @@ describe("Generate Resume API", () => {
   });
 
   it("should return enhanced resume on success", async () => {
-    (runAgenticWorkflow as jest.Mock).mockResolvedValue(
-      JSON.stringify({
+    (runAgenticWorkflow as jest.Mock).mockResolvedValue({
+      resumeMarkdown: JSON.stringify({
         enhancedSummary: "New summary",
         enhancedExperience: [
           {
@@ -79,8 +96,10 @@ describe("Generate Resume API", () => {
         ],
         skillSuggestions: ["Node"],
         improvementTips: ["Tip"],
-      })
-    );
+      }),
+      templateId: undefined,
+      reasoning: undefined
+    });
 
     const req = new NextRequest("http://localhost", {
       method: "POST",

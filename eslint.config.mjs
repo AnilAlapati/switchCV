@@ -1,10 +1,17 @@
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
+import { FlatCompat } from "@eslint/eslintrc";
+import { fileURLToPath } from "url";
+import path from "path";
 import reactHooks from "eslint-plugin-react-hooks";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const compat = new FlatCompat({
+  baseDirectory: __dirname,
+});
+
 const eslintConfig = [
-  ...nextVitals,
-  ...nextTs,
+  ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
     plugins: {
       "react-hooks": reactHooks,
@@ -19,12 +26,10 @@ const eslintConfig = [
         },
       ],
       // Gradually enforcing type safety - warn on 'any' usage
-      // TODO: Upgrade to "error" after refactoring legacy Firestore code
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/no-unused-vars": "warn",
       "@typescript-eslint/no-non-null-asserted-optional-chain": "warn",
       "@typescript-eslint/no-require-imports": "warn",
-      "@typescript-eslint/ban-types": "off",
       "@typescript-eslint/no-unsafe-function-type": "warn",
       "react/no-unescaped-entities": "off",
       "react-hooks/rules-of-hooks": "error",
@@ -81,6 +86,13 @@ const eslintConfig = [
           ],
         },
       ],
+    },
+  },
+  {
+    // User approval endpoints use public token-based auth, not services
+    files: ["src/app/api/user-approval/**/route.ts"],
+    rules: {
+      "no-restricted-imports": "off",
     },
   },
   {

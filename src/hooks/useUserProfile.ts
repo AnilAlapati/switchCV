@@ -14,6 +14,8 @@ import { UserProfile } from "@/types";
 interface UseUserProfileResult {
   profile: UserProfile | null;
   tier: SubscriptionTier;
+  jobSeekerTier: SubscriptionTier;
+  recruiterTier: SubscriptionTier;
   role: UserRole | undefined;
   loading: boolean;
   error: Error | null;
@@ -57,19 +59,20 @@ export function useUserProfile(): UseUserProfileResult {
   );
 
   // Apply Dev Mode Overrides
-  const effectiveTier: SubscriptionTier =
-    (DEV_MODE_ENABLED && DEV_TIER_OVERRIDE) ||
-    data?.subscriptionTier ||
-    "basic";
+  const jobSeekerTier = (DEV_MODE_ENABLED && DEV_TIER_OVERRIDE) || data?.jobSeekerTier || data?.subscriptionTier || "basic";
+  const recruiterTier = (DEV_MODE_ENABLED && DEV_TIER_OVERRIDE) || data?.recruiterTier || data?.subscriptionTier || "basic";
+  const effectiveRole: UserRole | undefined = (DEV_MODE_ENABLED && DEV_ROLE_OVERRIDE) || data?.role;
 
-  const effectiveRole: UserRole | undefined =
-    (DEV_MODE_ENABLED && DEV_ROLE_OVERRIDE) || data?.role;
+  // For backward compatibility, 'tier' returns the tier for the current role
+  const effectiveTier: SubscriptionTier = effectiveRole === "recruiter" ? recruiterTier : jobSeekerTier;
 
   // Construct effective profile
   const effectiveProfile: UserProfile | null = data
     ? {
       ...data,
       subscriptionTier: effectiveTier,
+      jobSeekerTier,
+      recruiterTier,
       role: effectiveRole as UserRole,
     }
     : user
@@ -77,6 +80,8 @@ export function useUserProfile(): UseUserProfileResult {
         uid: user.uid,
         email: user.email || "",
         subscriptionTier: effectiveTier,
+        jobSeekerTier,
+        recruiterTier,
         role: effectiveRole as UserRole,
       }
       : null;
@@ -84,6 +89,8 @@ export function useUserProfile(): UseUserProfileResult {
   return {
     profile: effectiveProfile,
     tier: effectiveTier,
+    jobSeekerTier,
+    recruiterTier,
     role: effectiveRole,
     loading: authLoading || (!!user && isLoading),
     error,

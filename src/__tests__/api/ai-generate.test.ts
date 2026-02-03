@@ -10,6 +10,7 @@ import {
   handleApiError,
   safeParseBody,
 } from "@/lib/utils/api-helpers";
+import { getTierForRole } from "@/lib/services/userService";
 
 jest.mock("@/lib/firebase-admin", () => {
   class MockTimestamp {
@@ -60,14 +61,33 @@ jest.mock("@/lib/services/billingService", () => ({
     trackUsage: jest.fn(),
   },
 }));
+jest.mock("@/lib/services/userService", () => ({
+  getTierForRole: jest.fn(() => Promise.resolve("premium")),
+}));
+jest.mock("@/lib/utils/idempotency", () => ({
+  getIdempotencyKey: jest.fn(() => null),
+  checkIdempotency: jest.fn(),
+  markProcessing: jest.fn(),
+  storeIdempotencyResponse: jest.fn(),
+  clearIdempotencyKey: jest.fn(),
+  createCachedResponse: jest.fn(),
+  createProcessingResponse: jest.fn(),
+}));
+jest.mock("@/lib/services/semanticCache", () => ({
+  lookupCache: jest.fn(() => Promise.resolve({ hit: false })),
+  storeInCache: jest.fn(() => Promise.resolve()),
+}));
+jest.mock("@/lib/middleware/appCheck", () => ({
+  withAppCheck: jest.fn(() => Promise.resolve(null)),
+}));
 jest.mock("@/lib/utils/api-helpers", () => ({
   getAuthenticatedUserId: jest.fn(),
-  handleApiError: jest.fn((err, msg, status) =>
-    require("next/server").NextResponse.json(
+  handleApiError: jest.fn((err, msg, status) => {
+    return require("next/server").NextResponse.json(
       { error: msg || "Internal Server Error", success: false },
       { status: status || 500 }
-    )
-  ),
+    );
+  }),
   safeParseBody: jest.fn(),
 }));
 
@@ -87,6 +107,11 @@ describe("AI Generate API", () => {
       remaining: 9,
     });
     (BillingService.checkBudget as jest.Mock).mockResolvedValue(true);
+    (generateText as jest.Mock).mockResolvedValue({
+      text: "AI Response",
+      model: "gemini-pro",
+      provider: "google",
+    });
   });
 
   it("should return 400 if validation fails", async () => {
@@ -103,10 +128,10 @@ describe("AI Generate API", () => {
 
   it("should return 403 if user has basic plan", async () => {
     (safeParseBody as jest.Mock).mockResolvedValue({ prompt: "test" });
-
+    (getTierForRole as jest.Mock).mockResolvedValueOnce("basic");
     const req = new NextRequest("http://localhost", { method: "POST" });
     const response = await POST(req);
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(403);
   });
 
   it("should return 429 if rate limited", async () => {
@@ -164,9 +189,7 @@ describe("AI Generate API", () => {
 
   it("should handle generic errors", async () => {
     (safeParseBody as jest.Mock).mockResolvedValue({ prompt: "test" });
-    (adminDb.collection("users").doc as jest.Mock).mockImplementation(() => {
-      throw new Error("Database down");
-    });
+    (getTierForRole as jest.Mock).mockRejectedValueOnce(new Error("Database down"));
 
     const req = new NextRequest("http://localhost", { method: "POST" });
     const response = await POST(req);

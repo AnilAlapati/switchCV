@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateText } from "@/lib/services/aiGenerationService";
 import { BillingService } from "@/lib/services/billingService";
 import { runAgenticWorkflow } from "@/lib/services/agentOrchestrator";
-import { getUserTier } from "@/lib/services/userService";
+import { getUserTier, getTierForRole } from "@/lib/services/userService";
 import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 import { validateCorsRequest } from "@/lib/utils/api-helpers";
 
@@ -25,6 +25,7 @@ jest.mock("@/lib/services/agentOrchestrator", () => ({
 
 jest.mock("@/lib/services/userService", () => ({
     getUserTier: jest.fn(),
+    getTierForRole: jest.fn(),
 }));
 
 jest.mock("@/lib/utils/distributedRateLimit", () => ({
@@ -65,6 +66,7 @@ describe("POST /api/ai/generate-resume", () => {
         jest.clearAllMocks();
         (validateCorsRequest as jest.Mock).mockReturnValue(null);
         (getUserTier as jest.Mock).mockResolvedValue("premium");
+        (getTierForRole as jest.Mock).mockResolvedValue("premium");
         (checkDistributedRateLimit as jest.Mock).mockResolvedValue({ allowed: true });
         (BillingService.checkBudget as jest.Mock).mockResolvedValue(true);
     });
@@ -125,12 +127,14 @@ describe("POST /api/ai/generate-resume", () => {
     it("uses agentic workflow if successful", async () => {
         const { getAuthenticatedUserId } = require("@/lib/utils/api-helpers");
         getAuthenticatedUserId.mockResolvedValueOnce({ userId: "user-123" });
-        (runAgenticWorkflow as jest.Mock).mockResolvedValueOnce(JSON.stringify({
-            enhancedSummary: "Agentic Summary",
-            enhancedExperience: [],
-            skillSuggestions: [],
-            improvementTips: []
-        }));
+        (runAgenticWorkflow as jest.Mock).mockResolvedValueOnce({
+            resumeMarkdown: JSON.stringify({
+                enhancedSummary: "Agentic Summary",
+                enhancedExperience: [],
+                skillSuggestions: [],
+                improvementTips: []
+            })
+        });
 
         const response = await POST(buildRequest({ resumeData: mockResumeData }));
         const data = await response.json();
@@ -166,7 +170,9 @@ describe("POST /api/ai/generate-resume", () => {
     it("uses fallback enhancement if AI response is malformed", async () => {
         const { getAuthenticatedUserId } = require("@/lib/utils/api-helpers");
         getAuthenticatedUserId.mockResolvedValueOnce({ userId: "user-123" });
-        (runAgenticWorkflow as jest.Mock).mockResolvedValueOnce("not json");
+        (runAgenticWorkflow as jest.Mock).mockResolvedValueOnce({
+            resumeMarkdown: "not json"
+        });
 
         const response = await POST(buildRequest({ resumeData: mockResumeData }));
         const data = await response.json();

@@ -26,7 +26,8 @@ const db = admin.firestore();
 function generateSearchProfile(
   resumeData: FirebaseFirestore.DocumentData
 ): string {
-  const profile = resumeData.profile || {};
+  // Handle both flat structure and nested profile structure
+  const profile = resumeData.profile || resumeData;
 
   const parts: string[] = [];
 

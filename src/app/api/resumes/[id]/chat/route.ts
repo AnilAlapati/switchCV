@@ -21,6 +21,7 @@ import {
   handleApiError,
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
+import { getTierForRole } from "@/lib/services/userService";
 
 interface ConversationMessage {
   id?: string;
@@ -66,9 +67,7 @@ export async function GET(
     if (authError) return authError;
 
     // Unified Rate Limiting
-    const userSnapshot = await adminDb.collection("users").doc(requestUserId!).get();
-    const userRole = (userSnapshot.data()?.subscriptionTier || "basic") as "basic" | "premium" | "enterprise";
-
+    const userRole = await getTierForRole(requestUserId!, "jobseeker");
     const rateLimitResult = await checkDistributedRateLimit(requestUserId!, {
       tier: userRole,
       scope: "chat",

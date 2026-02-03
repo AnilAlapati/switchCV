@@ -20,9 +20,18 @@ export function validateEnvironment(): void {
     process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT;
 
   if (!projectId) {
+    // Fallback for production: Log warn but don't throw yet.
+    // The initialization function handles the fallback value.
+    if ((process.env.NODE_ENV as string) === "production") {
+      console.warn(
+        "⚠️ Project ID missing in env, will fallback to 'switchcv-e5136'"
+      );
+      return;
+    }
+
     // Dev-only, allowlisted env snapshot to help local debugging.
     // Avoid logging arbitrary env vars (blocklists are easy to miss).
-    if (process.env.NODE_ENV !== "production") {
+    if ((process.env.NODE_ENV as string) !== "production") {
       logger.error(
         {
           NODE_ENV: process.env.NODE_ENV,
@@ -54,8 +63,16 @@ export function initializeFirebaseAdmin(): void {
     // Validate environment before initialization
     validateEnvironment();
 
-    const projectId =
+    let projectId =
       process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT;
+
+    // Fallback for production if missing
+    if (!projectId && (process.env.NODE_ENV as string) === "production") {
+      projectId = "switchcv-e5136";
+      // Safe to set server-side vars (non-NEXT_PUBLIC)
+      process.env.GCLOUD_PROJECT = projectId;
+      process.env.GOOGLE_CLOUD_PROJECT = projectId;
+    }
 
     // Set GOOGLE_CLOUD_PROJECT for ADC quota project (required for identitytoolkit.googleapis.com)
     if (!process.env.GOOGLE_CLOUD_PROJECT && projectId) {

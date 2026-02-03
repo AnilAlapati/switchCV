@@ -13,6 +13,7 @@ import {
 import { logger } from "@/lib/logger";
 import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 import { BillingService } from "@/lib/services/billingService";
+import { getTierForRole } from "@/lib/services/userService";
 import {
   getIdempotencyKey,
   checkIdempotency,
@@ -49,6 +50,7 @@ const GenerateRequestSchema = z.object({
     .enum(["creative", "balanced", "structured", "precise"])
     .optional()
     .default("creative"),
+  role: z.enum(["jobseeker", "recruiter"]).optional().default("jobseeker"),
   skipCache: z.boolean().optional().default(false), // Allow bypassing semantic cache
 });
 
@@ -77,7 +79,7 @@ function hashPrompt(prompt: string): string {
   return createHash("sha256").update(prompt).digest("hex");
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   const requestId = randomUUID();
   const idempotencyKey = getIdempotencyKey(request);
 
@@ -126,7 +128,7 @@ export async function POST(request: NextRequest) {
       return handleApiError(null, errorMessage, 400);
     }
 
-    const { prompt, maxTokens, temperature: userTemp, task, skipCache } = validationResult.data;
+    const { prompt, maxTokens, temperature: userTemp, task, role, skipCache } = validationResult.data;
 
     // Semantic cache lookup (unless explicitly skipped)
     if (!skipCache && userId) {
@@ -162,8 +164,11 @@ export async function POST(request: NextRequest) {
     };
 
     const temperature = userTemp ?? defaultTemps[task] ?? 0.7;
-
-    const entitlement = await getEntitlement(userId!);
+    const plan = await getTierForRole(userId!, role);
+    if (plan === "basic") {
+      throw new EntitlementError("AI generation is a premium feature");
+    }
+    const entitlement = { plan };
 
     const rateLimit = await checkDistributedRateLimit(userId!, {
       tier: entitlement.plan as "basic" | "premium" | "enterprise",
@@ -185,6 +190,9 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await generateText(prompt, maxTokens, temperature);
+    if (!result) {
+      throw new Error("AI text generation failed - no result returned");
+    }
 
     // Track Billing - use actual token counts when available, fallback to heuristic
     const tokenUsage = result.usage ? {
@@ -199,14 +207,18 @@ export async function POST(request: NextRequest) {
 
     // Store in semantic cache for future similar queries
     if (!skipCache && userId) {
-      storeInCache(userId, prompt, result.text, {
+      const cachePromise = storeInCache(userId, prompt, result.text, {
         model: result.model,
         provider: "ai", // Generic provider label
         tokens: tokenUsage.input + tokenUsage.output,
-      }).catch((err) => {
-        // Don't fail the request if caching fails
-        logger.warn({ err, userId }, "Failed to store in semantic cache");
       });
+
+      if (cachePromise && typeof cachePromise.catch === "function") {
+        cachePromise.catch((err) => {
+          // Don't fail the request if caching fails
+          logger.warn({ err, userId }, "Failed to store in semantic cache");
+        });
+      }
     }
 
     await Promise.all([
@@ -254,11 +266,8 @@ export async function POST(request: NextRequest) {
 }
 
 async function getEntitlement(userId: string): Promise<Entitlement> {
-  const snapshot = await adminDb.collection("users").doc(userId).get();
-  const data = snapshot.data();
-  return {
-    plan: (data?.subscriptionTier as string) || "basic",
-  };
+  const plan = await getTierForRole(userId, "jobseeker");
+  return { plan };
 }
 
 function attachRateLimitHeaders(

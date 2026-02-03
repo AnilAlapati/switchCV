@@ -16,6 +16,9 @@ jest.mock("next/link", () => ({
 jest.mock("@/hooks/useUserProfile", () => ({
   useUserProfile: jest.fn(() => ({
     role: "recruiter", // Default to recruiter for tests
+    tier: "premium",
+    jobSeekerTier: "basic",
+    recruiterTier: "premium",
   })),
 }));
 
@@ -128,8 +131,8 @@ describe("UserProfileMenu", () => {
 
     expect(screen.getByText("Profile Settings")).toBeInTheDocument();
     expect(screen.getByText("Account & Security")).toBeInTheDocument();
-    expect(screen.getByText("Subscription Plan")).toBeInTheDocument();
-    expect(screen.getByText("Basic")).toBeInTheDocument();
+    expect(screen.getByText("Subscription Plans")).toBeInTheDocument();
+    expect(screen.getByText("BASIC")).toBeInTheDocument();
     expect(screen.getByText("Feedback & Support")).toBeInTheDocument();
     expect(screen.getByText("Email Support")).toBeInTheDocument();
     expect(screen.getByText("Logout")).toBeInTheDocument();
@@ -252,7 +255,7 @@ describe("UserProfileMenu", () => {
 
     await userEvent.click(screen.getByRole("button"));
 
-    const badge = screen.getByText("Basic");
-    expect(badge).toHaveClass("bg-amber-100", "text-amber-700");
+    const badge = screen.getByText("BASIC");
+    expect(badge).toHaveClass("bg-gray-100", "text-gray-600");
   });
 });

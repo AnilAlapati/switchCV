@@ -25,40 +25,52 @@ const updateProfileSchema = z.object({
 });
 
 /**
- * Get user's subscription tier.
- * In dev mode with DEV_TIER_OVERRIDE set, returns the override value.
- * Otherwise fetches from Firestore.
+ * Get user's tier for a specific role.
  */
-export async function getUserTier(userId: string): Promise<SubscriptionTier> {
+export async function getTierForRole(
+  userId: string,
+  role: UserRole
+): Promise<SubscriptionTier> {
   // Dev mode override - skip Firestore lookup entirely
   if (DEV_MODE_ENABLED && DEV_TIER_OVERRIDE) {
     logger.info(
-      { override: DEV_TIER_OVERRIDE },
-      "[DEV MODE] Using tier override"
+      { override: DEV_TIER_OVERRIDE, role },
+      "[DEV MODE] Using tier override for role"
     );
     return DEV_TIER_OVERRIDE;
   }
 
-  // Check cache
-  const cachedTier = userTierCache.get(userId);
+  // Check cache with composite key (userId:role)
+  const cacheKey = `${userId}:${role}`;
+  const cachedTier = userTierCache.get(cacheKey);
   if (cachedTier) {
     return cachedTier as SubscriptionTier;
   }
 
   const snapshot = await adminDb.collection("users").doc(userId).get();
-  const tier = snapshot.data()?.subscriptionTier as
-    | SubscriptionTier
-    | undefined;
+  const data = snapshot.data();
 
-  // Default to "basic" if not set or invalid
   let result: SubscriptionTier = "basic";
-  if (tier && ["basic", "premium", "enterprise"].includes(tier)) {
-    result = tier;
+  const rawTier =
+    role === "recruiter"
+      ? data?.recruiterTier || data?.subscriptionTier
+      : data?.jobSeekerTier || data?.subscriptionTier;
+
+  if (rawTier && ["basic", "premium", "enterprise"].includes(rawTier)) {
+    result = rawTier as SubscriptionTier;
   }
 
   // Cache result
-  userTierCache.set(userId, result, 5 * 60 * 1000); // 5 minutes TTL
+  userTierCache.set(cacheKey, result, 5 * 60 * 1000); // 5 minutes TTL
   return result;
+}
+
+/**
+ * Get user's subscription tier.
+ * Defaulting to jobseeker context for legacy calls.
+ */
+export async function getUserTier(userId: string): Promise<SubscriptionTier> {
+  return getTierForRole(userId, "jobseeker");
 }
 
 /**
@@ -108,7 +120,7 @@ export async function verifyAdminRole(userId: string): Promise<boolean> {
 /**
  * Fetch full user profile data.
  */
-export async function getUserProfile(userId: string) {
+export async function getUserProfile(userId: string): Promise<any | null> {
   const doc = await adminDb.collection("users").doc(userId).get();
   if (!doc.exists) return null;
   return doc.data();
@@ -143,6 +155,8 @@ export async function createUserProfile(
     isRecruiter: false, // Keep for backward compatibility if needed
     companyName: companyName || "",
     subscriptionTier: "basic",
+    jobSeekerTier: "basic",
+    recruiterTier: "basic",
     createdAt: now,
     updatedAt: now,
     profileSlug: uid, // Default slug
@@ -170,7 +184,7 @@ type UpdateUserProfileInput = Omit<z.infer<typeof updateProfileSchema>, "uid">;
 export async function updateUserProfile(
   uid: string,
   data: UpdateUserProfileInput
-) {
+): Promise<Record<string, string | undefined>> {
   const validation = updateProfileSchema.safeParse({ ...data, uid });
   if (!validation.success) {
     throw new Error(`Validation failed: ${validation.error.message}`);
@@ -193,7 +207,10 @@ export async function updateUserProfile(
 /**
  * Sets the role for a user.
  */
-export async function setUserRole(userId: string, role: UserRole) {
+export async function setUserRole(
+  userId: string,
+  role: UserRole
+): Promise<Record<string, any>> {
   const isRecruiter = role === "recruiter";
   const updateData = {
     role,

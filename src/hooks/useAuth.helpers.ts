@@ -225,7 +225,9 @@ export function createAuthProfileHelpers(db: Firestore | null | undefined) {
         authProvider: firebaseUser.providerData[0]?.providerId || "password",
         emailVerified: firebaseUser.emailVerified,
         role: "jobseeker", // Default role for new users
-        subscriptionTier: "basic", // Default subscription tier
+        subscriptionTier: "basic", // Default subscription tier (legacy)
+        jobSeekerTier: "basic",
+        recruiterTier: "basic",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };

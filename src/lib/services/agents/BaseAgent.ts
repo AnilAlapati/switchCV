@@ -35,6 +35,14 @@ export const PolishOutputSchema = z.object({
 });
 export type PolishOutput = z.infer<typeof PolishOutputSchema>;
 
+export const AuditorOutputSchema = z.object({
+    status: z.enum(["PASS", "NEEDS_WORK"]),
+    critique: z.string().optional(),
+    suggestedTemplateId: z.string().describe("The ID of the recommended template (e.g., executive-v1, modern-v1)"),
+    designReasoning: z.string().describe("Explanation for why this template was selected"),
+});
+export type AuditorOutput = z.infer<typeof AuditorOutputSchema>;
+
 // --- BASE AGENT INTERFACE ---
 
 export interface AgentContext {

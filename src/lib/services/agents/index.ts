@@ -6,15 +6,16 @@ export {
     ExecutionOutputSchema,
     ValidationOutputSchema,
     PolishOutputSchema,
+    AuditorOutputSchema,
     type ResearchOutput,
     type PlanOutput,
     type ExecutionOutput,
     type ValidationOutput,
     type PolishOutput,
+    type AuditorOutput,
 } from "./BaseAgent";
 
 export { ResearchAgent } from "./ResearchAgent";
 export { PlanningAgent, type PlanningAgentInput } from "./PlanningAgent";
-export { ExecutionAgent, type ExecutionAgentInput } from "./ExecutionAgent";
-export { ValidationAgent, type ValidationAgentInput } from "./ValidationAgent";
-export { PolishAgent, type PolishAgentInput } from "./PolishAgent";
+export { WritingAgent, type WritingAgentInput } from "./WritingAgent";
+export { AuditorAgent, type AuditorAgentInput } from "./AuditorAgent";

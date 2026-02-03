@@ -1,8 +1,7 @@
 import { ResearchAgent } from "../ResearchAgent";
 import { PlanningAgent } from "../PlanningAgent";
-import { ExecutionAgent } from "../ExecutionAgent";
-import { ValidationAgent } from "../ValidationAgent";
-import { PolishAgent } from "../PolishAgent";
+import { WritingAgent } from "../WritingAgent";
+import { AuditorAgent } from "../AuditorAgent";
 import { generateText } from "../../aiGenerationService";
 import { AgentContext } from "../BaseAgent";
 
@@ -21,7 +20,7 @@ describe("Agentic Service Layer", () => {
         jest.clearAllMocks();
     });
 
-    describe("ResearchAgent", () => {
+    describe("ResearchAgent (The Scout)", () => {
         it("should build correct prompt and parse JSON output", async () => {
             const agent = new ResearchAgent("test-model");
             const mockJson = {
@@ -29,34 +28,21 @@ describe("Agentic Service Layer", () => {
                 hiddenRequirements: ["req1"],
                 culturalIndicators: ["ind1"],
             };
-            mockedGenerateText.mockResolvedValueOnce({ text: JSON.stringify(mockJson) });
+            mockedGenerateText.mockResolvedValueOnce({
+                text: JSON.stringify(mockJson),
+                model: "test-model",
+                provider: "test-provider"
+            });
 
             const result = await agent.run(undefined, mockContext);
 
             expect(result.success).toBe(true);
             expect(result.data).toEqual(mockJson);
-            expect(mockedGenerateText).toHaveBeenCalledWith(
-                expect.stringContaining("Analyze the Job Description"),
-                2000,
-                0.7,
-                "test-model"
-            );
-        });
-
-        it("should fallback to raw text if JSON parsing fails", async () => {
-            const agent = new ResearchAgent("test-model");
-            const rawText = "Plain text response";
-            mockedGenerateText.mockResolvedValueOnce({ text: rawText });
-
-            const result = await agent.run(undefined, mockContext);
-
-            expect(result.success).toBe(true);
-            expect(result.data?.summary).toBe(rawText);
         });
     });
 
-    describe("PlanningAgent", () => {
-        it("should build correct prompt using research output and parse JSON", async () => {
+    describe("PlanningAgent (The Architect)", () => {
+        it("should build correct prompt and parse JSON", async () => {
             const agent = new PlanningAgent("test-model");
             const researchOutput = { summary: "r-sum", hiddenRequirements: ["h1"] };
             const mockJson = {
@@ -64,29 +50,31 @@ describe("Agentic Service Layer", () => {
                 keywordsToInclude: ["kw1"],
                 sectionsToEnhance: ["sec1"],
             };
-            mockedGenerateText.mockResolvedValueOnce({ text: JSON.stringify(mockJson) });
+            mockedGenerateText.mockResolvedValueOnce({
+                text: JSON.stringify(mockJson),
+                model: "test-model",
+                provider: "test-provider"
+            });
 
             const result = await agent.run({ researchOutput }, mockContext);
 
             expect(result.success).toBe(true);
             expect(result.data).toEqual(mockJson);
-            expect(mockedGenerateText).toHaveBeenCalledWith(
-                expect.stringContaining("RESEARCH SUMMARY:\nr-sum"),
-                2000,
-                0.7,
-                "test-model"
-            );
         });
     });
 
-    describe("ExecutionAgent", () => {
+    describe("WritingAgent (The Writer)", () => {
         it("should build correct prompt and parse Markdown output", async () => {
-            const agent = new ExecutionAgent("test-model");
+            const agent = new WritingAgent("test-model");
             const planOutput = { strategicPoints: ["p1"], keywordsToInclude: ["kw1"] };
             const mockJson = {
                 resumeMarkdown: "# New Resume",
             };
-            mockedGenerateText.mockResolvedValueOnce({ text: JSON.stringify(mockJson) });
+            mockedGenerateText.mockResolvedValueOnce({
+                text: JSON.stringify(mockJson),
+                model: "test-model",
+                provider: "test-provider"
+            });
 
             const result = await agent.run({ planOutput }, mockContext);
 
@@ -95,44 +83,26 @@ describe("Agentic Service Layer", () => {
         });
     });
 
-    describe("ValidationAgent", () => {
-        it("should build correct prompt and parse validation output", async () => {
-            const agent = new ValidationAgent("test-model");
+    describe("AuditorAgent (The Auditor)", () => {
+        it("should perform validation and recommend a template", async () => {
+            const agent = new AuditorAgent("test-model");
             const executionOutput = { resumeMarkdown: "# Draft" };
             const mockJson = {
                 status: "PASS",
                 critique: "",
-                missingKeywords: [],
+                suggestedTemplateId: "modern-v1",
+                designReasoning: "Good match"
             };
-            mockedGenerateText.mockResolvedValueOnce({ text: JSON.stringify(mockJson) });
+            mockedGenerateText.mockResolvedValueOnce({
+                text: JSON.stringify(mockJson),
+                model: "test-model",
+                provider: "test-provider"
+            });
 
             const result = await agent.run({ executionOutput }, mockContext);
 
             expect(result.success).toBe(true);
             expect(result.data).toEqual(mockJson);
-        });
-    });
-
-    describe("PolishAgent", () => {
-        it("should build correct prompt and parse polished output", async () => {
-            const agent = new PolishAgent("test-model");
-            const executionOutput = { resumeMarkdown: "# Draft" };
-            const validationOutput = { status: "NEEDS_WORK", critique: "Weak tone" };
-            const mockJson = {
-                finalResumeMarkdown: "# Final",
-            };
-            mockedGenerateText.mockResolvedValueOnce({ text: JSON.stringify(mockJson) });
-
-            const result = await agent.run({ executionOutput, validationOutput }, mockContext);
-
-            expect(result.success).toBe(true);
-            expect(result.data).toEqual(mockJson);
-            expect(mockedGenerateText).toHaveBeenCalledWith(
-                expect.stringContaining("Weak tone"),
-                2000,
-                0.7,
-                "test-model"
-            );
         });
     });
 

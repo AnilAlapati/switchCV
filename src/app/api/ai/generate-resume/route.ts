@@ -13,7 +13,7 @@ import {
 } from "@/lib/utils/cors";
 import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 import { runAgenticWorkflow } from "@/lib/services/agentOrchestrator";
-import { getUserTier } from "@/lib/services/userService";
+import { getTierForRole } from "@/lib/services/userService";
 
 interface GenerateResumeRequest {
   resumeData: {
@@ -44,11 +44,11 @@ interface GenerateResumeRequest {
 /**
  * Handle CORS preflight requests
  */
-export async function OPTIONS(request: NextRequest) {
+export async function OPTIONS(request: NextRequest): Promise<NextResponse> {
   return handleCorsPreflightRequest(request);
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     // 0. Validate CORS origin
     const corsError = validateCorsRequest(request);
@@ -68,8 +68,8 @@ export async function POST(request: NextRequest) {
     // 2. Check Rate Limit
     // Fetch user for subscription tier
     // 2. Check Rate Limit
-    // Fetch user for subscription tier
-    const userRole = (await getUserTier(userId)) as string;
+    // Fetch user for subscription tier (Jobseeker context for resume generation)
+    const userRole = await getTierForRole(userId, "jobseeker");
 
     const rateLimitResult = await checkDistributedRateLimit(userId, {
       tier: userRole as "basic" | "premium" | "enterprise",
@@ -145,11 +145,17 @@ export async function POST(request: NextRequest) {
              `,
     });
 
+    let suggestedTemplateId: string | undefined;
+    let designReasoning: string | undefined;
+
     if (agenticResult) {
-      aiResponseText = agenticResult;
+      // Agentic workflow returns resumeMarkdown which should contain the JSON enhancement
+      aiResponseText = agenticResult.resumeMarkdown;
+      suggestedTemplateId = agenticResult.templateId;
+      designReasoning = agenticResult.reasoning;
       aiModel = "agentic-workflow";
       aiProvider = "google"; // Assumed primary provider for agentic
-      logger.info({ userId }, "🚀 Agentic Workflow Executed Successfully");
+      logger.info({ userId, suggestedTemplateId }, "🚀 Agentic Workflow Executed Successfully");
     } else {
       // Fallback to standard flow
       // Create prompt for AI
@@ -212,6 +218,10 @@ export async function POST(request: NextRequest) {
         data: enhancedContent,
         model: aiModel,
         provider: aiProvider,
+        recommendations: suggestedTemplateId ? {
+          templateId: suggestedTemplateId,
+          reasoning: designReasoning
+        } : undefined
       },
       {
         headers: createCorsHeaders(request),

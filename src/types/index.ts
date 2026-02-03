@@ -176,7 +176,9 @@ export interface UserProfile {
   email: string;
   displayName?: string;
   photoURL?: string;
-  subscriptionTier: SubscriptionTier;
+  subscriptionTier: SubscriptionTier; // @deprecated Use jobSeekerTier or recruiterTier
+  jobSeekerTier?: SubscriptionTier;
+  recruiterTier?: SubscriptionTier;
   role: UserRole;
   createdAt?: string;
   lastLoginAt?: string;
@@ -228,7 +230,9 @@ export interface User {
     publicProfile: boolean;
     defaultPIIVisibility: Visibility;
   };
-  subscriptionTier?: "basic" | "premium" | "enterprise";
+  subscriptionTier?: "basic" | "premium" | "enterprise"; // @deprecated Use jobSeekerTier or recruiterTier
+  jobSeekerTier?: SubscriptionTier;
+  recruiterTier?: SubscriptionTier;
   agentic?: {
     usageCount: number;
     lastRunAt: string;

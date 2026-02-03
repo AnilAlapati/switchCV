@@ -14,7 +14,7 @@ const updateRoleSchema = z.object({
   companyName: z.string().optional(),
 });
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     // Verify authentication
     const { userId, error } = await getAuthenticatedUserId(request);

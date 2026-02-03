@@ -36,10 +36,22 @@ service cloud.firestore {
 
     // Extracted: Tier transition validation
     function tierTransitionAllowed() {
-      let noTierChange = !('subscriptionTier' in request.resource.data);
-      let newUserBasicTier = resource == null && request.resource.data.subscriptionTier == 'basic';
-      let tierUnchanged = resource != null && request.resource.data.subscriptionTier == resource.data.subscriptionTier;
-      return noTierChange || newUserBasicTier || tierUnchanged;
+      let noTierChange = !('subscriptionTier' in request.resource.data) 
+                         && !('jobSeekerTier' in request.resource.data) 
+                         && !('recruiterTier' in request.resource.data);
+      
+      let tierSameOrNew = (
+        (!('subscriptionTier' in request.resource.data) || (resource != null && request.resource.data.subscriptionTier == resource.data.subscriptionTier)) &&
+        (!('jobSeekerTier' in request.resource.data) || resource == null || !('jobSeekerTier' in resource.data) || request.resource.data.jobSeekerTier == resource.data.jobSeekerTier) &&
+        (!('recruiterTier' in request.resource.data) || resource == null || !('recruiterTier' in resource.data) || request.resource.data.recruiterTier == resource.data.recruiterTier)
+      );
+
+      let newUserDefaults = resource == null && 
+        (!('subscriptionTier' in request.resource.data) || request.resource.data.subscriptionTier == 'basic') &&
+        (!('jobSeekerTier' in request.resource.data) || request.resource.data.jobSeekerTier == 'basic') &&
+        (!('recruiterTier' in request.resource.data) || request.resource.data.recruiterTier == 'basic');
+
+      return noTierChange || tierSameOrNew || newUserDefaults;
     }
 
     // Extracted: Recruiter flag transition validation
@@ -63,6 +75,8 @@ service cloud.firestore {
         'companyName',
         'role',
         'subscriptionTier',
+        'jobSeekerTier',
+        'recruiterTier',
         'isRecruiter',
         'createdAt',
         'updatedAt',
@@ -356,6 +370,18 @@ service cloud.firestore {
     // System configuration is restricted to server/API usage only
     match /config/system {
       allow read, write: if false;
+    }
+
+    // ==================== USER APPROVAL SYSTEM ====================
+    
+    // User approval requests - admin-only collection
+    // Managed exclusively by Cloud Functions and admin API endpoints
+    match /userApprovalRequests/{requestId} {
+      // Only admins can read approval requests
+      allow read: if isAdmin();
+      // Write operations are handled by Cloud Functions (bypasses rules)
+      // Direct client writes are prohibited
+      allow write: if false;
     }
 
     // System configuration and ID generator

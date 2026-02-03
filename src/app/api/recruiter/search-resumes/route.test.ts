@@ -6,7 +6,7 @@ import {
   handleApiError,
   attachRateLimitHeaders,
 } from "@/lib/utils/api-helpers";
-import { getUserRole, getUserTier } from "@/lib/services/userService";
+import { getUserRole, getUserTier, getTierForRole } from "@/lib/services/userService";
 import { createDistributedRateLimiter } from "@/lib/utils/distributedRateLimit";
 import {
   buildAccessStatusMap,
@@ -37,6 +37,7 @@ jest.mock("@/lib/logger");
 const mockGetAuthenticatedUserId = getAuthenticatedUserId as jest.Mock;
 const mockGetUserRole = getUserRole as jest.Mock;
 const mockGetUserTier = getUserTier as jest.Mock;
+const mockGetTierForRole = getTierForRole as jest.Mock;
 const mockCreateDistributedRateLimiter =
   createDistributedRateLimiter as jest.Mock;
 const mockBuildAccessStatusMap = buildAccessStatusMap as jest.Mock;
@@ -57,6 +58,7 @@ describe("POST /api/recruiter/search-resumes", () => {
     mockGetAuthenticatedUserId.mockResolvedValue({ userId: recruiterId });
     mockGetUserRole.mockResolvedValue("recruiter");
     mockGetUserTier.mockResolvedValue("premium");
+    mockGetTierForRole.mockResolvedValue("premium");
     mockGetConstants.mockResolvedValue({
       RATE_LIMITS: { SEARCH_REQUESTS_PER_MINUTE: 10 },
     });
@@ -155,7 +157,7 @@ describe("POST /api/recruiter/search-resumes", () => {
   });
 
   it("should perform basic search when userId is provided", async () => {
-    mockGetUserTier.mockResolvedValueOnce("basic");
+    mockGetTierForRole.mockResolvedValueOnce("basic");
     mockPerformBasicSearch.mockResolvedValueOnce({
       results: [{ userId: "user-1", resumeId: "res-1" }],
       notification: "Basic result",
@@ -175,7 +177,7 @@ describe("POST /api/recruiter/search-resumes", () => {
   });
 
   it("should return 403 for premium filters on basic tier", async () => {
-    mockGetUserTier.mockResolvedValueOnce("basic");
+    mockGetTierForRole.mockResolvedValueOnce("basic");
     const req = createRequest({ recruiterId, skills: ["React"] });
     const res = await POST(req);
     expect(res.status).toBe(403);

@@ -10,6 +10,7 @@ import type {
   ValidationConfig,
   CacheConfig,
   DemoResumesConfig,
+  UserApprovalConfig,
 } from "./system-config-types";
 
 // Re-export types for convenience
@@ -25,6 +26,7 @@ export type {
   ValidationConfig,
   CacheConfig,
   DemoResumesConfig,
+  UserApprovalConfig,
 };
 
 // =============================================================================
@@ -192,6 +194,13 @@ export const defaultSystemConfig: SystemConfig = {
     enabled: true,
     waitlistMode: false,
   },
+  userApproval: {
+    enabled: true, // Enable manual approval by default for MVP
+    adminEmail: "support@switchcv.com",
+    declineReason:
+      "We're currently experiencing high demand and are carefully managing our user base to ensure the best experience for everyone. Please try again in a few days.",
+    autoApproveDomains: [], // No auto-approve domains by default
+  },
   demoResumes: {
     allowedIds: ["1", "4", "23", "24"],
     defaultId: "1",
@@ -293,6 +302,10 @@ export const mergeWithDefaultConfig = (
   registrations: deepMerge(
     defaultSystemConfig.registrations,
     partial?.registrations,
+  ),
+  userApproval: deepMerge(
+    defaultSystemConfig.userApproval,
+    partial?.userApproval,
   ),
   demoResumes: deepMerge(defaultSystemConfig.demoResumes, partial?.demoResumes),
 });

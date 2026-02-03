@@ -43,11 +43,12 @@ function usePrefersReducedMotion() {
 type UserMode = "jobseeker" | "recruiter";
 
 // ==================== JOBSEEKER AGENTS ====================
+// ==================== JOBSEEKER AGENTS ====================
 const jobseekerAgents = [
   {
     id: "research",
-    name: "Research Agent",
-    nickname: "The Scout",
+    name: "The Scout",
+    nickname: "Research Agent",
     modelFree: "gemini-2.5-flash-lite",
     modelPremium: "gemini-2.5-flash",
     icon: Target,
@@ -62,8 +63,8 @@ const jobseekerAgents = [
   },
   {
     id: "planning",
-    name: "Planning Agent",
-    nickname: "The Strategist",
+    name: "The Architect",
+    nickname: "Planning Agent",
     modelFree: "gemini-2.5-flash-lite",
     modelPremium: "gemini-2.5-flash",
     icon: Brain,
@@ -77,67 +78,35 @@ const jobseekerAgents = [
     ],
   },
   {
-    id: "execution",
-    name: "Execution Agent",
-    nickname: "The Writer",
+    id: "writing",
+    name: "The Writer",
+    nickname: "Execution & Polish Agent",
     modelFree: "gemini-2.5-flash-lite",
     modelPremium: "gemini-2.5-flash",
     icon: Zap,
     color: "amber",
     description:
-      "The high-speed writer that rewrites your resume content following the strategic plan, transforming generic statements into powerful achievements.",
+      "The master storyteller that rewrites your content with high-impact language, ensuring perfect tone, brevity, and punchiness in a single unified pass.",
     whatItDoes: [
       "Rewrites experience with action-driven language",
-      "Quantifies achievements with metrics where possible",
-      "Optimizes keywords for ATS compatibility",
+      "Refines tone and professional flow",
+      "Optimizes for maximum brevity and ATS compatibility",
     ],
   },
   {
-    id: "validation",
-    name: "Validation Agent",
-    nickname: "The Auditor",
+    id: "auditor",
+    name: "The Auditor",
+    nickname: "Validation & Design Agent",
     modelFree: "gemini-2.5-flash-lite",
     modelPremium: "gemini-2.5-flash",
     icon: Sparkles,
     color: "green",
     description:
-      "The quality control agent that fact-checks the execution against the original requirements and strategic plan, ensuring zero hallucinations.",
+      "The quality control specialist that fact-checks the final result against requirements and intelligently selects the perfect visual template for your career level.",
     whatItDoes: [
-      "Verifies ATS score improvement",
-      "Ensures all strategic goals were met",
-      "Prevents AI hallucinations",
-    ],
-  },
-  {
-    id: "polish",
-    name: "Polish Agent",
-    nickname: "The Editor",
-    modelFree: "gemini-2.5-flash-lite",
-    modelPremium: "gemini-2.5-flash",
-    icon: Users,
-    color: "rose",
-    description:
-      "The final editor that refines tone, brevity, and punchiness. It ensures your resume sounds professional, human, and impactful.",
-    whatItDoes: [
-      "Refines tone and professional flow",
-      "Optimizes for maximum brevity",
-      "Ensures a consistent 'active' voice",
-    ],
-  },
-  {
-    id: "template-selector",
-    name: "Template Selector Agent",
-    nickname: "The Designer",
-    modelFree: "gemini-2.5-flash-lite",
-    modelPremium: "gemini-2.5-flash",
-    icon: Palette,
-    color: "indigo",
-    description:
-      "The design intelligence that analyzes your career profile, experience level, and industry to select the perfect visual template that showcases your story.",
-    whatItDoes: [
-      "Evaluates seniority level and career stage",
-      "Matches industry standards to template styles",
-      "Selects from 8 premium templates (Standard, Modern, Executive, Masonry, Bento, Terminal, Editorial, Noir)",
+      "Prevents AI hallucinations and verifies goals",
+      "Automatically selects the best visual template",
+      "Ensures zero errors before you see the final result",
     ],
   },
 ];
@@ -326,8 +295,8 @@ export default function HowItWorksPage() {
             className="text-xl text-gray-600 font-light max-w-2xl mx-auto"
           >
             {mode === "jobseeker"
-              ? "Six specialized AI agents collaborate to transform your resume—researching, strategizing, writing, validating, polishing, and designing. Together, they produce results no single AI can match."
-              : "Two intelligent agents work together to streamline your recruiting—one understands your requirements in natural language, the other searches and analyzes candidate profiles to find the best matches."}
+              ? "Four elite AI agents collaborate to transform your resume—the Scout, the Architect, the Writer, and the Auditor. Together, they produce results no single AI can match."
+              : "Two specialized agents work together to streamline your recruiting—one understands your requirements in natural language, the other searches and analyzes candidate profiles to find the best matches."}
           </motion.p>
         </div>
       </section>
@@ -598,7 +567,7 @@ export default function HowItWorksPage() {
                 <li className="flex items-center gap-3">
                   <Brain className="w-4 h-4 text-blue-600" />
                   <span>
-                    <strong>All 5 Agents:</strong> Gemini 2.5 Flash Lite
+                    <strong>All 4 Agents:</strong> Gemini 2.5 Flash Lite
                   </span>
                   <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
                     Fast
@@ -618,7 +587,7 @@ export default function HowItWorksPage() {
                 <li className="flex items-center gap-3">
                   <Brain className="w-4 h-4 text-blue-400" />
                   <span>
-                    <strong>All 5 Agents:</strong> Gemini 2.5 Flash
+                    <strong>All 4 Agents:</strong> Gemini 2.5 Flash
                   </span>
                   <span className="text-xs bg-blue-900 text-blue-300 px-2 py-0.5 rounded">
                     Smart
@@ -638,41 +607,40 @@ export default function HowItWorksPage() {
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl md:text-4xl font-serif font-bold mb-6">
             {mode === "jobseeker"
-              ? "Why Six Agents Beat One"
+              ? "Why 4 Agents Beat One"
               : "Why AI-Powered Recruiting Wins"}
           </h2>
           <p className="text-lg text-gray-300 mb-10 max-w-2xl mx-auto">
             {mode === "jobseeker"
-              ? "Single-shot AI often produces generic results. Our specialized 6-agent team works like a professional career firm—each focused on what they do best."
-              : "Manual recruiting is slow and inconsistent. Our 6-agent system works like having a full recruiting team—available 24/7 and getting smarter every day."}
+              ? "Single-shot AI often produces generic results. Our specialized 4-agent team works like a professional career firm—collaborating to ensure perfection at every stage."
+              : "Manual recruiting is slow and inconsistent. Our 2-agent system works like having a full recruiting team—available 24/7 and getting smarter every day."}
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-left">
             {mode === "jobseeker" ? (
               <>
                 <div className="p-6 border border-white/20 rounded-lg">
                   <h3 className="font-bold text-lg mb-2">
-                    🧠 Smarter Strategy
+                    🧠 Deeper Strategy
                   </h3>
                   <p className="text-sm text-gray-400">
-                    The Planning Agent uses Gemini 2.5 to deeply understand the
-                    job requirements before any writing begins.
+                    The Scout and Architect work together to deeply understand
+                    requirements before a single word is written.
                   </p>
                 </div>
                 <div className="p-6 border border-white/20 rounded-lg">
                   <h3 className="font-bold text-lg mb-2">
-                    ⚡ Faster Execution
+                    ⚡ Unified Writing
                   </h3>
                   <p className="text-sm text-gray-400">
-                    The Execution Agent follows a clear plan, producing focused
-                    results without wandering off-track.
+                    The Writer combines storytelling and editing in one high-impact
+                    pass, ensuring perfect flow and professional impact.
                   </p>
                 </div>
                 <div className="p-6 border border-white/20 rounded-lg">
-                  <h3 className="font-bold text-lg mb-2">🎯 Better Results</h3>
+                  <h3 className="font-bold text-lg mb-2">🎯 Zero Hallucinations</h3>
                   <p className="text-sm text-gray-400">
-                    Multi-stage processing catches opportunities a single pass
-                    would miss. Research + Strategy + Execution =
-                    Interview-ready.
+                    The Auditor performs a rigorous final check and selects the
+                    ideal design to make your resume stand out to recruiters.
                   </p>
                 </div>
               </>
@@ -822,40 +790,28 @@ function AnimatedFlowDiagram({ mode }: { mode: UserMode }) {
       isFirst: true,
     },
     {
-      label: "Research",
-      sublabel: "Context",
+      label: "The Scout",
+      sublabel: "Research",
       icon: <Target className="w-4 h-4" />,
       color: "purple",
     },
     {
-      label: "Planning",
+      label: "The Architect",
       sublabel: "Strategy",
       icon: <Brain className="w-4 h-4" />,
       color: "blue",
     },
     {
-      label: "Execution",
-      sublabel: "Rewriting",
+      label: "The Writer",
+      sublabel: "Writing & Polish",
       icon: <Zap className="w-4 h-4" />,
       color: "amber",
     },
     {
-      label: "Validation",
-      sublabel: "Auditing",
+      label: "The Auditor",
+      sublabel: "Final Audit",
       icon: <Sparkles className="w-4 h-4" />,
       color: "green",
-    },
-    {
-      label: "Polish",
-      sublabel: "Editing",
-      icon: <Users className="w-4 h-4" />,
-      color: "rose",
-    },
-    {
-      label: "Template",
-      sublabel: "Styling",
-      icon: <Palette className="w-4 h-4" />,
-      color: "indigo",
     },
     {
       label: "Enhanced Resume",

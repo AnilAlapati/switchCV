@@ -65,6 +65,7 @@ echo -e "${GREEN}✅ Tests passed.${NC}"
 # ---------------------------------------------------------
 echo ""
 echo -e "${YELLOW}🏗️  [3/5] Building Application...${NC}"
+npm run release
 if ! npm run build; then
     echo -e "${RED}❌ Build failed!${NC}"
     exit 1

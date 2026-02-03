@@ -11,6 +11,7 @@ import { getRecruiterContactLimits } from "@/lib/config.server";
 import { SubscriptionTier } from "@/lib/config.client";
 import { updateRecruiterAccessMetric } from "@/lib/services/metricsService";
 import { AccessCheckResponse } from "@/types/profileSearch";
+import { getTierForRole } from "@/lib/services/userService";
 
 export interface AccessRequestInput {
   requesterId: string;
@@ -25,7 +26,9 @@ export class AccessService {
   /**
    * Create a new access request
    */
-  static async requestAccess(input: AccessRequestInput) {
+  static async requestAccess(
+    input: AccessRequestInput
+  ): Promise<{ requestId: string }> {
     const {
       requesterId,
       requesterName,
@@ -47,10 +50,7 @@ export class AccessService {
     }
 
     // Check Limits
-    const rawTier = userData.subscriptionTier || "basic";
-    const tier = ["basic", "premium", "enterprise"].includes(rawTier)
-      ? (rawTier as SubscriptionTier)
-      : "basic";
+    const tier = await getTierForRole(requesterId, "recruiter");
     const limits = await getRecruiterContactLimits();
     const limitConfig = limits[tier];
 
@@ -217,7 +217,7 @@ export class AccessService {
     requestId: string,
     action: "approve" | "deny",
     grantDurationDays?: number // Optional override
-  ) {
+  ): Promise<{ status: "approved" | "denied"; expiresAt?: Date }> {
     // 1. Verify Ownership
     const resumeRef = adminDb.collection("resumes").doc(resumeId);
     const resumeDoc = await resumeRef.get();
@@ -344,8 +344,8 @@ export class AccessService {
       const expires = data.expiresAt?.toDate
         ? data.expiresAt.toDate()
         : data.expiresAt
-        ? new Date(data.expiresAt)
-        : null;
+          ? new Date(data.expiresAt)
+          : null;
 
       if (!expires || expires > now) {
         return {

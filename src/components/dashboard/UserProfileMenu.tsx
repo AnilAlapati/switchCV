@@ -13,7 +13,7 @@ interface UserProfileMenuProps {
 export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const { role, tier } = useUserProfile();
+  const { role, tier, jobSeekerTier, recruiterTier } = useUserProfile();
 
   const userInitial = userEmail ? userEmail.charAt(0).toUpperCase() : "U";
   const displayName = userEmail?.split("@")[0] || "User";
@@ -63,7 +63,7 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
         {role === "recruiter" && (
           <span className="relative hidden lg:inline-flex items-center gap-1 border-2 border-black bg-white px-2.5 py-1 text-[0.68rem] font-mono font-bold uppercase tracking-widest text-black">
             <span className="inline-flex h-1.5 w-1.5 animate-pulse bg-black" />
-            Recruiting seat
+            {recruiterTier === "basic" ? "Recruiting seat" : `${recruiterTier} Recruiter`}
           </span>
         )}
 
@@ -71,6 +71,13 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
           <span className="relative hidden lg:inline-flex items-center gap-1 border-2 border-black bg-white px-2.5 py-1 text-[0.68rem] font-mono font-bold uppercase tracking-widest text-black">
             <span className="inline-flex h-1.5 w-1.5 animate-pulse bg-black" />
             Admin
+          </span>
+        )}
+
+        {role === "jobseeker" && jobSeekerTier !== "basic" && (
+          <span className="relative hidden lg:inline-flex items-center gap-1 border-2 border-black bg-white px-2.5 py-1 text-[0.68rem] font-mono font-bold uppercase tracking-widest text-black">
+            <span className="inline-flex h-1.5 w-1.5 animate-pulse bg-black" />
+            {jobSeekerTier} Candidate
           </span>
         )}
 
@@ -194,30 +201,45 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
             <Link
               href="/profile/subscription"
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-3 px-4 py-3 text-sm text-[black] hover:bg-[black]/5 transition-colors duration-150 font-medium"
+              className="flex flex-col gap-1 px-4 py-3 hover:bg-[black]/5 transition-colors duration-150"
             >
-              <svg
-                className="w-4 h-4 text-amber-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 10V3L4 14h7v7l9-11h-7z"
-                />
-              </svg>
-              <span>Subscription Plan</span>
-              <span className={`ml-auto px-2 py-1 text-xs rounded-full font-bold border ${tier === "enterprise"
-                ? "bg-purple-100 text-purple-700 border-purple-200"
-                : tier === "premium"
-                  ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-                  : "bg-amber-100 text-amber-700 border-amber-200"
-                }`}>
-                {tier === "enterprise" ? "Enterprise" : tier === "premium" ? "Premium" : "Basic"}
-              </span>
+              <div className="flex items-center gap-3 text-sm text-[black] font-medium">
+                <svg
+                  className="w-4 h-4 text-amber-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                  />
+                </svg>
+                <span>Subscription Plans</span>
+              </div>
+
+              <div className="flex flex-wrap gap-2 mt-2 ml-7">
+                <div className="flex flex-col">
+                  <span className="text-[9px] uppercase tracking-tighter text-gray-400 font-bold mb-0.5">Job Seeker</span>
+                  <span className={`px-2 py-0.5 text-[10px] rounded-md font-bold border ${jobSeekerTier === "enterprise" ? "bg-purple-100 text-purple-700 border-purple-200" :
+                      jobSeekerTier === "premium" ? "bg-emerald-100 text-emerald-700 border-emerald-200" :
+                        "bg-gray-100 text-gray-600 border-gray-200"
+                    }`}>
+                    {jobSeekerTier.toUpperCase()}
+                  </span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[9px] uppercase tracking-tighter text-gray-400 font-bold mb-0.5">Recruiter</span>
+                  <span className={`px-2 py-0.5 text-[10px] rounded-md font-bold border ${recruiterTier === "enterprise" ? "bg-purple-100 text-purple-700 border-purple-200" :
+                      recruiterTier === "premium" ? "bg-emerald-100 text-emerald-700 border-emerald-200" :
+                        "bg-gray-100 text-gray-600 border-gray-200"
+                    }`}>
+                    {recruiterTier.toUpperCase()}
+                  </span>
+                </div>
+              </div>
             </Link>
 
             {/* Help & Support */}

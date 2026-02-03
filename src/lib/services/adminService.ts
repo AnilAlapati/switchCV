@@ -1,4 +1,4 @@
-import { adminDb } from "@/lib/firebase-admin";
+import { adminDb, adminAuth } from "@/lib/firebase-admin";
 import { logger } from "@/lib/logger";
 
 interface SystemStats {
@@ -17,6 +17,18 @@ export async function verifyAdminAccess(userId: string): Promise<boolean> {
         return userData?.role === "admin";
     } catch (error) {
         logger.error({ err: error, userId }, "Error verifying admin access");
+        return false;
+    }
+}
+/**
+ * Verifies if a user has admin privileges via Firebase Custom Claims.
+ */
+export async function isAdmin(userId: string): Promise<boolean> {
+    try {
+        const userRecord = await adminAuth.getUser(userId);
+        return userRecord.customClaims?.role === "admin";
+    } catch (error) {
+        logger.error({ err: error, userId }, "Error verifying admin role");
         return false;
     }
 }

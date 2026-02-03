@@ -12,10 +12,14 @@ import {
   performBasicSearch,
   performPremiumSearch,
 } from "./search-service";
- 
+
 import { FieldValue } from "firebase-admin/firestore";
 import { recordRecruiterSearchEvent } from "@/lib/recruiterSearchHistory";
-import { getUserRole, getUserTier } from "@/lib/services/userService";
+import {
+  getUserRole,
+  getUserTier,
+  getTierForRole,
+} from "@/lib/services/userService";
 import { getConstants } from "@/lib/getSystemConfig";
 import { logger } from "@/lib/logger";
 import { searchResumesSchema } from "@/lib/validations/recruiter";
@@ -29,7 +33,7 @@ const getRecruiterSearchRateLimiter = async () => {
   });
 };
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const body = await request.json();
 
@@ -38,7 +42,7 @@ export async function POST(request: NextRequest) {
       return handleApiError(
         new Error("Invalid search parameters"),
         "Invalid search parameters: " +
-          validationResult.error.issues.map((e) => e.message).join(", "),
+        validationResult.error.issues.map((e) => e.message).join(", "),
         400
       );
     }
@@ -81,7 +85,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get recruiter's subscription tier (respects dev mode overrides)
-    const subscriptionTier = await getUserTier(recruiterId);
+    const subscriptionTier = await getTierForRole(recruiterId, "recruiter");
 
     // Update recruiter metrics
     await adminDb

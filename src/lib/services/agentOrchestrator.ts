@@ -4,9 +4,8 @@ import { logger } from "@/lib/logger";
 import {
   ResearchAgent,
   PlanningAgent,
-  ExecutionAgent,
-  ValidationAgent,
-  PolishAgent,
+  WritingAgent,
+  AuditorAgent,
   type AgentContext,
 } from "./agents";
 
@@ -38,92 +37,84 @@ function getTierModels(role: string): { planning: string; execution: string } {
 }
 
 /**
- * Run the autonomous 5-agent workflow using refactored agent classes
+ * Run the autonomous 4-agent workflow
  */
 async function runAutonomousWorkflow(
   context: AgentContext,
   planningModel: string,
   executionModel: string
-): Promise<string> {
-  // Step 1: Research Agent
-  const researchAgent = new ResearchAgent(planningModel);
-  const researchResult = await researchAgent.run(undefined, context);
+): Promise<{ resumeMarkdown: string; templateId?: string; reasoning?: string }> {
+  // Step 1: Scout Agent (Research)
+  const scoutAgent = new ResearchAgent(planningModel);
+  const researchResult = await scoutAgent.run(undefined, context);
   if (!researchResult.success || !researchResult.data) {
-    throw new Error(`ResearchAgent failed: ${researchResult.error}`);
+    throw new Error(`ScoutAgent failed: ${researchResult.error}`);
   }
 
-  // Step 2: Planning Agent
-  const planningAgent = new PlanningAgent(planningModel);
-  const planResult = await planningAgent.run(
+  // Step 2: Architect Agent (Planning)
+  const architectAgent = new PlanningAgent(planningModel);
+  const planResult = await architectAgent.run(
     { researchOutput: researchResult.data },
     context
   );
   if (!planResult.success || !planResult.data) {
-    throw new Error(`PlanningAgent failed: ${planResult.error}`);
+    throw new Error(`ArchitectAgent failed: ${planResult.error}`);
   }
 
-  // Step 3: Execution Agent
-  const executionAgent = new ExecutionAgent(executionModel);
-  const executionResult = await executionAgent.run(
+  // Step 3: Writer Agent (Writing + Polished)
+  const writerAgent = new WritingAgent(executionModel);
+  const writingResult = await writerAgent.run(
     { planOutput: planResult.data },
     context
   );
-  if (!executionResult.success || !executionResult.data) {
-    throw new Error(`ExecutionAgent failed: ${executionResult.error}`);
+  if (!writingResult.success || !writingResult.data) {
+    throw new Error(`WriterAgent failed: ${writingResult.error}`);
   }
 
-  // Step 4: Validation Agent
-  const validationAgent = new ValidationAgent(planningModel);
-  const validationResult = await validationAgent.run(
-    { executionOutput: executionResult.data },
+  // Step 4: Auditor Agent (Validation + Design)
+  const auditorAgent = new AuditorAgent(planningModel);
+  const auditorResult = await auditorAgent.run(
+    { executionOutput: writingResult.data },
     context
   );
-  if (!validationResult.success || !validationResult.data) {
-    throw new Error(`ValidationAgent failed: ${validationResult.error}`);
-  }
 
-  // Step 5: Polish Agent
-  const polishAgent = new PolishAgent(executionModel);
-  const polishResult = await polishAgent.run(
-    {
-      executionOutput: executionResult.data,
-      validationOutput: validationResult.data,
-    },
-    context
-  );
-  if (!polishResult.success || !polishResult.data) {
-    throw new Error(`PolishAgent failed: ${polishResult.error}`);
-  }
+  // Even if Auditor fails its validation check (NEEDS_WORK), 
+  // we return the resume but could log the critique.
+  // Template selection is the key "final" value here.
 
-  return polishResult.data.finalResumeMarkdown;
+  return {
+    resumeMarkdown: writingResult.data.resumeMarkdown,
+    templateId: auditorResult.data?.suggestedTemplateId,
+    reasoning: auditorResult.data?.designReasoning,
+  };
 }
 
 /**
- * Run the standard 2-agent workflow (Planning -> Execution)
+ * Run the standard 2-agent workflow (Planning -> Writing)
  */
 async function runStandardWorkflow(
   context: AgentContext,
   planningModel: string,
   executionModel: string
 ): Promise<string> {
-  // Step 1: Planning Agent
-  const planningAgent = new PlanningAgent(planningModel);
-  const planResult = await planningAgent.run({}, context);
+  // Step 1: Architect Agent (Planning)
+  const architectAgent = new PlanningAgent(planningModel);
+  const planResult = await architectAgent.run({}, context);
   if (!planResult.success || !planResult.data) {
-    throw new Error(`PlanningAgent failed: ${planResult.error}`);
+    throw new Error(`ArchitectAgent failed: ${planResult.error}`);
   }
 
-  // Step 2: Execution Agent
-  const executionAgent = new ExecutionAgent(executionModel);
-  const executionResult = await executionAgent.run(
+  // Step 2: Writer Agent (Writing)
+  const writerAgent = new WritingAgent(executionModel);
+  const writingResult = await writerAgent.run(
     { planOutput: planResult.data },
     context
   );
-  if (!executionResult.success || !executionResult.data) {
-    throw new Error(`ExecutionAgent failed: ${executionResult.error}`);
+  if (!writingResult.success || !writingResult.data) {
+    throw new Error(`WriterAgent failed: ${writingResult.error}`);
   }
 
-  return executionResult.data.resumeMarkdown;
+  return writingResult.data.resumeMarkdown;
 }
 
 /**
@@ -133,7 +124,7 @@ export async function runAgenticWorkflow(
   userId: string,
   userRole: string,
   data: AgenticWorkflowData
-): Promise<string | null> {
+): Promise<{ resumeMarkdown: string; templateId?: string; reasoning?: string } | null> {
   const config = await getSystemConfig();
 
   // 1. GLOBAL KILL SWITCH
@@ -191,20 +182,21 @@ export async function runAgenticWorkflow(
   try {
     logger.info({ userId, role: userRole, mode }, "Starting Agentic Workflow");
 
-    let finalResume: string;
+    let result: { resumeMarkdown: string; templateId?: string; reasoning?: string };
 
     if (mode === "autonomous") {
-      finalResume = await runAutonomousWorkflow(
+      result = await runAutonomousWorkflow(
         context,
         planningModel,
         executionModel
       );
     } else {
-      finalResume = await runStandardWorkflow(
+      const resumeMarkdown = await runStandardWorkflow(
         context,
         planningModel,
         executionModel
       );
+      result = { resumeMarkdown };
     }
 
     // TRACK COST (Mode-aware)
@@ -229,6 +221,7 @@ export async function runAgenticWorkflow(
               usageCount: FieldValue.increment(1),
               lastRunAt: new Date().toISOString(),
               lastMode: mode,
+              lastTemplateRecommendation: result.templateId || null,
             },
           },
           { merge: true }
@@ -237,7 +230,7 @@ export async function runAgenticWorkflow(
       logger.error({ err: error }, "Failed to track user usage");
     }
 
-    return finalResume;
+    return result;
   } catch (error) {
     logger.error({ error }, "Agentic workflow failed, falling back to standard.");
     return null;

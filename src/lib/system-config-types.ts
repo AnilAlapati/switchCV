@@ -144,6 +144,20 @@ export type RegistrationConfig = {
 };
 
 // =============================================================================
+// USER APPROVAL CONFIGURATION
+// =============================================================================
+export type UserApprovalConfig = {
+  /** Whether manual approval is required for new user registrations */
+  enabled: boolean;
+  /** Email address to receive approval requests (typically admin/support email) */
+  adminEmail: string;
+  /** Reason shown to declined users */
+  declineReason: string;
+  /** Auto-approve users from certain email domains (e.g., ['company.com']) */
+  autoApproveDomains: string[];
+};
+
+// =============================================================================
 // DEMO RESUMES CONFIGURATION
 // =============================================================================
 export type DemoResumesConfig = {
@@ -172,5 +186,6 @@ export type SystemConfig = {
   cache: CacheConfig;
   agentic: AgenticConfig;
   registrations: RegistrationConfig;
+  userApproval: UserApprovalConfig;
   demoResumes: DemoResumesConfig;
 };

@@ -125,6 +125,12 @@ export const SystemConfigSchema = z.object({
     allowedIds: z.array(z.string()),
     defaultId: z.string(),
   }),
+  userApproval: z.object({
+    enabled: z.boolean(),
+    adminEmail: z.string().email(),
+    declineReason: z.string(),
+    autoApproveDomains: z.array(z.string()),
+  }),
 });
 
 // =============================================================================

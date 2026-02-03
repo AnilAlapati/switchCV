@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { POST } from "@/app/api/recruiter/search-resumes/route";
 import { adminDb } from "@/lib/firebase-admin";
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
-import { getUserRole, getUserTier } from "@/lib/services/userService";
+import { getUserRole, getUserTier, getTierForRole } from "@/lib/services/userService";
 import { getConstants } from "@/lib/getSystemConfig";
 import { createDistributedRateLimiter } from "@/lib/utils/distributedRateLimit";
 import { recordRecruiterSearchEvent } from "@/lib/recruiterSearchHistory";
@@ -26,6 +26,7 @@ jest.mock("@/lib/utils/api-helpers", () => ({
 jest.mock("@/lib/services/userService", () => ({
   getUserRole: jest.fn(),
   getUserTier: jest.fn(),
+  getTierForRole: jest.fn(),
 }));
 
 jest.mock("@/lib/getSystemConfig", () => ({
@@ -62,6 +63,7 @@ describe("Recruiter Search Resumes API", () => {
         SEARCH_REQUESTS_PER_MINUTE: 10,
       },
     });
+    (getTierForRole as jest.Mock).mockResolvedValue("premium");
     (createDistributedRateLimiter as jest.Mock).mockReturnValue(
       jest.fn().mockResolvedValue({
         allowed: true,
@@ -315,7 +317,7 @@ describe("Recruiter Search Resumes API", () => {
       userId: mockRecruiterId,
     });
     (getUserRole as jest.Mock).mockResolvedValue("recruiter");
-    (getUserTier as jest.Mock).mockResolvedValue("basic");
+    (getTierForRole as jest.Mock).mockResolvedValue("basic");
 
     const req = new NextRequest(
       "http://localhost/api/recruiter/search-resumes",
