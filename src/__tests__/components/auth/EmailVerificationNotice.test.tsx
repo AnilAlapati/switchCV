@@ -23,10 +23,27 @@ describe("EmailVerificationNotice", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("your inbox")).toBeInTheDocument();
     expect(screen.getByText("Resend link")).toBeInTheDocument();
-    expect(screen.getByText("I verified my email")).toBeInTheDocument();
+    expect(screen.getByText("Refresh status")).toBeInTheDocument();
     expect(
       screen.getByText("Remember to check your spam folder.")
     ).toBeInTheDocument();
+  });
+
+  it("renders pending approval state", () => {
+    render(
+      <EmailVerificationNotice
+        approvalStatus="pending"
+        email="pending@example.com"
+        onResend={mockOnResend}
+        onRefresh={mockOnRefresh}
+      />
+    );
+
+    expect(screen.getByText("Registration Received")).toBeInTheDocument();
+    expect(screen.getByText(/Our team is currently reviewing your registration/)).toBeInTheDocument();
+    expect(screen.getByText(/pending@example.com/)).toBeInTheDocument();
+    expect(screen.queryByText("Resend link")).not.toBeInTheDocument();
+    expect(screen.getByText("Refresh status")).toBeInTheDocument();
   });
 
   it("renders with provided email", () => {
@@ -60,7 +77,7 @@ describe("EmailVerificationNotice", () => {
     expect(mockOnResend).toHaveBeenCalledTimes(1);
   });
 
-  it("calls onRefresh when I verified already button is clicked", () => {
+  it("calls onRefresh when refresh button is clicked", () => {
     render(
       <EmailVerificationNotice
         email="test@example.com"
@@ -69,7 +86,7 @@ describe("EmailVerificationNotice", () => {
       />
     );
 
-    fireEvent.click(screen.getByText("I verified my email"));
+    fireEvent.click(screen.getByText("Refresh status"));
     expect(mockOnRefresh).toHaveBeenCalledTimes(1);
   });
 
@@ -95,7 +112,7 @@ describe("EmailVerificationNotice", () => {
       />
     );
 
-    expect(screen.getByText("Checking...")).toBeInTheDocument();
-    expect(screen.getByText("Checking...")).toBeDisabled();
+    expect(screen.getByText("Checking status...")).toBeInTheDocument();
+    expect(screen.getByText("Checking status...")).toBeDisabled();
   });
 });

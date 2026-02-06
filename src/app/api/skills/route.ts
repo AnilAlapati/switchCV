@@ -19,24 +19,21 @@ import {
   addSkillToInventory,
 } from "@/lib/skillInventory";
 import { performGapAnalysis, compareJobFit } from "@/lib/gapAnalysis";
-import { handleApiError } from "@/lib/utils/api-helpers";
+import {
+  handleApiError,
+  getAuthenticatedUserId,
+} from "@/lib/utils/api-helpers";
 
 export async function POST(request: NextRequest) {
+  // SECURITY: Authenticate user first
+  const { userId, error } = await getAuthenticatedUserId(request);
+  if (error) return error;
+
   try {
     const { action, ...body } = await request.json();
 
     if (action === "create-inventory") {
-      const { userId } = body;
-
-      if (!userId) {
-        return handleApiError(
-          new Error("userId is required"),
-          "userId is required",
-          400
-        );
-      }
-
-      const inventory = initializeSkillInventory(userId);
+      const inventory = initializeSkillInventory(userId!);
       return NextResponse.json(inventory, { status: 201 });
     }
 
@@ -53,10 +50,10 @@ export async function POST(request: NextRequest) {
       if (!inventory || !name || !category || !proficiencyLevel) {
         return handleApiError(
           new Error(
-            "inventory, name, category, and proficiencyLevel are required"
+            "inventory, name, category, and proficiencyLevel are required",
           ),
           "inventory, name, category, and proficiencyLevel are required",
-          400
+          400,
         );
       }
 
@@ -66,7 +63,7 @@ export async function POST(request: NextRequest) {
           category as SkillCategory,
           proficiencyLevel as ProficiencyLevel,
           yearsOfExperience,
-          description
+          description,
         );
 
         const updated = addSkillToInventory(inventory as SkillInventory, skill);
@@ -83,14 +80,14 @@ export async function POST(request: NextRequest) {
         return handleApiError(
           new Error("inventory and jobPosting are required"),
           "inventory and jobPosting are required",
-          400
+          400,
         );
       }
 
       try {
         const report = performGapAnalysis(
           inventory as SkillInventory,
-          jobPosting as JobPosting
+          jobPosting as JobPosting,
         );
         return NextResponse.json(report, { status: 200 });
       } catch (error) {
@@ -105,14 +102,14 @@ export async function POST(request: NextRequest) {
         return handleApiError(
           new Error("inventory and jobs array are required"),
           "inventory and jobs array are required",
-          400
+          400,
         );
       }
 
       try {
         const comparisons = compareJobFit(
           inventory as SkillInventory,
-          jobs as JobPosting[]
+          jobs as JobPosting[],
         );
         return NextResponse.json(comparisons, { status: 200 });
       } catch (error) {

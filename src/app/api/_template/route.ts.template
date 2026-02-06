@@ -1,0 +1,100 @@
+/**
+ * ============================================================================
+ * API Route Template — SwitchCV
+ * ============================================================================
+ * 
+ * Copy this file when creating a new API route.
+ * Every section marked with ✅ is MANDATORY — do not remove.
+ *
+ * Usage: cp src/app/api/_template/route.ts src/app/api/your-feature/route.ts
+ *
+ * Mandatory checklist (enforced by audit script):
+ *   ✅ Authentication via getAuthenticatedUserId
+ *   ✅ Input validation via Zod schema
+ *   ✅ Error handling via handleApiError (no error.message leaks)
+ *   ✅ Rate limiting via applyRateLimit
+ *   ✅ CORS via validateCorsRequest
+ * ============================================================================
+ */
+
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import {
+  getAuthenticatedUserId,
+  handleApiError,
+  validateCorsRequest,
+  applyRateLimit,
+  attachRateLimitHeaders,
+} from "@/lib/utils/api-helpers";
+
+// ✅ Step 1: Define input schema with Zod
+const PostInputSchema = z.object({
+  // Define your input fields here with proper constraints
+  // name: z.string().min(1).max(200),
+  // description: z.string().max(2000).optional(),
+});
+
+// type PostInput = z.infer<typeof PostInputSchema>;
+
+/**
+ * POST /api/your-feature
+ */
+export async function POST(request: NextRequest) {
+  // ✅ Step 2: CORS validation
+  const corsError = validateCorsRequest(request);
+  if (corsError) return corsError;
+
+  // ✅ Step 3: Authentication (NEVER skip this)
+  const { userId, error } = await getAuthenticatedUserId(request);
+  if (error) return error;
+
+  // ✅ Step 4: Rate limiting
+  const rateLimit = await applyRateLimit(userId!);
+  if (!rateLimit.allowed) return rateLimit.response;
+
+  try {
+    // ✅ Step 5: Validate input with Zod (NEVER use raw request.json())
+    const parseResult = PostInputSchema.safeParse(await request.json());
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: "Invalid input", details: parseResult.error.flatten() },
+        { status: 400 }
+      );
+    }
+    const data = parseResult.data;
+
+    // Step 6: Your business logic here
+    // const result = await someService(userId!, data);
+    void data; // Remove this line when implementing
+
+    // Step 7: Return success response
+    const response = NextResponse.json(
+      { success: true },
+      { status: 200 }
+    );
+    attachRateLimitHeaders(response, rateLimit.result);
+    return response;
+  } catch (err) {
+    // ✅ Step 8: Safe error handling (NEVER return err.message to client)
+    return handleApiError(err, "Operation failed");
+  }
+}
+
+/**
+ * GET /api/your-feature
+ */
+export async function GET(request: NextRequest) {
+  // ✅ Authentication
+  const { userId, error } = await getAuthenticatedUserId(request);
+  if (error) return error;
+
+  try {
+    // Your read logic here
+    void userId; // Remove this line when implementing
+
+    return NextResponse.json({ data: [] }, { status: 200 });
+  } catch (err) {
+    // ✅ Safe error handling
+    return handleApiError(err, "Failed to fetch data");
+  }
+}

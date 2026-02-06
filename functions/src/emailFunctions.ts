@@ -243,12 +243,17 @@ This is an automated notification from SwitchCV User Approval System.`;
 
 const onUserCreatedHandler = async (user: admin.auth.UserRecord) => {
   try {
-    const userDoc = await admin
-      .firestore()
-      .collection("users")
-      .doc(user.uid)
-      .get();
-    const userData = userDoc.data();
+    // Wait briefly for frontend to create user doc (race condition)
+    let userDoc: admin.firestore.DocumentSnapshot | null = null;
+    const userRef = admin.firestore().collection("users").doc(user.uid);
+
+    for (let i = 0; i < 3; i++) {
+      userDoc = await userRef.get();
+      if (userDoc.exists) break;
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+
+    const userData = userDoc?.exists ? userDoc.data() : undefined;
 
     // Check if manual user approval is enabled
     const approvalConfig = await getUserApprovalConfig();
@@ -280,9 +285,9 @@ const onUserCreatedHandler = async (user: admin.auth.UserRecord) => {
       // Store the approval request with token hashes
       await approvalRequestRef.set({
         userId: user.uid,
-        email: user.email,
-        firstName: userData?.firstName || user.displayName,
-        username: userData?.username,
+        email: user.email || null,
+        firstName: userData?.firstName || user.displayName || null,
+        username: userData?.username || null,
         status: "pending",
         approveTokenHash: approveToken.hash,
         approveTokenExpiresAt: approveToken.expiresAt,
@@ -388,9 +393,8 @@ const onUserCreatedHandler = async (user: admin.auth.UserRecord) => {
         // Fallback to Firebase's built-in verification link
         try {
           const actionCodeSettings = {
-            url: `${
-              process.env.WEBSITE_URL || "https://switchcv.com"
-            }/dashboard`,
+            url: `${process.env.WEBSITE_URL || "https://switchcv.com"
+              }/dashboard`,
             handleCodeInApp: false,
           };
           verificationLink = await admin
@@ -448,9 +452,8 @@ const onUserCreatedHandler = async (user: admin.auth.UserRecord) => {
       action: AuditAction.EMAIL_FAILED,
       resourceType: ResourceType.EMAIL,
       resourceId: user.email || "",
-      details: `Welcome email failed: ${
-        error instanceof Error ? error.message : "Unknown error"
-      }`,
+      details: `Welcome email failed: ${error instanceof Error ? error.message : "Unknown error"
+        }`,
       status: "failure",
     });
   }
@@ -666,9 +669,8 @@ const onRecruiterRequestCreatedHandler = async (
       action: AuditAction.EMAIL_FAILED,
       resourceType: ResourceType.RECRUITER_REQUEST,
       resourceId: context.params.requestId,
-      details: `Failed to send recruiter request email: ${
-        error instanceof Error ? error.message : "Unknown error"
-      }`,
+      details: `Failed to send recruiter request email: ${error instanceof Error ? error.message : "Unknown error"
+        }`,
       status: "failure",
     });
   }
@@ -760,9 +762,8 @@ const onRecruiterRequestApprovedHandler = async (
       action: AuditAction.EMAIL_FAILED,
       resourceType: ResourceType.RECRUITER_REQUEST,
       resourceId: context.params.requestId,
-      details: `Failed to send status update email: ${
-        error instanceof Error ? error.message : "Unknown error"
-      }`,
+      details: `Failed to send status update email: ${error instanceof Error ? error.message : "Unknown error"
+        }`,
       status: "failure",
     });
   }
@@ -858,9 +859,8 @@ const sendProfileViewDigestHandler = async (
       action: AuditAction.EMAIL_FAILED,
       resourceType: ResourceType.SYSTEM,
       resourceId: "digest",
-      details: `Failed to send profile view digest: ${
-        error instanceof Error ? error.message : "Unknown error"
-      }`,
+      details: `Failed to send profile view digest: ${error instanceof Error ? error.message : "Unknown error"
+        }`,
       status: "failure",
     });
   }

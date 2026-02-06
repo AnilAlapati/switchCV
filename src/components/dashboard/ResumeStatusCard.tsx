@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "sonner";
 import { logger } from "@/lib/logger";
 
 import { useState } from "react";
@@ -59,7 +60,7 @@ export function ResumeStatusCard({
       }
     } catch (error) {
       logger.error({ err: error }, "Error updating visibility:");
-      alert("Failed to update visibility settings.");
+      toast.error("Failed to update visibility settings.");
     } finally {
       setIsUpdatingVisibility(false);
     }
@@ -67,12 +68,14 @@ export function ResumeStatusCard({
 
   const handleDeleteResume = async () => {
     if (!user) {
-      alert("You must be logged in to delete your resume.");
+      toast.error("You must be logged in to delete your resume.");
       return;
     }
 
     if (!resumeId) {
-      alert("Resume ID not found. Please refresh the page and try again.");
+      toast.error(
+        "Resume ID not found. Please refresh the page and try again.",
+      );
       return;
     }
 
@@ -101,7 +104,7 @@ export function ResumeStatusCard({
       logger.error({ err: error }, "Error deleting resume:");
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
-      alert(`Error deleting resume: ${errorMessage}`);
+      toast.error("Failed to delete resume. Please try again.");
     } finally {
       setIsDeleting(false);
       setShowDeleteConfirm(false);

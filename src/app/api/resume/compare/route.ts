@@ -6,9 +6,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { compareResumes } from "@/lib/resumeComparison";
 import { Resume } from "@/lib/resumeComparison.types";
-import { handleApiError } from "@/lib/utils/api-helpers";
+import {
+  handleApiError,
+  getAuthenticatedUserId,
+} from "@/lib/utils/api-helpers";
 
 export async function POST(request: NextRequest) {
+  // SECURITY: Authenticate user first
+  const { userId, error } = await getAuthenticatedUserId(request);
+  if (error) return error;
+
   try {
     const body = await request.json();
     const { resume1, resume2 } = body;

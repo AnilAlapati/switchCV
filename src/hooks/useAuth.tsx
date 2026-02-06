@@ -9,6 +9,7 @@ import {
   createContext,
   ReactNode,
   useCallback,
+  useMemo,
 } from "react";
 import {
   User,
@@ -79,10 +80,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [loading, setLoading] = useState(true);
   const [needsUsername, setNeedsUsername] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState<string | null>(
-    null
+    null,
   );
   const [connectivityIssue, setConnectivityIssue] = useState<string | null>(
-    null
+    null,
   );
 
   const { firebase: firebaseConnectivity } = useConnectivityStatus();
@@ -104,7 +105,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     if (!firebaseReady) {
       throw new Error(
         connectivityIssue ||
-          "Authentication service is temporarily unavailable. Please try again later."
+          "Authentication service is temporarily unavailable. Please try again later.",
       );
     }
   };
@@ -113,7 +114,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     if (!firebaseReady) {
       setConnectivityIssue(
         firebaseConnectivity?.error ||
-          "Firebase configuration is incomplete. Please contact support."
+          "Firebase configuration is incomplete. Please contact support.",
       );
       setLoading(false);
       return;
@@ -146,7 +147,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       const resendVerificationEmail = httpsCallable(
         functions,
-        "resendVerificationEmail"
+        "resendVerificationEmail",
       );
       await resendVerificationEmail();
       setVerificationEmail(activeUser.email ?? null);
@@ -156,26 +157,29 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
-  const signIn = async (email: string, password: string) => {
-    ensureAuthAvailable();
-    try {
-      const credential = await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-      setVerificationEmail(credential.user.email ?? null);
-      await ensureUserProfile(credential.user);
-    } catch (error) {
-      const authError = error as { code?: string; message?: string };
-      reportError(error, {
-        source: "useAuth.signIn",
-        severity: "warning",
-        meta: { code: authError.code },
-      });
-      throw new Error(getSignInErrorMessage(authError));
-    }
-  };
+  const signIn = useCallback(
+    async (email: string, password: string) => {
+      ensureAuthAvailable();
+      try {
+        const credential = await signInWithEmailAndPassword(
+          auth,
+          email,
+          password,
+        );
+        setVerificationEmail(credential.user.email ?? null);
+        await ensureUserProfile(credential.user);
+      } catch (error) {
+        const authError = error as { code?: string; message?: string };
+        reportError(error, {
+          source: "useAuth.signIn",
+          severity: "warning",
+          meta: { code: authError.code },
+        });
+        throw new Error(getSignInErrorMessage(authError));
+      }
+    },
+    [firebaseReady, ensureUserProfile],
+  );
 
   const signUp = async (email: string, password: string, username: string) => {
     ensureAuthAvailable();
@@ -185,7 +189,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       const normalized = sanitizeUsername(username);
       if (!normalized || !USERNAME_REGEX.test(normalized)) {
         throw new Error(
-          "Please choose a username between 3-30 characters using lowercase letters, numbers, hyphens, or underscores."
+          "Please choose a username between 3-30 characters using lowercase letters, numbers, hyphens, or underscores.",
         );
       }
 
@@ -204,7 +208,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           displayName: normalized,
           authProvider: "password",
           createdAt: serverTimestamp(),
-        }
+        },
       );
 
       // Username successfully reserved - mark that we don't need username selection
@@ -234,7 +238,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           try {
             await releaseUsernameReservation(
               credential.user.uid,
-              reservedUsername
+              reservedUsername,
             );
           } catch (releaseError) {
             reportError(releaseError, {
@@ -264,7 +268,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     ensureAuthAvailable();
 
     // Clear all user-specific localStorage data
@@ -275,9 +279,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
 
     await signOut(auth);
-  };
+  }, [user?.uid, firebaseReady]);
 
-  const signInWithGoogle = async (): Promise<{ needsUsername: boolean }> => {
+  const signInWithGoogle = useCallback(async (): Promise<{
+    needsUsername: boolean;
+  }> => {
     ensureAuthAvailable();
     if (!googleProvider) {
       throw new Error("Google Sign-In is not available in this environment.");
@@ -298,7 +304,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       });
       throw new Error(getGoogleSignInErrorMessage(authError));
     }
-  };
+  }, [firebaseReady, ensureUserProfile]);
 
   /**
    * Set username for a user who signed in via Google OAuth.
@@ -313,7 +319,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       const normalized = sanitizeUsername(username);
       if (!normalized || !USERNAME_REGEX.test(normalized)) {
         throw new Error(
-          "Please choose a username between 3-30 characters using lowercase letters, numbers, hyphens, or underscores."
+          "Please choose a username between 3-30 characters using lowercase letters, numbers, hyphens, or underscores.",
         );
       }
 
@@ -321,7 +327,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       await ensureUserProfile(user, { username: normalized });
       setNeedsUsername(false);
     },
-    [user, ensureUserProfile]
+    [user, ensureUserProfile],
   );
 
   /**
@@ -348,11 +354,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   }, [user]);
 
-  const resendVerificationEmail = async () => {
+  const resendVerificationEmail = useCallback(async () => {
     await sendVerification();
-  };
+  }, [firebaseReady]);
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     if (!auth?.currentUser) {
       return;
     }
@@ -369,24 +375,42 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         severity: "warning",
       });
     }
-  };
+  }, []);
 
-  const value = {
-    user,
-    loading,
-    needsEmailVerification,
-    needsUsername,
-    verificationEmail,
-    connectivityIssue,
-    signIn,
-    signUp,
-    signInWithGoogle,
-    resendVerificationEmail,
-    refreshUser,
-    logout,
-    setUsername,
-    checkNeedsUsername,
-  };
+  const value = useMemo(
+    () => ({
+      user,
+      loading,
+      needsEmailVerification,
+      needsUsername,
+      verificationEmail,
+      connectivityIssue,
+      signIn,
+      signUp,
+      signInWithGoogle,
+      resendVerificationEmail,
+      refreshUser,
+      logout,
+      setUsername,
+      checkNeedsUsername,
+    }),
+    [
+      user,
+      loading,
+      needsEmailVerification,
+      needsUsername,
+      verificationEmail,
+      connectivityIssue,
+      signIn,
+      signUp,
+      signInWithGoogle,
+      resendVerificationEmail,
+      refreshUser,
+      logout,
+      setUsername,
+      checkNeedsUsername,
+    ],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

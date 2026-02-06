@@ -21,6 +21,7 @@ import type { JobSeekerMetrics } from "@/types/dashboard";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { logger } from "@/lib/logger";
+import { toast } from "sonner";
 import type { DashboardResume } from "@/types";
 
 interface JobSeekerDashboardProps {
@@ -100,7 +101,7 @@ export function JobSeekerDashboard({
   }, [resume]);
 
   const [optimisticStatus, setOptimisticStatus] = useState<boolean | null>(
-    null
+    null,
   );
   const currentStatus = optimisticStatus ?? isPublished;
 
@@ -131,7 +132,7 @@ export function JobSeekerDashboard({
       }
     } catch (error) {
       logger.error({ err: error }, "Error updating visibility:");
-      alert("Failed to update visibility settings.");
+      toast.error("Failed to update visibility settings.");
       setOptimisticStatus(previousStatus);
     } finally {
       setIsUpdatingVisibility(false);
@@ -150,12 +151,12 @@ export function JobSeekerDashboard({
         resumeData: resume,
         userProfile: profile,
       }),
-    [metrics, hasResume, resumeIdString, resumeUrl, tier, resume, profile]
+    [metrics, hasResume, resumeIdString, resumeUrl, tier, resume, profile],
   );
 
   const opportunityInsights = useMemo(
     () => buildJobSeekerInsights(metrics),
-    [metrics]
+    [metrics],
   );
 
   const careerResources = useMemo(
@@ -180,7 +181,7 @@ export function JobSeekerDashboard({
         href: "/dashboard",
       },
     ],
-    []
+    [],
   );
 
   // Show skeleton while initial data is loading

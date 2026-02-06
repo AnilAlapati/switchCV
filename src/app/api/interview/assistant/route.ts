@@ -10,31 +10,32 @@ import {
   createInterviewSession,
   getInterviewTips,
 } from "@/lib/interviewSession";
-import { handleApiError } from "@/lib/utils/api-helpers";
+import {
+  handleApiError,
+  getAuthenticatedUserId,
+} from "@/lib/utils/api-helpers";
 
 export async function POST(request: NextRequest) {
+  // SECURITY: Authenticate user first
+  const { userId, error } = await getAuthenticatedUserId(request);
+  if (error) return error;
+
   try {
     const { action, ...body } = await request.json();
 
     if (action === "start-session") {
-      const {
-        userId,
-        jobTitle,
-        jobDescription,
-        companyName,
-        numberOfQuestions,
-      } = body;
+      const { jobTitle, jobDescription, companyName, numberOfQuestions } = body;
 
-      if (!userId || !jobTitle) {
-        return handleApiError(null, "userId and jobTitle are required", 400);
+      if (!jobTitle) {
+        return handleApiError(null, "jobTitle is required", 400);
       }
 
       const session = createInterviewSession(
-        userId,
+        userId!,
         jobTitle,
         jobDescription,
         companyName,
-        numberOfQuestions || 5
+        numberOfQuestions || 5,
       );
 
       return NextResponse.json(session, { status: 201 });
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
         return handleApiError(
           null,
           "sessionId, questionIndex, and answer are required",
-          400
+          400,
         );
       }
 
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
           feedback: "Answer recorded successfully",
           duration,
         },
-        { status: 200 }
+        { status: 200 },
       );
     }
 
@@ -76,14 +77,14 @@ export async function POST(request: NextRequest) {
           success: true,
           message: "Session completed",
         },
-        { status: 200 }
+        { status: 200 },
       );
     }
 
     return handleApiError(
       null,
       "Invalid action. Use: start-session, submit-answer, or complete-session",
-      400
+      400,
     );
   } catch (error) {
     return handleApiError(error, "Failed to process request");

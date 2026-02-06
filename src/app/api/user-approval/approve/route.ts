@@ -8,13 +8,12 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase-admin";
+import { adminDb, adminAuth } from "@/lib/firebase-admin";
 import {
   validateApprovalToken,
   parseApprovalToken,
 } from "@/lib/utils/approval-tokens";
 import { logger } from "@/lib/logger";
-import { randomBytes } from "crypto";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -154,16 +153,9 @@ export async function GET(request: NextRequest) {
     const userId = requestData.userId;
     const userEmail = requestData.email;
 
-    // Generate verification token
-    const verificationToken = randomBytes(32).toString("hex");
-    const verificationTokenExpiry = new Date();
-    verificationTokenExpiry.setHours(verificationTokenExpiry.getHours() + 24);
-
-    // Update user document
+    // Update user document - mark as approved
     await adminDb.collection("users").doc(userId).update({
       emailVerified: false,
-      verificationToken,
-      verificationTokenExpiry,
       approvalStatus: "approved",
       updatedAt: new Date(),
     });
@@ -175,11 +167,65 @@ export async function GET(request: NextRequest) {
       updatedAt: new Date(),
     });
 
-    // Send verification email
-    const websiteUrl =
-      process.env.NEXT_PUBLIC_WEBSITE_URL || "http://localhost:3000";
-    const verificationUrl = `${websiteUrl}/auth/verify-email?token=${verificationToken}`;
+    // Generate Firebase's native email verification link
+    // This uses the same flow as the original verification system
+    // Use WEBSITE_URL for server-side (Cloud Functions/emulator), fallback to NEXT_PUBLIC_BASE_URL
+    const baseUrl =
+      process.env.WEBSITE_URL ||
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      "http://localhost:3000";
+    const actionCodeSettings = {
+      url: baseUrl,
+      handleCodeInApp: false,
+    };
 
+    let verificationUrl: string;
+    try {
+      verificationUrl = await adminAuth.generateEmailVerificationLink(
+        userEmail,
+        actionCodeSettings,
+      );
+      logger.info(
+        { userId, email: userEmail, baseUrl },
+        "Generated Firebase verification link",
+      );
+    } catch (error) {
+      logger.error(
+        { error, userId, email: userEmail },
+        "Failed to generate verification link",
+      );
+      // Fallback: mark as verified if we can't generate link (user can resend later)
+      await adminAuth.updateUser(userId, { emailVerified: true });
+      await adminDb.collection("users").doc(userId).update({
+        emailVerified: true,
+        updatedAt: new Date(),
+      });
+
+      return new NextResponse(
+        `<!DOCTYPE html>
+        <html>
+          <head>
+            <title>User Approved</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+              body { font-family: system-ui; max-width: 600px; margin: 100px auto; padding: 20px; text-align: center; }
+              h1 { color: #10b981; }
+              .email { color: #3b82f6; font-weight: 500; }
+            </style>
+          </head>
+          <body>
+            <h1>✅ User Approved & Verified</h1>
+            <p>User <span class="email">${userEmail}</span> has been approved and automatically verified.</p>
+            <p style="color: #64748b; font-size: 14px; margin-top: 30px;">
+              You can close this window now.
+            </p>
+          </body>
+        </html>`,
+        { status: 200, headers: { "Content-Type": "text/html" } },
+      );
+    }
+
+    // Send verification email using Firebase's link
     await adminDb.collection("mail").add({
       to: userEmail,
       message: {

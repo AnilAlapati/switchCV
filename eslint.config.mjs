@@ -52,17 +52,29 @@ const eslintConfig = [
     files: ["src/app/api/**/*.ts"],
     rules: {
       "no-restricted-syntax": [
-        "warn",
+        "error",
         {
           selector: "CallExpression[callee.property.name='verifyIdToken']",
           message:
-            "Direct use of verifyIdToken is discouraged in API routes. Use getAuthenticatedUserId from @/lib/utils/api-helpers instead.",
+            "❌ Direct use of verifyIdToken is FORBIDDEN in API routes. Use getAuthenticatedUserId from @/lib/utils/api-helpers instead.",
         },
         {
           selector:
-            "CallExpression[callee.object.name='NextResponse'][callee.property.name='json'] ObjectExpression Property[key.name='error']",
+            "MemberExpression[object.name='error'][property.name='message']",
           message:
-            "Consider using handleApiError from @/lib/utils/api-helpers for consistent error handling.",
+            "⚠️ Do not access error.message in API routes. Use handleApiError() to prevent leaking internal error details to clients.",
+        },
+        {
+          selector:
+            "MemberExpression[object.name='error'][property.name='stack']",
+          message:
+            "❌ NEVER expose error.stack in API responses. Use handleApiError() for safe error handling.",
+        },
+        {
+          selector:
+            "MemberExpression[object.name='err'][property.name='message']",
+          message:
+            "⚠️ Do not access err.message in API routes. Use handleApiError() to prevent leaking internal error details to clients.",
         },
       ],
       // API routes frequently handle Firestore errors and dynamic data
@@ -158,7 +170,7 @@ const eslintConfig = [
       "**/__tests__/**/*.jsx",
     ],
     linterOptions: {
-      reportUnusedDisableDirectives: "off",
+      reportUnusedDisableDirectives: "error",
     },
     rules: {
       "max-lines": "off",

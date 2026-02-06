@@ -1,5 +1,137 @@
 # SwitchCV AI Coding Assistant Instructions
 
+**READ THIS FIRST:** See [docs/LESSONS_LEARNED.md](../docs/LESSONS_LEARNED.md) for the full investigation of what went wrong, why AI agents fail, and how to avoid it.
+
+## ⛔ MANDATORY RULES — NEVER SKIP THESE
+
+**These rules are NON-NEGOTIABLE. Every single piece of code you generate MUST comply. Violation = broken product. No exceptions, no "I'll add it later", no "this is just a prototype".**
+
+### Rule 1: EVERY API Route MUST Have Authentication
+
+```
+BEFORE writing ANY code in src/app/api/**/route.ts:
+1. Import getAuthenticatedUserId from "@/lib/utils/api-helpers"
+2. Call it as the FIRST line in every handler (GET, POST, PUT, PATCH, DELETE)
+3. Return the error if auth fails: `if (error) return error;`
+4. Use the returned userId — NEVER accept userId from request body
+
+ONLY exceptions (must add comment explaining why):
+- /api/health — public health check
+- /api/system-config — public app config
+- /api/auth/* — authentication endpoints themselves
+- /api/user-approval/*/route.ts — token-based public auth
+```
+
+**WHY:** Two routes shipped without auth. An attacker with curl can impersonate any user. This is not theoretical.
+
+### Rule 2: EVERY API Route MUST Validate Input with Zod
+
+```
+BEFORE processing ANY request body or query params:
+1. Define or import a Zod schema
+2. Parse with schema.parse() or schema.safeParse()
+3. Return 400 on validation failure — NEVER 500
+4. NEVER pass raw request.json() to Firestore or any service
+
+Template:
+  const parseResult = InputSchema.safeParse(await request.json());
+  if (!parseResult.success) {
+    return NextResponse.json(
+      { error: "Invalid input", details: parseResult.error.flatten() },
+      { status: 400 }
+    );
+  }
+  const data = parseResult.data; // ← Type-safe, validated
+```
+
+**WHY:** Manual `if (!field)` checks miss edge cases and allow type confusion. Zod catches everything.
+
+### Rule 3: NEVER Leak Error Details to Clients
+
+```
+WRONG: return NextResponse.json({ error: error.message }, { status: 500 });
+WRONG: return NextResponse.json({ error: `Failed: ${err}` }, { status: 500 });
+RIGHT: return handleApiError(err, "Operation failed");
+
+In catch blocks:
+- Log the real error with logger.error({ err }, "context message")
+- Return a GENERIC message to the client
+- NEVER include error.message, error.stack, or stringified errors in responses
+```
+
+**WHY:** Error messages from Firebase/AI APIs can expose internal URLs, credentials, database structure.
+
+### Rule 4: React Hooks — Memoize Context Values and Callbacks
+
+```
+EVERY Context Provider MUST:
+1. Wrap handler functions in useCallback()
+2. Wrap the context value object in useMemo()
+3. NEVER define plain functions inside provider body without useCallback
+
+EVERY custom hook returning functions MUST:
+1. Wrap returned functions in useCallback() with correct deps
+2. NEVER put side effects (logger, fetch, mutations) inside useMemo()
+
+Template:
+  const handleAction = useCallback(async () => {
+    // logic here
+  }, [dependencies]);
+
+  const value = useMemo(() => ({
+    state, handleAction
+  }), [state, handleAction]);
+
+  return <Context.Provider value={value}>{children}</Context.Provider>;
+```
+
+**WHY:** Without this, every state change in AuthProvider re-renders the ENTIRE app. This was found in code review.
+
+### Rule 5: Accessibility is Not Optional
+
+```
+EVERY interactive element MUST have:
+1. Form inputs: aria-invalid, aria-describedby linking to error message
+2. Buttons: descriptive text or aria-label (not just an icon)
+3. Loading states: role="status" and aria-live="polite"
+4. Error feedback: NEVER use window.alert() — use toast/sonner notifications
+5. SVG icons: aria-hidden="true" if decorative, or <title> if meaningful
+
+Template for form errors:
+  <input
+    id="email"
+    aria-invalid={!!errors.email}
+    aria-describedby={errors.email ? "email-error" : undefined}
+  />
+  {errors.email && <p id="email-error" role="alert">{errors.email}</p>}
+```
+
+**WHY:** 10+ locations use window.alert(), auth forms lack aria attributes. This blocks accessibility compliance.
+
+### Rule 6: Security by Default on All New Code
+
+```
+EVERY new feature MUST consider:
+1. "What if someone calls this with curl instead of the UI?"
+2. Server-side validation — NEVER trust client-only checks
+3. Firestore queries — ALWAYS use .limit() or pagination
+4. User input in AI prompts — ALWAYS sanitize (use detectPromptInjection from security/)
+5. New Firestore collections — MUST have rules in firestore.rules (default: deny all)
+6. Sensitive data — NEVER log PII, use sanitizeForLogging()
+```
+
+### Rule 7: Performance Budget
+
+```
+1. Heavy components (3D, charts, galleries) → React.lazy() + Suspense
+2. SWR polling intervals → minimum 5 minutes in production, NEVER under 60 seconds
+3. Firestore reads → ALWAYS .limit(), ALWAYS paginate
+4. Context values → ALWAYS useMemo (see Rule 4)
+5. NEVER use revalidateOnFocus: true on hooks that read Firestore
+```
+
+---
+
 ## Project Overview
 
 SwitchCV is a Next.js 16 + Firebase + AI platform connecting jobseekers with recruiters. Frontend uses RSC with App Router, backend is Cloud Functions, data in Firestore. **Key constraint:** Agentic MVP budgets are hard-capped at $30/$70 USD monthly—no cost tracking yet.
@@ -161,3 +293,29 @@ await screen.getByTestId("submit-resume").click();
 3. **Validation status codes:** Zod errors must return 400, not 500
 4. **Dev mode bypass:** Cannot test tier restrictions in production (mode check prevents this)
 5. **Firestore costs:** Unbounded queries = expensive; always use `.limit()` or pagination
+
+## Pre-Commit Enforcement
+
+Every commit is automatically audited by `scripts/audit-api-routes.js`. This script:
+
+- Scans ALL API route files for missing authentication
+- Checks for Zod schema validation
+- Detects error detail leakage patterns
+- Flags routes missing CORS handling
+- **BLOCKS the commit** if any critical issue is found
+
+Run manually: `node scripts/audit-api-routes.js`
+
+## Self-Check Before Submitting Code
+
+Before presenting any code as "done", verify:
+
+- [ ] Every API route calls `getAuthenticatedUserId()` (or is in the explicit public allowlist)
+- [ ] Every request body is validated with a Zod schema
+- [ ] No `error.message` or raw error details in client responses
+- [ ] No `window.alert()` — use sonner toast instead
+- [ ] Context provider values wrapped in `useMemo()`
+- [ ] All callbacks in providers wrapped in `useCallback()`
+- [ ] Form inputs have `aria-invalid` and `aria-describedby`
+- [ ] Firestore queries have `.limit()` or pagination
+- [ ] New collections have rules in `firestore.rules`

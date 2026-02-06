@@ -1,6 +1,7 @@
 "use client";
 
 import { logger } from "@/lib/logger";
+import { toast } from "sonner";
 
 import { useState, useEffect } from "react";
 import { usePersonalAuditLogs } from "@/hooks/useAuditLog";
@@ -45,7 +46,7 @@ export function AuditLogViewer() {
       URL.revokeObjectURL(url);
     } catch (error) {
       logger.error({ err: error }, "Failed to export data:");
-      alert("Failed to export your data. Please try again.");
+      toast.error("Failed to export your data. Please try again.");
     } finally {
       setExporting(false);
     }
@@ -98,7 +99,7 @@ export function AuditLogViewer() {
                 >
                   <td className="p-3 text-gray-600">
                     {new Date(
-                      log.timestamp?.toDate?.() || log.timestamp
+                      log.timestamp?.toDate?.() || log.timestamp,
                     ).toLocaleString()}
                   </td>
                   <td className="p-3">

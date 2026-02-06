@@ -180,6 +180,7 @@ export interface UserProfile {
   jobSeekerTier?: SubscriptionTier;
   recruiterTier?: SubscriptionTier;
   role: UserRole;
+  approvalStatus?: "pending" | "approved" | "declined";
   createdAt?: string;
   lastLoginAt?: string;
   agentic?: {

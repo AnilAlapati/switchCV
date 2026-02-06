@@ -4,6 +4,7 @@ import * as admin from "firebase-admin";
 // Initialize the Firebase Admin SDK once at the top level
 if (!admin.apps.length) {
   admin.initializeApp();
+  admin.firestore().settings({ ignoreUndefinedProperties: true });
 }
 
 /**

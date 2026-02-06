@@ -28,6 +28,12 @@
     "firestore-send-email": "firebase/firestore-send-email@0.2.4"
   },
   "emulators": {
+    "auth": {
+      "port": 9099
+    },
+    "functions": {
+      "port": 5001
+    },
     "firestore": {
       "port": 8080
     },

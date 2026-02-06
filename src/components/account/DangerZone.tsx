@@ -3,13 +3,14 @@
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { AlertTriangle, X } from "lucide-react";
+import { toast } from "sonner";
 
 export function DangerZone(): ReactElement {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const handleDeleteAccount = (): void => {
     // This is where you would call the delete API
-    alert("Account deletion is disabled in this demo.");
+    toast.info("Account deletion is disabled in this demo.");
     setShowConfirm(false);
   };
 
@@ -17,7 +18,9 @@ export function DangerZone(): ReactElement {
     <>
       <div className="bg-red-50 border-2 border-red-300 overflow-hidden mt-8">
         <div className="p-8">
-          <h2 className="text-xl font-serif font-bold text-red-800 mb-4">Danger Zone</h2>
+          <h2 className="text-xl font-serif font-bold text-red-800 mb-4">
+            Danger Zone
+          </h2>
 
           <div className="flex items-center justify-between p-4 bg-white border-2 border-red-200">
             <div>

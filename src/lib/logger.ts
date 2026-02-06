@@ -68,7 +68,7 @@ function redactPIIFromString(str: string): string {
 export function sanitizeForLogging(
   obj: unknown,
   depth: number = 0,
-  maxDepth: number = 5
+  maxDepth: number = 5,
 ): unknown {
   // Prevent infinite recursion
   if (depth > maxDepth) {
@@ -141,10 +141,13 @@ export const serializeError = (error: unknown): Record<string, unknown> => {
   }
 
   if (error && typeof error === "object") {
-    return Object.entries(error).reduce((acc, [key, value]) => {
-      acc[key] = value instanceof Error ? String(value) : value;
-      return acc;
-    }, {} as Record<string, unknown>);
+    return Object.entries(error).reduce(
+      (acc, [key, value]) => {
+        acc[key] = value instanceof Error ? String(value) : value;
+        return acc;
+      },
+      {} as Record<string, unknown>,
+    );
   }
 
   return { error: String(error) };
@@ -157,18 +160,9 @@ const isTestRuntime = env === "test" || Boolean(process.env.JEST_WORKER_ID);
 const isEdge = process.env.NEXT_RUNTIME === "edge";
 const shouldMirrorConsole = !isProd;
 
-// Edge Runtime CANNOT use pino-pretty due to process.stdout.isTTY access
-// Use plain JSON logging in Edge, pino-pretty only in Node.js runtime
-const transport: LoggerOptions["transport"] =
-  !isProd && !isTestRuntime && !isEdge
-    ? {
-        target: "pino-pretty",
-        options: {
-          colorize: true,
-          translateTime: "SYS:standard",
-        },
-      }
-    : undefined;
+// Disable pino-pretty in development to avoid worker thread errors
+// Use simple JSON logging instead for better stability
+const transport: LoggerOptions["transport"] = undefined;
 
 const baseLogger = pino({
   level: logLevel,
@@ -182,7 +176,7 @@ type LoggerWithLog = typeof baseLogger & { log: typeof baseLogger.info };
 
 const mirrorToConsole = (
   consoleMethod: (...args: unknown[]) => void,
-  pinoMethod: (...args: unknown[]) => void
+  pinoMethod: (...args: unknown[]) => void,
 ) => {
   return (...args: unknown[]) => {
     pinoMethod(...args);
@@ -224,10 +218,13 @@ const mirrorToConsole = (
           // Handle non-Error objects (could be plain object, etc.)
           if (err && typeof err === "object") {
             // Try to extract enumerable properties
-            const enumerableProps = Object.keys(err).reduce((acc, key) => {
-              acc[key] = (err as Record<string, unknown>)[key];
-              return acc;
-            }, {} as Record<string, unknown>);
+            const enumerableProps = Object.keys(err).reduce(
+              (acc, key) => {
+                acc[key] = (err as Record<string, unknown>)[key];
+                return acc;
+              },
+              {} as Record<string, unknown>,
+            );
 
             // If no enumerable properties, try common error-like properties
             if (Object.keys(enumerableProps).length === 0) {

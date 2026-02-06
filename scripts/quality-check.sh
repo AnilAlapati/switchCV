@@ -153,10 +153,13 @@ else
     ERRORS=$((ERRORS + 1))
   fi
   
-  # Check for missing auth in API routes
-  MISSING_AUTH=$(grep -L "getAuthenticatedUserId\|maybeGetAuthenticatedUserId" src/app/api/**/route.ts 2>/dev/null | grep -v "public\|health" | wc -l | tr -d ' ') || MISSING_AUTH=0
+  # Check for missing auth in API routes (CRITICAL — blocks commit)
+  MISSING_AUTH=$(grep -rL "getAuthenticatedUserId\|maybeGetAuthenticatedUserId" src/app/api/**/route.ts 2>/dev/null | grep -v "health\|system-config\|auth/\|user-approval\|seed" | wc -l | tr -d ' ') || MISSING_AUTH=0
   if [ "$MISSING_AUTH" -gt "0" ]; then
-    echo -e "${YELLOW}  ℹ️  $MISSING_AUTH API routes may need auth review${NC}"
+    echo -e "${RED}  🚨 CRITICAL: $MISSING_AUTH API routes MISSING authentication!${NC}"
+    grep -rL "getAuthenticatedUserId\|maybeGetAuthenticatedUserId" src/app/api/**/route.ts 2>/dev/null | grep -v "health\|system-config\|auth/\|user-approval\|seed" | head -10
+    SECURITY_ISSUES=$((SECURITY_ISSUES + 1))
+    ERRORS=$((ERRORS + 1))
   fi
   
   if [ "$SECURITY_ISSUES" -eq "0" ]; then

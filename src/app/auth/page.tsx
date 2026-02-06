@@ -11,6 +11,7 @@ import { LoginForm } from "@/components/auth/LoginForm";
 import { SignupForm } from "@/components/auth/SignupForm";
 import { useAuthPage } from "@/hooks/useAuthPage";
 import { useSystemConfig } from "@/context/SystemConfigProvider";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 function AuthContent(): React.JSX.Element {
   const {
@@ -20,6 +21,7 @@ function AuthContent(): React.JSX.Element {
   } = useSystemConfig();
 
   const { state, actions, authContext, isCheckingUsername } = useAuthPage();
+  const { profile, mutate } = useUserProfile();
 
   const {
     isSignUp,
@@ -111,8 +113,12 @@ function AuthContent(): React.JSX.Element {
           {needsEmailVerification && !isSignUp && !verificationSuccess && (
             <EmailVerificationNotice
               email={verificationEmail}
+              approvalStatus={profile?.approvalStatus}
               onResend={handleResend}
-              onRefresh={handleRefreshVerification}
+              onRefresh={async () => {
+                await handleRefreshVerification();
+                await mutate();
+              }}
               onSignOut={actions.logout}
               resending={resending}
               refreshing={refreshing}

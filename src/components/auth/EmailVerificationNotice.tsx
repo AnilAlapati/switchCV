@@ -2,6 +2,7 @@
 
 interface EmailVerificationNoticeProps {
   email?: string | null;
+  approvalStatus?: string;
   onResend: () => Promise<void>;
   onRefresh: () => Promise<void>;
   onSignOut?: () => Promise<void>;
@@ -11,12 +12,15 @@ interface EmailVerificationNoticeProps {
 
 export function EmailVerificationNotice({
   email,
+  approvalStatus,
   onResend,
   onRefresh,
   onSignOut,
   resending = false,
   refreshing = false,
 }: EmailVerificationNoticeProps) {
+  const isPendingApproval = approvalStatus === "pending";
+
   return (
     <div className="mb-8 relative group overflow-hidden rounded-2xl p-[1px]">
       <div className="absolute inset-0 bg-gradient-to-r from-amber-200/40 via-orange-200/40 to-amber-200/40 opacity-50 group-hover:opacity-100 transition-opacity duration-500" />
@@ -36,17 +40,27 @@ export function EmailVerificationNotice({
 
           <div className="flex-1">
             <h3 className="text-[#1A2F25] font-bold text-base mb-1">
-              Verify your email
+              {isPendingApproval ? "Registration Received" : "Verify your email"}
             </h3>
-            <p className="text-[#1A2F25]/70 text-sm leading-relaxed mb-4">
-              We sent a verification link to <span className="font-semibold text-[#1A2F25]">{email || "your inbox"}</span>.
-              <br />
-              Please verify your address to continue.
+            <div className="text-[#1A2F25]/70 text-sm leading-relaxed mb-4">
+              {isPendingApproval ? (
+                <>
+                  Our team is currently reviewing your registration. This typically takes less than 24 hours.
+                  <br />
+                  <span className="font-semibold text-[#1A2F25]">Once approved, we'll send a verification link to {email || "your inbox"}.</span>
+                </>
+              ) : (
+                <>
+                  We sent a verification link to <span className="font-semibold text-[#1A2F25]">{email || "your inbox"}</span>.
+                  <br />
+                  Please verify your address to continue.
+                </>
+              )}
               <br />
               <span className="text-xs text-amber-700/80 italic mt-1 block">
                 Remember to check your spam folder.
               </span>
-            </p>
+            </div>
 
             <div className="flex flex-wrap gap-3">
               <button
@@ -61,21 +75,23 @@ export function EmailVerificationNotice({
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
-                    Checking...
+                    Checking status...
                   </>
                 ) : (
-                  "I verified my email"
+                  "Refresh status"
                 )}
               </button>
 
-              <button
-                type="button"
-                onClick={onResend}
-                disabled={resending}
-                className="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-white border border-[#1A2F25]/10 text-[#1A2F25]/70 text-sm font-medium hover:bg-gray-50 hover:text-[#1A2F25] hover:border-[#1A2F25]/20 transition-all duration-200 disabled:opacity-50"
-              >
-                {resending ? "Sending..." : "Resend link"}
-              </button>
+              {!isPendingApproval && (
+                <button
+                  type="button"
+                  onClick={onResend}
+                  disabled={resending}
+                  className="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-white border border-[#1A2F25]/10 text-[#1A2F25]/70 text-sm font-medium hover:bg-gray-50 hover:text-[#1A2F25] hover:border-[#1A2F25]/20 transition-all duration-200 disabled:opacity-50"
+                >
+                  {resending ? "Sending..." : "Resend link"}
+                </button>
+              )}
 
               <button
                 type="button"
