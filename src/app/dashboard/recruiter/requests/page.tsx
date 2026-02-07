@@ -2,6 +2,7 @@
 "use client";
 
 import { logger } from "@/lib/logger";
+import { toast } from "sonner";
 
 import { useCallback, useEffect, useMemo, useState, Suspense } from "react";
 import { useAuth } from "@/hooks/useAuth";
@@ -105,21 +106,21 @@ function RecruiterRequestsContent() {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
 
       if (response.ok) {
         setRequests((prev) =>
-          prev.filter((req) => req.id !== requestToDelete.id)
+          prev.filter((req) => req.id !== requestToDelete.id),
         );
         setRequestToDelete(null);
       } else {
         const data = await response.json();
-        alert(data.error || "Failed to delete request");
+        toast.error(data.error || "Failed to delete request");
       }
     } catch (error) {
       logger.error({ err: error }, "Error deleting request:");
-      alert("Error deleting request");
+      toast.error("Error deleting request");
     } finally {
       setIsDeleting(false);
     }
@@ -142,7 +143,7 @@ function RecruiterRequestsContent() {
     return [...requests]
       .sort(
         (a, b) =>
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
       )
       .map((request) => ({
         ...request,
@@ -151,16 +152,16 @@ function RecruiterRequestsContent() {
             expiresAt: request.expiresAt,
             timeRemainingMs: request.timeRemainingMs,
           },
-          now
+          now,
         ),
       }));
   }, [requests, now]);
 
   const pendingRequests = decoratedRequests.filter(
-    (request) => request.status === "pending"
+    (request) => request.status === "pending",
   );
   const activeRequests = decoratedRequests.filter(
-    (request) => request.status === "approved" && !request.timeState.expired
+    (request) => request.status === "approved" && !request.timeState.expired,
   );
   const historyRequests = decoratedRequests.filter((request) => {
     if (request.status === "denied") return true;
@@ -189,9 +190,9 @@ function RecruiterRequestsContent() {
     isAvailableResumesView
       ? [{ key: "active", label: "Active", count: activeRequests.length }]
       : [
-        { key: "pending", label: "Pending", count: pendingRequests.length },
-        { key: "history", label: "History", count: historyRequests.length },
-      ];
+          { key: "pending", label: "Pending", count: pendingRequests.length },
+          { key: "history", label: "History", count: historyRequests.length },
+        ];
 
   const emptyStateMessage = useMemo(() => {
     if (activeTab === "pending") {
@@ -341,18 +342,20 @@ function RecruiterRequestsContent() {
                     newUrl.searchParams.set("tab", tab.key);
                     window.history.pushState({}, "", newUrl);
                   }}
-                  className={`relative py-2.5 px-6 rounded-md text-sm font-bold transition-all duration-200 border-2 ${activeTab === tab.key
+                  className={`relative py-2.5 px-6 rounded-md text-sm font-bold transition-all duration-200 border-2 ${
+                    activeTab === tab.key
                       ? "bg-slate-900 border-slate-900 text-white shadow-md"
                       : "bg-transparent border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50"
-                    }`}
+                  }`}
                 >
                   <span className="flex items-center justify-center gap-2.5">
                     {tab.label}
                     <span
-                      className={`px-2 py-0.5 rounded text-xs font-bold ${activeTab === tab.key
+                      className={`px-2 py-0.5 rounded text-xs font-bold ${
+                        activeTab === tab.key
                           ? "bg-white/20 text-white"
                           : "bg-slate-100 text-slate-600"
-                        }`}
+                      }`}
                     >
                       {tab.count}
                     </span>

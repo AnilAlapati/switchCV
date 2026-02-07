@@ -181,6 +181,7 @@ describe("RecruiterService", () => {
       (adminDb.collectionGroup as jest.Mock).mockReturnValue({
         where: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
         get: jest.fn().mockResolvedValue({
           docs: [
             {
@@ -369,6 +370,7 @@ describe("RecruiterService", () => {
       (adminDb.collectionGroup as jest.Mock).mockReturnValue({
         where: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
         get: jest.fn().mockResolvedValue({
           docs: [
             {
@@ -548,6 +550,7 @@ describe("RecruiterService", () => {
         if (coll === "users") {
           return {
             where: jest.fn().mockReturnThis(),
+            limit: jest.fn().mockReturnThis(),
             get: jest.fn().mockResolvedValue({
               docs: [
                 {

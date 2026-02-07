@@ -434,6 +434,7 @@ describe("resumeService", () => {
             }),
             collection: jest.fn().mockReturnValue({
               where: jest.fn().mockReturnThis(),
+              limit: jest.fn().mockReturnThis(),
               get: jest.fn().mockResolvedValue({ empty: true }),
             }),
           };
@@ -507,6 +508,7 @@ describe("resumeService", () => {
           get: mockGet,
           collection: jest.fn().mockReturnThis(),
           where: jest.fn().mockReturnThis(),
+          limit: jest.fn().mockReturnThis(),
         };
       });
 
@@ -684,6 +686,7 @@ describe("resumeService", () => {
       mockDoc.mockReturnValue({
         collection: jest.fn().mockReturnValue({
           where: jest.fn().mockReturnThis(),
+          limit: jest.fn().mockReturnThis(),
           get: jest.fn().mockResolvedValue({ empty: true }),
         }),
       });
@@ -699,6 +702,7 @@ describe("resumeService", () => {
       mockDoc.mockReturnValue({
         collection: jest.fn().mockReturnValue({
           where: jest.fn().mockReturnThis(),
+          limit: jest.fn().mockReturnThis(),
           get: jest.fn().mockResolvedValue({
             empty: false,
             docs: [

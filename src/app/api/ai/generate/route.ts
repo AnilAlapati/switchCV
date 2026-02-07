@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from "next/server";
 import { createHash, randomUUID } from "crypto";
 import { z } from "zod";
@@ -58,10 +57,6 @@ const GenerateRequestSchema = z.object({
   skipCache: z.boolean().optional().default(false), // Allow bypassing semantic cache
 });
 
-interface Entitlement {
-  plan: "basic" | "premium" | "enterprise" | string;
-}
-
 class RateLimitError extends Error {
   constructor(public readonly retryAfterSeconds: number) {
     super("Too many requests");
@@ -104,12 +99,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const idempotencyCheck = await checkIdempotency(idempotencyKey, userId);
 
       if (idempotencyCheck.status === "cached" && idempotencyCheck.data) {
-        logger.info({ userId, requestId, idempotencyKey }, "Returning cached idempotent response");
+        logger.info(
+          { userId, requestId, idempotencyKey },
+          "Returning cached idempotent response",
+        );
         return createCachedResponse(idempotencyCheck.data);
       }
 
       if (idempotencyCheck.status === "processing") {
-        logger.warn({ userId, requestId, idempotencyKey }, "Duplicate request still processing");
+        logger.warn(
+          { userId, requestId, idempotencyKey },
+          "Duplicate request still processing",
+        );
         return createProcessingResponse();
       }
 
@@ -127,20 +128,32 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         .join(", ");
       logger.warn(
         { userId, errors: validationResult.error.issues, requestId },
-        "Invalid AI generate request"
+        "Invalid AI generate request",
       );
       return handleApiError(null, errorMessage, 400);
     }
 
-    const { prompt, maxTokens, temperature: userTemp, task, role, skipCache } = validationResult.data;
+    const {
+      prompt,
+      maxTokens,
+      temperature: userTemp,
+      task,
+      role,
+      skipCache,
+    } = validationResult.data;
 
     // Semantic cache lookup (unless explicitly skipped)
     if (!skipCache && userId) {
       const cached = await lookupCache(userId, prompt);
       if (cached.hit && cached.response) {
         logger.info(
-          { userId, requestId, similarity: cached.similarity, cacheKey: cached.cacheKey },
-          "🎯 Returning semantically cached AI response"
+          {
+            userId,
+            requestId,
+            similarity: cached.similarity,
+            cacheKey: cached.cacheKey,
+          },
+          "🎯 Returning semantically cached AI response",
         );
 
         const cachedResult = {
@@ -164,7 +177,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       creative: 0.9,
       balanced: 0.7,
       structured: 0.3, // Recommended for data extraction
-      precise: 0.1,    // Determinisitic
+      precise: 0.1, // Determinisitic
     };
 
     const temperature = userTemp ?? defaultTemps[task] ?? 0.7;
@@ -184,12 +197,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Billing & Budget Check
-    const budgetAllowed = await BillingService.checkBudget(userId!, entitlement.plan as "basic" | "premium" | "enterprise");
+    const budgetAllowed = await BillingService.checkBudget(
+      userId!,
+      entitlement.plan as "basic" | "premium" | "enterprise",
+    );
     if (!budgetAllowed) {
       return handleApiError(
         new Error("Budget exceeded"),
         "Monthly usage limit reached. Please upgrade your plan.",
-        402
+        402,
       );
     }
 
@@ -199,14 +215,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Track Billing - use actual token counts when available, fallback to heuristic
-    const tokenUsage = result.usage ? {
-      input: result.usage.promptTokens,
-      output: result.usage.completionTokens
-    } : {
-      // Fallback heuristic for providers that don't return usage (e.g., HuggingFace)
-      input: Math.ceil(prompt.length / 4),
-      output: Math.ceil(result.text.length / 4)
-    };
+    const tokenUsage = result.usage
+      ? {
+          input: result.usage.promptTokens,
+          output: result.usage.completionTokens,
+        }
+      : {
+          // Fallback heuristic for providers that don't return usage (e.g., HuggingFace)
+          input: Math.ceil(prompt.length / 4),
+          output: Math.ceil(result.text.length / 4),
+        };
     await BillingService.trackUsage(userId!, result.model, tokenUsage);
 
     // Store in semantic cache for future similar queries
@@ -248,7 +266,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     attachRateLimitHeaders(response, rateLimit);
     logger.info(
       { userId, model: result.model, plan: entitlement.plan, requestId },
-      "AI text generation succeeded"
+      "AI text generation succeeded",
     );
 
     // Store idempotent response for future duplicate requests
@@ -269,21 +287,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 }
 
-async function getEntitlement(userId: string): Promise<Entitlement> {
-  const plan = await getTierForRole(userId, "jobseeker");
-  return { plan };
-}
-
 function attachRateLimitHeaders(
   response: NextResponse,
-  data: { remaining: number; resetIn?: number; limit: number }
+  data: { remaining: number; resetIn?: number; limit: number },
 ) {
   response.headers.set("X-RateLimit-Limit", data.limit.toString());
   response.headers.set("X-RateLimit-Remaining", data.remaining.toString());
   if (data.resetIn) {
     response.headers.set(
       "X-RateLimit-Reset",
-      Math.floor(Date.now() / 1000 + data.resetIn / 1000).toString()
+      Math.floor(Date.now() / 1000 + data.resetIn / 1000).toString(),
     );
   }
 }
@@ -337,14 +350,18 @@ function handleRouteError(error: unknown) {
     const response = handleApiError(
       error,
       "Too many requests. Please try again later.",
-      429
+      429,
     );
     response.headers.set("Retry-After", error.retryAfterSeconds.toString());
     return response;
   }
 
   if (error instanceof EntitlementError) {
-    return handleApiError(error, "Access denied - insufficient entitlement", 403);
+    return handleApiError(
+      error,
+      "Access denied - insufficient entitlement",
+      403,
+    );
   }
 
   return handleApiError(error, "AI text generation failed");

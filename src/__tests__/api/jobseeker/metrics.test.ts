@@ -10,9 +10,11 @@ jest.mock("@/lib/firebase-admin");
 jest.mock("@/lib/utils/api-helpers");
 jest.mock("@/lib/logger");
 
-(handleApiError as jest.Mock).mockImplementation((error, message, status = 500) => {
-  return Response.json({ error: message }, { status });
-});
+(handleApiError as jest.Mock).mockImplementation(
+  (error, message, status = 500) => {
+    return Response.json({ error: message }, { status });
+  },
+);
 
 describe("GET /api/jobseeker/metrics", () => {
   const mockUserId = "user-123";
@@ -26,7 +28,10 @@ describe("GET /api/jobseeker/metrics", () => {
     (adminDb.collection as jest.Mock).mockImplementation(() => ({
       doc: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
-      get: jest.fn().mockResolvedValue({ exists: false, data: () => ({}), docs: [] }),
+      limit: jest.fn().mockReturnThis(),
+      get: jest
+        .fn()
+        .mockResolvedValue({ exists: false, data: () => ({}), docs: [] }),
       set: jest.fn().mockResolvedValue({}),
       count: jest.fn().mockReturnThis(),
     }));
@@ -97,6 +102,7 @@ describe("GET /api/jobseeker/metrics", () => {
       }
       return {
         where: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
         get: jest.fn().mockResolvedValue({ docs: [] }),
       };
     });
@@ -131,6 +137,7 @@ describe("GET /api/jobseeker/metrics", () => {
       }
       return {
         where: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
         get: jest.fn().mockResolvedValue({ docs: [] }),
       };
     });

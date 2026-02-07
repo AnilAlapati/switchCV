@@ -8,6 +8,7 @@ const mockQueryGet = jest.fn();
 const mockSet = jest.fn();
 const mockUpdate = jest.fn();
 const mockAdd = jest.fn();
+const mockLimit = jest.fn().mockReturnThis();
 const mockWhere = jest.fn().mockReturnThis();
 
 jest.mock("@/lib/firebase-admin", () => {
@@ -20,6 +21,7 @@ jest.mock("@/lib/firebase-admin", () => {
           update: mockUpdate,
           collection: jest.fn(() => ({
             where: mockWhere,
+            limit: mockLimit,
             get: mockQueryGet,
             add: mockAdd,
             doc: jest.fn(() => ({
@@ -30,10 +32,12 @@ jest.mock("@/lib/firebase-admin", () => {
           })),
         })),
         where: mockWhere,
+        limit: mockLimit,
         get: mockQueryGet,
       })),
       collectionGroup: jest.fn(() => ({
         where: mockWhere,
+        limit: mockLimit,
         get: mockQueryGet,
       })),
       runTransaction: jest.fn((cb) =>
@@ -83,6 +87,7 @@ describe("AccessService", () => {
     mockUpdate.mockReset();
     mockAdd.mockReset();
     mockWhere.mockReturnThis();
+    mockLimit.mockReturnThis();
 
     // Default implementations
     mockDocGet.mockResolvedValue({ exists: false, data: () => ({}) });

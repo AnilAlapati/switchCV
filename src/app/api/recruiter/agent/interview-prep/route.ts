@@ -7,6 +7,7 @@ import {
 import { logger } from "@/lib/logger";
 import { trackCost } from "@/lib/services/costControlService";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
+import { AgentInterviewPrepSchema } from "@/lib/schemas/api";
 
 const ESTIMATED_COST_INTERVIEW_PREP = 0.002; // $0.002 per run (Gemini 1.5 Pro)
 const RATE_LIMIT_INTERVIEW_PREP = 50; // 50 requests per day
@@ -26,16 +27,14 @@ export async function POST(req: NextRequest) {
       return handleApiError(null, "Daily interview prep limit exceeded", 429);
     }
 
-    const body = await req.json();
-    const { candidate, job, interviewType } = body;
-
-    if (!candidate || !job) {
-      return handleApiError(
-        new Error("Missing data"),
-        "Missing candidate or job data",
-        400,
+    const parseResult = AgentInterviewPrepSchema.safeParse(await req.json());
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: "Invalid input", details: parseResult.error.flatten() },
+        { status: 400 },
       );
     }
+    const { candidate, job, interviewType } = parseResult.data;
 
     logger.info(
       { userId, interviewType },

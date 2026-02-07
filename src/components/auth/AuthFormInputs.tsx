@@ -104,8 +104,6 @@ export function AuthFormInputs({
   onUsernameChange,
   onUseSuggestion,
 }: AuthFormInputsProps) {
-
-
   const getStatusMessage = () => {
     if (usernameError) return usernameError;
     if (usernameStatus === "available") return "✓ Username is available!";
@@ -150,8 +148,19 @@ export function AuthFormInputs({
               minLength={3}
               maxLength={30}
               autoComplete="username"
-              className={`w-full px-4 py-3 pr-12 glass-input rounded-xl text-[#1A2F25] placeholder-[#2C4A3B]/40 focus:outline-none focus:ring-4 transition-all duration-200 ${usernameError || usernameStatus === "taken" ? "border-rose-500/50" : ""
-                }`}
+              aria-invalid={
+                !!(
+                  usernameError ||
+                  usernameStatus === "taken" ||
+                  usernameStatus === "invalid"
+                )
+              }
+              aria-describedby="username-status"
+              className={`w-full px-4 py-3 pr-12 glass-input rounded-xl text-[#1A2F25] placeholder-[#2C4A3B]/40 focus:outline-none focus:ring-4 transition-all duration-200 ${
+                usernameError || usernameStatus === "taken"
+                  ? "border-rose-500/50"
+                  : ""
+              }`}
               placeholder="e.g. avery-kim"
               value={username}
               onChange={(e) => onUsernameChange?.(e.target.value.toLowerCase())}
@@ -164,7 +173,17 @@ export function AuthFormInputs({
             </div>
             {/* Removed gradient overlay */}
           </div>
-          <p className={`mt-2 text-xs ${getMessageColor()}`}>
+          <p
+            id="username-status"
+            className={`mt-2 text-xs ${getMessageColor()}`}
+            role={
+              usernameError ||
+              usernameStatus === "taken" ||
+              usernameStatus === "invalid"
+                ? "alert"
+                : undefined
+            }
+          >
             {getStatusMessage()}
           </p>
           {usernameSuggestion &&
@@ -195,11 +214,15 @@ export function AuthFormInputs({
             name="email"
             type="email"
             required
+            aria-describedby="email-hint"
             className="w-full px-4 py-3 glass-input rounded-xl focus:ring-4 focus:ring-[#2C4A3B]/10 transition-all duration-200"
             placeholder="Enter your email"
             value={email}
             onChange={(e) => onEmailChange(e.target.value)}
           />
+          <span id="email-hint" className="sr-only">
+            Enter your email address
+          </span>
         </div>
       </div>
 
@@ -217,11 +240,15 @@ export function AuthFormInputs({
             name="password"
             type="password"
             required
+            aria-describedby="password-hint"
             className="w-full px-4 py-3 glass-input rounded-xl focus:ring-4 focus:ring-[#2C4A3B]/10 transition-all duration-200"
             placeholder="Enter your password"
             value={password}
             onChange={(e) => onPasswordChange(e.target.value)}
           />
+          <span id="password-hint" className="sr-only">
+            Enter your password
+          </span>
         </div>
       </div>
     </>

@@ -1,5 +1,4 @@
-// eslint-disable-next-line no-restricted-imports
-import { adminDb } from "@/lib/firebase-admin";
+import { collectionRef, collectionGroupRef, COLLECTIONS } from "@/lib/dal";
 import { logger } from "@/lib/logger";
 
 export type AccessStatus = "none" | "pending" | "approved" | "denied";
@@ -14,10 +13,10 @@ const STATUS_PRIORITY: Record<AccessStatus, number> = {
 
 async function fetchAccessStatusFromDb(
   resumeId: string,
-  recruiterId: string
+  recruiterId: string,
 ): Promise<AccessStatus> {
   try {
-    const resumeCollection = adminDb.collection("resumes");
+    const resumeCollection = collectionRef(COLLECTIONS.RESUMES);
     const resumeDocRef =
       typeof resumeCollection.doc === "function"
         ? resumeCollection.doc(resumeId)
@@ -85,7 +84,7 @@ async function fetchAccessStatusFromDb(
 function resolveStatusFromMap(
   resumeId: string,
   recruiterId: string,
-  accessStatusMap?: AccessStatusMap
+  accessStatusMap?: AccessStatusMap,
 ) {
   if (accessStatusMap) {
     return accessStatusMap.get(resumeId) ?? "none";
@@ -95,7 +94,7 @@ function resolveStatusFromMap(
 }
 
 export async function buildAccessStatusMap(
-  recruiterId: string
+  recruiterId: string,
 ): Promise<AccessStatusMap> {
   const statusMap: AccessStatusMap = new Map();
 
@@ -104,14 +103,17 @@ export async function buildAccessStatusMap(
   }
 
   // collectionGroup is not available in some test environments; fall back to empty map
-  if (typeof (adminDb as unknown as { collectionGroup?: Function }).collectionGroup !== "function") {
+  const db = collectionRef(COLLECTIONS.RESUMES).firestore;
+  if (
+    typeof (db as unknown as { collectionGroup?: Function }).collectionGroup !==
+    "function"
+  ) {
     return statusMap;
   }
 
   try {
     // 1. Populate from requests (pending/denied only)
-    const requestsSnapshot = await adminDb
-      .collectionGroup("accessRequests")
+    const requestsSnapshot = await collectionGroupRef("accessRequests")
       .where("fromUserId", "==", recruiterId)
       .get();
 
@@ -120,7 +122,9 @@ export async function buildAccessStatusMap(
     requestsSnapshot.forEach((doc) => {
       const data = doc.data() || {};
       const rawStatus = (data.status as AccessStatus) || "none";
-      const resumeId = (doc as unknown as { ref: { parent: { parent: { id: string } | null } } }).ref.parent.parent?.id;
+      const resumeId = (
+        doc as unknown as { ref: { parent: { parent: { id: string } | null } } }
+      ).ref.parent.parent?.id;
 
       if (!resumeId) return;
 
@@ -153,14 +157,15 @@ export async function buildAccessStatusMap(
     });
 
     // 2. Populate from grants (approved)
-    const grantsSnapshot = await adminDb
-      .collectionGroup("accessGrants")
+    const grantsSnapshot = await collectionGroupRef("accessGrants")
       .where("toUserId", "==", recruiterId)
       .get();
 
     grantsSnapshot.forEach((doc) => {
       const data = doc.data();
-      const resumeId = (doc as unknown as { ref: { parent: { parent: { id: string } | null } } }).ref.parent.parent?.id;
+      const resumeId = (
+        doc as unknown as { ref: { parent: { parent: { id: string } | null } } }
+      ).ref.parent.parent?.id;
 
       if (!resumeId) return;
 
@@ -190,7 +195,7 @@ export async function buildAccessStatusMap(
 export async function getAccessStatus(
   resumeId: string,
   recruiterId: string,
-  accessStatusMap?: AccessStatusMap
+  accessStatusMap?: AccessStatusMap,
 ) {
   return resolveStatusFromMap(resumeId, recruiterId, accessStatusMap);
 }

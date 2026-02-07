@@ -260,7 +260,7 @@ export const TemplateRenderer: React.FC<TemplateRendererProps> = ({
       case "projects":
         return normalizeProjects(data.projects);
       default:
-        return (data as any)[fieldId] || null;
+        return (data as unknown as Record<string, unknown>)[fieldId] || null;
     }
   };
 

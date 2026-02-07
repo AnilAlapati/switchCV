@@ -13,13 +13,14 @@ interface UserProfileMenuProps {
 export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const { role, tier, jobSeekerTier, recruiterTier } = useUserProfile();
+  const { role, jobSeekerTier, recruiterTier } = useUserProfile();
 
   const userInitial = userEmail ? userEmail.charAt(0).toUpperCase() : "U";
   const displayName = userEmail?.split("@")[0] || "User";
   const emailLabel = userEmail || "Signed out";
-  const appVersion = `${APP_CONFIG.VERSION_PREFIX}.${process.env.NEXT_PUBLIC_APP_VERSION || "0.0.1"
-    }`;
+  const appVersion = `${APP_CONFIG.VERSION_PREFIX}.${
+    process.env.NEXT_PUBLIC_APP_VERSION || "0.0.1"
+  }`;
 
   // Check if user has access to analytics (admin or recruiter)
   const hasAnalyticsAccess = role === "admin" || role === "recruiter";
@@ -63,7 +64,9 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
         {role === "recruiter" && (
           <span className="relative hidden lg:inline-flex items-center gap-1 border-2 border-black bg-white px-2.5 py-1 text-[0.68rem] font-mono font-bold uppercase tracking-widest text-black">
             <span className="inline-flex h-1.5 w-1.5 animate-pulse bg-black" />
-            {recruiterTier === "basic" ? "Recruiting seat" : `${recruiterTier} Recruiter`}
+            {recruiterTier === "basic"
+              ? "Recruiting seat"
+              : `${recruiterTier} Recruiter`}
           </span>
         )}
 
@@ -83,8 +86,9 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
 
         {/* Chevron */}
         <svg
-          className={`relative h-4 w-4 text-[black]/60 transition-transform duration-200 group-hover:text-[black] ${isOpen ? "rotate-180" : ""
-            }`}
+          className={`relative h-4 w-4 text-[black]/60 transition-transform duration-200 group-hover:text-[black] ${
+            isOpen ? "rotate-180" : ""
+          }`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -108,9 +112,7 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
                 {userInitial}
               </div>
               <div>
-                <p className="text-sm font-bold text-[black]">
-                  {displayName}
-                </p>
+                <p className="text-sm font-bold text-[black]">{displayName}</p>
                 <p className="text-xs text-[black]/70">{emailLabel}</p>
               </div>
             </div>
@@ -222,20 +224,34 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
 
               <div className="flex flex-wrap gap-2 mt-2 ml-7">
                 <div className="flex flex-col">
-                  <span className="text-[9px] uppercase tracking-tighter text-gray-400 font-bold mb-0.5">Job Seeker</span>
-                  <span className={`px-2 py-0.5 text-[10px] rounded-md font-bold border ${jobSeekerTier === "enterprise" ? "bg-purple-100 text-purple-700 border-purple-200" :
-                      jobSeekerTier === "premium" ? "bg-emerald-100 text-emerald-700 border-emerald-200" :
-                        "bg-gray-100 text-gray-600 border-gray-200"
-                    }`}>
+                  <span className="text-[9px] uppercase tracking-tighter text-gray-400 font-bold mb-0.5">
+                    Job Seeker
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 text-[10px] rounded-md font-bold border ${
+                      jobSeekerTier === "enterprise"
+                        ? "bg-purple-100 text-purple-700 border-purple-200"
+                        : jobSeekerTier === "premium"
+                          ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+                          : "bg-gray-100 text-gray-600 border-gray-200"
+                    }`}
+                  >
                     {jobSeekerTier.toUpperCase()}
                   </span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[9px] uppercase tracking-tighter text-gray-400 font-bold mb-0.5">Recruiter</span>
-                  <span className={`px-2 py-0.5 text-[10px] rounded-md font-bold border ${recruiterTier === "enterprise" ? "bg-purple-100 text-purple-700 border-purple-200" :
-                      recruiterTier === "premium" ? "bg-emerald-100 text-emerald-700 border-emerald-200" :
-                        "bg-gray-100 text-gray-600 border-gray-200"
-                    }`}>
+                  <span className="text-[9px] uppercase tracking-tighter text-gray-400 font-bold mb-0.5">
+                    Recruiter
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 text-[10px] rounded-md font-bold border ${
+                      recruiterTier === "enterprise"
+                        ? "bg-purple-100 text-purple-700 border-purple-200"
+                        : recruiterTier === "premium"
+                          ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+                          : "bg-gray-100 text-gray-600 border-gray-200"
+                    }`}
+                  >
                     {recruiterTier.toUpperCase()}
                   </span>
                 </div>

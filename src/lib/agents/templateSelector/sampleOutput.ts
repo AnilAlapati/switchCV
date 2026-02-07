@@ -7,11 +7,7 @@
  */
 
 import { DIVERSE_DEMO_RESUMES } from "@/lib/data/diverseDemoResumes";
-import {
-  selectBestTemplate,
-  getTemplateRecommendationDebug,
-  analyzeResumeContent,
-} from "./templateSelectorAgent";
+import { selectBestTemplate } from "./templateSelectorAgent";
 
 // Generate recommendations for all demo resumes
 function generateSampleOutput() {

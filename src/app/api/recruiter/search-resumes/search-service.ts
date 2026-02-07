@@ -1,5 +1,4 @@
-// eslint-disable-next-line no-restricted-imports
-import { adminDb } from "@/lib/firebase-admin";
+import { collectionRef, COLLECTIONS, getDb } from "@/lib/dal";
 import { getDocumentIdFromResumeId } from "@/lib/resumeIdMapping";
 import { AccessStatusMap, getAccessStatus } from "./access-status";
 import { getDisplayName } from "./search-result";
@@ -16,7 +15,7 @@ const PREMIUM_SCAN_LIMIT = 200;
 export async function performBasicSearch(
   userId: string,
   recruiterId: string,
-  accessStatusMap?: AccessStatusMap
+  accessStatusMap?: AccessStatusMap,
 ): Promise<{ results: SearchResultCard[]; notification?: string }> {
   const results: SearchResultCard[] = [];
 
@@ -32,11 +31,10 @@ export async function performBasicSearch(
           resumeId: userId,
           documentId: mapping.documentId,
         },
-        "[Search] Found resume mapping"
+        "[Search] Found resume mapping",
       );
 
-      const resumeSnapshot = await adminDb
-        .collection("resumes")
+      const resumeSnapshot = await collectionRef(COLLECTIONS.RESUMES)
         .doc(mapping.documentId)
         .get();
 
@@ -51,8 +49,7 @@ export async function performBasicSearch(
           return { results: [], notification: "This resume is not published" };
         }
 
-        const userSnapshot = await adminDb
-          .collection("users")
+        const userSnapshot = await collectionRef(COLLECTIONS.USERS)
           .doc(mapping.userId)
           .get();
 
@@ -64,7 +61,7 @@ export async function performBasicSearch(
         const accessStatus = await getAccessStatus(
           mapping.documentId,
           recruiterId,
-          accessStatusMap
+          accessStatusMap,
         );
 
         results.push({
@@ -83,8 +80,7 @@ export async function performBasicSearch(
     logger.info("[Search] No mapping found, trying direct lookup");
 
     // Try to find by document ID directly
-    const resumeSnapshot = await adminDb
-      .collection("resumes")
+    const resumeSnapshot = await collectionRef(COLLECTIONS.RESUMES)
       .doc(userId)
       .get();
 
@@ -99,8 +95,7 @@ export async function performBasicSearch(
         return { results: [], notification: "This resume is not published" };
       }
 
-      const userSnapshot = await adminDb
-        .collection("users")
+      const userSnapshot = await collectionRef(COLLECTIONS.USERS)
         .doc(resumeData.userId)
         .get();
 
@@ -112,7 +107,7 @@ export async function performBasicSearch(
       const accessStatus = await getAccessStatus(
         resumeSnapshot.id,
         recruiterId,
-        accessStatusMap
+        accessStatusMap,
       );
 
       results.push({
@@ -129,7 +124,9 @@ export async function performBasicSearch(
 
     logger.info({ userId }, "[Search] Trying user ID lookup");
 
-    const userSnapshot = await adminDb.collection("users").doc(userId).get();
+    const userSnapshot = await collectionRef(COLLECTIONS.USERS)
+      .doc(userId)
+      .get();
 
     if (!userSnapshot.exists) {
       return {
@@ -140,8 +137,7 @@ export async function performBasicSearch(
 
     const userData = userSnapshot.data() || {};
 
-    const resumesSnapshot = await adminDb
-      .collection("resumes")
+    const resumesSnapshot = await collectionRef(COLLECTIONS.RESUMES)
       .where("userId", "==", userId)
       .where("published", "==", true)
       .limit(1)
@@ -159,7 +155,7 @@ export async function performBasicSearch(
     const accessStatus = await getAccessStatus(
       resumeDoc.id,
       recruiterId,
-      accessStatusMap
+      accessStatusMap,
     );
 
     results.push({
@@ -182,7 +178,7 @@ export async function performPremiumSearch(
   skills: string[] | undefined,
   location: string | undefined,
   recruiterId: string,
-  accessStatusMap?: AccessStatusMap
+  accessStatusMap?: AccessStatusMap,
 ): Promise<{ results: SearchResultCard[] }> {
   const results: SearchResultCard[] = [];
 
@@ -191,9 +187,9 @@ export async function performPremiumSearch(
       skills?.map((skill) => skill.trim().toLowerCase()).filter(Boolean) || [];
     const normalizedLocation = location?.trim().toLowerCase() || "";
 
-    let resumesQuery: FirebaseFirestore.Query = adminDb
-      .collection("resumes")
-      .where("published", "==", true);
+    let resumesQuery: FirebaseFirestore.Query = collectionRef(
+      COLLECTIONS.RESUMES,
+    ).where("published", "==", true);
 
     if (typeof resumesQuery.limit === "function") {
       resumesQuery = resumesQuery.limit(PREMIUM_SCAN_LIMIT);
@@ -213,13 +209,13 @@ export async function performPremiumSearch(
     const userCache = new Map<string, Record<string, any> | null>();
     if (userIdsToFetch.size > 0) {
       const userRefs = Array.from(userIdsToFetch).map((id) =>
-        adminDb.collection("users").doc(id)
+        collectionRef(COLLECTIONS.USERS).doc(id),
       );
-      const userSnapshots = await adminDb.getAll(...userRefs);
+      const userSnapshots = await getDb().getAll(...userRefs);
       userSnapshots.forEach((snapshot) => {
         userCache.set(
           snapshot.id,
-          snapshot.exists ? (snapshot.data() as Record<string, any>) : null
+          snapshot.exists ? (snapshot.data() as Record<string, any>) : null,
         );
       });
     }
@@ -248,8 +244,8 @@ export async function performPremiumSearch(
 
       const resumeSkills = Array.isArray(resumeData.skills)
         ? resumeData.skills.map((skill: string | { name?: string }) =>
-          typeof skill === "string" ? skill : skill?.name || ""
-        )
+            typeof skill === "string" ? skill : skill?.name || "",
+          )
         : [];
       const normalizedResumeSkills = resumeSkills
         .map((skill: string) => skill.toLowerCase())
@@ -259,8 +255,8 @@ export async function performPremiumSearch(
         normalizedSkills.length === 0 ||
         normalizedSkills.some((skill: string) =>
           normalizedResumeSkills.some((resumeSkill: string) =>
-            resumeSkill.includes(skill)
-          )
+            resumeSkill.includes(skill),
+          ),
         );
 
       const candidateLocations = [
@@ -271,11 +267,11 @@ export async function performPremiumSearch(
         resumeData.region,
       ].filter(
         (value): value is string =>
-          typeof value === "string" && value.trim().length > 0
+          typeof value === "string" && value.trim().length > 0,
       );
 
       const normalizedLocations = candidateLocations.map((value) =>
-        value.toLowerCase()
+        value.toLowerCase(),
       );
 
       const locationMatch =
@@ -290,7 +286,7 @@ export async function performPremiumSearch(
       const accessStatus = await getAccessStatus(
         resumeDoc.id,
         recruiterId,
-        accessStatusMap
+        accessStatusMap,
       );
 
       results.push({

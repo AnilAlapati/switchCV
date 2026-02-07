@@ -7,6 +7,7 @@ import {
 import { logger } from "@/lib/logger";
 import { trackCost } from "@/lib/services/costControlService";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
+import { AgentPipelineSuggestSchema } from "@/lib/schemas/api";
 
 const ESTIMATED_COST_PIPELINE = 0.0003; // $0.0003 per run (Gemini 1.5 Flash)
 const RATE_LIMIT_PIPELINE = 100; // 100 requests per day
@@ -30,16 +31,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = await req.json();
-    const { candidate, currentStage, interactionHistory } = body;
-
-    if (!candidate || !currentStage) {
-      return handleApiError(
-        new Error("Missing data"),
-        "Missing candidate or currentStage",
-        400,
+    const parseResult = AgentPipelineSuggestSchema.safeParse(await req.json());
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: "Invalid input", details: parseResult.error.flatten() },
+        { status: 400 },
       );
     }
+    const { candidate, currentStage, interactionHistory } = parseResult.data;
 
     logger.info(
       { userId, currentStage },

@@ -7,7 +7,14 @@
 import { db } from "@/lib/firebase";
 import { adminDb } from "@/lib/firebase-admin";
 import { collection, query, where, getDocs } from "firebase/firestore";
-import type { ResumeProfile, DraftResume, PublishedResume } from "@/types";
+import type {
+  ResumeProfile,
+  DraftResume,
+  PublishedResume,
+  Experience,
+  Skill,
+  Project,
+} from "@/types";
 import { logger } from "@/lib/logger";
 import { DRAFT_CONFIG } from "@/config/constants";
 import { getNextResumeId } from "@/lib/resumeIdMapping";
@@ -154,7 +161,10 @@ export async function publishDraft(
   import("@/lib/services/smartSearchService")
     .then(({ addSearchMetadata }) => {
       addSearchMetadata(resumeId.toString(), publishedResume).catch((err) => {
-        logger.error({ err, resumeId }, "Failed to add search metadata on publish");
+        logger.error(
+          { err, resumeId },
+          "Failed to add search metadata on publish",
+        );
       });
     })
     .catch((err) => {
@@ -183,7 +193,8 @@ export async function publishDraft(
     // Note: In production, consider using a saga pattern or two-phase commit
     // for more robust error recovery
     throw new Error(
-      `Failed to publish draft: ${error instanceof Error ? error.message : "Unknown error"
+      `Failed to publish draft: ${
+        error instanceof Error ? error.message : "Unknown error"
       }. Please try again.`,
     );
   }
@@ -250,7 +261,7 @@ export async function unpublishResume(
   if (publishedResume.isBeingEdited) {
     throw new Error(
       `Resume ${resumeId} is already being edited. ` +
-      `Draft ID: ${publishedResume.editingDraftId}`,
+        `Draft ID: ${publishedResume.editingDraftId}`,
     );
   }
 
@@ -310,7 +321,8 @@ export async function unpublishResume(
     }
 
     throw new Error(
-      `Failed to unpublish resume: ${error instanceof Error ? error.message : "Unknown error"
+      `Failed to unpublish resume: ${
+        error instanceof Error ? error.message : "Unknown error"
       }. Please try again.`,
     );
   }
@@ -589,6 +601,7 @@ export async function checkPrivateResumeAccess(
     const grantsSnap = await resumeRef
       .collection("accessGrants")
       .where("toUserId", "==", viewerId)
+      .limit(50)
       .get();
 
     if (grantsSnap.empty) return false;
@@ -699,14 +712,14 @@ export async function updateResumeEmbedding(
     profile.title,
     profile.summary,
     ...(profile.experience || []).map(
-      (e: any) =>
-        `${e.role || e.title || ""} at ${e.company || ""}: ${e.description || ""}`,
+      (e: Experience) =>
+        `${e.role || ""} at ${e.company || ""}: ${e.description || ""}`,
     ),
-    ...(profile.skills || []).map((s: any) =>
+    ...(profile.skills || []).map((s: Skill) =>
       typeof s === "string" ? s : s.name,
     ),
     ...(profile.projects || []).map(
-      (p: any) => `${p.name || ""}: ${p.description || ""}`,
+      (p: Project) => `${p.name || ""}: ${p.description || ""}`,
     ),
   ].filter(Boolean);
 

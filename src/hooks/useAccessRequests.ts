@@ -30,8 +30,8 @@ export function useAccessRequests() {
       u.getIdToken().then((token: string) => fetcher(url, token)),
     {
       dedupingInterval: 60000, // 1 minute cache
-      revalidateOnFocus: true, // Revalidate when returning to tab
-    }
+      revalidateOnFocus: false, // PERF: Prevent unnecessary Firestore reads on tab focus
+    },
   );
 
   return {

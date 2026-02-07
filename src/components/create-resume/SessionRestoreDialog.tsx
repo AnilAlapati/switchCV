@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, RefreshCw, Sparkles } from "lucide-react";
+import { RefreshCw, Sparkles } from "lucide-react";
 
 interface SessionRestoreDialogProps {
   onContinue: () => void;

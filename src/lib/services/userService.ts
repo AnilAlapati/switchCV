@@ -29,13 +29,13 @@ const updateProfileSchema = z.object({
  */
 export async function getTierForRole(
   userId: string,
-  role: UserRole
+  role: UserRole,
 ): Promise<SubscriptionTier> {
   // Dev mode override - skip Firestore lookup entirely
   if (DEV_MODE_ENABLED && DEV_TIER_OVERRIDE) {
     logger.info(
       { override: DEV_TIER_OVERRIDE, role },
-      "[DEV MODE] Using tier override for role"
+      "[DEV MODE] Using tier override for role",
     );
     return DEV_TIER_OVERRIDE;
   }
@@ -83,7 +83,7 @@ export async function getUserRole(userId: string): Promise<UserRole> {
   if (DEV_MODE_ENABLED && DEV_ROLE_OVERRIDE) {
     logger.info(
       { override: DEV_ROLE_OVERRIDE },
-      "[DEV MODE] Using role override"
+      "[DEV MODE] Using role override",
     );
     return DEV_ROLE_OVERRIDE;
   }
@@ -120,10 +120,12 @@ export async function verifyAdminRole(userId: string): Promise<boolean> {
 /**
  * Fetch full user profile data.
  */
-export async function getUserProfile(userId: string): Promise<any | null> {
+export async function getUserProfile(
+  userId: string,
+): Promise<Record<string, unknown> | null> {
   const doc = await adminDb.collection("users").doc(userId).get();
   if (!doc.exists) return null;
-  return doc.data();
+  return (doc.data() as Record<string, unknown>) ?? null;
 }
 
 /** Input for creating a user profile - validated via Zod schema */
@@ -134,7 +136,7 @@ type CreateUserProfileInput = z.infer<typeof userProfileSchema>;
  * Enforces server-controlled fields like role and tier.
  */
 export async function createUserProfile(
-  data: CreateUserProfileInput
+  data: CreateUserProfileInput,
 ): Promise<Partial<User>> {
   // Validate input
   const validation = userProfileSchema.safeParse(data);
@@ -183,7 +185,7 @@ type UpdateUserProfileInput = Omit<z.infer<typeof updateProfileSchema>, "uid">;
  */
 export async function updateUserProfile(
   uid: string,
-  data: UpdateUserProfileInput
+  data: UpdateUserProfileInput,
 ): Promise<Record<string, string | undefined>> {
   const validation = updateProfileSchema.safeParse({ ...data, uid });
   if (!validation.success) {
@@ -209,10 +211,10 @@ export async function updateUserProfile(
  */
 export async function setUserRole(
   userId: string,
-  role: UserRole
-): Promise<Record<string, any>> {
+  role: UserRole,
+): Promise<Record<string, string | boolean>> {
   const isRecruiter = role === "recruiter";
-  const updateData = {
+  const updateData: Record<string, string | boolean> = {
     role,
     isRecruiter,
     roleSelectedAt: new Date().toISOString(),

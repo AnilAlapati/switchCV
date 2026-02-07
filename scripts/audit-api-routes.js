@@ -357,6 +357,59 @@ function checkSWRPolling(filePath, content) {
   });
 }
 
+/**
+ * CHECK 9: SWR hooks must NOT use revalidateOnFocus: true
+ * This triggers a Firestore read every time the user switches browser tabs.
+ */
+function checkRevalidateOnFocus(filePath, content) {
+  const lines = content.split("\n");
+  lines.forEach((line, i) => {
+    if (/revalidateOnFocus\s*:\s*true/.test(line)) {
+      addFinding(
+        "high",
+        filePath,
+        "SWR_REVALIDATE_ON_FOCUS",
+        `revalidateOnFocus: true causes a Firestore read every time the user switches tabs. ` +
+          `Set to false or remove (global default is already false).`,
+        i + 1
+      );
+    }
+  });
+}
+
+/**
+ * CHECK 10: Service files with Firestore queries must have .limit()
+ * More thorough check for service layer files (not just API routes)
+ */
+function checkServiceFirestoreLimit(filePath, content) {
+  if (!content.includes("adminDb") && !content.includes("collectionGroup")) return;
+
+  const lines = content.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    // Check for .get() calls on queries that aren't preceded by .limit() within 5 lines
+    if (/\.\s*get\s*\(\s*\)/.test(line)) {
+      // Look back 5 lines for .limit(
+      const contextLines = lines.slice(Math.max(0, i - 5), i + 1).join("\n");
+      // Skip if it's a single doc .doc(...).get() pattern
+      if (/\.doc\s*\([^)]+\)\s*\.\s*get\s*\(\s*\)/.test(contextLines)) continue;
+      // Skip if it's a .count().get() pattern
+      if (/\.count\s*\(\s*\)\s*\.\s*get\s*\(\s*\)/.test(contextLines)) continue;
+      // Only flag if there's a collection/collectionGroup query without limit
+      if ((contextLines.includes(".where(") || contextLines.includes(".orderBy(") || contextLines.includes("collectionGroup(")) && !contextLines.includes(".limit(")) {
+        addFinding(
+          "high",
+          filePath,
+          "SERVICE_UNBOUNDED_QUERY",
+          `Firestore query at line ${i + 1} calls .get() without .limit(). ` +
+            `This can read the entire collection and cause cost spikes. Add .limit(N).`,
+          i + 1
+        );
+      }
+    }
+  }
+}
+
 // ─── Run all checks ─────────────────────────────────────────────────────────
 
 function runAudit() {
@@ -398,12 +451,26 @@ function runAudit() {
     const content = fs.readFileSync(file, "utf8");
     checkProviderMemoization(file, content);
     checkSWRPolling(file, content);
+    checkRevalidateOnFocus(file, content);
   }
 
   // 4. Check hooks for SWR polling
   for (const file of hookFiles) {
     const content = fs.readFileSync(file, "utf8");
     checkSWRPolling(file, content);
+    checkRevalidateOnFocus(file, content);
+  }
+
+  // 5. Check service files for unbounded Firestore queries
+  const SERVICES_DIR = path.join(PROJECT_ROOT, "src/lib/services");
+  const serviceFiles = findFiles(SERVICES_DIR, /\.(ts|tsx)$/).filter(
+    (f) => !f.includes(".test.")
+  );
+  console.log(`${DIM}Scanning ${serviceFiles.length} service files...${RESET}`);
+
+  for (const file of serviceFiles) {
+    const content = fs.readFileSync(file, "utf8");
+    checkServiceFirestoreLimit(file, content);
   }
 
   // ─── Report ───────────────────────────────────────────────────────────

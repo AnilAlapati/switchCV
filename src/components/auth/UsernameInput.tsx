@@ -107,15 +107,15 @@ export function UsernameInput({
     status === "available"
       ? "border-green-500"
       : status === "taken" || status === "invalid"
-      ? "border-red-500"
-      : "border-gray-300";
+        ? "border-red-500"
+        : "border-gray-300";
 
   const messageColor =
     status === "available"
       ? "text-green-600"
       : status === "error"
-      ? "text-yellow-600"
-      : "text-red-600";
+        ? "text-yellow-600"
+        : "text-red-600";
 
   return (
     <div className="mb-6">
@@ -135,6 +135,10 @@ export function UsernameInput({
           value={value}
           onChange={(e) => onChange(e.target.value.toLowerCase())}
           placeholder="yourname"
+          aria-invalid={
+            status === "taken" || status === "invalid" || status === "error"
+          }
+          aria-describedby="username-message username-hint"
           className={`w-full pl-8 pr-10 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors ${borderColor}`}
           disabled={disabled}
           autoComplete="off"
@@ -146,7 +150,19 @@ export function UsernameInput({
         </div>
       </div>
 
-      {message && <p className={`mt-2 text-sm ${messageColor}`}>{message}</p>}
+      {message && (
+        <p
+          id="username-message"
+          className={`mt-2 text-sm ${messageColor}`}
+          role={
+            status === "taken" || status === "invalid" || status === "error"
+              ? "alert"
+              : undefined
+          }
+        >
+          {message}
+        </p>
+      )}
 
       {suggestion && status === "taken" && (
         <button
@@ -158,7 +174,7 @@ export function UsernameInput({
         </button>
       )}
 
-      <p className="mt-2 text-xs text-gray-500">
+      <p id="username-hint" className="mt-2 text-xs text-gray-500">
         {USERNAME_VALIDATION.MIN_LENGTH}-{USERNAME_VALIDATION.MAX_LENGTH}{" "}
         characters. Letters, numbers, hyphens, and underscores only.
       </p>

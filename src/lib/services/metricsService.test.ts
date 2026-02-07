@@ -76,6 +76,11 @@ describe("Metrics Service", () => {
       get: mockGet,
       where: mockWhere,
       count: mockCount,
+      limit: jest.fn().mockReturnValue({
+        get: mockGet,
+        where: mockWhere,
+        count: mockCount,
+      }),
     });
 
     mockCount.mockReturnValue({

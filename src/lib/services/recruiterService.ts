@@ -146,6 +146,7 @@ export class RecruiterService {
         const usersSnapshot = await adminDb
           .collection("users")
           .where("publicProfile.visible", "==", true)
+          .limit(200)
           .get();
 
         for (const doc of usersSnapshot.docs) {
@@ -168,6 +169,7 @@ export class RecruiterService {
               .collection("resumes")
               .where("userId", "==", doc.id)
               .where("published", "==", true)
+              .limit(10)
               .get();
 
             for (const resumeDoc of userResumesSnapshot.docs) {
@@ -280,6 +282,7 @@ export class RecruiterService {
       .collectionGroup("accessRequests")
       .where("fromUserId", "==", recruiterId)
       .orderBy("timestamp", "desc")
+      .limit(200)
       .get();
 
     return Promise.all(

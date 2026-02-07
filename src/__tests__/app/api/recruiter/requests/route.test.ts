@@ -127,6 +127,7 @@ describe("/api/recruiter/requests", () => {
       (adminDb.collectionGroup as jest.Mock).mockReturnValue({
         where: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
         get: jest.fn().mockResolvedValue({ docs: mockDocs }),
       });
 
@@ -144,13 +145,11 @@ describe("/api/recruiter/requests", () => {
         userId: mockUserId,
       });
       (adminDb.collection as jest.Mock).mockReturnValue({
-        doc: jest
-          .fn()
-          .mockReturnValue({
-            get: jest
-              .fn()
-              .mockResolvedValue({ data: () => ({ role: "recruiter" }) }),
-          }),
+        doc: jest.fn().mockReturnValue({
+          get: jest
+            .fn()
+            .mockResolvedValue({ data: () => ({ role: "recruiter" }) }),
+        }),
       });
 
       const futureDate = new Date();
@@ -171,6 +170,7 @@ describe("/api/recruiter/requests", () => {
       (adminDb.collectionGroup as jest.Mock).mockReturnValue({
         where: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
         get: jest.fn().mockResolvedValue({ docs: mockDocs }),
       });
 
@@ -187,13 +187,11 @@ describe("/api/recruiter/requests", () => {
         userId: mockUserId,
       });
       (adminDb.collection as jest.Mock).mockReturnValue({
-        doc: jest
-          .fn()
-          .mockReturnValue({
-            get: jest
-              .fn()
-              .mockResolvedValue({ data: () => ({ role: "recruiter" }) }),
-          }),
+        doc: jest.fn().mockReturnValue({
+          get: jest
+            .fn()
+            .mockResolvedValue({ data: () => ({ role: "recruiter" }) }),
+        }),
       });
 
       const mockDocs = [
@@ -216,6 +214,7 @@ describe("/api/recruiter/requests", () => {
       (adminDb.collectionGroup as jest.Mock).mockReturnValue({
         where: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
         get: jest.fn().mockResolvedValue({ docs: mockDocs }),
       });
 

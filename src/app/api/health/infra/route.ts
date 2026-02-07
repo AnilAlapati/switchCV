@@ -14,7 +14,7 @@
  * 3. Periodically via monitoring
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getDb } from "@/lib/dal";
 import { ID_GENERATION } from "@/config/constants";
 import { logger } from "@/lib/logger";
@@ -31,7 +31,6 @@ interface InfraHealthResponse {
   timestamp: string;
   environment: string;
   checks: HealthCheck[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   debug?: any;
 }
 
@@ -153,7 +152,7 @@ async function checkBillingConfig(): Promise<HealthCheck> {
       status: "ok",
       message: "Billing configuration exists",
     };
-  } catch (_err) {
+  } catch {
     return {
       name: "billingConfig",
       status: "warning",
@@ -162,10 +161,9 @@ async function checkBillingConfig(): Promise<HealthCheck> {
   }
 }
 
-export async function GET(_request: NextRequest): Promise<NextResponse> {
+export async function GET(): Promise<NextResponse> {
   const startTime = Date.now();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const debugInfo: any = {
+  const debugInfo: Record<string, unknown> = {
     hasServiceAccountEnv: !!process.env.FIREBASE_SERVICE_ACCOUNT,
     hasGoogleAppCreds: !!process.env.GOOGLE_APPLICATION_CREDENTIALS,
     projectId:
@@ -200,7 +198,6 @@ export async function GET(_request: NextRequest): Promise<NextResponse> {
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || "unknown",
       checks,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       debug: {
         hasServiceAccountEnv: !!process.env.FIREBASE_SERVICE_ACCOUNT,
         projectId:
@@ -216,10 +213,9 @@ export async function GET(_request: NextRequest): Promise<NextResponse> {
     };
 
     // Log debug info to Cloud Logging
-    // eslint-disable-next-line no-console
     logger.debug(
       { debugInfo: response.debug },
-      "Infrastructure health debug output"
+      "Infrastructure health debug output",
     );
 
     const statusCode = overallStatus === "unhealthy" ? 503 : 200;
@@ -227,12 +223,12 @@ export async function GET(_request: NextRequest): Promise<NextResponse> {
 
     logger.info(
       { status: overallStatus, duration, checks: checks.length },
-      "Infrastructure health check completed"
+      "Infrastructure health check completed",
     );
 
     return NextResponse.json(
       { ...response, durationMs: duration },
-      { status: statusCode }
+      { status: statusCode },
     );
   } catch (error) {
     logger.error({ err: error }, "Infrastructure health check failed");
@@ -251,7 +247,7 @@ export async function GET(_request: NextRequest): Promise<NextResponse> {
         ],
         durationMs: Date.now() - startTime,
       },
-      { status: 503 }
+      { status: 503 },
     );
   }
 }

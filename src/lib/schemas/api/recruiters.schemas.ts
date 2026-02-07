@@ -1,7 +1,10 @@
 import { z } from "zod";
-import { AdminDurationSchema, EmailSchema, ResumeIdSchema, UserIdSchema } from "./shared.schemas";
-
-const RequestedFieldSchema = z.enum(["email", "phone", "address", "personalLinks"]);
+import {
+  AdminDurationSchema,
+  EmailSchema,
+  ResumeIdSchema,
+  UserIdSchema,
+} from "./shared.schemas";
 
 export const RequestRecruiterContactSchema = z
   .object({

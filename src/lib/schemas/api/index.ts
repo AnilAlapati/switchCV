@@ -62,6 +62,15 @@ export {
 export { AiSearchRequestSchema } from "./search.schemas";
 
 export {
+  AgentAnalyzeSchema,
+  AgentEnhanceJobSchema,
+  AgentInterviewPrepSchema,
+  AgentScreenSchema,
+  AgentPipelineSuggestSchema,
+  AgentOutreachSchema,
+} from "./agent.schemas";
+
+export {
   UserRoleSchema,
   UserProfileQuerySchema,
   CreateUserProfileSchema,

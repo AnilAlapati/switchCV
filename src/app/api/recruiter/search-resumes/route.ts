@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { COLLECTIONS, collectionRef, increment, serverTimestamp } from "@/lib/dal";
+import {
+  COLLECTIONS,
+  collectionRef,
+  increment,
+  serverTimestamp,
+} from "@/lib/dal";
 import {
   attachRateLimitHeaders,
   getAuthenticatedUserId,
@@ -13,11 +18,7 @@ import {
 } from "./search-service";
 
 import { recordRecruiterSearchEvent } from "@/lib/recruiterSearchHistory";
-import {
-  getUserRole,
-  getUserTier,
-  getTierForRole,
-} from "@/lib/services/userService";
+import { getUserRole, getTierForRole } from "@/lib/services/userService";
 import { getConstants } from "@/lib/getSystemConfig";
 import { logger } from "@/lib/logger";
 import { searchResumesSchema } from "@/lib/validations/recruiter";
@@ -40,8 +41,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return handleApiError(
         new Error("Invalid search parameters"),
         "Invalid search parameters: " +
-        validationResult.error.issues.map((e) => e.message).join(", "),
-        400
+          validationResult.error.issues.map((e) => e.message).join(", "),
+        400,
       );
     }
     const {
@@ -76,7 +77,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const response = handleApiError(
         new Error("Rate limit exceeded"),
         "Too many requests. Please wait before searching again.",
-        429
+        429,
       );
       attachRateLimitHeaders(response, rateLimitResult);
       return response;
@@ -93,10 +94,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           totalSearches: increment(1),
           lastActivityAt: serverTimestamp(),
         },
-        { merge: true }
+        { merge: true },
       )
       .catch((err) =>
-        logger.error({ err: err }, "Failed to update search metrics:")
+        logger.error({ err: err }, "Failed to update search metrics:"),
       );
 
     // Determine search type based on parameters provided
@@ -113,7 +114,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const { results, notification } = await performBasicSearch(
           userId,
           recruiterId,
-          accessStatusMap
+          accessStatusMap,
         );
 
         await recordRecruiterSearchEvent({
@@ -146,7 +147,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         return handleApiError(
           null,
           "Premium or enterprise subscription required for skills/location search",
-          403
+          403,
         );
       }
 
@@ -156,7 +157,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           skills,
           location,
           recruiterId,
-          accessStatusMap
+          accessStatusMap,
         );
         await recordRecruiterSearchEvent({
           recruiterId,
@@ -182,7 +183,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const response = handleApiError(
       null,
       "Please provide either a userId or skills/location for search",
-      400
+      400,
     );
     attachRateLimitHeaders(response, rateLimitResult);
     return response;

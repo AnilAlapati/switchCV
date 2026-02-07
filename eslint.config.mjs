@@ -38,6 +38,27 @@ const eslintConfig = [
       "@next/next/no-html-link-for-pages": "warn",
       // Enforce structured logging - no console in production code
       "no-console": "error",
+      // PERF: Prevent window.alert in production code — use toast/sonner instead
+      "no-restricted-globals": [
+        "error",
+        {
+          "name": "alert",
+          "message": "❌ Do not use window.alert(). Use toast notifications (sonner) instead for accessibility and UX."
+        }
+      ],
+    },
+  },
+  {
+    // SWR hooks: Block revalidateOnFocus: true which causes unnecessary Firestore reads
+    files: ["src/hooks/**/*.ts", "src/hooks/**/*.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "Property[key.name='revalidateOnFocus'][value.value=true]",
+          message: "❌ revalidateOnFocus: true causes unnecessary Firestore reads on every tab switch. Use false instead or omit (global default is false)."
+        },
+      ],
     },
   },
   {

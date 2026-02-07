@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import {
   CREATIVE_TEMPLATES_ENABLED,
-  TEMPLATE_TIERS,
   canAccessTemplate,
   getUpgradeMessage,
   PREMIUM_TEMPLATE_INFO,

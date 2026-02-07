@@ -8,7 +8,6 @@ import {
 } from "@/lib/notifications.types";
 import { createNotification } from "@/lib/notificationService";
 import { getRecruiterContactLimits } from "@/lib/config.server";
-import { SubscriptionTier } from "@/lib/config.client";
 import { updateRecruiterAccessMetric } from "@/lib/services/metricsService";
 import { AccessCheckResponse } from "@/types/profileSearch";
 import { getTierForRole } from "@/lib/services/userService";
@@ -27,7 +26,7 @@ export class AccessService {
    * Create a new access request
    */
   static async requestAccess(
-    input: AccessRequestInput
+    input: AccessRequestInput,
   ): Promise<{ requestId: string }> {
     const {
       requesterId,
@@ -66,12 +65,12 @@ export class AccessService {
         query = query.where("timestamp", ">=", startOfMonth);
       }
 
-      const snap = await query.get();
+      const snap = await query.limit(100).get();
       if (snap.size >= limitConfig.amount) {
         const period =
           limitConfig.interval === "month" ? "this month" : "total";
         throw new Error(
-          `Limit reached: ${limitConfig.amount} requests ${period}. Upgrade plan.`
+          `Limit reached: ${limitConfig.amount} requests ${period}. Upgrade plan.`,
         );
       }
     }
@@ -92,13 +91,14 @@ export class AccessService {
         .collection("accessRequests")
         .where("fromUserId", "==", requesterId)
         .where("status", "==", "pending")
+        .limit(100)
         .get();
     } catch (e: unknown) {
       const err = e as { code?: number; message?: string };
       if (err.code === 9 || err.message?.toLowerCase().includes("index")) {
         logger.warn(
           { resumeId, requesterId },
-          "Missing Firestore index for accessRequests, falling back to full collection scan"
+          "Missing Firestore index for accessRequests, falling back to full collection scan",
         );
         const allRequests = await resumeRef.collection("accessRequests").get();
         const filteredDocs = allRequests.docs.filter((doc) => {
@@ -123,17 +123,18 @@ export class AccessService {
       activeGrants = await resumeRef
         .collection("accessGrants")
         .where("toUserId", "==", requesterId)
+        .limit(100)
         .get();
     } catch (e: unknown) {
       const err = e as { code?: number; message?: string };
       if (err.code === 9 || err.message?.toLowerCase().includes("index")) {
         logger.warn(
           { resumeId, requesterId },
-          "Missing Firestore index for accessGrants, falling back to full collection scan"
+          "Missing Firestore index for accessGrants, falling back to full collection scan",
         );
         activeGrants = await resumeRef.collection("accessGrants").get();
         const filteredDocs = activeGrants.docs.filter(
-          (doc) => doc.data().toUserId === requesterId
+          (doc) => doc.data().toUserId === requesterId,
         );
         activeGrants = {
           docs: filteredDocs,
@@ -185,7 +186,7 @@ export class AccessService {
           contactRequests: FieldValue.increment(1),
           lastActivityAt: FieldValue.serverTimestamp(),
         },
-        { merge: true }
+        { merge: true },
       );
 
     await createNotification(
@@ -198,12 +199,12 @@ export class AccessService {
         data: { requestId: requestRef.id, resumeId, fromUserId: requesterId },
       },
       [NotificationChannel.IN_APP],
-      NotificationPriority.HIGH
+      NotificationPriority.HIGH,
     );
 
     logger.info(
       { requestId: requestRef.id, requesterId, resumeId },
-      "Access request created via service"
+      "Access request created via service",
     );
     return { requestId: requestRef.id };
   }
@@ -216,7 +217,7 @@ export class AccessService {
     resumeId: string,
     requestId: string,
     action: "approve" | "deny",
-    grantDurationDays?: number // Optional override
+    grantDurationDays?: number, // Optional override
   ): Promise<{ status: "approved" | "denied"; expiresAt?: Date }> {
     // 1. Verify Ownership
     const resumeRef = adminDb.collection("resumes").doc(resumeId);
@@ -249,7 +250,7 @@ export class AccessService {
           body: "Your request for access has been denied.",
           data: { resumeId, status: "denied" },
         },
-        [NotificationChannel.IN_APP]
+        [NotificationChannel.IN_APP],
       );
 
       return { status: "denied" };
@@ -298,7 +299,7 @@ export class AccessService {
         data: { resumeId, status: "approved" },
       },
       [NotificationChannel.IN_APP, NotificationChannel.EMAIL],
-      NotificationPriority.HIGH
+      NotificationPriority.HIGH,
     );
 
     return { status: "approved", expiresAt };
@@ -309,7 +310,7 @@ export class AccessService {
    */
   static async checkAccessStatus(
     userId: string,
-    resumeId: string
+    resumeId: string,
   ): Promise<AccessCheckResponse> {
     // 1. Get Resume
     const resumeRef = adminDb.collection("resumes").doc(resumeId);
@@ -336,6 +337,7 @@ export class AccessService {
     const grantsSnapshot = await resumeRef
       .collection("accessGrants")
       .where("toUserId", "==", userId)
+      .limit(100)
       .get();
 
     const now = new Date();

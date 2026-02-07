@@ -1,20 +1,16 @@
 import { GET } from "@/app/api/jobseeker/access-requests/route";
 import { NextRequest } from "next/server";
-import { adminDb } from "@/lib/firebase-admin";
 import {
   getAuthenticatedUserId,
   handleApiError,
 } from "@/lib/utils/api-helpers";
 
+const mockCollectionRef = jest.fn();
+
 jest.mock("@/lib/logger");
-jest.mock("@/lib/firebase-admin", () => ({
-  adminDb: {
-    collection: jest.fn(() => ({
-      where: jest.fn(() => ({
-        get: jest.fn(),
-      })),
-    })),
-  },
+jest.mock("@/lib/dal", () => ({
+  collectionRef: (...args: unknown[]) => mockCollectionRef(...args),
+  COLLECTIONS: { RESUMES: "resumes" },
 }));
 
 jest.mock("@/lib/utils/api-helpers", () => ({
@@ -35,7 +31,7 @@ describe("JobSeeker Access Requests API", () => {
       new URL("http://localhost:3000/api/jobseeker/access-requests"),
       {
         method: "GET",
-      }
+      },
     );
   };
 
@@ -63,41 +59,45 @@ describe("JobSeeker Access Requests API", () => {
         ref: {
           collection: jest.fn(() => ({
             orderBy: jest.fn(() => ({
-              get: jest.fn().mockResolvedValue({
-                docs: [
-                  {
-                    id: "request-1",
-                    data: () => ({
-                      status: "pending",
-                      timestamp: { toDate: () => new Date("2023-01-01") },
-                      approvedAt: { toDate: () => new Date("2023-01-03") },
-                      expiresAt: { toDate: () => new Date("2023-01-10") },
-                    }),
-                  },
-                  {
-                    id: "request-2",
-                    data: () => ({
-                      status: "approved",
-                      timestamp: "2023-01-02",
-                      approvedAt: "2023-01-03",
-                      expiresAt: "2023-01-10",
-                    }),
-                  },
-                ],
-                size: 2,
-              }),
+              limit: jest.fn(() => ({
+                get: jest.fn().mockResolvedValue({
+                  docs: [
+                    {
+                      id: "request-1",
+                      data: () => ({
+                        status: "pending",
+                        timestamp: { toDate: () => new Date("2023-01-01") },
+                        approvedAt: { toDate: () => new Date("2023-01-03") },
+                        expiresAt: { toDate: () => new Date("2023-01-10") },
+                      }),
+                    },
+                    {
+                      id: "request-2",
+                      data: () => ({
+                        status: "approved",
+                        timestamp: "2023-01-02",
+                        approvedAt: "2023-01-03",
+                        expiresAt: "2023-01-10",
+                      }),
+                    },
+                  ],
+                  size: 2,
+                }),
+              })),
             })),
           })),
         },
       },
     ];
 
-    (adminDb.collection as jest.Mock).mockReturnValue({
+    mockCollectionRef.mockReturnValue({
       where: jest.fn(() => ({
-        get: jest.fn().mockResolvedValue({
-          docs: mockResumes,
-          size: 1,
-        }),
+        limit: jest.fn(() => ({
+          get: jest.fn().mockResolvedValue({
+            docs: mockResumes,
+            size: 1,
+          }),
+        })),
       })),
     });
 
@@ -124,34 +124,38 @@ describe("JobSeeker Access Requests API", () => {
         ref: {
           collection: jest.fn(() => ({
             orderBy: jest.fn(() => ({
-              get: jest.fn().mockResolvedValue({
-                docs: [
-                  {
-                    id: "request-1",
-                    data: () => ({
-                      status: "pending",
-                      timestamp: {
-                        toDate: () => {
-                          throw new Error("Parse error");
+              limit: jest.fn(() => ({
+                get: jest.fn().mockResolvedValue({
+                  docs: [
+                    {
+                      id: "request-1",
+                      data: () => ({
+                        status: "pending",
+                        timestamp: {
+                          toDate: () => {
+                            throw new Error("Parse error");
+                          },
                         },
-                      },
-                    }),
-                  },
-                ],
-                size: 1,
-              }),
+                      }),
+                    },
+                  ],
+                  size: 1,
+                }),
+              })),
             })),
           })),
         },
       },
     ];
 
-    (adminDb.collection as jest.Mock).mockReturnValue({
+    mockCollectionRef.mockReturnValue({
       where: jest.fn(() => ({
-        get: jest.fn().mockResolvedValue({
-          docs: mockResumes,
-          size: 1,
-        }),
+        limit: jest.fn(() => ({
+          get: jest.fn().mockResolvedValue({
+            docs: mockResumes,
+            size: 1,
+          }),
+        })),
       })),
     });
 
@@ -169,7 +173,7 @@ describe("JobSeeker Access Requests API", () => {
       error: null,
     });
 
-    (adminDb.collection as jest.Mock).mockImplementation(() => {
+    mockCollectionRef.mockImplementation(() => {
       throw new Error("DB error");
     });
 

@@ -9,7 +9,7 @@ import { logger } from "@/lib/logger";
 export async function incrementJobSeekerMetric(
   userId: string,
   metric: "profileViews" | "contactRequests" | "downloads" | "quality",
-  value: number = 1
+  value: number = 1,
 ) {
   if (!userId) return;
 
@@ -21,12 +21,12 @@ export async function incrementJobSeekerMetric(
         [metric]: FieldValue.increment(value),
         lastUpdated: FieldValue.serverTimestamp(),
       },
-      { merge: true }
+      { merge: true },
     );
   } catch (error) {
     logger.error(
       { err: error, userId, metric, value },
-      "Failed to increment job seeker metric"
+      "Failed to increment job seeker metric",
     );
   }
 }
@@ -37,7 +37,7 @@ export async function incrementJobSeekerMetric(
 export async function decrementJobSeekerMetric(
   userId: string,
   metric: "profileViews" | "contactRequests" | "downloads" | "quality",
-  value: number = 1
+  value: number = 1,
 ) {
   if (!userId) return;
 
@@ -49,12 +49,12 @@ export async function decrementJobSeekerMetric(
         [metric]: FieldValue.increment(-value),
         lastUpdated: FieldValue.serverTimestamp(),
       },
-      { merge: true }
+      { merge: true },
     );
   } catch (error) {
     logger.error(
       { err: error, userId, metric, value },
-      "Failed to decrement job seeker metric"
+      "Failed to decrement job seeker metric",
     );
   }
 }
@@ -69,7 +69,7 @@ export async function incrementRecruiterMetric(
     | "profilesViewed"
     | "contactRequests"
     | "resumesShortlisted",
-  value: number = 1
+  value: number = 1,
 ) {
   if (!userId) return;
 
@@ -81,12 +81,12 @@ export async function incrementRecruiterMetric(
         [metric]: FieldValue.increment(value),
         lastUpdated: FieldValue.serverTimestamp(),
       },
-      { merge: true }
+      { merge: true },
     );
   } catch (error) {
     logger.error(
       { err: error, userId, metric, value },
-      "Failed to increment recruiter metric"
+      "Failed to increment recruiter metric",
     );
   }
 }
@@ -97,7 +97,7 @@ export async function incrementRecruiterMetric(
 export async function updateRecruiterAccessMetric(
   userId: string,
   status: "pending" | "approved" | "denied",
-  change: number
+  change: number,
 ) {
   if (!userId) return;
 
@@ -109,12 +109,12 @@ export async function updateRecruiterAccessMetric(
         [`accessRequests.${status}`]: FieldValue.increment(change),
         lastUpdated: FieldValue.serverTimestamp(),
       },
-      { merge: true }
+      { merge: true },
     );
   } catch (error) {
     logger.error(
       { err: error, userId, status, change },
-      "Failed to update recruiter access metric"
+      "Failed to update recruiter access metric",
     );
   }
 }
@@ -134,7 +134,7 @@ interface JobSeekerMetrics {
  * Get metrics for a job seeker.
  */
 export async function getJobSeekerMetrics(
-  userId: string
+  userId: string,
 ): Promise<JobSeekerMetrics> {
   const metricsRef = adminDb.collection("jobSeekerMetrics").doc(userId);
   const metricsDoc = await metricsRef.get();
@@ -149,6 +149,7 @@ export async function getJobSeekerMetrics(
     const resumesSnap = await adminDb
       .collection("resumes")
       .where("userId", "==", userId)
+      .limit(50)
       .get();
 
     contactRequests = 0;
@@ -167,7 +168,7 @@ export async function getJobSeekerMetrics(
         contactRequests,
         lastUpdated: FieldValue.serverTimestamp(),
       },
-      { merge: true }
+      { merge: true },
     );
   }
 
@@ -196,7 +197,7 @@ interface RecruiterMetrics {
  * Get metrics for a recruiter.
  */
 export async function getRecruiterMetrics(
-  userId: string
+  userId: string,
 ): Promise<RecruiterMetrics> {
   const metricsRef = adminDb.collection("recruiterMetrics").doc(userId);
   const metricsDoc = await metricsRef.get();
@@ -213,13 +214,14 @@ export async function getRecruiterMetrics(
     try {
       logger.info(
         { userId },
-        "Performing lazy migration for recruiter access metrics"
+        "Performing lazy migration for recruiter access metrics",
       );
 
       // Count requests from collection group
       const requestsSnapshot = await adminDb
         .collectionGroup("accessRequests")
         .where("fromUserId", "==", userId)
+        .limit(500)
         .get();
 
       // Reset counts for migration
@@ -236,6 +238,7 @@ export async function getRecruiterMetrics(
       const grantsSnapshot = await adminDb
         .collectionGroup("accessGrants")
         .where("toUserId", "==", userId)
+        .limit(500)
         .get();
 
       grantsSnapshot.forEach(() => {
@@ -248,12 +251,12 @@ export async function getRecruiterMetrics(
           accessRequests,
           lastUpdated: FieldValue.serverTimestamp(),
         },
-        { merge: true }
+        { merge: true },
       );
     } catch (err) {
       logger.error(
         { err, userId },
-        "Failed lazy migration for recruiter access metrics"
+        "Failed lazy migration for recruiter access metrics",
       );
       // Fallback to empty if migration fails
       accessRequests = { pending: 0, approved: 0, denied: 0 };

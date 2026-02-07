@@ -1,31 +1,17 @@
-/* eslint-disable max-lines */
 import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
-import { generateText } from "@/lib/services/aiGenerationService";
 import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
-import { generateTextWithTier } from "@/lib/services/aiProviderService";
 import { BillingService } from "@/lib/services/billingService";
-import { ConversationManager } from "@/lib/services/conversationManager";
-import { ResumeDataExtractor } from "@/lib/services/resumeDataExtractor";
-import {
-  buildConversationalPrompt,
-  extractResumeJSON,
-  isCompletionResponse,
-} from "@/lib/services/resumePrompts";
-import { getActiveConfig } from "@/lib/services/conversationConfig";
 import {
   handleApiError,
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
 import { getUserTier } from "@/lib/services/userService";
 import type { SubscriptionTier } from "@/lib/config";
-import {
-  getResumeCount,
-  saveGeneratedResume,
-  GeneratedResumeInput,
-} from "@/lib/services/resumeService";
+import { getResumeCount } from "@/lib/services/resumeService";
 import { createGenerationJob } from "@/lib/services/resumeGenerationQueue";
 import { GenerateResumeRequestSchema } from "@/lib/schemas/api";
+import { processSyncGeneration } from "@/lib/services/resumeGenerationOrchestrator";
 
 // Cloud Functions URL for async processing (configured per environment)
 const ASYNC_PROCESSOR_URL = process.env.ASYNC_RESUME_PROCESSOR_URL;
@@ -56,7 +42,7 @@ export async function POST(request: NextRequest) {
       return handleApiError(
         new Error("Too many requests"),
         "Too many requests. Please try again later.",
-        429
+        429,
       );
     }
 
@@ -66,12 +52,12 @@ export async function POST(request: NextRequest) {
       return handleApiError(
         new Error("Budget exceeded"),
         "Monthly usage limit reached. Please upgrade your plan.",
-        402
+        402,
       );
     }
 
     const parseResult = GenerateResumeRequestSchema.safeParse(
-      await request.json()
+      await request.json(),
     );
     if (!parseResult.success) {
       return handleApiError(parseResult.error, "Message is required", 400);
@@ -91,7 +77,7 @@ export async function POST(request: NextRequest) {
     } catch (tierError) {
       logger.warn(
         { err: tierError, userId },
-        "Failed to load user tier, defaulting to basic"
+        "Failed to load user tier, defaulting to basic",
       );
     }
 
@@ -105,12 +91,12 @@ export async function POST(request: NextRequest) {
         // Basic users can't create a 2nd resume.
         logger.warn(
           { userId, resumeCount },
-          "⛔ Basic user attempted to create 2nd resume"
+          "⛔ Basic user attempted to create 2nd resume",
         );
         return handleApiError(
           new Error("Resume limit reached"),
           "You have reached the limit of 1 resume for the Basic plan. Please upgrade to Premium to create more resumes.",
-          403
+          403,
         );
       }
     }
@@ -119,7 +105,7 @@ export async function POST(request: NextRequest) {
       return handleApiError(
         new Error("Message is required"),
         "Message is required",
-        400
+        400,
       );
     }
 
@@ -133,7 +119,7 @@ export async function POST(request: NextRequest) {
           content: entry.content,
           isUser: entry.isUser,
           timestamp: entry.timestamp ?? new Date().toISOString(),
-        })
+        }),
       );
 
       // Create job in Firestore
@@ -159,12 +145,12 @@ export async function POST(request: NextRequest) {
         } catch (triggerError) {
           logger.error(
             { err: triggerError, jobId },
-            "Error triggering async processor"
+            "Error triggering async processor",
           );
         }
       } else {
         logger.warn(
-          "ASYNC_RESUME_PROCESSOR_URL not configured, job will wait for manual processing"
+          "ASYNC_RESUME_PROCESSOR_URL not configured, job will wait for manual processing",
         );
       }
 
@@ -177,243 +163,22 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // SYNC MODE: Original synchronous processing (for backward compatibility)
-
-    // Step 1: Extract data from conversation history
-    const extractionResult = ResumeDataExtractor.extractFromConversation([
-      ...conversationHistory,
-      { content: message, isUser: true },
-    ]);
-
-    logger.info(
-      {
-        confidence: extractionResult.confidence,
-        extractedFields: extractionResult.extractedFields,
-        isComplete: extractionResult.isComplete,
-      },
-      "📊 Extraction Result:"
-    );
-
-    // Step 2: Initialize conversation manager with extracted data
-    const conversationManager = new ConversationManager(
-      sessionData?.collectedData || extractionResult.data
-    );
-
-    // Update with latest extraction
-    conversationManager.updateData(extractionResult.data);
-    const progress = conversationManager.getProgress();
-
-    logger.info(
-      {
-        completeness: `${progress.completenessPercentage}%`,
-        isReady: progress.isReadyToCreate,
-        missing: progress.missingFields,
-      },
-      "🎯 Progress:"
-    );
-
-    // Step 3: Get active configuration
-    let config = getActiveConfig();
-
-    // Check for user constraints on questions
-    const allText = [...conversationHistory, { content: message, isUser: true }]
-      .filter((m) => m.isUser)
-      .map((m) => m.content)
-      .join(" ");
-
-    const questionLimitMatch = allText.match(/only\s+(\d+)\s+questions?/i);
-    if (questionLimitMatch && questionLimitMatch[1]) {
-      const limit = parseInt(questionLimitMatch[1], 10);
-      if (!isNaN(limit) && limit > 0) {
-        config = {
-          ...config,
-          maxQuestionsInBetaMode: true,
-          maxBetaQuestions: limit,
-        };
-        logger.info(`🎯 User set question limit to ${limit}`);
-      }
-    }
-
-    // Check if user explicitly wants to create/finish
-    const userWantsToCreate =
-      /create|generate|finish|done|make it|go ahead|yes|sure|ok|yep|yeah/i.test(
-        message
-      );
-
-    // Step 3b: Build AI prompt with progress context and config
-    const currentProgress = {
-      hasName: !!conversationManager.getData().name,
-      hasEmail: !!conversationManager.getData().email,
-      hasExperience: !!conversationManager.getData().experience?.length,
-      hasEducation: !!conversationManager.getData().education?.length,
-      hasSkills: !!conversationManager.getData().skills?.length,
-    };
-
-    const prompt = buildConversationalPrompt(
-      message,
-      conversationHistory,
-      currentProgress,
-      conversationManager.getData(),
-      config,
-      userWantsToCreate // Pass forceCreate flag
-    );
-
-    // Step 4: Generate AI response (tier-aware with graceful fallback)
-    type TieredResult = Awaited<ReturnType<typeof generateTextWithTier>>;
-    type LegacyResult = Awaited<ReturnType<typeof generateText>>;
-
-    let aiResponse: TieredResult | LegacyResult;
-
+    // SYNC MODE: Delegate to orchestrator service
     try {
-      aiResponse = await generateTextWithTier({
-        prompt,
-        maxTokens: 4000,
-        temperature: 0.7,
-        userTier,
+      const result = await processSyncGeneration({
+        userId,
+        message,
+        conversationHistory,
+        sessionData,
         modelId,
+        userTier,
       });
-    } catch (tieredError) {
-      logger.error(
-        { err: tieredError, userId, userTier, modelId },
-        "Tier-based AI provider selection failed, falling back to legacy generator"
-      );
-      aiResponse = await generateText(prompt, 4000, 0.7);
+
+      return NextResponse.json(result);
+    } catch (syncError) {
+      logger.error({ err: syncError }, "Sync resume generation failed");
+      return handleApiError(syncError, "Resume generation failed");
     }
-    const responseText = aiResponse.text;
-
-    // Track Billing
-    await BillingService.trackUsage(userId, aiResponse.model || "default", {
-      input: Math.ceil(prompt.length / 4),
-      output: Math.ceil(responseText.length / 4),
-    });
-
-    // Step 5: Check if AI indicates completion or if we have enough data
-    const aiIndicatesCompletion = isCompletionResponse(responseText);
-
-    // CRITICAL FIX: Sync generated JSON with ConversationManager
-    // If the AI generated the final JSON, we must capture it immediately to update our state
-    // This prevents the "Split Brain" where AI says "Done" but Extractor says "50%"
-    let updatedProgress = progress;
-    const generatedJson = extractResumeJSON(responseText);
-
-    if (generatedJson) {
-      logger.info("🧠 Syncing AI-generated JSON back to ConversationManager");
-      conversationManager.updateData(generatedJson);
-      conversationManager.markAsComplete(); // FORCE 100% PROGRESS
-      updatedProgress = conversationManager.getProgress();
-    }
-
-    // In beta mode, use completion threshold from config; otherwise use readiness
-    let shouldCreateResume = false;
-    if (config.maxQuestionsInBetaMode) {
-      // Beta mode: create resume when threshold is met OR user asks for it OR AI says so
-      shouldCreateResume =
-        aiIndicatesCompletion ||
-        updatedProgress.completenessPercentage >= config.completionThreshold ||
-        (userWantsToCreate && updatedProgress.hasMinimumData);
-    } else {
-      // Production mode: create when AI says or when ready OR user asks for it
-      shouldCreateResume =
-        aiIndicatesCompletion ||
-        updatedProgress.isReadyToCreate ||
-        (userWantsToCreate && updatedProgress.hasMinimumData);
-    }
-
-    // Ensure we use the latest progress for the rest of the flow
-    // (We'll use updatedProgress instead of progress in the next block)
-
-    logger.info(
-      {
-        aiIndicatesCompletion,
-        userWantsToCreate,
-        isReadyToCreate: updatedProgress.isReadyToCreate,
-        completenessPercentage: updatedProgress.completenessPercentage,
-        completionThreshold: config.completionThreshold,
-        shouldCreateResume,
-      },
-      "🤔 Decision:"
-    );
-
-    // Step 6: Create resume if ready
-    if (shouldCreateResume && updatedProgress.hasMinimumData) {
-      try {
-        // Extract any JSON data from AI response
-        let resumeData = extractResumeJSON(responseText);
-
-        if (!resumeData) {
-          // Use collected data if no JSON in response
-          resumeData = conversationManager.getData();
-        }
-
-        // Validate we have minimum required data
-        const validation = conversationManager.validate();
-        if (!validation.valid) {
-          logger.warn({ errors: validation.errors }, "⚠️ Validation failed");
-
-          // If validation fails but we have JSON, don't show raw JSON to user
-          let safeResponse = responseText;
-          if (extractResumeJSON(responseText)) {
-            safeResponse =
-              "I'm almost ready to create your resume, but I need a few more details. " +
-              (validation.errors.length > 0
-                ? "Specifically: " + validation.errors.join(", ")
-                : "Please provide more information.");
-          }
-
-          // Continue conversation to gather missing data
-          return NextResponse.json({
-            response: safeResponse,
-            model: aiResponse.model,
-            progress: updatedProgress.completenessPercentage,
-            sessionData: {
-              collectedData: conversationManager.getData(),
-              progress: updatedProgress,
-            },
-          });
-        }
-
-        logger.info("✨ Creating generated resume via Service");
-
-        // Delegate to Service
-        const { resumeId, numericId } = await saveGeneratedResume(
-          userId,
-          resumeData as GeneratedResumeInput
-        );
-
-        // Sanitize response: Don't show raw JSON to the user
-        // We only want the conversational part if it exists, or just a generic success message
-        // For now, let's just send a clean success message to ensure no JSON leak
-        const cleanResponse = "One moment, I'm finalizing your resume...";
-
-        logger.info({ data: resumeId }, "✅ Resume created successfully:");
-
-        // Return success with resume ID
-        // The frontend will treat this as the final message before redirect
-        return NextResponse.json({
-          response: cleanResponse,
-          model: aiResponse.model,
-          resumeId,
-          numericId,
-          created: true,
-          progress: 100,
-        });
-      } catch (createError) {
-        logger.error({ err: createError }, "❌ Error creating resume:");
-        // Fall back to continuing conversation
-        return handleApiError(createError, "Resume creation failed");
-      }
-    }
-
-    // Step 7: Continue conversation (not ready yet)
-    return NextResponse.json({
-      response: responseText,
-      model: aiResponse.model,
-      progress: updatedProgress.completenessPercentage,
-      sessionData: {
-        collectedData: conversationManager.getData(),
-        progress: updatedProgress,
-      },
-    });
   } catch (error: unknown) {
     logger.error({ err: error }, "Error in resume generation:");
     return handleApiError(error, "Internal server error");

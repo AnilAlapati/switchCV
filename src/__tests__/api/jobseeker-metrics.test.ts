@@ -99,24 +99,26 @@ describe("JobSeeker Metrics API", () => {
       if (col === "resumes") {
         return {
           where: jest.fn(() => ({
-            get: jest.fn().mockResolvedValue({
-              empty: false,
-              docs: [
-                {
-                  ref: {
-                    collection: jest.fn(() => ({
-                      where: jest.fn(() => ({
-                        count: jest.fn(() => ({
-                          get: jest.fn().mockResolvedValue({
-                            data: () => ({ count: 3 }),
-                          }),
+            limit: jest.fn(() => ({
+              get: jest.fn().mockResolvedValue({
+                empty: false,
+                docs: [
+                  {
+                    ref: {
+                      collection: jest.fn(() => ({
+                        where: jest.fn(() => ({
+                          count: jest.fn(() => ({
+                            get: jest.fn().mockResolvedValue({
+                              data: () => ({ count: 3 }),
+                            }),
+                          })),
                         })),
                       })),
-                    })),
+                    },
                   },
-                },
-              ],
-            }),
+                ],
+              }),
+            })),
           })),
         };
       }
@@ -143,10 +145,12 @@ describe("JobSeeker Metrics API", () => {
       if (col === "resumes") {
         return {
           where: jest.fn(() => ({
-            get: jest.fn().mockResolvedValue({
-              empty: true,
-              docs: [],
-            }),
+            limit: jest.fn(() => ({
+              get: jest.fn().mockResolvedValue({
+                empty: true,
+                docs: [],
+              }),
+            })),
           })),
         };
       }

@@ -45,45 +45,56 @@ export function useUserProfile(): UseUserProfileResult {
 
   const { data, error, isLoading, mutate } = useSWR(
     key,
-    ([url]: [string, string]) => user!.getIdToken().then((token) => fetcher(url, token)),
+    ([url]: [string, string]) =>
+      user!.getIdToken().then((token) => fetcher(url, token)),
     {
       // Keep data fresh for 10 seconds
       dedupingInterval: 10000,
       // Don't retry on 404s (profile doesn't exist yet)
       shouldRetryOnError: false,
-      // Revalidate on focus to pick up tier changes
-      revalidateOnFocus: true,
+      // PERF: Do NOT revalidateOnFocus — triggers Firestore reads on every tab switch
+      revalidateOnFocus: false,
       // Don't revalidate on reconnect
       revalidateOnReconnect: false,
-    }
+    },
   );
 
   // Apply Dev Mode Overrides
-  const jobSeekerTier = (DEV_MODE_ENABLED && DEV_TIER_OVERRIDE) || data?.jobSeekerTier || data?.subscriptionTier || "basic";
-  const recruiterTier = (DEV_MODE_ENABLED && DEV_TIER_OVERRIDE) || data?.recruiterTier || data?.subscriptionTier || "basic";
-  const effectiveRole: UserRole | undefined = (DEV_MODE_ENABLED && DEV_ROLE_OVERRIDE) || data?.role;
+  const jobSeekerTier =
+    (DEV_MODE_ENABLED && DEV_TIER_OVERRIDE) ||
+    data?.jobSeekerTier ||
+    data?.subscriptionTier ||
+    "basic";
+  const recruiterTier =
+    (DEV_MODE_ENABLED && DEV_TIER_OVERRIDE) ||
+    data?.recruiterTier ||
+    data?.subscriptionTier ||
+    "basic";
+  const effectiveRole: UserRole | undefined =
+    (DEV_MODE_ENABLED && DEV_ROLE_OVERRIDE) || data?.role;
 
   // For backward compatibility, 'tier' returns the tier for the current role
-  const effectiveTier: SubscriptionTier = effectiveRole === "recruiter" ? recruiterTier : jobSeekerTier;
+  const effectiveTier: SubscriptionTier =
+    effectiveRole === "recruiter" ? recruiterTier : jobSeekerTier;
 
   // Construct effective profile
   const effectiveProfile: UserProfile | null = data
     ? {
-      ...data,
-      subscriptionTier: effectiveTier,
-      jobSeekerTier,
-      recruiterTier,
-      role: effectiveRole as UserRole,
-    }
-    : user
-      ? {
-        uid: user.uid,
-        email: user.email || "",
+        ...data,
         subscriptionTier: effectiveTier,
         jobSeekerTier,
         recruiterTier,
         role: effectiveRole as UserRole,
       }
+    : user
+      ? {
+          uid: user.uid,
+          email: user.email || "",
+          subscriptionTier: effectiveTier,
+          jobSeekerTier,
+          recruiterTier,
+          role: effectiveRole as UserRole,
+        }
       : null;
 
   return {

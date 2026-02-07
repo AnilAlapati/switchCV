@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
 import { GET } from "./route";
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb } from "@/lib/firebase-admin";
+
+const mockCollectionRef = jest.fn();
 
 // Mock dependencies
 jest.mock("@/lib/utils/api-helpers", () => ({
@@ -10,15 +10,15 @@ jest.mock("@/lib/utils/api-helpers", () => ({
   handleApiError: jest.requireActual("@/lib/utils/api-helpers").handleApiError,
 }));
 
-jest.mock("@/lib/firebase-admin", () => ({
-  adminDb: {
-    collection: jest.fn(),
-  },
+jest.mock("@/lib/dal", () => ({
+  collectionRef: (...args: unknown[]) => mockCollectionRef(...args),
+  COLLECTIONS: { RESUMES: "resumes" },
 }));
+
+jest.mock("@/lib/logger");
 
 describe("GET /api/jobseeker/access-requests", () => {
   const mockGetAuthenticatedUserId = getAuthenticatedUserId as jest.Mock;
-  const mockCollection = adminDb.collection as jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -28,7 +28,7 @@ describe("GET /api/jobseeker/access-requests", () => {
     mockGetAuthenticatedUserId.mockResolvedValue({ userId: null });
 
     const request = new NextRequest(
-      "http://localhost:3000/api/jobseeker/access-requests"
+      "http://localhost:3000/api/jobseeker/access-requests",
     );
     const response = await GET(request);
     const data = await response.json();
@@ -58,9 +58,11 @@ describe("GET /api/jobseeker/access-requests", () => {
         ref: {
           collection: jest.fn().mockReturnValue({
             orderBy: jest.fn().mockReturnValue({
-              get: jest.fn().mockResolvedValue({
-                size: 1,
-                docs: mockAccessRequests,
+              limit: jest.fn().mockReturnValue({
+                get: jest.fn().mockResolvedValue({
+                  size: 1,
+                  docs: mockAccessRequests,
+                }),
               }),
             }),
           }),
@@ -68,17 +70,19 @@ describe("GET /api/jobseeker/access-requests", () => {
       },
     ];
 
-    mockCollection.mockReturnValue({
+    mockCollectionRef.mockReturnValue({
       where: jest.fn().mockReturnValue({
-        get: jest.fn().mockResolvedValue({
-          size: 1,
-          docs: mockResumes,
+        limit: jest.fn().mockReturnValue({
+          get: jest.fn().mockResolvedValue({
+            size: 1,
+            docs: mockResumes,
+          }),
         }),
       }),
     });
 
     const request = new NextRequest(
-      "http://localhost:3000/api/jobseeker/access-requests"
+      "http://localhost:3000/api/jobseeker/access-requests",
     );
     const response = await GET(request);
     const data = await response.json();
@@ -97,12 +101,12 @@ describe("GET /api/jobseeker/access-requests", () => {
 
   it("should handle errors gracefully", async () => {
     mockGetAuthenticatedUserId.mockResolvedValue({ userId: "user123" });
-    mockCollection.mockImplementation(() => {
+    mockCollectionRef.mockImplementation(() => {
       throw new Error("Database error");
     });
 
     const request = new NextRequest(
-      "http://localhost:3000/api/jobseeker/access-requests"
+      "http://localhost:3000/api/jobseeker/access-requests",
     );
     const response = await GET(request);
     const data = await response.json();

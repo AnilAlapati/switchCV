@@ -156,7 +156,6 @@ export const serializeError = (error: unknown): Record<string, unknown> => {
 const env = process.env.NODE_ENV || "development";
 const logLevel = process.env.LOG_LEVEL || "info";
 const isProd = env === "production";
-const isTestRuntime = env === "test" || Boolean(process.env.JEST_WORKER_ID);
 const isEdge = process.env.NEXT_RUNTIME === "edge";
 const shouldMirrorConsole = !isProd;
 

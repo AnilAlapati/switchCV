@@ -105,7 +105,11 @@ function ResetPasswordForm() {
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">
+          <div
+            className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm"
+            role="alert"
+            id="form-error"
+          >
             {error}
           </div>
         )}
@@ -128,11 +132,14 @@ function ResetPasswordForm() {
                 placeholder="Enter new password"
                 required
                 disabled={loading || !token}
+                aria-invalid={!!error}
+                aria-describedby="password-hint form-error"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? (
                   <EyeOff className="h-5 w-5" />
@@ -141,7 +148,7 @@ function ResetPasswordForm() {
                 )}
               </button>
             </div>
-            <p className="mt-1 text-xs text-slate-500">
+            <p id="password-hint" className="mt-1 text-xs text-slate-500">
               Must be at least 6 characters
             </p>
           </div>
@@ -162,6 +169,8 @@ function ResetPasswordForm() {
               placeholder="Confirm new password"
               required
               disabled={loading || !token}
+              aria-invalid={!!(error && error.includes("match"))}
+              aria-describedby="form-error"
             />
           </div>
 

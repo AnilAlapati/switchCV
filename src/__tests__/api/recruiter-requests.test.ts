@@ -39,6 +39,7 @@ const mockCollection = {
   doc: jest.fn().mockReturnValue(mockDoc),
   where: jest.fn().mockReturnThis(),
   orderBy: jest.fn().mockReturnThis(),
+  limit: jest.fn().mockReturnThis(),
   get: jest.fn(),
 } as any;
 

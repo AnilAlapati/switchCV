@@ -7,6 +7,7 @@ import {
 import { logger } from "@/lib/logger";
 import { trackCost } from "@/lib/services/costControlService";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
+import { AgentScreenSchema } from "@/lib/schemas/api";
 
 const ESTIMATED_COST_SCREEN = 0.0005; // $0.0005 per run (Gemini 1.5 Flash)
 const RATE_LIMIT_SCREEN = 200; // 200 requests per day
@@ -26,28 +27,14 @@ export async function POST(req: NextRequest) {
       return handleApiError(null, "Daily screening limit exceeded", 429);
     }
 
-    const body = await req.json();
-    const { candidate, criteria } = body;
-
-    if (!candidate || !criteria) {
-      return handleApiError(
-        new Error("Missing data"),
-        "Missing candidate or screening criteria",
-        400,
+    const parseResult = AgentScreenSchema.safeParse(await req.json());
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: "Invalid input", details: parseResult.error.flatten() },
+        { status: 400 },
       );
     }
-
-    if (
-      !criteria.mustHave ||
-      !Array.isArray(criteria.mustHave) ||
-      criteria.mustHave.length === 0
-    ) {
-      return handleApiError(
-        new Error("Invalid criteria"),
-        "Must provide at least one must-have requirement",
-        400,
-      );
-    }
+    const { candidate, criteria } = parseResult.data;
 
     logger.info({ userId }, "Screening candidate via Agent");
 

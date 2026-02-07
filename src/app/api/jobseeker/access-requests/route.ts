@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
     // Get all resumes for user
     const resumesSnapshot = await collectionRef(COLLECTIONS.RESUMES)
       .where("userId", "==", userId)
+      .limit(50)
       .get();
 
     const requests: Record<string, unknown>[] = [];
@@ -26,10 +27,11 @@ export async function GET(request: NextRequest) {
       const accessRequestsSnapshot = await resumeDoc.ref
         .collection("accessRequests")
         .orderBy("timestamp", "desc")
+        .limit(100)
         .get();
 
       logger.info(
-        `Resume ${resumeDoc.id}: Found ${accessRequestsSnapshot.size} total requests.`
+        `Resume ${resumeDoc.id}: Found ${accessRequestsSnapshot.size} total requests.`,
       );
 
       accessRequestsSnapshot.docs.forEach((doc) => {
@@ -61,7 +63,7 @@ export async function GET(request: NextRequest) {
           const parseError = String(e);
           logger.warn(
             { err: parseError },
-            `Error parsing timestamp for request ${doc.id}`
+            `Error parsing timestamp for request ${doc.id}`,
           );
         }
 
@@ -90,11 +92,14 @@ export async function GET(request: NextRequest) {
     }
 
     logger.info(`Total requests returning: ${requests.length}`);
-    return NextResponse.json({ requests }, {
-      headers: {
-        "Cache-Control": "private, max-age=60, stale-while-revalidate=300",
+    return NextResponse.json(
+      { requests },
+      {
+        headers: {
+          "Cache-Control": "private, max-age=60, stale-while-revalidate=300",
+        },
       },
-    });
+    );
   } catch (error: unknown) {
     return handleApiError(error, "Failed to fetch requests");
   }

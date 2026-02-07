@@ -35,20 +35,27 @@ const mockGetAuthenticatedUserId =
   getAuthenticatedUserId as jest.MockedFunction<typeof getAuthenticatedUserId>;
 
 // Helper to create mock document snapshots
-const createMockDocSnapshot = (exists: boolean, data?: Record<string, unknown>, id?: string) => ({
+const createMockDocSnapshot = (
+  exists: boolean,
+  data?: Record<string, unknown>,
+  id?: string,
+) => ({
   exists,
   data: () => data,
   id: id || (exists ? "mock-doc-id" : ""),
 });
 
 const createMockQuerySnapshot = (
-  docs: Array<{ id: string; data: () => Record<string, unknown> | undefined }>
+  docs: Array<{ id: string; data: () => Record<string, unknown> | undefined }>,
 ) => ({
   docs,
   empty: docs.length === 0,
   size: docs.length,
   forEach: (
-    callback: (doc: { id: string; data: () => Record<string, unknown> | undefined }) => void
+    callback: (doc: {
+      id: string;
+      data: () => Record<string, unknown> | undefined;
+    }) => void,
   ) => docs.forEach(callback),
 });
 
@@ -98,6 +105,7 @@ describe("POST /api/profiles/request-access", () => {
       if (collectionName === "accessRequests") {
         return {
           where: jest.fn().mockReturnThis(),
+          limit: jest.fn().mockReturnThis(),
           get: jest.fn().mockResolvedValue(createMockQuerySnapshot([])),
         } as any;
       }
@@ -119,6 +127,7 @@ describe("POST /api/profiles/request-access", () => {
               if (subCollection === "accessRequests") {
                 const query = {
                   where: jest.fn().mockReturnThis(),
+                  limit: jest.fn().mockReturnThis(),
                   get: jest.fn().mockResolvedValue(pendingRequestsSnapshot),
                   add: mockAdd,
                 };
@@ -126,6 +135,7 @@ describe("POST /api/profiles/request-access", () => {
               } else if (subCollection === "accessGrants") {
                 const query = {
                   where: jest.fn().mockReturnThis(),
+                  limit: jest.fn().mockReturnThis(),
                   get: jest.fn().mockResolvedValue(grantsSnapshot),
                 };
                 return query;
@@ -156,7 +166,7 @@ describe("POST /api/profiles/request-access", () => {
           message: "Please give access",
           duration: { preset: "1_week" },
         }),
-      }
+      },
     );
 
     const response = await POST(request);
@@ -201,6 +211,7 @@ describe("POST /api/profiles/request-access", () => {
       if (collectionName === "accessRequests") {
         return {
           where: jest.fn().mockReturnThis(),
+          limit: jest.fn().mockReturnThis(),
           get: jest.fn().mockResolvedValue(createMockQuerySnapshot([])),
         } as any;
       }
@@ -222,12 +233,14 @@ describe("POST /api/profiles/request-access", () => {
               if (subCollection === "accessRequests") {
                 const query = {
                   where: jest.fn().mockReturnThis(),
+                  limit: jest.fn().mockReturnThis(),
                   get: jest.fn().mockResolvedValue(pendingRequestsSnapshot),
                 };
                 return query;
               } else if (subCollection === "accessGrants") {
                 const query = {
                   where: jest.fn().mockReturnThis(),
+                  limit: jest.fn().mockReturnThis(),
                   get: jest.fn().mockResolvedValue(grantsSnapshot),
                 };
                 return query;
@@ -258,7 +271,7 @@ describe("POST /api/profiles/request-access", () => {
           message: "Please give access",
           duration: { preset: "1_week" },
         }),
-      }
+      },
     );
 
     const response = await POST(request);

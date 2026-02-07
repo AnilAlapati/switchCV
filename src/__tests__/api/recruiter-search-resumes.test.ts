@@ -1,14 +1,35 @@
 import { NextRequest } from "next/server";
 import { POST } from "@/app/api/recruiter/search-resumes/route";
-import { adminDb } from "@/lib/firebase-admin";
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
-import { getUserRole, getUserTier, getTierForRole } from "@/lib/services/userService";
+import {
+  getUserRole,
+  getUserTier,
+  getTierForRole,
+} from "@/lib/services/userService";
 import { getConstants } from "@/lib/getSystemConfig";
 import { createDistributedRateLimiter } from "@/lib/utils/distributedRateLimit";
 import { recordRecruiterSearchEvent } from "@/lib/recruiterSearchHistory";
 import { getDocumentIdFromResumeId } from "@/lib/resumeIdMapping";
 
-// Mock dependencies
+// Mock DAL
+const mockCollectionRef = jest.fn();
+const mockCollectionGroupRef = jest.fn();
+const mockGetDb = jest.fn();
+
+jest.mock("@/lib/dal", () => ({
+  collectionRef: (...args: unknown[]) => mockCollectionRef(...args),
+  collectionGroupRef: (...args: unknown[]) => mockCollectionGroupRef(...args),
+  getDb: (...args: unknown[]) => mockGetDb(...args),
+  COLLECTIONS: {
+    RESUMES: "resumes",
+    USERS: "users",
+    RECRUITER_METRICS: "recruiterMetrics",
+  },
+  increment: jest.fn((v) => ({ type: "increment", value: v })),
+  serverTimestamp: jest.fn(() => "mock-timestamp"),
+}));
+
+// Still mock firebase-admin for any transitive imports that use it
 jest.mock("@/lib/firebase-admin", () => ({
   adminDb: {
     collection: jest.fn(),
@@ -71,7 +92,7 @@ describe("Recruiter Search Resumes API", () => {
         remaining: 9,
         resetIn: 60000,
         reset: Date.now() + 60000,
-      })
+      }),
     );
   });
 
@@ -85,8 +106,12 @@ describe("Recruiter Search Resumes API", () => {
       "http://localhost/api/recruiter/search-resumes",
       {
         method: "POST",
-        body: JSON.stringify({ recruiterId: mockRecruiterId, userId: "user-1", searchMode: "basic" }),
-      }
+        body: JSON.stringify({
+          recruiterId: mockRecruiterId,
+          userId: "user-1",
+          searchMode: "basic",
+        }),
+      },
     );
 
     const res = await POST(req);
@@ -103,8 +128,12 @@ describe("Recruiter Search Resumes API", () => {
       "http://localhost/api/recruiter/search-resumes",
       {
         method: "POST",
-        body: JSON.stringify({ recruiterId: mockRecruiterId, userId: "user-1", searchMode: "basic" }),
-      }
+        body: JSON.stringify({
+          recruiterId: mockRecruiterId,
+          userId: "user-1",
+          searchMode: "basic",
+        }),
+      },
     );
 
     const res = await POST(req);
@@ -117,22 +146,24 @@ describe("Recruiter Search Resumes API", () => {
     });
     (getUserRole as jest.Mock).mockResolvedValue("recruiter");
     (createDistributedRateLimiter as jest.Mock).mockReturnValue(
-      jest
-        .fn()
-        .mockResolvedValue({
-          allowed: false,
-          limit: 10,
-          remaining: 0,
-          reset: Date.now() + 60000,
-        })
+      jest.fn().mockResolvedValue({
+        allowed: false,
+        limit: 10,
+        remaining: 0,
+        reset: Date.now() + 60000,
+      }),
     );
 
     const req = new NextRequest(
       "http://localhost/api/recruiter/search-resumes",
       {
         method: "POST",
-        body: JSON.stringify({ recruiterId: mockRecruiterId, userId: "user-1", searchMode: "basic" }),
-      }
+        body: JSON.stringify({
+          recruiterId: mockRecruiterId,
+          userId: "user-1",
+          searchMode: "basic",
+        }),
+      },
     );
 
     const res = await POST(req);
@@ -148,25 +179,6 @@ describe("Recruiter Search Resumes API", () => {
 
     // Mock metrics update
     const mockMetricsDoc = { set: jest.fn().mockResolvedValue({}) };
-    (adminDb.collection as jest.Mock).mockImplementation((name) => {
-      if (name === "recruiterMetrics") return { doc: () => mockMetricsDoc };
-      return {
-        doc: jest.fn().mockReturnThis(),
-        get: jest.fn(),
-        where: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockReturnThis(),
-      };
-    });
-
-    // Mock access status map (collectionGroup)
-    (adminDb.collectionGroup as jest.Mock).mockReturnValue({
-      where: jest.fn().mockReturnThis(),
-      get: jest.fn().mockResolvedValue({
-        forEach: jest.fn(),
-        docs: [],
-        empty: true,
-      }),
-    });
 
     // Mock performBasicSearch logic
     (getDocumentIdFromResumeId as jest.Mock).mockResolvedValue({
@@ -181,7 +193,7 @@ describe("Recruiter Search Resumes API", () => {
     };
     const mockUserData = { displayName: "John Doe", email: "john@example.com" };
 
-    (adminDb.collection as jest.Mock).mockImplementation((name) => {
+    mockCollectionRef.mockImplementation((name: string) => {
       if (name === "recruiterMetrics") return { doc: () => mockMetricsDoc };
       if (name === "resumes") {
         return {
@@ -196,6 +208,9 @@ describe("Recruiter Search Resumes API", () => {
               get: jest.fn().mockResolvedValue({ empty: true, docs: [] }),
             }),
           }),
+          firestore: {
+            collectionGroup: jest.fn(),
+          },
         };
       }
       if (name === "users") {
@@ -208,15 +223,34 @@ describe("Recruiter Search Resumes API", () => {
           }),
         };
       }
-      return {};
+      return {
+        doc: jest.fn().mockReturnThis(),
+        get: jest.fn(),
+        where: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+      };
+    });
+
+    // Mock access status map (collectionGroupRef)
+    mockCollectionGroupRef.mockReturnValue({
+      where: jest.fn().mockReturnThis(),
+      get: jest.fn().mockResolvedValue({
+        forEach: jest.fn(),
+        docs: [],
+        empty: true,
+      }),
     });
 
     const req = new NextRequest(
       "http://localhost/api/recruiter/search-resumes",
       {
         method: "POST",
-        body: JSON.stringify({ recruiterId: mockRecruiterId, userId: "user-1", searchMode: "basic" }),
-      }
+        body: JSON.stringify({
+          recruiterId: mockRecruiterId,
+          userId: "user-1",
+          searchMode: "basic",
+        }),
+      },
     );
 
     const res = await POST(req);
@@ -259,7 +293,7 @@ describe("Recruiter Search Resumes API", () => {
       }),
     };
 
-    (adminDb.collection as jest.Mock).mockImplementation((name) => {
+    mockCollectionRef.mockImplementation((name: string) => {
       if (name === "recruiterMetrics") return { doc: () => mockMetricsDoc };
       if (name === "resumes") {
         return {
@@ -274,6 +308,9 @@ describe("Recruiter Search Resumes API", () => {
               get: jest.fn().mockResolvedValue({ empty: true, docs: [] }),
             }),
           }),
+          firestore: {
+            collectionGroup: jest.fn(),
+          },
         };
       }
       if (name === "users") {
@@ -286,8 +323,10 @@ describe("Recruiter Search Resumes API", () => {
       return {};
     });
 
-    (adminDb.getAll as jest.Mock).mockResolvedValue([mockUserDoc]);
-    (adminDb.collectionGroup as jest.Mock).mockReturnValue({
+    mockGetDb.mockReturnValue({
+      getAll: jest.fn().mockResolvedValue([mockUserDoc]),
+    });
+    mockCollectionGroupRef.mockReturnValue({
       where: jest.fn().mockReturnThis(),
       get: jest.fn().mockResolvedValue({
         forEach: jest.fn(),
@@ -300,8 +339,13 @@ describe("Recruiter Search Resumes API", () => {
       "http://localhost/api/recruiter/search-resumes",
       {
         method: "POST",
-        body: JSON.stringify({ recruiterId: mockRecruiterId, skills: ["React"], location: "New York", searchMode: "premium" }),
-      }
+        body: JSON.stringify({
+          recruiterId: mockRecruiterId,
+          skills: ["React"],
+          location: "New York",
+          searchMode: "premium",
+        }),
+      },
     );
 
     const res = await POST(req);
@@ -323,16 +367,18 @@ describe("Recruiter Search Resumes API", () => {
       "http://localhost/api/recruiter/search-resumes",
       {
         method: "POST",
-        body: JSON.stringify({ recruiterId: mockRecruiterId, skills: ["React"], searchMode: "premium" }),
-      }
+        body: JSON.stringify({
+          recruiterId: mockRecruiterId,
+          skills: ["React"],
+          searchMode: "premium",
+        }),
+      },
     );
 
     const res = await POST(req);
     expect(res.status).toBe(403);
     const data = await res.json();
-    expect(data.error).toContain(
-      "Premium or enterprise subscription required"
-    );
+    expect(data.error).toContain("Premium or enterprise subscription required");
   });
 
   it("should return 400 if no valid search parameters", async () => {
@@ -348,7 +394,7 @@ describe("Recruiter Search Resumes API", () => {
         method: "POST",
         // Empty body or missing required fields
         body: JSON.stringify({ recruiterId: mockRecruiterId }),
-      }
+      },
     );
 
     const res = await POST(req);

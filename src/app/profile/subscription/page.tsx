@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useTierLimits } from "@/hooks/useTierLimits";
-import { SubscriptionTier } from "@/lib/config";
 import { DashboardBackground } from "@/components/dashboard/DashboardBackground";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { useAuth } from "@/hooks/useAuth";
@@ -31,12 +30,17 @@ function SparklesIcon({ className }: { className?: string }) {
 export default function SubscriptionPage() {
   const { user, logout } = useAuth();
   const router = useRouter();
-  const { jobSeekerTier, recruiterTier, role: currentRole, loading: profileLoading } = useUserProfile();
+  const {
+    jobSeekerTier,
+    recruiterTier,
+    role: currentRole,
+    loading: profileLoading,
+  } = useUserProfile();
   const { limits, loading: limitsLoading } = useTierLimits();
 
   // Default to current role view, fallback to jobseeker
   const [viewRole, setViewRole] = useState<"jobseeker" | "recruiter">(
-    currentRole === "recruiter" ? "recruiter" : "jobseeker"
+    currentRole === "recruiter" ? "recruiter" : "jobseeker",
   );
 
   const loading = profileLoading || limitsLoading;
@@ -44,7 +48,7 @@ export default function SubscriptionPage() {
   if (loading) {
     return (
       <DashboardBackground>
-        <DashboardHeader userEmail={user?.email} onLogout={() => { }} />
+        <DashboardHeader userEmail={user?.email} onLogout={() => {}} />
         <SubscriptionSkeleton />
       </DashboardBackground>
     );
@@ -139,7 +143,8 @@ export default function SubscriptionPage() {
   };
 
   const currentTiers = getTiersForRole(viewRole);
-  const currentRoleTier = viewRole === "recruiter" ? recruiterTier : jobSeekerTier;
+  const currentRoleTier =
+    viewRole === "recruiter" ? recruiterTier : jobSeekerTier;
 
   return (
     <DashboardBackground>
@@ -192,19 +197,21 @@ export default function SubscriptionPage() {
               <div className="inline-flex p-1 bg-gray-100 rounded-xl border border-gray-200">
                 <button
                   onClick={() => setViewRole("jobseeker")}
-                  className={`px-8 py-3 text-sm font-bold transition-all duration-300 rounded-lg ${viewRole === "jobseeker"
-                    ? "bg-white text-black shadow-md border border-gray-100"
-                    : "text-gray-500 hover:text-black"
-                    }`}
+                  className={`px-8 py-3 text-sm font-bold transition-all duration-300 rounded-lg ${
+                    viewRole === "jobseeker"
+                      ? "bg-white text-black shadow-md border border-gray-100"
+                      : "text-gray-500 hover:text-black"
+                  }`}
                 >
                   For Job Seekers
                 </button>
                 <button
                   onClick={() => setViewRole("recruiter")}
-                  className={`px-8 py-3 text-sm font-bold transition-all duration-300 rounded-lg ${viewRole === "recruiter"
-                    ? "bg-white text-black shadow-md border border-gray-100 shadow-indigo-500/5 style={{ boxShadow: '0 4px 14px 0 rgba(0, 0, 0, 0.05)' }}"
-                    : "text-gray-500 hover:text-black"
-                    }`}
+                  className={`px-8 py-3 text-sm font-bold transition-all duration-300 rounded-lg ${
+                    viewRole === "recruiter"
+                      ? "bg-white text-black shadow-md border border-gray-100 shadow-indigo-500/5 style={{ boxShadow: '0 4px 14px 0 rgba(0, 0, 0, 0.05)' }}"
+                      : "text-gray-500 hover:text-black"
+                  }`}
                 >
                   For Recruiters
                 </button>
@@ -214,8 +221,7 @@ export default function SubscriptionPage() {
             <p className="max-w-2xl mx-auto text-lg text-[black]/70">
               {viewRole === "jobseeker"
                 ? "Accelerate your career with AI-powered resume fine-tuning and priority agent access."
-                : "Source top talent faster with proprietary AI search and high-volume contact outreach."
-              }
+                : "Source top talent faster with proprietary AI search and high-volume contact outreach."}
             </p>
           </div>
 
@@ -227,17 +233,19 @@ export default function SubscriptionPage() {
               return (
                 <div
                   key={plan.id}
-                  className={`relative group flex flex-col h-full transition-all duration-500 rounded-xl ${isCurrent
-                    ? "scale-105 z-10 shadow-2xl"
-                    : "hover:scale-105 z-0 hover:shadow-xl"
-                    }`}
+                  className={`relative group flex flex-col h-full transition-all duration-500 rounded-xl ${
+                    isCurrent
+                      ? "scale-105 z-10 shadow-2xl"
+                      : "hover:scale-105 z-0 hover:shadow-xl"
+                  }`}
                 >
                   {/* Card Boarder/Background */}
                   <div
-                    className={`absolute inset-0 rounded-xl border-2 transition-colors duration-300 ${isCurrent
-                      ? "border-black bg-white"
-                      : "border-gray-200 bg-white group-hover:border-black/50"
-                      }`}
+                    className={`absolute inset-0 rounded-xl border-2 transition-colors duration-300 ${
+                      isCurrent
+                        ? "border-black bg-white"
+                        : "border-gray-200 bg-white group-hover:border-black/50"
+                    }`}
                   />
 
                   {/* Card Content */}
@@ -246,8 +254,9 @@ export default function SubscriptionPage() {
                     <div className="mb-8 border-b-2 border-gray-100 pb-6">
                       <div className="flex justify-between items-center mb-2">
                         <h3
-                          className={`font-serif font-bold text-base uppercase tracking-widest ${isCurrent ? "text-black" : "text-gray-500"
-                            }`}
+                          className={`font-serif font-bold text-base uppercase tracking-widest ${
+                            isCurrent ? "text-black" : "text-gray-500"
+                          }`}
                         >
                           {plan.name}
                         </h3>
@@ -283,10 +292,11 @@ export default function SubscriptionPage() {
                           className="flex items-start gap-3 group/item"
                         >
                           <span
-                            className={`mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${isCurrent
-                              ? "bg-blue-600"
-                              : "bg-gray-300 group-hover/item:bg-black"
-                              } transition-colors`}
+                            className={`mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                              isCurrent
+                                ? "bg-blue-600"
+                                : "bg-gray-300 group-hover/item:bg-black"
+                            } transition-colors`}
                           />
                           <span className="text-sm text-gray-700 font-medium tracking-tight group-hover/item:text-black transition-colors">
                             {feature}
@@ -298,10 +308,11 @@ export default function SubscriptionPage() {
                     {/* Action Button */}
                     <button
                       disabled={true}
-                      className={`w-full py-4 px-4 text-xs font-bold uppercase tracking-widest transition-all duration-300 rounded-lg border-2 ${isCurrent
-                        ? "bg-black border-black text-white"
-                        : "bg-transparent border-gray-200 text-gray-400"
-                        }`}
+                      className={`w-full py-4 px-4 text-xs font-bold uppercase tracking-widest transition-all duration-300 rounded-lg border-2 ${
+                        isCurrent
+                          ? "bg-black border-black text-white"
+                          : "bg-transparent border-gray-200 text-gray-400"
+                      }`}
                     >
                       {isCurrent ? "Active Plan" : "Select Plan"}
                     </button>

@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 import {
   ArrowLeft,
   Brain,
@@ -11,15 +11,10 @@ import {
   Sparkles,
   Target,
   Users,
-  FileText,
-  Palette,
   Search,
   BarChart3,
-  Mail,
-  GitBranch,
   MessageSquare,
   Briefcase,
-  Filter,
   UserCheck,
 } from "lucide-react";
 
@@ -242,20 +237,22 @@ export default function HowItWorksPage() {
             <div className="inline-flex bg-gray-100 rounded-lg p-1 border border-black/10">
               <button
                 onClick={() => setMode("jobseeker")}
-                className={`px-5 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${mode === "jobseeker"
-                  ? "bg-black text-white shadow-sm"
-                  : "text-gray-600 hover:text-black"
-                  }`}
+                className={`px-5 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
+                  mode === "jobseeker"
+                    ? "bg-black text-white shadow-sm"
+                    : "text-gray-600 hover:text-black"
+                }`}
               >
                 <Briefcase className="w-4 h-4" />
                 Job Seeker
               </button>
               <button
                 onClick={() => setMode("recruiter")}
-                className={`px-5 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${mode === "recruiter"
-                  ? "bg-black text-white shadow-sm"
-                  : "text-gray-600 hover:text-black"
-                  }`}
+                className={`px-5 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
+                  mode === "recruiter"
+                    ? "bg-black text-white shadow-sm"
+                    : "text-gray-600 hover:text-black"
+                }`}
               >
                 <UserCheck className="w-4 h-4" />
                 Recruiter
@@ -313,7 +310,8 @@ export default function HowItWorksPage() {
                 See the Difference
               </h2>
               <p className="text-gray-600 max-w-xl mx-auto">
-                Real examples of how our agents transform vague statements into compelling, quantified achievements.
+                Real examples of how our agents transform vague statements into
+                compelling, quantified achievements.
               </p>
             </div>
 
@@ -361,7 +359,6 @@ export default function HowItWorksPage() {
 
             {/* Demo Resume Links */}
             <DemoResumeCarousel />
-
           </div>
         </section>
       )}
@@ -375,7 +372,8 @@ export default function HowItWorksPage() {
                 See How Our AI Finds the Best Match
               </h2>
               <p className="text-gray-600 max-w-xl mx-auto">
-                When you search, our agents don&apos;t just match keywords—they deeply understand each resume and rank candidates by true fit.
+                When you search, our agents don&apos;t just match keywords—they
+                deeply understand each resume and rank candidates by true fit.
               </p>
             </div>
 
@@ -384,10 +382,13 @@ export default function HowItWorksPage() {
               <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-indigo-50 border-b border-black/5">
                 <div className="flex items-center gap-3">
                   <Search className="w-5 h-5 text-gray-700" />
-                  <span className="text-sm font-mono text-gray-500">Your Search Query:</span>
+                  <span className="text-sm font-mono text-gray-500">
+                    Your Search Query:
+                  </span>
                 </div>
                 <p className="mt-2 text-lg font-medium text-gray-900">
-                  &quot;Looking for a Java engineer with 5+ years experience in distributed systems and microservices&quot;
+                  &quot;Looking for a Java engineer with 5+ years experience in
+                  distributed systems and microservices&quot;
                 </p>
               </div>
 
@@ -426,8 +427,12 @@ export default function HowItWorksPage() {
                           SC
                         </div>
                         <div>
-                          <span className="font-bold text-gray-900">Sarah Chen</span>
-                          <span className="text-sm text-gray-500 ml-2">Senior Software Engineer</span>
+                          <span className="font-bold text-gray-900">
+                            Sarah Chen
+                          </span>
+                          <span className="text-sm text-gray-500 ml-2">
+                            Senior Software Engineer
+                          </span>
                         </div>
                       </div>
                       <span className="bg-black text-white text-sm font-bold px-3 py-1 rounded-full">
@@ -435,13 +440,24 @@ export default function HowItWorksPage() {
                       </span>
                     </div>
                     <p className="text-sm text-gray-600 mb-2">
-                      <strong className="text-gray-800">Why this match:</strong> 7 years Java experience, led microservices migration at Scale Corp processing 2M daily transactions, expertise in Kafka and distributed caching
+                      <strong className="text-gray-800">Why this match:</strong>{" "}
+                      7 years Java experience, led microservices migration at
+                      Scale Corp processing 2M daily transactions, expertise in
+                      Kafka and distributed caching
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded">Java 7+ yrs ✓</span>
-                      <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded">Distributed Systems ✓</span>
-                      <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded">Microservices ✓</span>
-                      <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded">Leadership ✓</span>
+                      <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded">
+                        Java 7+ yrs ✓
+                      </span>
+                      <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded">
+                        Distributed Systems ✓
+                      </span>
+                      <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded">
+                        Microservices ✓
+                      </span>
+                      <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded">
+                        Leadership ✓
+                      </span>
                     </div>
                   </div>
 
@@ -453,8 +469,12 @@ export default function HowItWorksPage() {
                           MR
                         </div>
                         <div>
-                          <span className="font-bold text-gray-900">Marcus Rodriguez</span>
-                          <span className="text-sm text-gray-500 ml-2">Backend Engineer</span>
+                          <span className="font-bold text-gray-900">
+                            Marcus Rodriguez
+                          </span>
+                          <span className="text-sm text-gray-500 ml-2">
+                            Backend Engineer
+                          </span>
                         </div>
                       </div>
                       <span className="bg-gray-700 text-white text-sm font-bold px-3 py-1 rounded-full">
@@ -462,12 +482,20 @@ export default function HowItWorksPage() {
                       </span>
                     </div>
                     <p className="text-sm text-gray-600 mb-2">
-                      <strong className="text-gray-800">Why this match:</strong> 5 years Java, strong Spring Boot and AWS experience, built event-driven architecture at FinTech startup
+                      <strong className="text-gray-800">Why this match:</strong>{" "}
+                      5 years Java, strong Spring Boot and AWS experience, built
+                      event-driven architecture at FinTech startup
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      <span className="text-xs bg-gray-200 text-gray-800 px-2 py-1 rounded">Java 5 yrs ✓</span>
-                      <span className="text-xs bg-gray-200 text-gray-800 px-2 py-1 rounded">Distributed Systems ✓</span>
-                      <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded">Microservices (partial)</span>
+                      <span className="text-xs bg-gray-200 text-gray-800 px-2 py-1 rounded">
+                        Java 5 yrs ✓
+                      </span>
+                      <span className="text-xs bg-gray-200 text-gray-800 px-2 py-1 rounded">
+                        Distributed Systems ✓
+                      </span>
+                      <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded">
+                        Microservices (partial)
+                      </span>
                     </div>
                   </div>
 
@@ -479,8 +507,12 @@ export default function HowItWorksPage() {
                           AK
                         </div>
                         <div>
-                          <span className="font-bold text-gray-900">Aisha Kumar</span>
-                          <span className="text-sm text-gray-500 ml-2">Full Stack Developer</span>
+                          <span className="font-bold text-gray-900">
+                            Aisha Kumar
+                          </span>
+                          <span className="text-sm text-gray-500 ml-2">
+                            Full Stack Developer
+                          </span>
                         </div>
                       </div>
                       <span className="bg-gray-600 text-white text-sm font-bold px-3 py-1 rounded-full">
@@ -488,12 +520,21 @@ export default function HowItWorksPage() {
                       </span>
                     </div>
                     <p className="text-sm text-gray-600 mb-2">
-                      <strong className="text-gray-800">Why this match:</strong> 6 years Java/Kotlin, Docker & Kubernetes expert, designed service mesh for e-commerce platform handling 100k concurrent users
+                      <strong className="text-gray-800">Why this match:</strong>{" "}
+                      6 years Java/Kotlin, Docker & Kubernetes expert, designed
+                      service mesh for e-commerce platform handling 100k
+                      concurrent users
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      <span className="text-xs bg-gray-200 text-gray-800 px-2 py-1 rounded">Java 6 yrs ✓</span>
-                      <span className="text-xs bg-gray-200 text-gray-800 px-2 py-1 rounded">Microservices ✓</span>
-                      <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded">Distributed (learning)</span>
+                      <span className="text-xs bg-gray-200 text-gray-800 px-2 py-1 rounded">
+                        Java 6 yrs ✓
+                      </span>
+                      <span className="text-xs bg-gray-200 text-gray-800 px-2 py-1 rounded">
+                        Microservices ✓
+                      </span>
+                      <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded">
+                        Distributed (learning)
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -502,7 +543,10 @@ export default function HowItWorksPage() {
                   <p className="text-sm text-amber-800 flex items-start gap-2">
                     <Sparkles className="w-4 h-4 mt-0.5 shrink-0" />
                     <span>
-                      <strong>AI Insight:</strong> Sarah Chen&apos;s profile shows she scaled a payments system similar to your requirements—consider asking about her approach to handling distributed transactions.
+                      <strong>AI Insight:</strong> Sarah Chen&apos;s profile
+                      shows she scaled a payments system similar to your
+                      requirements—consider asking about her approach to
+                      handling distributed transactions.
                     </span>
                   </p>
                 </div>
@@ -510,7 +554,8 @@ export default function HowItWorksPage() {
             </div>
 
             <p className="text-center text-sm text-gray-500 mt-4">
-              Our agents analyze experience, skills, projects, and achievements—not just keyword matching
+              Our agents analyze experience, skills, projects, and
+              achievements—not just keyword matching
             </p>
           </div>
         </section>
@@ -619,25 +664,24 @@ export default function HowItWorksPage() {
             {mode === "jobseeker" ? (
               <>
                 <div className="p-6 border border-white/20 rounded-lg">
-                  <h3 className="font-bold text-lg mb-2">
-                    🧠 Deeper Strategy
-                  </h3>
+                  <h3 className="font-bold text-lg mb-2">🧠 Deeper Strategy</h3>
                   <p className="text-sm text-gray-400">
                     The Scout and Architect work together to deeply understand
                     requirements before a single word is written.
                   </p>
                 </div>
                 <div className="p-6 border border-white/20 rounded-lg">
-                  <h3 className="font-bold text-lg mb-2">
-                    ⚡ Unified Writing
-                  </h3>
+                  <h3 className="font-bold text-lg mb-2">⚡ Unified Writing</h3>
                   <p className="text-sm text-gray-400">
-                    The Writer combines storytelling and editing in one high-impact
-                    pass, ensuring perfect flow and professional impact.
+                    The Writer combines storytelling and editing in one
+                    high-impact pass, ensuring perfect flow and professional
+                    impact.
                   </p>
                 </div>
                 <div className="p-6 border border-white/20 rounded-lg">
-                  <h3 className="font-bold text-lg mb-2">🎯 Zero Hallucinations</h3>
+                  <h3 className="font-bold text-lg mb-2">
+                    🎯 Zero Hallucinations
+                  </h3>
                   <p className="text-sm text-gray-400">
                     The Auditor performs a rigorous final check and selects the
                     ideal design to make your resume stand out to recruiters.
@@ -1158,125 +1202,5 @@ function DemoResumeCard({
         <div className="absolute -top-8 -right-8 w-20 h-20 rounded-full bg-white/10 blur-2xl group-hover:bg-white/20 transition-all" />
       </motion.div>
     </Link>
-  );
-}
-
-function FlowStep({
-  label,
-  sublabel,
-  color,
-  isFirst,
-  isLast,
-  icon,
-}: {
-  label: string;
-  sublabel: string;
-  color?: string;
-  isFirst?: boolean;
-  isLast?: boolean;
-  icon?: React.ReactNode;
-}) {
-  const bgClass =
-    isFirst || isLast
-      ? "bg-black text-white"
-      : color === "blue"
-        ? "bg-blue-600 text-white"
-        : color === "amber"
-          ? "bg-amber-500 text-white"
-          : color === "rose"
-            ? "bg-rose-500 text-white"
-            : color === "green"
-              ? "bg-green-600 text-white"
-              : color === "purple"
-                ? "bg-purple-600 text-white"
-                : "bg-gray-200 text-black";
-
-  return (
-    <div className="text-center">
-      <div
-        className={`px-4 py-2.5 rounded-lg font-medium text-sm ${bgClass} flex items-center gap-2 justify-center`}
-      >
-        {icon}
-        {label}
-      </div>
-      <span className="text-xs text-gray-500 mt-1 block">{sublabel}</span>
-    </div>
-  );
-}
-
-function FlowArrow() {
-  return (
-    <>
-      <div className="text-gray-400 hidden md:block">
-        <ArrowRight className="w-5 h-5" />
-      </div>
-      <div className="text-gray-400 md:hidden">
-        <ArrowRight className="w-5 h-5 rotate-90" />
-      </div>
-    </>
-  );
-}
-
-function RecruiterDemoCard({
-  title,
-  description,
-  icon,
-  color,
-}: {
-  title: string;
-  description: string;
-  icon: React.ReactNode;
-  color: string;
-}) {
-  const colorMap = {
-    purple: {
-      bg: "bg-purple-500",
-      gradient: "from-purple-400 to-purple-600",
-      iconBg: "bg-purple-100",
-      iconText: "text-purple-600",
-    },
-    amber: {
-      bg: "bg-amber-500",
-      gradient: "from-amber-400 to-amber-600",
-      iconBg: "bg-amber-100",
-      iconText: "text-amber-600",
-    },
-    green: {
-      bg: "bg-green-500",
-      gradient: "from-green-400 to-green-600",
-      iconBg: "bg-green-100",
-      iconText: "text-green-600",
-    },
-    blue: {
-      bg: "bg-blue-500",
-      gradient: "from-blue-400 to-blue-600",
-      iconBg: "bg-blue-100",
-      iconText: "text-blue-600",
-    },
-  }[color] || {
-    bg: "bg-gray-500",
-    gradient: "from-gray-400 to-gray-600",
-    iconBg: "bg-gray-100",
-    iconText: "text-gray-600",
-  };
-
-  return (
-    <motion.div
-      className="bg-white rounded-xl border border-black/10 p-6 shadow-sm hover:shadow-lg transition-all cursor-pointer group"
-      whileHover={{ y: -4 }}
-      transition={{ type: "spring", stiffness: 300, damping: 20 }}
-    >
-      <div
-        className={`w-14 h-14 rounded-xl flex items-center justify-center mb-4 ${colorMap.iconBg} ${colorMap.iconText} group-hover:scale-110 transition-transform`}
-      >
-        {icon}
-      </div>
-      <h4 className="font-serif font-bold text-lg mb-2">{title}</h4>
-      <p className="text-gray-600 text-sm">{description}</p>
-      <div className="mt-4 flex items-center text-sm font-medium text-gray-400 group-hover:text-black transition-colors">
-        <span>Learn more</span>
-        <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
-      </div>
-    </motion.div>
   );
 }
