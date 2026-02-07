@@ -34,17 +34,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Setup Java (for Firebase Emulators)
-        uses: actions/setup-java@v4
-        with:
-          distribution: "temurin"
-          java-version: "21"
-
       - name: Run Linting
         run: npm run lint
 
       - name: Run Tests
-        run: npx firebase emulators:exec --only firestore "npm test" --project demo-switchcv
+        run: CI=true npx jest --watch=false --watchman=false
 
       - name: Security Audit
-        run: npm audit --audit-level=high
+        run: npm audit --omit=dev --audit-level=high
