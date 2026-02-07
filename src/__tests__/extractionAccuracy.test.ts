@@ -1,4 +1,4 @@
-/* eslint-disable max-lines */
+ 
 import { ResumeDataExtractor } from "@/lib/services/resumeDataExtractor";
 import { ResumeDataRequirements } from "@/lib/services/conversationManager";
 

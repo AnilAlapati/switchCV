@@ -411,8 +411,9 @@ describe("RecruiterSearchBox", () => {
 
   it("disables form during loading", async () => {
     // Mock a very slow response to ensure we can see loading state
-    let resolveSlowFetch: (value: Response) => void;
-    const slowPromise = new Promise((resolve) => {
+    let resolveSlowFetch: (value: Response | PromiseLike<Response>) => void =
+      () => undefined;
+    const slowPromise = new Promise<Response>((resolve) => {
       resolveSlowFetch = resolve;
     });
 
@@ -440,7 +441,7 @@ describe("RecruiterSearchBox", () => {
     resolveSlowFetch({
       ok: true,
       json: async () => ({ results: [], notification: null }),
-    });
+    } as Response);
 
     // Wait for loading to complete
     await waitFor(() => {

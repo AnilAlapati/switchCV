@@ -81,8 +81,8 @@ describe("resumeEditor Utilities", () => {
       // Check contact normalization
       expect(profile.contact?.email.value).toBe("test@example.com");
       expect(profile.contact?.email.visibility).toBe("public");
-      expect(profile.contact?.phone.value).toBe("123-456");
-      expect(profile.contact?.phone.visibility).toBe("request");
+      expect(profile.contact?.phone?.value).toBe("123-456");
+      expect(profile.contact?.phone?.visibility).toBe("request");
     });
 
     it("should handle numericId fallback to id", () => {
@@ -138,7 +138,7 @@ describe("resumeEditor Utilities", () => {
       expect(profile.experience?.[2].visibility).toBe("public");
       expect(profile.contact?.email.value).toBe("test@test.com");
       expect(profile.contact?.email.visibility).toBe("public");
-      expect(profile.contact?.phone.value).toBe("123456");
+      expect(profile.contact?.phone?.value).toBe("123456");
       expect(profile.personalInfo).toEqual({});
     });
 
@@ -152,8 +152,8 @@ describe("resumeEditor Utilities", () => {
       const { profile } = normalizeResumeForEditor(raw);
       expect(profile.contact?.email.value).toBe("");
       expect(profile.contact?.email.visibility).toBe("masked");
-      expect(profile.contact?.phone.value).toBe("");
-      expect(profile.contact?.phone.visibility).toBe("request");
+      expect(profile.contact?.phone?.value).toBe("");
+      expect(profile.contact?.phone?.visibility).toBe("request");
     });
 
     it("should handle empty or null input", () => {

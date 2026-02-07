@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb } from "@/lib/firebase-admin";
+import { COLLECTIONS, collectionRef, increment, serverTimestamp } from "@/lib/dal";
 import {
   attachRateLimitHeaders,
   getAuthenticatedUserId,
@@ -13,7 +12,6 @@ import {
   performPremiumSearch,
 } from "./search-service";
 
-import { FieldValue } from "firebase-admin/firestore";
 import { recordRecruiterSearchEvent } from "@/lib/recruiterSearchHistory";
 import {
   getUserRole,
@@ -88,13 +86,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const subscriptionTier = await getTierForRole(recruiterId, "recruiter");
 
     // Update recruiter metrics
-    await adminDb
-      .collection("recruiterMetrics")
+    await collectionRef(COLLECTIONS.RECRUITER_METRICS)
       .doc(recruiterId)
       .set(
         {
-          totalSearches: FieldValue.increment(1),
-          lastActivityAt: FieldValue.serverTimestamp(),
+          totalSearches: increment(1),
+          lastActivityAt: serverTimestamp(),
         },
         { merge: true }
       )

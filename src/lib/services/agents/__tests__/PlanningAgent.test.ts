@@ -6,6 +6,7 @@ jest.mock("../../aiGenerationService");
 const mockedGenerateText = jest.mocked(generateText);
 
 describe("PlanningAgent", () => {
+  const mockCompletionMeta = { model: "test-model", provider: "test-provider" };
   const mockContext: AgentContext = {
     userId: "test-user",
     model: "test-model",
@@ -30,6 +31,7 @@ describe("PlanningAgent", () => {
     };
     mockedGenerateText.mockResolvedValueOnce({
       text: JSON.stringify(mockJson),
+      ...mockCompletionMeta,
     });
 
     const result = await agent.run({ researchOutput }, mockContext);
@@ -66,7 +68,10 @@ describe("PlanningAgent", () => {
   it("should fallback to treating output as strategic points if JSON is invalid", async () => {
     const agent = new PlanningAgent("test-model");
     const rawText = "Plain text strategy";
-    mockedGenerateText.mockResolvedValueOnce({ text: rawText });
+    mockedGenerateText.mockResolvedValueOnce({
+      text: rawText,
+      ...mockCompletionMeta,
+    });
 
     const result = await agent.run({}, mockContext);
 
@@ -78,7 +83,10 @@ describe("PlanningAgent", () => {
     const agent = new PlanningAgent("test-model");
     const mockJson = { strategicPoints: ["p1"] };
     const wrappedText = `Analysis:\n ${JSON.stringify(mockJson)} \nDone.`;
-    mockedGenerateText.mockResolvedValueOnce({ text: wrappedText });
+    mockedGenerateText.mockResolvedValueOnce({
+      text: wrappedText,
+      ...mockCompletionMeta,
+    });
 
     const result = await agent.run({}, mockContext);
 
@@ -88,7 +96,10 @@ describe("PlanningAgent", () => {
 
   it("should handle emptyStrategicPoints in fallback if parsing fails completely", async () => {
     const agent = new PlanningAgent("test-model");
-    mockedGenerateText.mockResolvedValueOnce({ text: "" });
+    mockedGenerateText.mockResolvedValueOnce({
+      text: "",
+      ...mockCompletionMeta,
+    });
 
     const result = await agent.run({}, mockContext);
 

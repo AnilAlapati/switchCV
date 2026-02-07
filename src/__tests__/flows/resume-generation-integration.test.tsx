@@ -10,12 +10,16 @@ import {
 // Mock hooks and components
 jest.mock("@/hooks/useAIResume");
 jest.mock("@/components/ResumeGenerationLoader", () => ({
-  ResumeGenerationLoader: (props: Record<string, unknown>) => (
+  ResumeGenerationLoader: (
+    props: React.ComponentProps<typeof MockResumeGenerationLoader>,
+  ) => (
     <MockResumeGenerationLoader {...props} />
   ),
 }));
 jest.mock("@/components/ResumeReviewModal", () => ({
-  ResumeReviewModal: (props: Record<string, unknown>) => (
+  ResumeReviewModal: (
+    props: React.ComponentProps<typeof MockResumeReviewModal>,
+  ) => (
     <MockResumeReviewModal {...props} />
   ),
 }));

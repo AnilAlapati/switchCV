@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb, adminAuth } from "@/lib/firebase-admin";
+import {
+  COLLECTIONS,
+  collectionRef,
+  getAuthUserByEmail,
+  serverTimestamp,
+  timestampFromDate,
+} from "@/lib/dal";
 import { handleApiError } from "@/lib/utils/api-helpers";
 import { randomBytes } from "crypto";
-// eslint-disable-next-line no-restricted-imports
-import admin from "firebase-admin";
+import { RequestPasswordResetSchema } from "@/lib/schemas/api";
 
 /**
  * Request password reset - generates token and sends email via Firestore extension
@@ -12,21 +16,22 @@ import admin from "firebase-admin";
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { email } = body;
-
-    if (!email || typeof email !== "string") {
+    const parseResult = RequestPasswordResetSchema.safeParse(
+      await request.json()
+    );
+    if (!parseResult.success) {
       return handleApiError(
-        new Error("Email is required"),
+        parseResult.error,
         "Email is required",
         400
       );
     }
+    const { email } = parseResult.data;
 
     // Check if user exists
     let user;
     try {
-      user = await adminAuth.getUserByEmail(email);
+      user = await getAuthUserByEmail(email);
     } catch {
       // For security, don't reveal if email exists or not
       // Return success even if user doesn't exist
@@ -42,13 +47,13 @@ export async function POST(request: NextRequest) {
     expiresAt.setHours(expiresAt.getHours() + 1); // 1 hour expiration
 
     // Store reset token in Firestore
-    await adminDb.collection("passwordResetTokens").add({
+    await collectionRef(COLLECTIONS.PASSWORD_RESET_TOKENS).add({
       token: resetToken,
       userId: user.uid,
       email: email,
       used: false,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+      createdAt: serverTimestamp(),
+      expiresAt: timestampFromDate(expiresAt),
     });
 
     // Create reset URL
@@ -57,7 +62,7 @@ export async function POST(request: NextRequest) {
     }/auth/reset-password?token=${resetToken}`;
 
     // Queue email via Firestore extension (same process as all other emails)
-    await adminDb.collection("mail").add({
+    await collectionRef(COLLECTIONS.MAIL).add({
       to: email,
       from: "SwitchCV <switchcvs@gmail.com>",
       replyTo: "switchcvs@gmail.com",

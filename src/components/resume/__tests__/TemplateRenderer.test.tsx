@@ -2,8 +2,10 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import { TemplateRenderer } from "@/components/resume/TemplateRenderer";
 import { ResumeTemplate, ResumeProfile } from "@/types";
+type ViewerAccessMeta = Record<string, unknown>;
+const AnyTemplateRenderer = TemplateRenderer as unknown as React.ComponentType<any>;
 
-const mockTemplate: ResumeTemplate = {
+const mockTemplate = {
   id: "test-template",
   name: "Test Template",
   description: "A test template",
@@ -156,9 +158,9 @@ const mockTemplate: ResumeTemplate = {
       ],
     },
   ],
-};
+} as unknown as ResumeTemplate;
 
-const mockData: Partial<ResumeProfile> = {
+const mockData = {
   title: "Software Engineer",
   summary: "A great engineer.",
   personalInfo: {
@@ -202,7 +204,7 @@ const mockData: Partial<ResumeProfile> = {
     },
   ],
   extra_info: "Extra stuff",
-};
+} as unknown as ResumeProfile;
 
 describe("TemplateRenderer", () => {
   test("handles 'public' visibility for contact info", () => {
@@ -212,7 +214,7 @@ describe("TemplateRenderer", () => {
     };
 
     render(
-      <TemplateRenderer
+      <AnyTemplateRenderer
         template={mockTemplate}
         data={mockData as ResumeProfile}
         viewerAccess={publicAccess}
@@ -233,7 +235,7 @@ describe("TemplateRenderer", () => {
     };
 
     render(
-      <TemplateRenderer
+      <AnyTemplateRenderer
         template={mockTemplate}
         data={dataWithEmptyPhone as ResumeProfile}
         viewerAccess={{ scope: "full", contactVisibility: "full" }}
@@ -246,7 +248,7 @@ describe("TemplateRenderer", () => {
 
   it("renders the template sections correctly", () => {
     render(
-      <TemplateRenderer
+      <AnyTemplateRenderer
         template={mockTemplate}
         data={mockData as ResumeProfile}
       />,
@@ -258,7 +260,7 @@ describe("TemplateRenderer", () => {
 
   it("renders hero section with title", () => {
     render(
-      <TemplateRenderer
+      <AnyTemplateRenderer
         template={mockTemplate}
         data={mockData as ResumeProfile}
       />,
@@ -270,7 +272,7 @@ describe("TemplateRenderer", () => {
 
   it("renders complex list fields correctly", () => {
     render(
-      <TemplateRenderer
+      <AnyTemplateRenderer
         template={mockTemplate}
         data={mockData as ResumeProfile}
       />,
@@ -286,7 +288,7 @@ describe("TemplateRenderer", () => {
     };
 
     render(
-      <TemplateRenderer
+      <AnyTemplateRenderer
         template={mockTemplate}
         data={snapshotData as ResumeProfile}
       />,
@@ -319,7 +321,7 @@ describe("TemplateRenderer", () => {
     };
 
     render(
-      <TemplateRenderer
+      <AnyTemplateRenderer
         template={mockTemplate}
         data={recruiterData as ResumeProfile}
       />,
@@ -348,7 +350,7 @@ describe("TemplateRenderer", () => {
     };
 
     render(
-      <TemplateRenderer
+      <AnyTemplateRenderer
         template={mockTemplate}
         data={maskedData as ResumeProfile}
       />,
@@ -368,7 +370,7 @@ describe("TemplateRenderer", () => {
     };
 
     render(
-      <TemplateRenderer template={mockTemplate} data={requestData as any} />,
+      <AnyTemplateRenderer template={mockTemplate} data={requestData as any} />,
     );
 
     expect(
@@ -377,7 +379,7 @@ describe("TemplateRenderer", () => {
   });
 
   it("renders all sections when data is provided", () => {
-    render(<TemplateRenderer template={mockTemplate} data={mockData as any} />);
+    render(<AnyTemplateRenderer template={mockTemplate} data={mockData as any} />);
 
     expect(screen.getAllByText("Skills")[0]).toBeInTheDocument();
     expect(screen.getAllByText("React")[0]).toBeInTheDocument();
@@ -395,7 +397,7 @@ describe("TemplateRenderer", () => {
   it("handles missing sections or empty data gracefully", () => {
     const emptyTemplate = { ...mockTemplate, sections: [] };
     render(
-      <TemplateRenderer template={emptyTemplate} data={mockData as any} />,
+      <AnyTemplateRenderer template={emptyTemplate} data={mockData as any} />,
     );
     expect(screen.queryByText("Skills")).not.toBeInTheDocument();
   });
@@ -407,7 +409,7 @@ describe("TemplateRenderer", () => {
     };
 
     render(
-      <TemplateRenderer
+      <AnyTemplateRenderer
         template={mockTemplate}
         data={snapshotData as any}
         isAuthenticated={false}
@@ -426,7 +428,7 @@ describe("TemplateRenderer", () => {
     };
 
     render(
-      <TemplateRenderer
+      <AnyTemplateRenderer
         template={mockTemplate}
         data={snapshotData as any}
         isAuthenticated={true}
@@ -438,7 +440,7 @@ describe("TemplateRenderer", () => {
 
   it("renders premium templates like Noir and Editorial", () => {
     const { unmount } = render(
-      <TemplateRenderer
+      <AnyTemplateRenderer
         template={{ ...mockTemplate, id: "noir-v1" }}
         data={mockData as ResumeProfile}
       />,
@@ -449,7 +451,7 @@ describe("TemplateRenderer", () => {
     unmount();
 
     render(
-      <TemplateRenderer
+      <AnyTemplateRenderer
         template={{ ...mockTemplate, id: "editorial-v1" }}
         data={mockData as ResumeProfile}
       />,
@@ -459,7 +461,7 @@ describe("TemplateRenderer", () => {
 
   it("renders other premium templates like Bento and Masonry", () => {
     const { unmount } = render(
-      <TemplateRenderer
+      <AnyTemplateRenderer
         template={{ ...mockTemplate, id: "bento-v1" }}
         data={mockData as ResumeProfile}
       />,
@@ -468,7 +470,7 @@ describe("TemplateRenderer", () => {
     unmount();
 
     const { unmount: unmount2 } = render(
-      <TemplateRenderer
+      <AnyTemplateRenderer
         template={{ ...mockTemplate, id: "masonry-v1" }}
         data={mockData as ResumeProfile}
       />,
@@ -477,7 +479,7 @@ describe("TemplateRenderer", () => {
     unmount2();
 
     render(
-      <TemplateRenderer
+      <AnyTemplateRenderer
         template={{ ...mockTemplate, id: "terminal-v1" }}
         data={mockData as ResumeProfile}
       />,
@@ -487,7 +489,7 @@ describe("TemplateRenderer", () => {
 
   it("includes github and linkedin when provided", () => {
     const { container } = render(
-      <TemplateRenderer
+      <AnyTemplateRenderer
         template={mockTemplate}
         data={mockData as ResumeProfile}
       />,
@@ -506,7 +508,7 @@ describe("TemplateRenderer", () => {
     };
 
     render(
-      <TemplateRenderer template={mockTemplate} data={adminData as any} />,
+      <AnyTemplateRenderer template={mockTemplate} data={adminData as any} />,
     );
 
     expect(screen.getAllByText("private@test.com")[0]).toBeInTheDocument();
@@ -520,7 +522,7 @@ describe("TemplateRenderer", () => {
       },
     };
     render(
-      <TemplateRenderer template={mockTemplate} data={maskedData as any} />,
+      <AnyTemplateRenderer template={mockTemplate} data={maskedData as any} />,
     );
     // Masked email should show part of it
     expect(screen.getAllByText(/@/)[0]).toBeInTheDocument();
@@ -535,7 +537,7 @@ describe("TemplateRenderer", () => {
       },
     };
     render(
-      <TemplateRenderer template={mockTemplate} data={badPhoneData as any} />,
+      <AnyTemplateRenderer template={mockTemplate} data={badPhoneData as any} />,
     );
     // Just ensure it renders the text at least
     expect(screen.getAllByText("no-digits")[0]).toBeInTheDocument();
@@ -548,7 +550,7 @@ describe("TemplateRenderer", () => {
       viewerAccess: { isMasked: true },
     };
     render(
-      <TemplateRenderer template={mockTemplate} data={dataMaskedNull as any} />,
+      <AnyTemplateRenderer template={mockTemplate} data={dataMaskedNull as any} />,
     );
     // Line 189 should be hit (returns null for each)
     expect(
@@ -559,7 +561,7 @@ describe("TemplateRenderer", () => {
   it("covers default template routing and general logic", () => {
     const standardTemplate = { ...mockTemplate, id: "standard-v1" };
     render(
-      <TemplateRenderer template={standardTemplate} data={mockData as any} />,
+      <AnyTemplateRenderer template={standardTemplate} data={mockData as any} />,
     );
     // This should fall through to the general logic and Noir renderer
     expect(screen.getAllByText(/John/).length).toBeGreaterThan(0);
@@ -578,7 +580,7 @@ describe("TemplateRenderer", () => {
       personalInfo: { email: "", phone: "" },
     };
     render(
-      <TemplateRenderer
+      <AnyTemplateRenderer
         template={standardTemplate}
         data={dataNoContact as any}
       />,
@@ -593,7 +595,7 @@ describe("TemplateRenderer", () => {
       personalInfo: { email: "" },
     };
     render(
-      <TemplateRenderer
+      <AnyTemplateRenderer
         template={standardTemplate}
         data={dataMaskedNoValue as any}
       />,
@@ -607,7 +609,7 @@ describe("TemplateRenderer", () => {
       },
     };
     render(
-      <TemplateRenderer
+      <AnyTemplateRenderer
         template={standardTemplate}
         data={dataRequest as any}
       />,
@@ -624,7 +626,7 @@ describe("TemplateRenderer", () => {
       },
     };
     render(
-      <TemplateRenderer
+      <AnyTemplateRenderer
         template={standardTemplate}
         data={dataNoDigits as any}
       />,
@@ -633,7 +635,7 @@ describe("TemplateRenderer", () => {
 
   it("handles missing personalInfo and viewerAccess", () => {
     const { getByText } = render(
-      <TemplateRenderer
+      <AnyTemplateRenderer
         template={mockTemplate}
         data={{}}
         isAuthenticated={false}
@@ -648,13 +650,13 @@ describe("TemplateRenderer", () => {
     // Line 124/127: data.viewerAccess missing or no scope
     const { viewerAccess: _, ...dataNoAccess } = mockData as any;
     render(
-      <TemplateRenderer
+      <AnyTemplateRenderer
         template={standardTemplate}
         data={{ ...dataNoAccess, viewerAccess: undefined } as any}
       />,
     );
     render(
-      <TemplateRenderer
+      <AnyTemplateRenderer
         template={standardTemplate}
         data={{ ...dataNoAccess, viewerAccess: { isOwner: false } } as any}
       />,
@@ -666,7 +668,7 @@ describe("TemplateRenderer", () => {
       viewerAccess: { scope: "guest" },
     };
     render(
-      <TemplateRenderer
+      <AnyTemplateRenderer
         template={standardTemplate}
         data={dataUnauthorized as any}
       />,
@@ -677,7 +679,7 @@ describe("TemplateRenderer", () => {
       viewerAccess: { scope: undefined },
     };
     render(
-      <TemplateRenderer
+      <AnyTemplateRenderer
         template={standardTemplate}
         data={dataNoScope as any}
       />,
@@ -690,7 +692,7 @@ describe("TemplateRenderer", () => {
       viewerAccess: { isMasked: true },
     };
     render(
-      <TemplateRenderer
+      <AnyTemplateRenderer
         template={standardTemplate}
         data={dataMaskedWithVal as any}
       />,
@@ -706,7 +708,7 @@ describe("TemplateRenderer", () => {
       viewerAccess: { isMasked: true },
     };
     render(
-      <TemplateRenderer
+      <AnyTemplateRenderer
         template={standardTemplate}
         data={dataMaskedNoVal as any}
       />,
@@ -726,7 +728,7 @@ describe("TemplateRenderer", () => {
       ],
     };
     render(
-      <TemplateRenderer
+      <AnyTemplateRenderer
         template={templateWithMissingField}
         data={mockData as any}
       />,
@@ -740,7 +742,7 @@ describe("TemplateRenderer", () => {
       summary: "Summary line 1. Summary line 2.",
     };
     render(
-      <TemplateRenderer template={standardTemplate} data={dataNoName as any} />,
+      <AnyTemplateRenderer template={standardTemplate} data={dataNoName as any} />,
     );
     expect(screen.getAllByText("Title From Data").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Summary line 1").length).toBeGreaterThan(0);
@@ -752,7 +754,7 @@ describe("TemplateRenderer", () => {
       summary: "",
     };
     render(
-      <TemplateRenderer
+      <AnyTemplateRenderer
         template={standardTemplate}
         data={dataNothing as any}
       />,

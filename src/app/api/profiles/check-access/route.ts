@@ -26,8 +26,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(result);
 
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    if (error instanceof Error && error.message?.toLowerCase().includes("not found")) {
+    const errorMessage = String(error);
+    if (errorMessage.toLowerCase().includes("not found")) {
       return handleApiError(error, "Resume not found", 404);
     }
     return handleApiError(error, "Failed to check access: " + errorMessage);

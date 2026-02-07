@@ -19,7 +19,7 @@ jest.mock("@/lib/services/analyticsService", () => ({
 
 // Mock auth helpers
 jest.mock("@/lib/utils/api-helpers", () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+   
   const { NextResponse } = require("next/server");
   return {
     getAuthenticatedUserId: jest.fn(),

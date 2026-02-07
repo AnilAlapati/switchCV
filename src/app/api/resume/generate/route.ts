@@ -25,22 +25,10 @@ import {
   GeneratedResumeInput,
 } from "@/lib/services/resumeService";
 import { createGenerationJob } from "@/lib/services/resumeGenerationQueue";
+import { GenerateResumeRequestSchema } from "@/lib/schemas/api";
 
 // Cloud Functions URL for async processing (configured per environment)
 const ASYNC_PROCESSOR_URL = process.env.ASYNC_RESUME_PROCESSOR_URL;
-
-interface GenerateResumeRequest {
-  message: string;
-  conversationHistory: Array<{
-    id: string;
-    content: string;
-    isUser: boolean;
-    timestamp: string;
-  }>;
-  sessionData?: Record<string, unknown>; // Optional stored session data
-  modelId?: string;
-  async?: boolean; // If true, queue for background processing
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -82,7 +70,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body: GenerateResumeRequest = await request.json();
+    const parseResult = GenerateResumeRequestSchema.safeParse(
+      await request.json()
+    );
+    if (!parseResult.success) {
+      return handleApiError(parseResult.error, "Message is required", 400);
+    }
+    const body = parseResult.data;
     const {
       message,
       conversationHistory,
@@ -133,10 +127,19 @@ export async function POST(request: NextRequest) {
     if (asyncMode) {
       logger.info({ userId }, "🔄 Async mode: Queueing resume generation job");
 
+      const normalizedConversationHistory = (conversationHistory || []).map(
+        (entry, index) => ({
+          id: entry.id ?? `msg-${index}`,
+          content: entry.content,
+          isUser: entry.isUser,
+          timestamp: entry.timestamp ?? new Date().toISOString(),
+        })
+      );
+
       // Create job in Firestore
       const { jobId } = await createGenerationJob(userId, {
         message,
-        conversationHistory: conversationHistory || [],
+        conversationHistory: normalizedConversationHistory,
         sessionData,
         modelId,
         userTier,

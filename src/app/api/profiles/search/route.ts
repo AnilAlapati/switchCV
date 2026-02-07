@@ -1,7 +1,8 @@
 // src/app/api/profiles/search/route.ts
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb } from "@/lib/firebase-admin";
+import { COLLECTIONS, collectionRef } from "@/lib/dal";
+import type { DocumentSnapshot } from "@/lib/dal";
+import { SearchProfilesSchema } from "@/lib/schemas/api";
 import type { ProfileSearchResult } from "@/types/profileSearch";
 import {
   handleApiError,
@@ -60,7 +61,6 @@ export async function POST(request: NextRequest) {
     scope: "profile-search",
   });
   if (!rateCheck.allowed) {
-    /* eslint-disable no-restricted-syntax */
     return NextResponse.json(
       {
         error: "Too many search requests",
@@ -77,17 +77,23 @@ export async function POST(request: NextRequest) {
         },
       }
     );
-    /* eslint-enable no-restricted-syntax */
   }
 
   try {
+    const parseResult = SearchProfilesSchema.safeParse(await request.json());
+    if (!parseResult.success) {
+      const message =
+        parseResult.error.issues[0]?.message ||
+        "Either search query or filters are required";
+      return handleApiError(null, message, 400, request);
+    }
     const {
       query: searchQuery,
       filters,
       limit: resultLimit = 20,
       offset = 0,
       cursor,
-    } = (await request.json()) as SearchRequest;
+    } = parseResult.data as SearchRequest;
 
     const normalizedFilters = buildNormalizedFilters(filters);
     const sanitizedQuery = searchQuery?.trim() || "";
@@ -112,8 +118,7 @@ export async function POST(request: NextRequest) {
 
     if (normalizedFilters.slug) {
       // Slug search using admin SDK
-      const slugSnapshot = await adminDb
-        .collection("users")
+      const slugSnapshot = await collectionRef(COLLECTIONS.USERS)
         .where("publicProfile.visible", "==", true)
         .where("profileSlug", "==", normalizedFilters.slug)
         .limit(1)
@@ -148,10 +153,7 @@ export async function POST(request: NextRequest) {
       normalizedFilters.skills.length === 0;
 
     if (isLikelyId && hasMinimalFilters) {
-      const directDoc = await adminDb
-        .collection("users")
-        .doc(sanitizedQuery)
-        .get();
+      const directDoc = await collectionRef(COLLECTIONS.USERS).doc(sanitizedQuery).get();
       if (directDoc.exists) {
         const userData = directDoc.data();
         if (userData?.publicProfile?.visible) {
@@ -170,9 +172,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Build the base query using admin SDK
-    let baseQuery = adminDb
-      .collection("users")
-      .where("publicProfile.visible", "==", true);
+    let baseQuery = collectionRef(COLLECTIONS.USERS).where(
+      "publicProfile.visible",
+      "==",
+      true
+    );
 
     if (normalizedFilters.role) {
       baseQuery = baseQuery.where(
@@ -205,9 +209,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Get cursor document if provided
-    let startAfterDoc: FirebaseFirestore.DocumentSnapshot | null = null;
+    let startAfterDoc: DocumentSnapshot | null = null;
     if (cursor) {
-      const cursorDoc = await adminDb.collection("users").doc(cursor).get();
+      const cursorDoc = await collectionRef(COLLECTIONS.USERS).doc(cursor).get();
       if (cursorDoc.exists) {
         startAfterDoc = cursorDoc;
       }

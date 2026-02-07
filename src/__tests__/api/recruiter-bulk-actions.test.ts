@@ -91,7 +91,7 @@ describe("Recruiter Bulk Actions API", () => {
           method: "POST",
           body: JSON.stringify({
             action: "create",
-            actionType: "move",
+            actionType: "move-stage",
             candidateIds: ["c1"],
           }),
         }

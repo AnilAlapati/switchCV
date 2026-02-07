@@ -141,15 +141,15 @@ export const MockResumeReviewModal = ({
   onAccept,
   onRewrite,
   resume,
-}: {
-  onAccept: () => void;
-  onRewrite: () => void;
-  resume: Record<string, unknown>;
-}) => (
-  <div data-testid="resume-review-modal">
-    <h1>{resume.title}</h1>
-    <p>{resume.summary}</p>
-    <button onClick={onAccept}>Accept</button>
-    <button onClick={() => onRewrite("Make it better")}>Rewrite</button>
-  </div>
-);
+	}: {
+	  onAccept: () => void;
+	  onRewrite: (feedback?: string) => void;
+	  resume: Record<string, unknown>;
+	}) => (
+	  <div data-testid="resume-review-modal">
+	    <h1>{String(resume.title ?? "")}</h1>
+	    <p>{String(resume.summary ?? "")}</p>
+	    <button onClick={onAccept}>Accept</button>
+	    <button onClick={() => onRewrite("Make it better")}>Rewrite</button>
+	  </div>
+	);

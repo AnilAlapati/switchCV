@@ -25,7 +25,9 @@ describe("PreviewContact", () => {
 
   it("returns null when contact exists but no email or phone values", () => {
     const profile = {
-      contact: {},
+      contact: {
+        email: { value: "", visibility: "public" as const },
+      },
     };
     const { container } = render(<PreviewContact profile={profile} />);
 
@@ -52,6 +54,10 @@ describe("PreviewContact", () => {
   it("displays phone when phone is provided", () => {
     const profile = {
       contact: {
+        email: {
+          value: "",
+          visibility: "public" as const,
+        },
         phone: {
           value: "+1-555-0123",
           visibility: "masked" as const,

@@ -204,8 +204,8 @@ describe("resumeEditor branch coverage", () => {
       });
       expect(result.profile.contact?.email.value).toBe("test@example.com");
       expect(result.profile.contact?.email.visibility).toBe("public");
-      expect(result.profile.contact?.phone.value).toBe("123-456-7890");
-      expect(result.profile.contact?.phone.visibility).toBe("public");
+      expect(result.profile.contact?.phone?.value).toBe("123-456-7890");
+      expect(result.profile.contact?.phone?.visibility).toBe("public");
     });
 
     it("should handle undefined contact fields", () => {
@@ -213,7 +213,7 @@ describe("resumeEditor branch coverage", () => {
         contact: {},
       });
       expect(result.profile.contact?.email.value).toBe("");
-      expect(result.profile.contact?.phone.value).toBe("");
+      expect(result.profile.contact?.phone?.value).toBe("");
     });
 
     it("should handle contact fields as objects", () => {
@@ -225,8 +225,8 @@ describe("resumeEditor branch coverage", () => {
       });
       expect(result.profile.contact?.email.value).toBe("test@example.com");
       expect(result.profile.contact?.email.visibility).toBe("masked");
-      expect(result.profile.contact?.phone.value).toBe("123-456-7890");
-      expect(result.profile.contact?.phone.visibility).toBe("request");
+      expect(result.profile.contact?.phone?.value).toBe("123-456-7890");
+      expect(result.profile.contact?.phone?.visibility).toBe("request");
     });
   });
 

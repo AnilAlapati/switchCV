@@ -1,4 +1,3 @@
-/* eslint-disable max-lines */
 /**
  * Skill Inventory Tests
  */

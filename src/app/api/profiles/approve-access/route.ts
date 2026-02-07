@@ -5,6 +5,7 @@ import {
   handleApiError,
 } from "@/lib/utils/api-helpers";
 import { AccessService } from "@/lib/services/accessService";
+import { ApproveProfileAccessSchema } from "@/lib/schemas/api";
 
 interface ApproveAccessPayload {
   requestId: string;
@@ -35,8 +36,32 @@ export async function POST(request: NextRequest) {
     if (authError) return authError;
     if (!userId) return handleApiError(null, "Unauthorized", 401);
 
+    const payload = await request.json();
+    const parseResult = ApproveProfileAccessSchema.safeParse(payload);
+    if (!parseResult.success) {
+      const payloadObj =
+        payload && typeof payload === "object"
+          ? (payload as Record<string, unknown>)
+          : undefined;
+      const missingRequiredField =
+        !payloadObj ||
+        payloadObj.requestId === undefined ||
+        payloadObj.resumeId === undefined ||
+        payloadObj.duration === undefined;
+      const hasDurationError = parseResult.error.issues.some(
+        (issue) => issue.path[0] === "duration"
+      );
+      return handleApiError(
+        parseResult.error,
+        !missingRequiredField && hasDurationError
+          ? "Invalid duration"
+          : "Missing required fields",
+        400
+      );
+    }
+
     const { requestId, resumeId, duration } =
-      (await request.json()) as ApproveAccessPayload;
+      parseResult.data as ApproveAccessPayload;
 
     if (!requestId || !resumeId || !duration) {
       return handleApiError(null, "Missing required fields", 400);
@@ -62,7 +87,7 @@ export async function POST(request: NextRequest) {
       message: "Access approved!",
     });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = String(error);
 
     let status = 500;
     if (errorMessage.includes("not found")) {

@@ -14,6 +14,10 @@ import {
     getSecureCookie,
 } from "../../lib/middleware/session";
 
+const setNodeEnv = (value: string) => {
+    (process.env as Record<string, string | undefined>).NODE_ENV = value;
+};
+
 describe("Cookie Security", () => {
     describe("COOKIE_CONFIG", () => {
         it("should use __Host- or __Secure- prefix for sensitive cookies", () => {
@@ -78,7 +82,7 @@ describe("Cookie Security", () => {
     describe("validateCookieSecurity", () => {
         it("should validate secure prefix in production", () => {
             const originalEnv = process.env.NODE_ENV;
-            process.env.NODE_ENV = "production";
+            setNodeEnv("production");
 
             const valid = validateCookieSecurity("__Host-session", {
                 secure: true,
@@ -89,12 +93,12 @@ describe("Cookie Security", () => {
             // Should pass with __Host- prefix
             expect(valid).toBe(true);
 
-            process.env.NODE_ENV = originalEnv;
+            setNodeEnv(originalEnv ?? "");
         });
 
         it("should require secure flag in production", () => {
             const originalEnv = process.env.NODE_ENV;
-            process.env.NODE_ENV = "production";
+            setNodeEnv("production");
 
             const valid = validateCookieSecurity("__Host-session", {
                 secure: false,
@@ -103,12 +107,12 @@ describe("Cookie Security", () => {
 
             expect(valid).toBe(false);
 
-            process.env.NODE_ENV = originalEnv;
+            setNodeEnv(originalEnv ?? "");
         });
 
         it("should require httpOnly for sensitive cookies in production", () => {
             const originalEnv = process.env.NODE_ENV;
-            process.env.NODE_ENV = "production";
+            setNodeEnv("production");
 
             const valid = validateCookieSecurity("__Host-session", {
                 secure: true,
@@ -117,12 +121,12 @@ describe("Cookie Security", () => {
 
             expect(valid).toBe(false);
 
-            process.env.NODE_ENV = originalEnv;
+            setNodeEnv(originalEnv ?? "");
         });
 
         it("should skip validation in development", () => {
             const originalEnv = process.env.NODE_ENV;
-            process.env.NODE_ENV = "development";
+            setNodeEnv("development");
 
             const valid = validateCookieSecurity("test-cookie", {
                 secure: false,
@@ -131,7 +135,7 @@ describe("Cookie Security", () => {
 
             expect(valid).toBe(true);
 
-            process.env.NODE_ENV = originalEnv;
+            setNodeEnv(originalEnv ?? "");
         });
     });
 

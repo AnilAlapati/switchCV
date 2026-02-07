@@ -184,7 +184,6 @@ describe("DELETE /api/resumes/[id]", () => {
       userId: "user-123",
     });
     const request = buildRequest("http://localhost/api/resumes/", "DELETE");
-    // @ts-expect-error - testing missing ID in DELETE
     const response = await DELETE(request, {
       params: Promise.resolve({ id: "" }),
     });
@@ -347,7 +346,6 @@ describe("PUT /api/resumes/[id]", () => {
     const request = buildRequest("http://localhost/api/resumes/", "PUT", {
       resume: { title: "New" },
     });
-    // @ts-expect-error - testing missing ID in PUT
     const response = await PUT(request, {
       params: Promise.resolve({ id: "" }),
     });
@@ -465,7 +463,6 @@ describe("GET /api/resumes/[id]", () => {
 
   it("returns 400 if ID is missing in GET", async () => {
     const request = buildRequest("http://localhost/api/resumes/", "GET");
-    // @ts-expect-error - testing missing ID in GET
     const response = await GET(request, {
       params: Promise.resolve({ id: "" }),
     });

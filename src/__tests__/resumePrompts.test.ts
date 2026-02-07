@@ -39,7 +39,7 @@ describe("buildConversationalPrompt", () => {
 
   it("should not include collected data section if data is not provided", () => {
     const userMessage = "Hello";
-    const conversationHistory: Array<{ role: string; content: string }> = [];
+    const conversationHistory: Array<{ content: string; isUser: boolean }> = [];
 
     const prompt = buildConversationalPrompt(userMessage, conversationHistory);
 

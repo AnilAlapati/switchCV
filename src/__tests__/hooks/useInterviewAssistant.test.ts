@@ -205,7 +205,13 @@ describe("useInterviewAssistant", () => {
       answerResult = result.current.answerQuestion("My answer", 10);
     });
 
-    if (!answerResult) throw new Error("answerResult is undefined");
+    if (
+      !answerResult ||
+      typeof answerResult !== "object" ||
+      !("isComplete" in answerResult)
+    ) {
+      throw new Error("answerResult is undefined");
+    }
 
     expect(answerResult.isComplete).toBe(true);
     expect(result.current.session).toEqual(mockCompletedSession);

@@ -29,16 +29,14 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error: unknown) {
-    if (error instanceof Error && error.message === "User not found") {
+    const errorText = String(error);
+    if (errorText.includes("User not found")) {
       return handleApiError(null, "User not found", 404);
     }
-    if (error instanceof Error && error.message === "Unauthorized") {
+    if (errorText.includes("Unauthorized")) {
       return handleApiError(error, "Unauthorized. Only admins and recruiters can access system analytics.", 403);
     }
     logger.error({ err: error, userId }, "Failed to fetch system analytics");
-    // Include detailed error message for debugging
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const detailedMessage = `Failed to fetch system analytics: ${errorMessage}`;
-    return handleApiError(error, detailedMessage);
+    return handleApiError(error, "Failed to fetch system analytics");
   }
 }

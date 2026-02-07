@@ -10,7 +10,6 @@ import {
 } from "@/lib/services/metricsService";
 
 // For triggering Zod validation failures
-import { UserSchema, ResumeSchema } from "@/lib/schemas";
 
 jest.mock("@/lib/firebase-admin", () => ({
   adminDb: {
@@ -84,7 +83,9 @@ describe("RecruiterService", () => {
       (getUserRole as jest.Mock).mockResolvedValue("recruiter");
       (getUserTier as jest.Mock).mockResolvedValue("basic");
       (getRecruiterSearchLimits as jest.Mock).mockResolvedValue({ basic: 10 });
-      (consumeQuota as jest.Mock).mockRejectedValue(new QuotaExceededError());
+      (consumeQuota as jest.Mock).mockRejectedValue(
+        new QuotaExceededError("Quota exceeded"),
+      );
 
       await expect(
         RecruiterService.searchCandidates(mockUserId, "java"),
@@ -440,9 +441,8 @@ describe("RecruiterService", () => {
         return {};
       });
 
-      // @ts-expect-error - testing fallback name logic
-      const userDoc = await RecruiterService.fetchUserDoc("test-id");
-      expect(userDoc.data().displayName).toBe("Fallback Name");
+      const userDoc = await (RecruiterService as any).fetchUserDoc("test-id");
+      expect(userDoc?.data()?.displayName).toBe("Fallback Name");
     });
 
     it("should handle searchCandidates error path", async () => {

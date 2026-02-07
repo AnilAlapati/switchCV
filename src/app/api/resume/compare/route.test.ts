@@ -3,11 +3,19 @@
 import { NextRequest } from "next/server";
 import { POST } from "./route";
 import { compareResumes } from "@/lib/resumeComparison";
+import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 
 // Mock the resumeComparison module
 jest.mock("@/lib/resumeComparison", () => ({
   compareResumes: jest.fn(),
 }));
+jest.mock("@/lib/utils/api-helpers", () => {
+  const actual = jest.requireActual("@/lib/utils/api-helpers");
+  return {
+    ...actual,
+    getAuthenticatedUserId: jest.fn(),
+  };
+});
 
 describe("POST /api/resume/compare", () => {
   let mockCompareResumes: jest.Mock;
@@ -15,6 +23,9 @@ describe("POST /api/resume/compare", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockCompareResumes = compareResumes as jest.Mock;
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "test-user",
+    });
   });
 
   describe("Input Validation", () => {
@@ -83,7 +94,7 @@ describe("POST /api/resume/compare", () => {
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.error).toBe("Invalid resume format");
+      expect(data.error).toBe("Both resume1 and resume2 are required");
     });
 
     it("should return 400 when resume2 has invalid format", async () => {
@@ -110,7 +121,7 @@ describe("POST /api/resume/compare", () => {
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.error).toBe("Invalid resume format");
+      expect(data.error).toBe("Both resume1 and resume2 are required");
     });
 
     it("should return 400 when resume format is invalid - non-object", async () => {
@@ -132,7 +143,7 @@ describe("POST /api/resume/compare", () => {
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.error).toBe("Invalid resume format");
+      expect(data.error).toBe("Both resume1 and resume2 are required");
     });
   });
 

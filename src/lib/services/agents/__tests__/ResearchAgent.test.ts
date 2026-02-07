@@ -6,6 +6,7 @@ jest.mock("../../aiGenerationService");
 const mockedGenerateText = jest.mocked(generateText);
 
 describe("ResearchAgent", () => {
+  const mockCompletionMeta = { model: "test-model", provider: "test-provider" };
   const mockContext: AgentContext = {
     userId: "test-user",
     model: "test-model",
@@ -25,6 +26,7 @@ describe("ResearchAgent", () => {
     };
     mockedGenerateText.mockResolvedValueOnce({
       text: JSON.stringify(mockJson),
+      ...mockCompletionMeta,
     });
 
     const result = await agent.run(undefined, mockContext);
@@ -55,7 +57,10 @@ describe("ResearchAgent", () => {
       culturalIndicators: ["ind1"],
     };
     const wrappedText = `Here is the analysis:\n${JSON.stringify(mockJson)}\nHope this helps!`;
-    mockedGenerateText.mockResolvedValueOnce({ text: wrappedText });
+    mockedGenerateText.mockResolvedValueOnce({
+      text: wrappedText,
+      ...mockCompletionMeta,
+    });
 
     const result = await agent.run(undefined, mockContext);
 
@@ -66,7 +71,10 @@ describe("ResearchAgent", () => {
   it("should fallback to treating entire output as summary if JSON is invalid", async () => {
     const agent = new ResearchAgent("test-model");
     const invalidJson = "{ summary: 'missing quotes' }";
-    mockedGenerateText.mockResolvedValueOnce({ text: invalidJson });
+    mockedGenerateText.mockResolvedValueOnce({
+      text: invalidJson,
+      ...mockCompletionMeta,
+    });
 
     const result = await agent.run(undefined, mockContext);
 
@@ -77,7 +85,10 @@ describe("ResearchAgent", () => {
   it("should fallback to raw text if no JSON brackets found", async () => {
     const agent = new ResearchAgent("test-model");
     const rawText = "Just a plain string without any JSON structure.";
-    mockedGenerateText.mockResolvedValueOnce({ text: rawText });
+    mockedGenerateText.mockResolvedValueOnce({
+      text: rawText,
+      ...mockCompletionMeta,
+    });
 
     const result = await agent.run(undefined, mockContext);
 
@@ -109,6 +120,7 @@ describe("ResearchAgent", () => {
     };
     mockedGenerateText.mockResolvedValueOnce({
       text: JSON.stringify(partialJson),
+      ...mockCompletionMeta,
     });
 
     const result = await agent.run(undefined, mockContext);

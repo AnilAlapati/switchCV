@@ -1,7 +1,10 @@
 import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb, adminAuth } from "@/lib/firebase-admin";
+import {
+  COLLECTIONS,
+  collectionRef,
+  setCustomClaims,
+} from "@/lib/dal";
 import {
   handleApiError,
   getAuthenticatedUserId,
@@ -46,7 +49,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Check current user document
-    const userDoc = await adminDb.collection("users").doc(uid).get();
+    const userDoc = await collectionRef(COLLECTIONS.USERS).doc(uid).get();
     if (!userDoc.exists) {
       return handleApiError(
         new Error("User not found"),
@@ -71,11 +74,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Update user document with new role
-    await adminDb.collection("users").doc(uid).update(updateData);
+    await collectionRef(COLLECTIONS.USERS).doc(uid).update(updateData);
 
     // Also update custom claims in Auth to sync role across services
     try {
-      await adminAuth.setCustomUserClaims(uid, { role: newRole });
+      await setCustomClaims(uid, { role: newRole });
       logger.info(
         { userId: uid, newRole },
         "Role updated and custom claims set"

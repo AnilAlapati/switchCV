@@ -1,7 +1,6 @@
 import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb } from "@/lib/firebase-admin";
+import { COLLECTIONS, collectionRef } from "@/lib/dal";
 import { mapResumeId } from "@/lib/resumeIdMapping";
 import {
   getAuthenticatedUserId,
@@ -17,7 +16,7 @@ import {
 
 async function verifyAdminRole(userId: string): Promise<boolean> {
   try {
-    const userDoc = await adminDb.collection("users").doc(userId).get();
+    const userDoc = await collectionRef(COLLECTIONS.USERS).doc(userId).get();
     return userDoc.exists && userDoc.data()?.role === "admin";
   } catch (error) {
     logger.error({ err: error, userId }, "Error verifying admin role");
@@ -42,15 +41,14 @@ export async function POST(request: NextRequest) {
     logger.info("[Migration] Starting resume ID mapping migration...");
 
     // Get all published resumes
-    const resumesSnapshot = await adminDb
-      .collection("resumes")
+    const resumesSnapshot = await collectionRef(COLLECTIONS.RESUMES)
       .where("published", "==", true)
       .get();
 
     logger.info(`[Migration] Found ${resumesSnapshot.size} published resumes`);
 
     // Get current counter
-    const counterRef = adminDb.collection("system").doc("resumeIdCounter");
+    const counterRef = collectionRef(COLLECTIONS.SYSTEM).doc("resumeIdCounter");
     const counterDoc = await counterRef.get();
     let nextId = 1;
 

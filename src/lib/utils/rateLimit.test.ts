@@ -3,11 +3,12 @@
  */
 
 describe("Rate Limiting", () => {
-  let rateLimit: Record<string, unknown>;
+  type RateLimitModule = typeof import("./rateLimit");
+  let rateLimit: RateLimitModule;
 
   beforeEach(() => {
     jest.resetModules();
-    rateLimit = require("./rateLimit");
+    rateLimit = require("./rateLimit") as RateLimitModule;
     rateLimit.clearAllRateLimits();
     jest.useFakeTimers();
   });

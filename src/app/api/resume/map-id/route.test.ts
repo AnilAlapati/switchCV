@@ -198,7 +198,7 @@ describe("POST /api/resume/map-id", () => {
         data: { resumeId: "456", documentId: "doc-456" },
       });
       expect(mapResumeId).toHaveBeenCalledWith(
-        "456",
+        456,
         "doc-456",
         "test-user-123"
       );

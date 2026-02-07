@@ -1,4 +1,4 @@
-/* eslint-disable max-lines */
+ 
 
 import { NextRequest } from "next/server";
 import { POST, GET } from "./route";

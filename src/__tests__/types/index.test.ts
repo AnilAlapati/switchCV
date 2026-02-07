@@ -1,4 +1,4 @@
-/* eslint-disable max-lines */
+ 
 // src/__tests__/types/index.test.ts
 import {
   Visibility,
@@ -38,8 +38,8 @@ describe("Types", () => {
 
       expect(contact.email.value).toBe("test@example.com");
       expect(contact.email.visibility).toBe("public");
-      expect(contact.phone.value).toBe("+1234567890");
-      expect(contact.phone.visibility).toBe("masked");
+      expect(contact.phone?.value).toBe("+1234567890");
+      expect(contact.phone?.visibility).toBe("masked");
     });
   });
 

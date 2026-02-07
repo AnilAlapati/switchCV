@@ -82,7 +82,7 @@ describe("PreviewProjects", () => {
         description: undefined,
       },
     ];
-    render(<PreviewProjects profile={{ projects: projectNoDesc }} />);
+    render(<PreviewProjects profile={{ projects: projectNoDesc as any }} />);
 
     expect(
       screen.queryByText(/A personal portfolio built with Next.js/),

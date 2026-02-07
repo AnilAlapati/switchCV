@@ -41,7 +41,7 @@ describe("ResumePageLayout", () => {
   const mockPush = jest.fn();
 
   beforeEach(() => {
-    (useRouter as jest.UnknownFunction).mockReturnValue({
+    (useRouter as jest.Mock).mockReturnValue({
       push: mockPush,
     });
   });

@@ -171,16 +171,20 @@ describe("Search Utils", () => {
   describe("exportSearchResults", () => {
     const mockResults = [
       {
+        userId: "u-1",
         username: "johndoe",
         displayName: "John Doe",
+        bio: "Software engineer",
         role: "Software Engineer",
         location: "San Francisco",
         skills: ["JavaScript", "React", "Node.js"],
         hasApproval: true,
       },
       {
+        userId: "u-2",
         username: "janedoe",
         displayName: "Jane Doe",
+        bio: "Product manager",
         role: "Product Manager",
         location: "New York",
         skills: ["Strategy", "Analytics"],
@@ -221,8 +225,10 @@ describe("Search Utils", () => {
       it("should handle missing optional fields", () => {
         const incompleteResults = [
           {
+            userId: "u-3",
             username: "testuser",
             displayName: "Test User",
+            bio: "",
             // missing role, location, skills
             hasApproval: true,
           },
@@ -237,8 +243,10 @@ describe("Search Utils", () => {
       it("should handle empty skills array", () => {
         const noSkillsResults = [
           {
+            userId: "u-4",
             username: "testuser",
             displayName: "Test User",
+            bio: "",
             role: "Developer",
             location: "Remote",
             skills: [],
@@ -257,8 +265,10 @@ describe("Search Utils", () => {
       it("should escape quotes in CSV fields", () => {
         const resultsWithQuotes = [
           {
+            userId: "u-5",
             username: "testuser",
             displayName: 'Test "User"',
+            bio: "",
             role: "Developer",
             location: "New York",
             skills: ["JavaScript"],
@@ -288,7 +298,7 @@ describe("Search Utils", () => {
         circularRef.self = circularRef;
 
         expect(() => {
-          exportSearchResults([circularRef], "json");
+          exportSearchResults([circularRef as any], "json");
         }).toThrow("Failed to export results");
 
         expect(mockLogger.error).toHaveBeenCalledWith(
@@ -310,7 +320,7 @@ describe("Search Utils", () => {
         ];
 
         // This should not throw, but handle gracefully
-        const result = exportSearchResults(problematicResults, "csv");
+        const result = exportSearchResults(problematicResults as any, "csv");
         expect(typeof result).toBe("string");
         expect(result.length).toBeGreaterThan(0);
       });

@@ -1,13 +1,13 @@
 import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb } from "@/lib/firebase-admin";
+import { COLLECTIONS, collectionRef } from "@/lib/dal";
 import { generateNumericResumeId } from "@/lib/numericIdGenerator";
 import { Resume } from "@/lib/resumeComparison.types";
 import {
   handleApiError,
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
+import { CreateResumeSchema } from "@/lib/schemas/api";
 import { getUserTier } from "@/lib/services/userService";
 import {
   getResumeCreationLimits,
@@ -41,16 +41,20 @@ export async function POST(request: NextRequest) {
     if (error) return error;
 
     // Parse request body
-    const body = (await request.json()) as CreateResumeRequest;
-    const { userId, resume, isPublic = true } = body;
-
-    if (!userId || !resume) {
+    const parseResult = CreateResumeSchema.safeParse(await request.json());
+    if (!parseResult.success) {
       return handleApiError(
-        new Error("Missing required fields"),
+        parseResult.error,
         "Missing required fields: userId or resume",
         400
       );
     }
+    const {
+      userId,
+      resume: rawResume,
+      isPublic = true,
+    } = parseResult.data as unknown as CreateResumeRequest;
+    const resume = rawResume as Resume;
 
     // Security: Only users can save their own resumes
     if (authenticatedUserId !== userId) {
@@ -71,8 +75,7 @@ export async function POST(request: NextRequest) {
     // If we want "Max 3 resumes total", we should count existing resumes, not use consumeQuota.
     // Let's check existing resumes count first.
 
-    const existingResumesSnapshot = await adminDb
-      .collection("resumes")
+    const existingResumesSnapshot = await collectionRef(COLLECTIONS.RESUMES)
       .where("userId", "==", userId)
       .count()
       .get();
@@ -149,7 +152,7 @@ export async function POST(request: NextRequest) {
 
     // Persist single source of truth document. Fan-out Cloud Function will
     // propagate to user + global indexes asynchronously.
-    await adminDb.collection("resumes").doc(String(numericId)).set(resumeDoc);
+    await collectionRef(COLLECTIONS.RESUMES).doc(String(numericId)).set(resumeDoc);
 
     logger.info(
       {

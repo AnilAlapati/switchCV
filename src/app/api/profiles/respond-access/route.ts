@@ -5,18 +5,10 @@ import {
   handleApiError,
 } from "@/lib/utils/api-helpers";
 import {
-  DurationSelectionInput,
   normalizeDuration,
 } from "@/lib/accessDuration";
+import { RespondProfileAccessSchema } from "@/lib/schemas/api";
 import { AccessService } from "@/lib/services/accessService";
-
-interface RespondAccessPayload {
-  requestId: string;
-  resumeId: string;
-  action: "approve" | "deny";
-  grantDuration?: DurationSelectionInput;
-  timezone?: string;
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,12 +16,15 @@ export async function POST(request: NextRequest) {
     if (error) return error;
     if (!userId) return handleApiError(null, "Unauthorized", 401);
 
-    const { requestId, resumeId, action, grantDuration, timezone } =
-      (await request.json()) as RespondAccessPayload;
-
-    if (!requestId || !resumeId || !["approve", "deny"].includes(action)) {
-      return handleApiError(null, "Invalid request", 400);
+    const parseResult = RespondProfileAccessSchema.safeParse(
+      await request.json()
+    );
+    if (!parseResult.success) {
+      return handleApiError(parseResult.error, "Invalid request", 400);
     }
+
+    const { requestId, resumeId, action, grantDuration, timezone } =
+      parseResult.data;
 
     let grantDurationDays: number | undefined;
     if (action === "approve" && grantDuration) {
@@ -42,11 +37,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Call service
-    await AccessService.respondToRequest(userId, resumeId, requestId, action, grantDurationDays);
+    await AccessService.respondToRequest(
+      userId,
+      String(resumeId),
+      requestId,
+      action,
+      grantDurationDays
+    );
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = String(error);
     if (errorMessage.includes("Unauthorized")) return handleApiError(error, "Unauthorized", 403);
     if (errorMessage.toLowerCase().includes("not found")) return handleApiError(error, "Request not found", 404);
     if (errorMessage.includes("already processed")) return handleApiError(error, "Request already processed", 400);

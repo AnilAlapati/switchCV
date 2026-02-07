@@ -3,8 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHash, randomUUID } from "crypto";
 import { z } from "zod";
 import { generateText } from "@/lib/services/aiGenerationService";
-// eslint-disable-next-line no-restricted-imports
-import admin, { adminDb } from "@/lib/firebase-admin";
+import {
+  COLLECTIONS,
+  collectionRef,
+  serverTimestamp,
+  timestampFromDate,
+} from "@/lib/dal";
 import {
   getAuthenticatedUserId,
   handleApiError,
@@ -293,7 +297,7 @@ async function logUsage(params: {
   temperature: number;
   task?: string;
 }) {
-  await adminDb.collection("aiUsageLogs").add({
+  await collectionRef(COLLECTIONS.AI_USAGE_LOGS).add({
     userId: params.userId,
     plan: params.plan,
     scope: "ai_generation",
@@ -302,7 +306,7 @@ async function logUsage(params: {
     requestedTokens: params.maxTokens,
     temperature: params.temperature,
     model: params.model,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: serverTimestamp(),
   });
 }
 
@@ -314,18 +318,16 @@ async function logAuditEvent(params: {
   requestId: string;
 }) {
   const promptHash = hashPrompt(params.prompt);
-  const expiresAt = admin.firestore.Timestamp.fromMillis(
-    Date.now() + AUDIT_LOG_TTL_MS
-  );
+  const expiresAt = timestampFromDate(new Date(Date.now() + AUDIT_LOG_TTL_MS));
 
-  await adminDb.collection("aiAuditLogs").add({
+  await collectionRef(COLLECTIONS.AI_AUDIT_LOGS).add({
     userId: params.userId,
     promptHash,
     promptLength: params.prompt.length,
     model: params.model,
     status: params.status,
     requestId: params.requestId,
-    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    timestamp: serverTimestamp(),
     expiresAt,
   });
 }

@@ -1,7 +1,6 @@
 import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb } from "@/lib/firebase-admin";
+import { COLLECTIONS, collectionRef } from "@/lib/dal";
 import {
   getAuthenticatedUserId,
   handleApiError,
@@ -14,8 +13,7 @@ export async function GET(request: NextRequest) {
     if (!userId) return handleApiError(null, "Unauthorized", 401);
 
     // Get all resumes for user
-    const resumesSnapshot = await adminDb
-      .collection("resumes")
+    const resumesSnapshot = await collectionRef(COLLECTIONS.RESUMES)
       .where("userId", "==", userId)
       .get();
 
@@ -60,7 +58,7 @@ export async function GET(request: NextRequest) {
             expiresAtStr = new Date(data.expiresAt).toISOString();
           }
         } catch (e: unknown) {
-          const parseError = e instanceof Error ? e.message : String(e);
+          const parseError = String(e);
           logger.warn(
             { err: parseError },
             `Error parsing timestamp for request ${doc.id}`

@@ -16,7 +16,7 @@ jest.mock("../templateRendererUtils", () => ({
 }));
 
 describe("EditorialResumeRenderer", () => {
-  const mockTemplate: ResumeTemplate = {
+  const mockTemplate = {
     id: "editorial",
     name: "Editorial",
     description: "Magazine Style",
@@ -33,9 +33,9 @@ describe("EditorialResumeRenderer", () => {
       fontFamily: "serif",
       spacing: "medium",
     },
-  };
+  } as unknown as ResumeTemplate;
 
-  const mockData: ResumeProfile = {
+  const mockData = {
     title: "Chief Editor",
     summary:
       "A passionate storyteller with a decade of experience in digital media.",
@@ -69,7 +69,7 @@ describe("EditorialResumeRenderer", () => {
         period: "2010 - 2014",
       },
     ],
-  };
+  } as unknown as ResumeProfile;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -150,7 +150,7 @@ describe("EditorialResumeRenderer", () => {
     (normalizeTimelineItems as jest.Mock).mockReturnValue([]);
     (normalizeProjects as jest.Mock).mockReturnValue([]);
 
-    const emptyData: ResumeProfile = {
+    const emptyData = {
       title: "",
       summary: "",
       personalInfo: {},
@@ -158,7 +158,7 @@ describe("EditorialResumeRenderer", () => {
       experience: [],
       projects: [],
       education: [],
-    };
+    } as unknown as ResumeProfile;
 
     render(
       <EditorialResumeRenderer template={mockTemplate} data={emptyData} />,

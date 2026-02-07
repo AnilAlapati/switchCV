@@ -79,6 +79,7 @@ describe("Preview Components", () => {
           {
             degree: "Degree",
             institution: "Uni",
+            startDate: "2020",
             visibility: "public" as const,
           },
         ],
@@ -121,6 +122,7 @@ describe("Preview Components", () => {
             role: "Role",
             company: "Co",
             startDate: "2020",
+            description: "",
             visibility: "public" as const,
           },
         ],

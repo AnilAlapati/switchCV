@@ -1,4 +1,4 @@
-/* eslint-disable max-lines */
+ 
 import { POST } from "./route";
 import { NextRequest } from "next/server";
 import { generateText } from "@/lib/services/aiGenerationService";
@@ -103,7 +103,13 @@ jest.mock("@/lib/firebase-admin", () => ({
   },
 }));
 
-function setupMockConversationManager(overrides: Record<string, unknown> = {}) {
+function setupMockConversationManager(
+  overrides: {
+    progress?: Record<string, unknown>;
+    data?: Record<string, unknown>;
+    validation?: Record<string, unknown>;
+  } = {}
+) {
   const mock = {
     updateData: jest.fn(),
     getProgress: jest.fn().mockReturnValue({

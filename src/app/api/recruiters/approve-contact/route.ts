@@ -1,15 +1,13 @@
 import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb } from "@/lib/firebase-admin";
-
-import { FieldValue } from "firebase-admin/firestore";
+import { COLLECTIONS, collectionRef, serverTimestamp } from "@/lib/dal";
 import { tokenGenerator } from "@/lib/tokenGenerator";
 import { RecruiterContactRequest } from "@/types/profileSearch";
 import {
   handleApiError,
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
+import { ApproveRecruiterContactSchema } from "@/lib/schemas/api";
 
 interface ApproveContactPayload {
   requestId: string;
@@ -39,15 +37,17 @@ export async function POST(request: NextRequest) {
       await getAuthenticatedUserId(request);
     if (authError) return authError;
 
-    const payload = (await request.json()) as ApproveContactPayload;
-
-    if (!payload.requestId || !payload.adminUserId) {
+    const parseResult = ApproveRecruiterContactSchema.safeParse(
+      await request.json()
+    );
+    if (!parseResult.success) {
       return handleApiError(
         new Error("Missing required fields"),
         "Missing required fields",
         400
       );
     }
+    const payload = parseResult.data as ApproveContactPayload;
 
     // SECURITY: Verify the authenticated user IS the admin making the approval
     if (authUserId !== payload.adminUserId) {
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     }
 
     // SECURITY: Verify the user has admin role
-    const adminDoc = await adminDb.collection("users").doc(authUserId).get();
+    const adminDoc = await collectionRef(COLLECTIONS.USERS).doc(authUserId).get();
     const adminData = adminDoc.data();
     if (!adminData || adminData.role !== "admin") {
       return handleApiError(
@@ -70,9 +70,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the contact request
-    const requestRef = adminDb
-      .collection("recruiterRequests")
-      .doc(payload.requestId);
+    const requestRef = collectionRef(COLLECTIONS.RECRUITER_REQUESTS).doc(
+      payload.requestId
+    );
     const requestDoc = await requestRef.get();
 
     if (!requestDoc.exists) {
@@ -160,20 +160,20 @@ export async function POST(request: NextRequest) {
       ipAddressWhitelist: payload.ipAddress ? [payload.ipAddress] : undefined,
     };
 
-    const tokenRef = await adminDb.collection("accessTokens").add({
+    const tokenRef = await collectionRef(COLLECTIONS.ACCESS_TOKENS).add({
       ...tokenData,
-      issuedAt: FieldValue.serverTimestamp(),
-      expiresAt: FieldValue.serverTimestamp(),
+      issuedAt: serverTimestamp(),
+      expiresAt: serverTimestamp(),
     });
 
     // Update contact request status
     await requestRef.update({
       status: "approved",
-      updatedAt: FieldValue.serverTimestamp(),
+      updatedAt: serverTimestamp(),
       reviewedBy: payload.adminUserId,
-      reviewedAt: FieldValue.serverTimestamp(),
+      reviewedAt: serverTimestamp(),
       tokenId: tokenRef.id,
-      accessExpiresAt: FieldValue.serverTimestamp(),
+      accessExpiresAt: serverTimestamp(),
     } as Record<string, unknown>);
 
     // Create notification for recruiter
@@ -183,18 +183,17 @@ export async function POST(request: NextRequest) {
       requestId: payload.requestId,
       candidateId: contactRequest.toUserId,
       candidateEmail: contactRequest.toUserEmail,
-      approvedAt: FieldValue.serverTimestamp(),
-      expiresAt: FieldValue.serverTimestamp(),
+      approvedAt: serverTimestamp(),
+      expiresAt: serverTimestamp(),
       duration,
       message: `Your request to contact ${contactRequest.toUserEmail} has been approved. Access expires in ${duration}.`,
-      timestamp: FieldValue.serverTimestamp(),
+      timestamp: serverTimestamp(),
       read: false,
       actionUrl: `/recruiter/portal/requests/${payload.requestId}`,
       token: token.substring(0, 20) + "...", // Safe token preview
     };
 
-    await adminDb
-      .collection("recruiterNotifications")
+    await collectionRef(COLLECTIONS.RECRUITER_NOTIFICATIONS)
       .add(recruiterNotification);
 
     // Create notification for candidate (they're being contacted)
@@ -208,15 +207,15 @@ export async function POST(request: NextRequest) {
       requestId: payload.requestId,
       contactedFields: contactRequest.requestedFields,
       purpose: contactRequest.purpose,
-      expiresAt: FieldValue.serverTimestamp(),
+      expiresAt: serverTimestamp(),
       duration,
       message: `Recruiter ${contactRequest.fromRecruiter.name} from ${contactRequest.fromRecruiter.companyName} has been granted access to view your contact information.`,
-      timestamp: FieldValue.serverTimestamp(),
+      timestamp: serverTimestamp(),
       read: false,
       actionUrl: `/dashboard/contact-requests/${payload.requestId}`,
     };
 
-    await adminDb.collection("notifications").add(candidateNotification);
+    await collectionRef(COLLECTIONS.NOTIFICATIONS).add(candidateNotification);
 
     // Create audit log
     const auditLog = {
@@ -230,12 +229,12 @@ export async function POST(request: NextRequest) {
       approvedFields: contactRequest.requestedFields,
       duration,
       expiresAt: new Date(tokenExpiry * 1000),
-      timestamp: FieldValue.serverTimestamp(),
+      timestamp: serverTimestamp(),
       ipAddress: payload.ipAddress,
       userAgent: payload.userAgent,
     };
 
-    await adminDb.collection("auditLogs").add(auditLog);
+    await collectionRef(COLLECTIONS.AUDIT_LOGS).add(auditLog);
 
     logger.info(
       `✅ Contact request approved: ${payload.requestId} by admin ${payload.adminUserId}`

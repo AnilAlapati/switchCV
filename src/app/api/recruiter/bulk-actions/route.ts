@@ -7,16 +7,19 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb } from "@/lib/firebase-admin";
- 
-import { FieldValue } from "firebase-admin/firestore";
+import {
+  COLLECTIONS,
+  collectionRef,
+  serverTimestamp,
+} from "@/lib/dal";
+import type { DocumentSnapshot, Query } from "@/lib/dal";
 import { BulkAction } from "@/lib/recruiterDashboard.types";
 import { createBulkAction } from "@/lib/recruiterPipelineHelpers";
 import {
   getAuthenticatedUserId,
   handleApiError,
 } from "@/lib/utils/api-helpers";
+import { RecruiterBulkActionSchema } from "@/lib/schemas/api";
 import { logger } from "@/lib/logger";
 
 interface CreateBulkActionRequest {
@@ -41,8 +44,6 @@ type BulkActionRequest =
   | ExecuteActionRequest
   | CancelActionRequest;
 
-const BULK_ACTIONS_COLLECTION = "recruiterBulkActions";
-
 type BulkActionWithMeta = BulkAction & {
   metadata?: Record<string, unknown>;
   startedAt?: Date;
@@ -53,7 +54,7 @@ type BulkActionWithMeta = BulkAction & {
  * Helper to verify recruiter role
  */
 async function verifyRecruiterRole(userId: string): Promise<boolean> {
-  const userSnap = await adminDb.collection("users").doc(userId).get();
+  const userSnap = await collectionRef(COLLECTIONS.USERS).doc(userId).get();
   const userData = userSnap.data();
   return userData?.role === "recruiter" || userData?.role === "admin";
 }
@@ -62,7 +63,7 @@ async function verifyRecruiterRole(userId: string): Promise<boolean> {
  * Helper to convert Firestore doc to BulkAction object
  */
 function docToBulkAction(
-  doc: FirebaseFirestore.DocumentSnapshot
+  doc: DocumentSnapshot
 ): BulkActionWithMeta | null {
   if (!doc.exists) return null;
   const data = doc.data()!;
@@ -99,31 +100,40 @@ export async function POST(request: NextRequest) {
       return handleApiError(null, "Forbidden: Recruiter role required", 403);
     }
 
-    const body: BulkActionRequest = await request.json();
+    const payload = await request.json();
+    const action = (payload as { action?: unknown })?.action;
+
+    if (action !== "create" && action !== "execute" && action !== "cancel") {
+      return handleApiError(null, "Invalid action", 400);
+    }
+
+    const parseResult = RecruiterBulkActionSchema.safeParse(payload);
+    if (!parseResult.success) {
+      if (action === "create") {
+        return handleApiError(
+          null,
+          "Missing required fields: actionType, candidateIds (non-empty array)",
+          400
+        );
+      }
+      return handleApiError(null, "Invalid request payload", 400);
+    }
+    const body: BulkActionRequest = parseResult.data;
 
     switch (body.action) {
       case "create": {
         const { actionType, candidateIds, metadata } =
           body as CreateBulkActionRequest;
 
-        if (!actionType || !candidateIds || candidateIds.length === 0) {
-          return handleApiError(
-            null,
-            "Missing required fields: actionType, candidateIds (non-empty array)",
-            400
-          );
-        }
-
         const bulkAction = createBulkAction(actionType, candidateIds);
 
         // Save to Firestore
-        await adminDb
-          .collection(BULK_ACTIONS_COLLECTION)
+        await collectionRef(COLLECTIONS.RECRUITER_BULK_ACTIONS)
           .doc(bulkAction.id)
           .set({
             ...bulkAction,
             metadata: metadata || null,
-            createdAt: FieldValue.serverTimestamp(),
+            createdAt: serverTimestamp(),
             createdBy: authUserId,
           });
 
@@ -145,8 +155,7 @@ export async function POST(request: NextRequest) {
       case "execute": {
         const { bulkActionId } = body as ExecuteActionRequest;
 
-        const actionRef = adminDb
-          .collection(BULK_ACTIONS_COLLECTION)
+        const actionRef = collectionRef(COLLECTIONS.RECRUITER_BULK_ACTIONS)
           .doc(bulkActionId);
         const actionDoc = await actionRef.get();
 
@@ -164,8 +173,8 @@ export async function POST(request: NextRequest) {
         // For now, we just mark it as completed
         await actionRef.update({
           status: "completed",
-          startedAt: FieldValue.serverTimestamp(),
-          completedAt: FieldValue.serverTimestamp(),
+          startedAt: serverTimestamp(),
+          completedAt: serverTimestamp(),
         });
 
         const updated = docToBulkAction(await actionRef.get());
@@ -185,8 +194,7 @@ export async function POST(request: NextRequest) {
       case "cancel": {
         const { bulkActionId } = body as CancelActionRequest;
 
-        const actionRef = adminDb
-          .collection(BULK_ACTIONS_COLLECTION)
+        const actionRef = collectionRef(COLLECTIONS.RECRUITER_BULK_ACTIONS)
           .doc(bulkActionId);
         const actionDoc = await actionRef.get();
 
@@ -243,8 +251,7 @@ export async function GET(request: NextRequest) {
     const status = request.nextUrl.searchParams.get("status");
 
     if (bulkActionId) {
-      const actionDoc = await adminDb
-        .collection(BULK_ACTIONS_COLLECTION)
+      const actionDoc = await collectionRef(COLLECTIONS.RECRUITER_BULK_ACTIONS)
         .doc(bulkActionId)
         .get();
 
@@ -262,9 +269,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Query with optional status filter
-    let query: FirebaseFirestore.Query = adminDb.collection(
-      BULK_ACTIONS_COLLECTION
-    );
+    let query: Query = collectionRef(COLLECTIONS.RECRUITER_BULK_ACTIONS);
 
     if (status) {
       query = query.where("status", "==", status);

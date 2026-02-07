@@ -8,8 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb } from "@/lib/firebase-admin";
+import { COLLECTIONS, collectionRef } from "@/lib/dal";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
 import { RESERVED_USERNAMES, USERNAME_CONFIG } from "@/config/constants";
 import { logger } from "@/lib/logger";
@@ -145,19 +144,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check Firestore for existing username
-    if (!adminDb) {
-      logger.error("Firebase Admin DB not initialized");
-      return NextResponse.json(
-        {
-          available: false,
-          reason: "Service temporarily unavailable",
-        },
-        { status: 503 }
-      );
-    }
-
-    const usernameDoc = await adminDb
-      .collection("usernames")
+    const usernameDoc = await collectionRef(COLLECTIONS.USERNAMES)
       .doc(username)
       .get();
 

@@ -16,7 +16,7 @@ jest.mock("../templateRendererUtils", () => ({
 }));
 
 describe("TerminalResumeRenderer", () => {
-  const mockTemplate: ResumeTemplate = {
+  const mockTemplate = {
     id: "terminal",
     name: "Terminal",
     description: "CLI Theme",
@@ -33,9 +33,9 @@ describe("TerminalResumeRenderer", () => {
       fontFamily: "monospace",
       spacing: "medium",
     },
-  };
+  } as unknown as ResumeTemplate;
 
-  const mockData: ResumeProfile = {
+  const mockData = {
     title: "Full Stack Developer",
     summary: "Experienced developer with a passion for CLI tools.",
     personalInfo: {
@@ -50,7 +50,7 @@ describe("TerminalResumeRenderer", () => {
     experience: [],
     projects: [],
     education: [],
-  };
+  } as unknown as ResumeProfile;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -112,7 +112,7 @@ describe("TerminalResumeRenderer", () => {
     render(
       <TerminalResumeRenderer
         template={mockTemplate}
-        data={{ ...mockData, experience: experienceData }}
+        data={{ ...mockData, experience: experienceData as any }}
       />,
     );
 
@@ -149,9 +149,7 @@ describe("TerminalResumeRenderer", () => {
     expect(screen.getByText("Project Alpha")).toBeInTheDocument();
     expect(screen.getByText("A cool project")).toBeInTheDocument();
     expect(screen.getByText("Next.js")).toBeInTheDocument();
-    expect(
-      screen.getByAttribute("href", "https://alpha.com"),
-    ).toBeInTheDocument();
+    expect(document.querySelector('a[href="https://alpha.com"]')).not.toBeNull();
   });
 
   it("renders education in education.md", () => {
@@ -181,7 +179,7 @@ describe("TerminalResumeRenderer", () => {
     (normalizeTimelineItems as jest.Mock).mockReturnValue([]);
     (normalizeProjects as jest.Mock).mockReturnValue([]);
 
-    const emptyData: ResumeProfile = {
+    const emptyData = {
       title: "",
       summary: "",
       personalInfo: {},
@@ -189,7 +187,7 @@ describe("TerminalResumeRenderer", () => {
       experience: [],
       projects: [],
       education: [],
-    };
+    } as unknown as ResumeProfile;
 
     render(<TerminalResumeRenderer template={mockTemplate} data={emptyData} />);
 

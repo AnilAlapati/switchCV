@@ -180,6 +180,7 @@ describe("Resume Publish Service", () => {
   describe("unpublishResume", () => {
     const publishedResume: PublishedResume = {
       resumeId: testResumeId,
+      numericId: testResumeId,
       userId: testUserId,
       profile: testProfile,
       publishedAt: "2025-01-01T00:00:00.000Z",
@@ -233,6 +234,7 @@ describe("Resume Publish Service", () => {
     it("should return resume when found", async () => {
       const publishedResume: PublishedResume = {
         resumeId: testResumeId,
+        numericId: testResumeId,
         userId: testUserId,
         profile: testProfile,
         publishedAt: "2025-01-01T00:00:00.000Z",

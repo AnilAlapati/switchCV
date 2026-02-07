@@ -7,10 +7,12 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb } from "@/lib/firebase-admin";
- 
-import { FieldValue } from "firebase-admin/firestore";
+import {
+  COLLECTIONS,
+  collectionRef,
+  serverTimestamp,
+  increment,
+} from "@/lib/dal";
 import {
   RecruitmentPipeline,
   PipelineStage,
@@ -23,13 +25,14 @@ import {
   getAuthenticatedUserId,
   handleApiError,
 } from "@/lib/utils/api-helpers";
+import { RecruiterPipelineActionSchema } from "@/lib/schemas/api";
 import { logger } from "@/lib/logger";
 
 interface InitializeRequest {
   action: "initialize";
   jobId: string;
   jobTitle: string;
-  recruiterId: string;
+  recruiterId?: string;
 }
 
 interface AddCandidateRequest {
@@ -61,14 +64,13 @@ type PipelineRequest =
   | MoveCandidateRequest
   | GetStageRequest;
 
-const PIPELINES_COLLECTION = "recruiterPipelines";
 const CANDIDATES_SUBCOLLECTION = "candidates";
 
 /**
  * Helper to verify recruiter role
  */
 async function verifyRecruiterRole(userId: string): Promise<boolean> {
-  const userSnap = await adminDb.collection("users").doc(userId).get();
+  const userSnap = await collectionRef(COLLECTIONS.USERS).doc(userId).get();
   const userData = userSnap.data();
   return userData?.role === "recruiter" || userData?.role === "admin";
 }
@@ -79,8 +81,7 @@ async function verifyRecruiterRole(userId: string): Promise<boolean> {
 async function getPipeline(
   pipelineId: string
 ): Promise<RecruitmentPipeline | null> {
-  const pipelineDoc = await adminDb
-    .collection(PIPELINES_COLLECTION)
+  const pipelineDoc = await collectionRef(COLLECTIONS.RECRUITER_PIPELINES)
     .doc(pipelineId)
     .get();
 
@@ -91,8 +92,7 @@ async function getPipeline(
   const data = pipelineDoc.data();
 
   // Fetch candidates from subcollection
-  const candidatesSnap = await adminDb
-    .collection(PIPELINES_COLLECTION)
+  const candidatesSnap = await collectionRef(COLLECTIONS.RECRUITER_PIPELINES)
     .doc(pipelineId)
     .collection(CANDIDATES_SUBCOLLECTION)
     .get();
@@ -146,32 +146,44 @@ export async function POST(request: NextRequest) {
       return handleApiError(null, "Forbidden: Recruiter role required", 403);
     }
 
-    const body: PipelineRequest = await request.json();
+    const payload = await request.json();
+    const action = (payload as { action?: unknown })?.action;
+
+    if (
+      action !== "initialize" &&
+      action !== "add-candidate" &&
+      action !== "move-candidate" &&
+      action !== "get-stage"
+    ) {
+      return handleApiError(null, "Invalid action", 400);
+    }
+
+    const parseResult = RecruiterPipelineActionSchema.safeParse(payload);
+    if (!parseResult.success) {
+      if (action === "initialize") {
+        return handleApiError(null, "Missing required fields: jobId and jobTitle", 400);
+      }
+      return handleApiError(null, "Invalid request payload", 400);
+    }
+
+    const body = parseResult.data as unknown as PipelineRequest;
 
     switch (body.action) {
       case "initialize": {
         const { jobId, jobTitle, recruiterId } = body as InitializeRequest;
-        if (!jobId || !jobTitle) {
-          return handleApiError(
-            null,
-            "Missing required fields: jobId and jobTitle",
-            400
-          );
-        }
 
         const pipelineId = generatePipelineId();
 
         // Save to Firestore
-        await adminDb
-          .collection(PIPELINES_COLLECTION)
+        await collectionRef(COLLECTIONS.RECRUITER_PIPELINES)
           .doc(pipelineId)
           .set({
             jobId,
             jobTitle,
             recruiterId: recruiterId || authUserId,
             totalCandidates: 0,
-            createdAt: FieldValue.serverTimestamp(),
-            updatedAt: FieldValue.serverTimestamp(),
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
           });
 
         const pipeline = await getPipeline(pipelineId);
@@ -193,8 +205,7 @@ export async function POST(request: NextRequest) {
           body as AddCandidateRequest;
 
         // Check pipeline exists
-        const pipelineDoc = await adminDb
-          .collection(PIPELINES_COLLECTION)
+        const pipelineDoc = await collectionRef(COLLECTIONS.RECRUITER_PIPELINES)
           .doc(pipelineId)
           .get();
 
@@ -211,24 +222,22 @@ export async function POST(request: NextRequest) {
         );
 
         // Save candidate to subcollection
-        await adminDb
-          .collection(PIPELINES_COLLECTION)
+        await collectionRef(COLLECTIONS.RECRUITER_PIPELINES)
           .doc(pipelineId)
           .collection(CANDIDATES_SUBCOLLECTION)
           .doc(candidate.id)
           .set({
             ...candidate,
-            createdAt: FieldValue.serverTimestamp(),
-            updatedAt: FieldValue.serverTimestamp(),
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
           });
 
         // Increment total count
-        await adminDb
-          .collection(PIPELINES_COLLECTION)
+        await collectionRef(COLLECTIONS.RECRUITER_PIPELINES)
           .doc(pipelineId)
           .update({
-            totalCandidates: FieldValue.increment(1),
-            updatedAt: FieldValue.serverTimestamp(),
+            totalCandidates: increment(1),
+            updatedAt: serverTimestamp(),
           });
 
         const pipeline = await getPipeline(pipelineId);
@@ -254,8 +263,7 @@ export async function POST(request: NextRequest) {
           body as MoveCandidateRequest;
 
         // Check pipeline exists
-        const pipelineDocCheck = await adminDb
-          .collection(PIPELINES_COLLECTION)
+        const pipelineDocCheck = await collectionRef(COLLECTIONS.RECRUITER_PIPELINES)
           .doc(pipelineId)
           .get();
 
@@ -263,8 +271,7 @@ export async function POST(request: NextRequest) {
           return handleApiError(null, "Pipeline not found", 404);
         }
 
-        const candidateRef = adminDb
-          .collection(PIPELINES_COLLECTION)
+        const candidateRef = collectionRef(COLLECTIONS.RECRUITER_PIPELINES)
           .doc(pipelineId)
           .collection(CANDIDATES_SUBCOLLECTION)
           .doc(candidateId);
@@ -278,13 +285,15 @@ export async function POST(request: NextRequest) {
         // Update candidate stage
         await candidateRef.update({
           stage: newStage,
-          updatedAt: FieldValue.serverTimestamp(),
+          updatedAt: serverTimestamp(),
         });
 
         // Update pipeline timestamp
-        await adminDb.collection(PIPELINES_COLLECTION).doc(pipelineId).update({
-          updatedAt: FieldValue.serverTimestamp(),
-        });
+        await collectionRef(COLLECTIONS.RECRUITER_PIPELINES)
+          .doc(pipelineId)
+          .update({
+            updatedAt: serverTimestamp(),
+          });
 
         const candidateData = candidateDoc.data();
 

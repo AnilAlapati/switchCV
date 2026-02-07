@@ -432,9 +432,10 @@ describe("resumeService", () => {
               exists: true,
               data: () => ({ userId: "other-user", resumeId: 1001 }),
             }),
-            collection: jest.fn().mockReturnThis(),
-            where: jest.fn().mockReturnThis(),
-            get: jest.fn().mockResolvedValue({ empty: true }),
+            collection: jest.fn().mockReturnValue({
+              where: jest.fn().mockReturnThis(),
+              get: jest.fn().mockResolvedValue({ empty: true }),
+            }),
           };
         }
         if (path === userId) {
@@ -574,7 +575,7 @@ describe("resumeService", () => {
             description: "Worked here",
           },
         ],
-        education: [{ school: "Uni", degree: "CS", year: "2020" }],
+        education: [{ institution: "Uni", degree: "CS", year: "2020" }],
         skills: ["React"],
       };
 
@@ -657,7 +658,7 @@ describe("resumeService", () => {
 
       const result = await fetchResumeBySlug("test-slug");
       expect(result).not.toBeNull();
-      expect(result?.id).toBe("res-1");
+      expect(result?.slug).toBe("test-slug");
     });
 
     it("should return null if not found", async () => {

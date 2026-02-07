@@ -8,13 +8,11 @@ import {
   getAuthenticatedUserId,
   handleApiError,
 } from "@/lib/utils/api-helpers";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb } from "@/lib/firebase-admin";
-
-interface DashboardRequest {
-  resumeId: string;
-  userId?: string;
-}
+import { COLLECTIONS, collectionRef } from "@/lib/dal";
+import {
+  DashboardAnalyticsQuerySchema,
+  DashboardAnalyticsRequestSchema,
+} from "@/lib/schemas/api";
 
 /**
  * POST /api/analytics/dashboard - Get analytics dashboard
@@ -25,9 +23,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       await getAuthenticatedUserId(request);
     if (authError) return authError;
 
-    const body = (await request.json()) as DashboardRequest;
-    const { resumeId } = body;
-    const userId = body.userId || authUserId;
+    let payload: unknown;
+    try {
+      payload = await request.json();
+    } catch {
+      return NextResponse.json(
+        { success: false, message: "Missing resumeId or userId" },
+        { status: 400 }
+      );
+    }
+
+    const parseResult = DashboardAnalyticsRequestSchema.safeParse(payload);
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { success: false, message: "Missing resumeId or userId" },
+        { status: 400 }
+      );
+    }
+    const { resumeId } = parseResult.data;
+    const userId = parseResult.data.userId || authUserId;
 
     if (!resumeId || !userId) {
       return NextResponse.json(
@@ -40,7 +54,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (userId !== authUserId) {
       // NOTE: Ideally we check this via UserService too, but simple DB check is faster here for now
       // Or we could trust the caller if we assume authUserId is verified
-      const userDoc = await adminDb.collection("users").doc(authUserId!).get();
+      const userDoc = await collectionRef(COLLECTIONS.USERS).doc(authUserId!).get();
       if (userDoc.data()?.role !== "admin") {
         return handleApiError(null, "Forbidden: Access denied", 403);
       }
@@ -69,8 +83,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       await getAuthenticatedUserId(request);
     if (authError) return authError;
 
-    const resumeId = request.nextUrl.searchParams.get("resumeId");
-    const userId = request.nextUrl.searchParams.get("userId") || authUserId;
+    const parseResult = DashboardAnalyticsQuerySchema.safeParse({
+      resumeId: request.nextUrl.searchParams.get("resumeId"),
+      userId: request.nextUrl.searchParams.get("userId") || undefined,
+    });
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { success: false, message: "Missing resumeId or userId" },
+        { status: 400 }
+      );
+    }
+
+    const { resumeId } = parseResult.data;
+    const userId = parseResult.data.userId || authUserId;
 
     if (!resumeId || !userId) {
       return NextResponse.json(
@@ -81,7 +106,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Security check
     if (userId !== authUserId) {
-      const userDoc = await adminDb.collection("users").doc(authUserId!).get();
+      const userDoc = await collectionRef(COLLECTIONS.USERS).doc(authUserId!).get();
       if (userDoc.data()?.role !== "admin") {
         return handleApiError(null, "Forbidden: Access denied", 403);
       }

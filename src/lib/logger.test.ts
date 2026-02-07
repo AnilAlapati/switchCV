@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Tests for lib/logger utility
  */
@@ -32,7 +31,7 @@ describe("Logger Utility", () => {
   });
 
   describe("in development environment", () => {
-    let logger: Record<string, unknown>;
+    let logger: any;
 
     beforeEach(() => {
       process.env = { ...originalEnv, NODE_ENV: "development" };
@@ -61,7 +60,7 @@ describe("Logger Utility", () => {
   });
 
   describe("in production environment", () => {
-    let logger: Record<string, unknown>;
+    let logger: any;
 
     beforeEach(() => {
       process.env = { ...originalEnv, NODE_ENV: "production" };

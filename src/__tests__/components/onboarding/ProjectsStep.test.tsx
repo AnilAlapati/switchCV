@@ -1,15 +1,16 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { ProjectsStep } from "@/components/onboarding/steps/ProjectsStep";
 import { Project, Visibility } from "@/types";
+import type { ChangeEventHandler } from "react";
 
 jest.mock("@/components/onboarding/FormComponents", () => ({
-  FormInput: ({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) => (
+  FormInput: ({ label, value, onChange }: { label: string; value: string; onChange: ChangeEventHandler<HTMLInputElement> }) => (
     <div>
       <label htmlFor={label}>{label}</label>
       <input id={label} value={value} onChange={onChange} />
     </div>
   ),
-  FormTextarea: ({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) => (
+  FormTextarea: ({ label, value, onChange }: { label: string; value: string; onChange: ChangeEventHandler<HTMLTextAreaElement> }) => (
     <div>
       <label htmlFor={label}>{label}</label>
       <textarea id={label} value={value} onChange={onChange} />

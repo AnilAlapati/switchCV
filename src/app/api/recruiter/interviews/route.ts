@@ -7,10 +7,12 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb } from "@/lib/firebase-admin";
- 
-import { FieldValue } from "firebase-admin/firestore";
+import {
+  COLLECTIONS,
+  collectionRef,
+  serverTimestamp,
+} from "@/lib/dal";
+import type { DocumentSnapshot } from "@/lib/dal";
 import {
   Interview,
   InterviewType,
@@ -22,6 +24,7 @@ import {
   getAuthenticatedUserId,
   handleApiError,
 } from "@/lib/utils/api-helpers";
+import { RecruiterInterviewsActionSchema } from "@/lib/schemas/api";
 import { logger } from "@/lib/logger";
 
 interface ScheduleRequest {
@@ -59,13 +62,11 @@ type InterviewRequest =
   | AddFeedbackRequest
   | GetUpcomingRequest;
 
-const INTERVIEWS_COLLECTION = "recruiterInterviews";
-
 /**
  * Helper to verify recruiter role
  */
 async function verifyRecruiterRole(userId: string): Promise<boolean> {
-  const userSnap = await adminDb.collection("users").doc(userId).get();
+  const userSnap = await collectionRef(COLLECTIONS.USERS).doc(userId).get();
   const userData = userSnap.data();
   return userData?.role === "recruiter" || userData?.role === "admin";
 }
@@ -74,7 +75,7 @@ async function verifyRecruiterRole(userId: string): Promise<boolean> {
  * Helper to convert Firestore doc to Interview object
  */
 function docToInterview(
-  doc: FirebaseFirestore.DocumentSnapshot
+  doc: DocumentSnapshot
 ): Interview | null {
   if (!doc.exists) return null;
   const data = doc.data()!;
@@ -99,7 +100,30 @@ export async function POST(request: NextRequest) {
       return handleApiError(null, "Forbidden: Recruiter role required", 403);
     }
 
-    const body: InterviewRequest = await request.json();
+    const payload = await request.json();
+    const action = (payload as { action?: unknown })?.action;
+
+    if (
+      action !== "schedule" &&
+      action !== "update-status" &&
+      action !== "add-feedback" &&
+      action !== "get-upcoming"
+    ) {
+      return handleApiError(null, "Invalid action", 400);
+    }
+
+    const parseResult = RecruiterInterviewsActionSchema.safeParse(payload);
+    if (!parseResult.success) {
+      if (action === "schedule") {
+        return handleApiError(
+          null,
+          "Missing required fields: candidateId, jobId, type, scheduledTime, interviewers",
+          400
+        );
+      }
+      return handleApiError(null, "Invalid request payload", 400);
+    }
+    const body = parseResult.data as unknown as InterviewRequest;
 
     switch (body.action) {
       case "schedule": {
@@ -114,20 +138,6 @@ export async function POST(request: NextRequest) {
           notes,
         } = body as ScheduleRequest;
 
-        if (
-          !candidateId ||
-          !jobId ||
-          !type ||
-          !scheduledTime ||
-          !interviewers
-        ) {
-          return handleApiError(
-            null,
-            "Missing required fields: candidateId, jobId, type, scheduledTime, interviewers",
-            400
-          );
-        }
-
         const interview = scheduleInterview(
           candidateId,
           jobId,
@@ -138,16 +148,15 @@ export async function POST(request: NextRequest) {
         );
 
         // Save to Firestore
-        await adminDb
-          .collection(INTERVIEWS_COLLECTION)
+        await collectionRef(COLLECTIONS.RECRUITER_INTERVIEWS)
           .doc(interview.id)
           .set({
             ...interview,
             scheduledTime: new Date(scheduledTime),
             location: location || null,
             notes: notes || null,
-            createdAt: FieldValue.serverTimestamp(),
-            updatedAt: FieldValue.serverTimestamp(),
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
           });
 
         logger.info(
@@ -168,8 +177,7 @@ export async function POST(request: NextRequest) {
       case "update-status": {
         const { interviewId, status } = body as UpdateStatusRequest;
 
-        const interviewRef = adminDb
-          .collection(INTERVIEWS_COLLECTION)
+        const interviewRef = collectionRef(COLLECTIONS.RECRUITER_INTERVIEWS)
           .doc(interviewId);
         const interviewDoc = await interviewRef.get();
 
@@ -180,7 +188,7 @@ export async function POST(request: NextRequest) {
         // Update in Firestore
         await interviewRef.update({
           status,
-          updatedAt: FieldValue.serverTimestamp(),
+          updatedAt: serverTimestamp(),
         });
 
         const updated = {
@@ -205,8 +213,7 @@ export async function POST(request: NextRequest) {
       case "add-feedback": {
         const { interviewId, feedback } = body as AddFeedbackRequest;
 
-        const interviewRef = adminDb
-          .collection(INTERVIEWS_COLLECTION)
+        const interviewRef = collectionRef(COLLECTIONS.RECRUITER_INTERVIEWS)
           .doc(interviewId);
         const interviewDoc = await interviewRef.get();
 
@@ -218,7 +225,7 @@ export async function POST(request: NextRequest) {
         await interviewRef.update({
           feedback,
           status: InterviewStatus.COMPLETED,
-          updatedAt: FieldValue.serverTimestamp(),
+          updatedAt: serverTimestamp(),
         });
 
         const updated = {
@@ -250,8 +257,7 @@ export async function POST(request: NextRequest) {
         const futureDate = new Date();
         futureDate.setDate(futureDate.getDate() + daysToQuery);
 
-        const snapshot = await adminDb
-          .collection(INTERVIEWS_COLLECTION)
+        const snapshot = await collectionRef(COLLECTIONS.RECRUITER_INTERVIEWS)
           .where("scheduledTime", ">=", now)
           .where("scheduledTime", "<=", futureDate)
           .where("status", "==", InterviewStatus.SCHEDULED)
@@ -297,8 +303,7 @@ export async function GET(request: NextRequest) {
     const candidateId = request.nextUrl.searchParams.get("candidateId");
 
     if (interviewId) {
-      const interviewDoc = await adminDb
-        .collection(INTERVIEWS_COLLECTION)
+      const interviewDoc = await collectionRef(COLLECTIONS.RECRUITER_INTERVIEWS)
         .doc(interviewId)
         .get();
 
@@ -316,8 +321,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (candidateId) {
-      const snapshot = await adminDb
-        .collection(INTERVIEWS_COLLECTION)
+      const snapshot = await collectionRef(COLLECTIONS.RECRUITER_INTERVIEWS)
         .where("candidateId", "==", candidateId)
         .orderBy("scheduledTime", "desc")
         .get();
@@ -337,8 +341,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Return all interviews (with pagination limit)
-    const snapshot = await adminDb
-      .collection(INTERVIEWS_COLLECTION)
+    const snapshot = await collectionRef(COLLECTIONS.RECRUITER_INTERVIEWS)
       .orderBy("scheduledTime", "desc")
       .limit(100)
       .get();

@@ -7,10 +7,11 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb } from "@/lib/firebase-admin";
-
-import { FieldValue } from "firebase-admin/firestore";
+import {
+  COLLECTIONS,
+  collectionRef,
+  serverTimestamp,
+} from "@/lib/dal";
 import {
   Candidate,
   CandidatePriority,
@@ -25,6 +26,7 @@ import {
   getAuthenticatedUserId,
   handleApiError,
 } from "@/lib/utils/api-helpers";
+import { RecruiterCandidatesActionSchema } from "@/lib/schemas/api";
 import { logger } from "@/lib/logger";
 
 interface CreateRequest {
@@ -46,7 +48,7 @@ interface UpdatePriorityRequest {
 interface AddNoteRequest {
   action: "add-note";
   candidateId: string;
-  userId: string;
+  userId?: string;
   content: string;
   category?: string;
   isPrivate?: boolean;
@@ -54,14 +56,13 @@ interface AddNoteRequest {
 
 type CandidateRequest = CreateRequest | UpdatePriorityRequest | AddNoteRequest;
 
-const CANDIDATES_COLLECTION = "recruiterCandidates";
 const NOTES_SUBCOLLECTION = "notes";
 
 /**
  * Helper to verify recruiter role
  */
 async function verifyRecruiterRole(userId: string): Promise<boolean> {
-  const userSnap = await adminDb.collection("users").doc(userId).get();
+  const userSnap = await collectionRef(COLLECTIONS.USERS).doc(userId).get();
   const userData = userSnap.data();
   return userData?.role === "recruiter" || userData?.role === "admin";
 }
@@ -78,20 +79,41 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return handleApiError(null, "Forbidden: Recruiter role required", 403);
     }
 
-    const body: CandidateRequest = await request.json();
+    const payload = await request.json();
+    const action = (payload as { action?: unknown })?.action;
+
+    if (
+      action !== "create" &&
+      action !== "update-priority" &&
+      action !== "add-note"
+    ) {
+      return handleApiError(null, "Invalid action", 400);
+    }
+
+    const parseResult = RecruiterCandidatesActionSchema.safeParse(payload);
+    if (!parseResult.success) {
+      if (action === "create") {
+        return handleApiError(
+          null,
+          "Missing required fields: name, email, position",
+          400
+        );
+      }
+      if (action === "add-note") {
+        return handleApiError(
+          null,
+          "Missing required fields: candidateId, content",
+          400
+        );
+      }
+      return handleApiError(null, "Invalid request payload", 400);
+    }
+    const body = parseResult.data as unknown as CandidateRequest;
 
     switch (body.action) {
       case "create": {
         const { name, email, position, phone, resumeUrl, source } =
           body as CreateRequest;
-
-        if (!name || !email || !position) {
-          return handleApiError(
-            null,
-            "Missing required fields: name, email, position",
-            400
-          );
-        }
 
         const candidate = createCandidate(
           name,
@@ -103,13 +125,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         );
 
         // Save to Firestore
-        await adminDb
-          .collection(CANDIDATES_COLLECTION)
+        await collectionRef(COLLECTIONS.RECRUITER_CANDIDATES)
           .doc(candidate.id)
           .set({
             ...candidate,
-            createdAt: FieldValue.serverTimestamp(),
-            updatedAt: FieldValue.serverTimestamp(),
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
             createdBy: authUserId,
           });
 
@@ -128,8 +149,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       case "update-priority": {
         const { candidateId, priority } = body as UpdatePriorityRequest;
 
-        const candidateRef = adminDb
-          .collection(CANDIDATES_COLLECTION)
+        const candidateRef = collectionRef(COLLECTIONS.RECRUITER_CANDIDATES)
           .doc(candidateId);
         const candidateDoc = await candidateRef.get();
 
@@ -143,7 +163,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         // Update in Firestore
         await candidateRef.update({
           priority,
-          updatedAt: FieldValue.serverTimestamp(),
+          updatedAt: serverTimestamp(),
         });
 
         logger.info({ candidateId, priority }, "Candidate priority updated");
@@ -162,17 +182,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const { candidateId, content, category, isPrivate } =
           body as AddNoteRequest;
 
-        if (!candidateId || !content) {
-          return handleApiError(
-            null,
-            "Missing required fields: candidateId, content",
-            400
-          );
-        }
-
         // Check candidate exists
-        const candidateDoc = await adminDb
-          .collection(CANDIDATES_COLLECTION)
+        const candidateDoc = await collectionRef(COLLECTIONS.RECRUITER_CANDIDATES)
           .doc(candidateId)
           .get();
 
@@ -189,19 +200,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         );
 
         // Save note to subcollection
-        await adminDb
-          .collection(CANDIDATES_COLLECTION)
+        await collectionRef(COLLECTIONS.RECRUITER_CANDIDATES)
           .doc(candidateId)
           .collection(NOTES_SUBCOLLECTION)
           .doc(note.id)
           .set({
             ...note,
-            createdAt: FieldValue.serverTimestamp(),
+            createdAt: serverTimestamp(),
           });
 
         // Get total notes count
-        const notesSnap = await adminDb
-          .collection(CANDIDATES_COLLECTION)
+        const notesSnap = await collectionRef(COLLECTIONS.RECRUITER_CANDIDATES)
           .doc(candidateId)
           .collection(NOTES_SUBCOLLECTION)
           .count()
@@ -249,8 +258,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const candidateId = request.nextUrl.searchParams.get("id");
 
     if (candidateId) {
-      const candidateDoc = await adminDb
-        .collection(CANDIDATES_COLLECTION)
+      const candidateDoc = await collectionRef(COLLECTIONS.RECRUITER_CANDIDATES)
         .doc(candidateId)
         .get();
 
@@ -261,8 +269,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const candidateData = candidateDoc.data();
 
       // Fetch notes from subcollection
-      const notesSnap = await adminDb
-        .collection(CANDIDATES_COLLECTION)
+      const notesSnap = await collectionRef(COLLECTIONS.RECRUITER_CANDIDATES)
         .doc(candidateId)
         .collection(NOTES_SUBCOLLECTION)
         .orderBy("createdAt", "desc")
@@ -288,8 +295,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     // Return all candidates
-    const candidatesSnap = await adminDb
-      .collection(CANDIDATES_COLLECTION)
+    const candidatesSnap = await collectionRef(COLLECTIONS.RECRUITER_CANDIDATES)
       .orderBy("createdAt", "desc")
       .limit(100)
       .get();

@@ -117,9 +117,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             );
         } catch (error) {
             // Handle known domain errors
-            const err = error as Error;
-
-            if (err.message === "forbidden-role") {
+            const errorText = String(error);
+            if (errorText.includes("forbidden-role")) {
                 return handleApiError(null, "Forbidden: Recruiter role required", 403);
             }
 
@@ -135,7 +134,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         }
     } catch (error: unknown) {
         logger.error({ err: error }, "JD search failed");
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        return handleApiError(error, "Failed to search by JD: " + errorMessage);
+        return handleApiError(error, "Failed to search by JD");
     }
 }

@@ -15,8 +15,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line no-restricted-imports
-import admin, { adminDb } from "@/lib/firebase-admin";
+import { getDb } from "@/lib/dal";
 import { ID_GENERATION } from "@/config/constants";
 import { logger } from "@/lib/logger";
 
@@ -38,7 +37,7 @@ interface InfraHealthResponse {
 
 async function checkResumeIdCounter(): Promise<HealthCheck> {
   try {
-    const counterDoc = await adminDb.doc(ID_GENERATION.COUNTER_DOC_PATH).get();
+    const counterDoc = await getDb().doc(ID_GENERATION.COUNTER_DOC_PATH).get();
 
     if (!counterDoc.exists) {
       return {
@@ -49,7 +48,7 @@ async function checkResumeIdCounter(): Promise<HealthCheck> {
     }
 
     // Check shards
-    const shardsSnapshot = await adminDb
+    const shardsSnapshot = await getDb()
       .collection(ID_GENERATION.SHARD_COLLECTION_PATH)
       .get();
 
@@ -94,7 +93,7 @@ async function checkResumeIdCounter(): Promise<HealthCheck> {
     return {
       name: "resumeIdCounter",
       status: "error",
-      message: error instanceof Error ? error.message : "Unknown error",
+      message: String(error),
     };
   }
 }
@@ -105,7 +104,7 @@ async function checkSystemCollections(): Promise<HealthCheck> {
     const missing: string[] = [];
 
     for (const collection of requiredCollections) {
-      const snapshot = await adminDb.collection(collection).limit(1).get();
+      const snapshot = await getDb().collection(collection).limit(1).get();
       // We just check if we can query, not if it has documents
       // An empty collection is fine for a fresh deployment
       if (snapshot === undefined) {
@@ -132,14 +131,14 @@ async function checkSystemCollections(): Promise<HealthCheck> {
     return {
       name: "systemCollections",
       status: "error",
-      message: error instanceof Error ? error.message : "Unknown error",
+      message: String(error),
     };
   }
 }
 
 async function checkBillingConfig(): Promise<HealthCheck> {
   try {
-    const billingDoc = await adminDb.doc("system/billing").get();
+    const billingDoc = await getDb().doc("system/billing").get();
 
     if (!billingDoc.exists) {
       return {
@@ -163,17 +162,16 @@ async function checkBillingConfig(): Promise<HealthCheck> {
   }
 }
 
-export async function GET(request: NextRequest): Promise<NextResponse> {
+export async function GET(_request: NextRequest): Promise<NextResponse> {
   const startTime = Date.now();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const debugInfo: any = {
     hasServiceAccountEnv: !!process.env.FIREBASE_SERVICE_ACCOUNT,
     hasGoogleAppCreds: !!process.env.GOOGLE_APPLICATION_CREDENTIALS,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    credentialType: (admin.app().options.credential as any)?.constructor?.name,
-    projectId: admin.app().options.projectId,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    serviceAccountEmail: (admin.app().options.credential as any)?.clientEmail,
+    projectId:
+      process.env.FIREBASE_PROJECT_ID ||
+      process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
+      null,
   };
   logger.error({ debugInfo }, "FORCE_DEBUG_LOG_START");
 
@@ -205,13 +203,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       debug: {
         hasServiceAccountEnv: !!process.env.FIREBASE_SERVICE_ACCOUNT,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        credentialType: (admin.app().options.credential as any)?.constructor
-          ?.name,
-        projectId: admin.app().options.projectId,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        serviceAccountEmail: (admin.app().options.credential as any)
-          ?.clientEmail,
+        projectId:
+          process.env.FIREBASE_PROJECT_ID ||
+          process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
+          null,
         envVars: {
           GOOGLE_APPLICATION_CREDENTIALS:
             !!process.env.GOOGLE_APPLICATION_CREDENTIALS,

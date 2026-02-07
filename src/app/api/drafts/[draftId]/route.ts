@@ -45,7 +45,8 @@ export async function GET(
       },
     });
   } catch (error: unknown) {
-    if (error instanceof Error && error.message.includes("Forbidden")) {
+    const errorText = String(error);
+    if (errorText.includes("Forbidden")) {
       return handleApiError(error, "Forbidden", 403);
     }
     return handleApiError(error, "Failed to fetch draft");
@@ -105,10 +106,11 @@ export async function PATCH(
       );
       return NextResponse.json(updatedDraft);
     } catch (error: unknown) {
-      if (error instanceof Error && error.message.includes("Draft not found")) {
+      const errorText = String(error);
+      if (errorText.includes("Draft not found")) {
         return handleApiError(null, "Draft not found", 404);
       }
-      if (error instanceof Error && error.message.includes("Forbidden")) {
+      if (errorText.includes("Forbidden")) {
         return handleApiError(error, "Forbidden", 403);
       }
       throw error;
@@ -132,10 +134,11 @@ export async function DELETE(
       await deleteDraft(draftId, userId!);
       return NextResponse.json({ success: true });
     } catch (error: unknown) {
-      if (error instanceof Error && error.message.includes("Draft not found")) {
+      const errorText = String(error);
+      if (errorText.includes("Draft not found")) {
         return handleApiError(null, "Draft not found", 404);
       }
-      if (error instanceof Error && error.message.includes("Forbidden")) {
+      if (errorText.includes("Forbidden")) {
         return handleApiError(error, "Forbidden", 403);
       }
       throw error;

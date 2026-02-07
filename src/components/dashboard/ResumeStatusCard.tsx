@@ -102,8 +102,6 @@ export function ResumeStatusCard({
       reloadPage();
     } catch (error) {
       logger.error({ err: error }, "Error deleting resume:");
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
       toast.error("Failed to delete resume. Please try again.");
     } finally {
       setIsDeleting(false);

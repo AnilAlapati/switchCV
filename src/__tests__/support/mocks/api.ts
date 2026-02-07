@@ -64,10 +64,12 @@ export const mockGeminiModelsResponse = {
 
 // Helper to set up global fetch mock for API calls
 export function setupFetchMock(responses: Record<string, any>) {
-  (global.fetch as jest.Mock) = (jest.fn() as jest.Mock).mockImplementation((url: string, options?: RequestInit) => {
+  (global.fetch as jest.Mock) = (jest.fn() as jest.Mock).mockImplementation((...args: unknown[]) => {
+    const [url] = args;
+    const normalizedUrl = String(url);
     // Find matching response based on URL and method
     for (const [key, response] of Object.entries(responses)) {
-      if (url.includes(key)) {
+      if (normalizedUrl.includes(key)) {
         return Promise.resolve({
           ok: true,
           status: 200,

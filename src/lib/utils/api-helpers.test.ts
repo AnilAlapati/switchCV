@@ -156,7 +156,10 @@ describe("api-helpers", () => {
   });
 
   describe("fetchResumeDocument", () => {
-    const mockDoc = (exists: boolean, data: Record<string, unknown>) => ({
+    const mockDoc = (
+      exists: boolean,
+      data: Record<string, unknown> | undefined,
+    ) => ({
       exists,
       data: jest.fn().mockReturnValue(data),
       get: jest.fn().mockResolvedValue({

@@ -27,7 +27,7 @@ const createMockAuthContext = (user: { uid: string; email: string } | null) => (
   needsUsername: false,
   setUsername: jest.fn(),
   checkNeedsUsername: jest.fn().mockResolvedValue(false),
-});
+}) as ReturnType<typeof useAuth>;
 
 const mockUser = {
   uid: "test-user-id",

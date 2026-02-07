@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb } from "@/lib/firebase-admin";
+import { COLLECTIONS, collectionRef } from "@/lib/dal";
 import {
   defaultSystemConfig,
   mergeWithDefaultConfig,
@@ -15,7 +14,7 @@ import { logger } from "@/lib/logger";
 
 export async function GET() {
   try {
-    const snapshot = await adminDb.collection("config").doc("system").get();
+    const snapshot = await collectionRef(COLLECTIONS.CONFIG).doc("system").get();
 
     let config: SystemConfig;
     if (snapshot.exists) {

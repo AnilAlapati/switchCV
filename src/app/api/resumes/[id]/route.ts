@@ -340,7 +340,8 @@ export async function DELETE(
     });
   } catch (error) {
     // Check if it's our service error
-    if (error instanceof Error && error.message === "Unauthorized") {
+    const errorText = String(error);
+    if (errorText.includes("Unauthorized")) {
       return handleApiError(error, "Unauthorized", 403);
     }
     return handleApiError(error, "Error deleting resume");

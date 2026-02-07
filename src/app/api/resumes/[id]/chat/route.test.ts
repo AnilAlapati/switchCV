@@ -20,13 +20,13 @@ import {
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
 
-const mockDoc: Record<string, jest.Mock> = {
+const mockDoc = {
   get: jest.fn(),
   set: jest.fn(),
   collection: jest.fn(),
   id: "mock-doc-id",
-};
-const mockCollection: Record<string, jest.Mock> = { doc: jest.fn(() => mockDoc) };
+} as const;
+const mockCollection = { doc: jest.fn(() => mockDoc) };
 mockDoc.collection.mockReturnValue(mockCollection);
 
 jest.mock("next/server", () => ({

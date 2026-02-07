@@ -33,7 +33,7 @@ jest.mock("@/components/resume/LegacyResumeRenderer", () => ({
   LegacyResumeRenderer: () => <div data-testid="legacy-renderer" />,
 }));
 jest.mock("@/components/resume/ResumeAccessBlock", () => ({
-  ResumeAccessBlock: ({ config }: { config: Record<string, unknown> }) => (
+  ResumeAccessBlock: ({ config }: { config: { title: string } }) => (
     <div data-testid="access-block">{config.title}</div>
   ),
 }));

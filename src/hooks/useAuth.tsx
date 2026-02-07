@@ -90,7 +90,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const firebaseReady = Boolean(firebaseConnectivity?.isReady);
 
   const { reserveUsername, ensureUserProfile, releaseUsernameReservation } =
-    createAuthProfileHelpers(db);
+    useMemo(() => createAuthProfileHelpers(db), []);
 
   const skipEmailVerification =
     process.env.NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION === "true";
@@ -101,20 +101,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     !user.emailVerified &&
     !skipEmailVerification;
 
-  const ensureAuthAvailable = () => {
+  const ensureAuthAvailable = useCallback(() => {
     if (!firebaseReady) {
       throw new Error(
         connectivityIssue ||
-          "Authentication service is temporarily unavailable. Please try again later.",
+        "Authentication service is temporarily unavailable. Please try again later.",
       );
     }
-  };
+  }, [firebaseReady, connectivityIssue]);
 
   useEffect(() => {
     if (!firebaseReady) {
       setConnectivityIssue(
         firebaseConnectivity?.error ||
-          "Firebase configuration is incomplete. Please contact support.",
+        "Firebase configuration is incomplete. Please contact support.",
       );
       setLoading(false);
       return;
@@ -136,26 +136,29 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   }, [firebaseReady, firebaseConnectivity?.error]);
 
-  const sendVerification = async (targetUser?: User | null) => {
-    ensureAuthAvailable();
-    const activeUser = targetUser || auth.currentUser;
-    if (!activeUser) {
-      throw new Error("No signed-in user to verify.");
-    }
+  const sendVerification = useCallback(
+    async (targetUser?: User | null) => {
+      ensureAuthAvailable();
+      const activeUser = targetUser || auth.currentUser;
+      if (!activeUser) {
+        throw new Error("No signed-in user to verify.");
+      }
 
-    // Use Cloud Function to send branded email via custom SMTP
-    try {
-      const resendVerificationEmail = httpsCallable(
-        functions,
-        "resendVerificationEmail",
-      );
-      await resendVerificationEmail();
-      setVerificationEmail(activeUser.email ?? null);
-    } catch (error) {
-      // Silently fail - verification resend error is non-critical
-      throw error;
-    }
-  };
+      // Use Cloud Function to send branded email via custom SMTP
+      try {
+        const resendVerificationEmailFn = httpsCallable(
+          functions,
+          "resendVerificationEmail",
+        );
+        await resendVerificationEmailFn();
+        setVerificationEmail(activeUser.email ?? null);
+      } catch (error) {
+        // Silently fail - verification resend error is non-critical
+        throw error;
+      }
+    },
+    [ensureAuthAvailable],
+  );
 
   const signIn = useCallback(
     async (email: string, password: string) => {
@@ -178,95 +181,106 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         throw new Error(getSignInErrorMessage(authError));
       }
     },
-    [firebaseReady, ensureUserProfile],
+    [ensureUserProfile, ensureAuthAvailable],
   );
 
-  const signUp = async (email: string, password: string, username: string) => {
-    ensureAuthAvailable();
-    let credential: { user: User } | null = null;
-    let reservedUsername: string | null = null;
-    try {
-      const normalized = sanitizeUsername(username);
-      if (!normalized || !USERNAME_REGEX.test(normalized)) {
-        throw new Error(
-          "Please choose a username between 3-30 characters using lowercase letters, numbers, hyphens, or underscores.",
-        );
-      }
+  const signUp = useCallback(
+    async (email: string, password: string, username: string) => {
+      ensureAuthAvailable();
+      let credential: { user: User } | null = null;
+      let reservedUsername: string | null = null;
+      try {
+        const normalized = sanitizeUsername(username);
+        if (!normalized || !USERNAME_REGEX.test(normalized)) {
+          throw new Error(
+            "Please choose a username between 3-30 characters using lowercase letters, numbers, hyphens, or underscores.",
+          );
+        }
 
-      credential = await createUserWithEmailAndPassword(auth, email, password);
-      setVerificationEmail(credential.user.email ?? email);
-
-      // Wait for the auth token to be ready before writing to Firestore
-      // This prevents "Missing or insufficient permissions" errors
-      await credential.user.getIdToken(true);
-
-      reservedUsername = await reserveUsername(
-        credential.user.uid,
-        normalized,
-        {
+        credential = await createUserWithEmailAndPassword(
+          auth,
           email,
-          displayName: normalized,
-          authProvider: "password",
-          createdAt: serverTimestamp(),
-        },
-      );
+          password,
+        );
+        setVerificationEmail(credential.user.email ?? email);
 
-      // Username successfully reserved - mark that we don't need username selection
-      // This prevents race condition where checkNeedsUsername() is called before Firestore write propagates
-      setNeedsUsername(false);
+        // Wait for the auth token to be ready before writing to Firestore
+        // This prevents "Missing or insufficient permissions" errors
+        await credential.user.getIdToken(true);
 
-      setNeedsUsername(false);
+        reservedUsername = await reserveUsername(
+          credential.user.uid,
+          normalized,
+          {
+            email,
+            displayName: normalized,
+            authProvider: "password",
+            createdAt: serverTimestamp(),
+          },
+        );
 
-      // We rely on the 'onUserCreated' Cloud Function to send the welcome/verification email
-      // This ensures we use our custom SMTP and branded template instead of Firebase's default
-      // If the cloud function fails, the user can use the "Resend" button in the dashboard
-    } catch (error) {
-      // Only rollback if the error is NOT a permission error that might resolve
-      // (permission errors are now retried in reserveUsername with backoff)
-      const firestoreError = error as { code?: string; message?: string };
-      const errorMessage =
-        error instanceof Error ? error.message.toLowerCase() : "";
-      const isPermissionError =
-        firestoreError.code === "permission-denied" ||
-        errorMessage.includes("missing or insufficient permissions") ||
-        errorMessage.includes("permission denied");
+        // Username successfully reserved - mark that we don't need username selection
+        // This prevents race condition where checkNeedsUsername() is called before Firestore write propagates
+        setNeedsUsername(false);
 
-      // If it's a permission error after all retries, the user exists but profile doesn't
-      // Don't delete the user - they can try to complete signup later or use password reset
-      if (!isPermissionError && credential?.user) {
-        if (reservedUsername) {
+        setNeedsUsername(false);
+
+        // We rely on the 'onUserCreated' Cloud Function to send the welcome/verification email
+        // This ensures we use our custom SMTP and branded template instead of Firebase's default
+        // If the cloud function fails, the user can use the "Resend" button in the dashboard
+      } catch (error) {
+        // Only rollback if the error is NOT a permission error that might resolve
+        // (permission errors are now retried in reserveUsername with backoff)
+        const firestoreError = error as { code?: string; message?: string };
+        const errorMessage =
+          error instanceof Error ? error.message.toLowerCase() : "";
+        const isPermissionError =
+          firestoreError.code === "permission-denied" ||
+          errorMessage.includes("missing or insufficient permissions") ||
+          errorMessage.includes("permission denied");
+
+        // If it's a permission error after all retries, the user exists but profile doesn't
+        // Don't delete the user - they can try to complete signup later or use password reset
+        if (!isPermissionError && credential?.user) {
+          if (reservedUsername) {
+            try {
+              await releaseUsernameReservation(
+                credential.user.uid,
+                reservedUsername,
+              );
+            } catch (releaseError) {
+              reportError(releaseError, {
+                source: "useAuth.signUp.rollback",
+                severity: "warning",
+              });
+            }
+          }
+
           try {
-            await releaseUsernameReservation(
-              credential.user.uid,
-              reservedUsername,
-            );
-          } catch (releaseError) {
-            reportError(releaseError, {
+            await credential.user.delete();
+          } catch (deleteError) {
+            reportError(deleteError, {
               source: "useAuth.signUp.rollback",
               severity: "warning",
             });
           }
         }
 
-        try {
-          await credential.user.delete();
-        } catch (deleteError) {
-          reportError(deleteError, {
-            source: "useAuth.signUp.rollback",
-            severity: "warning",
-          });
-        }
+        const authError = error as { code?: string; message?: string };
+        reportError(error, {
+          source: "useAuth.signUp",
+          severity: "warning",
+          meta: { code: authError.code },
+        });
+        throw new Error(getSignUpErrorMessage(authError));
       }
-
-      const authError = error as { code?: string; message?: string };
-      reportError(error, {
-        source: "useAuth.signUp",
-        severity: "warning",
-        meta: { code: authError.code },
-      });
-      throw new Error(getSignUpErrorMessage(authError));
-    }
-  };
+    },
+    [
+      ensureAuthAvailable,
+      reserveUsername,
+      releaseUsernameReservation,
+    ],
+  );
 
   const logout = useCallback(async () => {
     ensureAuthAvailable();
@@ -279,7 +293,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
 
     await signOut(auth);
-  }, [user?.uid, firebaseReady]);
+  }, [user?.uid, ensureAuthAvailable]);
 
   const signInWithGoogle = useCallback(async (): Promise<{
     needsUsername: boolean;
@@ -304,7 +318,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       });
       throw new Error(getGoogleSignInErrorMessage(authError));
     }
-  }, [firebaseReady, ensureUserProfile]);
+  }, [ensureUserProfile, ensureAuthAvailable]);
 
   /**
    * Set username for a user who signed in via Google OAuth.
@@ -356,7 +370,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const resendVerificationEmail = useCallback(async () => {
     await sendVerification();
-  }, [firebaseReady]);
+  }, [sendVerification]);
 
   const refreshUser = useCallback(async () => {
     if (!auth?.currentUser) {

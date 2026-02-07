@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb } from "@/lib/firebase-admin";
+import { COLLECTIONS, collectionRef } from "@/lib/dal";
 import {
   getAuthenticatedUserId,
   handleApiError,
@@ -10,7 +9,7 @@ import {
  * Helper to verify admin role
  */
 async function verifyAdminRole(userId: string): Promise<boolean> {
-  const userSnap = await adminDb.collection("users").doc(userId).get();
+  const userSnap = await collectionRef(COLLECTIONS.USERS).doc(userId).get();
   const userData = userSnap.data();
   return userData?.role === "admin";
 }
@@ -28,8 +27,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all published resumes
-    const resumesSnapshot = await adminDb
-      .collection("resumes")
+    const resumesSnapshot = await collectionRef(COLLECTIONS.RESUMES)
       .where("published", "==", true)
       .limit(50)
       .get();
@@ -38,8 +36,7 @@ export async function GET(request: NextRequest) {
 
     for (const doc of resumesSnapshot.docs) {
       const resumeData = doc.data();
-      const userDoc = await adminDb
-        .collection("users")
+      const userDoc = await collectionRef(COLLECTIONS.USERS)
         .doc(resumeData.userId)
         .get();
 

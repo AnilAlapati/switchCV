@@ -1,11 +1,14 @@
 import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb } from "@/lib/firebase-admin";
+import { COLLECTIONS, collectionRef } from "@/lib/dal";
 import {
   handleApiError,
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
+import {
+  UserSettingsQuerySchema,
+  UserSettingsUpdateSchema,
+} from "@/lib/schemas/api";
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,14 +17,17 @@ export async function GET(request: NextRequest) {
     if (error) return error;
 
     // Verify that the user can only access their own settings
-    const requestedUserId = new URL(request.url).searchParams.get("userId");
-    if (!requestedUserId) {
+    const queryParseResult = UserSettingsQuerySchema.safeParse({
+      userId: new URL(request.url).searchParams.get("userId"),
+    });
+    if (!queryParseResult.success) {
       return handleApiError(
-        new Error("userId is required"),
+        queryParseResult.error,
         "userId is required",
         400
       );
     }
+    const requestedUserId = queryParseResult.data.userId;
 
     if (userId !== requestedUserId) {
       return handleApiError(
@@ -32,7 +38,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user document using Admin SDK (bypasses Firestore security rules)
-    const userDoc = await adminDb.collection("users").doc(userId!).get();
+    const userRef = collectionRef(COLLECTIONS.USERS).doc(userId!);
+    const userDoc = await userRef.get();
 
     if (!userDoc.exists) {
       return handleApiError(new Error("User not found"), "User not found", 404);
@@ -44,13 +51,10 @@ export async function GET(request: NextRequest) {
     const isRecruiter = userData?.isRecruiter || false;
     if (userData && userData.role === undefined) {
       // Update the document to include the role field
-      await adminDb
-        .collection("users")
-        .doc(userId!)
-        .set(
-          { role: isRecruiter ? "recruiter" : "jobseeker" },
-          { merge: true }
-        );
+      await userRef.set(
+        { role: isRecruiter ? "recruiter" : "jobseeker" },
+        { merge: true }
+      );
     }
 
     const settings = {
@@ -97,6 +101,11 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    const parseResult = UserSettingsUpdateSchema.safeParse(body);
+    if (!parseResult.success) {
+      return handleApiError(parseResult.error, "userId is required", 400);
+    }
+
     const {
       userId: requestedUserId,
       isRecruiter,
@@ -104,15 +113,7 @@ export async function PUT(request: NextRequest) {
       displayName,
       notifications,
       privacy,
-    } = body;
-
-    if (!requestedUserId) {
-      return handleApiError(
-        new Error("userId is required"),
-        "userId is required",
-        400
-      );
-    }
+    } = parseResult.data;
 
     // Verify that the user can only update their own settings
     if (userId !== requestedUserId) {
@@ -124,7 +125,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Build update object with only provided fields
-    const updateData: Record<string, any> = {
+    const updateData: Record<string, unknown> = {
       settingsUpdatedAt: new Date().toISOString(),
     };
 
@@ -152,10 +153,9 @@ export async function PUT(request: NextRequest) {
     }
 
     // Use set with merge to create the document if it doesn't exist
-    await adminDb
-      .collection("users")
-      .doc(userId!)
-      .set(updateData, { merge: true });
+    await collectionRef(COLLECTIONS.USERS).doc(userId!).set(updateData, {
+      merge: true,
+    });
 
     return NextResponse.json({
       success: true,

@@ -1,4 +1,3 @@
-/* eslint-disable max-lines */
 /**
  * Interview Session Manager Tests
  */

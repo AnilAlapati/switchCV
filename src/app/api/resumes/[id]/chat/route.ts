@@ -1,7 +1,6 @@
 import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb } from "@/lib/firebase-admin";
+import { COLLECTIONS, collectionRef } from "@/lib/dal";
 import { generateText } from "@/lib/services/aiGenerationService";
 import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 import { BillingService } from "@/lib/services/billingService";
@@ -22,6 +21,7 @@ import {
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
 import { getTierForRole } from "@/lib/services/userService";
+import { ResumeChatRequestSchema } from "@/lib/schemas/api";
 
 interface ConversationMessage {
   id?: string;
@@ -37,11 +37,11 @@ interface ResumeChatRequest {
 }
 
 async function getResumeDocument(id: string) {
-  let docRef = adminDb.collection("resumes").doc(id);
+  let docRef = collectionRef(COLLECTIONS.RESUMES).doc(id);
   let snapshot = await docRef.get();
 
   if (!snapshot.exists) {
-    docRef = adminDb.collection("resumeProfiles").doc(id);
+    docRef = collectionRef(COLLECTIONS.RESUME_PROFILES).doc(id);
     snapshot = await docRef.get();
   }
 
@@ -144,16 +144,19 @@ export async function POST(
       await getAuthenticatedUserId(request);
     if (authError) return authError;
 
-    const body: ResumeChatRequest = await request.json();
-    const { message, conversationHistory = [], sessionData } = body;
-
-    if (!message || typeof message !== "string") {
+    const parseResult = ResumeChatRequestSchema.safeParse(await request.json());
+    if (!parseResult.success) {
       return handleApiError(
-        new Error("Message is required"),
+        parseResult.error,
         "Message is required",
         400
       );
     }
+    const {
+      message,
+      conversationHistory = [],
+      sessionData,
+    } = parseResult.data as ResumeChatRequest;
 
     const { docRef, snapshot } = await getResumeDocument(id);
     if (!snapshot.exists) {

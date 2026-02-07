@@ -351,8 +351,7 @@ describe("supportFeedbackService", () => {
       // However, it's safer to mock it if required.
 
       const originalEmail = config.APP_CONFIG.SUPPORT_EMAIL;
-      // @ts-expect-error - testing with invalid config value
-      config.APP_CONFIG.SUPPORT_EMAIL = "";
+      (config.APP_CONFIG as { SUPPORT_EMAIL: string }).SUPPORT_EMAIL = "";
 
       await expect(
         sendSupportFeedback({
@@ -362,8 +361,8 @@ describe("supportFeedbackService", () => {
       ).rejects.toThrow("Support email destination is not set");
 
       process.env.SUPPORT_FEEDBACK_TO = originalEnv;
-      // @ts-expect-error - restoring readonly config value
-      config.APP_CONFIG.SUPPORT_EMAIL = originalEmail;
+      (config.APP_CONFIG as { SUPPORT_EMAIL: string }).SUPPORT_EMAIL =
+        originalEmail;
     });
   });
 });

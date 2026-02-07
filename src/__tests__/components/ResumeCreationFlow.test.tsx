@@ -11,17 +11,21 @@ import { toast } from "sonner";
 
 jest.mock("@/hooks/useAIResume");
 jest.mock("@/components/ResumeQAForm", () => ({
-  ResumeQAForm: (props: Record<string, unknown>) => (
+  ResumeQAForm: (props: React.ComponentProps<typeof MockResumeQAForm>) => (
     <MockResumeQAForm {...props} />
   ),
 }));
 jest.mock("@/components/ResumeGenerationLoader", () => ({
-  ResumeGenerationLoader: (props: Record<string, unknown>) => (
+  ResumeGenerationLoader: (
+    props: React.ComponentProps<typeof MockResumeGenerationLoader>,
+  ) => (
     <MockResumeGenerationLoader {...props} />
   ),
 }));
 jest.mock("@/components/ResumeReviewModal", () => ({
-  ResumeReviewModal: (props: Record<string, unknown>) => (
+  ResumeReviewModal: (
+    props: React.ComponentProps<typeof MockResumeReviewModal>,
+  ) => (
     <MockResumeReviewModal {...props} />
   ),
 }));

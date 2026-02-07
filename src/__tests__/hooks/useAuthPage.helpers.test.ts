@@ -1,4 +1,4 @@
-/* eslint-disable max-lines */
+ 
 import { renderHook, act } from "@testing-library/react";
 import { useUsernameChecker } from "@/hooks/useAuthPage.helpers";
 

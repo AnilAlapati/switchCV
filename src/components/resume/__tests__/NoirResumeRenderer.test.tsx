@@ -16,7 +16,7 @@ jest.mock("../templateRendererUtils", () => ({
 }));
 
 describe("NoirResumeRenderer", () => {
-  const mockTemplate: ResumeTemplate = {
+  const mockTemplate = {
     id: "noir",
     name: "Noir",
     description: "Dark Luxury",
@@ -33,9 +33,9 @@ describe("NoirResumeRenderer", () => {
       fontFamily: "sans-serif",
       spacing: "medium",
     },
-  };
+  } as unknown as ResumeTemplate;
 
-  const mockData: ResumeProfile = {
+  const mockData = {
     title: "Venture Architect",
     summary:
       "Designing the future of digital ecosystems through deep tech integration.",
@@ -74,7 +74,7 @@ describe("NoirResumeRenderer", () => {
         period: "2010 - 2014",
       },
     ],
-  };
+  } as unknown as ResumeProfile;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -167,7 +167,7 @@ describe("NoirResumeRenderer", () => {
     (normalizeTimelineItems as jest.Mock).mockReturnValue([]);
     (normalizeProjects as jest.Mock).mockReturnValue([]);
 
-    const emptyData: ResumeProfile = {
+    const emptyData = {
       title: "",
       summary: "",
       personalInfo: {},
@@ -175,7 +175,7 @@ describe("NoirResumeRenderer", () => {
       experience: [],
       projects: [],
       education: [],
-    };
+    } as unknown as ResumeProfile;
 
     render(<NoirResumeRenderer template={mockTemplate} data={emptyData} />);
 

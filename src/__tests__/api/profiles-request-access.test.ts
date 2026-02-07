@@ -54,7 +54,7 @@ describe("Profiles Request Access API", () => {
       new URL("http://localhost:3000/api/profiles/request-access"),
       {
         method: "POST",
-        body: JSON.stringify({ duration: "1day" }),
+        body: JSON.stringify({ duration: { preset: "1_day" } }),
       }
     );
     const response = await POST(req);
@@ -74,7 +74,7 @@ describe("Profiles Request Access API", () => {
         method: "POST",
         body: JSON.stringify({
           resumeId: "res-1",
-          duration: "1day",
+          duration: { preset: "1_day" },
         }),
       }
     );
@@ -97,7 +97,7 @@ describe("Profiles Request Access API", () => {
         method: "POST",
         body: JSON.stringify({
           resumeId: "res-1",
-          duration: "1day",
+          duration: { preset: "1_day" },
         }),
       }
     );

@@ -1,7 +1,7 @@
 // src/context/DashboardMetricsContext.tsx
 "use client";
 
-import { createContext, useContext } from "react";
+import { createContext, useContext, useMemo } from "react";
 import type { JobSeekerMetrics, RecruiterMetrics } from "@/types/dashboard";
 
 export interface DashboardMetricsContextValue {
@@ -24,8 +24,10 @@ export function DashboardMetricsProvider({
   children,
   value,
 }: DashboardMetricsProviderProps) {
+  const memoizedValue = useMemo(() => value, [value]);
+
   return (
-    <DashboardMetricsContext.Provider value={value}>
+    <DashboardMetricsContext.Provider value={memoizedValue}>
       {children}
     </DashboardMetricsContext.Provider>
   );

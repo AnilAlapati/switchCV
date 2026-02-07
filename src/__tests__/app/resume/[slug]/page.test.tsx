@@ -1,4 +1,4 @@
-/* eslint-disable max-lines */
+ 
 /**
  * Tests for Resume Page (Dynamic [slug])
  * Tests the public resume display with visibility controls
@@ -25,13 +25,13 @@ jest.mock("firebase/firestore", () => ({
 // Mock resume utility functions
 jest.mock("@/lib/utils/resumeVisibility", () => ({
   renderContactField: (field: { value?: string }) => field?.value || "Not provided",
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   parseEnhancedContent: (_content: string) => ({
     enhancedSummary: "Professional summary",
     enhancedExperience: [],
     skillSuggestions: [],
   }),
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   countVisibility: (_items: Array<{ visibility: string }>) => ({
     public: 2,
     masked: 1,
@@ -169,7 +169,7 @@ describe("Resume Page [slug]", () => {
 
       const hasRequestFields =
         mockResume.contact.email.visibility === "request" ||
-        mockResume.contact.phone.visibility === "request";
+        mockResume.contact.phone?.visibility === "request";
 
       expect(hasRequestFields).toBe(true);
     });
@@ -197,7 +197,7 @@ describe("Resume Page [slug]", () => {
       };
 
       expect(mockResume.contact.email.visibility).toBe("masked");
-      expect(mockResume.contact.phone.visibility).toBe("masked");
+      expect(mockResume.contact.phone?.visibility).toBe("masked");
     });
 
     it("should handle public visibility", () => {
@@ -223,7 +223,7 @@ describe("Resume Page [slug]", () => {
       };
 
       expect(mockResume.contact.email.visibility).toBe("public");
-      expect(mockResume.contact.phone.visibility).toBe("public");
+      expect(mockResume.contact.phone?.visibility).toBe("public");
     });
   });
 
@@ -490,7 +490,7 @@ describe("Resume Page [slug]", () => {
       };
 
       expect(mockResume.contact.email.visibility).toBe("public");
-      expect(mockResume.contact.phone.visibility).toBe("public");
+      expect(mockResume.contact.phone?.visibility).toBe("public");
     });
   });
 });

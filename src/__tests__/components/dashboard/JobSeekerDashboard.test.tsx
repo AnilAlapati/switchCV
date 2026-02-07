@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { JobSeekerDashboard } from "@/components/dashboard/JobSeekerDashboard";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { toast } from "sonner";
 
 // Mock hooks
 jest.mock("@/hooks/useAuth", () => ({
@@ -36,6 +37,11 @@ jest.mock("@/lib/dashboard/jobSeekerInsights", () => ({
 }));
 
 jest.mock("@/lib/logger");
+jest.mock("sonner", () => ({
+    toast: {
+        error: jest.fn(),
+    },
+}));
 
 describe("JobSeekerDashboard", () => {
     const mockOnRefresh = jest.fn();
@@ -49,7 +55,6 @@ describe("JobSeekerDashboard", () => {
         (useAuth as jest.Mock).mockReturnValue({ user: mockUser });
         (useUserProfile as jest.Mock).mockReturnValue({ tier: "basic", profile: {} });
         global.fetch = jest.fn();
-        window.alert = jest.fn();
     });
 
     it("renders skeleton when metrics are loading", () => {
@@ -144,7 +149,7 @@ describe("JobSeekerDashboard", () => {
         fireEvent.click(screen.getByText("Toggle"));
 
         await waitFor(() => {
-            expect(window.alert).toHaveBeenCalledWith("Failed to update visibility settings.");
+            expect(toast.error).toHaveBeenCalledWith("Failed to update visibility settings.");
         });
     });
 });

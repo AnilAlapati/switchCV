@@ -8,7 +8,11 @@ import {
     compareCandidates,
     createBulkAction,
 } from "@/lib/recruiterPipelineHelpers";
-import { PipelineStage, Candidate } from "@/lib/recruiterDashboard.types";
+import {
+    PipelineStage,
+    Candidate,
+    CandidatePriority,
+} from "@/lib/recruiterDashboard.types";
 
 describe("recruiterPipelineHelpers", () => {
     const jobId = "job-1";
@@ -17,8 +21,10 @@ describe("recruiterPipelineHelpers", () => {
     const createMockCandidate = (id: string, stage: PipelineStage): Candidate => ({
         id,
         name: `User ${id}`,
+        email: `${id}@example.com`,
+        position: "Engineer",
         stage,
-        priority: "medium",
+        priority: CandidatePriority.MEDIUM,
         createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000), // 10 days ago
         updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),  // 2 days ago
         skillMatch: 80,

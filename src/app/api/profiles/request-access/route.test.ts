@@ -41,11 +41,15 @@ const createMockDocSnapshot = (exists: boolean, data?: Record<string, unknown>, 
   id: id || (exists ? "mock-doc-id" : ""),
 });
 
-const createMockQuerySnapshot = (docs: Array<{ id: string; data: () => Record<string, unknown> }>) => ({
+const createMockQuerySnapshot = (
+  docs: Array<{ id: string; data: () => Record<string, unknown> | undefined }>
+) => ({
   docs,
   empty: docs.length === 0,
   size: docs.length,
-  forEach: (callback: (doc: { id: string; data: () => Record<string, unknown> }) => void) => docs.forEach(callback),
+  forEach: (
+    callback: (doc: { id: string; data: () => Record<string, unknown> | undefined }) => void
+  ) => docs.forEach(callback),
 });
 
 describe("POST /api/profiles/request-access", () => {

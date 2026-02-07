@@ -1,12 +1,12 @@
 import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb } from "@/lib/firebase-admin";
+import { COLLECTIONS, collectionRef } from "@/lib/dal";
 import { addDeletedIdToPool } from "@/lib/resumeIdRecycler";
 import {
   getAuthenticatedUserId,
   handleApiError,
 } from "@/lib/utils/api-helpers";
+import { DeleteResumeSchema } from "@/lib/schemas/api";
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,8 +14,11 @@ export async function POST(request: NextRequest) {
     if (authError) return authError;
     if (!userId) return handleApiError(null, "Unauthorized", 401);
 
-    const body = await request.json();
-    const { resumeId } = body;
+    const parseResult = DeleteResumeSchema.safeParse(await request.json());
+    if (!parseResult.success) {
+      return handleApiError(parseResult.error, "Resume ID is required", 400);
+    }
+    const { resumeId } = parseResult.data;
 
     if (!resumeId) {
       return handleApiError(null, "Resume ID is required", 400);
@@ -28,7 +31,7 @@ export async function POST(request: NextRequest) {
 
     // 1. Try deleting from 'resumes' collection (new system)
     // resumeId might be the numeric ID string
-    const resumeRef = adminDb.collection("resumes").doc(String(resumeId));
+    const resumeRef = collectionRef(COLLECTIONS.RESUMES).doc(String(resumeId));
     const resumeSnap = await resumeRef.get();
 
     if (resumeSnap.exists) {
@@ -51,8 +54,7 @@ export async function POST(request: NextRequest) {
       // If resumeId is numeric, we need to query
       let legacyRef;
       if (/^\d+$/.test(String(resumeId))) {
-        const snapshot = await adminDb
-          .collection("resumeProfiles")
+        const snapshot = await collectionRef(COLLECTIONS.RESUME_PROFILES)
           .where("numericId", "==", Number(resumeId))
           .limit(1)
           .get();
@@ -62,7 +64,7 @@ export async function POST(request: NextRequest) {
           numericId = Number(resumeId);
         }
       } else {
-        legacyRef = adminDb.collection("resumeProfiles").doc(String(resumeId));
+        legacyRef = collectionRef(COLLECTIONS.RESUME_PROFILES).doc(String(resumeId));
       }
 
       if (legacyRef) {
@@ -84,8 +86,7 @@ export async function POST(request: NextRequest) {
     // cleanup when removing legacy documents that do not emit events.
     if (!deletedFromPrimary && numericId) {
       const cleanupTasks: Promise<unknown>[] = [
-        adminDb
-          .collection("allResumes")
+        collectionRef(COLLECTIONS.ALL_RESUMES)
           .doc(String(numericId))
           .delete()
           .catch(() => undefined),
@@ -93,8 +94,7 @@ export async function POST(request: NextRequest) {
 
       if (legacyOwnerId) {
         cleanupTasks.push(
-          adminDb
-            .collection("users")
+          collectionRef(COLLECTIONS.USERS)
             .doc(legacyOwnerId)
             .collection("resumes")
             .doc(String(numericId))
@@ -102,8 +102,7 @@ export async function POST(request: NextRequest) {
             .catch(() => undefined)
         );
         cleanupTasks.push(
-          adminDb
-            .collection("users")
+          collectionRef(COLLECTIONS.USERS)
             .doc(legacyOwnerId)
             .collection("userResumes")
             .doc(String(numericId))

@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb } from "@/lib/firebase-admin";
+import { z } from "zod";
+import { COLLECTIONS, collectionRef } from "@/lib/dal";
 import { getAuthenticatedUserId, handleApiError } from "@/lib/utils/api-helpers";
+
+const JobseekerProfileUpdateSchema = z.record(z.string(), z.unknown());
 
 export async function GET(request: NextRequest) {
     try {
         const { userId, error } = await getAuthenticatedUserId(request);
         if (error) return error;
 
-        const profileDoc = await adminDb.collection("profiles").doc(userId!).get();
+        const profileDoc = await collectionRef(COLLECTIONS.PROFILES).doc(userId!).get();
         const profile = profileDoc.data() || {};
 
         return NextResponse.json(profile, {
@@ -26,16 +28,19 @@ export async function POST(request: NextRequest) {
         const { userId, error } = await getAuthenticatedUserId(request);
         if (error) return error;
 
-        const body = await request.json();
+        const parseResult = JobseekerProfileUpdateSchema.safeParse(await request.json());
+        if (!parseResult.success) {
+            return handleApiError(parseResult.error, "Invalid profile payload", 400);
+        }
 
         // Minimal validation - expand as needed
         const updateData = {
-            ...body,
+            ...parseResult.data,
             userId,
             updatedAt: new Date().toISOString()
         };
 
-        await adminDb.collection("profiles").doc(userId!).set(updateData, { merge: true });
+        await collectionRef(COLLECTIONS.PROFILES).doc(userId!).set(updateData, { merge: true });
 
         return NextResponse.json({ success: true, profile: updateData });
     } catch (error) {

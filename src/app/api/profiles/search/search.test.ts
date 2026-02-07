@@ -74,10 +74,10 @@ jest.mock("@/lib/logger", () => ({
 }));
 
 // Helper to create mock query snapshot
-const createMockQuerySnapshot = (docs: Array<{ id: string; data: () => Record<string, unknown> }>) => ({
-  docs: docs.map((data, index) => ({
-    id: data.uid || `doc-${index}`,
-    data: () => data,
+const createMockQuerySnapshot = (docs: Array<Record<string, unknown>>) => ({
+  docs: docs.map((doc, index) => ({
+    id: typeof doc.uid === "string" ? doc.uid : `doc-${index}`,
+    data: () => doc,
     exists: true,
   })),
   empty: docs.length === 0,

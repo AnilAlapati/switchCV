@@ -18,7 +18,7 @@ jest.mock("@/lib/services/userService", () => ({
   getUserRole: jest.fn(),
 }));
 
-const mockDoc: Record<string, unknown> = {
+const mockDoc = {
   get: jest.fn(),
   delete: jest.fn().mockReturnValue(Promise.resolve()),
   data: jest.fn(),
@@ -33,14 +33,14 @@ const mockDoc: Record<string, unknown> = {
       },
     },
   },
-};
+} as any;
 
-const mockCollection: Record<string, unknown> = {
+const mockCollection = {
   doc: jest.fn().mockReturnValue(mockDoc),
   where: jest.fn().mockReturnThis(),
   orderBy: jest.fn().mockReturnThis(),
   get: jest.fn(),
-};
+} as any;
 
 // Setup chaining
 mockDoc.collection.mockReturnValue(mockCollection);

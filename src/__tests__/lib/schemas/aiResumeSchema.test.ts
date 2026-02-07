@@ -60,14 +60,14 @@ describe("AIResumeResponseSchema", () => {
 
   describe("required fields", () => {
     it("should reject resume without title", () => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+       
       const { title: _, ...incomplete } = validResume;
       const result = AIResumeResponseSchema.safeParse(incomplete);
       expect(result.success).toBe(false);
     });
 
     it("should reject resume without skills", () => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+       
       const { skills: _, ...incomplete } = validResume;
       const result = AIResumeResponseSchema.safeParse(incomplete);
       expect(result.success).toBe(false);
@@ -82,14 +82,14 @@ describe("AIResumeResponseSchema", () => {
     });
 
     it("should reject resume without experience", () => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+       
       const { experience: _, ...incomplete } = validResume;
       const result = AIResumeResponseSchema.safeParse(incomplete);
       expect(result.success).toBe(false);
     });
 
     it("should reject resume without contact", () => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+       
       const { contact: _, ...incomplete } = validResume;
       const result = AIResumeResponseSchema.safeParse(incomplete);
       expect(result.success).toBe(false);

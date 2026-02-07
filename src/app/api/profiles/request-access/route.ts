@@ -5,17 +5,10 @@ import {
   handleApiError,
 } from "@/lib/utils/api-helpers";
 import {
-  DurationSelectionInput,
   normalizeDuration,
 } from "@/lib/accessDuration";
+import { RequestProfileAccessSchema } from "@/lib/schemas/api";
 import { AccessService } from "@/lib/services/accessService";
-
-interface RequestAccessPayload {
-  resumeId: string;
-  message?: string;
-  duration?: DurationSelectionInput;
-  timezone?: string;
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,16 +18,31 @@ export async function POST(request: NextRequest) {
     if (error) return error;
     if (!currentUserId) return handleApiError(null, "Unauthorized", 401);
 
-    const { resumeId, message, duration, timezone } =
-      (await request.json()) as RequestAccessPayload;
-
-    if (!resumeId) {
-      return handleApiError(null, "Resume ID is required", 400);
+    const payload = await request.json();
+    const parseResult = RequestProfileAccessSchema.safeParse(payload);
+    if (!parseResult.success) {
+      const hasDurationValue = Boolean(
+        payload &&
+          typeof payload === "object" &&
+          "duration" in (payload as Record<string, unknown>)
+      );
+      const hasResumeIdError = parseResult.error.issues.some(
+        (issue) => issue.path[0] === "resumeId"
+      );
+      const hasDurationError = parseResult.error.issues.some(
+        (issue) => issue.path[0] === "duration"
+      );
+      const message = hasResumeIdError
+        ? "Resume ID is required"
+        : hasDurationError && !hasDurationValue
+          ? "Duration selection is required"
+          : hasDurationError
+            ? "Invalid duration selection"
+            : "Invalid request payload";
+      return handleApiError(parseResult.error, message, 400);
     }
 
-    if (!duration) {
-      return handleApiError(null, "Duration selection is required", 400);
-    }
+    const { resumeId, message, duration, timezone } = parseResult.data;
 
     let normalizedDuration;
     try {
@@ -52,7 +60,7 @@ export async function POST(request: NextRequest) {
     const result = await AccessService.requestAccess({
       requesterId: currentUserId,
       requesterName: "User", // Service fetches real name from DB to be safe
-      resumeId,
+      resumeId: String(resumeId),
       message,
       durationLabel: normalizedDuration.label,
       durationDays: Math.ceil(
@@ -66,7 +74,7 @@ export async function POST(request: NextRequest) {
       message: "Request sent! The resume owner will review it soon.",
     });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = String(error);
 
     if (
       errorMessage.includes("Limit reached") ||

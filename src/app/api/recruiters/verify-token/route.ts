@@ -1,10 +1,10 @@
 import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line no-restricted-imports
-import admin, { adminDb } from "@/lib/firebase-admin";
+import { COLLECTIONS, collectionRef, serverTimestamp } from "@/lib/dal";
 import { tokenGenerator, TokenVerificationResult } from "@/lib/tokenGenerator";
 import { SecureAccessToken } from "@/types/profileSearch";
 import { handleApiError } from "@/lib/utils/api-helpers";
+import { VerifyRecruiterTokenSchema } from "@/lib/schemas/api";
 
 /**
  * GET /api/recruiters/verify-token?token=XXX&recruiterId=YYY
@@ -19,24 +19,25 @@ import { handleApiError } from "@/lib/utils/api-helpers";
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const token = searchParams.get("token");
-    const tokenId = searchParams.get("tokenId");
-    const recruiterId = searchParams.get("recruiterId");
-    const ipAddress = searchParams.get("ipAddress");
-
-    if (!token && !tokenId) {
+    const parseResult = VerifyRecruiterTokenSchema.safeParse({
+      token: searchParams.get("token") || undefined,
+      tokenId: searchParams.get("tokenId") || undefined,
+      recruiterId: searchParams.get("recruiterId") || undefined,
+      ipAddress: searchParams.get("ipAddress") || undefined,
+    });
+    if (!parseResult.success) {
       return handleApiError(
         new Error("Token or tokenId is required"),
         "Token or tokenId is required",
         400
       );
     }
+    const { token, tokenId, recruiterId, ipAddress } = parseResult.data;
 
     // If token ID provided, get from Firestore
     let tokenData: SecureAccessToken | null = null;
     if (tokenId) {
-      const tokenDoc = await adminDb
-        .collection("accessTokens")
+      const tokenDoc = await collectionRef(COLLECTIONS.ACCESS_TOKENS)
         .doc(tokenId)
         .get();
       if (tokenDoc.exists) {
@@ -124,12 +125,11 @@ export async function GET(request: NextRequest) {
 
       // Track usage
       if (tokenId) {
-        await adminDb
-          .collection("accessTokens")
+        await collectionRef(COLLECTIONS.ACCESS_TOKENS)
           .doc(tokenId)
           .update({
             usageCount: (tokenData.usageCount || 0) + 1,
-            lastUsedAt: admin.firestore.FieldValue.serverTimestamp(),
+            lastUsedAt: serverTimestamp(),
           });
       }
 
@@ -179,16 +179,15 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { token, tokenId, recruiterId, ipAddress } = body;
-
-    if (!token && !tokenId) {
+    const parseResult = VerifyRecruiterTokenSchema.safeParse(await request.json());
+    if (!parseResult.success) {
       return handleApiError(
         new Error("Token or tokenId is required"),
         "Token or tokenId is required",
         400
       );
     }
+    const { token, tokenId, recruiterId, ipAddress } = parseResult.data;
 
     // Reuse GET logic
     const searchParams = new URLSearchParams();

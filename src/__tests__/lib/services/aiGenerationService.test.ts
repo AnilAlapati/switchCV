@@ -885,6 +885,7 @@ describe("aiGenerationService", () => {
 
     it.skip("should throw error if Gemini returns no models initially", async () => {
       invalidateModelCache();
+      const getSystemConfig = await import("@/lib/getSystemConfig");
       jest.spyOn(getSystemConfig, "getConstants").mockResolvedValue({
         AI_SERVICE: {
           MAX_MODEL_REFRESH_ATTEMPTS: 1,

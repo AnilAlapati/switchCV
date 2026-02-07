@@ -6,7 +6,7 @@ import {
 import { DashboardResume } from "@/types";
 
 describe("templateSelectorAgent", () => {
-  const mockResume: DashboardResume = {
+  const mockResume = {
     id: "123",
     userId: "user-123",
     title: "Software Engineer",
@@ -60,7 +60,7 @@ describe("templateSelectorAgent", () => {
     ],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-  };
+  } as unknown as DashboardResume;
 
   describe("analyzeResumeContent", () => {
     it("should correctly analyze a standard resume", () => {

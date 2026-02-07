@@ -42,8 +42,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     } catch (error) {
       // Handle known domain errors to preserve UX
-      const err = error as Error;
-      if (err.message === "forbidden-role") {
+      const errorText = String(error);
+      if (errorText.includes("forbidden-role")) {
         return handleApiError(null, "Forbidden: Recruiter role required", 403);
       }
 
@@ -62,7 +62,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    return handleApiError(error, "Failed to search resumes: " + errorMessage);
+    return handleApiError(error, "Failed to search resumes");
   }
 }

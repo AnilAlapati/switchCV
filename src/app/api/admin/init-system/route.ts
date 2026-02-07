@@ -23,8 +23,7 @@ import {
   getAuthenticatedUserId,
   handleApiError,
 } from "@/lib/utils/api-helpers";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb } from "@/lib/firebase-admin";
+import { COLLECTIONS, collectionRef } from "@/lib/dal";
 import { logger } from "@/lib/logger";
 
 /**
@@ -32,7 +31,7 @@ import { logger } from "@/lib/logger";
  */
 async function verifyAdminRole(userId: string): Promise<boolean> {
   try {
-    const userDoc = await adminDb.collection("users").doc(userId).get();
+    const userDoc = await collectionRef(COLLECTIONS.USERS).doc(userId).get();
     const userData = userDoc.data();
     return userData?.role === "admin";
   } catch (error) {

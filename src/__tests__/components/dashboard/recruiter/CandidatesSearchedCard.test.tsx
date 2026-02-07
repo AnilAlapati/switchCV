@@ -44,7 +44,7 @@ const createMockAuthContext = (user: { uid: string; email: string } | null) => (
   needsUsername: false,
   setUsername: jest.fn(),
   checkNeedsUsername: jest.fn().mockResolvedValue(false),
-});
+}) as ReturnType<typeof useAuth>;
 
 const buildMetricsResponse = (
   overrides: Partial<{
@@ -108,6 +108,8 @@ describe("CandidatesSearchedCard", () => {
       profile: null,
       tier: "premium",
       role: "recruiter",
+      jobSeekerTier: "basic",
+      recruiterTier: "premium",
       loading: false,
       error: null,
       mutate: jest.fn(),

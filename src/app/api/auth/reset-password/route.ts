@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb, adminAuth } from "@/lib/firebase-admin";
+import {
+  COLLECTIONS,
+  collectionRef,
+  serverTimestamp,
+  updateAuthUser,
+} from "@/lib/dal";
 import { handleApiError } from "@/lib/utils/api-helpers";
-// eslint-disable-next-line no-restricted-imports
-import admin from "firebase-admin";
+import { ResetPasswordSchema } from "@/lib/schemas/api";
 
 /**
  * Reset password using token
@@ -11,36 +14,40 @@ import admin from "firebase-admin";
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { token, newPassword } = body;
-
-    if (!token || typeof token !== "string") {
+    const payload = await request.json();
+    const parseResult = ResetPasswordSchema.safeParse(payload);
+    if (!parseResult.success) {
+      const payloadObj =
+        payload && typeof payload === "object"
+          ? (payload as Record<string, unknown>)
+          : undefined;
+      if (!payloadObj || payloadObj.token === undefined || payloadObj.token === "") {
+        return handleApiError(
+          parseResult.error,
+          "Reset token is required",
+          400
+        );
+      }
+      if (
+        payloadObj.newPassword === undefined ||
+        payloadObj.newPassword === ""
+      ) {
+        return handleApiError(
+          parseResult.error,
+          "New password is required",
+          400
+        );
+      }
       return handleApiError(
-        new Error("Reset token is required"),
-        "Reset token is required",
-        400
-      );
-    }
-
-    if (!newPassword || typeof newPassword !== "string") {
-      return handleApiError(
-        new Error("New password is required"),
-        "New password is required",
-        400
-      );
-    }
-
-    if (newPassword.length < 6) {
-      return handleApiError(
-        new Error("Password must be at least 6 characters"),
+        parseResult.error,
         "Password must be at least 6 characters",
         400
       );
     }
+    const { token, newPassword } = parseResult.data;
 
     // Lookup token
-    const snapshot = await adminDb
-      .collection("passwordResetTokens")
+    const snapshot = await collectionRef(COLLECTIONS.PASSWORD_RESET_TOKENS)
       .where("token", "==", token)
       .where("used", "==", false)
       .limit(1)
@@ -72,14 +79,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Update password in Firebase Auth
-    await adminAuth.updateUser(data.userId, {
+    await updateAuthUser(data.userId, {
       password: newPassword,
     });
 
     // Mark token as used
     await doc.ref.update({
       used: true,
-      usedAt: admin.firestore.FieldValue.serverTimestamp(),
+      usedAt: serverTimestamp(),
     });
 
     return NextResponse.json({

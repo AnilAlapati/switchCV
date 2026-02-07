@@ -3,6 +3,7 @@ import { createCorsHeaders, validateCorsOrigin } from "@/lib/utils/cors";
 import { handleApiError, getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 import { UserApprovalService } from "@/lib/services/userApprovalService";
 import { isAdmin } from "@/lib/services/adminService";
+import { UserApprovalActionSchema } from "@/lib/schemas/api";
 
 /**
  * GET /api/admin/user-approval
@@ -72,15 +73,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             return handleApiError(err, "Invalid JSON payload", 400, request);
         }
 
-        const { approvalId, action, reason } = body;
+        const parseResult = UserApprovalActionSchema.safeParse(body);
+        if (!parseResult.success) {
+            const bodyObj =
+                body && typeof body === "object" ? (body as Record<string, unknown>) : undefined;
+            const isMissingRequired =
+                !bodyObj || bodyObj.approvalId === undefined || bodyObj.action === undefined;
+            const hasActionIssue = parseResult.error.issues.some(
+                (issue) => issue.path[0] === "action"
+            );
 
-        if (!approvalId || !action) {
-            return handleApiError(null, "Missing required fields", 400, request);
+            return handleApiError(
+                parseResult.error,
+                isMissingRequired || !hasActionIssue ? "Missing required fields" : "Invalid action",
+                400,
+                request
+            );
         }
 
-        if (action !== "approve" && action !== "reject") {
-            return handleApiError(null, "Invalid action", 400, request);
-        }
+        const { approvalId, action, reason } = parseResult.data;
 
         // Process approval via service
         await UserApprovalService.processApproval(
@@ -98,8 +109,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             }
         );
     } catch (error) {
-        if (error instanceof Error && error.message === "Approval request not found") {
-            return handleApiError(error, error.message, 404, request);
+        const errorMessage = String(error);
+        if (errorMessage === "Approval request not found") {
+            return handleApiError(error, errorMessage, 404, request);
         }
         return handleApiError(error, "User approval POST failed", 500, request);
     }

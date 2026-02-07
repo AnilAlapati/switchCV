@@ -1,5 +1,5 @@
 /* snyk:file:ignore javascript/HardcodedNonCryptoSecret - Test file uses mock credentials intentionally */
-/* eslint-disable max-lines */
+ 
 import { NextRequest } from "next/server";
 
 // Mock Firebase Admin
@@ -79,9 +79,9 @@ describe("POST /api/resume/delete", () => {
     };
 
     // Re-require mocks
-    // eslint-disable-next-line
+     
     recyclerModule = require("@/lib/resumeIdRecycler");
-    // eslint-disable-next-line
+     
     apiHelpersModule = require("@/lib/utils/api-helpers");
 
     // Setup api-helpers mock
@@ -104,7 +104,7 @@ describe("POST /api/resume/delete", () => {
     mockLimit.mockReturnValue(mockCollectionObj);
 
     // Re-import the module
-    // eslint-disable-next-line
+     
     const routeModule = require("./route");
     POST = routeModule.POST;
   });

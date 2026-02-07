@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb } from "@/lib/firebase-admin";
+import { COLLECTIONS, collectionRef } from "@/lib/dal";
 import nodemailer from "nodemailer";
 import { AI_ENDPOINTS } from "@/config/aiEndpoints";
 
@@ -21,12 +20,12 @@ async function checkFirestore(): Promise<ServiceStatus> {
 
   const start = Date.now();
   try {
-    await adminDb.collection("monitoring").limit(1).get();
+    await collectionRef(COLLECTIONS.MONITORING).limit(1).get();
     return { status: "ok", latencyMs: Date.now() - start };
   } catch (error) {
     return {
       status: "error",
-      error: error instanceof Error ? error.message : "Unknown Firestore error",
+      error: String(error),
     };
   }
 }
@@ -62,7 +61,7 @@ async function checkGemini(): Promise<ServiceStatus> {
   } catch (error) {
     return {
       status: "error",
-      error: error instanceof Error ? error.message : "Unknown Gemini error",
+      error: String(error),
     };
   }
 }
@@ -101,8 +100,7 @@ async function checkEmail(): Promise<ServiceStatus> {
   } catch (error) {
     return {
       status: "error",
-      error:
-        error instanceof Error ? error.message : "SMTP verification failed",
+      error: String(error),
     };
   }
 }

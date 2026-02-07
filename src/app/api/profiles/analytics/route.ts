@@ -8,8 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb } from "@/lib/firebase-admin";
+import { COLLECTIONS, collectionRef } from "@/lib/dal";
 import { logger } from "@/lib/logger";
 import {
   getAnalytics,
@@ -25,6 +24,10 @@ import {
   handleApiError,
   fetchResumeDocument,
 } from "@/lib/utils/api-helpers";
+import {
+  GetProfileAnalyticsQuerySchema,
+  TrackProfileAnalyticsSchema,
+} from "@/lib/schemas/api";
 
 /**
  * GET /api/profiles/analytics?resumeId=XXX
@@ -38,11 +41,13 @@ export async function GET(request: NextRequest) {
     return authError || handleApiError(null, "Unauthorized", 401);
 
   try {
-    const resumeId = request.nextUrl.searchParams.get("resumeId");
-
-    if (!resumeId) {
+    const queryParse = GetProfileAnalyticsQuerySchema.safeParse({
+      resumeId: request.nextUrl.searchParams.get("resumeId") || undefined,
+    });
+    if (!queryParse.success) {
       return handleApiError(null, "resumeId parameter is required", 400);
     }
+    const { resumeId } = queryParse.data;
 
     // Verify ownership using helper
     const resumeDoc = await fetchResumeDocument(resumeId);
@@ -53,7 +58,7 @@ export async function GET(request: NextRequest) {
     const { data: resumeData } = resumeDoc;
     if (resumeData?.userId !== authUserId) {
       // Check if user is admin
-      const userSnap = await adminDb.collection("users").doc(authUserId).get();
+      const userSnap = await collectionRef(COLLECTIONS.USERS).doc(authUserId).get();
       const userData = userSnap.data();
       if (userData?.role !== "admin") {
         logger.warn({ authUserId, resumeId, ownerId: resumeData?.userId }, "Unauthorized analytics access attempt");
@@ -67,7 +72,9 @@ export async function GET(request: NextRequest) {
 
     try {
       // Fetch owner details for display name
-      const ownerSnap = await adminDb.collection("users").doc(resumeData?.userId || "").get();
+      const ownerSnap = await collectionRef(COLLECTIONS.USERS)
+        .doc(resumeData?.userId || "")
+        .get();
       const ownerData = ownerSnap.data();
       const ownerName = ownerData?.displayName || ownerData?.email?.split('@')[0] || "Unknown User";
 
@@ -97,12 +104,25 @@ export async function POST(request: NextRequest) {
   // POST can be anonymous for public profiles, but if userId is provided, it must match authUserId
 
   try {
-    const trackingRequest = (await request.json()) as TrackingRequest;
-
-    // Validate required fields
-    if (!trackingRequest.resumeId || !trackingRequest.eventType) {
-      return handleApiError(null, "resumeId and eventType are required", 400);
+    const parseResult = TrackProfileAnalyticsSchema.safeParse(
+      await request.json()
+    );
+    if (!parseResult.success) {
+      const hasResumeIdError = parseResult.error.issues.some(
+        (issue) => issue.path[0] === "resumeId"
+      );
+      const hasEventTypeError = parseResult.error.issues.some(
+        (issue) => issue.path[0] === "eventType"
+      );
+      return handleApiError(
+        parseResult.error,
+        hasResumeIdError || hasEventTypeError
+          ? "resumeId and eventType are required"
+          : "Invalid request payload",
+        400
+      );
     }
+    const trackingRequest = parseResult.data as TrackingRequest;
 
     // Security: If userId is provided in request, it must match authenticated user
     if (
@@ -118,8 +138,7 @@ export async function POST(request: NextRequest) {
     // Update Aggregated Metrics (Fire & Forget / Parallel)
     // We await them to ensure execution in serverless environment
     try {
-      const resumeSnap = await adminDb
-        .collection("resumes")
+      const resumeSnap = await collectionRef(COLLECTIONS.RESUMES)
         .doc(trackingRequest.resumeId)
         .get();
       const resumeData = resumeSnap.data();

@@ -10,15 +10,23 @@ import {
   handleApiError,
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
+import { CompareResumesSchema } from "@/lib/schemas/api";
 
 export async function POST(request: NextRequest) {
   // SECURITY: Authenticate user first
-  const { userId, error } = await getAuthenticatedUserId(request);
+  const { error } = await getAuthenticatedUserId(request);
   if (error) return error;
 
   try {
-    const body = await request.json();
-    const { resume1, resume2 } = body;
+    const parseResult = CompareResumesSchema.safeParse(await request.json());
+    if (!parseResult.success) {
+      return handleApiError(
+        parseResult.error,
+        "Both resume1 and resume2 are required",
+        400
+      );
+    }
+    const { resume1, resume2 } = parseResult.data;
 
     // Validate input
     if (!resume1 || !resume2) {

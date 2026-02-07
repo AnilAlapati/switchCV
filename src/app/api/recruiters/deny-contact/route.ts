@@ -1,14 +1,12 @@
 import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb } from "@/lib/firebase-admin";
-
-import { FieldValue } from "firebase-admin/firestore";
+import { COLLECTIONS, collectionRef, serverTimestamp } from "@/lib/dal";
 import { RecruiterContactRequest } from "@/types/profileSearch";
 import {
   handleApiError,
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
+import { DenyRecruiterContactSchema } from "@/lib/schemas/api";
 
 interface DenyContactPayload {
   requestId: string;
@@ -35,15 +33,17 @@ export async function POST(request: NextRequest) {
       await getAuthenticatedUserId(request);
     if (authError) return authError;
 
-    const payload = (await request.json()) as DenyContactPayload;
-
-    if (!payload.requestId || !payload.reason || !payload.adminUserId) {
+    const parseResult = DenyRecruiterContactSchema.safeParse(
+      await request.json()
+    );
+    if (!parseResult.success) {
       return handleApiError(
         new Error("Missing required fields"),
         "Missing required fields",
         400
       );
     }
+    const payload = parseResult.data as DenyContactPayload;
 
     // SECURITY: Verify the authenticated user IS the admin making the denial
     if (authUserId !== payload.adminUserId) {
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     }
 
     // SECURITY: Verify the user has admin role
-    const adminDoc = await adminDb.collection("users").doc(authUserId).get();
+    const adminDoc = await collectionRef(COLLECTIONS.USERS).doc(authUserId).get();
     const adminData = adminDoc.data();
     if (!adminData || adminData.role !== "admin") {
       return handleApiError(
@@ -66,9 +66,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the contact request
-    const requestRef = adminDb
-      .collection("recruiterRequests")
-      .doc(payload.requestId);
+    const requestRef = collectionRef(COLLECTIONS.RECRUITER_REQUESTS).doc(
+      payload.requestId
+    );
     const requestDoc = await requestRef.get();
 
     if (!requestDoc.exists) {
@@ -93,9 +93,9 @@ export async function POST(request: NextRequest) {
     // Update request status
     await requestRef.update({
       status: "denied",
-      updatedAt: FieldValue.serverTimestamp(),
+      updatedAt: serverTimestamp(),
       reviewedBy: payload.adminUserId,
-      reviewedAt: FieldValue.serverTimestamp(),
+      reviewedAt: serverTimestamp(),
       denialReason: payload.reason,
     } as Record<string, unknown>);
 
@@ -106,15 +106,14 @@ export async function POST(request: NextRequest) {
       requestId: payload.requestId,
       candidateId: contactRequest.toUserId,
       reason: payload.reason,
-      deniedAt: FieldValue.serverTimestamp(),
+      deniedAt: serverTimestamp(),
       message: `Your request to contact ${contactRequest.toUserEmail} has been denied. Reason: ${payload.reason}`,
-      timestamp: FieldValue.serverTimestamp(),
+      timestamp: serverTimestamp(),
       read: false,
       actionUrl: `/recruiter/portal/requests/${payload.requestId}`,
     };
 
-    await adminDb
-      .collection("recruiterNotifications")
+    await collectionRef(COLLECTIONS.RECRUITER_NOTIFICATIONS)
       .add(recruiterNotification);
 
     // Create audit log
@@ -126,10 +125,10 @@ export async function POST(request: NextRequest) {
       candidateId: contactRequest.toUserId,
       adminUserId: payload.adminUserId,
       denialReason: payload.reason,
-      timestamp: FieldValue.serverTimestamp(),
+      timestamp: serverTimestamp(),
     };
 
-    await adminDb.collection("auditLogs").add(auditLog);
+    await collectionRef(COLLECTIONS.AUDIT_LOGS).add(auditLog);
 
     logger.info(
       `❌ Contact request denied: ${payload.requestId} by admin ${payload.adminUserId}`

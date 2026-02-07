@@ -91,7 +91,7 @@ describe("PreviewExperience", () => {
         description: undefined,
       },
     ];
-    render(<PreviewExperience profile={{ experience: expNoDesc }} />);
+    render(<PreviewExperience profile={{ experience: expNoDesc as any }} />);
 
     expect(
       screen.queryByText(/Developing large-scale microservices/),

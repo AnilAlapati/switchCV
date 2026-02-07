@@ -46,7 +46,7 @@ const createMockUser = (uid: string) => ({
 });
 
 // Create mock auth context
-const createMockAuthContext = (user: { uid?: string; email?: string }) => ({
+const createMockAuthContext = (user: ReturnType<typeof createMockUser> | null) => ({
   user,
   loading: false,
   signIn: jest.fn(),
@@ -65,7 +65,7 @@ const createMockAuthContext = (user: { uid?: string; email?: string }) => ({
   needsUsername: false,
   setUsername: jest.fn(),
   checkNeedsUsername: jest.fn(),
-});
+}) as ReturnType<typeof useAuth>;
 
 describe("RecruiterMetricsCard", () => {
   const mockUser = createMockUser("test-user-id");

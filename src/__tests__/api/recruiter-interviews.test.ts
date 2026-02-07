@@ -88,7 +88,7 @@ describe("Recruiter Interviews API", () => {
           action: "schedule",
           candidateId: mockCandidateId,
           jobId: "job-1",
-          type: "technical",
+          type: "coding",
           scheduledTime: new Date().toISOString(),
           duration: 60,
           interviewers: ["interviewer-1"],

@@ -33,9 +33,9 @@ describe("distributedRateLimit", () => {
   const mockIdentifier = "test-user";
   const mockDocId = "default_test-user"; // scope_identifier
 
-  let mockTransaction: Record<string, unknown>;
-  let mockDocRef: Record<string, unknown>;
-  let mockDocSnapshot: Record<string, unknown>;
+  let mockTransaction: any;
+  let mockDocRef: any;
+  let mockDocSnapshot: any;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -58,7 +58,7 @@ describe("distributedRateLimit", () => {
     };
 
     (adminDb.runTransaction as jest.Mock).mockImplementation(
-      async (callback) => {
+      async (callback: (transaction: any) => Promise<unknown>) => {
         return callback(mockTransaction);
       }
     );

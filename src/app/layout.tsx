@@ -15,6 +15,8 @@ import { Toaster } from "sonner";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import { BetaBadge } from "@/components/layout/BetaBadge";
 import { MobileNotice } from "@/components/layout/MobileNotice";
+import { getSystemConfig } from "@/lib/getSystemConfig";
+import { MaintenancePage } from "@/components/layout/MaintenancePage";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -41,11 +43,14 @@ export const metadata: Metadata = {
     "Hire an AI agent to build, optimize, and track your living resume. Privacy-first career growth powered by agentic intelligence.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const config = await getSystemConfig();
+  const isMaintenance = config.maintenance.isActive && config.maintenance.blocking;
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body
@@ -54,27 +59,31 @@ export default function RootLayout({
       >
         <IntlProvider>
           <ConnectivityStatusProvider>
-            <SystemConfigProvider>
-              <BlockingGuard>
-                <AuthProvider>
-                  <SWRProvider>
-                    <Toaster
-                      position="top-right"
-                      richColors
-                      closeButton
-                      theme="dark"
-                    />
-                    <MaintenanceBanner />
-                    <div className="flex min-h-screen flex-col">
-                      <div className="flex-1">{children}</div>
-                      <Footer />
-                    </div>
-                    <DevModeBanner />
-                    <BetaBadge />
-                    <MobileNotice />
-                  </SWRProvider>
-                </AuthProvider>
-              </BlockingGuard>
+            <SystemConfigProvider initialConfig={config}>
+              {isMaintenance ? (
+                <MaintenancePage />
+              ) : (
+                <BlockingGuard>
+                  <AuthProvider>
+                    <SWRProvider>
+                      <Toaster
+                        position="top-right"
+                        richColors
+                        closeButton
+                        theme="dark"
+                      />
+                      <MaintenanceBanner />
+                      <div className="flex min-h-screen flex-col">
+                        <div className="flex-1">{children}</div>
+                        <Footer />
+                      </div>
+                      <DevModeBanner />
+                      <BetaBadge />
+                      <MobileNotice />
+                    </SWRProvider>
+                  </AuthProvider>
+                </BlockingGuard>
+              )}
             </SystemConfigProvider>
           </ConnectivityStatusProvider>
         </IntlProvider>

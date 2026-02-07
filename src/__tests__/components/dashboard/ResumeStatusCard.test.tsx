@@ -9,6 +9,7 @@ import {
 import { ResumeStatusCard } from "@/components/dashboard/ResumeStatusCard";
 import { useAuth } from "@/hooks/useAuth";
 import { reloadPage } from "@/lib/utils/navigation";
+import { toast } from "sonner";
 
 // Mock dependencies
 jest.mock("@/hooks/useAuth");
@@ -29,6 +30,11 @@ jest.mock("next/link", () => {
 jest.mock("@/lib/config", () => ({
   getResumeUrl: (id: string) => `http://example.com/resume/${id}`,
 }));
+jest.mock("sonner", () => ({
+  toast: {
+    error: jest.fn(),
+  },
+}));
 
 describe("ResumeStatusCard", () => {
   const mockUser = {
@@ -41,8 +47,6 @@ describe("ResumeStatusCard", () => {
     (useAuth as jest.Mock).mockReturnValue({ user: mockUser });
     // Mock global fetch
     global.fetch = jest.fn();
-    // Mock alert
-    global.alert = jest.fn();
   });
 
   it("renders loading state", async () => {
@@ -188,8 +192,8 @@ describe("ResumeStatusCard", () => {
     fireEvent.click(confirmDeleteButton!);
 
     await waitFor(() => {
-      expect(global.alert).toHaveBeenCalledWith(
-        "Error deleting resume: Delete failed"
+      expect(toast.error).toHaveBeenCalledWith(
+        "Failed to delete resume. Please try again."
       );
     });
   });
@@ -217,7 +221,7 @@ describe("ResumeStatusCard", () => {
     );
     fireEvent.click(confirmDeleteButton!);
 
-    expect(global.alert).toHaveBeenCalledWith(
+    expect(toast.error).toHaveBeenCalledWith(
       "You must be logged in to delete your resume."
     );
     expect(global.fetch).not.toHaveBeenCalled();
@@ -241,7 +245,7 @@ describe("ResumeStatusCard", () => {
     );
     fireEvent.click(confirmDeleteButton!);
 
-    expect(global.alert).toHaveBeenCalledWith(
+    expect(toast.error).toHaveBeenCalledWith(
       "Resume ID not found. Please refresh the page and try again."
     );
     expect(global.fetch).not.toHaveBeenCalled();

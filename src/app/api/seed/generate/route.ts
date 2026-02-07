@@ -16,8 +16,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-// eslint-disable-next-line no-restricted-imports
-import admin, { adminDb } from "@/lib/firebase-admin";
+import { COLLECTIONS, collectionRef, serverTimestamp } from "@/lib/dal";
 import { generateText } from "@/lib/services/aiGenerationService";
 import {
   ENABLE_SEEDING_AND_DEBUG_LISTS,
@@ -164,7 +163,8 @@ export async function POST(req: NextRequest) {
       const retryAfter = error.resetTime
         ? Math.max(1, Math.ceil((error.resetTime - Date.now()) / 1000))
         : undefined;
-      const response = handleApiError(error, error.message, 429);
+      const quotaMessage = String(error).replace(/^QuotaExceededError:\s*/, "");
+      const response = handleApiError(error, quotaMessage, 429);
       if (retryAfter) {
         response.headers.set("Retry-After", retryAfter.toString());
       }
@@ -340,13 +340,13 @@ async function logSeedGeneration(params: {
   provider?: string;
   model?: string;
 }) {
-  await adminDb.collection("seedGenerationLogs").add({
+  await collectionRef(COLLECTIONS.SEED_GENERATION_LOGS).add({
     userId: params.userId,
     profession: params.profession,
     tier: params.tier,
     strategy: params.strategy,
     provider: params.provider || "template",
     model: params.model || "template",
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: serverTimestamp(),
   });
 }

@@ -1,14 +1,15 @@
 import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb } from "@/lib/firebase-admin";
- 
-import { FieldValue } from "firebase-admin/firestore";
+import { COLLECTIONS, collectionRef, serverTimestamp } from "@/lib/dal";
 import { RecruiterContactRequest } from "@/types/profileSearch";
 import {
   handleApiError,
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
+import {
+  GetRecruiterContactRequestsQuerySchema,
+  RequestRecruiterContactSchema,
+} from "@/lib/schemas/api";
 
 const FREE_RECRUITER_REQUEST_LIMIT = Number(
   process.env.RECRUITER_FREE_REQUEST_LIMIT ||
@@ -51,7 +52,17 @@ export async function POST(request: NextRequest) {
       await getAuthenticatedUserId(request);
     if (authError) return authError;
 
-    const payload = (await request.json()) as RequestContactPayload;
+    const parseResult = RequestRecruiterContactSchema.safeParse(
+      await request.json()
+    );
+    if (!parseResult.success) {
+      return handleApiError(
+        new Error("Missing required fields"),
+        "Missing required fields",
+        400
+      );
+    }
+    const payload = parseResult.data as RequestContactPayload;
 
     // Validation
     if (
@@ -99,9 +110,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify resume exists
-    const resumeDoc = await adminDb
-      .collection("resumeProfiles")
-      .doc(payload.resumeId)
+    const resumeDoc = await collectionRef(COLLECTIONS.RESUME_PROFILES)
+      .doc(String(payload.resumeId))
       .get();
 
     if (!resumeDoc.exists) {
@@ -124,10 +134,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Check for duplicate pending requests (same recruiter, same candidate, same resume)
-    const existingRequests = await adminDb
-      .collection("recruiterRequests")
+    const existingRequests = await collectionRef(COLLECTIONS.RECRUITER_REQUESTS)
       .where("toUserId", "==", payload.userId)
-      .where("resumeId", "==", payload.resumeId)
+      .where("resumeId", "==", String(payload.resumeId))
       .where("fromRecruiter.recruiterId", "==", payload.recruiterId)
       .where("status", "==", "pending")
       .get();
@@ -141,8 +150,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Enforce free plan limits (basic = no payment)
-    const recruiterDoc = await adminDb
-      .collection("users")
+    const recruiterDoc = await collectionRef(COLLECTIONS.USERS)
       .doc(payload.recruiterId)
       .get();
     if (!recruiterDoc.exists) {
@@ -158,8 +166,7 @@ export async function POST(request: NextRequest) {
       (recruiterData?.subscriptionTier as string | undefined) || "basic";
 
     if (subscriptionTier === "basic") {
-      const activeRequestSnapshot = await adminDb
-        .collection("recruiterRequests")
+      const activeRequestSnapshot = await collectionRef(COLLECTIONS.RECRUITER_REQUESTS)
         .where("fromRecruiter.recruiterId", "==", payload.recruiterId)
         .where("status", "in", FREE_PLAN_ACTIVE_STATUSES)
         .get();
@@ -182,7 +189,7 @@ export async function POST(request: NextRequest) {
         companyName: payload.companyName,
       },
       toUserId: payload.userId,
-      resumeId: payload.resumeId,
+      resumeId: String(payload.resumeId),
       resumeTitle: resumeData.title,
       requestedFields: payload.requestedFields,
       purpose: payload.purpose,
@@ -195,10 +202,10 @@ export async function POST(request: NextRequest) {
     };
 
     // Save to Firestore using admin SDK
-    const requestRef = await adminDb.collection("recruiterRequests").add({
+    const requestRef = await collectionRef(COLLECTIONS.RECRUITER_REQUESTS).add({
       ...contactRequest,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
     });
 
     logger.info(
@@ -217,13 +224,13 @@ export async function POST(request: NextRequest) {
       requestId: requestRef.id,
       requestedFields: payload.requestedFields,
       purpose: payload.purpose,
-      timestamp: FieldValue.serverTimestamp(),
+      timestamp: serverTimestamp(),
       read: false,
       actionUrl: `/dashboard/recruiter-requests/${requestRef.id}`,
     };
 
     // Store in admin notifications collection
-    await adminDb.collection("adminNotifications").add(adminNotification);
+    await collectionRef(COLLECTIONS.ADMIN_NOTIFICATIONS).add(adminNotification);
 
     logger.info(`🔔 Admin notification created for request: ${requestRef.id}`);
 
@@ -254,15 +261,17 @@ export async function GET(request: NextRequest) {
     if (authError) return authError;
 
     const searchParams = request.nextUrl.searchParams;
-    const recruiterId = searchParams.get("recruiterId");
-
-    if (!recruiterId) {
+    const queryParse = GetRecruiterContactRequestsQuerySchema.safeParse({
+      recruiterId: searchParams.get("recruiterId") || undefined,
+    });
+    if (!queryParse.success) {
       return handleApiError(
         new Error("recruiterId is required"),
         "recruiterId is required",
         400
       );
     }
+    const { recruiterId } = queryParse.data;
 
     // SECURITY: Users can only view their own requests
     if (authUserId !== recruiterId) {
@@ -274,8 +283,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all requests from this recruiter
-    const snapshot = await adminDb
-      .collection("recruiterRequests")
+    const snapshot = await collectionRef(COLLECTIONS.RECRUITER_REQUESTS)
       .where("fromRecruiter.recruiterId", "==", recruiterId)
       .get();
 

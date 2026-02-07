@@ -1,6 +1,7 @@
 // src/__tests__/app/layout.test.tsx
 import { render } from "@testing-library/react";
 import Layout from "../../app/layout";
+import { getSystemConfig } from "@/lib/getSystemConfig";
 
 // Mock Next.js fonts
 jest.mock("next/font/google", () => ({
@@ -22,26 +23,29 @@ jest.mock("../../hooks/useAuth", () => ({
     logout: jest.fn(),
   }),
 }));
+jest.mock("../../lib/getSystemConfig", () => ({
+  getSystemConfig: jest.fn(),
+}));
 
 describe("Layout", () => {
-  it("should render without crashing", () => {
-    expect(() => {
-      render(
-        <Layout>
-          <div>Test Content</div>
-        </Layout>
-      );
-    }).not.toThrow();
+  beforeEach(() => {
+    (getSystemConfig as jest.Mock).mockResolvedValue({
+      maintenance: { isActive: false, blocking: false },
+    });
   });
 
-  it("should render children", () => {
-    // Since Layout renders html/body tags, we can't easily test the structure
-    // But we can test that it doesn't crash and the component exists
-    const { container } = render(
-      <Layout>
-        <div>Test Content</div>
-      </Layout>
-    );
+  it("should render without crashing", async () => {
+    const layout = await Layout({
+      children: <div>Test Content</div>,
+    });
+    expect(() => render(layout)).not.toThrow();
+  });
+
+  it("should render children", async () => {
+    const layout = await Layout({
+      children: <div>Test Content</div>,
+    });
+    const { container } = render(layout);
 
     // The layout should render something
     expect(container.firstChild).toBeTruthy();

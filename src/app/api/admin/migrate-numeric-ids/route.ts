@@ -16,11 +16,19 @@ import {
   getAuthenticatedUserId,
   handleApiError,
 } from "@/lib/utils/api-helpers";
+import { MigrateNumericIdsSchema } from "@/lib/schemas/api";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { userId, migrateAll } = body;
+    const parseResult = MigrateNumericIdsSchema.safeParse(await request.json());
+    if (!parseResult.success) {
+      return handleApiError(
+        parseResult.error,
+        "Provide either userId or migrateAll parameter",
+        400
+      );
+    }
+    const { userId, migrateAll } = parseResult.data;
 
     // For security, check if request is authenticated
     const { error } = await getAuthenticatedUserId(request);

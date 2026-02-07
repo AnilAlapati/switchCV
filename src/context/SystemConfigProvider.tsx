@@ -126,11 +126,15 @@ const fetchRemoteConfig = async (): Promise<SystemConfig> => {
 
 export const SystemConfigProvider = ({
   children,
+  initialConfig,
 }: {
   children: ReactNode;
+  initialConfig?: SystemConfig;
 }): React.JSX.Element => {
-  const [config, setConfig] = useState<SystemConfig>(defaultSystemConfig);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [config, setConfig] = useState<SystemConfig>(
+    initialConfig ?? defaultSystemConfig
+  );
+  const [loading, setLoading] = useState<boolean>(!initialConfig);
 
   const refresh = useCallback(async (): Promise<SystemConfig> => {
     setLoading(true);
@@ -157,6 +161,9 @@ export const SystemConfigProvider = ({
       if (cached) {
         setConfig(cached);
         setLoading(false);
+      } else if (initialConfig) {
+        setConfig(initialConfig);
+        setLoading(false);
       } else {
         // Only stay in loading state if no cache is available.
         // This prevents the "flash of loading" if we already have data.
@@ -179,7 +186,7 @@ export const SystemConfigProvider = ({
         clearInterval(interval);
       }
     };
-  }, [refresh]);
+  }, [refresh, initialConfig]);
 
   useEffect(() => {
     if (typeof window === "undefined") {

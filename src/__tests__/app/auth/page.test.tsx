@@ -34,7 +34,18 @@ jest.mock("@/components/auth/AuthFormInputs", () => ({
     onPasswordChange,
     onUsernameChange,
     showUsername,
-  }: { email: string; password: string; isLogin: boolean; onSubmit: () => void; onToggleMode: () => void }) => (
+  }: {
+    email: string;
+    password: string;
+    isLogin: boolean;
+    onSubmit: () => void;
+    onToggleMode: () => void;
+    usernameError?: string | null;
+    onEmailChange: (value: string) => void;
+    onPasswordChange: (value: string) => void;
+    onUsernameChange: (value: string) => void;
+    showUsername: boolean;
+  }) => (
     <div>
       <input
         aria-label="Email Address"

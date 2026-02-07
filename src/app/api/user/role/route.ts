@@ -5,22 +5,22 @@ import {
   handleApiError,
 } from "@/lib/utils/api-helpers";
 import { logger } from "@/lib/logger";
+import { UserRoleSchema } from "@/lib/schemas/api";
 
 export async function POST(request: NextRequest) {
   try {
     const { userId, error } = await getAuthenticatedUserId(request);
     if (error) return error;
 
-    const body = await request.json();
-    const { role } = body;
-
-    if (!role || !["jobseeker", "recruiter"].includes(role)) {
+    const parseResult = UserRoleSchema.safeParse(await request.json());
+    if (!parseResult.success) {
       return handleApiError(
-        new Error("Invalid role"),
+        parseResult.error,
         "Invalid role provided",
         400
       );
     }
+    const { role } = parseResult.data;
 
     await setUserRole(userId!, role);
 

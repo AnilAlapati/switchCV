@@ -107,13 +107,14 @@ See [docs/DEV_MODE_GUIDE.md](docs/DEV_MODE_GUIDE.md) for details.
 ## 🏗️ Architecture
 
 ```
-Client (Next.js) → Firebase Auth → API Routes → Cloud Functions → Firestore
-                                              ↓
-                                         Gemini AI (embeddings + generation)
+Client (Next.js) → Firebase Auth → API Routes (Zod + DAL) → Firestore
+                                                         ↓
+                                                Cloud Functions / Gemini AI
 ```
 
 **Key Patterns:**
 
+- DAL-first API route access (`@/lib/dal`) with centralized collection names
 - Circuit breaker + retry for external APIs
 - Rate limiting via Firestore
 - Structured logging with Pino
@@ -192,6 +193,42 @@ npm run test:coverage # With coverage report
 - **Validation:** Zod
 
 ## 📝 API Standards
+
+### DAL + Validation Rules
+
+- API routes use DAL (`@/lib/dal`) instead of direct `firebase-admin` imports
+- Request bodies and query params are validated with schemas from `@/lib/schemas/api`
+- Collection names come from `COLLECTIONS` enum (no hardcoded collection strings)
+- Errors are normalized through `handleApiError` to avoid leaking internals
+
+Example route shape:
+
+```typescript
+import { NextRequest, NextResponse } from "next/server";
+import { COLLECTIONS, collectionRef } from "@/lib/dal";
+import { SomeRouteSchema } from "@/lib/schemas/api";
+import { getAuthenticatedUserId, handleApiError } from "@/lib/utils/api-helpers";
+
+export async function POST(request: NextRequest) {
+  const { userId, error } = await getAuthenticatedUserId(request);
+  if (error) return error;
+
+  try {
+    const parseResult = SomeRouteSchema.safeParse(await request.json());
+    if (!parseResult.success) {
+      return handleApiError(parseResult.error, "Invalid request payload", 400);
+    }
+
+    await collectionRef(COLLECTIONS.USERS).doc(userId!).update({
+      updatedAt: new Date().toISOString(),
+    });
+
+    return NextResponse.json({ success: true }, { status: 200 });
+  } catch (err) {
+    return handleApiError(err, "Operation failed");
+  }
+}
+```
 
 Use helpers from `@/lib/utils/api-helpers`:
 

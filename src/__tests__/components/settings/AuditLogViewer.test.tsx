@@ -1,9 +1,15 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { AuditLogViewer } from "@/components/settings/AuditLogViewer";
 import { usePersonalAuditLogs } from "@/hooks/useAuditLog";
+import { toast } from "sonner";
 
 // Mock the hook
 jest.mock("@/hooks/useAuditLog");
+jest.mock("sonner", () => ({
+  toast: {
+    error: jest.fn(),
+  },
+}));
 
 // Mock URL.createObjectURL and URL.revokeObjectURL
 global.URL.createObjectURL = jest.fn();
@@ -146,7 +152,6 @@ describe("AuditLogViewer", () => {
     const consoleSpy = jest
       .spyOn(console, "error")
       .mockImplementation(() => {});
-    const alertSpy = jest.spyOn(window, "alert").mockImplementation(() => {});
 
     mockGetMyAuditLogs.mockResolvedValue([]);
     mockExportMyData.mockRejectedValue(new Error("Export failed"));
@@ -163,13 +168,12 @@ describe("AuditLogViewer", () => {
     fireEvent.click(exportButton);
 
     await waitFor(() => {
-      expect(alertSpy).toHaveBeenCalledWith(
+      expect(toast.error).toHaveBeenCalledWith(
         "Failed to export your data. Please try again."
       );
     });
 
     consoleSpy.mockRestore();
-    alertSpy.mockRestore();
   });
 
   it("disables export button while exporting", async () => {

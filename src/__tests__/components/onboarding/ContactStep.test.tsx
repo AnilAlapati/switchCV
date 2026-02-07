@@ -1,9 +1,10 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { ContactStep } from "@/components/onboarding/steps/ContactStep";
 import { Visibility } from "@/types";
+import type { ChangeEventHandler } from "react";
 
 jest.mock("@/components/onboarding/FormComponents", () => ({
-  FormInput: ({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) => (
+  FormInput: ({ label, value, onChange }: { label: string; value: string; onChange: ChangeEventHandler<HTMLInputElement> }) => (
     <div>
       <label htmlFor={label}>{label}</label>
       <input id={label} value={value} onChange={onChange} />

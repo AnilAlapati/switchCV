@@ -6,13 +6,9 @@ import {
   attachRateLimitHeaders,
 } from "@/lib/utils/api-helpers";
 import { aiSearchRateLimiter } from "@/lib/utils/distributedRateLimit";
+import { AiSearchRequestSchema } from "@/lib/schemas/api";
 
 const REGION = "us-central1";
-
-interface SearchRequest {
-  query: string;
-  limit?: number;
-}
 
 interface SearchResult {
   resumeId: number;
@@ -59,8 +55,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse request body
-    const body: SearchRequest = await request.json();
-    const { query, limit = 10 } = body;
+    const parseResult = AiSearchRequestSchema.safeParse(await request.json());
+    if (!parseResult.success) {
+      return handleApiError(parseResult.error, "Search query is required", 400);
+    }
+    const { query, limit = 10 } = parseResult.data;
 
     if (!query || typeof query !== "string") {
       return handleApiError(
@@ -149,7 +148,7 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     logger.error({ err: error }, "[AI Search API] Error:");
 
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = String(error);
     const errorCode = (error as { code?: string })?.code;
 
     // Handle Firebase callable function errors

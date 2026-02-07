@@ -99,7 +99,7 @@ describe("PreviewEducation", () => {
         startDate: undefined,
       },
     ];
-    render(<PreviewEducation profile={{ education: eduNoStartDate }} />);
+    render(<PreviewEducation profile={{ education: eduNoStartDate as any }} />);
 
     expect(screen.queryByText("2015")).not.toBeInTheDocument();
   });

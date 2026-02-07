@@ -2,7 +2,7 @@
  * Tests for User Settings API Route
  * Tests GET and PUT operations for user settings
  */
-/* eslint-disable max-lines */
+ 
 
 import { NextRequest } from "next/server";
 import { GET, PUT } from "@/app/api/user/settings/route";

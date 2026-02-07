@@ -9,6 +9,11 @@ import {
   createUserProfile,
   updateUserProfile
 } from "@/lib/services/userService";
+import {
+  CreateUserProfileSchema,
+  UpdateUserProfileSchema,
+  UserProfileQuerySchema,
+} from "@/lib/schemas/api";
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,16 +21,17 @@ export async function GET(request: NextRequest) {
     const { userId, error } = await getAuthenticatedUserId(request);
     if (error) return error;
 
-    const { searchParams } = new URL(request.url);
-    const requestedUserId = searchParams.get("userId");
-
-    if (!requestedUserId) {
+    const queryParseResult = UserProfileQuerySchema.safeParse({
+      userId: new URL(request.url).searchParams.get("userId"),
+    });
+    if (!queryParseResult.success) {
       return handleApiError(
-        new Error("userId is required"),
+        queryParseResult.error,
         "userId is required",
         400
       );
     }
+    const requestedUserId = queryParseResult.data.userId;
 
     // Users can only access their own profile
     if (userId !== requestedUserId) {
@@ -63,15 +69,15 @@ export async function POST(request: NextRequest) {
     const { userId, error } = await getAuthenticatedUserId(request);
     if (error) return error;
 
-    const body = await request.json();
-
-    if (!body?.uid || !body?.email) {
+    const parseResult = CreateUserProfileSchema.safeParse(await request.json());
+    if (!parseResult.success) {
       return handleApiError(
-        new Error("uid and email are required"),
+        parseResult.error,
         "uid and email are required",
         400
       );
     }
+    const body = parseResult.data;
 
     // Users can only create profiles for themselves
     if (userId !== body.uid) {
@@ -92,7 +98,7 @@ export async function POST(request: NextRequest) {
         data: userProfileData,
       });
     } catch (e: unknown) {
-      if (e instanceof Error && e.message.startsWith("Validation failed")) {
+      if (String(e).startsWith("Validation failed")) {
         return handleApiError(e, "Invalid profile data", 400);
       }
       throw e;
@@ -110,15 +116,15 @@ export async function PUT(request: NextRequest) {
     const { userId, error } = await getAuthenticatedUserId(request);
     if (error) return error;
 
-    const body = await request.json();
-
-    if (!body?.uid) {
+    const parseResult = UpdateUserProfileSchema.safeParse(await request.json());
+    if (!parseResult.success) {
       return handleApiError(
-        new Error("uid is required"),
+        parseResult.error,
         "uid is required",
         400
       );
     }
+    const body = parseResult.data;
 
     // Users can only update their own profile
     if (userId !== body.uid) {
@@ -130,7 +136,8 @@ export async function PUT(request: NextRequest) {
     }
 
     try {
-      const updateData = await updateUserProfile(body.uid, body);
+      const { uid, ...updates } = body;
+      const updateData = await updateUserProfile(uid, updates);
 
       return NextResponse.json({
         success: true,
@@ -138,7 +145,7 @@ export async function PUT(request: NextRequest) {
         data: updateData,
       });
     } catch (e: unknown) {
-      if (e instanceof Error && e.message.startsWith("Validation failed")) {
+      if (String(e).startsWith("Validation failed")) {
         return handleApiError(e, "Invalid profile data", 400);
       }
       throw e;

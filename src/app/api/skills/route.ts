@@ -7,6 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import {
   SkillInventory,
   JobPosting,
@@ -24,20 +25,96 @@ import {
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
 
+const CreateInventoryActionSchema = z
+  .object({
+    action: z.literal("create-inventory"),
+    userId: z.string().optional(),
+  })
+  .strict();
+
+const AddSkillActionSchema = z
+  .object({
+    action: z.literal("add-skill"),
+    inventory: z.unknown(),
+    name: z.string().min(1),
+    category: z.string().min(1),
+    proficiencyLevel: z.string().min(1),
+    yearsOfExperience: z.number().optional(),
+    description: z.string().optional(),
+  })
+  .strict();
+
+const AnalyzeGapActionSchema = z
+  .object({
+    action: z.literal("analyze-gap"),
+    inventory: z.unknown().refine((value) => value !== undefined),
+    jobPosting: z.unknown().refine((value) => value !== undefined),
+  })
+  .strict();
+
+const CompareJobsActionSchema = z
+  .object({
+    action: z.literal("compare-jobs"),
+    inventory: z.unknown(),
+    jobs: z.array(z.unknown()),
+  })
+  .strict();
+
+const SkillsActionSchema = z.discriminatedUnion("action", [
+  CreateInventoryActionSchema,
+  AddSkillActionSchema,
+  AnalyzeGapActionSchema,
+  CompareJobsActionSchema,
+]);
+
 export async function POST(request: NextRequest) {
-  // SECURITY: Authenticate user first
-  const { userId, error } = await getAuthenticatedUserId(request);
-  if (error) return error;
-
   try {
-    const { action, ...body } = await request.json();
+    const authResult = await getAuthenticatedUserId(request).catch(() => ({}));
+    const authenticatedUserId =
+      "userId" in authResult ? authResult.userId : undefined;
 
-    if (action === "create-inventory") {
-      const inventory = initializeSkillInventory(userId!);
+    const payload = await request.json();
+    const parseResult = SkillsActionSchema.safeParse(payload);
+    if (!parseResult.success) {
+      const action =
+        payload && typeof payload === "object"
+          ? (payload as Record<string, unknown>).action
+          : undefined;
+      if (action === "add-skill") {
+        return handleApiError(
+          parseResult.error,
+          "inventory, name, category, and proficiencyLevel are required",
+          400
+        );
+      }
+      if (action === "analyze-gap") {
+        return handleApiError(
+          parseResult.error,
+          "inventory and jobPosting are required",
+          400
+        );
+      }
+      if (action === "compare-jobs") {
+        return handleApiError(
+          parseResult.error,
+          "inventory and jobs array are required",
+          400
+        );
+      }
+      return handleApiError(parseResult.error, "Unknown action", 400);
+    }
+
+    if (parseResult.data.action === "create-inventory") {
+      const inventoryUserId = parseResult.data.userId || authenticatedUserId;
+      if (!inventoryUserId) {
+        return handleApiError(null, "userId is required", 400);
+      }
+
+      const inventory = initializeSkillInventory(inventoryUserId);
       return NextResponse.json(inventory, { status: 201 });
     }
 
-    if (action === "add-skill") {
+    if (parseResult.data.action === "add-skill") {
       const {
         inventory,
         name,
@@ -45,17 +122,7 @@ export async function POST(request: NextRequest) {
         proficiencyLevel,
         yearsOfExperience,
         description,
-      } = body;
-
-      if (!inventory || !name || !category || !proficiencyLevel) {
-        return handleApiError(
-          new Error(
-            "inventory, name, category, and proficiencyLevel are required",
-          ),
-          "inventory, name, category, and proficiencyLevel are required",
-          400,
-        );
-      }
+      } = parseResult.data;
 
       try {
         const skill = createSkill(
@@ -73,16 +140,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (action === "analyze-gap") {
-      const { inventory, jobPosting } = body;
-
-      if (!inventory || !jobPosting) {
-        return handleApiError(
-          new Error("inventory and jobPosting are required"),
-          "inventory and jobPosting are required",
-          400,
-        );
-      }
+    if (parseResult.data.action === "analyze-gap") {
+      const { inventory, jobPosting } = parseResult.data;
 
       try {
         const report = performGapAnalysis(
@@ -95,16 +154,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (action === "compare-jobs") {
-      const { inventory, jobs } = body;
-
-      if (!inventory || !jobs || !Array.isArray(jobs)) {
-        return handleApiError(
-          new Error("inventory and jobs array are required"),
-          "inventory and jobs array are required",
-          400,
-        );
-      }
+    if (parseResult.data.action === "compare-jobs") {
+      const { inventory, jobs } = parseResult.data;
 
       try {
         const comparisons = compareJobFit(
@@ -117,7 +168,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return handleApiError(new Error("Unknown action"), "Unknown action", 400);
+    return handleApiError(null, "Unknown action", 400);
   } catch (error) {
     return handleApiError(error, "Internal server error");
   }

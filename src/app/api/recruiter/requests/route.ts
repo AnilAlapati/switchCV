@@ -14,7 +14,8 @@ export async function GET(request: NextRequest) {
     const requests = await RecruiterService.getRecruiterRequests(userId);
     return NextResponse.json({ requests });
   } catch (error: unknown) {
-    if (error instanceof Error && error.message === "forbidden-role") {
+    const errorText = String(error);
+    if (errorText.includes("forbidden-role")) {
       return handleApiError(null, "Forbidden: Recruiter role required", 403);
     }
     return handleApiError(error, "Failed to fetch recruiter requests");
@@ -33,7 +34,8 @@ export async function POST(request: NextRequest) {
     // For now, we'll just return a 405 or handle simple ping
     return handleApiError(null, "Method not allowed", 405);
   } catch (error: unknown) {
-    if (error instanceof Error && error.message === "forbidden-role") {
+    const errorText = String(error);
+    if (errorText.includes("forbidden-role")) {
       return handleApiError(null, "Forbidden: Recruiter role required", 403);
     }
     return handleApiError(error, "Failed to process recruiter request");
@@ -61,16 +63,15 @@ export async function DELETE(request: NextRequest) {
     );
     return NextResponse.json(result);
   } catch (error: unknown) {
-    if (error instanceof Error) {
-      if (error.message === "forbidden-role") {
-        return handleApiError(null, "Forbidden: Recruiter role required", 403);
-      }
-      if (error.message === "request-not-found") {
-        return handleApiError(null, "Request not found", 404);
-      }
-      if (error.message === "unauthorized") {
-        return handleApiError(null, "Unauthorized to delete this request", 403);
-      }
+    const errorText = String(error);
+    if (errorText.includes("forbidden-role")) {
+      return handleApiError(null, "Forbidden: Recruiter role required", 403);
+    }
+    if (errorText.includes("request-not-found")) {
+      return handleApiError(null, "Request not found", 404);
+    }
+    if (errorText.includes("unauthorized")) {
+      return handleApiError(null, "Unauthorized to delete this request", 403);
     }
     return handleApiError(error, "Failed to delete request");
   }

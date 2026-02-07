@@ -5,6 +5,7 @@ import {
   getAuthenticatedUserId,
   handleApiError,
 } from "@/lib/utils/api-helpers";
+import { MapResumeIdSchema } from "@/lib/schemas/api";
 
 /**
  * POST /api/resume/map-id
@@ -20,21 +21,26 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse request body
-    const { resumeId, documentId } = await request.json();
-
-    if (!resumeId || !documentId) {
+    const parseResult = MapResumeIdSchema.safeParse(await request.json());
+    if (!parseResult.success) {
       return handleApiError(
-        new Error("Missing resumeId or documentId"),
+        parseResult.error,
         "Missing resumeId or documentId",
         400
       );
     }
+    const { resumeId, documentId } = parseResult.data;
+    const numericResumeId =
+      typeof resumeId === "number" ? resumeId : Number(resumeId);
+    if (!Number.isFinite(numericResumeId)) {
+      return handleApiError(null, "resumeId must be numeric", 400);
+    }
 
     // Create the mapping
-    await mapResumeId(resumeId, documentId, userId!);
+    await mapResumeId(numericResumeId, documentId, userId!);
 
     logger.info({
-      resumeId,
+      resumeId: numericResumeId,
       documentId,
       userId,
     }, "✅ Resume ID mapping created via API:");

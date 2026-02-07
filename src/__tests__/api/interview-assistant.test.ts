@@ -4,6 +4,7 @@ import {
   createInterviewSession,
   getInterviewTips,
 } from "@/lib/interviewSession";
+import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 
 jest.mock("@/lib/interviewSession", () => ({
   createInterviewSession: jest.fn(),
@@ -11,6 +12,7 @@ jest.mock("@/lib/interviewSession", () => ({
 }));
 
 jest.mock("@/lib/utils/api-helpers", () => ({
+  getAuthenticatedUserId: jest.fn(),
   handleApiError: jest.fn((err, msg, status) => ({
     status: status || 500,
     json: async () => ({ error: msg }),
@@ -20,6 +22,10 @@ jest.mock("@/lib/utils/api-helpers", () => ({
 describe("Interview Assistant API", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+      userId: "user-123",
+      error: null,
+    });
   });
 
   describe("POST", () => {
@@ -152,7 +158,7 @@ describe("Interview Assistant API", () => {
       } as any;
 
       const response = await POST(req);
-      expect(response.status).toBe(500);
+      expect(response.status).toBe(400);
     });
   });
 

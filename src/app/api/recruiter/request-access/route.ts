@@ -1,10 +1,7 @@
 import { logger } from "@/lib/logger";
 // src/app/api/recruiter/request-access/route.ts
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line no-restricted-imports
-import { adminDb } from "@/lib/firebase-admin";
- 
-import { FieldValue } from "firebase-admin/firestore";
+import { COLLECTIONS, collectionRef, increment } from "@/lib/dal";
 import {
   handleApiError,
   getAuthenticatedUserId,
@@ -12,12 +9,13 @@ import {
 import { getUserTier } from "@/lib/services/userService";
 import { getRecruiterContactLimits } from "@/lib/config.server";
 import { consumeQuota, QuotaExceededError } from "@/lib/services/quotaService";
+import { RequestRecruiterAccessSchema } from "@/lib/schemas/api";
 
 /**
  * Helper to verify recruiter role
  */
 async function verifyRecruiterRole(userId: string): Promise<boolean> {
-  const userSnap = await adminDb.collection("users").doc(userId).get();
+  const userSnap = await collectionRef(COLLECTIONS.USERS).doc(userId).get();
   const userData = userSnap.data();
   return userData?.role === "recruiter" || userData?.role === "admin";
 }
@@ -33,8 +31,13 @@ export async function POST(request: NextRequest) {
       return handleApiError(null, "Forbidden: Recruiter role required", 403);
     }
 
-    const { resumeId, requestedFields = ["email", "phone"] } =
-      await request.json();
+    const parseResult = RequestRecruiterAccessSchema.safeParse(
+      await request.json()
+    );
+    if (!parseResult.success) {
+      return handleApiError(parseResult.error, "resumeId is required", 400);
+    }
+    const { resumeId, requestedFields = ["email", "phone"] } = parseResult.data;
 
     if (!resumeId) {
       return handleApiError(null, "resumeId is required", 400);
@@ -64,7 +67,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get resume to find owner
-    const resumeRef = adminDb.collection("resumes").doc(resumeId);
+    const resumeRef = collectionRef(COLLECTIONS.RESUMES).doc(String(resumeId));
     const resumeDoc = await resumeRef.get();
 
     if (!resumeDoc.exists) {
@@ -76,7 +79,7 @@ export async function POST(request: NextRequest) {
     const title = resumeData?.title || "Untitled Resume";
 
     // Get user info
-    const userRef = adminDb.collection("users").doc(userId);
+    const userRef = collectionRef(COLLECTIONS.USERS).doc(userId);
     const userDoc = await userRef.get();
 
     if (!userDoc.exists) {
@@ -86,9 +89,8 @@ export async function POST(request: NextRequest) {
     const userData = userDoc.data();
 
     // Check if request already exists
-    const existingQuery = await adminDb
-      .collection("recruiterRequests")
-      .where("resumeId", "==", resumeId)
+    const existingQuery = await collectionRef(COLLECTIONS.RECRUITER_REQUESTS)
+      .where("resumeId", "==", String(resumeId))
       .where("fromRecruiterId", "==", recruiterId) // Also check if THIS recruiter already requested
       .where("status", "==", "pending")
       .get();
@@ -102,9 +104,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Create new access request
-    const newRequestRef = adminDb.collection("recruiterRequests").doc();
+    const newRequestRef = collectionRef(COLLECTIONS.RECRUITER_REQUESTS).doc();
     await newRequestRef.set({
-      resumeId,
+      resumeId: String(resumeId),
       userId,
       fromRecruiterId: recruiterId,
       resumeTitle: title,
@@ -118,7 +120,7 @@ export async function POST(request: NextRequest) {
     // Increment request count in user document
     try {
       await userRef.update({
-        requestCount: FieldValue.increment(1),
+        requestCount: increment(1),
       });
     } catch (err) {
       logger.warn({ err: err }, "Could not update request count:");
