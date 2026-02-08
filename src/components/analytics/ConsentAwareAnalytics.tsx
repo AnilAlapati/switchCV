@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-hooks/exhaustive-deps */
 
 import { useEffect, useState } from "react";
 import { GoogleAnalytics } from "@next/third-parties/google";
@@ -7,34 +8,32 @@ const CONSENT_KEY = "switchcv_cookie_consent";
 
 /**
  * Conditionally loads Google Analytics only if user has accepted cookies.
- * Re-checks when consent changes (user clicks Accept in the banner).
+ * Reads localStorage on mount to check consent before rendering GA.
  */
 export function ConsentAwareAnalytics() {
-  const [consent, setConsent] = useState<string | null>(null);
+  const [showGA, setShowGA] = useState(false);
 
   useEffect(() => {
-    // Set initial consent value from localStorage
-    const initialConsent = localStorage.getItem(CONSENT_KEY);
-    setConsent(initialConsent);
+    // Check localStorage on client-side only
+    const consent = localStorage.getItem(CONSENT_KEY);
+    setShowGA(consent === "accepted");
 
-    // Listen for consent changes (when user clicks Accept in another tab)
+    // Listen for consent changes (when user clicks Accept)
     const handleStorage = (e: StorageEvent) => {
       if (e.key === CONSENT_KEY) {
-        setConsent(e.newValue);
+        setShowGA(e.newValue === "accepted");
       }
     };
 
     window.addEventListener("storage", handleStorage);
-
-    return () => {
-      window.removeEventListener("storage", handleStorage);
-    };
+    return () => window.removeEventListener("storage", handleStorage);
   }, []);
+
   // Only render GA if user accepted and we have a GA ID
   if (
     process.env.NODE_ENV !== "production" ||
     !process.env.NEXT_PUBLIC_GA_ID ||
-    consent !== "accepted"
+    !showGA
   ) {
     return null;
   }
