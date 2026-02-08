@@ -4,7 +4,6 @@ import { logger } from "@/lib/logger";
 
 const NUM_SHARDS = 10;
 const SHARD_COLLECTION = "system/billing/shards";
-const AGGREGATE_DOC = "system/billing";
 
 /**
  * Tracks the cost of an agentic operation using sharded counters to avoid contention.

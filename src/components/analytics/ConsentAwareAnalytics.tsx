@@ -13,32 +13,23 @@ export function ConsentAwareAnalytics() {
   const [consent, setConsent] = useState<string | null>(null);
 
   useEffect(() => {
-    // Initial check
-    const currentConsent = localStorage.getItem(CONSENT_KEY);
-    setConsent(currentConsent);
+    // Set initial consent value from localStorage
+    const initialConsent = localStorage.getItem(CONSENT_KEY);
+    setConsent(initialConsent);
 
-    // Listen for consent changes (when user clicks Accept)
-    const handleStorage = () => {
-      const newConsent = localStorage.getItem(CONSENT_KEY);
-      setConsent(newConsent);
+    // Listen for consent changes (when user clicks Accept in another tab)
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === CONSENT_KEY) {
+        setConsent(e.newValue);
+      }
     };
 
     window.addEventListener("storage", handleStorage);
 
-    // Also listen for manual updates (same tab)
-    const interval = setInterval(() => {
-      const current = localStorage.getItem(CONSENT_KEY);
-      if (current !== consent) {
-        setConsent(current);
-      }
-    }, 500);
-
     return () => {
       window.removeEventListener("storage", handleStorage);
-      clearInterval(interval);
     };
-  }, [consent]);
-
+  }, []);
   // Only render GA if user accepted and we have a GA ID
   if (
     process.env.NODE_ENV !== "production" ||
