@@ -1,0 +1,17 @@
+# SwitchCV robots.txt
+# Prevents search engines from indexing admin, API, and internal routes
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /auth/
+Disallow: /seed/
+Disallow: /test-retention/
+Disallow: /demo/
+Disallow: /select-role/
+Disallow: /drafts/
+Disallow: /maintenance/
+
+# Sitemap (to be added)
+# Sitemap: https://switchcv.com/sitemap.xml

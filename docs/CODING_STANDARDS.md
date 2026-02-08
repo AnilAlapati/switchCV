@@ -102,12 +102,16 @@ return handleApiError(error, "Human readable message", 500, request);
 ### 3.1 Use Pino Logger (NOT console)
 
 ```typescript
-// ❌ BLOCKED in API routes
+// ❌ BLOCKED in production code
 console.log("User logged in:", userId);
 
 // ✅ CORRECT
 import { logger } from "@/lib/logger";
 logger.info({ userId }, "User logged in");
+```
+
+### 3.2 No `console.*` in Production
+All `console.log`, `console.warn`, and `console.error` calls must be migrated to `logger`. The quality check script will fail if new `console` calls are introduced in `src/`.
 ```
 
 ### 3.2 Pino Log Format
@@ -299,6 +303,26 @@ const { resumeId } = ResumeIdSchema.parse(await request.json());
 
 ---
 
+## 10. Technical Debt Budgets (AUTO-ENFORCED)
+
+To maintain long-term health, we enforce strict budgets on technical debt.
+
+### 10.1 File Size Budget
+Production files (`.ts`, `.tsx`) must not exceed **500 lines**.
+- **Fail**: > 500 lines (Blocks commit/PR)
+- **Warn**: > 300 lines (Review for refactoring)
+
+### 10.2 Type Debt (`any` usage)
+The total number of `any` usages in the project is capped.
+- **Project Limit**: Max 40 instances of `: any` or `as any`.
+- **Enforcement**: Quality check fails if this budget is exceeded.
+
+### 10.3 Lint Suppressions
+New `eslint-disable max-lines` or `eslint-disable @typescript-eslint/no-explicit-any` are **strictly prohibited**.
+```
+
+---
+
 ## 10. Quality Commands
 
 ```bash
@@ -324,7 +348,9 @@ npm run setup:hooks
 | TypeScript errors  | Pre-commit hook | ❌ NO          |
 | ESLint errors      | Pre-commit hook | ❌ NO          |
 | Hardcoded secrets  | Quality check   | ❌ NO          |
-| console.log in API | Quality check   | ⚠️ Warning     |
+| console.log in src | Quality check   | ❌ NO          |
+| File > 500 lines   | Quality check   | ❌ NO          |
+| any > 40 instances | Quality check   | ❌ NO          |
 | Test failures      | CI/CD           | ❌ NO in PR    |
 | Build failure      | CI/CD           | ❌ NO          |
 

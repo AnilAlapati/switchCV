@@ -1,4 +1,3 @@
-/* eslint-disable max-lines */
 import { type ReactNode, useState } from "react";
 import { logger } from "@/lib/logger";
 import { SearchResult, SearchModeType } from "./RecruiterSearchForm";

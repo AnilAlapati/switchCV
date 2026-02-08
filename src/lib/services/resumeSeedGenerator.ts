@@ -1,4 +1,3 @@
-/* eslint-disable max-lines */
 export type ResumeCategory = "creative" | "technical" | "executive" | "general";
 
 export interface SeedResume {
@@ -268,8 +267,8 @@ const buildSkills = (
         result.length < 2
           ? "Expert"
           : result.length < 4
-          ? "Advanced"
-          : "Intermediate",
+            ? "Advanced"
+            : "Intermediate",
       visibility: "public",
     });
   }

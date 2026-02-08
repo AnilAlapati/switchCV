@@ -15,6 +15,7 @@ import { Toaster } from "sonner";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import { BetaBadge } from "@/components/layout/BetaBadge";
 import { MobileNotice } from "@/components/layout/MobileNotice";
+import { CookieConsentBanner } from "@/components/layout/CookieConsentBanner";
 import { getSystemConfig } from "@/lib/getSystemConfig";
 import { MaintenancePage } from "@/components/layout/MaintenancePage";
 
@@ -33,7 +34,7 @@ const merriweather = Merriweather({
   variable: "--font-merriweather",
   subsets: ["latin"],
   weight: ["300", "400", "700", "900"],
-  display: 'swap',
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -49,7 +50,8 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const config = await getSystemConfig();
-  const isMaintenance = config.maintenance.isActive && config.maintenance.blocking;
+  const isMaintenance =
+    config.maintenance.isActive && config.maintenance.blocking;
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -80,6 +82,7 @@ export default async function RootLayout({
                       <DevModeBanner />
                       <BetaBadge />
                       <MobileNotice />
+                      <CookieConsentBanner />
                     </SWRProvider>
                   </AuthProvider>
                 </BlockingGuard>

@@ -38,20 +38,24 @@ describe("costControlService", () => {
   });
 
   describe("checkBudget", () => {
-    it("should return true if budget doc does not exist", async () => {
-      (adminDb.doc as jest.Mock).mockReturnValueOnce({
-        get: jest.fn().mockResolvedValue({ exists: false }),
+    it("should return true if no shards exist", async () => {
+      (adminDb.collection as jest.Mock).mockReturnValueOnce({
+        get: jest.fn().mockResolvedValue({ empty: true, docs: [] }),
       });
 
       const result = await checkBudget(100);
       expect(result).toBe(true);
     });
 
-    it("should return true if current spend is under cap", async () => {
-      (adminDb.doc as jest.Mock).mockReturnValueOnce({
+    it("should return true if total shard cost is under cap", async () => {
+      (adminDb.collection as jest.Mock).mockReturnValueOnce({
         get: jest.fn().mockResolvedValue({
-          exists: true,
-          data: () => ({ totalCost: 50 }),
+          empty: false,
+          docs: [
+            { data: () => ({ monthCost: 20 }) },
+            { data: () => ({ monthCost: 10 }) },
+            { data: () => ({ monthCost: 15 }) },
+          ],
         }),
       });
 
@@ -59,11 +63,15 @@ describe("costControlService", () => {
       expect(result).toBe(true);
     });
 
-    it("should return false if current spend is over cap", async () => {
-      (adminDb.doc as jest.Mock).mockReturnValueOnce({
+    it("should return false if total shard cost exceeds cap", async () => {
+      (adminDb.collection as jest.Mock).mockReturnValueOnce({
         get: jest.fn().mockResolvedValue({
-          exists: true,
-          data: () => ({ totalCost: 150 }),
+          empty: false,
+          docs: [
+            { data: () => ({ monthCost: 60 }) },
+            { data: () => ({ monthCost: 50 }) },
+            { data: () => ({ monthCost: 45 }) },
+          ],
         }),
       });
 
@@ -71,13 +79,13 @@ describe("costControlService", () => {
       expect(result).toBe(false);
     });
 
-    it("should return true (fail-safe) if an error occurs", async () => {
-      (adminDb.doc as jest.Mock).mockReturnValueOnce({
+    it("should return false (fail-closed) if an error occurs", async () => {
+      (adminDb.collection as jest.Mock).mockReturnValueOnce({
         get: jest.fn().mockRejectedValue(new Error("DB error")),
       });
 
       const result = await checkBudget(100);
-      expect(result).toBe(true);
+      expect(result).toBe(false);
     });
   });
 });

@@ -1,4 +1,3 @@
-/* eslint-disable max-lines */
 /**
  * Interview Question Generator
  * Generates role-specific behavioral and technical questions

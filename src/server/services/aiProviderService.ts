@@ -1,6 +1,4 @@
-
 import "server-only";
-/* eslint-disable max-lines -- Service aggregates provider-specific logic until we split transports */
 
 /**
  * AI Provider Service - Tiered Model Selection
@@ -11,9 +9,8 @@ import "server-only";
  * - Enterprise: Best available models (GPT-4o, Claude, Gemini Pro)
  */
 
-import { withRetry } from "@/lib/utils/retry";
 import { logger } from "@/lib/logger";
-import { AI_ENDPOINTS, DEFAULT_STOP_SEQUENCES } from "@/config/aiEndpoints";
+import { CircuitBreaker } from "@/lib/utils/CircuitBreaker";
 import type {
   AIModelConfig,
   GenerateOptions,
@@ -21,6 +18,18 @@ import type {
   SelectableModel,
   UserTier,
 } from "@/types/ai";
+import {
+  AI_MODELS,
+  TIER_ACCESS,
+  TIER_PROVIDER_PRIORITY
+} from "./ai/registry";
+import {
+  callOpenAI,
+  callGemini,
+  callAnthropic,
+  callXAI
+} from "./ai/providers";
+
 export type {
   AIModelConfig,
   GenerateOptions,
@@ -29,118 +38,7 @@ export type {
   UserTier,
 } from "@/types/ai";
 
-// ==================== MODEL REGISTRY ====================
-
-/**
- * All available models sorted by cost (cheapest first)
- */
-export const AI_MODELS: AIModelConfig[] = [
-  // CHEAP TIER - Gemini Flash
-  {
-    id: "gemini-2.5-flash-lite",
-    name: "Gemini 2.5 Flash Lite",
-    provider: "google",
-    costPer1MTokens: 0.2, // ~Weighted avg of $0.10 in / $0.40 out
-    quality: 7,
-    speed: 9,
-    maxTokens: 32768, // Flash Lite has distinct limits
-    tier: "cheap",
-  },
-  // STANDARD TIER - GPT-4o-mini, Gemini Flash
-  {
-    id: "gpt-4o-mini",
-    name: "GPT-4o Mini",
-    provider: "openai",
-    costPer1MTokens: 0.6,
-    quality: 8,
-    speed: 8,
-    maxTokens: 16384,
-    tier: "standard",
-  },
-  {
-    id: "gemini-2.5-flash",
-    name: "Gemini 2.5 Flash",
-    provider: "google",
-    costPer1MTokens: 1.0, // ~Weighted avg of $0.30 in / $2.50 out
-    quality: 8,
-    speed: 9,
-    maxTokens: 32768,
-    tier: "standard",
-  },
-  // PREMIUM TIER - Best models
-  {
-    id: "gpt-4o",
-    name: "GPT-4o",
-    provider: "openai",
-    costPer1MTokens: 10.0,
-    quality: 10,
-    speed: 7,
-    maxTokens: 16384,
-    tier: "premium",
-  },
-  {
-    id: "gemini-2.5-pro",
-    name: "Gemini 2.5 Pro",
-    provider: "google",
-    costPer1MTokens: 2.5,
-    quality: 9,
-    speed: 7,
-    maxTokens: 32768,
-    tier: "premium",
-  },
-  {
-    id: "claude-3-5-haiku",
-    name: "Claude 3.5 Haiku",
-    provider: "anthropic",
-    costPer1MTokens: 1.0,
-    quality: 8,
-    speed: 9,
-    maxTokens: 8192,
-    tier: "standard",
-  },
-  {
-    id: "claude-3-5-sonnet",
-    name: "Claude 3.5 Sonnet",
-    provider: "anthropic",
-    costPer1MTokens: 6.0,
-    quality: 9,
-    speed: 8,
-    maxTokens: 8192,
-    tier: "premium",
-  },
-  {
-    id: "grok-beta",
-    name: "Grok Beta",
-    provider: "xai",
-    costPer1MTokens: 5.0,
-    quality: 9,
-    speed: 8,
-    maxTokens: 32768,
-    tier: "premium",
-  },
-];
-
-// ==================== TIER CONFIGURATION ====================
-
-/**
- * Define which model tiers each user tier can access
- */
-const TIER_ACCESS: Record<UserTier, string[]> = {
-  basic: ["free", "cheap"], // Only free and cheap models
-  premium: ["free", "cheap", "standard"], // Up to standard models
-  enterprise: ["free", "cheap", "standard", "premium"], // All models
-};
-
-/**
- * Define provider priority for each tier (try in this order)
- */
-const TIER_PROVIDER_PRIORITY: Record<UserTier, string[]> = {
-  basic: ["google"], // Gemini Flash
-  premium: ["google", "openai"], // Gemini, then GPT
-  enterprise: ["openai", "google", "anthropic"], // Best first
-};
-
-import { CircuitBreaker } from "@/lib/utils/CircuitBreaker";
+// ==================== CIRCUIT BREAKERS ====================
 
 const breakers = {
   google: new CircuitBreaker("google"),
@@ -149,164 +47,25 @@ const breakers = {
   xai: new CircuitBreaker("xai"),
 };
 
-// ==================== PROVIDER IMPLEMENTATIONS ====================
+// ==================== HELPER FUNCTIONS ====================
 
-
-async function callOpenAI(
-  modelId: string,
-  prompt: string,
-  maxTokens: number,
-  temperature: number
-): Promise<{ text: string; model: string }> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error("OpenAI API key not configured");
-
-  const response = await withRetry(() =>
-    fetch(AI_ENDPOINTS.OPENAI.CHAT_COMPLETIONS, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: modelId,
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: maxTokens,
-        temperature,
-        stop: [...DEFAULT_STOP_SEQUENCES],
-      }),
-    })
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`OpenAI API error (${response.status}): ${errorText}`);
+/**
+ * Check if a provider has a valid API key configured
+ */
+function isProviderConfigured(provider: string): boolean {
+  switch (provider) {
+    case "openai":
+      return !!process.env.OPENAI_API_KEY;
+    case "google":
+      return !!process.env.GEMINI_API_KEY;
+    case "anthropic":
+      return !!process.env.ANTHROPIC_API_KEY;
+    case "xai":
+      return !!process.env.XAI_API_KEY;
+    default:
+      return false;
   }
-
-  const data = await response.json();
-  const text = data.choices?.[0]?.message?.content;
-  if (!text) throw new Error("No text generated from OpenAI");
-
-  return { text: text.trim(), model: modelId };
 }
-
-async function callGemini(
-  modelId: string,
-  prompt: string,
-  maxTokens: number,
-  temperature: number
-): Promise<{ text: string; model: string }> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error("Gemini API key not configured");
-
-  const response = await withRetry(() =>
-    fetch(
-      AI_ENDPOINTS.GEMINI.GENERATE(modelId, apiKey),
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature,
-            maxOutputTokens: maxTokens,
-            stopSequences: [...DEFAULT_STOP_SEQUENCES],
-          },
-        }),
-      }
-    )
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Gemini API error (${response.status}): ${errorText}`);
-  }
-
-  const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error("No text generated from Gemini");
-
-  return { text: text.trim(), model: modelId };
-}
-
-async function callAnthropic(
-  modelId: string,
-  prompt: string,
-  maxTokens: number,
-  temperature: number
-): Promise<{ text: string; model: string }> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("Anthropic API key not configured");
-
-  const response = await withRetry(() =>
-    fetch(AI_ENDPOINTS.ANTHROPIC.MESSAGES, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: modelId,
-        max_tokens: maxTokens,
-        temperature,
-        messages: [{ role: "user", content: prompt }],
-        stop_sequences: [...DEFAULT_STOP_SEQUENCES],
-      }),
-    })
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Anthropic API error (${response.status}): ${errorText}`);
-  }
-
-  const data = await response.json();
-  const text = data.content?.[0]?.text;
-  if (!text) throw new Error("No text generated from Anthropic");
-
-  return { text: text.trim(), model: modelId };
-}
-
-async function callXAI(
-  modelId: string,
-  prompt: string,
-  maxTokens: number,
-  temperature: number
-): Promise<{ text: string; model: string }> {
-  const apiKey = process.env.XAI_API_KEY;
-  if (!apiKey) throw new Error("xAI API key not configured");
-
-  const response = await withRetry(() =>
-    fetch(AI_ENDPOINTS.XAI.CHAT_COMPLETIONS, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: modelId,
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: maxTokens,
-        temperature,
-        stop: [...DEFAULT_STOP_SEQUENCES],
-      }),
-    })
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`xAI API error (${response.status}): ${errorText}`);
-  }
-
-  const data = await response.json();
-  const text = data.choices?.[0]?.message?.content;
-  if (!text) throw new Error("No text generated from xAI");
-
-  return { text: text.trim(), model: modelId };
-}
-
-// ==================== MAIN FUNCTION ====================
 
 /**
  * Get models available for a specific user tier, sorted by cost
@@ -373,23 +132,7 @@ async function callProvider(
   }
 }
 
-/**
- * Check if a provider has a valid API key configured
- */
-function isProviderConfigured(provider: string): boolean {
-  switch (provider) {
-    case "openai":
-      return !!process.env.OPENAI_API_KEY;
-    case "google":
-      return !!process.env.GEMINI_API_KEY;
-    case "anthropic":
-      return !!process.env.ANTHROPIC_API_KEY;
-    case "xai":
-      return !!process.env.XAI_API_KEY;
-    default:
-      return false;
-  }
-}
+// ==================== MAIN API ====================
 
 /**
  * Generate text using tier-appropriate models
@@ -409,7 +152,6 @@ export async function generateTextWithTier(
     modelId,
   } = options;
 
-  // If a specific model is requested (premium/enterprise UX), validate and prefer it.
   let preferredModel: AIModelConfig | undefined;
   if (modelId) {
     preferredModel = AI_MODELS.find((m) => m.id === modelId);
@@ -432,12 +174,10 @@ export async function generateTextWithTier(
     }
   }
 
-  // Get models available for this tier
   const tierModels = getModelsForTier(userTier).filter((model) =>
     isProviderConfigured(model.provider)
   );
 
-  // If we have a valid preferredModel, put it at the front of the list.
   const availableModels: AIModelConfig[] = preferredModel
     ? [preferredModel, ...tierModels.filter((m) => m.id !== preferredModel!.id)]
     : tierModels;
@@ -452,7 +192,6 @@ export async function generateTextWithTier(
 
   const errors: Record<string, string> = {};
 
-  // Try each model in order (cheapest/best based on tier)
   for (const model of availableModels) {
     const breaker = breakers[model.provider as keyof typeof breakers];
 
@@ -471,7 +210,6 @@ export async function generateTextWithTier(
 
       if (breaker) breaker.recordSuccess();
 
-      // Estimate cost (rough: assume ~500 tokens for a resume generation)
       const estimatedTokens = prompt.length / 4 + result.text.length / 4;
       const estimatedCost =
         (estimatedTokens / 1_000_000) * model.costPer1MTokens;
@@ -501,14 +239,11 @@ export async function generateTextWithTier(
     }
   }
 
-  // All models failed
   if (userTier === "basic") {
-    // For basic users, give a friendly error
     throw new Error(
       "AI service is currently unavailable. Please try again in a few minutes."
     );
   }
 
-  // For premium/enterprise, give details
   throw new Error(`All AI providers failed. Errors: ${JSON.stringify(errors)}`);
 }

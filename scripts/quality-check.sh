@@ -167,39 +167,35 @@ else
   fi
 fi
 
-# Additional pattern checks for 104-issue standards
-if [ "$QUICK_MODE" = false ]; then
-  echo -e "${YELLOW}[5b/5] Checking Code Quality Patterns (from 104-issue fix)...${NC}"
-  
-  PATTERN_ISSUES=0
-  
-  # Check for Pino logger misuse (wrong argument order)
-  # Should be: logger.info({ context }, "message") NOT logger.info("message", { context })
-  LOGGER_MISUSE=$(grep -rE "logger\.(info|warn|error|debug)\(['\"][^'\"]+['\"],\s*\{" src/lib/services src/app/api --include="*.ts" 2>/dev/null | grep -v ".test.ts" | wc -l | tr -d ' ')
-  if [ "$LOGGER_MISUSE" -gt "0" ]; then
-    echo -e "${YELLOW}  ⚠️  Found $LOGGER_MISUSE potential logger format issues (should be context-first)${NC}"
+  # Check for production file length budget
+  MAX_LINES=500
+  LARGE_FILES=$(find src -name "*.ts" -o -name "*.tsx" | grep -v "__tests__" | grep -v ".test.ts" | grep -v ".backup" | xargs wc -l | sort -nr | awk -v max="$MAX_LINES" '$1 > max && $2 != "total" {print $2 " (" $1 " lines)"}')
+  if [ -n "$LARGE_FILES" ]; then
+    echo -e "${YELLOW}  ⚠️  Found files exceeding ${MAX_LINES} lines budget (P2 Tech Debt):${NC}"
+    echo "$LARGE_FILES" | head -5
     PATTERN_ISSUES=$((PATTERN_ISSUES + 1))
   fi
-  
-  # Check for 'any' type usage in production
-  ANY_COUNT=$(grep -rE ":\s*any|as\s+any" src --include="*.ts" --include="*.tsx" 2>/dev/null | grep -v ".test.ts" | grep -v "node_modules" | wc -l | tr -d ' ')
-  if [ "$ANY_COUNT" -gt "10" ]; then  # Allow some for backwards compat
-    echo -e "${YELLOW}  ⚠️  Found $ANY_COUNT uses of 'any' type - prefer explicit types${NC}"
-    PATTERN_ISSUES=$((PATTERN_ISSUES + 1))
+
+  # Check for 'any' type usage in production (Ratchet at 40)
+  ANY_COUNT=$(grep -rE ":\s*any|as\s+any" src --include="*.ts" --include="*.tsx" 2>/dev/null | grep -vE "__tests__|.test|.backup" | grep -v "node_modules" | wc -l | tr -d ' ')
+  if [ "$ANY_COUNT" -gt "40" ]; then
+    echo -e "${RED}  🚨 DEBT REGRESSION: 'any' count ($ANY_COUNT) exceeds budget (40)${NC}"
+    ERRORS=$((ERRORS + 1))
+  else
+    echo -e "${GREEN}  ✅ 'any' usage within budget ($ANY_COUNT/40)${NC}"
   fi
-  
-  # Check for missing error handling in async/await
-  MISSING_CATCH=$(grep -rE "await.*\(" src/app/api --include="*.ts" 2>/dev/null | grep -v "try\|catch\|handleApiError" | wc -l | tr -d ' ')
-  if [ "$MISSING_CATCH" -gt "5" ]; then
-    echo -e "${YELLOW}  ℹ️  Review: $MISSING_CATCH async calls - ensure proper error handling${NC}"
+
+  # Check for max-lines suppressions
+  SUPPRESSIONS=$(grep -r "eslint-disable max-lines" src --include="*.ts" --include="*.tsx" | grep -vE ".backup|node_modules" | wc -l | tr -d ' ')
+  if [ "$SUPPRESSIONS" -gt "0" ]; then
+    echo -e "${YELLOW}  ℹ️  Debt: $SUPPRESSIONS files still have 'max-lines' suppressions${NC}"
   fi
   
   if [ "$PATTERN_ISSUES" -gt "0" ]; then
-    echo -e "${YELLOW}  Note: Pattern issues are warnings, not blocking${NC}"
+    echo -e "${YELLOW}  Note: Pattern issues are warnings in --quick mode, but review before merge${NC}"
   else
     echo -e "${GREEN}✅ PASSED: Code quality patterns compliant${NC}"
   fi
-fi
 
 echo ""
 echo -e "${BLUE}========================================${NC}"

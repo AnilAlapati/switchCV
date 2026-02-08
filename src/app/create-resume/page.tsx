@@ -1,12 +1,9 @@
-/* eslint-disable max-lines */
 "use client";
 
-import { logger } from "@/lib/logger";
-
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useTier } from "@/hooks/useTier";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useTier } from "@/hooks/useTier";
 import { useRouter } from "next/navigation";
 import { DashboardBackground } from "@/components/dashboard/DashboardBackground";
 import { CreateResumeHeader } from "@/components/create-resume/CreateResumeHeader";
@@ -17,180 +14,57 @@ import { ResumeProgress } from "@/components/create-resume/ResumeProgress";
 import { SessionRestoreDialog } from "@/components/create-resume/SessionRestoreDialog";
 import { getVerificationRoute } from "@/lib/config";
 import { Bot, User } from "lucide-react";
+import { useResumeCreation } from "@/hooks/useResumeCreation";
 
 const VERIFICATION_ROUTE = getVerificationRoute();
-
-interface Message {
-  id: string;
-  content: string;
-  isUser: boolean;
-  timestamp: Date;
-}
-
-interface SessionData {
-  userId: string;
-  messages: Message[];
-  stage: "input" | "generating" | "complete";
-  sessionData: unknown;
-  progress: number;
-  lastActivity?: string;
-}
 
 export default function CreateResume() {
   const { user, loading: authLoading, needsEmailVerification } = useAuth();
   const { role, loading: profileLoading } = useUserProfile();
   const { isPremiumOrHigher } = useTier();
   const router = useRouter();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [currentInput, setCurrentInput] = useState("");
-  const [stage, setStage] = useState<"input" | "generating" | "complete">(
-    "input"
-  );
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
-  const [aiConnectionStatus, setAiConnectionStatus] = useState<{
-    connected: boolean;
-    model?: string;
-  } | null>(null);
-  const [sessionData, setSessionData] = useState<unknown>(null);
-  const [progress, setProgress] = useState<number>(0);
-  const [availableModels, setAvailableModels] = useState<
-    Array<{
-      id: string;
-      name: string;
-      provider: string;
-      tier: string;
-      quality: number;
-      costPer1MTokens: number;
-    }>
-  >([]);
-  const [selectedModelId, setSelectedModelId] = useState<string | undefined>();
-  const [showRestoreDialog, setShowRestoreDialog] = useState(false);
-  const [pendingSession, setPendingSession] = useState<SessionData | null>(
-    null
-  );
+
+  const {
+    messages,
+    currentInput,
+    setCurrentInput,
+    stage,
+    aiLoading,
+    aiError,
+    aiConnectionStatus,
+    sessionData,
+    progress,
+    availableModels,
+    selectedModelId,
+    setSelectedModelId,
+    showRestoreDialog,
+    pendingSession,
+    handleContinueSession,
+    handleStartFresh,
+    handleSubmit,
+    handleForceCreate,
+  } = useResumeCreation();
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const previousMessageCount = useRef(0);
 
   const loading = authLoading || profileLoading;
 
-  // Load session on mount - show dialog if session exists
-  useEffect(() => {
-    if (!user?.uid) return;
-
-    // Clean up old non-user-specific session (one-time migration)
-    const OLD_SESSION_KEY = "resume_creation_session";
-    if (localStorage.getItem(OLD_SESSION_KEY)) {
-      logger.warn("🧹 Cleaning up old non-user-specific session data");
-      localStorage.removeItem(OLD_SESSION_KEY);
-    }
-
-    const SESSION_KEY = `resume_creation_session_${user.uid}`;
-    const savedSession = localStorage.getItem(SESSION_KEY);
-
-    if (savedSession) {
-      try {
-        const parsed: SessionData = JSON.parse(savedSession);
-
-        // CRITICAL: Verify session belongs to current user
-        if (parsed.userId !== user.uid) {
-          logger.warn(
-            { sessionUserId: parsed.userId, currentUserId: user.uid },
-            "🚨 SECURITY: Session mismatch detected, clearing old session"
-          );
-          localStorage.removeItem(SESSION_KEY);
-          return;
-        }
-
-        // Show dialog instead of auto-restoring
-        if (parsed.messages && parsed.messages.length > 0) {
-          setPendingSession(parsed);
-          setShowRestoreDialog(true);
-        }
-      } catch (error) {
-        logger.error({ err: error }, "Failed to restore session");
-        localStorage.removeItem(SESSION_KEY);
-      }
-    }
-  }, [user?.uid]);
-
-  const handleContinueSession = () => {
-    if (!pendingSession) return;
-
-    // Restore the session
-    setMessages(
-      pendingSession.messages.map((m: Message) => ({
-        ...m,
-        timestamp: new Date(m.timestamp),
-      }))
-    );
-    if (pendingSession.stage) setStage(pendingSession.stage);
-    if (pendingSession.sessionData) setSessionData(pendingSession.sessionData);
-    if (pendingSession.progress) setProgress(pendingSession.progress);
-
-    setShowRestoreDialog(false);
-    setPendingSession(null);
-    logger.info("✅ Session restored from previous conversation");
-  };
-
-  const handleStartFresh = () => {
-    if (!user?.uid) return;
-
-    const SESSION_KEY = `resume_creation_session_${user.uid}`;
-    localStorage.removeItem(SESSION_KEY);
-
-    // Reset all state to fresh
-    setMessages([]);
-    setStage("input");
-    setProgress(0);
-    setSessionData(null);
-    setShowRestoreDialog(false);
-    setPendingSession(null);
-
-    logger.info("🆕 Started fresh resume creation");
-  };
-
-  // Save session on change - with userId validation
-  useEffect(() => {
-    if (!user?.uid) return;
-
-    if (messages.length > 0 || stage !== "input" || progress > 0) {
-      const SESSION_KEY = `resume_creation_session_${user.uid}`;
-      const sessionToSave: SessionData = {
-        userId: user.uid, // CRITICAL: Include userId for validation
-        messages,
-        stage,
-        sessionData,
-        progress,
-        lastActivity: new Date().toISOString(),
-      };
-      localStorage.setItem(SESSION_KEY, JSON.stringify(sessionToSave));
-    }
-  }, [messages, stage, sessionData, progress, user?.uid]);
-
   const scrollToBottom = () => {
-    // Guard against environments (like some test runners) where
-    // `scrollIntoView` may not be implemented on the DOM node.
     const el = messagesEndRef.current as HTMLElement | null;
     if (el && typeof el.scrollIntoView === "function") {
-      // Always use instant scroll to prevent jarring movement
       el.scrollIntoView({ behavior: "auto", block: "end" });
     }
   };
 
   useEffect(() => {
-    // Avoid jumping the page when the very first AI flow is started from the welcome CTA
     if (messages.length === 0) {
       previousMessageCount.current = 0;
       return;
     }
-
-    // Scroll immediately when new messages arrive
     if (previousMessageCount.current > 0) {
-      // Use requestAnimationFrame to ensure DOM is updated
       requestAnimationFrame(() => scrollToBottom());
     }
-
     previousMessageCount.current = messages.length;
   }, [messages]);
 
@@ -205,311 +79,6 @@ export default function CreateResume() {
       }
     }
   }, [user, loading, needsEmailVerification, role, router]);
-
-  useEffect(() => {
-    // Check AI connection status
-    const checkAIStatus = async () => {
-      try {
-        const response = await fetch("/api/ai/status");
-        if (response.ok) {
-          const data = await response.json();
-          setAiConnectionStatus(data);
-        }
-      } catch (error) {
-        logger.error({ err: error }, "Failed to check AI status:");
-        setAiConnectionStatus({ connected: false });
-      }
-    };
-    checkAIStatus();
-  }, []);
-
-  useEffect(() => {
-    const loadModels = async () => {
-      if (!isPremiumOrHigher) return;
-      try {
-        const response = await fetch("/api/ai/models");
-        if (!response.ok) return;
-        const data = await response.json();
-        setAvailableModels(data.models || []);
-      } catch (error) {
-        logger.error({ err: error }, "Failed to load AI models");
-      }
-    };
-
-    loadModels();
-  }, [isPremiumOrHigher]);
-
-  const handleSubmit = async (e?: React.FormEvent, overrideInput?: string) => {
-    if (e) e.preventDefault();
-    const input = overrideInput || currentInput;
-    if (!input.trim() || !user) return;
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      content: input,
-      isUser: true,
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setCurrentInput("");
-    setAiLoading(true);
-    setAiError(null);
-    setStage("generating");
-
-    try {
-      const idToken = await user.getIdToken();
-      const response = await fetch("/api/resume/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({
-          message: input,
-          conversationHistory: messages,
-          sessionData,
-          modelId: selectedModelId,
-        }),
-      });
-
-      if (!response.ok) {
-        let errorDetail = response.statusText;
-        const errorStatus = response.status;
-        try {
-          const errorData = await response.json();
-          if (errorData.error) errorDetail = errorData.error;
-          if (errorData.details)
-            errorDetail = `${errorDetail}: ${errorData.details}`;
-        } catch {
-          // Ignore if not JSON
-        }
-
-        // If 401, try to force refresh token once
-        if (errorStatus === 401) {
-          logger.warn("Got 401, attempting token refresh...");
-          try {
-            const freshToken = await user.getIdToken(true); // force refresh
-            const retryResponse = await fetch("/api/resume/generate", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${freshToken}`,
-              },
-              body: JSON.stringify({
-                message: input,
-                conversationHistory: messages,
-                sessionData,
-                modelId: selectedModelId,
-              }),
-            });
-
-            if (retryResponse.ok) {
-              const data = await retryResponse.json();
-              const aiMessage: Message = {
-                id: (Date.now() + 1).toString(),
-                content: data.response || "Resume generated successfully!",
-                isUser: false,
-                timestamp: new Date(),
-              };
-              setMessages((prev) => [...prev, aiMessage]);
-              if (data.sessionData) setSessionData(data.sessionData);
-              if (data.progress !== undefined) setProgress(data.progress);
-              if (data.resumeId) {
-                setStage("complete");
-                if (user?.uid) {
-                  const SESSION_KEY = `resume_creation_session_${user.uid}`;
-                  localStorage.removeItem(SESSION_KEY);
-                }
-                setTimeout(() => {
-                  router.push(`/resumes/${data.resumeId}`);
-                }, 2000);
-              } else {
-                setStage("input");
-              }
-              return; // Success after retry
-            }
-          } catch (refreshError) {
-            logger.error({ err: refreshError }, "Token refresh failed");
-          }
-        }
-
-        throw new Error(
-          `Failed to generate resume (${errorStatus}): ${errorDetail}`
-        );
-      }
-
-      const data = await response.json();
-
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: data.response || "Resume generated successfully!",
-        isUser: false,
-        timestamp: new Date(),
-      };
-
-      setMessages((prev) => [...prev, aiMessage]);
-
-      // Update session data and progress
-      if (data.sessionData) {
-        setSessionData(data.sessionData);
-      }
-
-      if (data.progress !== undefined) {
-        setProgress(data.progress);
-      }
-
-      if (data.resumeId) {
-        setStage("complete");
-        if (user?.uid) {
-          const SESSION_KEY = `resume_creation_session_${user.uid}`;
-          localStorage.removeItem(SESSION_KEY);
-        }
-        // Show success message and redirect after a moment
-        setTimeout(() => {
-          // Redirect to singular `/resumes/:id` route (legacy/test expectation)
-          router.push(`/resumes/${data.resumeId}`);
-        }, 2000);
-      } else {
-        // Continue conversation - reset to input stage
-        setStage("input");
-      }
-    } catch (error) {
-      // Log detailed error info
-      const errorDetails =
-        error instanceof Error
-          ? {
-            message: error.message,
-            stack: error.stack,
-            name: error.name,
-          }
-          : { error: String(error) };
-
-      logger.error(
-        {
-          ...errorDetails,
-          errorType: error?.constructor?.name,
-        },
-        "Error generating resume:"
-      );
-
-      let errorMessage = "An unexpected error occurred. Please try again.";
-      const errorStr = error instanceof Error ? error.message : String(error);
-
-      if (errorStr.includes("401")) {
-        errorMessage = "Your session has expired. Please refresh the page.";
-      } else if (errorStr.includes("429")) {
-        errorMessage =
-          "You're sending messages too fast. Please wait a moment.";
-      } else if (errorStr.includes("500")) {
-        errorMessage =
-          "Our AI service is having a hiccup. Please try again in a minute.";
-      } else if (errorStr.includes("fetch") || errorStr.includes("Network")) {
-        errorMessage = "Network error. Please check your internet connection.";
-      } else if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-
-      setAiError(errorMessage);
-      setStage("input");
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  const handleForceCreate = async () => {
-    if (!user) return;
-
-    const forceMessage = "Create my resume now";
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      content: forceMessage,
-      isUser: true,
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setAiLoading(true);
-    setAiError(null);
-    setStage("generating");
-
-    try {
-      const idToken = await user.getIdToken();
-      const response = await fetch("/api/resume/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({
-          message: forceMessage,
-          conversationHistory: messages,
-          sessionData,
-          modelId: selectedModelId,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to generate resume: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: data.response || "Resume generated successfully!",
-        isUser: false,
-        timestamp: new Date(),
-      };
-
-      setMessages((prev) => [...prev, aiMessage]);
-
-      if (data.sessionData) {
-        setSessionData(data.sessionData);
-      }
-
-      if (data.progress !== undefined) {
-        setProgress(data.progress);
-      }
-
-      if (data.resumeId) {
-        setStage("complete");
-        if (user?.uid) {
-          const SESSION_KEY = `resume_creation_session_${user.uid}`;
-          localStorage.removeItem(SESSION_KEY);
-        }
-        setTimeout(() => {
-          router.push(`/resumes/${data.resumeId}`);
-        }, 2000);
-      } else {
-        setStage("input");
-      }
-    } catch (error) {
-      logger.error({ err: error }, "Error generating resume:");
-      let errorMessage = "An unexpected error occurred. Please try again.";
-      if (error instanceof Error) {
-        if (error.message.includes("401"))
-          errorMessage = "Your session has expired. Please refresh the page.";
-        else if (error.message.includes("429"))
-          errorMessage =
-            "You're sending messages too fast. Please wait a moment.";
-        else if (error.message.includes("500"))
-          errorMessage =
-            "Our AI service is having a hiccup. Please try again in a minute.";
-        else if (
-          error.message.includes("fetch") ||
-          error.message.includes("Network")
-        )
-          errorMessage =
-            "Network error. Please check your internet connection.";
-        else errorMessage = error.message;
-      }
-      setAiError(errorMessage);
-      setStage("input");
-    } finally {
-      setAiLoading(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -528,8 +97,8 @@ export default function CreateResume() {
 
   const resumeProgressProps = {
     progress,
-    collectedFields: (sessionData as Record<string, any>)?.progress?.collectedFields,
-    missingFields: (sessionData as Record<string, any>)?.progress?.missingFields,
+    collectedFields: (sessionData as any)?.progress?.collectedFields,
+    missingFields: (sessionData as any)?.progress?.missingFields,
   };
 
   const shouldShowProgress = progress > 0;
@@ -537,7 +106,6 @@ export default function CreateResume() {
   return (
     <DashboardBackground>
       <div className="flex flex-col h-screen w-screen overflow-hidden bg-background">
-        {/* Fixed Header */}
         <div className="flex-none z-10 border-b border-border/50 bg-background/95 backdrop-blur-sm">
           <CreateResumeHeader aiConnectionStatus={aiConnectionStatus} />
 
@@ -589,11 +157,8 @@ export default function CreateResume() {
           </div>
         )}
 
-        {/* Main Container with Fixed Chat and Input */}
         <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full relative overflow-hidden">
-          {/* Scrollable Chat Area - takes remaining space; padded for fixed input bar */}
           <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 pt-4 pb-4">
-            {/* Progress Bar for Mobile */}
             {shouldShowProgress && (
               <div className="lg:hidden mb-6">
                 <ResumeProgress {...resumeProgressProps} />
@@ -651,14 +216,11 @@ export default function CreateResume() {
                 ))}
 
                 <AILoadingState aiLoading={aiLoading} aiError={aiError} />
-
-                {/* Scroll Anchor with extra spacing to prevent last message from being hidden behind expanding input */}
                 <div ref={messagesEndRef} className="h-64" />
               </div>
             )}
           </div>
 
-          {/* Fixed Bottom Input Area - consistent height, absolute positioning */}
           <div className="absolute bottom-0 left-0 right-0 border-t border-border/50 bg-gradient-to-t from-background via-background to-background/95 backdrop-blur-sm shadow-2xl">
             <div className="px-4 pt-4 pb-6">
               {messages.length > 0 &&
