@@ -1,5 +1,4 @@
 // src/hooks/useAuth.tsx
-/* eslint-disable max-lines */
 "use client";
 
 import {

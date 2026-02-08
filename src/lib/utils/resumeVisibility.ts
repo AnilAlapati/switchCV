@@ -106,46 +106,41 @@ export const hasMaskedItems = (
   return items.some((item) => item.visibility === "masked");
 };
 
-interface ViewerAccessMeta {
-  scope: string;
-  isOwner: boolean;
-  isMasked?: boolean;
-  isSnapshot?: boolean;
-}
+import type { ViewerAccessMeta } from "@/types";
 
 /**
  * Produce a sanitized resume payload for public viewers
  * Masks contact details and injects viewer metadata without mutating the source object
  */
 export const sanitizeResumeForPublicView = (
-  resume: Record<string, any>
-): Record<string, any> => {
-  const clone = JSON.parse(JSON.stringify(resume ?? {}));
+  resume: Record<string, unknown>
+): Record<string, unknown> => {
+  const clone = JSON.parse(JSON.stringify(resume ?? {})) as Record<string, unknown>;
 
-  const originalContact = (resume?.contact ?? {}) as Record<string, any>;
+  const originalContact = (resume?.contact ?? {}) as Record<string, unknown>;
   const originalPersonalInfo = (resume?.personalInfo ?? {}) as Record<
     string,
-    any
+    unknown
   >;
 
   // Get raw values from either contact or personalInfo
   const emailFromContact =
     typeof originalContact.email === "string"
       ? originalContact.email
-      : originalContact.email?.value;
+      : (originalContact.email as Record<string, unknown>)?.value as string | undefined;
   const phoneFromContact =
     typeof originalContact.phone === "string"
       ? originalContact.phone
-      : originalContact.phone?.value;
+      : (originalContact.phone as Record<string, unknown>)?.value as string | undefined;
 
-  const rawEmail = emailFromContact || originalPersonalInfo.email || "";
-  const rawPhone = phoneFromContact || originalPersonalInfo.phone || "";
+  const rawEmail = emailFromContact || (originalPersonalInfo.email as string) || "";
+  const rawPhone = phoneFromContact || (originalPersonalInfo.phone as string) || "";
 
   // Determine visibility preference (default to masked if not specified)
   const emailVisibility =
-    originalContact.email?.visibility === "request" ? "request" : "masked";
+    (originalContact.email as Record<string, unknown>)?.visibility === "request" ? "request" : "masked";
   const phoneVisibility =
-    originalContact.phone?.visibility === "request" ? "request" : "masked";
+    (originalContact.phone as Record<string, unknown>)?.visibility === "request" ? "request" : "masked";
 
   // Generate masked values
   const maskedEmail = rawEmail ? maskEmail(rawEmail) : "";
@@ -176,7 +171,7 @@ export const sanitizeResumeForPublicView = (
       phoneVisibility === "request" ? "Available upon request" : maskedPhone;
   }
 
-  const viewerAccess: ViewerAccessMeta = {
+  const viewerAccess: ViewerAccessMeta & { isMasked?: boolean; isSnapshot?: boolean } = {
     scope: "public-preview",
     isOwner: false,
     isMasked: true,

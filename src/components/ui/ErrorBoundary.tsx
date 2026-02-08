@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { logger } from "@/lib/logger";
 
 interface Props {
     children: React.ReactNode;
@@ -24,8 +25,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
     componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
         // Error logging - in production, this should use a proper error reporting service
-        // eslint-disable-next-line no-console
-        console.error("ErrorBoundary caught error:", error, errorInfo);
+        logger.error({ err: error, errorInfo }, "ErrorBoundary caught error");
     }
 
     render() {

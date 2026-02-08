@@ -16,7 +16,7 @@ import type {
 } from "@/types";
 import { pruneUndefined } from "@/lib/utils/pruneUndefined";
 
-type ResumeRecord = Record<string, any>;
+type ResumeRecord = Record<string, unknown>;
 
 export interface ResumeEditorMeta {
   userId?: string;
@@ -55,11 +55,11 @@ const normalizeSkills = (skills: unknown): Skill[] => {
     }
 
     if (skill && typeof skill === "object") {
-      const skillObj = skill as Partial<Skill> & Record<string, any>;
+      const skillObj = skill as Record<string, unknown>;
       return {
-        id: skillObj.id || `skill-legacy-${index}`,
-        name: skillObj.name ?? "",
-        level: skillObj.level ?? DEFAULT_SKILL_LEVEL,
+        id: (skillObj.id as string) || `skill-legacy-${index}`,
+        name: (skillObj.name as string) ?? "",
+        level: (skillObj.level as string) ?? DEFAULT_SKILL_LEVEL,
         visibility: ensureVisibility(skillObj.visibility),
       } satisfies Skill;
     }
@@ -88,15 +88,15 @@ const normalizeExperience = (experience: unknown): Experience[] => {
       } satisfies Experience;
     }
 
-    const expObj = exp as Partial<Experience> & Record<string, any>;
+    const expObj = exp as Record<string, unknown>;
 
     return {
-      id: expObj.id || `exp-legacy-${index}`,
-      company: expObj.company ?? "",
-      role: expObj.role ?? expObj.title ?? "",
-      startDate: expObj.startDate ?? expObj.from ?? "",
-      endDate: expObj.endDate ?? expObj.to,
-      description: expObj.description ?? expObj.summary ?? "",
+      id: (expObj.id as string) || `exp-legacy-${index}`,
+      company: (expObj.company as string) ?? "",
+      role: (expObj.role as string) ?? (expObj.title as string) ?? "",
+      startDate: (expObj.startDate as string) ?? (expObj.from as string) ?? "",
+      endDate: expObj.endDate as string | undefined ?? expObj.to as string | undefined,
+      description: (expObj.description as string) ?? (expObj.summary as string) ?? "",
       visibility: ensureVisibility(expObj.visibility),
     } satisfies Experience;
   });
@@ -116,15 +116,15 @@ const normalizeEducation = (education: unknown): Education[] => {
       } satisfies Education;
     }
 
-    const eduObj = edu as Partial<Education> & Record<string, any>;
+    const eduObj = edu as Record<string, unknown>;
 
     return {
-      id: eduObj.id || `edu-legacy-${index}`,
-      institution: eduObj.institution ?? "",
-      degree: eduObj.degree ?? eduObj.title ?? "",
-      startDate: eduObj.startDate ?? eduObj.from ?? "",
-      endDate: eduObj.endDate ?? eduObj.to,
-      description: eduObj.description,
+      id: (eduObj.id as string) || `edu-legacy-${index}`,
+      institution: (eduObj.institution as string) ?? "",
+      degree: (eduObj.degree as string) ?? (eduObj.title as string) ?? "",
+      startDate: (eduObj.startDate as string) ?? (eduObj.from as string) ?? "",
+      endDate: eduObj.endDate as string | undefined ?? eduObj.to as string | undefined,
+      description: eduObj.description as string | undefined,
       visibility: ensureVisibility(eduObj.visibility),
     } satisfies Education;
   });
@@ -143,13 +143,13 @@ const normalizeProjects = (projects: unknown): Project[] => {
       } satisfies Project;
     }
 
-    const projectObj = project as Partial<Project> & Record<string, any>;
+    const projectObj = project as Record<string, unknown>;
 
     return {
-      id: projectObj.id || `proj-legacy-${index}`,
-      name: projectObj.name ?? projectObj.title ?? "",
-      url: projectObj.url,
-      description: projectObj.description ?? "",
+      id: (projectObj.id as string) || `proj-legacy-${index}`,
+      name: (projectObj.name as string) ?? (projectObj.title as string) ?? "",
+      url: projectObj.url as string | undefined,
+      description: (projectObj.description as string) ?? "",
       visibility: ensureVisibility(projectObj.visibility),
     } satisfies Project;
   });
@@ -163,31 +163,23 @@ const normalizeContact = (contact: unknown): ContactInfo => {
     } satisfies ContactInfo;
   }
 
-  const contactObj = contact as Partial<ContactInfo> & Record<string, any>;
+  const contactObj = contact as Record<string, unknown>;
 
-  const rawEmail = contactObj.email as
-    | string
-    | (ContactInfo["email"] & Record<string, any>)
-    | undefined;
-  const rawPhone = contactObj.phone as
-    | string
-    | (ContactInfo["phone"] & Record<string, any>)
-    | undefined;
+  const rawEmail = contactObj.email;
+  const rawPhone = contactObj.phone;
 
-  const emailValue =
-    typeof rawEmail === "string" ? rawEmail : rawEmail?.value ?? "";
-  const phoneValue =
-    typeof rawPhone === "string" ? rawPhone : rawPhone?.value ?? "";
+  const emailValue = typeof rawEmail === "string" ? rawEmail : (rawEmail as Record<string, unknown>)?.value as string ?? "";
+  const phoneValue = typeof rawPhone === "string" ? rawPhone : (rawPhone as Record<string, unknown>)?.value as string ?? "";
 
   const emailVisibility =
     typeof rawEmail === "object" && rawEmail
-      ? ensureVisibility(rawEmail.visibility)
-      : ensureVisibility(contactObj.email?.visibility);
+      ? ensureVisibility((rawEmail as Record<string, unknown>).visibility)
+      : ensureVisibility((contactObj.email as Record<string, unknown>)?.visibility);
 
   const phoneVisibility =
     typeof rawPhone === "object" && rawPhone
-      ? ensureVisibility(rawPhone.visibility)
-      : ensureVisibility(contactObj.phone?.visibility);
+      ? ensureVisibility((rawPhone as Record<string, unknown>).visibility)
+      : ensureVisibility((contactObj.phone as Record<string, unknown>)?.visibility);
 
   return {
     email: { value: emailValue, visibility: emailVisibility },
@@ -199,26 +191,22 @@ const normalizePersonalInfo = (
   personalInfo: unknown
 ): ResumeProfile["personalInfo"] => {
   if (!personalInfo || typeof personalInfo !== "object") return {};
-  const info = personalInfo as ResumeProfile["personalInfo"] &
-    Record<string, any>;
+  const info = personalInfo as Record<string, unknown>;
   return {
-    name: info.name,
-    title: info.title,
-    email: info.email,
-    phone: info.phone,
-    location: info.location,
-    linkedin: info.linkedin,
-    github: info.github,
+    name: info.name as string | undefined,
+    title: info.title as string | undefined,
+    email: info.email as string | undefined,
+    phone: info.phone as string | undefined,
+    location: info.location as string | undefined,
+    linkedin: info.linkedin as string | undefined,
+    github: info.github as string | undefined,
   };
 };
 
 export const normalizeResumeForEditor = (
   raw: unknown
 ): ResumeEditorNormalizationResult => {
-  const rawResume = (raw && typeof raw === "object" ? raw : {}) as Record<
-    string,
-    any
-  >;
+  const rawResume = (raw && typeof raw === "object" ? raw : {}) as ResumeRecord;
 
   const skills = normalizeSkills(rawResume.skills);
   const experience = normalizeExperience(rawResume.experience);
@@ -227,7 +215,7 @@ export const normalizeResumeForEditor = (
   const contact = normalizeContact(rawResume.contact);
   const personalInfo = normalizePersonalInfo(rawResume.personalInfo);
 
-  const resume: Record<string, any> = {
+  const resume: ResumeRecord = {
     ...rawResume,
     skills,
     experience,
@@ -238,8 +226,8 @@ export const normalizeResumeForEditor = (
   };
 
   const profile: Partial<ResumeProfile> = {
-    title: resume.title ?? "",
-    summary: resume.summary ?? "",
+    title: (resume.title as string) ?? "",
+    summary: (resume.summary as string) ?? "",
     skills,
     experience,
     education,
@@ -249,19 +237,19 @@ export const normalizeResumeForEditor = (
   };
 
   const meta: ResumeEditorMeta = {
-    userId: rawResume.userId,
+    userId: rawResume.userId as string | undefined,
     numericId:
       typeof rawResume.numericId === "number"
         ? rawResume.numericId
         : typeof rawResume.id === "number"
-        ? rawResume.id
-        : undefined,
+          ? rawResume.id
+          : undefined,
     isPublic:
       typeof rawResume.isPublic === "boolean"
         ? rawResume.isPublic
         : rawResume.visibility === "public",
-    visibility: rawResume.visibility,
-    templateId: rawResume.templateId,
+    visibility: rawResume.visibility as string | undefined,
+    templateId: rawResume.templateId as string | undefined,
   };
 
   return { profile, resume, meta };
@@ -278,8 +266,8 @@ const RESERVED_FIELDS = new Set([
 ]);
 
 export const sanitizeResumePayload = (
-  resume: Record<string, any>
-): Record<string, any> => {
+  resume: ResumeRecord
+): ResumeRecord => {
   if (!resume || typeof resume !== "object") {
     return {};
   }
@@ -292,16 +280,16 @@ export const sanitizeResumePayload = (
   const cleaned = pruneUndefined(sanitizedObject);
 
   return cleaned && typeof cleaned === "object"
-    ? (cleaned as Record<string, any>)
+    ? (cleaned as ResumeRecord)
     : {};
 };
 
 export const mergeProfileIntoResume = (
-  original: Record<string, any> | null | undefined,
+  original: ResumeRecord | null | undefined,
   profile: Partial<ResumeProfile>
-): Record<string, any> => {
+): ResumeRecord => {
   const base = original ? { ...original } : {};
-  const updated = { ...base };
+  const updated: ResumeRecord = { ...base };
 
   if (profile.title !== undefined) {
     updated.title = profile.title;
@@ -329,26 +317,26 @@ export const mergeProfileIntoResume = (
 
   if (profile.personalInfo !== undefined) {
     updated.personalInfo = {
-      ...(base.personalInfo || {}),
+      ...((base.personalInfo as Record<string, unknown>) || {}),
       ...profile.personalInfo,
     };
   }
 
   if (profile.contact !== undefined) {
-    const baseContact = base.contact || {};
+    const baseContact = (base.contact as Record<string, unknown>) || {};
     updated.contact = {
       email: {
-        value: profile.contact.email?.value ?? baseContact.email?.value ?? "",
+        value: profile.contact.email?.value ?? (baseContact.email as Record<string, unknown>)?.value as string ?? "",
         visibility:
           profile.contact.email?.visibility ??
-          baseContact.email?.visibility ??
+          (baseContact.email as Record<string, unknown>)?.visibility as Visibility ??
           "masked",
       },
       phone: {
-        value: profile.contact.phone?.value ?? baseContact.phone?.value ?? "",
+        value: profile.contact.phone?.value ?? (baseContact.phone as Record<string, unknown>)?.value as string ?? "",
         visibility:
           profile.contact.phone?.visibility ??
-          baseContact.phone?.visibility ??
+          (baseContact.phone as Record<string, unknown>)?.visibility as Visibility ??
           "masked",
       },
     } satisfies ContactInfo;

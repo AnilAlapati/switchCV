@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 import * as admin from "firebase-admin";
 import { logger } from "@/lib/logger";
 
@@ -23,8 +22,9 @@ export function validateEnvironment(): void {
     // Fallback for production: Log warn but don't throw yet.
     // The initialization function handles the fallback value.
     if ((process.env.NODE_ENV as string) === "production") {
-      console.warn(
-        "⚠️ Project ID missing in env, will fallback to 'switchcv-e5136'"
+      logger.warn(
+        { fallbackProjectId: "switchcv-e5136" },
+        "Project ID missing in env, will fallback to default"
       );
       return;
     }
@@ -97,7 +97,7 @@ export function initializeFirebaseAdmin(): void {
     //   projectId
     // );
   } catch (error) {
-    console.error("Failed to initialize Firebase Admin SDK:", error);
+    logger.error({ err: error }, "Failed to initialize Firebase Admin SDK");
     // We must throw here because the app cannot function without admin
     throw error;
   }

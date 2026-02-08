@@ -1,5 +1,6 @@
 /* eslint-disable max-lines */
 import { type ReactNode, useState } from "react";
+import { logger } from "@/lib/logger";
 import { SearchResult, SearchModeType } from "./RecruiterSearchForm";
 import { AgentMessageModal } from "@/components/recruiter/AgentMessageModal";
 
@@ -52,8 +53,8 @@ const Callout = ({
   <section className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-6 rounded-lg">
     <div
       className={`flex items-center gap-3 rounded-lg border-2 border-black px-5 py-4 font-bold ${variant === "error"
-          ? "bg-rose-50 text-rose-900"
-          : "bg-cyan-50 text-cyan-900"
+        ? "bg-rose-50 text-rose-900"
+        : "bg-cyan-50 text-cyan-900"
         }`}
     >
       <span className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${variant === "error" ? "bg-rose-200" : "bg-cyan-200"}`}>
@@ -111,8 +112,7 @@ export function RecruiterSearchResults({
         setGeneratedMessage(data.message);
       }
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error("Agent failed", err);
+      logger.error({ err }, "Agent outreach failed");
       // Optional: Show toast error
     } finally {
       setIsAgentLoading(false);
@@ -153,8 +153,7 @@ export function RecruiterSearchResults({
         }));
       }
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error("Analysis failed", err);
+      logger.error({ err }, "Analysis failed");
     } finally {
       setAnalyzingFor(null);
     }
