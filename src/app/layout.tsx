@@ -12,10 +12,10 @@ import { DevModeBanner } from "@/components/dev/DevModeBanner";
 import { SWRProvider } from "@/components/providers/SWRProvider";
 import { IntlProvider } from "@/components/providers/IntlProvider";
 import { Toaster } from "sonner";
-import { GoogleAnalytics } from "@next/third-parties/google";
 import { BetaBadge } from "@/components/layout/BetaBadge";
 import { MobileNotice } from "@/components/layout/MobileNotice";
 import { CookieConsentBanner } from "@/components/layout/CookieConsentBanner";
+import { ConsentAwareAnalytics } from "@/components/analytics/ConsentAwareAnalytics";
 import { getSystemConfig } from "@/lib/getSystemConfig";
 import { MaintenancePage } from "@/components/layout/MaintenancePage";
 
@@ -83,6 +83,7 @@ export default async function RootLayout({
                       <BetaBadge />
                       <MobileNotice />
                       <CookieConsentBanner />
+                      <ConsentAwareAnalytics />
                     </SWRProvider>
                   </AuthProvider>
                 </BlockingGuard>
@@ -91,10 +92,6 @@ export default async function RootLayout({
           </ConnectivityStatusProvider>
         </IntlProvider>
       </body>
-      {process.env.NODE_ENV === "production" &&
-        process.env.NEXT_PUBLIC_GA_ID && (
-          <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID} />
-        )}
     </html>
   );
 }
