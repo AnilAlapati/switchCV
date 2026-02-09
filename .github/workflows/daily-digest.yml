@@ -18,7 +18,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
 
       - run: npm ci
@@ -32,10 +32,10 @@ jobs:
         env:
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID || 'switchcv-e5136' }}
           # Gmail SMTP (tested working locally)
-          SMTP_HOST: 'smtp.gmail.com'
-          SMTP_PORT: '587'
-          SMTP_USER: 'switchcvs@gmail.com'
+          SMTP_HOST: "smtp.gmail.com"
+          SMTP_PORT: "587"
+          SMTP_USER: "switchcvs@gmail.com"
           SMTP_PASS: ${{ secrets.GMAIL_APP_PASSWORD }}
-          DIGEST_EMAIL_TO: 'support@switchcv.com'
+          DIGEST_EMAIL_TO: "support@switchcv.com"
           DIGEST_SUBJECT_PREFIX: "[SWITCHCV DIGEST]"
         run: npx tsx scripts/monitoring/daily-digest.ts

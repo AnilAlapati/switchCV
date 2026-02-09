@@ -16,6 +16,8 @@ export function UserProfileSettings() {
   const { user } = useAuth();
   const [settings, setSettings] = useState<UserSettings>({
     isRecruiter: false,
+    displayName: "",
+    companyName: "",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -39,7 +41,11 @@ export function UserProfileSettings() {
         });
         if (response.ok) {
           const data = await response.json();
-          setSettings(data);
+          setSettings({
+            ...data,
+            displayName: data.displayName ?? "",
+            companyName: data.companyName ?? "",
+          });
           setShowCompanyInput(data.isRecruiter);
         }
       } catch (error) {
@@ -100,7 +106,7 @@ export function UserProfileSettings() {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
           errorData.error ||
-          `API error: ${response.status} ${response.statusText}`
+            `API error: ${response.status} ${response.statusText}`,
         );
       }
     } catch (error) {
@@ -156,7 +162,7 @@ export function UserProfileSettings() {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
           errorData.error ||
-          `API error: ${response.status} ${response.statusText}`
+            `API error: ${response.status} ${response.statusText}`,
         );
       }
     } catch (error) {
@@ -248,14 +254,16 @@ export function UserProfileSettings() {
             <button
               onClick={() => handleRecruiterToggle(!settings.isRecruiter)}
               disabled={saving}
-              className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${settings.isRecruiter
+              className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
+                settings.isRecruiter
                   ? "bg-gradient-to-r from-cyan-500 to-blue-600"
                   : "bg-slate-700 hover:bg-slate-600"
-                } ${saving ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+              } ${saving ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
             >
               <span
-                className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${settings.isRecruiter ? "translate-x-7" : "translate-x-1"
-                  }`}
+                className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                  settings.isRecruiter ? "translate-x-7" : "translate-x-1"
+                }`}
               />
             </button>
           </div>
@@ -300,10 +308,11 @@ export function UserProfileSettings() {
       {/* Messages - Fixed Position Centered */}
       {message && (
         <div
-          className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 px-8 py-6 rounded-2xl text-lg font-bold transition-all duration-300 shadow-2xl z-50 border-2 ${message.type === "success"
+          className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 px-8 py-6 rounded-2xl text-lg font-bold transition-all duration-300 shadow-2xl z-50 border-2 ${
+            message.type === "success"
               ? "bg-blue-600 text-white border-blue-400"
               : "bg-yellow-500 text-slate-900 border-yellow-600"
-            }`}
+          }`}
         >
           {message.text}
         </div>

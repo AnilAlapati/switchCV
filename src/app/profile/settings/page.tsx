@@ -37,7 +37,11 @@ export default function SettingsPage() {
   const router = useRouter();
 
   // SWR Hook
-  const { settings: fetchedSettings, loading: settingsLoading, mutate: mutateSettings } = useUserSettings();
+  const {
+    settings: fetchedSettings,
+    loading: settingsLoading,
+    mutate: mutateSettings,
+  } = useUserSettings();
   const { mutate: mutateProfile } = useUserProfile();
 
   const [settings, setSettings] = useState<UserSettings>({
@@ -59,7 +63,11 @@ export default function SettingsPage() {
   // Sync fetched settings to local state
   useEffect(() => {
     if (fetchedSettings) {
-      setSettings(fetchedSettings);
+      setSettings({
+        ...fetchedSettings,
+        displayName: fetchedSettings.displayName ?? "",
+        companyName: fetchedSettings.companyName ?? "",
+      });
       setShowCompanyInput(fetchedSettings.isRecruiter);
     }
   }, [fetchedSettings]);
@@ -112,7 +120,7 @@ export default function SettingsPage() {
           ...settings,
           isRecruiter: checked,
           // If switching to recruiter, keep existing name, if switching off, clear it
-          companyName: checked ? settings.companyName : ""
+          companyName: checked ? (settings.companyName ?? "") : "",
         };
         // First update the local cache optimistically for instant UI feedback
         await mutateSettings(newSettings, { revalidate: false });
@@ -175,7 +183,10 @@ export default function SettingsPage() {
 
       if (response.ok) {
         // Optimistic update
-        await mutateSettings({ ...settings, displayName: settings.displayName }, { revalidate: false });
+        await mutateSettings(
+          { ...settings, displayName: settings.displayName ?? "" },
+          { revalidate: false },
+        );
         setMessage({ type: "success", text: "Display name saved!" });
         setTimeout(() => setMessage(null), 3000);
       } else {
@@ -223,7 +234,10 @@ export default function SettingsPage() {
 
       if (response.ok) {
         // Optimistic update
-        await mutateSettings({ ...settings, companyName: settings.companyName }, { revalidate: false });
+        await mutateSettings(
+          { ...settings, companyName: settings.companyName ?? "" },
+          { revalidate: false },
+        );
         setMessage({ type: "success", text: "Company name saved!" });
         setTimeout(() => setMessage(null), 3000);
       } else {

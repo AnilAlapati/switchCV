@@ -130,6 +130,70 @@ EVERY new feature MUST consider:
 5. NEVER use revalidateOnFocus: true on hooks that read Firestore
 ```
 
+### Rule 8: Controlled Form Inputs — Always Initialize String Values
+
+```
+CRITICAL: React warns about switching between controlled/uncontrolled inputs when a value goes from undefined to string or vice versa.
+
+PATTERN TO AVOID:
+  interface Settings {
+    displayName?: string;  // ← Optional = DANGER
+  }
+  const [settings, setSettings] = useState<Settings>({});  // ← No initial values
+  useEffect(() => {
+    if (fetchedSettings) {
+      setSettings(fetchedSettings);  // ← If displayName is undefined sometimes, React breaks
+    }
+  });
+  <input value={settings.displayName} />  // ← Can be undefined!
+
+CORRECT PATTERNS:
+
+Option 1 - Initialize with empty strings:
+  const [settings, setSettings] = useState({
+    displayName: "",
+    companyName: "",
+    email: "",
+  });
+
+Option 2 - Use defensive operators when syncing async data:
+  useEffect(() => {
+    if (fetchedSettings) {
+      setSettings({
+        ...fetchedSettings,
+        displayName: fetchedSettings.displayName ?? "",
+        companyName: fetchedSettings.companyName ?? "",
+      });
+    }
+  }, [fetchedSettings]);
+
+Option 3 - Use defensive operators inline (less preferred):
+  <input value={settings.displayName || ""} />
+
+Option 4 - Type-safe defaults (best for APIs):
+  const API_DEFAULT_SETTINGS = {
+    displayName: "",
+    companyName: "",
+  };
+  const [settings, setSettings] = useState(API_DEFAULT_SETTINGS);
+```
+
+**WHY:** Controlled inputs MUST maintain consistent types throughout component lifecycle. Even one update cycle where a value is undefined breaks React's input handling, producing "changing from controlled to uncontrolled" console errors. This breaks form state management.
+
+**COMMON VIOLATIONS:**
+
+- Optional fields in interfaces used in useState without defaults
+- SWR/fetch hooks where response fields can be undefined
+- Object spread without nullish coalescing: `setData(apiResponse)` instead of `setData({ ...apiResponse, field: apiResponse.field ?? "" })`
+- Forgetting to initialize state when fetching from APIs
+
+**IN CODE REVIEW, CHECK:**
+
+- [ ] All `useState` with string/number fields initialized with default values (never empty object `{}`)
+- [ ] All useEffect that syncs API data uses `?? ""` or `|| ""` for form fields
+- [ ] No optional (`?:`) fields in interfaces being used directly in form inputs
+- [ ] If optional field exists, it has a fallback in the input: `value={state.field ?? ""}`
+
 ---
 
 ## Project Overview
@@ -317,5 +381,6 @@ Before presenting any code as "done", verify:
 - [ ] Context provider values wrapped in `useMemo()`
 - [ ] All callbacks in providers wrapped in `useCallback()`
 - [ ] Form inputs have `aria-invalid` and `aria-describedby`
-- [ ] Firestore queries have `.limit()` or pagination
-- [ ] New collections have rules in `firestore.rules`
+- [ ] **ALL string form inputs initialized with `""` (never undefined)**
+- [ ] **All async data synced to state uses `?? ""` for string fields**
+- [ ] **No optional (`?:`) fields in interfaces used directly in form inputs**

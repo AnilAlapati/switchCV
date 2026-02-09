@@ -492,3 +492,100 @@ Total: 78 issues
 
 **Last Updated**: 2026-02-07  
 **Status**: Active enforcement + DAL migration verification complete; merge and production maintenance-mode disable pending final release steps
+
+## React Controlled Inputs: A Subtle But Critical Pattern (2026-02-09)
+
+### The Problem
+
+React warns when an input switches between controlled (has a value) and uncontrolled (undefined). This happens when:
+
+1. **Optional fields in interfaces** without defaults
+2. **Async data from APIs** that can be undefined
+3. **Missing defensive operators** when syncing state
+
+**Discovered Issues:**
+
+- `src/app/profile/settings/page.tsx` — displayName/companyName could be undefined from SWR
+- `src/components/dashboard/UserProfileSettings.tsx` — Same issue with optional interface fields
+- Pattern exists wherever useState syncs with async API data
+
+### Console Error
+
+```
+A component is changing a controlled input to be uncontrolled.
+This is likely caused by the value changing from a defined to undefined...
+```
+
+### Root Cause
+
+```typescript
+// ❌ DANGEROUS
+interface Settings {
+  displayName?: string;  // ← Optional = DANGER
+}
+const [settings, setSettings] = useState<Settings>({});  // ← Empty object
+useEffect(() => {
+  if (fetchedSettings) {
+    setSettings(fetchedSettings);  // ← undefined when API hasn't responded yet
+  }
+});
+<input value={settings.displayName} />  // ← Switches: string → undefined → string
+```
+
+### The Fix
+
+**Option 1: Initialize with empty strings (recommended)**
+
+```typescript
+const [settings, setSettings] = useState({
+  displayName: "",
+  companyName: "",
+  email: "",
+});
+```
+
+**Option 2: Defensive operators when syncing**
+
+```typescript
+useEffect(() => {
+  if (fetchedSettings) {
+    setSettings({
+      ...fetchedSettings,
+      displayName: fetchedSettings.displayName ?? "",
+      companyName: fetchedSettings.companyName ?? "",
+    });
+  }
+}, [fetchedSettings]);
+```
+
+### Why It Matters
+
+- **Local state consistency**: Input value must be string throughout lifetime
+- **React internals**: Switches from controlled → uncontrolled break state management
+- **Form UX**: User input is lost, field becomes unresponsive
+- **Silent failure**: No error in code, just console warnings and broken UX
+
+### Code Review Checklist
+
+- [ ] All `useState` with string/number fields initialized with defaults (never `{}`)
+- [ ] All `useEffect` that syncs API data uses `?? ""` or `|| ""` for form fields
+- [ ] No optional (`?:`) fields in interfaces used directly in `<input value={...} />`
+- [ ] API responses always provide defaults for string fields
+
+### Prevention Strategy
+
+**In copilot-instructions.md (Rule 8):**
+
+Added comprehensive rule with 4 safekeeping patterns and detailed code review checklist. Required for all future projects.
+
+**Implementation:**
+
+- ✅ Fixed 2 components
+- ✅ Verified 0 regressions (tests pass)
+- ✅ Scanned entire codebase for similar patterns
+- ✅ Documented in code standards
+
+---
+
+**Last Updated**: 2026-02-09  
+**Latest Update**: Controlled input pattern documented (Rule 8), 2 components fixed, tests passing
