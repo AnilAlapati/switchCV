@@ -1,6 +1,9 @@
 import { logger } from "@/lib/logger";
-import { NextResponse } from "next/server";
-import { handleApiError } from "@/lib/utils/api-helpers";
+import { NextRequest, NextResponse } from "next/server";
+import {
+  getAuthenticatedUserId,
+  handleApiError,
+} from "@/lib/utils/api-helpers";
 import { AI_ENDPOINTS } from "@/config/aiEndpoints";
 
 // Model preferences (in order of preference)
@@ -58,31 +61,32 @@ async function getBestGeminiModel(apiKey: string): Promise<string> {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const { userId, error } = await getAuthenticatedUserId(request);
+  if (error) return error;
+
   try {
     // Check what AI providers are actually available
     const hasGemini = !!process.env.GEMINI_API_KEY;
     const hasOpenAI = !!process.env.OPENAI_API_KEY;
 
-    // Tier-based model selection (matches actual usage in aiProviderService)
-    // Primary is Gemini, fallback to OpenAI
+    // Only return connection status — no model names or provider details
     if (hasGemini) {
       const bestModel = await getBestGeminiModel(process.env.GEMINI_API_KEY!);
+      logger.info(
+        { userId, model: bestModel },
+        "AI status check - Gemini available",
+      );
       return NextResponse.json({
         connected: true,
-        model: bestModel,
-        provider: "Google Gemini",
       });
     } else if (hasOpenAI) {
       return NextResponse.json({
         connected: true,
-        model: "gpt-4o-mini",
-        provider: "OpenAI",
       });
     } else {
       return NextResponse.json({
         connected: false,
-        message: "No AI provider configured",
       });
     }
   } catch (error) {

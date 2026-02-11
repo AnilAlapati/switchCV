@@ -6,6 +6,15 @@
 
 import { GET } from "./route";
 
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+  },
+}));
+
 jest.mock("@/lib/firebase-admin", () => {
   const mockGet = jest.fn().mockResolvedValue({});
   const mockLimit = jest.fn().mockReturnValue({ get: mockGet });

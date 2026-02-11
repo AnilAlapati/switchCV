@@ -35,7 +35,7 @@ export const maskPhone = (phone: string): string => {
 export const renderContactField = (
   value: string,
   visibility: VisibilityLevel,
-  fieldType: FieldType
+  fieldType: FieldType,
 ): string => {
   if (visibility === "public") {
     return value;
@@ -53,14 +53,14 @@ export const renderContactField = (
  * Count visibility occurrences in a collection
  */
 export const countVisibility = (
-  items: Array<{ visibility: VisibilityLevel }>
+  items: Array<{ visibility: VisibilityLevel }>,
 ): { public: number; masked: number; request: number } => {
   return items.reduce(
     (acc, item) => {
       acc[item.visibility]++;
       return acc;
     },
-    { public: 0, masked: 0, request: 0 }
+    { public: 0, masked: 0, request: 0 },
   );
 };
 
@@ -69,7 +69,7 @@ export const countVisibility = (
  */
 export const filterByVisibility = <T extends { visibility: VisibilityLevel }>(
   items: T[],
-  visibility: VisibilityLevel
+  visibility: VisibilityLevel,
 ): T[] => {
   return items.filter((item) => item.visibility === visibility);
 };
@@ -92,7 +92,7 @@ export const parseEnhancedContent = (content: unknown) => {
  * Check if any items require access request
  */
 export const hasRequestItems = (
-  items: Array<{ visibility: VisibilityLevel }>
+  items: Array<{ visibility: VisibilityLevel }>,
 ): boolean => {
   return items.some((item) => item.visibility === "request");
 };
@@ -101,7 +101,7 @@ export const hasRequestItems = (
  * Check if any items are masked
  */
 export const hasMaskedItems = (
-  items: Array<{ visibility: VisibilityLevel }>
+  items: Array<{ visibility: VisibilityLevel }>,
 ): boolean => {
   return items.some((item) => item.visibility === "masked");
 };
@@ -109,13 +109,40 @@ export const hasMaskedItems = (
 import type { ViewerAccessMeta } from "@/types";
 
 /**
+ * Typed return shape for sanitizeResumeForPublicView.
+ * Provides type-safe access to contact, personalInfo, and viewerAccess.
+ */
+export interface SanitizedContactField {
+  value: string;
+  visibility: string;
+}
+
+export interface SanitizedContact {
+  email: SanitizedContactField;
+  phone: SanitizedContactField;
+}
+
+export interface SanitizedResumeResult extends Record<string, unknown> {
+  contact: SanitizedContact;
+  personalInfo: Record<string, unknown>;
+  viewerAccess: ViewerAccessMeta & { isMasked?: boolean; isSnapshot?: boolean };
+  experience: unknown[];
+  education: unknown[];
+  projects: unknown[];
+  skills: unknown[];
+}
+
+/**
  * Produce a sanitized resume payload for public viewers
  * Masks contact details and injects viewer metadata without mutating the source object
  */
 export const sanitizeResumeForPublicView = (
-  resume: Record<string, unknown>
-): Record<string, unknown> => {
-  const clone = JSON.parse(JSON.stringify(resume ?? {})) as Record<string, unknown>;
+  resume: Record<string, unknown>,
+): SanitizedResumeResult => {
+  const clone = JSON.parse(JSON.stringify(resume ?? {})) as Record<
+    string,
+    unknown
+  >;
 
   const originalContact = (resume?.contact ?? {}) as Record<string, unknown>;
   const originalPersonalInfo = (resume?.personalInfo ?? {}) as Record<
@@ -127,20 +154,30 @@ export const sanitizeResumeForPublicView = (
   const emailFromContact =
     typeof originalContact.email === "string"
       ? originalContact.email
-      : (originalContact.email as Record<string, unknown>)?.value as string | undefined;
+      : ((originalContact.email as Record<string, unknown>)?.value as
+          | string
+          | undefined);
   const phoneFromContact =
     typeof originalContact.phone === "string"
       ? originalContact.phone
-      : (originalContact.phone as Record<string, unknown>)?.value as string | undefined;
+      : ((originalContact.phone as Record<string, unknown>)?.value as
+          | string
+          | undefined);
 
-  const rawEmail = emailFromContact || (originalPersonalInfo.email as string) || "";
-  const rawPhone = phoneFromContact || (originalPersonalInfo.phone as string) || "";
+  const rawEmail =
+    emailFromContact || (originalPersonalInfo.email as string) || "";
+  const rawPhone =
+    phoneFromContact || (originalPersonalInfo.phone as string) || "";
 
   // Determine visibility preference (default to masked if not specified)
   const emailVisibility =
-    (originalContact.email as Record<string, unknown>)?.visibility === "request" ? "request" : "masked";
+    (originalContact.email as Record<string, unknown>)?.visibility === "request"
+      ? "request"
+      : "masked";
   const phoneVisibility =
-    (originalContact.phone as Record<string, unknown>)?.visibility === "request" ? "request" : "masked";
+    (originalContact.phone as Record<string, unknown>)?.visibility === "request"
+      ? "request"
+      : "masked";
 
   // Generate masked values
   const maskedEmail = rawEmail ? maskEmail(rawEmail) : "";
@@ -171,7 +208,10 @@ export const sanitizeResumeForPublicView = (
       phoneVisibility === "request" ? "Available upon request" : maskedPhone;
   }
 
-  const viewerAccess: ViewerAccessMeta & { isMasked?: boolean; isSnapshot?: boolean } = {
+  const viewerAccess: ViewerAccessMeta & {
+    isMasked?: boolean;
+    isSnapshot?: boolean;
+  } = {
     scope: "public-preview",
     isOwner: false,
     isMasked: true,
@@ -187,5 +227,5 @@ export const sanitizeResumeForPublicView = (
     projects: [],
     skills: [],
     viewerAccess,
-  };
+  } as SanitizedResumeResult;
 };

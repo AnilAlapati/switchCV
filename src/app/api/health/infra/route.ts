@@ -31,7 +31,6 @@ interface InfraHealthResponse {
   timestamp: string;
   environment: string;
   checks: HealthCheck[];
-  debug?: any;
 }
 
 async function checkResumeIdCounter(): Promise<HealthCheck> {
@@ -92,7 +91,7 @@ async function checkResumeIdCounter(): Promise<HealthCheck> {
     return {
       name: "resumeIdCounter",
       status: "error",
-      message: String(error),
+      message: "Check failed",
     };
   }
 }
@@ -130,7 +129,7 @@ async function checkSystemCollections(): Promise<HealthCheck> {
     return {
       name: "systemCollections",
       status: "error",
-      message: String(error),
+      message: "Check failed",
     };
   }
 }
@@ -163,15 +162,6 @@ async function checkBillingConfig(): Promise<HealthCheck> {
 
 export async function GET(): Promise<NextResponse> {
   const startTime = Date.now();
-  const debugInfo: Record<string, unknown> = {
-    hasServiceAccountEnv: !!process.env.FIREBASE_SERVICE_ACCOUNT,
-    hasGoogleAppCreds: !!process.env.GOOGLE_APPLICATION_CREDENTIALS,
-    projectId:
-      process.env.FIREBASE_PROJECT_ID ||
-      process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
-      null,
-  };
-  logger.error({ debugInfo }, "FORCE_DEBUG_LOG_START");
 
   try {
     const checks: HealthCheck[] = await Promise.all([
@@ -193,30 +183,19 @@ export async function GET(): Promise<NextResponse> {
       overallStatus = "healthy";
     }
 
+    // Sanitize check details — remove internal info from public response
+    const sanitizedChecks = checks.map(({ name, status, message }) => ({
+      name,
+      status,
+      message,
+    }));
+
     const response: InfraHealthResponse = {
       status: overallStatus,
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || "unknown",
-      checks,
-      debug: {
-        hasServiceAccountEnv: !!process.env.FIREBASE_SERVICE_ACCOUNT,
-        projectId:
-          process.env.FIREBASE_PROJECT_ID ||
-          process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
-          null,
-        envVars: {
-          GOOGLE_APPLICATION_CREDENTIALS:
-            !!process.env.GOOGLE_APPLICATION_CREDENTIALS,
-          FIREBASE_CONFIG: !!process.env.FIREBASE_CONFIG,
-        },
-      },
+      checks: sanitizedChecks,
     };
-
-    // Log debug info to Cloud Logging
-    logger.debug(
-      { debugInfo: response.debug },
-      "Infrastructure health debug output",
-    );
 
     const statusCode = overallStatus === "unhealthy" ? 503 : 200;
     const duration = Date.now() - startTime;

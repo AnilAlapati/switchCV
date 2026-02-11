@@ -4,11 +4,7 @@
  * This module handles dynamic resume data normalization from Firestore.
  * Uses Record<string, unknown> primarily, with legacy support for flexible document structures.
  */
-import type {
-  ResumeProfile,
-  Visibility,
-  ContactInfo,
-} from "@/types";
+import type { ResumeProfile, Visibility, ContactInfo } from "@/types";
 import { pruneUndefined } from "@/lib/utils/pruneUndefined";
 import {
   normalizeSkills,
@@ -20,6 +16,20 @@ import {
 } from "./resume/normalization";
 
 type ResumeRecord = Record<string, unknown>;
+
+/**
+ * Typed contact info structure returned from mergeProfileIntoResume.
+ * Allows test and consumer code to access nested properties without type errors.
+ */
+export interface MergedContactInfo {
+  email: { value: string; visibility: string };
+  phone: { value: string; visibility: string };
+}
+
+export interface MergedResumeRecord extends Record<string, unknown> {
+  contact: MergedContactInfo;
+  personalInfo: Record<string, unknown>;
+}
 
 export interface ResumeEditorMeta {
   userId?: string;
@@ -36,7 +46,7 @@ export interface ResumeEditorNormalizationResult {
 }
 
 export const normalizeResumeForEditor = (
-  raw: unknown
+  raw: unknown,
 ): ResumeEditorNormalizationResult => {
   const rawResume = (raw && typeof raw === "object" ? raw : {}) as ResumeRecord;
 
@@ -87,7 +97,6 @@ export const normalizeResumeForEditor = (
   return { profile, resume, meta };
 };
 
-
 const RESERVED_FIELDS = new Set([
   "userId",
   "numericId",
@@ -98,15 +107,13 @@ const RESERVED_FIELDS = new Set([
   "status",
 ]);
 
-export const sanitizeResumePayload = (
-  resume: ResumeRecord
-): ResumeRecord => {
+export const sanitizeResumePayload = (resume: ResumeRecord): ResumeRecord => {
   if (!resume || typeof resume !== "object") {
     return {};
   }
 
   const sanitizedEntries = Object.entries(resume).filter(
-    ([key]) => !RESERVED_FIELDS.has(key)
+    ([key]) => !RESERVED_FIELDS.has(key),
   );
 
   const sanitizedObject = Object.fromEntries(sanitizedEntries);
@@ -119,8 +126,8 @@ export const sanitizeResumePayload = (
 
 export const mergeProfileIntoResume = (
   original: ResumeRecord | null | undefined,
-  profile: Partial<ResumeProfile>
-): ResumeRecord => {
+  profile: Partial<ResumeProfile>,
+): MergedResumeRecord => {
   const base = original ? { ...original } : {};
   const updated: ResumeRecord = { ...base };
 
@@ -159,21 +166,29 @@ export const mergeProfileIntoResume = (
     const baseContact = (base.contact as Record<string, unknown>) || {};
     updated.contact = {
       email: {
-        value: profile.contact.email?.value ?? (baseContact.email as Record<string, unknown>)?.value as string ?? "",
+        value:
+          profile.contact.email?.value ??
+          ((baseContact.email as Record<string, unknown>)?.value as string) ??
+          "",
         visibility:
           profile.contact.email?.visibility ??
-          (baseContact.email as Record<string, unknown>)?.visibility as Visibility ??
+          ((baseContact.email as Record<string, unknown>)
+            ?.visibility as Visibility) ??
           "masked",
       },
       phone: {
-        value: profile.contact.phone?.value ?? (baseContact.phone as Record<string, unknown>)?.value as string ?? "",
+        value:
+          profile.contact.phone?.value ??
+          ((baseContact.phone as Record<string, unknown>)?.value as string) ??
+          "",
         visibility:
           profile.contact.phone?.visibility ??
-          (baseContact.phone as Record<string, unknown>)?.visibility as Visibility ??
+          ((baseContact.phone as Record<string, unknown>)
+            ?.visibility as Visibility) ??
           "masked",
       },
     } satisfies ContactInfo;
   }
 
-  return updated;
+  return updated as MergedResumeRecord;
 };

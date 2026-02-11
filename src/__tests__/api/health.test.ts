@@ -2,6 +2,15 @@ import { GET } from "@/app/api/health/route";
 import { adminDb } from "@/lib/firebase-admin";
 import nodemailer from "nodemailer";
 
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+  },
+}));
+
 jest.mock("@/lib/firebase-admin", () => ({
   adminDb: {
     collection: jest.fn().mockReturnThis(),
@@ -60,7 +69,7 @@ describe("Health API", () => {
 
   it("should return 503 when a service is unhealthy", async () => {
     (adminDb.collection("").get as jest.Mock).mockRejectedValue(
-      new Error("Firestore down")
+      new Error("Firestore down"),
     );
     (global.fetch as jest.Mock).mockResolvedValue({ ok: true });
     const mockTransporter = nodemailer.createTransport({});
@@ -86,7 +95,8 @@ describe("Health API", () => {
     const data = await response.json();
 
     expect(data.services.ai.status).toBe("error");
-    expect(data.services.ai.error).toBe("Missing GEMINI_API_KEY");
+    // Error details are intentionally sanitized (CRITICAL-4 fix)
+    expect(data.services.ai.error).toBeUndefined();
   });
 
   it("should handle Gemini API error response", async () => {
@@ -101,7 +111,8 @@ describe("Health API", () => {
     const data = await response.json();
 
     expect(data.services.ai.status).toBe("error");
-    expect(data.services.ai.error).toContain("Gemini API error: 500");
+    // Error details are intentionally sanitized (CRITICAL-4 fix)
+    expect(data.services.ai.error).toBeUndefined();
   });
 
   it("should handle missing SMTP config", async () => {
@@ -115,7 +126,8 @@ describe("Health API", () => {
     const data = await response.json();
 
     expect(data.services.email.status).toBe("error");
-    expect(data.services.email.error).toBe("Missing SMTP configuration");
+    // Error details are intentionally sanitized (CRITICAL-4 fix)
+    expect(data.services.email.error).toBeUndefined();
   });
 
   it("should bypass checks if HEALTHCHECK_RUN_FULL is not true", async () => {

@@ -21,11 +21,15 @@ export async function POST(request: NextRequest) {
         payload && typeof payload === "object"
           ? (payload as Record<string, unknown>)
           : undefined;
-      if (!payloadObj || payloadObj.token === undefined || payloadObj.token === "") {
+      if (
+        !payloadObj ||
+        payloadObj.token === undefined ||
+        payloadObj.token === ""
+      ) {
         return handleApiError(
           parseResult.error,
           "Reset token is required",
-          400
+          400,
         );
       }
       if (
@@ -35,13 +39,13 @@ export async function POST(request: NextRequest) {
         return handleApiError(
           parseResult.error,
           "New password is required",
-          400
+          400,
         );
       }
       return handleApiError(
         parseResult.error,
-        "Password must be at least 6 characters",
-        400
+        "Password must be at least 8 characters with uppercase, lowercase, and a digit",
+        400,
       );
     }
     const { token, newPassword } = parseResult.data;
@@ -57,7 +61,7 @@ export async function POST(request: NextRequest) {
       return handleApiError(
         new Error("Invalid or expired reset token"),
         "Invalid or expired reset token",
-        400
+        400,
       );
     }
 
@@ -74,7 +78,7 @@ export async function POST(request: NextRequest) {
       return handleApiError(
         new Error("Reset token has expired"),
         "Reset token has expired",
-        400
+        400,
       );
     }
 

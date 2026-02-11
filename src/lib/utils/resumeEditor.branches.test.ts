@@ -275,6 +275,7 @@ describe("resumeEditor branch coverage", () => {
       // If we pass an array? sanitizeResumePayload signature expects Record.
       // Let's try passing an array cast as Record.
       const arr = ["a", "b"];
+      // @ts-expect-error - Intentionally passing invalid input to test edge case
       const result = sanitizeResumePayload(arr);
       expect(result).toBeDefined();
     });

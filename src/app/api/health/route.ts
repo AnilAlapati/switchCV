@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { COLLECTIONS, collectionRef } from "@/lib/dal";
 import nodemailer from "nodemailer";
 import { AI_ENDPOINTS } from "@/config/aiEndpoints";
+import { logger } from "@/lib/logger";
 
 type ServiceStatus = {
   status: "ok" | "error";
@@ -23,9 +24,9 @@ async function checkFirestore(): Promise<ServiceStatus> {
     await collectionRef(COLLECTIONS.MONITORING).limit(1).get();
     return { status: "ok", latencyMs: Date.now() - start };
   } catch (error) {
+    logger.error({ err: error }, "Firestore health check failed");
     return {
       status: "error",
-      error: String(error),
     };
   }
 }
@@ -37,31 +38,31 @@ async function checkGemini(): Promise<ServiceStatus> {
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return { status: "error", error: "Missing GEMINI_API_KEY" };
+    return { status: "error" };
   }
 
   const start = Date.now();
   try {
-    const response = await fetch(
-      AI_ENDPOINTS.GEMINI.MODELS(apiKey),
-      {
-        method: "GET",
-        next: { revalidate: 0 },
-      }
-    );
+    const response = await fetch(AI_ENDPOINTS.GEMINI.MODELS(apiKey), {
+      method: "GET",
+      next: { revalidate: 0 },
+    });
 
     if (!response.ok) {
+      logger.warn(
+        { statusCode: response.status },
+        "Gemini API health check failed",
+      );
       return {
         status: "error",
-        error: `Gemini API error: ${response.status}`,
       };
     }
 
     return { status: "ok", latencyMs: Date.now() - start };
   } catch (error) {
+    logger.error({ err: error }, "Gemini health check failed");
     return {
       status: "error",
-      error: String(error),
     };
   }
 }
@@ -79,7 +80,6 @@ async function checkEmail(): Promise<ServiceStatus> {
   if (!host || !user || !pass) {
     return {
       status: "error",
-      error: "Missing SMTP configuration",
     };
   }
 
@@ -98,9 +98,9 @@ async function checkEmail(): Promise<ServiceStatus> {
     await transporter.verify();
     return { status: "ok", latencyMs: Date.now() - start };
   } catch (error) {
+    logger.error({ err: error }, "Email health check failed");
     return {
       status: "error",
-      error: String(error),
     };
   }
 }
@@ -114,16 +114,23 @@ export async function GET() {
 
   const services = { firestore, ai, email };
   const allHealthy = Object.values(services).every(
-    (service) => service.status === "ok"
+    (service) => service.status === "ok",
+  );
+
+  // Only return status per service — no error details, no uptime, no infra info
+  const sanitizedServices = Object.fromEntries(
+    Object.entries(services).map(([key, svc]) => [
+      key,
+      { status: svc.status, latencyMs: svc.latencyMs },
+    ]),
   );
 
   return NextResponse.json(
     {
       status: allHealthy ? "ok" : "degraded",
       timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      services,
+      services: sanitizedServices,
     },
-    { status: allHealthy ? 200 : 503 }
+    { status: allHealthy ? 200 : 503 },
   );
 }
