@@ -294,3 +294,41 @@ export const aggregateBilling = functions.pubsub
     const { aggregateBillingHandler } = await import("./billingService");
     return aggregateBillingHandler(context);
   });
+
+// ==================== PRODUCTION MONITORING ====================
+
+/**
+ * Budget Monitor — runs hourly, emails when spending exceeds 70%/90%/100% of monthly cap.
+ * Uses existing AlertManager → emailService pipeline for notifications.
+ */
+export const budgetMonitor = functions.pubsub
+  .schedule("0 * * * *") // Every hour, on the hour
+  .timeZone("UTC")
+  .onRun(async (context) => {
+    if (!isProductionEnvironment()) {
+      functions.logger.info(
+        "[COST GUARD] budgetMonitor blocked in dev environment",
+      );
+      return { skipped: true, reason: "dev environment" };
+    }
+    const { budgetMonitorHandler } = await import("./scheduled/budgetMonitor");
+    return budgetMonitorHandler(context);
+  });
+
+/**
+ * Health Monitor — runs every 30 minutes, emails when Firestore/Gemini/SMTP are down.
+ * Tracks consecutive failures, sends recovery notifications when services come back.
+ */
+export const healthMonitor = functions.pubsub
+  .schedule("*/30 * * * *") // Every 30 minutes
+  .timeZone("UTC")
+  .onRun(async (context) => {
+    if (!isProductionEnvironment()) {
+      functions.logger.info(
+        "[COST GUARD] healthMonitor blocked in dev environment",
+      );
+      return { skipped: true, reason: "dev environment" };
+    }
+    const { healthMonitorHandler } = await import("./scheduled/healthMonitor");
+    return healthMonitorHandler(context);
+  });
