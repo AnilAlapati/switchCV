@@ -65,7 +65,7 @@
     "path-browserify": "^1.0.1",
     "pino": "^10.1.0",
     "pino-pretty": "^13.1.2",
-    "posthog-js": "^1.324.1",
+    "posthog-js": "^1.346.0",
     "react": "19.2.1",
     "react-dom": "19.2.1",
     "recharts": "^3.7.0",
