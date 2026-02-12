@@ -11,6 +11,8 @@ import type {
   CacheConfig,
   DemoResumesConfig,
   UserApprovalConfig,
+  PricingConfig,
+  PricingTier,
 } from "./system-config-types";
 
 // Re-export types for convenience
@@ -27,6 +29,8 @@ export type {
   CacheConfig,
   DemoResumesConfig,
   UserApprovalConfig,
+  PricingConfig,
+  PricingTier,
 };
 
 // =============================================================================
@@ -205,6 +209,18 @@ export const defaultSystemConfig: SystemConfig = {
     allowedIds: ["1", "4", "23", "24"],
     defaultId: "1",
   },
+  pricing: {
+    jobseeker: {
+      basic: { price: 0, currency: "USD", displayText: "Free" },
+      premium: { price: 9.99, currency: "USD", displayText: "$9.99" },
+      enterprise: { price: 39.99, currency: "USD", displayText: "$39.99" },
+    },
+    recruiter: {
+      basic: { price: 0, currency: "USD", displayText: "Free" },
+      premium: { price: 19.99, currency: "USD", displayText: "$19.99" },
+      enterprise: { price: 0, currency: "USD", displayText: "Custom" },
+    },
+  },
 };
 
 // =============================================================================
@@ -308,4 +324,36 @@ export const mergeWithDefaultConfig = (
     partial?.userApproval,
   ),
   demoResumes: deepMerge(defaultSystemConfig.demoResumes, partial?.demoResumes),
+  pricing: partial?.pricing
+    ? {
+        jobseeker: {
+          basic: deepMerge(
+            defaultSystemConfig.pricing!.jobseeker.basic,
+            partial.pricing.jobseeker?.basic,
+          ),
+          premium: deepMerge(
+            defaultSystemConfig.pricing!.jobseeker.premium,
+            partial.pricing.jobseeker?.premium,
+          ),
+          enterprise: deepMerge(
+            defaultSystemConfig.pricing!.jobseeker.enterprise,
+            partial.pricing.jobseeker?.enterprise,
+          ),
+        },
+        recruiter: {
+          basic: deepMerge(
+            defaultSystemConfig.pricing!.recruiter.basic,
+            partial.pricing.recruiter?.basic,
+          ),
+          premium: deepMerge(
+            defaultSystemConfig.pricing!.recruiter.premium,
+            partial.pricing.recruiter?.premium,
+          ),
+          enterprise: deepMerge(
+            defaultSystemConfig.pricing!.recruiter.enterprise,
+            partial.pricing.recruiter?.enterprise,
+          ),
+        },
+      }
+    : defaultSystemConfig.pricing,
 });

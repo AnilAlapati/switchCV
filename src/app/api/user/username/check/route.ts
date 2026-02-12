@@ -8,6 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { COLLECTIONS, collectionRef } from "@/lib/dal";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
 import { RESERVED_USERNAMES, USERNAME_CONFIG } from "@/config/constants";
@@ -15,6 +16,12 @@ import { logger } from "@/lib/logger";
 
 // Username validation regex (same as useAuth.helpers.ts)
 const USERNAME_REGEX = /^[a-z0-9](?:[a-z0-9-_]{1,28}[a-z0-9])?$/;
+
+// Username validation schema (shared with useAuth.helpers.ts)
+const UsernameSchema = z.string()
+  .min(USERNAME_CONFIG.MIN_LENGTH, `Username must be at least ${USERNAME_CONFIG.MIN_LENGTH} characters`)
+  .max(USERNAME_CONFIG.MAX_LENGTH, `Username must be at most ${USERNAME_CONFIG.MAX_LENGTH} characters`)
+  .regex(USERNAME_REGEX, "Username can only contain lowercase letters, numbers, hyphens, and underscores. Must start and end with a letter or number.");
 
 /**
  * Sanitize username input
@@ -25,49 +32,6 @@ function sanitizeUsername(value: string): string {
     .trim()
     .replace(/[^a-z0-9-_]/g, "")
     .replace(/-{2,}/g, "-");
-}
-
-/**
- * Validate username format
- */
-function validateUsernameFormat(username: string): {
-  valid: boolean;
-  reason?: string;
-} {
-  if (!username) {
-    return { valid: false, reason: "Username is required" };
-  }
-
-  if (username.length < USERNAME_CONFIG.MIN_LENGTH) {
-    return {
-      valid: false,
-      reason: `Username must be at least ${USERNAME_CONFIG.MIN_LENGTH} characters`,
-    };
-  }
-
-  if (username.length > USERNAME_CONFIG.MAX_LENGTH) {
-    return {
-      valid: false,
-      reason: `Username must be at most ${USERNAME_CONFIG.MAX_LENGTH} characters`,
-    };
-  }
-
-  if (!USERNAME_REGEX.test(username)) {
-    return {
-      valid: false,
-      reason:
-        "Username can only contain lowercase letters, numbers, hyphens, and underscores. Must start and end with a letter or number.",
-    };
-  }
-
-  return { valid: true };
-}
-
-/**
- * Check if username is reserved
- */
-function isReservedUsername(username: string): boolean {
-  return (RESERVED_USERNAMES as readonly string[]).includes(username);
 }
 
 /**
@@ -118,13 +82,13 @@ export async function GET(request: NextRequest) {
     const rawUsername = searchParams.get("username") || "";
     const username = sanitizeUsername(rawUsername);
 
-    // Validate format
-    const formatValidation = validateUsernameFormat(username);
-    if (!formatValidation.valid) {
+    // Validate using Zod
+    const parseResult = UsernameSchema.safeParse(username);
+    if (!parseResult.success) {
       return NextResponse.json(
         {
           available: false,
-          reason: formatValidation.reason,
+          reason: parseResult.error.issues[0].message,
           suggestion: username ? generateSuggestion(username) : undefined,
         },
         { status: 200 }
@@ -132,7 +96,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check reserved usernames
-    if (isReservedUsername(username)) {
+    if ((RESERVED_USERNAMES as readonly string[]).includes(username)) {
       return NextResponse.json(
         {
           available: false,

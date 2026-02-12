@@ -38,9 +38,9 @@ export const aggregateBillingHandler = async (context: functions.EventContext) =
             lastAggregated: admin.firestore.FieldValue.serverTimestamp(),
         }, { merge: true });
 
-        console.log(`Aggregated total cost for ${billingKey}: $${totalCost}`);
+        functions.logger.info(`Aggregated total cost for ${billingKey}: $${totalCost}`);
     } catch (error) {
-        console.error("Error aggregating billing:", error);
+        functions.logger.error("Error aggregating billing:", error);
         throw error;
     }
 };

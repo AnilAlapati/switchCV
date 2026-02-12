@@ -1,4 +1,5 @@
 import { adminDb, admin } from "./firebase";
+import * as functions from "firebase-functions/v1";
 
 const NUM_SHARDS = 10;
 const SHARD_COLLECTION = "system/billing/shards";
@@ -21,7 +22,7 @@ export async function trackCost(cost: number): Promise<void> {
       { merge: true },
     );
   } catch (error) {
-    console.error("Failed to track cost:", error);
+    functions.logger.error("Failed to track cost:", error);
   }
 }
 
@@ -50,7 +51,7 @@ export async function checkBudget(cap: number): Promise<boolean> {
     }
 
     if (totalCost >= cap) {
-      console.warn(
+      functions.logger.warn(
         `Global budget cap reached — blocking AI requests. totalCost=${totalCost}, cap=${cap}`,
       );
     }
@@ -59,7 +60,7 @@ export async function checkBudget(cap: number): Promise<boolean> {
   } catch (error) {
     // Fail CLOSED: if we can't verify budget, block the request
     // to prevent runaway costs if Firestore is having issues.
-    console.error("Failed to check global budget — failing closed:", error);
+    functions.logger.error("Failed to check global budget — failing closed:", error);
     return false;
   }
 }

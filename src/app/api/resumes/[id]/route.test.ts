@@ -495,6 +495,28 @@ describe("GET /api/resumes/[id]", () => {
       expect.objectContaining({ limit: 30 }),
     );
   });
+  it("returns 403 (Default Deny) for unknown access type", async () => {
+    mockGetResume.mockResolvedValue({
+      access: "unknown-type",
+      resume: { id: "42" }
+    });
+    const request = buildRequest("http://localhost/api/resumes/42", "GET");
+    const response = await GET(request, {
+      params: Promise.resolve({ id: "42" }),
+    });
+    expect(response.status).toBe(403);
+    const data = await response.json();
+    expect(data.error).toBe("Permission denied");
+  });
+
+  it("handles generic service errors in GET", async () => {
+    mockGetResume.mockRejectedValue(new Error("DB Connection Failed"));
+    const request = buildRequest("http://localhost/api/resumes/42", "GET");
+    const response = await GET(request, {
+      params: Promise.resolve({ id: "42" }),
+    });
+    expect(response.status).toBe(500);
+  });
 });
 
 // Mock NextResponse to ensure headers are passed correctly in test environment

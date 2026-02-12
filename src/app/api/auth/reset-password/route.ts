@@ -7,6 +7,7 @@ import {
 } from "@/lib/dal";
 import { handleApiError } from "@/lib/utils/api-helpers";
 import { ResetPasswordSchema } from "@/lib/schemas/api";
+import { checkRateLimit } from "@/lib/utils/rateLimit";
 
 /**
  * Reset password using token
@@ -14,6 +15,19 @@ import { ResetPasswordSchema } from "@/lib/schemas/api";
  */
 export async function POST(request: NextRequest) {
   try {
+    // Strict rate limit for password reset (5 per 15 min)
+    const ip = request.headers.get("x-forwarded-for") || "unknown";
+    const rateLimitResult = await checkRateLimit(`reset-password:${ip}`, {
+      limit: 5,
+      windowMs: 15 * 60 * 1000,
+    });
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429 }
+      );
+    }
+
     const payload = await request.json();
     const parseResult = ResetPasswordSchema.safeParse(payload);
     if (!parseResult.success) {

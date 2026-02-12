@@ -13,8 +13,8 @@ import {
 
 const FREE_RECRUITER_REQUEST_LIMIT = Number(
   process.env.RECRUITER_FREE_REQUEST_LIMIT ||
-    process.env.NEXT_PUBLIC_RECRUITER_FREE_REQUEST_LIMIT ||
-    2
+  process.env.NEXT_PUBLIC_RECRUITER_FREE_REQUEST_LIMIT ||
+  2
 );
 
 const FREE_PLAN_ACTIVE_STATUSES: RecruiterContactRequest["status"][] = [
@@ -139,6 +139,7 @@ export async function POST(request: NextRequest) {
       .where("resumeId", "==", String(payload.resumeId))
       .where("fromRecruiter.recruiterId", "==", payload.recruiterId)
       .where("status", "==", "pending")
+      .limit(1)
       .get();
 
     if (!existingRequests.empty) {
@@ -169,6 +170,7 @@ export async function POST(request: NextRequest) {
       const activeRequestSnapshot = await collectionRef(COLLECTIONS.RECRUITER_REQUESTS)
         .where("fromRecruiter.recruiterId", "==", payload.recruiterId)
         .where("status", "in", FREE_PLAN_ACTIVE_STATUSES)
+        .limit(FREE_RECRUITER_REQUEST_LIMIT + 1)
         .get();
 
       if (activeRequestSnapshot.size >= FREE_RECRUITER_REQUEST_LIMIT) {
@@ -285,6 +287,7 @@ export async function GET(request: NextRequest) {
     // Get all requests from this recruiter
     const snapshot = await collectionRef(COLLECTIONS.RECRUITER_REQUESTS)
       .where("fromRecruiter.recruiterId", "==", recruiterId)
+      .limit(200)
       .get();
 
     const requests = snapshot.docs.map((doc) => ({

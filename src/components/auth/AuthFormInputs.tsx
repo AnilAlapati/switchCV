@@ -33,6 +33,7 @@ function UsernameStatusIcon({
   if (isChecking || status === "checking") {
     return (
       <svg
+        aria-hidden="true"
         className="w-5 h-5 text-slate-400 animate-spin"
         fill="none"
         viewBox="0 0 24 24"
@@ -56,6 +57,7 @@ function UsernameStatusIcon({
   if (status === "available") {
     return (
       <svg
+        aria-hidden="true"
         className="w-5 h-5 text-green-500"
         fill="none"
         stroke="currentColor"
@@ -73,6 +75,7 @@ function UsernameStatusIcon({
   if (status === "taken" || status === "invalid") {
     return (
       <svg
+        aria-hidden="true"
         className="w-5 h-5 text-red-500"
         fill="none"
         stroke="currentColor"
@@ -156,11 +159,10 @@ export function AuthFormInputs({
                 )
               }
               aria-describedby="username-status"
-              className={`w-full px-4 py-3 pr-12 glass-input rounded-xl text-[#1A2F25] placeholder-[#2C4A3B]/40 focus:outline-none focus:ring-4 transition-all duration-200 ${
-                usernameError || usernameStatus === "taken"
+              className={`w-full px-4 py-3 pr-12 glass-input rounded-xl text-[#1A2F25] placeholder-[#2C4A3B]/40 focus:outline-none focus:ring-4 transition-all duration-200 ${usernameError || usernameStatus === "taken"
                   ? "border-rose-500/50"
                   : ""
-              }`}
+                }`}
               placeholder="e.g. avery-kim"
               value={username}
               onChange={(e) => onUsernameChange?.(e.target.value.toLowerCase())}
@@ -178,8 +180,8 @@ export function AuthFormInputs({
             className={`mt-2 text-xs ${getMessageColor()}`}
             role={
               usernameError ||
-              usernameStatus === "taken" ||
-              usernameStatus === "invalid"
+                usernameStatus === "taken" ||
+                usernameStatus === "invalid"
                 ? "alert"
                 : undefined
             }

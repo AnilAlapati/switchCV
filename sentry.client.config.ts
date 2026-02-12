@@ -12,6 +12,8 @@ const hasConsent =
 
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  environment: process.env.NODE_ENV === "production" ? "production" : "development",
+  release: process.env.NEXT_PUBLIC_APP_VERSION || "dev",
 
   // Sample 10% of traces in production to control Sentry costs
   tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1,
@@ -26,10 +28,10 @@ Sentry.init({
   // Only include replay integration if user has consented
   integrations: hasConsent
     ? [
-        Sentry.replayIntegration({
-          maskAllText: true,
-          blockAllMedia: true,
-        }),
-      ]
+      Sentry.replayIntegration({
+        maskAllText: true,
+        blockAllMedia: true,
+      }),
+    ]
     : [],
 });

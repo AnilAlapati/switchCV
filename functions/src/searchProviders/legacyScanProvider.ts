@@ -5,13 +5,16 @@ import {
 } from "./types";
 
 /**
- * Legacy implementation that scans a limited subset of resumes and computes
  * cosine similarity inside the Cloud Function.
+ *
+ * NOTE: This is O(N) and not scalable for large datasets.
+ * TODO(P2): Migrate to vector search provider for production scale.
+ * Increased limit to 1000 as interim fix.
  */
 export class LegacyScanSearchProvider implements ResumeSearchProvider {
-  private readonly MAX_DOCS_TO_SCAN = 500;
+  private readonly MAX_DOCS_TO_SCAN = 1000;
 
-  constructor(private readonly db: FirebaseFirestore.Firestore) {}
+  constructor(private readonly db: FirebaseFirestore.Firestore) { }
 
   async search(
     queryEmbedding: number[],

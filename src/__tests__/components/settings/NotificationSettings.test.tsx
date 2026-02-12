@@ -19,7 +19,7 @@ describe("NotificationSettings", () => {
 
   it("renders loading state initially", async () => {
     // Make getPreferences hang to test loading state
-    mockGetPreferences.mockImplementation(() => new Promise(() => {}));
+    mockGetPreferences.mockImplementation(() => new Promise(() => { }));
     render(<NotificationSettings />);
     expect(
       screen.getByText("Loading notification settings...")
@@ -59,7 +59,7 @@ describe("NotificationSettings", () => {
     });
 
     // Check if all toggles are enabled (default state)
-    const toggles = screen.getAllByRole("button");
+    const toggles = screen.getAllByRole("switch");
     toggles.forEach((toggle) => {
       expect(toggle).toHaveClass("bg-blue-600");
     });
@@ -68,7 +68,7 @@ describe("NotificationSettings", () => {
   it("handles error when loading preferences fails", async () => {
     const consoleSpy = jest
       .spyOn(console, "error")
-      .mockImplementation(() => {});
+      .mockImplementation(() => { });
     mockGetPreferences.mockRejectedValue(new Error("Failed to fetch"));
 
     render(<NotificationSettings />);
@@ -99,7 +99,7 @@ describe("NotificationSettings", () => {
       ).not.toBeInTheDocument();
     });
 
-    const toggles = screen.getAllByRole("button");
+    const toggles = screen.getAllByRole("switch");
     fireEvent.click(toggles[0]); // Toggle Recruiter Requests
 
     expect(mockUpdatePreferences).toHaveBeenCalledWith({
@@ -116,7 +116,7 @@ describe("NotificationSettings", () => {
   it("handles error when updating preferences fails", async () => {
     const consoleSpy = jest
       .spyOn(console, "error")
-      .mockImplementation(() => {});
+      .mockImplementation(() => { });
     mockGetPreferences.mockResolvedValue({
       recruiterRequests: true,
       profileViews: true,
@@ -133,7 +133,7 @@ describe("NotificationSettings", () => {
       ).not.toBeInTheDocument();
     });
 
-    const toggles = screen.getAllByRole("button");
+    const toggles = screen.getAllByRole("switch");
     fireEvent.click(toggles[0]); // Toggle Recruiter Requests
 
     await waitFor(() => {
@@ -154,7 +154,7 @@ describe("NotificationSettings", () => {
       adminAlerts: true,
     });
     // Make update hang to test disabled state
-    mockUpdatePreferences.mockImplementation(() => new Promise(() => {}));
+    mockUpdatePreferences.mockImplementation(() => new Promise(() => { }));
 
     render(<NotificationSettings />);
 
@@ -164,7 +164,7 @@ describe("NotificationSettings", () => {
       ).not.toBeInTheDocument();
     });
 
-    const toggles = screen.getAllByRole("button");
+    const toggles = screen.getAllByRole("switch");
     fireEvent.click(toggles[0]);
 
     // All toggles should be disabled while saving

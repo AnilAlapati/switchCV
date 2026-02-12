@@ -1,7 +1,8 @@
 {
   "projects": {
     "default": "switchcv-e5136",
-    "dev": "switchcv-dev"
+    "dev": "switchcv-dev",
+    "staging": "switchcv-staging"
   },
   "targets": {},
   "etags": {

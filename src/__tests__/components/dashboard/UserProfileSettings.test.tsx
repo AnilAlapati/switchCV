@@ -1,15 +1,18 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-jest.mock("@/hooks/useAuth", () => ({
-  useAuth: () => ({
-    user: {
-      uid: "test-uid",
-      email: "test@example.com",
-      getIdToken: jest.fn().mockResolvedValue("mock-id-token"),
-    },
-  }),
-}));
+jest.mock("@/hooks/useAuth", () => {
+  const mockUser = {
+    uid: "test-uid",
+    email: "test@example.com",
+    getIdToken: jest.fn().mockResolvedValue("mock-id-token"),
+  };
+  return {
+    useAuth: () => ({
+      user: mockUser,
+    }),
+  };
+});
 
 import { UserProfileSettings } from "@/components/dashboard/UserProfileSettings";
 
@@ -56,8 +59,8 @@ describe("UserProfileSettings", () => {
       expect(screen.getByText(/Job Seeker/i)).toBeInTheDocument()
     );
 
-    const buttons = screen.getAllByRole("button");
-    await userEvent.click(buttons[0]);
+    const toggle = screen.getByRole("switch");
+    await userEvent.click(toggle);
     // Ensure a POST request to update role was made
     await waitFor(() => {
       const calls = (global.fetch as jest.Mock).mock.calls;
@@ -86,28 +89,18 @@ describe("UserProfileSettings", () => {
     await userEvent.clear(input);
     await userEvent.type(input, "NewCo");
     // find a button that contains 'Save' (some buttons may not have accessible name)
-    const allButtons = screen.getAllByRole("button");
-    const saveButton = allButtons.find((b) =>
-      /save/i.test(b.textContent || "")
-    );
-    if (saveButton) {
-      await userEvent.click(saveButton);
 
-      // verify PUT was called with updated company name
-      await waitFor(() => {
-        const calls = (global.fetch as jest.Mock).mock.calls;
-        const putCall = calls.find((c: [string, { method?: string }]) => c[1] && c[1].method === "PUT");
-        expect(putCall).toBeTruthy();
-        const body = JSON.parse(putCall[1].body);
-        expect(body.companyName).toBe("NewCo");
-      });
-    } else {
-      // fallback: if Save button not present, at least ensure fetch has been called
-      await waitFor(() => {
-        expect(
-          (global.fetch as jest.Mock).mock.calls.length
-        ).toBeGreaterThanOrEqual(1);
-      });
-    }
+    const saveButton = screen.getByText("Save");
+    await userEvent.click(saveButton);
+
+    // verify PUT was called with updated company name
+    await waitFor(() => {
+      const calls = (global.fetch as jest.Mock).mock.calls;
+      const putCall = calls.find((c: [string, { method?: string }]) => c[1] && c[1].method === "PUT");
+      expect(putCall).toBeTruthy();
+      const body = JSON.parse(putCall[1].body);
+      expect(body.companyName).toBe("NewCo");
+    });
+
   });
 });

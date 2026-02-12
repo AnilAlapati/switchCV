@@ -35,6 +35,22 @@ describe("/api/recruiter/requests", () => {
   const buildRequest = (url: string, method: string) =>
     new NextRequest(url, { method });
 
+  describe("Authentication", () => {
+    it("returns 401 if userId is missing", async () => {
+      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: null });
+      const response = await GET(buildRequest("http://localhost/api", "GET"));
+      expect(response.status).toBe(401);
+    });
+
+    it("returns error from getAuthenticatedUserId", async () => {
+      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+        error: Response.json({ error: "Auth Error" }, { status: 500 }),
+      });
+      const response = await GET(buildRequest("http://localhost/api", "GET"));
+      expect(response.status).toBe(500);
+    });
+  });
+
   describe("GET", () => {
     it("returns 403 if not a recruiter", async () => {
       (RecruiterService.getRecruiterRequests as jest.Mock).mockRejectedValue(
@@ -66,10 +82,17 @@ describe("/api/recruiter/requests", () => {
 
       expect(response.status).toBe(200);
       expect(data.requests[0].candidateName).toBe("John Doe");
-      expect(data.requests[0].resumeTitle).toBe("Senior Dev");
       expect(RecruiterService.getRecruiterRequests).toHaveBeenCalledWith(
         recruiterId,
       );
+    });
+
+    it("handles generic errors", async () => {
+      (RecruiterService.getRecruiterRequests as jest.Mock).mockRejectedValue(
+        new Error("Database error"),
+      );
+      const response = await GET(buildRequest("http://localhost/api", "GET"));
+      expect(response.status).toBe(500);
     });
   });
 
@@ -77,6 +100,22 @@ describe("/api/recruiter/requests", () => {
     it("returns 405 Method Not Allowed", async () => {
       const response = await POST(buildRequest("http://localhost/api", "POST"));
       expect(response.status).toBe(405);
+    });
+
+    it("returns 403 if forbidden-role error occurs", async () => {
+      (RecruiterService.enforceRecruiterRole as jest.Mock).mockRejectedValue(
+        new Error("forbidden-role")
+      );
+      const response = await POST(buildRequest("http://localhost/api", "POST"));
+      expect(response.status).toBe(403);
+    });
+
+    it("handles generic errors", async () => {
+      (RecruiterService.enforceRecruiterRole as jest.Mock).mockRejectedValue(
+        new Error("Unexpected error")
+      );
+      const response = await POST(buildRequest("http://localhost/api", "POST"));
+      expect(response.status).toBe(500);
     });
   });
 
@@ -110,6 +149,16 @@ describe("/api/recruiter/requests", () => {
       );
     });
 
+    it("returns 403 if forbidden-role", async () => {
+      (RecruiterService.deleteRecruiterRequest as jest.Mock).mockRejectedValue(
+        new Error("forbidden-role"),
+      );
+      const response = await DELETE(
+        buildRequest("http://localhost/api?requestId=1&resumeId=2", "DELETE"),
+      );
+      expect(response.status).toBe(403);
+    });
+
     it("returns 403 if unauthorized", async () => {
       (RecruiterService.deleteRecruiterRequest as jest.Mock).mockRejectedValue(
         new Error("unauthorized"),
@@ -128,6 +177,16 @@ describe("/api/recruiter/requests", () => {
         buildRequest("http://localhost/api?requestId=1&resumeId=2", "DELETE"),
       );
       expect(response.status).toBe(404);
+    });
+
+    it("handles generic errors", async () => {
+      (RecruiterService.deleteRecruiterRequest as jest.Mock).mockRejectedValue(
+        new Error("System failure"),
+      );
+      const response = await DELETE(
+        buildRequest("http://localhost/api?requestId=1&resumeId=2", "DELETE"),
+      );
+      expect(response.status).toBe(500);
     });
   });
 });

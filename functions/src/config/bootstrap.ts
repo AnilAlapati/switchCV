@@ -28,14 +28,14 @@ export function bootstrap(): void {
       hasSMTP: !!firebaseConfig.smtp,
     });
   } catch (e) {
-    console.warn("Failed to load firebase config", e);
+    functions.logger.warn("Failed to load firebase config", e);
   }
 
   if (!admin.apps.length) {
     admin.initializeApp();
   }
 
-  const environment = config.get("app", "environment");
+  const environment = config.get("app").environment;
   functions.logger.info("SwitchCV Cloud Functions bootstrap complete", {
     environment,
     pendingMetrics: performanceMonitor.getMetricsSummary().pending,

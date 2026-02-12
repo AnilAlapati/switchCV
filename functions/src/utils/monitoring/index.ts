@@ -7,6 +7,7 @@
 import { PerformanceMonitorCore } from "./core";
 import { AlertManager } from "./alerts";
 import { Metric } from "./types";
+import * as functions from "firebase-functions/v1";
 
 /**
  * Performance monitor singleton with lazy initialization
@@ -37,7 +38,7 @@ export class PerformanceMonitor extends PerformanceMonitorCore {
   recordMetric(metric: Metric): void {
     this.addMetric(metric);
     this.alertManager.checkAndAlert(metric).catch((error) => {
-      console.error("Failed to check alert", error);
+      functions.logger.error("Failed to check alert", error);
     });
   }
 

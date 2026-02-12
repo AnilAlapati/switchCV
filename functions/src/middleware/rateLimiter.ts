@@ -304,4 +304,22 @@ export const RateLimitPresets = {
     maxRequests: 5,
     keyPrefix: "auth",
   },
+  // Admin operations: 10 per minute
+  ADMIN: {
+    windowMs: 60 * 1000,
+    maxRequests: 10,
+    keyPrefix: "admin",
+  },
+  // Search: 30 per hour
+  SEARCH: {
+    windowMs: 60 * 60 * 1000,
+    maxRequests: 30,
+    keyPrefix: "search",
+  },
+  // Email resend: 3 per 15 minutes
+  EMAIL_RESEND: {
+    windowMs: 15 * 60 * 1000,
+    maxRequests: 3,
+    keyPrefix: "email_resend",
+  },
 } as const;

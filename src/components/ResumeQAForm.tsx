@@ -68,9 +68,9 @@ export const ResumeQAForm: React.FC<ResumeQAFormProps> = ({
   const processAnswer = (answer: string) => {
     return currentQuestion.type === "multiselect"
       ? answer
-          .split(",")
-          .map((s) => s.trim())
-          .filter((s) => s)
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s)
       : answer;
   };
 
@@ -159,9 +159,12 @@ export const ResumeQAForm: React.FC<ResumeQAFormProps> = ({
 
       {/* Question Card */}
       <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 rounded-xl p-8 mb-8">
-        <h2 className="text-xl font-semibold text-white mb-6">
+        <label
+          htmlFor={`qa-field-${currentQuestion.id}`}
+          className="text-xl font-semibold text-white mb-6 block"
+        >
           {currentQuestion.question}
-        </h2>
+        </label>
 
         {/* Input Fields */}
         <div className="mb-6">
@@ -171,6 +174,10 @@ export const ResumeQAForm: React.FC<ResumeQAFormProps> = ({
               value={currentAnswer}
               onChange={handleInputChange}
               placeholder={currentQuestion.placeholder}
+              aria-invalid={!!validationError}
+              aria-describedby={validationError ? "qa-validation-error" : "qa-field-info"}
+              data-testid={`qa-input-${currentQuestion.id}`}
+              id={`qa-field-${currentQuestion.id}`}
               className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
             />
           )}
@@ -181,6 +188,10 @@ export const ResumeQAForm: React.FC<ResumeQAFormProps> = ({
               onChange={handleInputChange}
               placeholder={currentQuestion.placeholder}
               rows={5}
+              aria-invalid={!!validationError}
+              aria-describedby={validationError ? "qa-validation-error" : "qa-field-info"}
+              data-testid={`qa-textarea-${currentQuestion.id}`}
+              id={`qa-field-${currentQuestion.id}`}
               className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
             />
           )}
@@ -189,6 +200,10 @@ export const ResumeQAForm: React.FC<ResumeQAFormProps> = ({
             <select
               value={currentAnswer}
               onChange={handleInputChange}
+              aria-invalid={!!validationError}
+              aria-describedby={validationError ? "qa-validation-error" : "qa-field-info"}
+              data-testid={`qa-select-${currentQuestion.id}`}
+              id={`qa-field-${currentQuestion.id}`}
               className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
             >
               <option value="">Select an option...</option>
@@ -208,6 +223,10 @@ export const ResumeQAForm: React.FC<ResumeQAFormProps> = ({
                 currentQuestion.placeholder || "Enter items separated by commas"
               }
               rows={3}
+              aria-invalid={!!validationError}
+              aria-describedby={validationError ? "qa-validation-error" : "qa-field-info"}
+              data-testid={`qa-multiselect-${currentQuestion.id}`}
+              id={`qa-field-${currentQuestion.id}`}
               className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
             />
           )}
@@ -215,13 +234,13 @@ export const ResumeQAForm: React.FC<ResumeQAFormProps> = ({
 
         {/* Validation Error */}
         {validationError && (
-          <div className="mb-6 p-4 bg-red-900/30 border border-red-700 rounded-lg">
+          <div id="qa-validation-error" role="alert" className="mb-6 p-4 bg-red-900/30 border border-red-700 rounded-lg">
             <p className="text-red-300 text-sm">{validationError}</p>
           </div>
         )}
 
         {/* Field Info */}
-        <div className="text-sm text-gray-400 mb-6">
+        <div id="qa-field-info" className="text-sm text-gray-400 mb-6">
           {currentQuestion.required ? (
             <span className="text-cyan-400">* Required field</span>
           ) : (

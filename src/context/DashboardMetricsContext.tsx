@@ -24,7 +24,30 @@ export function DashboardMetricsProvider({
   children,
   value,
 }: DashboardMetricsProviderProps) {
-  const memoizedValue = useMemo(() => value, [value]);
+  const {
+    loading,
+    jobSeekerMetrics,
+    recruiterMetrics,
+    refreshJobSeekerMetrics,
+    refreshRecruiterMetrics,
+  } = value;
+
+  const memoizedValue = useMemo(
+    () => ({
+      loading,
+      jobSeekerMetrics,
+      recruiterMetrics,
+      refreshJobSeekerMetrics,
+      refreshRecruiterMetrics,
+    }),
+    [
+      loading,
+      jobSeekerMetrics,
+      recruiterMetrics,
+      refreshJobSeekerMetrics,
+      refreshRecruiterMetrics,
+    ]
+  );
 
   return (
     <DashboardMetricsContext.Provider value={memoizedValue}>

@@ -21,11 +21,14 @@ interface SecretMetadata {
   version: string;
 }
 
+import { config } from "../config";
+
 /**
  * Email configuration for rotation alerts
  */
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@switchcv.app";
-const ALERT_EMAIL = process.env.ALERT_EMAIL || "alerts@switchcv.app";
+const emailConfig = config.get("email");
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || emailConfig.adminEmail;
+const ALERT_EMAIL = process.env.ALERT_EMAIL || emailConfig.supportEmail;
 
 /**
  * Daily secret rotation check

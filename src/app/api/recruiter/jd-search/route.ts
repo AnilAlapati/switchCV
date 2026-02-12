@@ -13,7 +13,9 @@ import { logger } from "@/lib/logger";
  * Request schema for JD-based search
  */
 const JDSearchRequestSchema = z.object({
-    jdText: z.string().min(50, "Job description must be at least 50 characters"),
+    jdText: z.string()
+        .min(50, "Job description must be at least 50 characters")
+        .max(10000, "Job description is too long (max 10,000 characters)"),
     limit: z.number().min(1).max(100).optional().default(50),
     useAI: z.boolean().optional().default(true),
 });

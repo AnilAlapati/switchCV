@@ -13,13 +13,21 @@ interface ResumeDoc {
   isPublic?: boolean;
   published?: boolean;
   status?: string;
+  isBeingEdited?: boolean;
 }
 
-const resolveBoolean = (value: any, fallback = false): boolean => {
+const resolveBoolean = (value: unknown, fallback = false): boolean => {
   return typeof value === "boolean" ? value : fallback;
 };
 
+/**
+ * Canonical visibility resolution for fan-out.
+ * INVARIANT: isBeingEdited:true forces "private" regardless of other fields.
+ */
 const resolveVisibility = (resume: ResumeDoc): "public" | "private" => {
+  // Enforce editing invariant — never expose during editing
+  if (resume.isBeingEdited === true) return "private";
+
   if (typeof resume.visibility === "string") {
     return resume.visibility === "public" ? "public" : "private";
   }
@@ -40,7 +48,7 @@ const resolveNumericId = (resumeId: string): number | null => {
 
 const buildUserResumePayload = (
   resumeId: string,
-  resume: ResumeDoc
+  resume: ResumeDoc,
 ): Record<string, unknown> => {
   const visibility = resolveVisibility(resume);
   return {
@@ -60,7 +68,7 @@ const buildUserResumePayload = (
 
 const buildGlobalResumePayload = (
   resumeId: string,
-  resume: ResumeDoc
+  resume: ResumeDoc,
 ): Record<string, unknown> => ({
   resumeId,
   userId: resume.userId,
@@ -77,7 +85,7 @@ const buildGlobalResumePayload = (
 
 const deleteDerivedDocs = async (
   resumeId: string,
-  resume: ResumeDoc | undefined
+  resume: ResumeDoc | undefined,
 ): Promise<void> => {
   const userId = resume?.userId;
 
@@ -89,7 +97,7 @@ const deleteDerivedDocs = async (
       .catch((error) => {
         functions.logger.warn(
           { resumeId, error: error instanceof Error ? error.message : error },
-          "Failed to delete derived allResumes doc"
+          "Failed to delete derived allResumes doc",
         );
       }),
   ];
@@ -108,9 +116,9 @@ const deleteDerivedDocs = async (
               userId,
               error: error instanceof Error ? error.message : error,
             },
-            "Failed to delete derived user resume"
+            "Failed to delete derived user resume",
           );
-        })
+        }),
     );
 
     deletions.push(
@@ -121,9 +129,9 @@ const deleteDerivedDocs = async (
         .catch((error) => {
           functions.logger.info(
             { resumeId, userId },
-            "Legacy userResumes doc absent during delete"
+            "Legacy userResumes doc absent during delete",
           );
-        })
+        }),
     );
   }
 
@@ -132,13 +140,13 @@ const deleteDerivedDocs = async (
 
 const upsertDerivedDocs = async (
   resumeId: string,
-  resume: ResumeDoc
+  resume: ResumeDoc,
 ): Promise<void> => {
   const userId = resume.userId;
   if (!userId) {
     functions.logger.warn(
       { resumeId },
-      "Resume fan-out skipped due to missing userId"
+      "Resume fan-out skipped due to missing userId",
     );
     return;
   }
@@ -160,7 +168,7 @@ const upsertDerivedDocs = async (
       .catch(() => {
         functions.logger.info(
           { resumeId, userId },
-          "Legacy userResumes doc skipped"
+          "Legacy userResumes doc skipped",
         );
       }),
     db
@@ -172,19 +180,41 @@ const upsertDerivedDocs = async (
   await Promise.allSettled(writes);
 };
 
+const IDEMPOTENCY_COLLECTION = "processedEvents";
+const IDEMPOTENCY_TTL_HOURS = 24;
+
 const fanOutResumeDocumentsHandler = async (
   change: functions.Change<functions.firestore.DocumentSnapshot>,
-  context: functions.EventContext
+  context: functions.EventContext,
 ) => {
   const resumeId = context.params.resumeId;
+  const eventId = context.eventId;
 
-  if (!change.after.exists) {
-    await deleteDerivedDocs(resumeId, change.before.data() as ResumeDoc);
+  // Idempotency check — skip if this event was already processed
+  const eventRef = db.collection(IDEMPOTENCY_COLLECTION).doc(eventId);
+  const eventDoc = await eventRef.get();
+  if (eventDoc.exists) {
+    functions.logger.info(
+      { eventId, resumeId },
+      "Duplicate fan-out event skipped",
+    );
     return null;
   }
 
-  const resumeData = change.after.data() as ResumeDoc;
-  await upsertDerivedDocs(resumeId, resumeData);
+  if (!change.after.exists) {
+    await deleteDerivedDocs(resumeId, change.before.data() as ResumeDoc);
+  } else {
+    const resumeData = change.after.data() as ResumeDoc;
+    await upsertDerivedDocs(resumeId, resumeData);
+  }
+
+  // Mark event as processed with TTL
+  await eventRef.set({
+    processedAt: new Date().toISOString(),
+    resumeId,
+    expiresAt: new Date(Date.now() + IDEMPOTENCY_TTL_HOURS * 3600 * 1000),
+  });
+
   return null;
 };
 

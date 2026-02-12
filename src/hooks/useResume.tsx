@@ -3,7 +3,7 @@
 import { logger } from "@/lib/logger";
 // src/hooks/useResume.tsx
 
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import useSWR from "swr";
 import { collection, query, where, getDocs, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -132,10 +132,10 @@ export const useResume = (options: { enabled?: boolean } = {}) => {
     error: error ? (error instanceof Error ? error.message : "Failed to fetch resume") : null,
     hasResume,
     resumeId,
-    refetch: () => {
+    refetch: useCallback(() => {
       if (user) {
         mutate();
       }
-    },
+    }, [user, mutate]),
   };
 };

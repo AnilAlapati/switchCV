@@ -1,5 +1,6 @@
 // functions/src/services/auditLoggers/baseLogger.ts
 import * as admin from "firebase-admin";
+import * as functions from "firebase-functions/v1";
 import type { AuditLogEntry } from "./types";
 
 /**
@@ -36,13 +37,13 @@ export class BaseAuditLogger {
       const docRef = await this.db
         .collection(this.collectionName)
         .add(auditEntry);
-      console.log(
+      functions.logger.info(
         `[AUDIT LOG] ${entry.action} for ${entry.resourceType} ${entry.resourceId}`
       );
 
       return docRef.id;
     } catch (error) {
-      console.error("Failed to write audit log:", error);
+      functions.logger.error("Failed to write audit log:", error);
       throw error;
     }
   }

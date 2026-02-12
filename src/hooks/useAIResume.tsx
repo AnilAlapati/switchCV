@@ -1,5 +1,5 @@
 import { logger } from "@/lib/logger";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { getAuth } from "firebase/auth";
 import { getBestModelForTask } from "@/config/aiModels";
 import { generateMockEnhancedResume } from "@/lib/mockAIResume";
@@ -54,7 +54,7 @@ export const useAIResume = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const generateResumeContent = async (
+  const generateResumeContent = useCallback(async (
     resumeData: ResumeData,
     template: string = "modern",
     tone: "professional" | "creative" | "concise" = "professional",
@@ -179,7 +179,7 @@ export const useAIResume = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   return {
     generateResumeContent,

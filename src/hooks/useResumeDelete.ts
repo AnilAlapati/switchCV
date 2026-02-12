@@ -13,7 +13,7 @@
  * - Pool statistics feedback
  */
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 
 interface DeleteResponse {
   success: boolean;
@@ -53,7 +53,7 @@ export const useResumeDelete = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<DeleteErrorState | null>(null);
 
-  const deleteResume = async (options: {
+  const deleteResume = useCallback(async (options: {
     method: "document-id" | "numeric-id" | "slug";
     value: string | number;
     userId?: string;
@@ -111,9 +111,9 @@ export const useResumeDelete = () => {
       setLoading(false);
       return null;
     }
-  };
+  }, []);
 
-  const clearError = () => setError(null);
+  const clearError = useCallback(() => setError(null), []);
 
   return {
     deleteResume,

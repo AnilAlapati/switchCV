@@ -299,9 +299,10 @@ service cloud.firestore {
         isAdmin()
       );
       
-      // Writes (events) are allowed for authenticated users (to record views)
-      // but strictly validated in a real scenario
-      allow write: if isAuthenticated(); 
+      // Writes require ownership validation
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if false; // Server-side only
       
       // Analytics events subcollection
       match /events/{eventId} {
@@ -473,6 +474,95 @@ service cloud.firestore {
     match /passwordResetTokens/{tokenId} {
       allow read: if false;  // Admin SDK only
       allow write: if false; // Admin SDK only
+    }
+
+    // ==================== MISSING COLLECTIONS (P2 Fix) ====================
+    // These collections were used in code but had no explicit rules.
+    // Collections accessed only via Admin SDK get deny-all (explicit > implicit).
+    // Collections accessed from frontend get scoped owner/role access.
+
+    // AI audit logs — server-side only via Admin SDK
+    match /aiAuditLogs/{logId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // AI usage logs — server-side only via Admin SDK
+    match /aiUsageLogs/{logId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // Contact requests — server-side analytics only
+    match /contactRequests/{requestId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // Job seeker metrics — frontend reads own metrics for dashboard
+    match /jobSeekerMetrics/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if false; // Server-side only (Admin SDK)
+    }
+
+    // Profile access logs — server-side only
+    match /profileAccessLogs/{logId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // Recruiter interviews — frontend reads own interviews
+    match /recruiterInterviews/{interviewId} {
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.recruiterId;
+      allow write: if false; // Server-side only
+    }
+
+    // Recruiter pipelines — frontend reads own pipelines
+    match /recruiterPipelines/{pipelineId} {
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.recruiterId;
+      allow write: if false; // Server-side only
+    }
+
+    // Recruiter candidates — frontend reads own candidates
+    match /recruiterCandidates/{candidateId} {
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.recruiterId;
+      allow write: if false; // Server-side only
+    }
+
+    // Recruiter bulk actions — frontend reads own actions
+    match /recruiterBulkActions/{actionId} {
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.recruiterId;
+      allow write: if false; // Server-side only
+    }
+
+    // Seed generation logs — server-side only
+    match /seedGenerationLogs/{logId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // Billing — server-side only (Cloud Functions)
+    match /billing/{docId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // Mail — server-side only (Firestore Send Email extension)
+    match /mail/{mailId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // Monitoring — server-side only
+    match /monitoring/{docId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // Rate limits — server-side only
+    match /rateLimits/{docId} {
+      allow read: if false;
+      allow write: if false;
     }
   }
 }

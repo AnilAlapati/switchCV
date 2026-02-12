@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyEmailToken } from "@/lib/services/authService";
 import { logger } from "@/lib/logger";
+import { handleApiError } from "@/lib/utils/api-helpers";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
     const result = await verifyEmailToken(token);
 
     if (!result.success) {
-      logger.warn({ error: result.error }, "Email verification failed");
+      handleApiError(result.error, "Email verification failed", 400);
       if (result.error === "invalid-token") {
         return NextResponse.redirect(new URL("/auth?error=invalid-token", request.url));
       }
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
       new URL("/auth?verificationSuccess=true", request.url)
     );
   } catch (error) {
-    logger.error({ err: error }, "Email verification error");
+    handleApiError(error, "Email verification error", 500);
     return NextResponse.redirect(
       new URL("/auth?error=verification-failed", request.url)
     );

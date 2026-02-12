@@ -1,6 +1,6 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
-import { configLoader } from "../lib/configLoader";
+import { config } from "../config";
 import { emailService } from "../services/emailService";
 
 /**
@@ -291,7 +291,8 @@ export class AlertManager {
 
   private constructor() {
     // Lazy initialization to avoid circular dependencies
-    this.alertEmailTo = process.env.ALERT_EMAIL_TO || "support@switchcv.com";
+    const emailConfig = config.get("email");
+    this.alertEmailTo = process.env.ALERT_EMAIL_TO || emailConfig.supportEmail || "support@switchcv.com";
     this.alertEmailSubjectPrefix =
       process.env.ALERT_EMAIL_SUBJECT_PREFIX || "[SWITCHCV EMERGENCY]";
   }
@@ -452,7 +453,9 @@ export class AlertManager {
     p95Value: number,
     operationType?: string,
   ): Promise<void> {
-    const monitoringConfig = configLoader.getMonitoringConfig();
+    // Use defaults/env vars via config if available, or just fallback to defaults for now
+    // as we migrate away from configLoader
+    const monitoringConfig: Record<string, string> = {};
 
     // Determine operation type from function name patterns if not provided
     const opType = operationType || this.inferOperationType(functionName);
@@ -540,9 +543,8 @@ export class AlertManager {
 
       await emailService.sendCustomEmail({
         to: this.alertEmailTo,
-        subject: `${
-          this.alertEmailSubjectPrefix
-        } ${severity.toUpperCase()}: ${title}`,
+        subject: `${this.alertEmailSubjectPrefix
+          } ${severity.toUpperCase()}: ${title}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px;">
             <h2>${title}</h2>

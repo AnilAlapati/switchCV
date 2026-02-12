@@ -1,6 +1,6 @@
 import { logger } from "@/lib/logger";
 // src/hooks/useResumeDataCollection.ts
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 export type ConversationStage =
   | "initial"
@@ -63,31 +63,31 @@ export const useResumeDataCollection = () => {
     saveSession(stage, resumeData);
   }, [stage, resumeData]);
 
-  const setStage = (nextStage: ConversationStage) => {
+  const setStage = useCallback((nextStage: ConversationStage) => {
     setStageState(nextStage);
-  };
+  }, []);
 
-  const advanceStage = (nextStage: ConversationStage) => {
-    setStage(nextStage);
-  };
+  const advanceStage = useCallback((nextStage: ConversationStage) => {
+    setStageState(nextStage);
+  }, []);
 
-  const setResumeData = (
+  const setResumeData = useCallback((
     updates: ResumeData | ((prev: ResumeData) => ResumeData)
   ) => {
     setResumeDataState(updates);
-  };
+  }, []);
 
-  const updateResumeData = (updates: Partial<ResumeData>) => {
-    setResumeData((prev) => ({ ...prev, ...updates }));
-  };
+  const updateResumeData = useCallback((updates: Partial<ResumeData>) => {
+    setResumeDataState((prev) => ({ ...prev, ...updates }));
+  }, []);
 
-  const resetCollection = () => {
-    setStage("initial");
-    setResumeData({});
+  const resetCollection = useCallback(() => {
+    setStageState("initial");
+    setResumeDataState({});
     if (typeof window !== "undefined") {
       sessionStorage.removeItem(STORAGE_KEY);
     }
-  };
+  }, []);
 
   return {
     stage,

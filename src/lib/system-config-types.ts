@@ -158,6 +158,31 @@ export type UserApprovalConfig = {
 };
 
 // =============================================================================
+// PRICING CONFIGURATION
+// =============================================================================
+export type PricingTier = {
+  /** Numeric price value (e.g., 9.99). Use 0 for free tiers. */
+  price: number;
+  /** ISO 4217 currency code (e.g., "USD") */
+  currency: string;
+  /** Human-readable display string (e.g., "$9.99" or "Custom") */
+  displayText: string;
+};
+
+export type PricingConfig = {
+  jobseeker: {
+    basic: PricingTier;
+    premium: PricingTier;
+    enterprise: PricingTier;
+  };
+  recruiter: {
+    basic: PricingTier;
+    premium: PricingTier;
+    enterprise: PricingTier;
+  };
+};
+
+// =============================================================================
 // DEMO RESUMES CONFIGURATION
 // =============================================================================
 export type DemoResumesConfig = {
@@ -188,4 +213,5 @@ export type SystemConfig = {
   registrations: RegistrationConfig;
   userApproval: UserApprovalConfig;
   demoResumes: DemoResumesConfig;
+  pricing?: PricingConfig;
 };

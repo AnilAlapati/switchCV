@@ -9,49 +9,41 @@ const mockCollection = jest.fn();
 const mockDoc = jest.fn();
 
 // Create a chainable mock for adminDb
-jest.mock("@/lib/firebase-admin", () => ({
-  adminDb: {
-    collection: (name: string) => {
-      mockCollection(name);
-      return {
-        doc: (id: string) => {
-          mockDoc(id);
-          return {
-            get: mockGet,
-          };
-        },
-        add: mockAdd,
-        where: (...args: unknown[]) => {
-          mockWhere(...args);
-          return {
-            where: (...args2: unknown[]) => {
-              mockWhere(...args2);
-              return {
-                get: mockGet,
-                where: (...args3: unknown[]) => {
-                  mockWhere(...args3);
-                  return {
-                    get: mockGet,
-                    where: (...args4: unknown[]) => {
-                      mockWhere(...args4);
-                      return {
-                        get: mockGet,
-                      };
-                    },
-                  };
-                },
-              };
-            },
-            get: mockGet,
-          };
-        },
-      };
+jest.mock("@/lib/firebase-admin", () => {
+  const createMockQuery = () => {
+    const query: any = {
+      get: mockGet,
+      where: (...args: any[]) => {
+        mockWhere(...args);
+        return query;
+      },
+      limit: () => query,
+      orderBy: () => query,
+    };
+    return query;
+  };
+
+  return {
+    adminDb: {
+      collection: (name: string) => {
+        mockCollection(name);
+        return {
+          doc: (id: string) => {
+            mockDoc(id);
+            return {
+              get: mockGet,
+            };
+          },
+          add: mockAdd,
+          ...createMockQuery(),
+        };
+      },
     },
-  },
-  adminAuth: {
-    verifyIdToken: jest.fn().mockResolvedValue({ uid: "recruiter-123" }),
-  },
-}));
+    adminAuth: {
+      verifyIdToken: jest.fn().mockResolvedValue({ uid: "recruiter-123" }),
+    },
+  };
+});
 
 // Mock api-helpers to return authenticated user
 jest.mock("@/lib/utils/api-helpers", () => ({

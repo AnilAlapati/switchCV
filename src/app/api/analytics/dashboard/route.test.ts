@@ -1,527 +1,296 @@
 import { GET, POST } from "./route";
 import { NextRequest, NextResponse } from "next/server";
-
-// Mock the analytics service
-jest.mock("@/lib/services/analyticsService", () => ({
-  getDashboardAnalytics: jest.fn(),
-  getAnalytics: jest.fn(),
-  aggregateToDashboard: jest.fn(),
-}));
-
-// Mock firebase-admin
-const mockGet = jest.fn();
-const mockSet = jest.fn();
-const mockLimit = jest.fn();
-const mockOrderBy = jest.fn();
-
-const mockCollectionObj = {
-  doc: jest.fn(),
-  orderBy: jest.fn(),
-  limit: jest.fn(),
-  get: mockGet,
-};
-
-const mockDocObj = {
-  get: mockGet,
-  set: mockSet,
-  collection: jest.fn(),
-  exists: true,
-  data: jest.fn(() => ({})),
-};
-
-// Circular references
-mockCollectionObj.doc.mockImplementation((id: string) => {
-  if (id === "admin-user") {
-    return {
-      ...mockDocObj,
-      get: jest.fn().mockResolvedValue({
-        exists: true,
-        data: () => ({ role: "admin" }),
-      }),
-    };
-  }
-  if (id === "non-admin-user") {
-    return {
-      ...mockDocObj,
-      get: jest.fn().mockResolvedValue({
-        exists: true,
-        data: () => ({ role: "seeker" }),
-      }),
-    };
-  }
-  return mockDocObj;
-});
-mockCollectionObj.orderBy.mockReturnValue(mockCollectionObj);
-mockCollectionObj.limit.mockReturnValue(mockCollectionObj);
-// Use a function to return the *current* collection obj to handle recursive calls if any
-mockDocObj.collection.mockReturnValue(mockCollectionObj);
-
-jest.mock("@/lib/firebase-admin", () => ({
-  adminDb: {
-    collection: jest.fn(() => mockCollectionObj),
-  },
-}));
-
 import {
   getDashboardAnalytics,
   getAnalytics,
   aggregateToDashboard,
 } from "@/lib/services/analyticsService";
 
-// Mock auth helpers
+// ---------------------------------------------------------------------
+// Mocks
+// ---------------------------------------------------------------------
+
+// 1. Mock api-helpers
 jest.mock("@/lib/utils/api-helpers", () => ({
-  getAuthenticatedUserId: jest.fn().mockImplementation(async (req) => {
-    const url = new URL(req.url);
-    const userId = url.searchParams.get("userId") || "test-user";
-    return { userId, error: null };
-  }),
+  getAuthenticatedUserId: jest.fn(),
   handleApiError: jest.fn((error, message, status = 500) => {
-    const res: Record<string, unknown> = { error: message };
-    if (error) {
-      res.details = error instanceof Error ? error.message : String(error);
-    }
     return {
       status,
-      json: async () => res,
+      json: async () => ({ success: false, message, error: String(error) }),
     };
   }),
 }));
 
-describe("GET /api/analytics/dashboard", () => {
-  let originalEnv: NodeJS.ProcessEnv;
+// 2. Mock analyticsService
+jest.mock("@/lib/services/analyticsService", () => ({
+  getDashboardAnalytics: jest.fn(),
+  getAnalytics: jest.fn(),
+  aggregateToDashboard: jest.fn(),
+}));
+
+// 3. Mock Logger
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+  },
+}));
+
+// 4. Mock Firebase Admin (Firestore)
+jest.mock("@/lib/dal", () => ({
+  COLLECTIONS: {
+    USERS: "users",
+  },
+  collectionRef: jest.fn(),
+}));
+
+import { collectionRef } from "@/lib/dal";
+
+// Helper to access the mock
+const mockCollectionRef = collectionRef as jest.Mock;
+const mockDoc = jest.fn();
+const mockGet = jest.fn();
+const mockCollectionObj = {
+  doc: mockDoc,
+};
+const mockDocObj = {
+  get: mockGet,
+};
+
+// ---------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------
+
+describe("Analytics Dashboard API", () => {
+  const mockGetAuthenticatedUserId = require("@/lib/utils/api-helpers")
+    .getAuthenticatedUserId as jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
 
-    // Reset mock implementations
-    mockGet.mockResolvedValue({
-      exists: true,
-      data: () => ({
-        resumeId: "test-resume",
-        userId: "test-user",
-        viewCount: 15,
-        uniqueViewCount: 8,
-        attractivenessScore: 75,
-        lastViewedAt: { toDate: () => new Date() },
-        createdAt: { toDate: () => new Date() },
-        updatedAt: { toDate: () => new Date() },
-      }),
-      docs: [], // For collection queries
+    // Default: Authenticated user is "user-123"
+    mockGetAuthenticatedUserId.mockResolvedValue({
+      userId: "user-123",
+      error: null,
     });
 
-    originalEnv = process.env;
-    process.env = { ...originalEnv };
-
-    // Set up default mock for getAnalytics
-    (getAnalytics as jest.Mock).mockResolvedValue({
-      analytics: {
-        views: {
-          count: 15,
-          uniqueViewers: 8,
-          lastViewedAt: new Date().toISOString(),
-        },
-        attractivenessScore: 75,
-        lastUpdatedAt: new Date().toISOString(),
-        downloads: 5,
-        shares: 2,
-      },
-    });
-
-    // Set up default mock for aggregateToDashboard
-    (aggregateToDashboard as jest.Mock).mockImplementation(
-      (analytics, heatmaps, recruiters, benchmark) => ({
-        summary: {
-          totalViews: analytics.viewCount || analytics.views?.count || 0,
-          uniqueViews:
-            analytics.uniqueViewCount || analytics.views?.uniqueViewers || 0,
-          conversionRate: 0,
-          avgTimeOnResume: 45,
-        },
-        trends: [],
-        heatmaps: heatmaps || [],
-        recruiterActivity: recruiters || [],
-        benchmark: benchmark || null,
-      })
-    );
-
-    // Set up default mock for getDashboardAnalytics
-    (getDashboardAnalytics as jest.Mock).mockImplementation(
-      async (resumeId) => {
-        const analytics = {
-          viewCount: 15,
-          uniqueViewCount: 8,
-          attractivenessScore: 75,
-        };
-        return aggregateToDashboard(analytics, [], [], {
-          industry: "Technology",
-          avgAttractivenessScore: 85,
-          avgViewCount: 120,
-          avgDownloadCount: 45,
-          topSkills: ["React", "TypeScript"],
-          benchmarkDate: new Date(),
-        });
-      }
-    );
+    // Default: Firestore returns empty/generic data (overridden in specific tests)
+    mockCollectionRef.mockReturnValue(mockCollectionObj);
+    mockDoc.mockReturnValue(mockDocObj);
   });
 
-  afterEach(() => {
-    process.env = originalEnv;
-  });
-
-  describe("GET endpoint", () => {
-    it("should return analytics summary for valid resumeId and userId", async () => {
-      const request = new NextRequest(
-        "http://localhost:3000/api/analytics/dashboard?resumeId=test-resume&userId=test-user",
-        { headers: { authorization: "Bearer test-token" }, method: "GET" }
-      );
-
-      const response = await GET(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(200);
-      expect(data.success).toBe(true);
-      expect(data.data).toBeDefined();
-      expect(data.data.resumeId).toBe("test-resume");
-      expect(data.data.userId).toBe("test-user");
-      expect(data.data.viewCount).toBeGreaterThanOrEqual(10);
-      expect(data.data.uniqueViewCount).toBeGreaterThanOrEqual(5);
-      expect(data.data.attractivenessScore).toBeGreaterThanOrEqual(50);
-      expect(data.data.attractivenessScore).toBeLessThanOrEqual(85);
-      expect(data.timestamp).toBeDefined();
-    });
-
-    it("should return analytics for admin when userId is different", async () => {
-      // Mock getAuthenticatedUserId to return an admin
-      const mockGetAuthenticatedUserId = require("@/lib/utils/api-helpers")
-        .getAuthenticatedUserId as jest.Mock;
-      mockGetAuthenticatedUserId.mockResolvedValueOnce({ userId: "admin-user", error: null });
-
-      // Mock admin role check
-      // Mock admin role check handled by doc implementation
-
-
-      const request = new NextRequest(
-        "http://localhost:3000/api/analytics/dashboard?resumeId=test-resume&userId=other-user",
-        { headers: { authorization: "Bearer admin-token" }, method: "GET" }
-      );
-
-      const response = await GET(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(200);
-      expect(data.success).toBe(true);
-    });
-
-    it("should return 403 when non-admin tries to access other user's analytics", async () => {
-      const mockGetAuthenticatedUserId = require("@/lib/utils/api-helpers")
-        .getAuthenticatedUserId as jest.Mock;
-      mockGetAuthenticatedUserId.mockResolvedValueOnce({ userId: "non-admin-user", error: null });
-
-      // Mock non-admin role check
-      // Mock non-admin role check handled by doc implementation
-
-
-      const request = new NextRequest(
-        "http://localhost:3000/api/analytics/dashboard?resumeId=test-resume&userId=other-user",
-        { headers: { authorization: "Bearer token" }, method: "GET" }
-      );
-
-      const response = await GET(request);
-      expect(response.status).toBe(403);
-    });
-
-    it("should return 400 when resumeId is missing", async () => {
-      const request = new NextRequest(
-        "http://localhost:3000/api/analytics/dashboard?userId=test-user",
-        { headers: { authorization: "Bearer test-token" }, method: "GET" }
-      );
-
-      const response = await GET(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(data.success).toBe(false);
-      expect(data.message).toBe("Missing resumeId or userId");
-    });
-
-    it("should return 400 when userId is missing", async () => {
-      // Mock getAuthenticatedUserId to return no userId
-      const mockGetAuthenticatedUserId = require("@/lib/utils/api-helpers")
-        .getAuthenticatedUserId as jest.Mock;
-      mockGetAuthenticatedUserId.mockImplementationOnce(async () => ({
-        userId: null,
-        error: NextResponse.json(
-          { success: false, message: "Unauthorized" },
-          { status: 401 }
-        ),
-      }));
-
-      const request = new NextRequest(
-        "http://localhost:3000/api/analytics/dashboard?resumeId=test-resume",
-        {
-          headers: { authorization: "Bearer invalid-token" },
-          method: "GET",
-        }
-      );
-
-      const response = await GET(request);
-
-      expect(response.status).toBe(401);
-    });
-
-    it("should return 400 when both resumeId and userId are missing", async () => {
-      const request = new NextRequest(
-        "http://localhost:3000/api/analytics/dashboard",
-        { headers: { authorization: "Bearer test-token" }, method: "GET" }
-      );
-
-      const response = await GET(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(data.success).toBe(false);
-      expect(data.message).toBe("Missing resumeId or userId");
-    });
-
-    it("should handle malformed query parameters", async () => {
-      const request = new NextRequest(
-        "http://localhost:3000/api/analytics/dashboard?resumeId=&userId=test-user",
-        { headers: { authorization: "Bearer test-token" }, method: "GET" }
-      );
-
-      const response = await GET(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(data.success).toBe(false);
-      expect(data.message).toBe("Missing resumeId or userId");
-    });
-
-    it("should handle special characters and long IDs in resumeId and userId", async () => {
-      const specialResumeId = "resume-123_special@test.com";
-      const specialUserId = "user-456_special@test.com";
-
-      mockGet.mockResolvedValueOnce({
-        exists: true,
-        data: () => ({
-          resumeId: specialResumeId,
-          userId: specialUserId,
-          viewCount: 15,
-          uniqueViewCount: 8,
-          attractivenessScore: 75,
-          lastViewedAt: { toDate: () => new Date() },
-          createdAt: { toDate: () => new Date() },
-          updatedAt: { toDate: () => new Date() },
-        }),
-        docs: [],
+  describe("POST /api/analytics/dashboard", () => {
+    it("should return dashboard data for valid owner", async () => {
+      // Mock Service Response
+      (getDashboardAnalytics as jest.Mock).mockResolvedValue({
+        summary: { totalViews: 10 },
       });
 
-      const request = new NextRequest(
-        `http://localhost:3000/api/analytics/dashboard?resumeId=${encodeURIComponent(
-          specialResumeId
-        )}&userId=${encodeURIComponent(specialUserId)}`,
-        { headers: { authorization: "Bearer test-token" }, method: "GET" }
-      );
+      const req = new NextRequest("http://localhost/api/analytics/dashboard", {
+        method: "POST",
+        body: JSON.stringify({ resumeId: "resume-abc", userId: "user-123" }),
+      });
 
-      const response = await GET(request);
-      const data = await response.json();
+      const res = await POST(req);
+      const data = await res.json();
 
-      expect(response.status).toBe(200);
+      expect(res.status).toBe(200);
       expect(data.success).toBe(true);
-      expect(data.data.resumeId).toBe(specialResumeId);
-      expect(data.data.userId).toBe(specialUserId);
-    });
-  });
-
-  describe("POST endpoint", () => {
-    it("should return dashboard analytics for valid request", async () => {
-      const mockDashboard = {
-        summary: {
-          totalViews: 100,
-          uniqueViews: 50,
-          conversionRate: 0,
-          avgTimeOnResume: 45,
-        },
-        trends: [],
-        heatmaps: [],
-        recruiterActivity: [],
-        industryBenchmarks: [
-          {
-            industry: "Technology",
-            avgAttractivenessScore: 85,
-            avgViewCount: 120,
-            avgDownloadCount: 45,
-            topSkills: ["React", "TypeScript"],
-            benchmarkDate: new Date().toISOString(),
-          },
-        ],
-      };
-
-      (getDashboardAnalytics as jest.Mock).mockResolvedValue(mockDashboard);
-
-      const request = new NextRequest(
-        "http://localhost:3000/api/analytics/dashboard",
-        {
-          headers: { authorization: "Bearer test-token" },
-          method: "POST",
-          body: JSON.stringify({
-            resumeId: "test-resume",
-            userId: "test-user",
-          }),
-        }
-      );
-
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(200);
-      expect(data.success).toBe(true);
-      expect(data.data).toEqual(mockDashboard);
-      expect(data.timestamp).toBeDefined();
-      expect(getDashboardAnalytics).toHaveBeenCalled();
+      expect(data.data.summary.totalViews).toBe(10);
     });
 
-    it("should return 401 when auth error occurs in POST", async () => {
-      const mockGetAuthenticatedUserId = require("@/lib/utils/api-helpers")
-        .getAuthenticatedUserId as jest.Mock;
-      mockGetAuthenticatedUserId.mockResolvedValueOnce({
+    it("should return 400 for invalid JSON", async () => {
+      const req = new NextRequest("http://localhost/api/analytics/dashboard", {
+        method: "POST",
+        body: "invalid-json{",
+      });
+
+      const res = await POST(req);
+      const data = await res.json();
+
+      expect(res.status).toBe(400);
+      expect(data.message).toMatch(/Missing resumeId or userId/);
+    });
+
+    it("should return 400 for missing resumeId", async () => {
+      const req = new NextRequest("http://localhost/api/analytics/dashboard", {
+        method: "POST",
+        body: JSON.stringify({ userId: "user-123" }),
+      });
+
+      const res = await POST(req);
+      expect(res.status).toBe(400);
+    });
+
+    it("should return 403 if accessing another user's data as non-admin", async () => {
+      // Auth user is "user-123", but requesting data for "user-456"
+      const req = new NextRequest("http://localhost/api/analytics/dashboard", {
+        method: "POST",
+        body: JSON.stringify({ resumeId: "resume-xyz", userId: "user-456" }),
+      });
+
+      // Mock user role lookup -> Not admin
+      mockGet.mockResolvedValue({
+        data: () => ({ role: "seeker" }),
+      });
+
+      const res = await POST(req);
+      // const data = await res.json();
+
+      expect(res.status).toBe(403);
+      expect(mockCollectionRef).toHaveBeenCalledWith("users");
+      expect(mockDoc).toHaveBeenCalledWith("user-123"); // Checks requester's role
+    });
+
+    it("should allow admin to access another user's data", async () => {
+      const req = new NextRequest("http://localhost/api/analytics/dashboard", {
+        method: "POST",
+        body: JSON.stringify({ resumeId: "resume-xyz", userId: "user-456" }),
+      });
+
+      // Mock user role lookup -> Admin
+      mockGet.mockResolvedValue({
+        data: () => ({ role: "admin" }),
+      });
+
+      (getDashboardAnalytics as jest.Mock).mockResolvedValue({
+        summary: { totalViews: 999 },
+      });
+
+      const res = await POST(req);
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data.data.summary.totalViews).toBe(999);
+    });
+
+    it("should propagate auth errors", async () => {
+      mockGetAuthenticatedUserId.mockResolvedValue({
         userId: null,
         error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
       });
 
-      const request = new NextRequest("http://localhost:3000/api/analytics/dashboard", {
+      const req = new NextRequest("http://localhost/api/analytics/dashboard", {
         method: "POST",
-        body: JSON.stringify({ resumeId: "test" }),
+        body: JSON.stringify({ resumeId: "123" }),
       });
 
-      const response = await POST(request);
-      expect(response.status).toBe(401);
+      const res = await POST(req);
+      expect(res.status).toBe(401);
     });
 
-    it("should allow admin to access other user's dashboard in POST", async () => {
-      const mockGetAuthenticatedUserId = require("@/lib/utils/api-helpers")
-        .getAuthenticatedUserId as jest.Mock;
-      mockGetAuthenticatedUserId.mockResolvedValueOnce({ userId: "admin-user", error: null });
+    it("should return 500 if service throws", async () => {
+      (getDashboardAnalytics as jest.Mock).mockRejectedValue(new Error("Service Bomb"));
 
-      mockGet.mockResolvedValueOnce({
-        exists: true,
+      const req = new NextRequest("http://localhost/api/analytics/dashboard", {
+        method: "POST",
+        body: JSON.stringify({ resumeId: "resume-abc", userId: "user-123" }),
+      });
+
+      const res = await POST(req);
+      expect(res.status).toBe(500);
+    });
+  });
+
+  describe("GET /api/analytics/dashboard", () => {
+    it("should return analytics summary for owner", async () => {
+      // Mock Service Response with full data
+      (getAnalytics as jest.Mock).mockResolvedValue({
+        analytics: {
+          views: { count: 50, uniqueViewers: 10, lastViewedAt: "2023-01-01" },
+          attractivenessScore: 90,
+          downloads: 5,
+          shares: 2,
+          lastUpdatedAt: "2023-01-01",
+        },
+      });
+
+      const req = new NextRequest(
+        "http://localhost/api/analytics/dashboard?resumeId=resume-abc&userId=user-123"
+      );
+
+      const res = await GET(req);
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data.data.viewCount).toBe(50);
+      expect(data.data.uniqueViewCount).toBe(10);
+      expect(data.data.attractivenessScore).toBe(90);
+    });
+
+    it("should handle missing optional analytics fields (robustness)", async () => {
+      // Mock Service Response with partial data
+      (getAnalytics as jest.Mock).mockResolvedValue({
+        analytics: {
+          // views is undefined
+          // downloads/shares undefined
+          // score undefined
+          lastUpdatedAt: null,
+        },
+      });
+
+      const req = new NextRequest(
+        "http://localhost/api/analytics/dashboard?resumeId=resume-abc&userId=user-123"
+      );
+
+      const res = await GET(req);
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      // Should fallback to 0
+      expect(data.data.viewCount).toBe(0);
+      expect(data.data.uniqueViewCount).toBe(0);
+      expect(data.data.downloadCount).toBe(0);
+      expect(data.data.attractivenessScore).toBe(0);
+      expect(data.data.lastViewedAt).toBeNull();
+    });
+
+    it("should return 400 if resumeId is missing", async () => {
+      const req = new NextRequest(
+        "http://localhost/api/analytics/dashboard?userId=user-123"
+      );
+      const res = await GET(req);
+      expect(res.status).toBe(400);
+    });
+
+    it("should return 403 if accessing another user as non-admin", async () => {
+      const req = new NextRequest(
+        "http://localhost/api/analytics/dashboard?resumeId=resume-xyz&userId=user-456"
+      );
+
+      // Auth user is user-123 (default). Target is user-456.
+      // Mock role -> seeker
+      mockGet.mockResolvedValue({
+        data: () => ({ role: "seeker" }),
+      });
+
+      const res = await GET(req);
+      expect(res.status).toBe(403);
+    });
+
+    it("should allow admin to access another user via GET", async () => {
+      const req = new NextRequest(
+        "http://localhost/api/analytics/dashboard?resumeId=resume-xyz&userId=user-456"
+      );
+
+      // Mock role -> admin
+      mockGet.mockResolvedValue({
         data: () => ({ role: "admin" }),
       });
+      (getAnalytics as jest.Mock).mockResolvedValue({ analytics: {} });
 
-      const request = new NextRequest("http://localhost:3000/api/analytics/dashboard", {
-        method: "POST",
-        body: JSON.stringify({ resumeId: "test", userId: "other-user" }),
-      });
-
-      const response = await POST(request);
-      expect(response.status).toBe(200);
+      const res = await GET(req);
+      expect(res.status).toBe(200);
     });
 
-    it("should return 400 when resumeId is missing from body", async () => {
-      const request = new NextRequest(
-        "http://localhost:3000/api/analytics/dashboard",
-        {
-          headers: { authorization: "Bearer test-token" },
-          method: "POST",
-          body: JSON.stringify({
-            userId: "test-user",
-          }),
-        }
+    it("should return 500 on service error", async () => {
+      (getAnalytics as jest.Mock).mockRejectedValue(new Error("DB Error"));
+      const req = new NextRequest(
+        "http://localhost/api/analytics/dashboard?resumeId=resume-abc&userId=user-123"
       );
-
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(data.success).toBe(false);
-      expect(data.message).toBe("Missing resumeId or userId");
-      expect(aggregateToDashboard).not.toHaveBeenCalled();
-    });
-
-    it("should return 400 when userId is missing from body", async () => {
-      // Mock getAuthenticatedUserId to return no userId
-      const mockGetAuthenticatedUserId = require("@/lib/utils/api-helpers")
-        .getAuthenticatedUserId as jest.Mock;
-      mockGetAuthenticatedUserId.mockImplementationOnce(async () => ({
-        userId: null,
-        error: NextResponse.json(
-          { success: false, message: "Unauthorized" },
-          { status: 401 }
-        ),
-      }));
-
-      const request = new NextRequest(
-        "http://localhost:3000/api/analytics/dashboard",
-        {
-          headers: { authorization: "Bearer invalid-token" },
-          method: "POST",
-          body: JSON.stringify({
-            resumeId: "test-resume",
-          }),
-        }
-      );
-
-      const response = await POST(request);
-
-      expect(response.status).toBe(401);
-      expect(aggregateToDashboard).not.toHaveBeenCalled();
-    });
-
-    it("should handle missing or invalid request body", async () => {
-      // Test empty body
-      const request1 = new NextRequest(
-        "http://localhost:3000/api/analytics/dashboard",
-        {
-          headers: { authorization: "Bearer test-token" },
-          method: "POST",
-          body: JSON.stringify({}),
-        }
-      );
-
-      const response1 = await POST(request1);
-      const data1 = await response1.json();
-
-      expect(response1.status).toBe(400);
-      expect(data1.success).toBe(false);
-      expect(data1.message).toBe("Missing resumeId or userId");
-
-      // Test invalid JSON
-      const request2 = new NextRequest(
-        "http://localhost:3000/api/analytics/dashboard",
-        {
-          headers: { authorization: "Bearer test-token" },
-          method: "POST",
-          body: "invalid json",
-        }
-      );
-
-      const response2 = await POST(request2);
-      expect(response2.status).toBe(400);
-      expect(aggregateToDashboard).not.toHaveBeenCalled();
-    });
-
-    it("should handle errors during dashboard aggregation", async () => {
-      (getDashboardAnalytics as jest.Mock).mockImplementation(() => {
-        throw new Error("Aggregation failed");
-      });
-
-      const request = new NextRequest(
-        "http://localhost:3000/api/analytics/dashboard",
-        {
-          headers: { authorization: "Bearer test-token" },
-          method: "POST",
-          body: JSON.stringify({
-            resumeId: "test-resume",
-            userId: "test-user",
-          }),
-        }
-      );
-
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(500);
-      expect(data.error).toBe("Failed to retrieve analytics dashboard");
+      const res = await GET(req);
+      expect(res.status).toBe(500);
     });
   });
 });

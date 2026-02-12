@@ -21,6 +21,7 @@ import {
   sanitizeForPrompt,
   QUERY_LIMITS,
 } from "./utils/promptSafety";
+import { checkRateLimit, RateLimitPresets } from "./middleware/rateLimiter";
 
 // Constants (loaded from config)
 const searchConfig = config.get("search");
@@ -82,7 +83,7 @@ async function generateQueryEmbedding(query: string): Promise<number[]> {
   const timeoutPromise = new Promise<never>((_, reject) => {
     setTimeout(
       () => reject(new Error("Gemini API timeout after 30 seconds")),
-      timeoutMs
+      timeoutMs,
     );
   });
 
@@ -96,7 +97,7 @@ async function generateQueryEmbedding(query: string): Promise<number[]> {
  * Gets user subscription tier
  */
 async function getUserTier(
-  userId: string
+  userId: string,
 ): Promise<"basic" | "premium" | "enterprise"> {
   const userDoc = await db.collection("users").doc(userId).get();
   const tier = userDoc.data()?.subscriptionTier;
@@ -109,12 +110,15 @@ async function getUserTier(
 }
 
 /**
- * Checks and decrements search quota for user
- * Returns true if search is allowed, false if quota exceeded
+ * Checks and decrements search quota for user.
+ * Uses Firestore transaction for atomicity — prevents race conditions
+ * when multiple concurrent requests arrive for the same user.
+ *
+ * Returns true if search is allowed, false if quota exceeded.
  */
 async function checkAndDecrementQuota(
   userId: string,
-  tier: "basic" | "premium" | "enterprise"
+  tier: "basic" | "premium" | "enterprise",
 ): Promise<{ allowed: boolean; remaining: number }> {
   // Basic users cannot use AI search
   if (tier === "basic") {
@@ -127,7 +131,7 @@ async function checkAndDecrementQuota(
   const result = await db.runTransaction(async (transaction) => {
     const quotaDoc = await transaction.get(quotaRef);
 
-    let monthlyLimit =
+    const monthlyLimit =
       tier === "enterprise"
         ? AI_SEARCH.ENTERPRISE_MONTHLY_QUOTA
         : AI_SEARCH.PREMIUM_MONTHLY_QUOTA;
@@ -146,7 +150,7 @@ async function checkAndDecrementQuota(
       return { allowed: false, remaining: 0 };
     }
 
-    // Increment usage
+    // Increment usage atomically within the same transaction
     transaction.set(
       quotaRef,
       {
@@ -154,9 +158,10 @@ async function checkAndDecrementQuota(
         month: monthKey,
         usage: currentUsage + 1,
         tier,
-        lastUpdated: new Date().toISOString(),
+        limit: monthlyLimit,
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
       },
-      { merge: true }
+      { merge: true },
     );
 
     return { allowed: true, remaining: monthlyLimit - currentUsage - 1 };
@@ -174,13 +179,25 @@ const searchResumesAIHandler = async (
     filters?: SearchFilters;
     limit?: number;
   },
-  context: functions.https.CallableContext
+  context: functions.https.CallableContext,
 ) => {
   // Verify authentication
   if (!context.auth) {
     throw new functions.https.HttpsError(
       "unauthenticated",
-      "Must be authenticated to search"
+      "Must be authenticated to search",
+    );
+  }
+
+  // Rate limiting
+  const rateLimit = await checkRateLimit(
+    context.auth.uid,
+    RateLimitPresets.SEARCH,
+  );
+  if (!rateLimit.allowed) {
+    throw new functions.https.HttpsError(
+      "resource-exhausted",
+      `Rate limit exceeded. Try again in ${rateLimit.retryAfter} seconds.`,
     );
   }
 
@@ -190,7 +207,7 @@ const searchResumesAIHandler = async (
   if (!query || typeof query !== "string") {
     throw new functions.https.HttpsError(
       "invalid-argument",
-      "Query string is required"
+      "Query string is required",
     );
   }
 
@@ -200,14 +217,14 @@ const searchResumesAIHandler = async (
   if (trimmedQuery.length < QUERY_LIMITS.MIN_LENGTH) {
     throw new functions.https.HttpsError(
       "invalid-argument",
-      `Query must be at least ${QUERY_LIMITS.MIN_LENGTH} characters`
+      `Query must be at least ${QUERY_LIMITS.MIN_LENGTH} characters`,
     );
   }
 
   if (trimmedQuery.length > QUERY_LIMITS.MAX_LENGTH) {
     throw new functions.https.HttpsError(
       "invalid-argument",
-      `Query must be at most ${QUERY_LIMITS.MAX_LENGTH} characters`
+      `Query must be at most ${QUERY_LIMITS.MAX_LENGTH} characters`,
     );
   }
 
@@ -215,16 +232,19 @@ const searchResumesAIHandler = async (
   if (containsPromptInjection(trimmedQuery)) {
     functions.logger.warn(
       `[SECURITY] Prompt injection attempt detected from user ${context.auth.uid}`,
-      { query: trimmedQuery.slice(0, 50) }
+      { query: trimmedQuery.slice(0, 50) },
     );
     throw new functions.https.HttpsError(
       "invalid-argument",
-      "Invalid query content"
+      "Invalid query content",
     );
   }
 
   // Security: Sanitize query before embedding generation
-  const sanitizedQuery = sanitizeForPrompt(trimmedQuery, QUERY_LIMITS.MAX_LENGTH);
+  const sanitizedQuery = sanitizeForPrompt(
+    trimmedQuery,
+    QUERY_LIMITS.MAX_LENGTH,
+  );
 
   const userId = context.auth.uid;
   const devBypass = isDevBypassEnabled();
@@ -232,7 +252,7 @@ const searchResumesAIHandler = async (
   // Log dev bypass status
   if (devBypass) {
     functions.logger.info(
-      `[DEV BYPASS] Skipping role/tier/quota checks for user ${userId}`
+      `[DEV BYPASS] Skipping role/tier/quota checks for user ${userId}`,
     );
   }
 
@@ -244,7 +264,7 @@ const searchResumesAIHandler = async (
     if (userRole !== "recruiter" && userRole !== "admin") {
       throw new functions.https.HttpsError(
         "permission-denied",
-        "Only recruiters can use AI search"
+        "Only recruiters can use AI search",
       );
     }
   }
@@ -262,7 +282,7 @@ const searchResumesAIHandler = async (
         "resource-exhausted",
         tier === "basic"
           ? "AI Search requires Premium or Enterprise subscription"
-          : "Monthly search quota exceeded. Upgrade to Enterprise for unlimited searches."
+          : "Monthly search quota exceeded. Upgrade to Enterprise for unlimited searches.",
       );
     }
     quotaRemaining = quotaCheck.remaining;
@@ -287,7 +307,7 @@ const searchResumesAIHandler = async (
       if (fallbackSearchProvider) {
         functions.logger.error(
           "Primary AI search provider failed. Falling back to legacy provider.",
-          providerError
+          providerError,
         );
         providerResult = await fallbackSearchProvider.search(queryEmbedding, {
           limit,
@@ -298,13 +318,13 @@ const searchResumesAIHandler = async (
       }
     }
 
-    console.log(
+    functions.logger.info(
       "[AI_SEARCH] Provider=",
       providerResult.metadata.provider,
       "scanned=",
       providerResult.metadata.scannedCount,
       "limit=",
-      limit
+      limit,
     );
 
     const results: FormattedSearchResult[] = providerResult.matches.map(
@@ -321,7 +341,7 @@ const searchResumesAIHandler = async (
             [],
           similarityScore: Math.round(score * 100) / 100,
         };
-      }
+      },
     );
 
     // Log search for analytics
@@ -343,7 +363,7 @@ const searchResumesAIHandler = async (
     functions.logger.error("AI search failed:", error);
     throw new functions.https.HttpsError(
       "internal",
-      "Search failed. Please try again."
+      "Search failed. Please try again.",
     );
   }
 };
@@ -363,13 +383,25 @@ export const searchResumesAI = functions
  * Get remaining search quota for user
  */
 const getSearchQuotaHandler = async (
-  data: any,
-  context: functions.https.CallableContext
+  _data: unknown,
+  context: functions.https.CallableContext,
 ) => {
   if (!context.auth) {
     throw new functions.https.HttpsError(
       "unauthenticated",
-      "Must be authenticated"
+      "Must be authenticated",
+    );
+  }
+
+  // Rate limiting (lightweight check for quota endpoint)
+  const rateLimit = await checkRateLimit(
+    context.auth.uid,
+    RateLimitPresets.SEARCH,
+  );
+  if (!rateLimit.allowed) {
+    throw new functions.https.HttpsError(
+      "resource-exhausted",
+      `Rate limit exceeded. Try again in ${rateLimit.retryAfter} seconds.`,
     );
   }
 

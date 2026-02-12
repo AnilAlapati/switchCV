@@ -14,10 +14,32 @@ import {
   parseApprovalToken,
 } from "@/lib/utils/approval-tokens";
 import { logger } from "@/lib/logger";
+import { checkRateLimit } from "@/lib/utils/rateLimit";
 
 export async function GET(request: NextRequest) {
+  // 1. Rate Limiting (Public endpoint protection)
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  const ip = forwardedFor?.split(",")[0]?.trim() || "unknown";
+  const rateLimitResult = await checkRateLimit(`approve-user:${ip}`, {
+    limit: 10,
+    windowMs: 60 * 1000,
+  });
+
+  if (!rateLimitResult.allowed) {
+    return new NextResponse(
+      "Too many requests. Please try again later.",
+      { status: 429 }
+    );
+  }
+
   const searchParams = request.nextUrl.searchParams;
   const token = searchParams.get("token");
+
+  // Headers for all responses
+  const headers = {
+    "Content-Type": "text/html",
+    "Cache-Control": "no-store, max-age=0",
+  };
 
   if (!token) {
     return new NextResponse(

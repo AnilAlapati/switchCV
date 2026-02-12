@@ -102,19 +102,21 @@ describe("Admin Migrate Resume IDs API", () => {
       if (col === "resumes") {
         return {
           where: jest.fn(() => ({
-            get: jest.fn().mockResolvedValue({
-              size: 2,
-              docs: [
-                {
-                  id: "doc-1",
-                  data: () => ({ userId: "user-1", title: "Resume 1" }),
-                },
-                {
-                  id: "doc-2",
-                  data: () => ({ userId: "user-2", title: "Resume 2" }),
-                },
-              ],
-            }),
+            limit: jest.fn(() => ({
+              get: jest.fn().mockResolvedValue({
+                size: 2,
+                docs: [
+                  {
+                    id: "doc-1",
+                    data: () => ({ userId: "user-1", title: "Resume 1" }),
+                  },
+                  {
+                    id: "doc-2",
+                    data: () => ({ userId: "user-2", title: "Resume 2" }),
+                  },
+                ],
+              }),
+            })),
           })),
         };
       }
@@ -163,15 +165,17 @@ describe("Admin Migrate Resume IDs API", () => {
       if (col === "resumes") {
         return {
           where: jest.fn(() => ({
-            get: jest.fn().mockResolvedValue({
-              size: 1,
-              docs: [
-                {
-                  id: "doc-1",
-                  data: () => ({ userId: "user-1", title: "Resume 1" }),
-                },
-              ],
-            }),
+            limit: jest.fn(() => ({
+              get: jest.fn().mockResolvedValue({
+                size: 1,
+                docs: [
+                  {
+                    id: "doc-1",
+                    data: () => ({ userId: "user-1", title: "Resume 1" }),
+                  },
+                ],
+              }),
+            })),
           })),
         };
       }

@@ -1,6 +1,8 @@
 import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
 
+const regionalFunctions = functions.region("us-central1");
+
 // Initialize the Firebase Admin SDK once at the top level
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -21,7 +23,7 @@ function isProductionEnvironment(): boolean {
 
 // ==================== JOB MATCHING ====================
 
-export const generateJobMatchSuggestions = functions
+export const generateJobMatchSuggestions = regionalFunctions
   .runWith({
     secrets: ["GEMINI_API_KEY", "GROQ_API_KEY", "OPENAI_API_KEY"],
     timeoutSeconds: 60,
@@ -36,12 +38,12 @@ export const generateJobMatchSuggestions = functions
 // ==================== EMAIL NOTIFICATIONS ====================
 // SMTP credentials are loaded from .env files, not Secret Manager
 
-export const onUserCreated = functions.auth.user().onCreate(async (user) => {
+export const onUserCreated = regionalFunctions.auth.user().onCreate(async (user) => {
   const { onUserCreatedHandler } = await import("./emailFunctions");
   return onUserCreatedHandler(user);
 });
 
-export const onRecruiterRequestCreated = functions.firestore
+export const onRecruiterRequestCreated = regionalFunctions.firestore
   .document("recruiterRequests/{requestId}")
   .onCreate(async (snap, context) => {
     const { onRecruiterRequestCreatedHandler } =
@@ -49,7 +51,7 @@ export const onRecruiterRequestCreated = functions.firestore
     return onRecruiterRequestCreatedHandler(snap, context);
   });
 
-export const onRecruiterRequestApproved = functions.firestore
+export const onRecruiterRequestApproved = regionalFunctions.firestore
   .document("recruiterRequests/{requestId}")
   .onUpdate(async (change, context) => {
     const { onRecruiterRequestApprovedHandler } =
@@ -57,7 +59,7 @@ export const onRecruiterRequestApproved = functions.firestore
     return onRecruiterRequestApprovedHandler(change, context);
   });
 
-export const sendProfileViewDigest = functions.pubsub
+export const sendProfileViewDigest = regionalFunctions.pubsub
   .schedule("every monday 09:00")
   .timeZone("UTC")
   .onRun(async (context) => {
@@ -71,7 +73,7 @@ export const sendProfileViewDigest = functions.pubsub
     return sendProfileViewDigestHandler(context);
   });
 
-export const notifyAdminSuspiciousActivity = functions.https.onCall(
+export const notifyAdminSuspiciousActivity = regionalFunctions.https.onCall(
   async (data, context) => {
     const { notifyAdminSuspiciousActivityHandler } =
       await import("./emailFunctions");
@@ -79,14 +81,14 @@ export const notifyAdminSuspiciousActivity = functions.https.onCall(
   },
 );
 
-export const resendVerificationEmail = functions.https.onCall(
+export const resendVerificationEmail = regionalFunctions.https.onCall(
   async (data, context) => {
     const { resendVerificationEmailHandler } = await import("./emailFunctions");
     return resendVerificationEmailHandler(data, context);
   },
 );
 
-export const cleanupAuditLogs = functions.pubsub
+export const cleanupAuditLogs = regionalFunctions.pubsub
   .schedule("every day 02:00")
   .timeZone("UTC")
   .onRun(async (context) => {
@@ -102,7 +104,7 @@ export const cleanupAuditLogs = functions.pubsub
 
 // ==================== DATA SYNC & FAN-OUT ====================
 
-export const fanOutResumeDocuments = functions.firestore
+export const fanOutResumeDocuments = regionalFunctions.firestore
   .document("resumes/{resumeId}")
   .onWrite(async (change, context) => {
     const { fanOutResumeDocumentsHandler } =
@@ -110,7 +112,7 @@ export const fanOutResumeDocuments = functions.firestore
     return fanOutResumeDocumentsHandler(change, context);
   });
 
-export const indexResumeOnWrite = functions
+export const indexResumeOnWrite = regionalFunctions
   .runWith({
     secrets: ["GEMINI_API_KEY"],
   })
@@ -120,7 +122,7 @@ export const indexResumeOnWrite = functions
     return indexResumeOnWriteHandler(change, context);
   });
 
-export const reindexResume = functions
+export const reindexResume = regionalFunctions
   .runWith({
     secrets: ["GEMINI_API_KEY"],
   })
@@ -131,7 +133,7 @@ export const reindexResume = functions
 
 // ==================== SEARCH ====================
 
-export const searchResumesAI = functions
+export const searchResumesAI = regionalFunctions
   .runWith({
     secrets: ["GEMINI_API_KEY"],
   })
@@ -140,26 +142,26 @@ export const searchResumesAI = functions
     return searchResumesAIHandler(data, context);
   });
 
-export const getSearchQuota = functions.https.onCall(async (data, context) => {
+export const getSearchQuota = regionalFunctions.https.onCall(async (data, context) => {
   const { getSearchQuotaHandler } = await import("./searchResumeService");
   return getSearchQuotaHandler(data, context);
 });
 
 // ==================== AUTH / ADMIN ====================
 
-export const onUserRoleChanged = functions.firestore
+export const onUserRoleChanged = regionalFunctions.firestore
   .document("users/{userId}")
   .onWrite(async (change, context) => {
     const { onUserRoleChangedHandler } = await import("./authFunctions");
     return onUserRoleChangedHandler(change, context);
   });
 
-export const setUserRole = functions.https.onCall(async (data, context) => {
+export const setUserRole = regionalFunctions.https.onCall(async (data, context) => {
   const { setUserRoleHandler } = await import("./authFunctions");
   return setUserRoleHandler(data, context);
 });
 
-export const syncAdminWhitelist = functions.firestore
+export const syncAdminWhitelist = regionalFunctions.firestore
   .document("system/admins/whitelist/{email}")
   .onWrite(async (change, context) => {
     const { syncAdminWhitelistHandler } = await import("./adminService");
@@ -168,7 +170,7 @@ export const syncAdminWhitelist = functions.firestore
 
 // ==================== RESUME GENERATION ====================
 
-export const generateResumeContent = functions
+export const generateResumeContent = regionalFunctions
   .runWith({
     secrets: ["GEMINI_API_KEY", "GROQ_API_KEY", "OPENAI_API_KEY"],
   })
@@ -178,7 +180,7 @@ export const generateResumeContent = functions
   });
 
 // Async resume generation processor (Cloud Task handler)
-export const processResumeGenerationAsync = functions
+export const processResumeGenerationAsync = regionalFunctions
   .runWith({
     secrets: ["GEMINI_API_KEY", "GROQ_API_KEY", "OPENAI_API_KEY"],
     timeoutSeconds: 540, // 9 minutes max
@@ -192,7 +194,7 @@ export const processResumeGenerationAsync = functions
 
 // ==================== ANALYTICS ====================
 
-export const aggregateGlobalStats = functions
+export const aggregateGlobalStats = regionalFunctions
   .runWith({ timeoutSeconds: 60, memory: "256MB" })
   .pubsub.schedule("0 * * * *")
   .timeZone("UTC")
@@ -207,7 +209,7 @@ export const aggregateGlobalStats = functions
     return aggregateGlobalStatsHandler(context);
   });
 
-export const aggregateAnalyticsDaily = functions.pubsub
+export const aggregateAnalyticsDaily = regionalFunctions.pubsub
   .schedule("0 1 * * *")
   .timeZone("UTC")
   .onRun(async (context) => {
@@ -222,7 +224,7 @@ export const aggregateAnalyticsDaily = functions.pubsub
     return aggregateAnalyticsDailyHandler(context);
   });
 
-export const cleanupAnalyticsEvents = functions.pubsub
+export const cleanupAnalyticsEvents = regionalFunctions.pubsub
   .schedule("0 2 * * 0")
   .timeZone("UTC")
   .onRun(async (context) => {
@@ -239,7 +241,7 @@ export const cleanupAnalyticsEvents = functions.pubsub
 
 // ==================== CLEANUP TASKS ====================
 
-export const cleanupExpiredResumes = functions.pubsub
+export const cleanupExpiredResumes = regionalFunctions.pubsub
   .schedule("10 2 * * *")
   .timeZone("UTC")
   .onRun(async (context) => {
@@ -254,7 +256,7 @@ export const cleanupExpiredResumes = functions.pubsub
     return cleanupExpiredResumesHandler(context);
   });
 
-export const cleanupRateLimits = functions.pubsub
+export const cleanupRateLimits = regionalFunctions.pubsub
   .schedule("every 24 hours")
   .timeZone("UTC")
   .onRun(async (context) => {
@@ -269,7 +271,7 @@ export const cleanupRateLimits = functions.pubsub
     return cleanupRateLimitsHandler(context);
   });
 
-export const cleanupRecruiterSearchHistory = functions.pubsub
+export const cleanupRecruiterSearchHistory = regionalFunctions.pubsub
   .schedule("0 3 * * *")
   .timeZone("UTC")
   .onRun(async (context) => {
@@ -284,13 +286,28 @@ export const cleanupRecruiterSearchHistory = functions.pubsub
     return cleanupRecruiterSearchHistoryHandler(context);
   });
 
+export const notifyExpiringResumes = regionalFunctions.pubsub
+  .schedule("0 9 * * *") // Daily at 9 AM UTC
+  .timeZone("UTC")
+  .onRun(async (context) => {
+    const { notifyExpiringResumesHandler } = await import(
+      "./scheduled/notifyExpiringResumes"
+    );
+    return notifyExpiringResumesHandler(context);
+  });
+
 // ==================== BILLING ====================
 
-export const aggregateBilling = functions.pubsub
+export const aggregateBilling = regionalFunctions.pubsub
   .schedule("every 5 minutes")
   .timeZone("UTC")
   .onRun(async (context) => {
-    // Billing aggregation should run in all environments to track costs
+    if (!isProductionEnvironment()) {
+      functions.logger.info(
+        "[COST GUARD] aggregateBilling blocked in dev environment",
+      );
+      return { skipped: true, reason: "dev environment" };
+    }
     const { aggregateBillingHandler } = await import("./billingService");
     return aggregateBillingHandler(context);
   });
@@ -301,7 +318,7 @@ export const aggregateBilling = functions.pubsub
  * Budget Monitor — runs hourly, emails when spending exceeds 70%/90%/100% of monthly cap.
  * Uses existing AlertManager → emailService pipeline for notifications.
  */
-export const budgetMonitor = functions.pubsub
+export const budgetMonitor = regionalFunctions.pubsub
   .schedule("0 * * * *") // Every hour, on the hour
   .timeZone("UTC")
   .onRun(async (context) => {
@@ -319,7 +336,7 @@ export const budgetMonitor = functions.pubsub
  * Health Monitor — runs every 30 minutes, emails when Firestore/Gemini/SMTP are down.
  * Tracks consecutive failures, sends recovery notifications when services come back.
  */
-export const healthMonitor = functions.pubsub
+export const healthMonitor = regionalFunctions.pubsub
   .schedule("*/30 * * * *") // Every 30 minutes
   .timeZone("UTC")
   .onRun(async (context) => {
@@ -332,3 +349,8 @@ export const healthMonitor = functions.pubsub
     const { healthMonitorHandler } = await import("./scheduled/healthMonitor");
     return healthMonitorHandler(context);
   });
+
+/**
+ * Secret Rotation Monitor — runs daily to check for expiring secrets.
+ */
+export { checkSecretRotation } from "./scheduled/secretRotation";

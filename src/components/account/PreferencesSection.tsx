@@ -24,7 +24,7 @@ export function PreferencesSection(): ReactElement | null {
   const { user } = useAuth();
   const { data: settings, mutate } = useSWR<Settings>(
     user ? `/api/user/settings?userId=${user.uid}` : null,
-    fetcher
+    fetcher,
   );
 
   const [notifications, setNotifications] = useState({
@@ -48,17 +48,11 @@ export function PreferencesSection(): ReactElement | null {
 
   const savePreferences = async (
     newNotifications: typeof notifications,
-    newPrivacy: typeof privacy
+    newPrivacy: typeof privacy,
   ): Promise<void> => {
     if (!user) return;
 
     try {
-      // Optimistic update
-      mutate(
-        { ...settings!, notifications: newNotifications, privacy: newPrivacy },
-        false
-      );
-
       const response = await fetch("/api/user/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -73,11 +67,18 @@ export function PreferencesSection(): ReactElement | null {
         throw new Error("Failed to save settings");
       }
 
+      // Update SWR cache AFTER server confirms
+      await mutate(
+        { ...settings!, notifications: newNotifications, privacy: newPrivacy },
+        false,
+      );
+
       toast.success("Preferences saved");
-      mutate(); // Revalidate
     } catch {
-      toast.error("Failed to save changes");
-      mutate();
+      toast.error("Failed to save changes. Reverting.");
+      // Revalidate to restore server state
+      await mutate();
+      // Re-sync local state from server
     }
   };
 
@@ -115,7 +116,9 @@ export function PreferencesSection(): ReactElement | null {
             </svg>
           </div>
           <div>
-            <h2 className="text-2xl font-serif font-bold text-black">Preferences</h2>
+            <h2 className="text-2xl font-serif font-bold text-black">
+              Preferences
+            </h2>
             <p className="text-gray-500 text-sm font-sans">
               Customize your notifications and privacy
             </p>
@@ -138,14 +141,16 @@ export function PreferencesSection(): ReactElement | null {
                 </div>
                 <button
                   onClick={() => toggleNotification("marketing")}
-                  className={`relative inline-flex h-6 w-11 items-center transition-colors ${notifications.marketing ? "bg-black" : "bg-gray-300"
-                    }`}
+                  className={`relative inline-flex h-6 w-11 items-center transition-colors ${
+                    notifications.marketing ? "bg-black" : "bg-gray-300"
+                  }`}
                 >
                   <span
-                    className={`inline-block h-4 w-4 transform bg-white transition-transform ${notifications.marketing
+                    className={`inline-block h-4 w-4 transform bg-white transition-transform ${
+                      notifications.marketing
                         ? "translate-x-6"
                         : "translate-x-1"
-                      }`}
+                    }`}
                   />
                 </button>
               </div>
@@ -159,12 +164,14 @@ export function PreferencesSection(): ReactElement | null {
                 </div>
                 <button
                   onClick={() => toggleNotification("security")}
-                  className={`relative inline-flex h-6 w-11 items-center transition-colors ${notifications.security ? "bg-black" : "bg-gray-300"
-                    }`}
+                  className={`relative inline-flex h-6 w-11 items-center transition-colors ${
+                    notifications.security ? "bg-black" : "bg-gray-300"
+                  }`}
                 >
                   <span
-                    className={`inline-block h-4 w-4 transform bg-white transition-transform ${notifications.security ? "translate-x-6" : "translate-x-1"
-                      }`}
+                    className={`inline-block h-4 w-4 transform bg-white transition-transform ${
+                      notifications.security ? "translate-x-6" : "translate-x-1"
+                    }`}
                   />
                 </button>
               </div>
@@ -186,12 +193,14 @@ export function PreferencesSection(): ReactElement | null {
                 </div>
                 <button
                   onClick={() => togglePrivacy("profilePublic")}
-                  className={`relative inline-flex h-6 w-11 items-center transition-colors ${privacy.profilePublic ? "bg-black" : "bg-gray-300"
-                    }`}
+                  className={`relative inline-flex h-6 w-11 items-center transition-colors ${
+                    privacy.profilePublic ? "bg-black" : "bg-gray-300"
+                  }`}
                 >
                   <span
-                    className={`inline-block h-4 w-4 transform bg-white transition-transform ${privacy.profilePublic ? "translate-x-6" : "translate-x-1"
-                      }`}
+                    className={`inline-block h-4 w-4 transform bg-white transition-transform ${
+                      privacy.profilePublic ? "translate-x-6" : "translate-x-1"
+                    }`}
                   />
                 </button>
               </div>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useTierLimits } from "@/hooks/useTierLimits";
+import { usePricing } from "@/hooks/usePricing";
 import { DashboardBackground } from "@/components/dashboard/DashboardBackground";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { useAuth } from "@/hooks/useAuth";
@@ -37,6 +38,8 @@ export default function SubscriptionPage() {
     loading: profileLoading,
   } = useUserProfile();
   const { limits, loading: limitsLoading } = useTierLimits();
+  const jobseekerPricing = usePricing("jobseeker");
+  const recruiterPricing = usePricing("recruiter");
 
   // Default to current role view, fallback to jobseeker
   const [viewRole, setViewRole] = useState<"jobseeker" | "recruiter">(
@@ -55,12 +58,14 @@ export default function SubscriptionPage() {
   }
 
   const getTiersForRole = (role: "jobseeker" | "recruiter") => {
+    const pricing = role === "recruiter" ? recruiterPricing : jobseekerPricing;
+
     if (role === "recruiter") {
       return [
         {
           id: "basic",
           name: "Recruiter Basic",
-          price: "Free",
+          price: pricing.basic.displayText,
           description: "Essential tools for finding talent.",
           features: [
             `${limits.basic.recruiterSearchLimit} AI Searches / month`,
@@ -72,7 +77,7 @@ export default function SubscriptionPage() {
         {
           id: "premium",
           name: "Recruiter Premium",
-          price: "$29",
+          price: pricing.premium.displayText,
           description: "High-volume recruitment with priority outreach.",
           highlight: true,
           features: [
@@ -86,7 +91,7 @@ export default function SubscriptionPage() {
         {
           id: "enterprise",
           name: "Enterprise",
-          price: "Custom",
+          price: pricing.enterprise.displayText,
           description: "Complete agency solution with custom scaling.",
           features: [
             "Unlimited Searches & Contacts",
@@ -103,7 +108,7 @@ export default function SubscriptionPage() {
       {
         id: "basic",
         name: "Standard",
-        price: "Free",
+        price: pricing.basic.displayText,
         description: "Everything you need to get noticed.",
         features: [
           `${limits.basic.resumeCreationLimit} Active Resume`,
@@ -115,7 +120,7 @@ export default function SubscriptionPage() {
       {
         id: "premium",
         name: "Premium Job Seeker",
-        price: "$12",
+        price: pricing.premium.displayText,
         description: "Dominate the market with AI-powered career growth.",
         highlight: true,
         features: [
@@ -129,7 +134,7 @@ export default function SubscriptionPage() {
       {
         id: "enterprise",
         name: "Career Mastery",
-        price: "$49",
+        price: pricing.enterprise.displayText,
         description: "Total career orchestration and exclusive networks.",
         features: [
           "Personalized Agent Orchestrator",

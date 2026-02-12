@@ -93,6 +93,7 @@ export async function POST(request: NextRequest) {
       .where("resumeId", "==", String(resumeId))
       .where("fromRecruiterId", "==", recruiterId) // Also check if THIS recruiter already requested
       .where("status", "==", "pending")
+      .limit(1)
       .get();
 
     if (!existingQuery.empty) {

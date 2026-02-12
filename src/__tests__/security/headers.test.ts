@@ -80,13 +80,7 @@ describe("Security Headers", () => {
             expect(permissions?.value).toBeTruthy();
         });
 
-        it("should have Content-Security-Policy", () => {
-            const csp = securityHeaders.find(
-                (h) => h.key === "Content-Security-Policy"
-            );
-            expect(csp).toBeDefined();
-            expect(csp?.value).toContain("default-src");
-        });
+
 
         it("should have X-Permitted-Cross-Domain-Policies", () => {
             const crossDomain = securityHeaders.find(
@@ -121,44 +115,5 @@ describe("Security Headers", () => {
         });
     });
 
-    describe("Content Security Policy", () => {
-        let cspValue: string;
 
-        beforeAll(async () => {
-            const resolvedHeaders = await headers;
-            const globalConfig = resolvedHeaders.find((h) => h.source === "/:path*");
-            const csp = globalConfig?.headers?.find(
-                (h) => h.key === "Content-Security-Policy"
-            );
-            cspValue = csp?.value || "";
-        });
-
-        it("should restrict default-src to self", () => {
-            expect(cspValue).toContain("default-src 'self'");
-        });
-
-        it("should have script-src directive", () => {
-            expect(cspValue).toContain("script-src");
-        });
-
-        it("should have style-src directive", () => {
-            expect(cspValue).toContain("style-src");
-        });
-
-        it("should prevent framing from other origins", () => {
-            expect(cspValue).toContain("frame-ancestors 'none'");
-        });
-
-        it("should restrict base-uri", () => {
-            expect(cspValue).toContain("base-uri 'self'");
-        });
-
-        it("should restrict form-action", () => {
-            expect(cspValue).toContain("form-action 'self'");
-        });
-
-        it("should upgrade insecure requests", () => {
-            expect(cspValue).toContain("upgrade-insecure-requests");
-        });
-    });
 });

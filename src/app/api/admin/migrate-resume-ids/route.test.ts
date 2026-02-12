@@ -64,6 +64,7 @@ describe("POST /api/admin/migrate-resume-ids", () => {
     // Mock resumes collection query
     const mockResumesQuery = {
       where: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
       get: jest.fn().mockResolvedValue({
         size: 2,
         docs: mockResumes,
@@ -162,6 +163,7 @@ describe("POST /api/admin/migrate-resume-ids", () => {
     // Mock resumes collection query
     const mockResumesQuery = {
       where: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
       get: jest.fn().mockResolvedValue({
         size: 1,
         docs: mockResumes,
@@ -250,6 +252,7 @@ describe("POST /api/admin/migrate-resume-ids", () => {
     // Mock resumes collection query
     const mockResumesQuery = {
       where: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
       get: jest.fn().mockResolvedValue({
         size: 2,
         docs: mockResumes,
@@ -324,6 +327,7 @@ describe("POST /api/admin/migrate-resume-ids", () => {
     // Mock resumes collection query
     const mockResumesQuery = {
       where: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
       get: jest.fn().mockResolvedValue({
         size: 0,
         docs: [],

@@ -33,7 +33,7 @@ jest.mock("@/lib/config.server", () => ({
 
 jest.mock("@/lib/services/quotaService", () => ({
   consumeQuota: jest.fn(),
-  QuotaExceededError: class extends Error {},
+  QuotaExceededError: class extends Error { },
 }));
 
 jest.mock("@/lib/logger", () => ({
@@ -85,6 +85,7 @@ describe("Recruiter Request Access API", () => {
       if (col === "recruiterRequests") {
         return {
           where: jest.fn().mockReturnThis(),
+          limit: jest.fn().mockReturnThis(),
           get: jest.fn().mockResolvedValue({ empty: true }),
           doc: jest.fn().mockReturnValue({
             set: jest.fn().mockResolvedValue({}),
@@ -153,6 +154,7 @@ describe("Recruiter Request Access API", () => {
       if (col === "recruiterRequests") {
         return {
           where: jest.fn().mockReturnThis(),
+          limit: jest.fn().mockReturnThis(),
           get: jest.fn().mockResolvedValue({ empty: false }),
         };
       }

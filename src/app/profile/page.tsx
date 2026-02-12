@@ -53,8 +53,7 @@ export default function ProfileEditor() {
         throw new Error("Failed to save profile");
       }
 
-      // Optimistic update: Update SWR cache immediately with current local state
-      // Disable revalidation to prevent fetching stale data from the 60s cache
+      // Update SWR cache AFTER server confirms
       await mutate(profile, { revalidate: false });
 
       logger.info({ userId: user.uid }, "Profile saved successfully");
@@ -62,7 +61,7 @@ export default function ProfileEditor() {
     } catch (error) {
       logger.error({ err: error, userId: user?.uid }, "Failed to save profile");
       setSaveMessage("Failed to save profile. Please try again.");
-      // Revalidate on error to ensure sync
+      // Revalidate on error to restore server state
       await mutate();
     } finally {
       setSaving(false);
@@ -152,10 +151,11 @@ export default function ProfileEditor() {
           <div className="flex justify-end items-center gap-4">
             {saveMessage && (
               <span
-                className={`text-sm ${saveMessage.includes("success")
-                  ? "text-green-600"
-                  : "text-red-600"
-                  }`}
+                className={`text-sm ${
+                  saveMessage.includes("success")
+                    ? "text-green-600"
+                    : "text-red-600"
+                }`}
               >
                 {saveMessage}
               </span>

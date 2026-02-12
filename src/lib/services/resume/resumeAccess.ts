@@ -6,6 +6,7 @@
 import { adminDb } from "@/lib/firebase-admin";
 import type { PublishedResume } from "@/types";
 import { logger } from "@/lib/logger";
+import { resolveResumeIsPublic } from "@/lib/utils/resumeVisibility";
 
 /**
  * Checks for granular access grants (e.g. recruiters).
@@ -94,11 +95,9 @@ export async function getResume(
     }
   }
 
-  // 4. Public Access
+  // 4. Public Access — uses canonical visibility resolution (single source of truth)
   if (
-    data.isPublic ||
-    data.visibility === "public" ||
-    data.published === true
+    resolveResumeIsPublic(data as Parameters<typeof resolveResumeIsPublic>[0])
   ) {
     const { sanitizeResumeForPublicView } =
       await import("@/lib/utils/resumeVisibility");

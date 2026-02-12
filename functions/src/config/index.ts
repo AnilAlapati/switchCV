@@ -1,11 +1,75 @@
 import * as functions from "firebase-functions";
 
+export interface EmailConfig {
+  service: string;
+  user?: string;
+  password?: string;
+  fromName: string;
+  enabled: boolean;
+  supportEmail: string;
+  adminEmail: string;
+}
+
+export interface AiConfig {
+  geminiApiKey?: string;
+  groqApiKey?: string;
+  openaiApiKey?: string;
+  defaultModel: string;
+  timeout: number;
+  maxRetries: number;
+}
+
+export interface AppConfig {
+  websiteUrl: string;
+  environment: string;
+  logLevel: string;
+}
+
+export interface RateLimitConfig {
+  aiGenerationPerHour: number;
+  jobMatchingPerHour: number;
+  analyticsPerMinute: number;
+}
+
+export interface SecurityConfig {
+  enableRateLimit: boolean;
+  enableCors: boolean;
+  enableHelmet: boolean;
+  corsOrigin: string[];
+}
+
+export interface DatabaseConfig {
+  maxRetries: number;
+  timeoutMs: number;
+  batchSize: number;
+}
+
+export interface SearchConfig {
+  embeddingModel: string;
+  vectorDimension: number;
+  maxResults: number;
+  minSimilarityScore: number;
+  premiumMonthlyQuota: number;
+  enterpriseMonthlyQuota: number;
+  quotaCollection: string;
+}
+
+export interface ConfigState {
+  email: EmailConfig;
+  ai: AiConfig;
+  app: AppConfig;
+  rateLimit: RateLimitConfig;
+  security: SecurityConfig;
+  database: DatabaseConfig;
+  search: SearchConfig;
+}
+
 /**
  * Configuration management with validation and defaults
  */
 export class ConfigManager {
   private static instance: ConfigManager;
-  private config: Map<string, any> = new Map();
+  private config: Partial<ConfigState> = {};
 
   private constructor() {
     this.loadConfig();
@@ -23,33 +87,36 @@ export class ConfigManager {
    */
   private loadConfig(): void {
     // Email configuration
-    this.config.set("email", {
+    this.config.email = {
       service: process.env.EMAIL_SERVICE || "gmail",
       user: process.env.GMAIL_USER || process.env.EMAIL_USER,
       password: process.env.GMAIL_APP_PASSWORD || process.env.EMAIL_PASSWORD,
       fromName: process.env.EMAIL_FROM_NAME || "SwitchCV",
       enabled: process.env.EMAIL_ENABLED !== "false",
-    });
+      // Centralized email addresses
+      supportEmail: "support@switchcv.com",
+      adminEmail: "admin@switchcv.app",
+    };
 
     // AI service configuration
-    this.config.set("ai", {
+    this.config.ai = {
       geminiApiKey: process.env.GEMINI_API_KEY,
       groqApiKey: process.env.GROQ_API_KEY,
       openaiApiKey: process.env.OPENAI_API_KEY,
       defaultModel: process.env.AI_DEFAULT_MODEL || "gemini-1.5-flash",
       timeout: parseInt(process.env.AI_TIMEOUT_MS || "30000", 10),
       maxRetries: parseInt(process.env.AI_MAX_RETRIES || "3", 10),
-    });
+    };
 
     // Application configuration
-    this.config.set("app", {
+    this.config.app = {
       websiteUrl: process.env.WEBSITE_URL || "https://switchcv.com",
       environment: process.env.NODE_ENV || "production",
       logLevel: process.env.LOG_LEVEL || "info",
-    });
+    };
 
     // Rate limiting configuration
-    this.config.set("rateLimit", {
+    this.config.rateLimit = {
       aiGenerationPerHour: parseInt(
         process.env.RATE_LIMIT_AI_GENERATION || "10",
         10,
@@ -62,7 +129,7 @@ export class ConfigManager {
         process.env.RATE_LIMIT_ANALYTICS || "100",
         10,
       ),
-    });
+    };
 
     // Security configuration
     // SECURITY: Default CORS to specific production domains, not 'true' (all origins)
@@ -79,28 +146,28 @@ export class ConfigManager {
       ? process.env.CORS_ORIGIN.split(",").map((o) => o.trim())
       : isDev
         ? [
-            ...defaultCorsOrigins,
-            "http://localhost:3000",
-            "http://localhost:3001",
-          ]
+          ...defaultCorsOrigins,
+          "http://localhost:3000",
+          "http://localhost:3001",
+        ]
         : defaultCorsOrigins;
 
-    this.config.set("security", {
+    this.config.security = {
       enableRateLimit: process.env.ENABLE_RATE_LIMIT !== "false",
       enableCors: process.env.ENABLE_CORS !== "false",
       enableHelmet: process.env.ENABLE_HELMET !== "false",
       corsOrigin,
-    });
+    };
 
     // Database configuration
-    this.config.set("database", {
+    this.config.database = {
       maxRetries: parseInt(process.env.DB_MAX_RETRIES || "3", 10),
       timeoutMs: parseInt(process.env.DB_TIMEOUT_MS || "10000", 10),
       batchSize: parseInt(process.env.DB_BATCH_SIZE || "500", 10),
-    });
+    };
 
     // Search configuration
-    this.config.set("search", {
+    this.config.search = {
       embeddingModel:
         process.env.SEARCH_EMBEDDING_MODEL || "text-embedding-004",
       vectorDimension: parseInt(
@@ -120,7 +187,7 @@ export class ConfigManager {
         10,
       ),
       quotaCollection: process.env.SEARCH_QUOTA_COLLECTION || "searchQuotas",
-    });
+    };
 
     this.validateConfig();
   }
@@ -133,23 +200,23 @@ export class ConfigManager {
     const errors: string[] = [];
 
     // Check AI configuration
-    const aiConfig = this.config.get("ai");
-    if (!aiConfig.geminiApiKey) {
+    const aiConfig = this.config.ai;
+    if (!aiConfig?.geminiApiKey) {
       warnings.push("GEMINI_API_KEY not set. AI features disabled.");
     }
 
     // Check email configuration
-    const emailConfig = this.config.get("email");
-    if (emailConfig.enabled && (!emailConfig.user || !emailConfig.password)) {
+    const emailConfig = this.config.email;
+    if (emailConfig?.enabled && (!emailConfig.user || !emailConfig.password)) {
       warnings.push(
         "Email credentials not configured. Email features may not work.",
       );
     }
 
     // Check app configuration
-    const appConfig = this.config.get("app");
+    const appConfig = this.config.app;
     if (
-      !appConfig.websiteUrl ||
+      !appConfig?.websiteUrl ||
       appConfig.websiteUrl === "https://switchcv.com"
     ) {
       warnings.push("WEBSITE_URL not set. Using default.");
@@ -170,41 +237,40 @@ export class ConfigManager {
     }
 
     functions.logger.info("Configuration loaded successfully", {
-      environment: appConfig.environment,
+      environment: appConfig?.environment,
       aiProviders: {
-        gemini: !!aiConfig.geminiApiKey,
-        groq: !!aiConfig.groqApiKey,
-        openai: !!aiConfig.openaiApiKey,
+        gemini: !!aiConfig?.geminiApiKey,
+        groq: !!aiConfig?.groqApiKey,
+        openai: !!aiConfig?.openaiApiKey,
       },
-      emailEnabled: emailConfig.enabled,
-      rateLimitEnabled: this.config.get("security").enableRateLimit,
+      emailEnabled: emailConfig?.enabled,
+      rateLimitEnabled: this.config.security?.enableRateLimit,
     });
   }
 
   /**
    * Get configuration value
    */
-  get<T = any>(category: string, key?: string): T {
-    const categoryConfig = this.config.get(category);
+  get<K extends keyof ConfigState>(category: K): ConfigState[K] {
+    const categoryConfig = this.config[category];
 
     if (!categoryConfig) {
       throw new Error(`Configuration category not found: ${category}`);
     }
 
-    if (key) {
-      return categoryConfig[key] as T;
-    }
-
-    return categoryConfig as T;
+    return categoryConfig as ConfigState[K];
   }
 
   /**
    * Check if a feature is enabled
    */
-  isEnabled(category: string, feature?: string): boolean {
+  isEnabled(category: keyof ConfigState, feature?: string): boolean {
     try {
-      const value = feature ? this.get(category, feature) : this.get(category);
-      return Boolean(value);
+      const catConfig = this.get(category);
+      if (feature && typeof catConfig === 'object') {
+        return Boolean((catConfig as any)[feature]);
+      }
+      return Boolean(catConfig);
     } catch {
       return false;
     }
@@ -213,11 +279,10 @@ export class ConfigManager {
   /**
    * Get all configuration (for debugging)
    */
-  getAll(): Record<string, any> {
-    const all: Record<string, any> = {};
-    this.config.forEach((value, key) => {
-      // Mask sensitive values
-      all[key] = this.maskSensitiveValues(value);
+  getAll(): Partial<ConfigState> {
+    const all: Partial<ConfigState> = {};
+    (Object.keys(this.config) as Array<keyof ConfigState>).forEach((key) => {
+      all[key] = this.maskSensitiveValues(this.config[key]);
     });
     return all;
   }
@@ -257,7 +322,7 @@ export class ConfigManager {
    * Reload configuration (useful for testing)
    */
   reload(): void {
-    this.config.clear();
+    this.config = {};
     this.loadConfig();
   }
 }
@@ -269,15 +334,15 @@ export const config = ConfigManager.getInstance();
  * Environment helper functions
  */
 export const isProduction = (): boolean => {
-  return config.get("app", "environment") === "production";
+  return config.get("app").environment === "production";
 };
 
 export const isDevelopment = (): boolean => {
-  return config.get("app", "environment") === "development";
+  return config.get("app").environment === "development";
 };
 
 export const isTest = (): boolean => {
-  return config.get("app", "environment") === "test";
+  return config.get("app").environment === "test";
 };
 
 /**

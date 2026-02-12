@@ -260,7 +260,9 @@ describe("POST /api/seed/generate", () => {
     const body = await response.json();
 
     expect(response.status).toBe(429);
-    expect(body.error).toBe("Limit reached");
+    expect(body.error).toBe(
+      "Monthly generation limit reached. Please upgrade your plan to generate more resumes."
+    );
     expect(response.headers.get("Retry-After")).toBeDefined();
   });
 

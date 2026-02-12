@@ -44,7 +44,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
 
       {error && (
         <div className="bg-rose-50 border border-rose-200 rounded-xl p-3">
-          <p className="text-rose-600 text-sm text-center">{error}</p>
+          <p className="text-rose-600 text-sm text-center" role="alert">{error}</p>
         </div>
       )}
 
@@ -54,7 +54,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         className="w-full py-3 px-6 glass-button font-bold rounded-xl"
       >
         {loading ? (
-          <div className="flex items-center justify-center">
+          <div className="flex items-center justify-center" role="status" aria-live="polite">
             <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
             Processing...
           </div>

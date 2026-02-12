@@ -10,6 +10,7 @@
 import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { checkRateLimit, RateLimitPresets } from "./middleware/rateLimiter";
 
 // Constants (mirrored from frontend config)
 const AI_SEARCH = {
@@ -204,6 +205,18 @@ const reindexResumeHandler = async (
     throw new functions.https.HttpsError(
       "unauthenticated",
       "Must be authenticated to reindex resumes"
+    );
+  }
+
+  // Rate limiting (using JOB_MATCHING preset as proxy for heavy op)
+  const rateLimit = await checkRateLimit(
+    context.auth.uid,
+    RateLimitPresets.JOB_MATCHING
+  );
+  if (!rateLimit.allowed) {
+    throw new functions.https.HttpsError(
+      "resource-exhausted",
+      `Rate limit exceeded. Try again in ${rateLimit.retryAfter} seconds.`
     );
   }
 

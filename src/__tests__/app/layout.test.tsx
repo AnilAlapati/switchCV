@@ -10,6 +10,13 @@ jest.mock("next/font/google", () => ({
   Merriweather: () => ({ variable: "--font-merriweather" }),
 }));
 
+// Mock next/headers
+jest.mock("next/headers", () => ({
+  headers: jest.fn().mockReturnValue({
+    get: jest.fn().mockReturnValue(null),
+  }),
+}));
+
 // Mock the useAuth hook
 jest.mock("../../hooks/useAuth", () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => (

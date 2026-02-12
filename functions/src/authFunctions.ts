@@ -1,5 +1,6 @@
 import * as admin from "firebase-admin";
 import * as functions from "firebase-functions/v1";
+import { checkRateLimit, RateLimitPresets } from "./middleware/rateLimiter";
 
 const SERVER_ROLE_MARKER = "system";
 const ALLOWED_ROLES = ["jobseeker", "recruiter", "admin"] as const;
@@ -62,9 +63,9 @@ const onUserRoleChangedHandler = async (
       role: role,
     });
 
-    console.log(`Updated custom claims for user ${userId} to role: ${role}`);
+    functions.logger.info(`Updated custom claims for user ${userId} to role: ${role}`);
   } catch (error) {
-    console.error(`Error updating custom claims for user ${userId}:`, error);
+    functions.logger.error(`Error updating custom claims for user ${userId}:`, error);
   }
 };
 
@@ -82,6 +83,18 @@ const setUserRoleHandler = async (
     throw new functions.https.HttpsError(
       "permission-denied",
       "Only admins can change user roles."
+    );
+  }
+
+  // Rate limiting for admin actions
+  const rateLimit = await checkRateLimit(
+    context.auth.uid,
+    RateLimitPresets.ADMIN
+  );
+  if (!rateLimit.allowed) {
+    throw new functions.https.HttpsError(
+      "resource-exhausted",
+      `Rate limit exceeded. Try again in ${rateLimit.retryAfter} seconds.`
     );
   }
 

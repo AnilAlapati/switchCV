@@ -47,15 +47,63 @@ const PROMPT_INJECTION_PATTERNS = [
  * @param input - The string to check for injection patterns
  * @returns true if injection patterns are detected, false otherwise
  */
+/**
+ * Checks if the input string contains potential prompt injection patterns.
+ * Includes advanced detection for Base64 and obfuscation attempts.
+ *
+ * @param input - The string to check for injection patterns
+ * @returns true if injection patterns are detected, false otherwise
+ */
 export function containsPromptInjection(input: string): boolean {
-    return PROMPT_INJECTION_PATTERNS.some((pattern) => pattern.test(input));
+    // 1. Check raw input against patterns
+    if (PROMPT_INJECTION_PATTERNS.some((pattern) => pattern.test(input))) {
+        return true;
+    }
+
+    // 2. Normalize and check again (handles some homoglyphs/unicode tricks)
+    const normalized = input.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+    if (
+        normalized !== input &&
+        PROMPT_INJECTION_PATTERNS.some((pattern) => pattern.test(normalized))
+    ) {
+        return true;
+    }
+
+    // 3. Remove zero-width characters and check again
+    const stripped = input.replace(/[\u200B-\u200D\uFEFF\u2060]/g, "");
+    if (
+        stripped !== input &&
+        PROMPT_INJECTION_PATTERNS.some((pattern) => pattern.test(stripped))
+    ) {
+        return true;
+    }
+
+    // 4. Check for Base64 encoded injections
+    const potentialBase64 = input.match(/[A-Za-z0-9+/]{20,}={0,2}/g);
+    if (potentialBase64) {
+        for (const segment of potentialBase64) {
+            try {
+                const decoded = Buffer.from(segment, "base64").toString("utf-8");
+                if (
+                    /[\w\s\-]/.test(decoded) &&
+                    PROMPT_INJECTION_PATTERNS.some((pattern) => pattern.test(decoded))
+                ) {
+                    return true;
+                }
+            } catch {
+                // Ignore invalid base64
+            }
+        }
+    }
+
+    return false;
 }
 
 /**
  * Sanitizes a string for safe inclusion in AI prompts.
  * Beyond basic validation, this adds additional safety measures:
- * - Removes any remaining special characters
- * - Normalizes whitespace
+ * - Removes zero-width characters
+ * - Normalizes whitespace and unicode
  * - Truncates to safe length
  *
  * @param input - The string to sanitize
@@ -65,9 +113,13 @@ export function containsPromptInjection(input: string): boolean {
 export function sanitizeForPrompt(input: string, maxLength = 500): string {
     return (
         input
-            // Normalize unicode to ASCII equivalents where possible
+            // Remove zero-width characters
+            .replace(/[\u200B-\u200D\uFEFF\u2060]/g, "")
+            // Normalize unicode
             .normalize("NFKD")
-            // Remove any non-basic characters that might have slipped through
+            // Remove combining diacritical marks
+            .replace(/[\u0300-\u036f]/g, "")
+            // Remove any non-basic characters
             .replace(/[^\w\s\-']/g, "")
             // Collapse multiple spaces/newlines
             .replace(/\s+/g, " ")

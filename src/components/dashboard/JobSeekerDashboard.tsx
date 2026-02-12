@@ -22,6 +22,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { logger } from "@/lib/logger";
 import { toast } from "sonner";
+import { resolveResumeIsPublic } from "@/lib/utils/resumeVisibility";
 import type { DashboardResume } from "@/types";
 
 interface JobSeekerDashboardProps {
@@ -93,12 +94,7 @@ export function JobSeekerDashboard({
   const resumeUrl =
     hasResume && resumeIdString ? getResumeUrl(resumeIdString) : null;
 
-  const isPublished = useMemo(() => {
-    if (!resume) return false;
-    if (typeof resume.isPublic === "boolean") return resume.isPublic;
-    if (resume.visibility === "public") return true;
-    return !!(resume.publishedAt && !resume.isBeingEdited);
-  }, [resume]);
+  const isPublished = useMemo(() => resolveResumeIsPublic(resume), [resume]);
 
   const [optimisticStatus, setOptimisticStatus] = useState<boolean | null>(
     null,
@@ -109,7 +105,7 @@ export function JobSeekerDashboard({
     if (!user || !resumeIdString) return;
 
     const previousStatus = currentStatus;
-    setOptimisticStatus(!previousStatus);
+    // Do NOT set optimistic state before server confirms — verify first, then update
     setIsUpdatingVisibility(true);
 
     try {
@@ -127,13 +123,23 @@ export function JobSeekerDashboard({
         throw new Error("Failed to update visibility");
       }
 
+      // Update local state AFTER server confirms
+      setOptimisticStatus(!previousStatus);
+
+      // Invalidate SWR cache to ensure consistency
       if (onRefreshResume) {
         onRefreshResume();
       }
+
+      toast.success(
+        !previousStatus
+          ? "Resume is now publicly visible"
+          : "Resume is now private",
+      );
     } catch (error) {
-      logger.error({ err: error }, "Error updating visibility:");
+      logger.error({ err: error }, "Error updating visibility");
       toast.error("Failed to update visibility settings.");
-      setOptimisticStatus(previousStatus);
+      // No state to revert — we didn't set it optimistically
     } finally {
       setIsUpdatingVisibility(false);
       setTimeout(() => setOptimisticStatus(null), 2000);

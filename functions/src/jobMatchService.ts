@@ -85,6 +85,8 @@ type CachedToken = {
 const TOKEN_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes fallback
 const MAX_CACHE_ENTRIES = 250;
 const tokenCache = new Map<string, CachedToken>();
+// In-flight dedup: prevents concurrent requests from duplicating verifyIdToken calls
+const pendingVerifications = new Map<string, Promise<admin.auth.DecodedIdToken>>();
 
 async function verifyIdTokenCached(
   token: string,
@@ -100,28 +102,43 @@ async function verifyIdTokenCached(
     return cached.decoded;
   }
 
-  const decoded = await admin.auth().verifyIdToken(token);
-  const expiresAt = Math.min(
-    now + TOKEN_CACHE_TTL_MS,
-    decoded.exp ? decoded.exp * 1000 : now + TOKEN_CACHE_TTL_MS,
-  );
+  // Return in-flight verification if one exists (prevents concurrent duplicate work)
+  const pending = pendingVerifications.get(cacheKey);
+  if (pending) return pending;
 
-  // Remove if exists to update position
-  if (tokenCache.has(cacheKey)) {
-    tokenCache.delete(cacheKey);
-  }
+  // Wrap the verification in a dedup promise
+  const verificationPromise = (async () => {
+    try {
+      const decoded = await admin.auth().verifyIdToken(token);
+      const verifyNow = Date.now();
+      const expiresAt = Math.min(
+        verifyNow + TOKEN_CACHE_TTL_MS,
+        decoded.exp ? decoded.exp * 1000 : verifyNow + TOKEN_CACHE_TTL_MS,
+      );
 
-  tokenCache.set(cacheKey, { decoded, expiresAt });
+      // Remove if exists to update position
+      if (tokenCache.has(cacheKey)) {
+        tokenCache.delete(cacheKey);
+      }
 
-  // Evict oldest if over limit
-  if (tokenCache.size > MAX_CACHE_ENTRIES) {
-    const oldestKey = tokenCache.keys().next().value;
-    if (oldestKey) {
-      tokenCache.delete(oldestKey);
+      tokenCache.set(cacheKey, { decoded, expiresAt });
+
+      // Evict oldest if over limit
+      if (tokenCache.size > MAX_CACHE_ENTRIES) {
+        const oldestKey = tokenCache.keys().next().value;
+        if (oldestKey) {
+          tokenCache.delete(oldestKey);
+        }
+      }
+
+      return decoded;
+    } finally {
+      pendingVerifications.delete(cacheKey);
     }
-  }
+  })();
 
-  return decoded;
+  pendingVerifications.set(cacheKey, verificationPromise);
+  return verificationPromise;
 }
 
 const normalize = (value: string): string => value.trim().toLowerCase();
@@ -393,8 +410,8 @@ ${jobDescription}
 
 Resume Skills: ${resumeData.skills.join(", ")}
 Resume Experience: ${resumeData.experience
-        .map((exp) => `${exp.title} at ${exp.company}`)
-        .join(", ")}
+          .map((exp) => `${exp.title} at ${exp.company}`)
+          .join(", ")}
 
 Provide:
 1. Skills match percentage
@@ -405,11 +422,9 @@ Provide:
       const aiAnalysis = await generateAiAnalysis(prompt, modelId);
       const insights = deriveDeterministicInsights(jobDescription, resumeData);
 
-      const deterministicSummary = `Deterministic insights:\n- Skill overlap: ${
-        insights.skillOverlapPercent
-      }%\n- Missing skills: ${
-        insights.missingSkills.slice(0, 5).join(", ") || "None"
-      }`;
+      const deterministicSummary = `Deterministic insights:\n- Skill overlap: ${insights.skillOverlapPercent
+        }%\n- Missing skills: ${insights.missingSkills.slice(0, 5).join(", ") || "None"
+        }`;
 
       return {
         analysis: `${aiAnalysis}\n\n${deterministicSummary}`.trim(),

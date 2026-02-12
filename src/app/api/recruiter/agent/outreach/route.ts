@@ -49,7 +49,8 @@ export async function POST(req: NextRequest) {
         // 2. Validation
         const result = OutreachRequestSchema.safeParse(body);
         if (!result.success) {
-            return handleApiError(null, "Invalid request body: " + result.error.message, 400);
+            logger.warn({ errors: result.error.issues }, "Invalid outreach request body");
+            return handleApiError(null, "Invalid request body", 400);
         }
 
         const { candidate, job, recruiter } = result.data;

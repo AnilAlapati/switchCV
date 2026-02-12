@@ -65,7 +65,8 @@ export class BillingService {
             return totalCost < cap;
         } catch (error) {
             functions.logger.error("Failed to check system budget:", error);
-            return true; // Fail open to keep system running, but log error
+            // Critical: Fail CLOSED to prevent unauthorized spending during outages
+            return false;
         }
     }
 
@@ -81,7 +82,8 @@ export class BillingService {
             const totalCost = userBillingRef.data()?.totalCost || 0;
             return totalCost < cap;
         } catch (error) {
-            return true;
+            functions.logger.error("Failed to check user budget:", error);
+            return false;
         }
     }
 }

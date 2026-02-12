@@ -13,6 +13,8 @@ interface ProfileDetailsProps {
   onCompanyNameChange: (value: string) => void;
   onSaveDisplayName: () => void;
   onSaveCompanyName: () => void;
+  displayNameError?: string;
+  companyNameError?: string;
 }
 
 export function ProfileDetails({
@@ -26,6 +28,8 @@ export function ProfileDetails({
   onCompanyNameChange,
   onSaveDisplayName,
   onSaveCompanyName,
+  displayNameError,
+  companyNameError,
 }: ProfileDetailsProps): ReactElement {
   return (
     <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden transition-all duration-300">
@@ -33,6 +37,7 @@ export function ProfileDetails({
         <div className="flex items-center gap-4 mb-8 border-b-2 border-gray-100 pb-6">
           <div className="w-12 h-12 bg-black flex items-center justify-center text-white">
             <svg
+              aria-hidden="true"
               className="w-6 h-6"
               fill="none"
               stroke="currentColor"
@@ -59,17 +64,20 @@ export function ProfileDetails({
         <div className="space-y-8">
           {/* Display Name */}
           <div className="group">
-            <label className="block text-[10px] font-mono font-bold text-gray-500 uppercase tracking-widest mb-2 ml-1">
+            <label htmlFor="profile-display-name" className="block text-[10px] font-mono font-bold text-gray-500 uppercase tracking-widest mb-2 ml-1">
               Display Name
             </label>
             <div className="relative flex items-center">
               <input
+                id="profile-display-name"
                 type="text"
                 value={displayName}
                 onChange={(e) => onDisplayNameChange(e.target.value)}
                 placeholder="Enter your display name"
                 disabled={savingDisplayName}
-                className="w-full bg-gray-50 border-2 border-gray-200 px-5 py-4 text-black font-medium placeholder-gray-400 focus:border-black focus:bg-white transition-all duration-200"
+                aria-describedby="display-name-hint"
+                aria-invalid={!!displayNameError}
+                className={`w-full bg-gray-50 border-2 px-5 py-4 text-black font-medium placeholder-gray-400 focus:border-black focus:bg-white transition-all duration-200 ${displayNameError ? 'border-red-500' : 'border-gray-200'}`}
               />
               <button
                 onClick={onSaveDisplayName}
@@ -79,25 +87,28 @@ export function ProfileDetails({
                 {savingDisplayName ? "Saving..." : "Save"}
               </button>
             </div>
-            <p className="text-gray-400 text-xs mt-2 ml-1 font-sans">
-              Visible to recruiters and other candidates
+            <p id="display-name-hint" className={`text-xs mt-2 ml-1 font-sans ${displayNameError ? 'text-red-500' : 'text-gray-400'}`}>
+              {displayNameError || "Visible to recruiters and other candidates"}
             </p>
           </div>
 
           {/* Company Name - Recruiter Only */}
           {showCompanyInput && (
             <div className="group animate-in fade-in slide-in-from-top-4 duration-300">
-              <label className="block text-[10px] font-mono font-bold text-gray-500 uppercase tracking-widest mb-2 ml-1">
+              <label htmlFor="profile-company-name" className="block text-[10px] font-mono font-bold text-gray-500 uppercase tracking-widest mb-2 ml-1">
                 Company Name
               </label>
               <div className="relative flex items-center">
                 <input
+                  id="profile-company-name"
                   type="text"
                   value={companyName}
                   onChange={(e) => onCompanyNameChange(e.target.value)}
                   placeholder="Enter your company name"
                   disabled={savingCompanyName}
-                  className="w-full bg-gray-50 border-2 border-gray-200 px-5 py-4 text-black font-medium placeholder-gray-400 focus:border-black focus:bg-white transition-all duration-200"
+                  aria-describedby="company-name-hint"
+                  aria-invalid={!!companyNameError}
+                  className={`w-full bg-gray-50 border-2 px-5 py-4 text-black font-medium placeholder-gray-400 focus:border-black focus:bg-white transition-all duration-200 ${companyNameError ? 'border-red-500' : 'border-gray-200'}`}
                 />
                 <button
                   onClick={onSaveCompanyName}
@@ -107,8 +118,8 @@ export function ProfileDetails({
                   {savingCompanyName ? "Saving..." : "Save"}
                 </button>
               </div>
-              <p className="text-gray-400 text-xs mt-2 ml-1 font-sans">
-                Displayed on your recruiter profile and job postings
+              <p id="company-name-hint" className={`text-xs mt-2 ml-1 font-sans ${companyNameError ? 'text-red-500' : 'text-gray-400'}`}>
+                {companyNameError || "Displayed on your recruiter profile and job postings"}
               </p>
             </div>
           )}

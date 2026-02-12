@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
     // Get all published resumes
     const resumesSnapshot = await collectionRef(COLLECTIONS.RESUMES)
       .where("published", "==", true)
+      .limit(500)
       .get();
 
     logger.info(`[Migration] Found ${resumesSnapshot.size} published resumes`);

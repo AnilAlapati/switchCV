@@ -56,8 +56,19 @@ async function getGenAIClient() {
   return genAI;
 }
 
-// Circuit breakers for AI services
+// Circuit breakers for AI services — one per model family for independent failure tracking
 const geminiCircuitBreaker = new CircuitBreaker(5, 60000, 2);
+const geminiProCircuitBreaker = new CircuitBreaker(5, 60000, 2);
+
+// Map of model name → circuit breaker for fallback chain
+const MODEL_CIRCUIT_BREAKERS: Record<string, CircuitBreaker> = {
+  "gemini-1.5-flash": geminiCircuitBreaker,
+  "gemini-2.0-flash": geminiCircuitBreaker,
+  "gemini-2.5-flash": geminiCircuitBreaker,
+  "gemini-2.5-flash-lite": geminiCircuitBreaker,
+  "gemini-1.5-pro": geminiProCircuitBreaker,
+  "gemini-2.5-pro": geminiProCircuitBreaker,
+};
 
 // Retry options for AI calls
 const aiRetryOptions: RetryOptions = {
@@ -69,9 +80,7 @@ const aiRetryOptions: RetryOptions = {
 };
 
 // SECURITY: CORS configuration from config (specific origins, not 'true')
-const securityConfig = config.get<{ corsOrigin: string[] | boolean }>(
-  "security",
-);
+const securityConfig = config.get("security");
 const corsHandler = cors({ origin: securityConfig.corsOrigin });
 
 // Helmet for security
@@ -87,11 +96,28 @@ const ALLOWED_MODELS = [
   "gemini-2.5-pro",
 ];
 
-const TIER_MODEL_ALLOWLIST: Record<SubscriptionTier, string[]> = {
+/**
+ * Tier model PREFERENCES — determines the preferred order of models per tier.
+ * This is NOT a hard limit. If all preferred models fail, the universal
+ * fallback chain provides resilience for ALL tiers (including basic).
+ */
+const TIER_MODEL_PREFERENCES: Record<SubscriptionTier, string[]> = {
   basic: ["gemini-1.5-flash", "gemini-2.5-flash-lite"],
   premium: ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-2.5-flash"],
   enterprise: ALLOWED_MODELS,
 };
+
+/**
+ * Universal fallback chain — used when preferred models fail.
+ * Ensures ALL tiers have resilience during outages.
+ * Order: cheapest/fastest first, then more capable models.
+ */
+const UNIVERSAL_FALLBACK_CHAIN = [
+  "gemini-1.5-flash",
+  "gemini-2.0-flash",
+  "gemini-2.5-flash",
+  "gemini-1.5-pro",
+];
 
 const TIER_USAGE_LIMITS: Record<
   SubscriptionTier,
@@ -141,7 +167,7 @@ async function resolveSubscriptionTier(
   try {
     const snapshot = await db.collection("users").doc(userId).get();
     const tier = snapshot.data()?.subscriptionTier;
-    if (tier && TIER_MODEL_ALLOWLIST[tier as SubscriptionTier]) {
+    if (tier && TIER_MODEL_PREFERENCES[tier as SubscriptionTier]) {
       return tier as SubscriptionTier;
     }
   } catch (error) {
@@ -158,8 +184,8 @@ function isModelAllowedForTier(
   tier: SubscriptionTier,
 ): boolean {
   const normalized = modelId || "gemini-1.5-flash";
-  const allowlist = TIER_MODEL_ALLOWLIST[tier] || [];
-  return allowlist.includes(normalized);
+  const preferences = TIER_MODEL_PREFERENCES[tier] || [];
+  return preferences.includes(normalized);
 }
 
 async function enforceTierUsage(
@@ -176,8 +202,8 @@ async function enforceTierUsage(
   return { allowed: true };
 }
 
-function describeAllowedModels(tier: SubscriptionTier) {
-  return TIER_MODEL_ALLOWLIST[tier].join(", ");
+function describeAllowedModels(tier: SubscriptionTier): string {
+  return TIER_MODEL_PREFERENCES[tier].join(", ");
 }
 
 /**
@@ -295,10 +321,12 @@ const generateResumeContentHandler = async (
           data: enhancedContent,
         });
       } catch (error) {
-        console.error("Error generating resume content:", error);
+        functions.logger.error(
+          { err: error instanceof Error ? error.message : "Unknown error" },
+          "Error generating resume content",
+        );
         res.status(500).json({
-          error: "Failed to generate resume content",
-          details: error instanceof Error ? error.message : "Unknown error",
+          error: "Failed to generate resume content. Please try again.",
         });
       }
     });
@@ -331,7 +359,7 @@ export async function enhanceResumeWithAI(
   userTier?: string,
 ): Promise<EnhancedResumeContent> {
   const startTime = Date.now();
-  console.log("🤖 AI ENHANCEMENT STARTING", {
+  functions.logger.info("🤖 AI ENHANCEMENT STARTING", {
     modelId,
     tone,
     timestamp: new Date().toISOString(),
@@ -390,51 +418,114 @@ export async function enhanceResumeWithAI(
 
       if (agenticResult) {
         enhancedText = agenticResult;
-        console.log("🚀 Agentic Workflow Execution Successful");
+        functions.logger.info("🚀 Agentic Workflow Execution Successful");
         actualProvider = "Agentic Workflow";
       }
     }
 
-    // 2. If Agentic didn't run or returned null (fallback), use Standard Flow
+    // 2. If Agentic didn't run or returned null (fallback), use Standard Flow with Fallback Chain
     if (!enhancedText) {
       if (!GEMINI_API_KEY) {
         throw new Error("No AI provider available - GEMINI_API_KEY required");
       }
 
-      actualProvider = "Google Gemini";
-      const actualModel = modelId.startsWith("gemini-")
+      // Build fallback chain: preferred models for tier first, then universal fallbacks
+      const preferred =
+        TIER_MODEL_PREFERENCES[userTier as SubscriptionTier] ||
+        TIER_MODEL_PREFERENCES.basic;
+      const requestedModel = modelId.startsWith("gemini-")
         ? modelId
         : "gemini-1.5-flash";
-      console.log(`✨ Using ${actualProvider}: ${actualModel}`);
-      console.log("📡 Calling Gemini API...");
 
-      const client = await getGenAIClient();
-      if (!client) throw new Error("Gemini client initialization failed");
+      // Put the requested model first, then tier preferences, then universal fallbacks
+      const fallbackChain = [
+        requestedModel,
+        ...preferred.filter((m) => m !== requestedModel),
+        ...UNIVERSAL_FALLBACK_CHAIN.filter(
+          (m) => m !== requestedModel && !preferred.includes(m),
+        ),
+      ];
 
-      enhancedText = await resilientCall(
-        async () => {
-          const model = client.getGenerativeModel({
-            model: actualModel,
-          });
-          const result = await model.generateContent(prompt);
-          const response = await result.response;
-          return response.text();
-        },
-        {
-          retryOptions: aiRetryOptions,
-          circuitBreaker: geminiCircuitBreaker,
-          timeoutMs: 30000,
-          operationName: "gemini-api-call",
-        },
-      );
+      let lastError: unknown = null;
 
-      console.log("✅ Gemini API Response Received", {
-        responseLength: enhancedText.length,
-        duration: `${Date.now() - startTime}ms`,
-      });
+      for (const candidateModel of fallbackChain) {
+        // Skip models whose circuit breaker is open
+        const breaker =
+          MODEL_CIRCUIT_BREAKERS[candidateModel] || geminiCircuitBreaker;
+
+        try {
+          functions.logger.info(
+            { model: candidateModel, tier: userTier },
+            "Attempting AI generation with model",
+          );
+
+          const client = await getGenAIClient();
+          if (!client) throw new Error("Gemini client initialization failed");
+
+          enhancedText = await resilientCall(
+            async () => {
+              const model = client.getGenerativeModel({
+                model: candidateModel,
+              });
+              const result = await model.generateContent(prompt);
+              const response = await result.response;
+              return response.text();
+            },
+            {
+              retryOptions: aiRetryOptions,
+              circuitBreaker: breaker,
+              timeoutMs: 30000,
+              operationName: `gemini-api-call-${candidateModel}`,
+            },
+          );
+
+          actualProvider = `Google Gemini (${candidateModel})`;
+          functions.logger.info(
+            {
+              model: candidateModel,
+              responseLength: enhancedText.length,
+              duration: `${Date.now() - startTime}ms`,
+            },
+            "AI generation succeeded",
+          );
+          break; // Success — exit fallback loop
+        } catch (modelError) {
+          lastError = modelError;
+          functions.logger.warn(
+            {
+              model: candidateModel,
+              error:
+                modelError instanceof Error
+                  ? modelError.message
+                  : String(modelError),
+              tier: userTier,
+            },
+            "Model failed, trying next in fallback chain",
+          );
+          // Continue to next model in chain
+        }
+      }
+
+      // All models in fallback chain exhausted
+      if (!enhancedText) {
+        functions.logger.error(
+          {
+            fallbackChain,
+            tier: userTier,
+            lastError:
+              lastError instanceof Error
+                ? lastError.message
+                : String(lastError),
+          },
+          "All AI models in fallback chain failed",
+        );
+        throw new Error(
+          "All AI models are currently unavailable. Please try again later.",
+        );
+      }
     }
 
-    console.log("🎯 AI Enhancement Complete", {
+    functions.logger.info("🎯 AI Enhancement Complete", {
       provider: actualProvider,
       totalDuration: `${Date.now() - startTime}ms`,
       success: true,
@@ -453,8 +544,8 @@ export async function enhanceResumeWithAI(
       improvementTips: extractImprovementTips(enhancedText),
     };
   } catch (error) {
-    console.error("❌ AI enhancement failed:", error);
-    console.error("💥 ERROR DETAILS", {
+    functions.logger.error("❌ AI enhancement failed:", error);
+    functions.logger.error("💥 ERROR DETAILS", {
       error: error instanceof Error ? error.message : "Unknown error",
       modelId,
       timestamp: new Date().toISOString(),

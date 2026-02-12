@@ -163,8 +163,8 @@ export async function POST(req: NextRequest) {
       const retryAfter = error.resetTime
         ? Math.max(1, Math.ceil((error.resetTime - Date.now()) / 1000))
         : undefined;
-      const quotaMessage = String(error).replace(/^QuotaExceededError:\s*/, "");
-      const response = handleApiError(error, quotaMessage, 429);
+      const quotaMessage = "Monthly generation limit reached. Please upgrade your plan to generate more resumes.";
+      const response = handleApiError(null, quotaMessage, 429);
       if (retryAfter) {
         response.headers.set("Retry-After", retryAfter.toString());
       }

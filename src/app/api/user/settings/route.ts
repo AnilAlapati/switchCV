@@ -1,6 +1,6 @@
 import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
-import { COLLECTIONS, collectionRef } from "@/lib/dal";
+import { COLLECTIONS, collectionRef, setCustomClaims } from "@/lib/dal";
 import {
   handleApiError,
   getAuthenticatedUserId,
@@ -21,11 +21,7 @@ export async function GET(request: NextRequest) {
       userId: new URL(request.url).searchParams.get("userId"),
     });
     if (!queryParseResult.success) {
-      return handleApiError(
-        queryParseResult.error,
-        "userId is required",
-        400
-      );
+      return handleApiError(queryParseResult.error, "userId is required", 400);
     }
     const requestedUserId = queryParseResult.data.userId;
 
@@ -33,7 +29,7 @@ export async function GET(request: NextRequest) {
       return handleApiError(
         new Error("Forbidden"),
         "Forbidden: Cannot access other user's settings",
-        403
+        403,
       );
     }
 
@@ -53,7 +49,7 @@ export async function GET(request: NextRequest) {
       // Update the document to include the role field
       await userRef.set(
         { role: isRecruiter ? "recruiter" : "jobseeker" },
-        { merge: true }
+        { merge: true },
       );
     }
 
@@ -75,7 +71,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(settings, {
       headers: {
-        'Cache-Control': 'private, max-age=60, stale-while-revalidate=300',
+        "Cache-Control": "private, max-age=60, stale-while-revalidate=300",
       },
     });
   } catch (error) {
@@ -97,7 +93,7 @@ export async function PUT(request: NextRequest) {
       return handleApiError(
         new Error("Invalid JSON"),
         "Invalid JSON in request body",
-        400
+        400,
       );
     }
 
@@ -120,7 +116,7 @@ export async function PUT(request: NextRequest) {
       return handleApiError(
         new Error("Forbidden"),
         "Forbidden: Cannot update other user's settings",
-        403
+        403,
       );
     }
 
@@ -129,11 +125,31 @@ export async function PUT(request: NextRequest) {
       settingsUpdatedAt: new Date().toISOString(),
     };
 
-    // Only add fields that were explicitly provided
+    // IMPORTANT: If isRecruiter changes, we MUST also update Firebase Auth custom claims.
+    // Without this, the auth token still carries the old role, causing the UI to
+    // show the old role on page refresh. This was a recurring bug.
+    // Preferred: Use /api/user/update-role for role changes instead of this endpoint.
+    // This is a defense-in-depth measure in case this endpoint is called directly.
+    // See: docs/ROLE_CHANGE_FIX.md
     if (typeof isRecruiter === "boolean") {
+      const newRole = isRecruiter ? "recruiter" : "jobseeker";
       updateData.isRecruiter = isRecruiter;
-      // Also update the role field to keep them in sync
-      updateData.role = isRecruiter ? "recruiter" : "jobseeker";
+      updateData.role = newRole;
+      updateData.roleUpdatedAt = new Date().toISOString();
+
+      // Update Firebase Auth custom claims so the token reflects the new role
+      try {
+        await setCustomClaims(userId!, { role: newRole });
+        logger.info(
+          { userId, newRole },
+          "Role custom claims updated via settings endpoint",
+        );
+      } catch (claimsError) {
+        logger.warn(
+          { userId, err: claimsError },
+          "Failed to update custom claims in settings endpoint — role updated in Firestore only",
+        );
+      }
     }
     if (companyName !== undefined && companyName !== null) {
       updateData.companyName = companyName;
@@ -143,12 +159,12 @@ export async function PUT(request: NextRequest) {
     }
 
     // Validate and update notifications
-    if (notifications && typeof notifications === 'object') {
+    if (notifications && typeof notifications === "object") {
       updateData.notifications = notifications;
     }
 
     // Validate and update privacy
-    if (privacy && typeof privacy === 'object') {
+    if (privacy && typeof privacy === "object") {
       updateData.privacy = privacy;
     }
 

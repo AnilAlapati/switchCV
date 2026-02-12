@@ -24,6 +24,24 @@ ONLY exceptions (must add comment explaining why):
 
 **WHY:** Two routes shipped without auth. An attacker with curl can impersonate any user. This is not theoretical.
 
+### Rule 1.5: Role Changes MUST Use `/api/user/update-role` + Token Refresh
+
+```
+WHEN changing a user's role (jobseeker ↔ recruiter):
+1. Frontend MUST call POST /api/user/update-role (NOT PUT /api/user/settings)
+2. Backend MUST update BOTH Firestore AND Firebase Auth custom claims via setCustomClaims()
+3. Frontend MUST call user.getIdToken(true) after a successful role change
+4. Frontend MUST reload the page (window.location.reload()) or invalidate ALL SWR caches
+
+NEVER:
+- Use PUT /api/user/settings as the primary path for role changes
+- Skip the token refresh — the client will see the old role
+- Skip the page reload — components will render with stale role data
+- Use optimistic update only without ensuring server persistence
+```
+
+**WHY:** This bug has occurred 3 times. The root cause is that Firestore update alone is not sufficient — Firebase Auth custom claims in the JWT token must also be updated, or server-side auth checks see the old role. See [docs/ROLE_CHANGE_FIX.md](../docs/ROLE_CHANGE_FIX.md) for full explanation.
+
 ### Rule 2: EVERY API Route MUST Validate Input with Zod
 
 ```

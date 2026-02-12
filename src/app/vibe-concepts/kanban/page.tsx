@@ -1,5 +1,5 @@
-
 import React from 'react';
+import Image from 'next/image';
 
 export default function KanbanPage() {
     return (
@@ -62,8 +62,13 @@ export default function KanbanPage() {
                     </h3>
                     <div className="overflow-y-auto space-y-2 px-1">
                         <div className="bg-white p-2 rounded shadow-sm cursor-pointer hover:bg-[#f4f5f7] border-2 border-blue-400">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src="https://via.placeholder.com/260x100?text=System+Design" alt="Cover" className="rounded-t-sm mb-2 w-full h-16 object-cover" />
+                            <Image
+                                src="https://via.placeholder.com/260x100?text=System+Design"
+                                alt="Cover"
+                                width={260}
+                                height={100}
+                                className="rounded-t-sm mb-2 w-full h-16 object-cover"
+                            />
                             <p className="no-underline text-[#172b4d]">Tech Lead - Uber</p>
                             <div className="mt-2 text-xs text-red-600 font-bold bg-red-50 p-1 rounded inline-block">
                                 Tomorrow at 2PM

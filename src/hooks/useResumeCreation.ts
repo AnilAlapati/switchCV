@@ -95,7 +95,7 @@ export function useResumeCreation() {
         }
     }, [messages, stage, sessionData, progress, user?.uid]);
 
-    const handleContinueSession = () => {
+    const handleContinueSession = useCallback(() => {
         if (!pendingSession) return;
         setMessages(
             pendingSession.messages.map((m: Message) => ({
@@ -109,9 +109,9 @@ export function useResumeCreation() {
         setShowRestoreDialog(false);
         setPendingSession(null);
         logger.info("✅ Session restored");
-    };
+    }, [pendingSession]);
 
-    const handleStartFresh = () => {
+    const handleStartFresh = useCallback(() => {
         if (!user?.uid) return;
         localStorage.removeItem(`resume_creation_session_${user.uid}`);
         setMessages([]);
@@ -121,7 +121,7 @@ export function useResumeCreation() {
         setShowRestoreDialog(false);
         setPendingSession(null);
         logger.info("🆕 Started fresh");
-    };
+    }, [user?.uid]);
 
     const checkAIStatus = useCallback(async () => {
         try {
@@ -153,7 +153,7 @@ export function useResumeCreation() {
         loadModels();
     }, [checkAIStatus, loadModels]);
 
-    const handleSubmit = async (e?: React.FormEvent, overrideInput?: string) => {
+    const handleSubmit = useCallback(async (e?: React.FormEvent, overrideInput?: string) => {
         if (e) e.preventDefault();
         const input = overrideInput || currentInput;
         if (!input.trim() || !user) return;
@@ -217,9 +217,9 @@ export function useResumeCreation() {
         } finally {
             setAiLoading(false);
         }
-    };
+    }, [user, currentInput, messages, sessionData, selectedModelId, router]);
 
-    const handleForceCreate = async () => {
+    const handleForceCreate = useCallback(async () => {
         if (!user) return;
 
         const forceMessage = "Create my resume now";
@@ -293,7 +293,7 @@ export function useResumeCreation() {
         } finally {
             setAiLoading(false);
         }
-    };
+    }, [user, messages, sessionData, selectedModelId, router]);
 
     return {
         messages,

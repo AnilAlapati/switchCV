@@ -1,35 +1,44 @@
 // Lazy loaded import
 // import nodemailer from "nodemailer";
+import type { Transporter } from "nodemailer";
+import * as functions from "firebase-functions/v1";
 import {
   EmailTemplate,
   EmailOptions,
   EmailResult,
   CustomEmailOptions,
+  EmailTemplateName,
 } from "../types/email";
 import { retryWithBackoff } from "../utils/retryHandler";
+
+import { config } from "../config";
 
 /**
  * Email Service for user/recruiter communication
  * Handles email sending with templating system
  */
 export class EmailService {
-  private transporter: any; // Type: nodemailer.Transporter
+  private transporter: Transporter | undefined;
   private fromEmail: string;
   private fromName: string;
 
   constructor() {
-    const smtpUser = process.env.SMTP_USER || "support@switchcv.com";
+    const emailConfig = config.get("email");
+    const smtpUser = process.env.SMTP_USER || emailConfig.supportEmail;
     this.fromEmail = smtpUser;
     this.fromName = "SwitchCV";
   }
 
-  private async getTransporter() {
+  private async getTransporter(): Promise<Transporter> {
     if (!this.transporter) {
       const nodemailer = (await import("nodemailer")).default;
 
+      // Get email settings from centralized config
+      const emailConfig = config.get("email");
+
       const smtpHost = process.env.SMTP_HOST || "smtp.titan.email";
       const smtpPort = parseInt(process.env.SMTP_PORT || "465");
-      const smtpUser = process.env.SMTP_USER || "support@switchcv.com";
+      const smtpUser = process.env.SMTP_USER || emailConfig.supportEmail || "support@switchcv.com";
       const smtpPass = process.env.SMTP_PASS || "";
 
       this.transporter = nodemailer.createTransport({
@@ -42,7 +51,7 @@ export class EmailService {
         },
       });
     }
-    return this.transporter;
+    return this.transporter!;
   }
 
   /**
@@ -75,7 +84,7 @@ export class EmailService {
         timestamp: new Date(),
       };
     } catch (error) {
-      console.error("Custom email sending failed:", error);
+      functions.logger.error("Custom email sending failed:", error);
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
@@ -117,7 +126,7 @@ export class EmailService {
         timestamp: new Date(),
       };
     } catch (error) {
-      console.error("Email sending failed:", error);
+      functions.logger.error("Email sending failed:", error);
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
@@ -131,14 +140,14 @@ export class EmailService {
    */
   async sendBulkEmails(
     recipients: string[],
-    template: string,
+    template: EmailTemplateName,
     data: Record<string, any>
   ): Promise<EmailResult[]> {
     return Promise.all(
       recipients.map((to) =>
         this.sendEmail({
           to,
-          template: template as any,
+          template: template,
           data,
         })
       )
@@ -319,10 +328,10 @@ export class EmailService {
     try {
       const transporter = await this.getTransporter();
       await transporter.verify();
-      console.log("Email service configured successfully");
+      functions.logger.info("Email service configured successfully");
       return true;
     } catch (error) {
-      console.error("Email service configuration error:", error);
+      functions.logger.error("Email service configuration error:", error);
       return false;
     }
   }

@@ -31,67 +31,91 @@ const aggregateAnalyticsDailyHandler = async (context: functions.EventContext) =
       const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
       try {
-        const analyticsSnap = await resilientCall(() => analyticsRef.get(), {
-          retryOptions: { maxAttempts: databaseConfig.maxRetries },
-          timeoutMs: databaseConfig.timeoutMs,
-          operationName: "analytics-fetch-collections",
-        });
+        const ANALYTICS_BATCH_SIZE = 500;
+        let lastDoc: admin.firestore.QueryDocumentSnapshot | null = null;
+        let processedCount = 0;
 
-        const CONCURRENCY_LIMIT = 10;
-        for (let i = 0; i < analyticsSnap.docs.length; i += CONCURRENCY_LIMIT) {
-          const chunk = analyticsSnap.docs.slice(i, i + CONCURRENCY_LIMIT);
-          await Promise.all(
-            chunk.map(async (doc) => {
-              const analyticsId = doc.id;
-              const eventsRef = analyticsRef
-                .doc(analyticsId)
-                .collection("events");
+        // Pagination loop to prevent OOM with large collections
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          let query = analyticsRef.orderBy(admin.firestore.FieldPath.documentId()).limit(ANALYTICS_BATCH_SIZE);
+          if (lastDoc) {
+            query = query.startAfter(lastDoc);
+          }
 
-              const eventsSnap = await resilientCall(
-                () =>
-                  eventsRef
-                    .where("timestamp", ">=", sevenDaysAgo.toISOString())
-                    .get(),
-                {
-                  retryOptions: { maxAttempts: databaseConfig.maxRetries },
-                  timeoutMs: databaseConfig.timeoutMs,
-                  operationName: "analytics-fetch-events",
-                }
-              );
-
-              const metrics = calculateEngagementMetrics(
-                analyticsId,
-                eventsSnap,
-                now
-              );
-
-              const viewTrend = await getViewTrendLast7Days(analyticsId);
-
-              const engagementMetrics: EngagementMetrics = {
-                ...metrics,
-                viewTrendLast7Days: viewTrend,
-              };
-
-              await resilientCall(
-                () =>
-                  analyticsRef
-                    .doc(analyticsId)
-                    .collection("engagement")
-                    .doc("current")
-                    .set(engagementMetrics, { merge: true }),
-                {
-                  retryOptions: { maxAttempts: databaseConfig.maxRetries },
-                  timeoutMs: databaseConfig.timeoutMs,
-                  operationName: "analytics-write-engagement",
-                }
-              );
-
-              functions.logger.info("Analytics aggregated for document", {
-                analyticsId,
-                eventId: context.eventId,
-              });
-            })
+          const analyticsSnap = await resilientCall(
+            () => query.get(),
+            {
+              retryOptions: { maxAttempts: databaseConfig.maxRetries },
+              timeoutMs: databaseConfig.timeoutMs,
+              operationName: "analytics-fetch-batch",
+            }
           );
+
+          if (analyticsSnap.empty) {
+            break;
+          }
+
+          const CONCURRENCY_LIMIT = 10;
+          for (let i = 0; i < analyticsSnap.docs.length; i += CONCURRENCY_LIMIT) {
+            const chunk = analyticsSnap.docs.slice(i, i + CONCURRENCY_LIMIT);
+            await Promise.all(
+              chunk.map(async (doc) => {
+                const analyticsId = doc.id;
+                const eventsRef = analyticsRef
+                  .doc(analyticsId)
+                  .collection("events");
+
+                const eventsSnap = await resilientCall(
+                  () =>
+                    eventsRef
+                      .where("timestamp", ">=", sevenDaysAgo.toISOString())
+                      .get(),
+                  {
+                    retryOptions: { maxAttempts: databaseConfig.maxRetries },
+                    timeoutMs: databaseConfig.timeoutMs,
+                    operationName: "analytics-fetch-events",
+                  }
+                );
+
+                const metrics = calculateEngagementMetrics(
+                  analyticsId,
+                  eventsSnap,
+                  now
+                );
+
+                const viewTrend = await getViewTrendLast7Days(analyticsId);
+
+                const engagementMetrics: EngagementMetrics = {
+                  ...metrics,
+                  viewTrendLast7Days: viewTrend,
+                };
+
+                await resilientCall(
+                  () =>
+                    analyticsRef
+                      .doc(analyticsId)
+                      .collection("engagement")
+                      .doc("current")
+                      .set(engagementMetrics, { merge: true }),
+                  {
+                    retryOptions: { maxAttempts: databaseConfig.maxRetries },
+                    timeoutMs: databaseConfig.timeoutMs,
+                    operationName: "analytics-write-engagement",
+                  }
+                );
+
+                functions.logger.info("Analytics aggregated for document", {
+                  analyticsId,
+                  eventId: context.eventId,
+                });
+              })
+            );
+          }
+
+          lastDoc = analyticsSnap.docs[analyticsSnap.docs.length - 1];
+          processedCount += analyticsSnap.size;
+          functions.logger.info(`Processed ${processedCount} analytics docs in current execution`);
         }
 
         functions.logger.info("Daily analytics aggregation completed", {

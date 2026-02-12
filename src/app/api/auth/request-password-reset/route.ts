@@ -9,6 +9,7 @@ import {
 import { handleApiError } from "@/lib/utils/api-helpers";
 import { randomBytes } from "crypto";
 import { RequestPasswordResetSchema } from "@/lib/schemas/api";
+import { checkRateLimit } from "@/lib/utils/rateLimit";
 
 /**
  * Request password reset - generates token and sends email via Firestore extension
@@ -16,6 +17,19 @@ import { RequestPasswordResetSchema } from "@/lib/schemas/api";
  */
 export async function POST(request: NextRequest) {
   try {
+    // Strict rate limit for password reset requests (5 per 15 min)
+    const ip = request.headers.get("x-forwarded-for") || "unknown";
+    const rateLimitResult = await checkRateLimit(`request-password-reset:${ip}`, {
+      limit: 5,
+      windowMs: 15 * 60 * 1000,
+    });
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429 }
+      );
+    }
+
     const parseResult = RequestPasswordResetSchema.safeParse(
       await request.json()
     );
@@ -57,9 +71,8 @@ export async function POST(request: NextRequest) {
     });
 
     // Create reset URL
-    const resetUrl = `${
-      process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-    }/auth/reset-password?token=${resetToken}`;
+    const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+      }/auth/reset-password?token=${resetToken}`;
 
     // Queue email via Firestore extension (same process as all other emails)
     await collectionRef(COLLECTIONS.MAIL).add({

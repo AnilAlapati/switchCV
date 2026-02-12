@@ -1,4 +1,4 @@
- 
+
 
 import { NextRequest } from "next/server";
 import { POST } from "./route";
@@ -21,8 +21,8 @@ jest.mock("@/lib/utils/api-helpers", () => ({
         error instanceof Error
           ? error.message
           : error
-          ? String(error)
-          : undefined,
+            ? String(error)
+            : undefined,
     }),
   })),
 }));
@@ -64,8 +64,15 @@ describe("POST /api/recruiter/request-access", () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
+    const mockQuery = {
+      where: mockWhere,
+      limit: jest.fn().mockReturnThis(), // Support .limit()
+      get: mockGet,
+    };
+
     (adminDb.collection as jest.Mock).mockImplementation(mockCollection);
     mockCollection.mockReturnValue({
+      add: jest.fn().mockResolvedValue({ id: "new-request-id" }), // Support .add()
       doc: mockDoc,
       where: mockWhere,
     });
@@ -74,10 +81,7 @@ describe("POST /api/recruiter/request-access", () => {
       set: mockSet,
       update: mockUpdate,
     });
-    mockWhere.mockReturnValue({
-      where: mockWhere,
-      get: mockGet,
-    });
+    mockWhere.mockReturnValue(mockQuery);
 
     // Default auth
     (getAuthenticatedUserId as jest.Mock).mockResolvedValue({

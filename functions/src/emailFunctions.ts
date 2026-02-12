@@ -3,6 +3,8 @@ import * as functions from "firebase-functions/v1";
 import { randomUUID, createHash, randomBytes } from "crypto";
 import { emailService } from "./services/emailService";
 import { auditLogger, AuditAction, ResourceType } from "./services/auditLogger";
+import { checkRateLimit, RateLimitPresets } from "./middleware/rateLimiter";
+import { config } from "./config";
 
 const defaultVerificationPath =
   process.env.VERIFICATION_PATH ||
@@ -67,15 +69,15 @@ async function getUserApprovalConfig(): Promise<{
       .get();
 
     if (configDoc.exists) {
-      const config = configDoc.data()?.userApproval;
+      const configData = configDoc.data()?.userApproval;
       return {
-        enabled: config?.enabled ?? true,
-        adminEmail: config?.adminEmail || "support@switchcv.com",
-        autoApproveDomains: config?.autoApproveDomains || [],
+        enabled: configData?.enabled ?? true,
+        adminEmail: configData?.adminEmail || config.get("email").adminEmail,
+        autoApproveDomains: configData?.autoApproveDomains || [],
       };
     }
   } catch (error) {
-    console.warn(
+    functions.logger.warn(
       "Failed to fetch user approval config, using defaults:",
       error,
     );
@@ -83,7 +85,7 @@ async function getUserApprovalConfig(): Promise<{
 
   return {
     enabled: true,
-    adminEmail: "support@switchcv.com",
+    adminEmail: config.get("email").adminEmail,
     autoApproveDomains: [],
   };
 }
@@ -257,7 +259,7 @@ const onUserCreatedHandler = async (user: admin.auth.UserRecord) => {
 
     // Check if manual user approval is enabled
     const approvalConfig = await getUserApprovalConfig();
-    const websiteUrl = process.env.WEBSITE_URL || "https://switchcv.com";
+    const websiteUrl = config.get("app").websiteUrl;
 
     // Check for auto-approve domains
     const isAutoApproved = user.email
@@ -266,7 +268,7 @@ const onUserCreatedHandler = async (user: admin.auth.UserRecord) => {
 
     if (approvalConfig.enabled && !isAutoApproved) {
       // Manual approval mode: Send approval request to admin instead of verification email to user
-      console.log(
+      functions.logger.info(
         `User approval enabled - sending approval request to admin for ${user.email}`,
       );
 
@@ -358,7 +360,7 @@ const onUserCreatedHandler = async (user: admin.auth.UserRecord) => {
         status: "success",
       });
 
-      console.log(
+      functions.logger.info(
         `Approval request sent to ${approvalConfig.adminEmail} for user ${user.email}`,
       );
       return;
@@ -366,7 +368,7 @@ const onUserCreatedHandler = async (user: admin.auth.UserRecord) => {
 
     // Auto-approved or approval disabled: Send verification email directly
     if (isAutoApproved) {
-      console.log(`User ${user.email} auto-approved due to domain whitelist`);
+      functions.logger.info(`User ${user.email} auto-approved due to domain whitelist`);
       await admin.firestore().collection("users").doc(user.uid).update({
         approvalStatus: "approved",
         approvedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -383,9 +385,9 @@ const onUserCreatedHandler = async (user: admin.auth.UserRecord) => {
       try {
         verificationLink = await generateCustomVerificationToken(user.uid);
         verificationMethod = "custom_token";
-        console.log(`Generated custom verification token for ${user.email}`);
+        functions.logger.info(`Generated custom verification token for ${user.email}`);
       } catch (customTokenError) {
-        console.warn(
+        functions.logger.warn(
           "Custom token generation failed, trying Firebase API:",
           customTokenError,
         );
@@ -401,19 +403,19 @@ const onUserCreatedHandler = async (user: admin.auth.UserRecord) => {
             .auth()
             .generateEmailVerificationLink(user.email, actionCodeSettings);
           verificationMethod = "firebase_with_redirect";
-          console.log(`Generated Firebase verification link for ${user.email}`);
+          functions.logger.info(`Generated Firebase verification link for ${user.email}`);
         } catch (e) {
           const firebaseError = e as { code?: string; message?: string };
 
           // Check if it's a rate limit error
           if (firebaseError.message?.includes("TOO_MANY_ATTEMPTS")) {
-            console.warn(
+            functions.logger.warn(
               "Firebase rate limit hit, will use custom token on next signup",
             );
             // Keep the static link as fallback
             verificationMethod = "static_fallback";
           } else {
-            console.warn("Error generating Firebase verification link:", e);
+            functions.logger.warn("Error generating Firebase verification link:", e);
           }
         }
       }
@@ -442,11 +444,11 @@ const onUserCreatedHandler = async (user: admin.auth.UserRecord) => {
       true,
     );
 
-    console.log(
+    functions.logger.info(
       `Welcome email sent to ${user.email} with verification method: ${verificationMethod}`,
     );
   } catch (error) {
-    console.error("Error sending welcome email:", error);
+    functions.logger.error("Error sending welcome email:", error);
     await auditLogger.log({
       userId: user.uid,
       action: AuditAction.EMAIL_FAILED,
@@ -575,7 +577,7 @@ function buildPendingApprovalEmailHtml(
 
     <p style="color: #6B7280; font-size: 14px; margin-top: 24px;">
       If you have any questions, feel free to reach out to us at 
-      <a href="mailto:support@switchcv.com" style="color: #3B82F6;">support@switchcv.com</a>
+      <a href="mailto:${config.get("email").supportEmail}" style="color: #3B82F6;">${config.get("email").supportEmail}</a>
     </p>
 
     <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
@@ -612,7 +614,7 @@ While you wait, here's what SwitchCV offers:
 - Direct connections with recruiters
 - Comprehensive analytics dashboard
 
-If you have any questions, feel free to reach out to us at support@switchcv.com.
+If you have any questions, feel free to reach out to us at ${config.get("email").supportEmail}.
 
 Thank you for your patience!
 The SwitchCV Team`;
@@ -645,7 +647,7 @@ const onRecruiterRequestCreatedHandler = async (
 
     const result = await emailService.sendEmail({
       to: candidateEmail,
-      template: "recruiterRequest" as any,
+      template: "recruiterRequest",
       data: {
         companyName: request.fromRecruiter.companyName || recruiterName,
         position: request.position || "Not specified",
@@ -663,7 +665,7 @@ const onRecruiterRequestCreatedHandler = async (
       );
     }
   } catch (error) {
-    console.error("Error sending recruiter request email:", error);
+    functions.logger.error("Error sending recruiter request email:", error);
     await auditLogger.log({
       userId: "system",
       action: AuditAction.EMAIL_FAILED,
@@ -706,7 +708,7 @@ const onRecruiterRequestApprovedHandler = async (
 
       const result = await emailService.sendEmail({
         to: recruiterEmail,
-        template: "requestApproved" as any,
+        template: "requestApproved",
         data: {
           candidateName,
           profileUrl: `${process.env.WEBSITE_URL}/profile/${after.toUserId}`,
@@ -739,7 +741,7 @@ const onRecruiterRequestApprovedHandler = async (
 
       const result = await emailService.sendEmail({
         to: recruiterEmail,
-        template: "requestDenied" as any,
+        template: "requestDenied",
         data: {
           dashboardUrl: `${process.env.WEBSITE_URL}/recruiter/dashboard`,
         },
@@ -756,7 +758,7 @@ const onRecruiterRequestApprovedHandler = async (
       }
     }
   } catch (error) {
-    console.error("Error sending request status email:", error);
+    functions.logger.error("Error sending request status email:", error);
     await auditLogger.log({
       userId: "system",
       action: AuditAction.EMAIL_FAILED,
@@ -798,49 +800,52 @@ const sendProfileViewDigestHandler = async (
         break;
       }
 
-      // Process batch in parallel with concurrency limit
-      const promises = usersSnapshot.docs.map(async (userDoc) => {
-        const userId = userDoc.id;
-        const userEmail = userDoc.data().email;
+      // Concurrency-limited email sending (max 5 at a time to avoid SMTP limits)
+      const CONCURRENCY_LIMIT = 5;
+      for (let i = 0; i < usersSnapshot.docs.length; i += CONCURRENCY_LIMIT) {
+        const chunk = usersSnapshot.docs.slice(i, i + CONCURRENCY_LIMIT);
 
-        if (!userEmail) return;
+        await Promise.all(chunk.map(async (userDoc) => {
+          const userId = userDoc.id;
+          const userEmail = userDoc.data().email;
 
-        // Get view count for the user's profiles
-        const viewsSnapshot = await admin
-          .firestore()
-          .collectionGroup("views")
-          .where("userId", "==", userId)
-          .where("timestamp", ">=", oneWeekAgo)
-          .count()
-          .get();
+          if (!userEmail) return;
 
-        const viewCount = viewsSnapshot.data().count;
+          // Get view count for the user's profiles
+          const viewsSnapshot = await admin
+            .firestore()
+            .collectionGroup("views")
+            .where("userId", "==", userId)
+            .where("timestamp", ">=", oneWeekAgo)
+            .count()
+            .get();
 
-        if (viewCount > 0) {
-          const result = await emailService.sendEmail({
-            to: userEmail,
-            template: "profileViewed" as any,
-            data: {
-              viewCount,
-              dashboardUrl: `${process.env.WEBSITE_URL}/dashboard/analytics`,
-            },
-          });
+          const viewCount = viewsSnapshot.data().count;
 
-          if (result.success) {
-            await auditLogger.log({
-              userId,
-              userEmail,
-              action: AuditAction.EMAIL_SENT,
-              resourceType: ResourceType.EMAIL,
-              resourceId: userId,
-              details: "Weekly profile view digest sent",
-              status: "success",
+          if (viewCount > 0) {
+            const result = await emailService.sendEmail({
+              to: userEmail,
+              template: "profileViewed" as any,
+              data: {
+                viewCount,
+                dashboardUrl: `${process.env.WEBSITE_URL}/dashboard/analytics`,
+              },
             });
-          }
-        }
-      });
 
-      await Promise.all(promises);
+            if (result.success) {
+              await auditLogger.log({
+                userId,
+                userEmail,
+                action: AuditAction.EMAIL_SENT,
+                resourceType: ResourceType.EMAIL,
+                resourceId: userId,
+                details: "Weekly profile view digest sent",
+                status: "success",
+              });
+            }
+          }
+        }));
+      }
 
       processedCount += usersSnapshot.size;
       lastDoc = usersSnapshot.docs[usersSnapshot.docs.length - 1];
@@ -848,12 +853,12 @@ const sendProfileViewDigestHandler = async (
       // Safety check for execution time (Cloud Functions timeout)
       // If we're running close to timeout (e.g. 60s default), we should probably stop or use Cloud Tasks
       // For now, we just log progress
-      console.log(`Processed ${processedCount} users for digest`);
+      functions.logger.info(`Processed ${processedCount} users for digest`);
     }
 
-    console.log("Weekly profile view digest sent");
+    functions.logger.info("Weekly profile view digest sent");
   } catch (error) {
-    console.error("Error sending profile view digest:", error);
+    functions.logger.error("Error sending profile view digest:", error);
     await auditLogger.log({
       userId: "system",
       action: AuditAction.EMAIL_FAILED,
@@ -866,16 +871,72 @@ const sendProfileViewDigestHandler = async (
   }
 };
 
+// Zod schema for suspicious activity input validation (CODING_STANDARDS §9.2)
+const SuspiciousActivitySchema = (() => {
+  // Dynamic import-style inline schema to avoid top-level zod dependency
+  // since Cloud Functions bundle doesn't include zod by default
+  return {
+    parse(data: unknown): { activityType: string; details: string; userId?: string } {
+      const d = data as Record<string, unknown>;
+      if (!d || typeof d !== "object") {
+        throw new Error("Invalid input: expected object");
+      }
+      if (typeof d.activityType !== "string" || d.activityType.length === 0 || d.activityType.length > 100) {
+        throw new Error("Invalid input: activityType must be a non-empty string (max 100 chars)");
+      }
+      if (typeof d.details !== "string" || d.details.length > 2000) {
+        throw new Error("Invalid input: details must be a string (max 2000 chars)");
+      }
+      return {
+        activityType: d.activityType,
+        details: d.details,
+        userId: typeof d.userId === "string" ? d.userId : undefined,
+      };
+    },
+  };
+})();
+
 const notifyAdminSuspiciousActivityHandler = async (
-  data: any,
+  data: unknown,
   context: functions.https.CallableContext,
 ) => {
   try {
+    // 1. Authentication check
     if (!context.auth) {
-      throw new Error("Authentication required");
+      throw new functions.https.HttpsError("unauthenticated", "Authentication required");
     }
 
-    const { activityType, details, userId } = data;
+    // Rate limiting
+    const rateLimit = await checkRateLimit(
+      context.auth.uid,
+      RateLimitPresets.ADMIN
+    );
+    if (!rateLimit.allowed) {
+      throw new functions.https.HttpsError(
+        "resource-exhausted",
+        `Rate limit exceeded. Try again in ${rateLimit.retryAfter} seconds.`
+      );
+    }
+
+    // 2. Admin role check — only admins can trigger admin notifications
+    const callerRecord = await admin.auth().getUser(context.auth.uid);
+    const callerRole = callerRecord.customClaims?.role;
+    if (callerRole !== "admin") {
+      throw new functions.https.HttpsError("permission-denied", "Admin access required");
+    }
+
+    // 3. Input validation
+    let validatedData: { activityType: string; details: string; userId?: string };
+    try {
+      validatedData = SuspiciousActivitySchema.parse(data);
+    } catch (validationError) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        validationError instanceof Error ? validationError.message : "Invalid input",
+      );
+    }
+
+    const { activityType, details, userId } = validatedData;
 
     // Log suspicious activity
     await auditLogger.logSuspiciousActivity(
@@ -884,11 +945,12 @@ const notifyAdminSuspiciousActivityHandler = async (
       details,
     );
 
-    // Get admin emails
+    // Get admin emails (with .limit() per CODING_STANDARDS §4.2)
     const adminsSnapshot = await admin
       .firestore()
       .collection("users")
       .where("role", "==", "admin")
+      .limit(50)
       .get();
 
     const adminEmails = adminsSnapshot.docs
@@ -905,7 +967,10 @@ const notifyAdminSuspiciousActivityHandler = async (
 
     return { success: true, message: "Admins notified" };
   } catch (error) {
-    console.error("Error notifying admins:", error);
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
+    }
+    functions.logger.error("Error notifying admins:", error);
     throw new functions.https.HttpsError("internal", "Failed to notify admins");
   }
 };
@@ -913,9 +978,9 @@ const notifyAdminSuspiciousActivityHandler = async (
 const cleanupAuditLogsHandler = async (context: functions.EventContext) => {
   try {
     const deletedCount = await auditLogger.cleanupOldLogs(90); // Keep 90 days
-    console.log(`Cleaned up ${deletedCount} old audit logs`);
+    functions.logger.info(`Cleaned up ${deletedCount} old audit logs`);
   } catch (error) {
-    console.error("Error cleaning up audit logs:", error);
+    functions.logger.error("Error cleaning up audit logs:", error);
   }
 };
 
@@ -928,6 +993,18 @@ const resendVerificationEmailHandler = async (
       throw new functions.https.HttpsError(
         "unauthenticated",
         "Authentication required",
+      );
+    }
+
+    // Rate limiting
+    const rateLimit = await checkRateLimit(
+      context.auth.uid,
+      RateLimitPresets.EMAIL_RESEND
+    );
+    if (!rateLimit.allowed) {
+      throw new functions.https.HttpsError(
+        "resource-exhausted",
+        `Rate limit exceeded. Try again in ${rateLimit.retryAfter} seconds.`
       );
     }
 
@@ -965,7 +1042,7 @@ const resendVerificationEmailHandler = async (
           handleCodeInApp: false,
         });
     } catch (e1) {
-      console.warn(
+      functions.logger.warn(
         "Failed to generate link with redirect, trying simple link:",
         e1,
       );
@@ -977,18 +1054,18 @@ const resendVerificationEmailHandler = async (
       } catch (e2) {
         // Both Firebase methods failed - use manual fallback
         // This handles rate limiting, domain issues, etc.
-        console.warn(
+        functions.logger.warn(
           "Firebase link generation failed, using manual fallback:",
           e2,
         );
 
         try {
           verificationLink = await generateCustomVerificationToken(userId);
-          console.log(
+          functions.logger.info(
             "Generated custom verification token as fallback for resend",
           );
         } catch (e3) {
-          console.error("Failed to generate custom token for resend:", e3);
+          functions.logger.error("Failed to generate custom token for resend:", e3);
         }
       }
     }
@@ -1013,7 +1090,7 @@ const resendVerificationEmailHandler = async (
     await auditLogger.logEmailSent(userId, email, "verificationResend", true);
     return { success: true };
   } catch (error) {
-    console.error("Error resending verification email:", error);
+    functions.logger.error("Error resending verification email:", error);
     throw new functions.https.HttpsError(
       "internal",
       "Failed to send verification email",

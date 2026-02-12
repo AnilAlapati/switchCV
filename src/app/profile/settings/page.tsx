@@ -5,7 +5,6 @@ import { logger } from "@/lib/logger";
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useResume } from "@/hooks/useResume";
-import { useUserProfile } from "@/hooks/useUserProfile";
 import { useRouter } from "next/navigation";
 import { DashboardBackground } from "@/components/dashboard/DashboardBackground";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
@@ -42,7 +41,6 @@ export default function SettingsPage() {
     loading: settingsLoading,
     mutate: mutateSettings,
   } = useUserSettings();
-  const { mutate: mutateProfile } = useUserProfile();
 
   const [settings, setSettings] = useState<UserSettings>({
     isRecruiter: false,
@@ -89,6 +87,11 @@ export default function SettingsPage() {
     }
   }, [user, needsEmailVerification, authLoading, router]);
 
+  // IMPORTANT: Role changes MUST use /api/user/update-role — NOT /api/user/settings.
+  // /api/user/update-role updates BOTH Firestore AND Firebase Auth custom claims.
+  // /api/user/settings only updates Firestore, which causes the role to appear
+  // unchanged because the auth token still carries the old role.
+  // See: docs/ROLE_CHANGE_FIX.md for full explanation.
   const handleRecruiterToggle = async (checked: boolean) => {
     if (!user?.uid) {
       setMessage({
@@ -101,44 +104,49 @@ export default function SettingsPage() {
     setSavingRecruiter(true);
     try {
       const idToken = await user.getIdToken();
-      const response = await fetch("/api/user/settings", {
-        method: "PUT",
+      // Use /api/user/update-role to update BOTH Firestore AND Firebase Auth custom claims
+      const response = await fetch("/api/user/update-role", {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${idToken}`,
         },
         body: JSON.stringify({
-          userId: user.uid,
-          isRecruiter: checked,
+          uid: user.uid,
+          newRole: checked ? "recruiter" : "jobseeker",
           companyName: checked ? settings.companyName : "",
         }),
       });
 
       if (response.ok) {
-        // Optimistic update: Update local cache immediately, then revalidate to ensure persistence
+        // Force-refresh the ID token to pick up the new custom claims immediately.
+        // Without this, the client token still carries the OLD role and server-side
+        // auth checks (getAuthenticatedUserId) will see the stale value.
+        await user.getIdToken(true);
+
+        // Update local state for immediate UI feedback
         const newSettings = {
           ...settings,
           isRecruiter: checked,
-          // If switching to recruiter, keep existing name, if switching off, clear it
           companyName: checked ? (settings.companyName ?? "") : "",
         };
-        // First update the local cache optimistically for instant UI feedback
         await mutateSettings(newSettings, { revalidate: false });
-        // Then also update local component state
         setSettings(newSettings);
         setShowCompanyInput(checked);
 
-        // Force re-fetch of global user profile to sync header badge
-        await mutateProfile();
+        setMessage({
+          type: "success",
+          text: "Account type updated! Refreshing...",
+        });
 
-        // Finally, revalidate the settings cache to ensure server data is fetched
-        // This ensures the cache is fresh when navigating away and back
-        await mutateSettings();
-
-        setMessage({ type: "success", text: "Account type updated!" });
-        setTimeout(() => setMessage(null), 3000);
+        // Reload the page to ensure all components (header, dashboard, etc.)
+        // re-render with the correct role from the refreshed token.
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
       } else {
-        throw new Error("Failed to update account type");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to update account type");
       }
     } catch (err) {
       setMessage({

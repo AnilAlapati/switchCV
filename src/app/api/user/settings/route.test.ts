@@ -2,13 +2,13 @@
  * Tests for User Settings API Route
  * Tests GET and PUT operations for user settings
  */
- 
 
 import { NextRequest } from "next/server";
 import { GET, PUT } from "@/app/api/user/settings/route";
 // eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
+import { collectionRef, setCustomClaims } from "@/lib/dal";
 
 // Mock Firebase Admin
 jest.mock("@/lib/firebase-admin", () => ({
@@ -16,6 +16,20 @@ jest.mock("@/lib/firebase-admin", () => ({
     collection: jest.fn(),
   },
 }));
+
+// Mock DAL setCustomClaims
+jest.mock("@/lib/dal", () => {
+  const collections = {
+    USERS: "users",
+    RESUMES: "resumes",
+    RESUME_PROFILES: "resumeProfiles",
+  };
+  return {
+    COLLECTIONS: collections,
+    collectionRef: jest.fn(),
+    setCustomClaims: jest.fn().mockResolvedValue(undefined),
+  };
+});
 
 // Mock api-helpers
 jest.mock("@/lib/utils/api-helpers", () => ({
@@ -43,6 +57,7 @@ describe("User Settings API", () => {
 
     // Setup Firestore mocks
     (adminDb.collection as jest.Mock).mockImplementation(mockCollection);
+    (collectionRef as jest.Mock).mockImplementation(mockCollection);
     mockCollection.mockReturnValue({ doc: mockDoc });
     mockDoc.mockReturnValue({ get: mockGet, set: mockSet });
   });
@@ -73,7 +88,7 @@ describe("User Settings API", () => {
         "http://localhost:3000/api/user/settings?userId=user-123",
         {
           headers: { Authorization: "Bearer test-token" },
-        }
+        },
       );
 
       const response = await GET(request);
@@ -178,7 +193,7 @@ describe("User Settings API", () => {
         "http://localhost:3000/api/user/settings?userId=other-user",
         {
           headers: { Authorization: "Bearer test-token" },
-        }
+        },
       );
 
       const response = await GET(request);
@@ -202,7 +217,7 @@ describe("User Settings API", () => {
         "http://localhost:3000/api/user/settings?userId=user-123",
         {
           headers: { Authorization: "Bearer test-token" },
-        }
+        },
       );
 
       const response = await GET(request);
@@ -230,7 +245,7 @@ describe("User Settings API", () => {
         "http://localhost:3000/api/user/settings?userId=user-123",
         {
           headers: { Authorization: "Bearer test-token" },
-        }
+        },
       );
 
       const response = await GET(request);
@@ -257,7 +272,7 @@ describe("User Settings API", () => {
         "http://localhost:3000/api/user/settings?userId=user-123",
         {
           headers: { Authorization: "Bearer test-token" },
-        }
+        },
       );
 
       const response = await GET(request);
@@ -299,12 +314,18 @@ describe("User Settings API", () => {
       expect(mockSet).toHaveBeenCalledWith(
         expect.objectContaining({
           isRecruiter: true,
+          role: "recruiter",
+          roleUpdatedAt: expect.any(String),
           companyName: "Tech Corp",
           displayName: "John Doe",
           settingsUpdatedAt: expect.any(String),
         }),
-        { merge: true }
+        { merge: true },
       );
+      // Verify custom claims were updated
+      expect(setCustomClaims).toHaveBeenCalledWith("user-123", {
+        role: "recruiter",
+      });
     });
 
     it("should return 401 when not authenticated", async () => {
@@ -333,7 +354,7 @@ describe("User Settings API", () => {
     it("should return 400 when request body is invalid", async () => {
       mockRequest.headers.set("Authorization", "Bearer test-token");
       (mockRequest.json as jest.Mock).mockRejectedValue(
-        new Error("Invalid JSON")
+        new Error("Invalid JSON"),
       );
 
       (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
@@ -413,11 +434,98 @@ describe("User Settings API", () => {
           displayName: "Jane Doe",
           settingsUpdatedAt: expect.any(String),
         }),
-        { merge: true }
+        { merge: true },
       );
     });
 
-    it("should return 500 when database operation fails", async () => {
+    it("should NOT call setCustomClaims when isRecruiter is not provided", async () => {
+      const mockUserId = "user-123";
+      const partialSettings = {
+        userId: mockUserId,
+        displayName: "Jane Doe",
+      };
+
+      mockRequest.headers.set("Authorization", "Bearer test-token");
+      (mockRequest.json as jest.Mock).mockResolvedValue(partialSettings);
+
+      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+        userId: mockUserId,
+        error: null,
+      });
+
+      mockSet.mockResolvedValue(undefined);
+
+      await PUT(mockRequest);
+
+      // setCustomClaims should NOT be called for non-role updates
+      expect(setCustomClaims).not.toHaveBeenCalled();
+    });
+
+    it("should update custom claims when switching to jobseeker", async () => {
+      const mockUserId = "user-123";
+      const settingsData = {
+        userId: mockUserId,
+        isRecruiter: false,
+      };
+
+      mockRequest.headers.set("Authorization", "Bearer test-token");
+      (mockRequest.json as jest.Mock).mockResolvedValue(settingsData);
+
+      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+        userId: mockUserId,
+        error: null,
+      });
+
+      mockSet.mockResolvedValue(undefined);
+
+      const response = await PUT(mockRequest);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(mockSet).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isRecruiter: false,
+          role: "jobseeker",
+          roleUpdatedAt: expect.any(String),
+        }),
+        { merge: true },
+      );
+      expect(setCustomClaims).toHaveBeenCalledWith("user-123", {
+        role: "jobseeker",
+      });
+    });
+
+    it("should still succeed if custom claims update fails", async () => {
+      const mockUserId = "user-123";
+      const settingsData = {
+        userId: mockUserId,
+        isRecruiter: true,
+      };
+
+      mockRequest.headers.set("Authorization", "Bearer test-token");
+      (mockRequest.json as jest.Mock).mockResolvedValue(settingsData);
+
+      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+        userId: mockUserId,
+        error: null,
+      });
+
+      mockSet.mockResolvedValue(undefined);
+      // Simulate custom claims failure
+      (setCustomClaims as jest.Mock).mockRejectedValueOnce(
+        new Error("Claims service unavailable"),
+      );
+
+      const response = await PUT(mockRequest);
+      const data = await response.json();
+
+      // Should still succeed — Firestore update went through
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+    });
+
+    it("should return 500 when database operation fails - PUT", async () => {
       const mockUserId = "user-123";
       const settingsData = {
         userId: mockUserId,

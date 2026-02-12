@@ -104,13 +104,16 @@ export function useBulkActions(): UseBulkActionsReturn {
 
   const clearCompleted = useCallback(() => {
     try {
-      setCompletedActions([]);
-      setActionResults((prev) => {
-        const updated = { ...prev };
-        completedActions.forEach((action) => {
-          delete updated[action.id];
+      setCompletedActions((prev) => {
+        // Use the prev state to get accurate completed action IDs
+        setActionResults((prevResults) => {
+          const updated = { ...prevResults };
+          prev.forEach((action) => {
+            delete updated[action.id];
+          });
+          return updated;
         });
-        return updated;
+        return [];
       });
       setError(null);
     } catch (err) {
@@ -118,7 +121,7 @@ export function useBulkActions(): UseBulkActionsReturn {
         err instanceof Error ? err.message : "Failed to clear completed actions"
       );
     }
-  }, [completedActions]);
+  }, []);
 
   const getActionStatus = useCallback(
     (actionId: string): "pending" | "completed" | "failed" | null => {

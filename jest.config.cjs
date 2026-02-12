@@ -27,6 +27,39 @@ module.exports = {
     '<rootDir>/node_modules/',
     '<rootDir>/src/app/vibe-concepts/',
   ],
+  coverageThreshold: {
+    global: {
+      lines: 75,
+      statements: 75,
+      functions: 65,
+      branches: 65,
+    },
+    'src/app/api/analytics/dashboard/route.ts': {
+      branches: 80,
+      functions: 80,
+      lines: 80,
+    },
+    'src/app/api/recruiter/requests/route.ts': {
+      branches: 80,
+      functions: 80,
+      lines: 80,
+    },
+    'src/app/api/recruiter/search-resumes/access-status.ts': {
+      branches: 75,
+      functions: 80,
+      lines: 80,
+    },
+    'src/app/api/resumes/[id]/route.ts': {
+      branches: 90,
+      functions: 90,
+      lines: 90,
+    },
+    'src/lib/services/aiGenerationService.ts': {
+      branches: 85,
+      functions: 90,
+      lines: 90,
+    },
+  },
   transform: {
     '^.+\\.(js|jsx|ts|tsx)$': '<rootDir>/jest-preprocessor.js',
   },

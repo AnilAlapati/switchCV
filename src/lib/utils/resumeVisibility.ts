@@ -7,6 +7,78 @@ export type VisibilityLevel = "public" | "masked" | "request";
 export type FieldType = "email" | "phone";
 
 /**
+ * Canonical visibility resolution for resume data.
+ * This is the SINGLE SOURCE OF TRUTH for determining if a resume is publicly visible.
+ *
+ * INVARIANT: If isBeingEdited is true, the resume is NEVER public — regardless of
+ * other field values. This prevents data leakage during editing.
+ *
+ * @param resume - Resume data with visibility-related fields
+ * @returns true if the resume should be publicly visible
+ */
+export function resolveResumeIsPublic(
+  resume:
+    | {
+        isBeingEdited?: boolean;
+        isPublic?: boolean;
+        visibility?: string;
+        published?: boolean;
+        publishedAt?: string;
+      }
+    | null
+    | undefined,
+): boolean {
+  if (!resume) return false;
+
+  // INVARIANT: A resume being edited is NEVER public
+  if (resume.isBeingEdited === true) return false;
+
+  // Check explicit boolean field first (authoritative)
+  if (typeof resume.isPublic === "boolean") return resume.isPublic;
+
+  // Check string visibility field
+  if (resume.visibility === "public") return true;
+
+  // Check legacy published field
+  if (resume.published === true) return true;
+
+  // Check if ever published (legacy fallback)
+  if (resume.publishedAt) return true;
+
+  return false;
+}
+
+/**
+ * Validates resume state invariants.
+ * Throws if the resume is in an inconsistent state.
+ *
+ * @param resume - Resume data to validate
+ * @param resumeId - ID for error reporting
+ * @throws Error if invariants are violated
+ */
+export function validateResumeVisibilityInvariants(
+  resume: {
+    isBeingEdited?: boolean;
+    isPublic?: boolean;
+    visibility?: string;
+  },
+  resumeId: string | number,
+): void {
+  if (resume.isBeingEdited === true) {
+    if (resume.isPublic === true) {
+      throw new Error(
+        `INVARIANT VIOLATION: Resume ${resumeId} is being edited but isPublic is true`,
+      );
+    }
+    if (resume.visibility === "public") {
+      throw new Error(
+        `INVARIANT VIOLATION: Resume ${resumeId} is being edited but visibility is "public"`,
+      );
+    }
+  }
+}
+
+/**
  * Masks email address to protect privacy
  * Shows only first character and domain
  */

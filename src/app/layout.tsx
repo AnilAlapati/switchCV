@@ -44,6 +44,10 @@ export const metadata: Metadata = {
     "Hire an AI agent to build, optimize, and track your living resume. Privacy-first career growth powered by agentic intelligence.",
 };
 
+import { headers } from "next/headers";
+
+// ... existing imports ...
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -52,6 +56,9 @@ export default async function RootLayout({
   const config = await getSystemConfig();
   const isMaintenance =
     config.maintenance.isActive && config.maintenance.blocking;
+
+  // Read nonce from headers (set by middleware)
+  const nonce = (await headers()).get("x-nonce") || undefined;
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -83,7 +90,7 @@ export default async function RootLayout({
                       <BetaBadge />
                       <MobileNotice />
                       <CookieConsentBanner />
-                      <ConsentAwareAnalytics />
+                      <ConsentAwareAnalytics nonce={nonce} />
                     </SWRProvider>
                   </AuthProvider>
                 </BlockingGuard>

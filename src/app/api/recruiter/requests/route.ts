@@ -4,6 +4,12 @@ import {
   handleApiError,
 } from "@/lib/utils/api-helpers";
 import { RecruiterService } from "@/lib/services/recruiterService";
+import { z } from "zod";
+
+const DeleteRecruiterRequestQuerySchema = z.object({
+  requestId: z.string().min(1),
+  resumeId: z.string().min(1),
+});
 
 export async function GET(request: NextRequest) {
   try {
@@ -48,13 +54,14 @@ export async function DELETE(request: NextRequest) {
     if (error) return error;
     if (!userId) return handleApiError(null, "Unauthorized", 401);
 
-    const { searchParams } = new URL(request.url);
-    const requestId = searchParams.get("requestId");
-    const resumeId = searchParams.get("resumeId");
-
-    if (!requestId || !resumeId) {
+    const parseResult = DeleteRecruiterRequestQuerySchema.safeParse({
+      requestId: request.nextUrl.searchParams.get("requestId"),
+      resumeId: request.nextUrl.searchParams.get("resumeId"),
+    });
+    if (!parseResult.success) {
       return handleApiError(null, "Missing requestId or resumeId", 400);
     }
+    const { requestId, resumeId } = parseResult.data;
 
     const result = await RecruiterService.deleteRecruiterRequest(
       userId,

@@ -141,12 +141,57 @@ export function middleware(request: NextRequest): NextResponse | undefined {
     );
   }
 
-  return undefined;
+  // Generate CSP Nonce
+  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+
+  // Define CSP directives
+  const isDev = process.env.NODE_ENV === "development";
+
+  // We need 'unsafe-eval' in dev for hot reloading
+  // 'unsafe-inline' is replaced by 'nonce-...' for scripts
+  // We still need 'unsafe-inline' for styles due to Next.js inline styles and some third-party libs
+  const cspHeader = `
+    default-src 'self';
+    script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${isDev ? "'unsafe-eval'" : ""} https: http:;
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' data: https: blob:;
+    font-src 'self' data:;
+    connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net https://firestore.googleapis.com wss://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.google-analytics.com https://*.posthog.com https://us.i.posthog.com;
+    frame-src 'self' https://*.firebaseapp.com https://*.googleapis.com;
+    worker-src 'self' blob:;
+    object-src 'none';
+    base-uri 'self';
+    form-action 'self';
+    frame-ancestors 'none';
+    upgrade-insecure-requests;
+  `.replace(/\s{2,}/g, " ").trim();
+
+  // Create response
+  const response = NextResponse.next();
+
+  // Set CSP header
+  response.headers.set("Content-Security-Policy", cspHeader);
+
+  // Set nonce in request headers so server components can access it
+  response.headers.set("x-nonce", nonce);
+  // Also set it on the request object for downstream middleware/handlers
+  request.headers.set("x-nonce", nonce);
+
+  return response;
 }
 
 /**
  * Matcher config — only run middleware on API routes
  */
 export const config = {
-  matcher: "/api/:path*",
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public files (images, etc)
+     */
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 };
