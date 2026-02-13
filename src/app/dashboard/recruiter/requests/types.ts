@@ -21,3 +21,6 @@ export interface RecruiterRequest {
 export interface DecoratedRequest extends RecruiterRequest {
   timeState: TimeState;
 }
+
+export type TabKey = "pending" | "active" | "history";
+

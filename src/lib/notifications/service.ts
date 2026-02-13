@@ -7,6 +7,7 @@ import {
   NotificationPayload,
   NotificationQueue,
   NotificationPreference,
+  NotificationLog,
 } from "../notifications.types";
 import { NotificationRepository } from "./repository";
 
@@ -27,7 +28,7 @@ export class NotificationService {
     recipientId: string,
     payload: NotificationPayload,
     channels: NotificationChannel[],
-    priority: NotificationPriority = NotificationPriority.MEDIUM
+    priority: NotificationPriority = NotificationPriority.MEDIUM,
   ): Promise<Notification> {
     const notification: Notification = {
       id: this.generateNotificationId(),
@@ -50,7 +51,7 @@ export class NotificationService {
 
   async getUserNotifications(
     userId: string,
-    limit: number = 50
+    limit: number = 50,
   ): Promise<Notification[]> {
     return this.repository.getUserNotifications(userId, limit);
   }
@@ -75,7 +76,7 @@ export class NotificationService {
 
   async markAsDelivered(
     notificationId: string,
-    channel: NotificationChannel
+    channel: NotificationChannel,
   ): Promise<Notification | undefined> {
     const notification = await this.repository.getNotification(notificationId);
     if (notification) {
@@ -89,7 +90,7 @@ export class NotificationService {
         notificationId,
         channel,
         NotificationStatus.DELIVERED,
-        "Delivered"
+        "Delivered",
       );
       return updated;
     }
@@ -99,7 +100,7 @@ export class NotificationService {
   async updateNotificationStatus(
     notificationId: string,
     status: NotificationStatus,
-    failureReason?: string
+    failureReason?: string,
   ): Promise<Notification | undefined> {
     const notification = await this.repository.getNotification(notificationId);
     if (notification) {
@@ -116,7 +117,7 @@ export class NotificationService {
   }
 
   async savePreference(
-    preference: NotificationPreference
+    preference: NotificationPreference,
   ): Promise<NotificationPreference> {
     return this.repository.savePreference(preference);
   }
@@ -127,7 +128,7 @@ export class NotificationService {
 
   async getPreference(
     userId: string,
-    type: NotificationType
+    type: NotificationType,
   ): Promise<NotificationPreference | undefined> {
     const preferences = await this.repository.getPreferences(userId);
     return preferences.find((p) => p.type === type);
@@ -136,7 +137,7 @@ export class NotificationService {
   async shouldSendNotification(
     userId: string,
     type: NotificationType,
-    channel: NotificationChannel
+    channel: NotificationChannel,
   ): Promise<boolean> {
     const preference = await this.getPreference(userId, type);
 
@@ -193,7 +194,7 @@ export class NotificationService {
 
   updateQueueStatus(
     queueId: string,
-    status: "processing" | "idle" | "paused"
+    status: "processing" | "idle" | "paused",
   ): NotificationQueue | undefined {
     const queue = this.queueStore.get(queueId);
     if (queue) {
@@ -209,7 +210,7 @@ export class NotificationService {
     channel: NotificationChannel,
     status: NotificationStatus,
     message: string,
-    errorCode?: string
+    errorCode?: string,
   ): Promise<void> {
     const log = {
       id: `log_${Date.now()}`,
@@ -224,7 +225,10 @@ export class NotificationService {
     await this.repository.logNotification(log);
   }
 
-  async getLogs(notificationId?: string, limit: number = 100): Promise<any[]> {
+  async getLogs(
+    notificationId?: string,
+    limit: number = 100,
+  ): Promise<NotificationLog[]> {
     return this.repository.getLogs(notificationId, limit);
   }
 
@@ -239,7 +243,7 @@ export class NotificationService {
 
   async getStatistics(
     userId?: string,
-    days: number = 7
+    days: number = 7,
   ): Promise<Record<string, number>> {
     return this.repository.getStatistics(userId, days);
   }

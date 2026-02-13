@@ -487,6 +487,12 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Feature flags — read only via Admin SDK; write denied to clients
+    match /featureFlags/{flagId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
     // AI usage logs — server-side only via Admin SDK
     match /aiUsageLogs/{logId} {
       allow read: if false;
@@ -561,6 +567,12 @@ service cloud.firestore {
 
     // Rate limits — server-side only
     match /rateLimits/{docId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // Cache — server-side only (CacheService via Admin SDK)
+    match /cache/{docId} {
       allow read: if false;
       allow write: if false;
     }

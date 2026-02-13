@@ -1,13 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHash, randomUUID } from "crypto";
+import { randomUUID } from "crypto";
 import { z } from "zod";
 import { generateText } from "@/lib/services/aiGenerationService";
-import {
-  COLLECTIONS,
-  collectionRef,
-  serverTimestamp,
-  timestampFromDate,
-} from "@/lib/dal";
+
 import {
   getAuthenticatedUserId,
   handleApiError,
@@ -29,54 +24,17 @@ import {
 import { withAppCheck } from "@/lib/middleware/appCheck";
 import { lookupCache, storeInCache } from "@/lib/services/semanticCache";
 
-/**
- * Zod schema for AI generation request validation
- */
-const GenerateRequestSchema = z.object({
-  prompt: z
-    .string()
-    .min(1, "Prompt is required")
-    .max(2000, "Prompt exceeds maximum length of 2000 characters"),
-  maxTokens: z
-    .number()
-    .int()
-    .min(1, "maxTokens must be at least 1")
-    .max(4000, "maxTokens cannot exceed 4000")
-    .optional()
-    .default(150),
-  temperature: z
-    .number()
-    .min(0, "Temperature must be between 0 and 2")
-    .max(2, "Temperature must be between 0 and 2")
-    .optional(),
-  task: z
-    .enum(["creative", "balanced", "structured", "precise"])
-    .optional()
-    .default("creative"),
-  role: z.enum(["jobseeker", "recruiter"]).optional().default("jobseeker"),
-  skipCache: z.boolean().optional().default(false), // Allow bypassing semantic cache
-});
-
-class RateLimitError extends Error {
-  constructor(public readonly retryAfterSeconds: number) {
-    super("Too many requests");
-    this.name = "RateLimitError";
-  }
-}
-
-class EntitlementError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "EntitlementError";
-  }
-}
-
-const AUDIT_LOG_TTL_DAYS = Number(process.env.AI_AUDIT_LOG_TTL_DAYS || 30);
-const AUDIT_LOG_TTL_MS = AUDIT_LOG_TTL_DAYS * 24 * 60 * 60 * 1000;
-
-function hashPrompt(prompt: string): string {
-  return createHash("sha256").update(prompt).digest("hex");
-}
+import {
+  GenerateRequestSchema
+} from "@/lib/schemas/api/ai.schemas";
+import {
+  RateLimitError,
+  EntitlementError,
+  attachRateLimitHeaders,
+  logUsage,
+  logAuditEvent,
+  handleRouteError
+} from "@/lib/services/ai/ai-logging";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const requestId = randomUUID();
@@ -217,14 +175,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Track Billing - use actual token counts when available, fallback to heuristic
     const tokenUsage = result.usage
       ? {
-          input: result.usage.promptTokens,
-          output: result.usage.completionTokens,
-        }
+        input: result.usage.promptTokens,
+        output: result.usage.completionTokens,
+      }
       : {
-          // Fallback heuristic for providers that don't return usage (e.g., HuggingFace)
-          input: Math.ceil(prompt.length / 4),
-          output: Math.ceil(result.text.length / 4),
-        };
+        // Fallback heuristic for providers that don't return usage (e.g., HuggingFace)
+        input: Math.ceil(prompt.length / 4),
+        output: Math.ceil(result.text.length / 4),
+      };
     await BillingService.trackUsage(userId!, result.model, tokenUsage);
 
     // Store in semantic cache for future similar queries
@@ -287,82 +245,3 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 }
 
-function attachRateLimitHeaders(
-  response: NextResponse,
-  data: { remaining: number; resetIn?: number; limit: number },
-) {
-  response.headers.set("X-RateLimit-Limit", data.limit.toString());
-  response.headers.set("X-RateLimit-Remaining", data.remaining.toString());
-  if (data.resetIn) {
-    response.headers.set(
-      "X-RateLimit-Reset",
-      Math.floor(Date.now() / 1000 + data.resetIn / 1000).toString(),
-    );
-  }
-}
-
-async function logUsage(params: {
-  userId: string;
-  prompt: string;
-  model: string;
-  plan: string;
-  maxTokens: number;
-  temperature: number;
-  task?: string;
-}) {
-  await collectionRef(COLLECTIONS.AI_USAGE_LOGS).add({
-    userId: params.userId,
-    plan: params.plan,
-    scope: "ai_generation",
-    task: params.task || "unknown",
-    promptChars: params.prompt.length,
-    requestedTokens: params.maxTokens,
-    temperature: params.temperature,
-    model: params.model,
-    createdAt: serverTimestamp(),
-  });
-}
-
-async function logAuditEvent(params: {
-  userId: string;
-  prompt: string;
-  model: string;
-  status: string;
-  requestId: string;
-}) {
-  const promptHash = hashPrompt(params.prompt);
-  const expiresAt = timestampFromDate(new Date(Date.now() + AUDIT_LOG_TTL_MS));
-
-  await collectionRef(COLLECTIONS.AI_AUDIT_LOGS).add({
-    userId: params.userId,
-    promptHash,
-    promptLength: params.prompt.length,
-    model: params.model,
-    status: params.status,
-    requestId: params.requestId,
-    timestamp: serverTimestamp(),
-    expiresAt,
-  });
-}
-
-function handleRouteError(error: unknown) {
-  if (error instanceof RateLimitError) {
-    const response = handleApiError(
-      error,
-      "Too many requests. Please try again later.",
-      429,
-    );
-    response.headers.set("Retry-After", error.retryAfterSeconds.toString());
-    return response;
-  }
-
-  if (error instanceof EntitlementError) {
-    return handleApiError(
-      error,
-      "Access denied - insufficient entitlement",
-      403,
-    );
-  }
-
-  return handleApiError(error, "AI text generation failed");
-}

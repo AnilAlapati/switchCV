@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import Link from "next/link";
 
 const LAST_UPDATED = "February 8, 2026";

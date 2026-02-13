@@ -56,7 +56,7 @@ export interface ResumeDocumentData extends Partial<ResumeProfile> {
   isPublic?: boolean;
   visibility?: Visibility;
 }
-import { logger, sanitizeForLogging } from "@/lib/logger";
+import { logger } from "@/lib/logger";
 
 /**alidates CORS origin for the request.
  * Returns an error response if the origin is not allowed.

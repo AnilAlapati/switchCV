@@ -13,6 +13,7 @@ import {
   NotificationPayload,
   NotificationQueue,
   NotificationPreference,
+  NotificationLog,
 } from "./notifications.types";
 import { notificationService } from "./notifications";
 
@@ -31,15 +32,23 @@ export async function createNotification(
   recipientId: string,
   payload: NotificationPayload,
   channels: NotificationChannel[],
-  priority: NotificationPriority = NotificationPriority.MEDIUM
+  priority: NotificationPriority = NotificationPriority.MEDIUM,
 ): Promise<Notification> {
-  return notificationService.createNotification(type, recipientId, payload, channels, priority);
+  return notificationService.createNotification(
+    type,
+    recipientId,
+    payload,
+    channels,
+    priority,
+  );
 }
 
 /**
  * Get notification by ID
  */
-export async function getNotification(id: string): Promise<Notification | undefined> {
+export async function getNotification(
+  id: string,
+): Promise<Notification | undefined> {
   return notificationService.getNotification(id);
 }
 
@@ -48,7 +57,7 @@ export async function getNotification(id: string): Promise<Notification | undefi
  */
 export async function getUserNotifications(
   userId: string,
-  limit: number = 50
+  limit: number = 50,
 ): Promise<Notification[]> {
   return notificationService.getUserNotifications(userId, limit);
 }
@@ -56,14 +65,18 @@ export async function getUserNotifications(
 /**
  * Get unread notifications for user
  */
-export async function getUnreadNotifications(userId: string): Promise<Notification[]> {
+export async function getUnreadNotifications(
+  userId: string,
+): Promise<Notification[]> {
   return notificationService.getUnreadNotifications(userId);
 }
 
 /**
  * Mark notification as read
  */
-export async function markAsRead(notificationId: string): Promise<Notification | undefined> {
+export async function markAsRead(
+  notificationId: string,
+): Promise<Notification | undefined> {
   return notificationService.markAsRead(notificationId);
 }
 
@@ -72,7 +85,7 @@ export async function markAsRead(notificationId: string): Promise<Notification |
  */
 export async function markAsDelivered(
   notificationId: string,
-  channel: NotificationChannel
+  channel: NotificationChannel,
 ): Promise<Notification | undefined> {
   return notificationService.markAsDelivered(notificationId, channel);
 }
@@ -83,16 +96,20 @@ export async function markAsDelivered(
 export async function updateNotificationStatus(
   notificationId: string,
   status: NotificationStatus,
-  failureReason?: string
+  failureReason?: string,
 ): Promise<Notification | undefined> {
-  return notificationService.updateNotificationStatus(notificationId, status, failureReason);
+  return notificationService.updateNotificationStatus(
+    notificationId,
+    status,
+    failureReason,
+  );
 }
 
 /**
  * Save notification preference
  */
 export async function savePreference(
-  preference: NotificationPreference
+  preference: NotificationPreference,
 ): Promise<NotificationPreference> {
   return notificationService.savePreference(preference);
 }
@@ -100,7 +117,9 @@ export async function savePreference(
 /**
  * Get notification preferences for user
  */
-export async function getPreferences(userId: string): Promise<NotificationPreference[]> {
+export async function getPreferences(
+  userId: string,
+): Promise<NotificationPreference[]> {
   return notificationService.getPreferences(userId);
 }
 
@@ -109,7 +128,7 @@ export async function getPreferences(userId: string): Promise<NotificationPrefer
  */
 export async function getPreference(
   userId: string,
-  type: NotificationType
+  type: NotificationType,
 ): Promise<NotificationPreference | undefined> {
   return notificationService.getPreference(userId, type);
 }
@@ -120,7 +139,7 @@ export async function getPreference(
 export async function shouldSendNotification(
   userId: string,
   type: NotificationType,
-  channel: NotificationChannel
+  channel: NotificationChannel,
 ): Promise<boolean> {
   return notificationService.shouldSendNotification(userId, type, channel);
 }
@@ -137,7 +156,7 @@ export function createQueue(channel: NotificationChannel): NotificationQueue {
  */
 export function addToQueue(
   queueId: string,
-  notification: Notification
+  notification: Notification,
 ): boolean {
   return notificationService.addToQueue(queueId, notification);
 }
@@ -154,7 +173,7 @@ export function getQueue(queueId: string): NotificationQueue | undefined {
  */
 export function updateQueueStatus(
   queueId: string,
-  status: "processing" | "idle" | "paused"
+  status: "processing" | "idle" | "paused",
 ): NotificationQueue | undefined {
   return notificationService.updateQueueStatus(queueId, status);
 }
@@ -167,29 +186,42 @@ export async function logNotification(
   channel: NotificationChannel,
   status: NotificationStatus,
   message: string,
-  errorCode?: string
+  errorCode?: string,
 ): Promise<void> {
-  return notificationService.logNotification(notificationId, channel, status, message, errorCode);
+  return notificationService.logNotification(
+    notificationId,
+    channel,
+    status,
+    message,
+    errorCode,
+  );
 }
 
 /**
  * Get notification logs
  */
-export async function getLogs(notificationId?: string, limit: number = 100): Promise<any[]> {
+export async function getLogs(
+  notificationId?: string,
+  limit: number = 100,
+): Promise<NotificationLog[]> {
   return notificationService.getLogs(notificationId, limit);
 }
 
 /**
  * Delete notification
  */
-export async function deleteNotification(notificationId: string): Promise<boolean> {
+export async function deleteNotification(
+  notificationId: string,
+): Promise<boolean> {
   return notificationService.deleteNotification(notificationId);
 }
 
 /**
  * Clear old notifications (older than days)
  */
-export async function clearOldNotifications(days: number = 30): Promise<number> {
+export async function clearOldNotifications(
+  days: number = 30,
+): Promise<number> {
   return notificationService.clearOldNotifications(days);
 }
 
@@ -198,7 +230,7 @@ export async function clearOldNotifications(days: number = 30): Promise<number> 
  */
 export async function getStatistics(
   userId?: string,
-  days: number = 7
+  days: number = 7,
 ): Promise<Record<string, number>> {
   return notificationService.getStatistics(userId, days);
 }

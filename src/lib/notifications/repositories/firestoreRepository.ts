@@ -53,7 +53,7 @@ export class FirestoreNotificationRepository implements NotificationRepository {
     await adminDb
       .collection(NOTIFICATIONS_COLLECTION)
       .doc(notification.id)
-      .set(data as Record<string, any>);
+      .set(data as Record<string, unknown>);
     return notification;
   }
 
@@ -68,7 +68,7 @@ export class FirestoreNotificationRepository implements NotificationRepository {
 
   async getUserNotifications(
     userId: string,
-    limit: number = 50
+    limit: number = 50,
   ): Promise<Notification[]> {
     const snapshot = await adminDb
       .collection(NOTIFICATIONS_COLLECTION)
@@ -78,7 +78,7 @@ export class FirestoreNotificationRepository implements NotificationRepository {
       .get();
 
     return snapshot.docs.map(
-      (doc) => this.convertTimestampToDate(doc.data()) as Notification
+      (doc) => this.convertTimestampToDate(doc.data()) as Notification,
     );
   }
 
@@ -87,7 +87,7 @@ export class FirestoreNotificationRepository implements NotificationRepository {
     await adminDb
       .collection(NOTIFICATIONS_COLLECTION)
       .doc(notification.id)
-      .set(data as Record<string, any>, { merge: true });
+      .set(data as Record<string, unknown>, { merge: true });
     return notification;
   }
 
@@ -103,28 +103,35 @@ export class FirestoreNotificationRepository implements NotificationRepository {
       .get();
 
     return snapshot.docs.map(
-      (doc) => this.convertTimestampToDate(doc.data()) as NotificationPreference
+      (doc) =>
+        this.convertTimestampToDate(doc.data()) as NotificationPreference,
     );
   }
 
   async savePreference(
-    preference: NotificationPreference
+    preference: NotificationPreference,
   ): Promise<NotificationPreference> {
     const data = this.convertDateToTimestamp(preference);
     // Use a composite ID or query to find existing preference
     const id = `${preference.userId}_${preference.type}`;
-    await adminDb.collection(PREFERENCES_COLLECTION).doc(id).set(data as Record<string, any>);
+    await adminDb
+      .collection(PREFERENCES_COLLECTION)
+      .doc(id)
+      .set(data as Record<string, unknown>);
     return preference;
   }
 
   async logNotification(log: NotificationLog): Promise<void> {
     const data = this.convertDateToTimestamp(log);
-    await adminDb.collection(LOGS_COLLECTION).doc(log.id).set(data as Record<string, any>);
+    await adminDb
+      .collection(LOGS_COLLECTION)
+      .doc(log.id)
+      .set(data as Record<string, unknown>);
   }
 
   async getLogs(
     notificationId?: string,
-    limit: number = 100
+    limit: number = 100,
   ): Promise<NotificationLog[]> {
     let query: FirebaseFirestore.Query = adminDb.collection(LOGS_COLLECTION);
 
@@ -137,7 +144,7 @@ export class FirestoreNotificationRepository implements NotificationRepository {
       .limit(limit)
       .get();
     return snapshot.docs.map(
-      (doc) => this.convertTimestampToDate(doc.data()) as NotificationLog
+      (doc) => this.convertTimestampToDate(doc.data()) as NotificationLog,
     );
   }
 
@@ -159,7 +166,7 @@ export class FirestoreNotificationRepository implements NotificationRepository {
 
   async getStatistics(
     userId?: string,
-    days: number = 7
+    days: number = 7,
   ): Promise<Record<string, number>> {
     const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     const timestamp = Timestamp.fromDate(cutoffDate);

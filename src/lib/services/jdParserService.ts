@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 /**
  * Job Description Parser Service
  * Parses job descriptions (text or file) and extracts structured requirements

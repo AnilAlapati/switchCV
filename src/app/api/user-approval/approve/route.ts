@@ -35,12 +35,6 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const token = searchParams.get("token");
 
-  // Headers for all responses
-  const headers = {
-    "Content-Type": "text/html",
-    "Cache-Control": "no-store, max-age=0",
-  };
-
   if (!token) {
     return new NextResponse(
       `<!DOCTYPE html>

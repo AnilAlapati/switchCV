@@ -17,11 +17,11 @@ import {
 
 const CONFIG_CACHE_KEY = "switchcv:system-config";
 
-// Environment-aware polling: Dev = 1 hour, Prod = 1 minute
+// Environment-aware polling: Dev = 1 hour, Prod = 5 minutes (Rule 7: minimum 5 min in production)
 const POLL_INTERVAL_MS =
   process.env.NODE_ENV === "development"
     ? 60 * 60 * 1000 // 1 hour for dev (24 calls/day)
-    : 60 * 1000; // 1 minute for prod (1,440 calls/day)
+    : 5 * 60 * 1000; // 5 minutes for prod (288 calls/day)
 
 type SystemConfigContextValue = {
   config: SystemConfig;
@@ -30,7 +30,7 @@ type SystemConfigContextValue = {
 };
 
 const SystemConfigContext = createContext<SystemConfigContextValue | null>(
-  null
+  null,
 );
 
 type CachedConfigPayload = {
@@ -117,8 +117,8 @@ const fetchRemoteConfig = async (): Promise<SystemConfig> => {
     };
     return mergeWithDefaultConfig(payload.config);
   } catch (
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _error
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _error
   ) {
     return defaultSystemConfig;
   }
@@ -132,7 +132,7 @@ export const SystemConfigProvider = ({
   initialConfig?: SystemConfig;
 }): React.JSX.Element => {
   const [config, setConfig] = useState<SystemConfig>(
-    initialConfig ?? defaultSystemConfig
+    initialConfig ?? defaultSystemConfig,
   );
   const [loading, setLoading] = useState<boolean>(!initialConfig);
 
@@ -154,7 +154,9 @@ export const SystemConfigProvider = ({
       if (process.env.NODE_ENV === "development") {
         try {
           window.localStorage.removeItem(CONFIG_CACHE_KEY);
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
 
       const cached = readCachedConfig();
@@ -223,7 +225,7 @@ export const SystemConfigProvider = ({
       loading,
       refresh,
     }),
-    [config, loading, refresh]
+    [config, loading, refresh],
   );
 
   return (

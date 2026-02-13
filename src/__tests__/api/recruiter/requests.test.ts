@@ -1,14 +1,10 @@
 import { GET, POST, DELETE } from "@/app/api/recruiter/requests/route";
-import { adminDb } from "@/lib/firebase-admin";
 import {
   getAuthenticatedUserId,
   handleApiError,
 } from "@/lib/utils/api-helpers";
-import {
-  decrementJobSeekerMetric,
-  updateRecruiterAccessMetric,
-} from "@/lib/services/metricsService";
-import { NextRequest } from "next/server";
+import { RecruiterService } from "@/lib/services/recruiterService";
+import { NextRequest, NextResponse } from "next/server";
 
 jest.mock("@/lib/firebase-admin");
 jest.mock("@/lib/utils/api-helpers", () => ({
@@ -17,176 +13,227 @@ jest.mock("@/lib/utils/api-helpers", () => ({
     const { NextResponse } = require("next/server");
     return NextResponse.json(
       { error: msg || "Internal Server Error" },
-      { status: status || 500 }
+      { status: status || 500 },
     );
   }),
 }));
+jest.mock("@/lib/services/recruiterService");
 jest.mock("@/lib/services/metricsService");
 jest.mock("@/lib/logger");
 
+const mockGetAuth = getAuthenticatedUserId as jest.Mock;
+const mockUserId = "recruiter-123";
+
+function makeRequest(
+  method: string,
+  params?: Record<string, string>,
+): NextRequest {
+  const url = new URL("http://localhost/api/recruiter/requests");
+  if (params) {
+    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  }
+  return new NextRequest(url, { method });
+}
+
 describe("Recruiter Requests API", () => {
-  const mockRequest = new NextRequest(
-    "http://localhost/api/recruiter/requests",
-    { method: "GET" }
-  );
-
-  const mockUserId = "recruiter-123";
-
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
+  // ── GET ─────────────────────────────────────────────────
+
   describe("GET /api/recruiter/requests", () => {
-    it("should return 401 when user is not authenticated", async () => {
-      const { NextResponse } = require("next/server");
-      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+    it("should return auth error when authentication fails", async () => {
+      mockGetAuth.mockResolvedValue({
         userId: null,
         error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
       });
-
-      const response = await GET(mockRequest);
+      const response = await GET(makeRequest("GET"));
       expect(response.status).toBe(401);
     });
 
-    it("should return 403 when user is not a recruiter", async () => {
-      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
-        userId: mockUserId,
-        error: null,
-      });
+    it("should return 401 when userId is null without error response", async () => {
+      mockGetAuth.mockResolvedValue({ userId: null, error: null });
+      const response = await GET(makeRequest("GET"));
+      expect(response.status).toBe(401);
+    });
 
-      const mockUserDoc = {
-        data: jest.fn().mockReturnValue({ role: "jobseeker" }),
-      };
+    it("should return requests on success", async () => {
+      mockGetAuth.mockResolvedValue({ userId: mockUserId, error: null });
+      const mockRequests = [{ id: "r1", status: "pending" }];
+      (RecruiterService.getRecruiterRequests as jest.Mock).mockResolvedValue(
+        mockRequests,
+      );
 
-      (adminDb.collection as jest.Mock).mockReturnValue({
-        doc: jest.fn().mockReturnValue({
-          get: jest.fn().mockResolvedValue(mockUserDoc),
-        }),
-      });
+      const response = await GET(makeRequest("GET"));
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.requests).toEqual(mockRequests);
+    });
 
-      const response = await GET(mockRequest);
+    it("should return 403 for forbidden-role error", async () => {
+      mockGetAuth.mockResolvedValue({ userId: mockUserId, error: null });
+      (RecruiterService.getRecruiterRequests as jest.Mock).mockRejectedValue(
+        new Error("forbidden-role"),
+      );
+
+      const response = await GET(makeRequest("GET"));
       expect(response.status).toBe(403);
     });
 
-    it("should return all access requests for recruiter", async () => {
-      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
-        userId: mockUserId,
-        error: null,
-      });
+    it("should return 500 for generic errors", async () => {
+      mockGetAuth.mockResolvedValue({ userId: mockUserId, error: null });
+      (RecruiterService.getRecruiterRequests as jest.Mock).mockRejectedValue(
+        new Error("Database error"),
+      );
 
-      const mockUserDoc = {
-        data: jest.fn().mockReturnValue({ role: "recruiter" }),
-      };
-
-      const mockRequestDocs = [
-        {
-          id: "request-1",
-          data: jest.fn().mockReturnValue({
-            fromUserId: mockUserId,
-            timestamp: new Date(),
-            status: "pending",
-          }),
-          ref: {
-            parent: {
-              parent: {
-                id: "resume-1",
-              },
-            },
-          },
-        },
-      ];
-
-      const mockResumeDoc = {
-        exists: true,
-        data: jest.fn().mockReturnValue({
-          title: "Software Engineer Resume",
-          userId: "candidate-123",
-        }),
-      };
-
-      const mockUserProfileDoc = {
-        data: jest.fn().mockReturnValue({
-          displayName: "John Doe",
-        }),
-      };
-
-      const mockRequestsSnapshot = {
-        docs: mockRequestDocs,
-      };
-
-      (adminDb.collection as jest.Mock)
-        .mockReturnValueOnce({
-          doc: jest.fn().mockReturnValue({
-            get: jest.fn().mockResolvedValue(mockUserDoc),
-          }),
-        })
-        .mockReturnValueOnce({
-          orderBy: jest.fn().mockReturnValue({
-            get: jest.fn().mockResolvedValue(mockRequestsSnapshot),
-          }),
-        });
-
-      // Mock admin to handle collectionGroup
-      (adminDb.collectionGroup as jest.Mock).mockReturnValue({
-        where: jest.fn().mockReturnValue({
-          orderBy: jest.fn().mockReturnValue({
-            get: jest.fn().mockResolvedValue(mockRequestsSnapshot),
-          }),
-        }),
-      });
-
-      // Note: Actual test would need proper mocking of nested collection calls
-    });
-
-    it("should handle errors gracefully", async () => {
-      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
-        userId: mockUserId,
-        error: null,
-      });
-
-      (adminDb.collection as jest.Mock).mockReturnValue({
-        doc: jest.fn().mockReturnValue({
-          get: jest.fn().mockRejectedValue(new Error("Database error")),
-        }),
-      });
-
-      const response = await GET(mockRequest);
-      expect(response.status).toBeGreaterThanOrEqual(400);
+      const response = await GET(makeRequest("GET"));
+      expect(response.status).toBe(500);
     });
   });
+
+  // ── POST ────────────────────────────────────────────────
 
   describe("POST /api/recruiter/requests", () => {
-    it("should reject when request is not authenticated", async () => {
-      const { NextResponse } = require("next/server");
-      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+    it("should return auth error when not authenticated", async () => {
+      mockGetAuth.mockResolvedValue({
         userId: null,
         error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
       });
-
-      const response = await POST(mockRequest);
+      const response = await POST(makeRequest("POST"));
       expect(response.status).toBe(401);
     });
 
-    it("should require JSON body", async () => {
-      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
-        userId: mockUserId,
-        error: null,
-      });
+    it("should return 401 when userId is null", async () => {
+      mockGetAuth.mockResolvedValue({ userId: null, error: null });
+      const response = await POST(makeRequest("POST"));
+      expect(response.status).toBe(401);
+    });
 
-      // Test with empty/invalid body
+    it("should return 405 when recruiter role enforced successfully", async () => {
+      mockGetAuth.mockResolvedValue({ userId: mockUserId, error: null });
+      (RecruiterService.enforceRecruiterRole as jest.Mock).mockResolvedValue(
+        undefined,
+      );
+
+      const response = await POST(makeRequest("POST"));
+      expect(response.status).toBe(405);
+    });
+
+    it("should return 403 when forbidden-role error thrown", async () => {
+      mockGetAuth.mockResolvedValue({ userId: mockUserId, error: null });
+      (RecruiterService.enforceRecruiterRole as jest.Mock).mockRejectedValue(
+        new Error("forbidden-role"),
+      );
+
+      const response = await POST(makeRequest("POST"));
+      expect(response.status).toBe(403);
+    });
+
+    it("should return 500 on generic error", async () => {
+      mockGetAuth.mockResolvedValue({ userId: mockUserId, error: null });
+      (RecruiterService.enforceRecruiterRole as jest.Mock).mockRejectedValue(
+        new Error("unexpected"),
+      );
+
+      const response = await POST(makeRequest("POST"));
+      expect(response.status).toBe(500);
     });
   });
 
-  describe("DELETE /api/recruiter/requests/:requestId", () => {
-    it("should require authentication", async () => {
-      const { NextResponse } = require("next/server");
-      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+  // ── DELETE ──────────────────────────────────────────────
+
+  describe("DELETE /api/recruiter/requests", () => {
+    it("should return auth error when not authenticated", async () => {
+      mockGetAuth.mockResolvedValue({
         userId: null,
         error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
       });
-
-      const response = await DELETE(mockRequest);
+      const response = await DELETE(makeRequest("DELETE"));
       expect(response.status).toBe(401);
+    });
+
+    it("should return 401 when userId is null", async () => {
+      mockGetAuth.mockResolvedValue({ userId: null, error: null });
+      const response = await DELETE(makeRequest("DELETE"));
+      expect(response.status).toBe(401);
+    });
+
+    it("should return 400 when requestId or resumeId missing", async () => {
+      mockGetAuth.mockResolvedValue({ userId: mockUserId, error: null });
+      const response = await DELETE(makeRequest("DELETE"));
+      expect(response.status).toBe(400);
+    });
+
+    it("should return 400 when only requestId is provided", async () => {
+      mockGetAuth.mockResolvedValue({ userId: mockUserId, error: null });
+      const response = await DELETE(
+        makeRequest("DELETE", { requestId: "req-1" }),
+      );
+      expect(response.status).toBe(400);
+    });
+
+    it("should delete successfully when both params given", async () => {
+      mockGetAuth.mockResolvedValue({ userId: mockUserId, error: null });
+      const mockResult = { success: true };
+      (RecruiterService.deleteRecruiterRequest as jest.Mock).mockResolvedValue(
+        mockResult,
+      );
+
+      const response = await DELETE(
+        makeRequest("DELETE", { requestId: "req-1", resumeId: "res-1" }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.success).toBe(true);
+    });
+
+    it("should return 403 on forbidden-role error", async () => {
+      mockGetAuth.mockResolvedValue({ userId: mockUserId, error: null });
+      (RecruiterService.deleteRecruiterRequest as jest.Mock).mockRejectedValue(
+        new Error("forbidden-role"),
+      );
+
+      const response = await DELETE(
+        makeRequest("DELETE", { requestId: "req-1", resumeId: "res-1" }),
+      );
+      expect(response.status).toBe(403);
+    });
+
+    it("should return 404 on request-not-found error", async () => {
+      mockGetAuth.mockResolvedValue({ userId: mockUserId, error: null });
+      (RecruiterService.deleteRecruiterRequest as jest.Mock).mockRejectedValue(
+        new Error("request-not-found"),
+      );
+
+      const response = await DELETE(
+        makeRequest("DELETE", { requestId: "req-1", resumeId: "res-1" }),
+      );
+      expect(response.status).toBe(404);
+    });
+
+    it("should return 403 on unauthorized error", async () => {
+      mockGetAuth.mockResolvedValue({ userId: mockUserId, error: null });
+      (RecruiterService.deleteRecruiterRequest as jest.Mock).mockRejectedValue(
+        new Error("unauthorized"),
+      );
+
+      const response = await DELETE(
+        makeRequest("DELETE", { requestId: "req-1", resumeId: "res-1" }),
+      );
+      expect(response.status).toBe(403);
+    });
+
+    it("should return 500 on generic error", async () => {
+      mockGetAuth.mockResolvedValue({ userId: mockUserId, error: null });
+      (RecruiterService.deleteRecruiterRequest as jest.Mock).mockRejectedValue(
+        new Error("db failure"),
+      );
+
+      const response = await DELETE(
+        makeRequest("DELETE", { requestId: "req-1", resumeId: "res-1" }),
+      );
+      expect(response.status).toBe(500);
     });
   });
 });

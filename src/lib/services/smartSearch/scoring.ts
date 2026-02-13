@@ -101,7 +101,6 @@ export function rerankByJDMatch(
                     Array.from(prefSet).filter((s) =>
                         candidateSkillMatches(candidateSkills, s),
                     ),
-                    preferredSkills.length,
                 ),
             };
         })
@@ -136,7 +135,6 @@ export function generateJDMatchReason(
     matchedRequired: string[],
     totalRequired: number,
     matchedPreferred: string[],
-    totalPreferred: number,
 ): string {
     if (totalRequired === 0) return "Semantic match for job criteria";
 

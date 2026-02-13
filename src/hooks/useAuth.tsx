@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 // src/hooks/useAuth.tsx
 "use client";
 

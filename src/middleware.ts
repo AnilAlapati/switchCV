@@ -3,15 +3,125 @@ import { NextRequest, NextResponse } from "next/server";
 /**
  * Next.js Edge Middleware
  *
- * Enforces CSRF validation on state-changing API requests (POST, PUT, DELETE, PATCH).
- * Uses the SameSite cookie + custom header pattern (Origin/Referer check) since
- * the in-memory CSRF token store doesn't work across serverless invocations.
- *
- * This approach is recommended by OWASP for stateless CSRF protection:
- * - Verify Origin header matches expected origins
- * - Verify Referer header as fallback
- * - Combined with SameSite=Strict cookies for session tokens
+ * 1. Rate Limiting: In-memory sliding window per IP with path-based tiers
+ * 2. CSRF Validation: Origin/Referer check for state-changing requests
+ * 3. CSP Headers: Content Security Policy with nonces
  */
+
+// ============================================================================
+// RATE LIMITING
+// ============================================================================
+
+/**
+ * Path-based rate limit tiers.
+ * Matched in order — first match wins.
+ */
+const RATE_LIMIT_TIERS: Array<{
+  pattern: RegExp;
+  limit: number;
+  windowMs: number;
+}> = [
+  // Auth routes — strict to prevent brute force
+  { pattern: /^\/api\/auth\//, limit: 5, windowMs: 60_000 },
+  // AI generation routes — expensive, tight limits
+  {
+    pattern: /^\/api\/(ai|resume\/generate|resume\/enhance)\b/,
+    limit: 10,
+    windowMs: 60_000,
+  },
+  // Search routes
+  {
+    pattern: /^\/api\/(search|recruiter\/search)/,
+    limit: 20,
+    windowMs: 60_000,
+  },
+  // Admin routes
+  { pattern: /^\/api\/admin\//, limit: 30, windowMs: 60_000 },
+  // Default for all other API routes
+  { pattern: /^\/api\//, limit: 100, windowMs: 60_000 },
+];
+
+/** Paths exempt from rate limiting */
+const RATE_LIMIT_EXEMPT = [
+  "/api/health",
+  "/api/health/infra",
+  "/api/system-config",
+  "/api/docs",
+];
+
+interface RateLimitEntry {
+  count: number;
+  windowStart: number;
+}
+
+/** In-memory store for rate limiting (per-region in edge, acceptable for abuse prevention) */
+const rateLimitStore = new Map<string, RateLimitEntry>();
+
+/** Cleanup stale entries every 60 seconds to prevent memory leaks */
+let lastCleanup = Date.now();
+const CLEANUP_INTERVAL_MS = 60_000;
+
+function cleanupRateLimitStore(): void {
+  const now = Date.now();
+  if (now - lastCleanup < CLEANUP_INTERVAL_MS) return;
+  lastCleanup = now;
+
+  for (const [key, entry] of rateLimitStore) {
+    // Remove entries whose window has expired with a generous buffer
+    if (now - entry.windowStart > 120_000) {
+      rateLimitStore.delete(key);
+    }
+  }
+}
+
+/**
+ * Check rate limit for a given IP + path tier.
+ * Returns remaining requests or -1 if limit exceeded.
+ */
+function checkRateLimitMiddleware(
+  ip: string,
+  pathname: string,
+): { allowed: boolean; remaining: number; resetMs: number } {
+  cleanupRateLimitStore();
+
+  // Find matching tier
+  const tier = RATE_LIMIT_TIERS.find((t) => t.pattern.test(pathname));
+  if (!tier) return { allowed: true, remaining: 999, resetMs: 0 };
+
+  const key = `${ip}:${tier.pattern.source}`;
+  const now = Date.now();
+  const entry = rateLimitStore.get(key);
+
+  if (!entry || now - entry.windowStart >= tier.windowMs) {
+    // New window
+    rateLimitStore.set(key, { count: 1, windowStart: now });
+    return {
+      allowed: true,
+      remaining: tier.limit - 1,
+      resetMs: tier.windowMs,
+    };
+  }
+
+  entry.count++;
+  const remaining = tier.limit - entry.count;
+  const resetMs = tier.windowMs - (now - entry.windowStart);
+
+  if (remaining < 0) {
+    return { allowed: false, remaining: 0, resetMs };
+  }
+
+  return { allowed: true, remaining, resetMs };
+}
+
+function isRateLimitExempt(pathname: string): boolean {
+  return RATE_LIMIT_EXEMPT.some(
+    (exempt) => pathname === exempt || pathname.startsWith(`${exempt}/`),
+  );
+}
+
+// ============================================================================
+// CSRF PROTECTION
+// ============================================================================
 
 /**
  * Routes exempt from CSRF protection.
@@ -120,6 +230,37 @@ export function middleware(request: NextRequest): NextResponse | undefined {
     return undefined;
   }
 
+  // ── Correlation ID ──
+  // Propagate incoming x-request-id or generate a new one for tracing
+  const requestId = request.headers.get("x-request-id") || crypto.randomUUID();
+
+  // ── Rate Limiting (all methods, all API routes except exempt) ──
+  if (!isRateLimitExempt(pathname)) {
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      request.headers.get("x-real-ip") ||
+      "unknown";
+
+    const rateResult = checkRateLimitMiddleware(ip, pathname);
+
+    if (!rateResult.allowed) {
+      const retryAfterSec = Math.ceil(rateResult.resetMs / 1000);
+      return NextResponse.json(
+        { error: "Too many requests", code: "RATE_LIMIT_EXCEEDED" },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(retryAfterSec),
+            "X-RateLimit-Remaining": "0",
+            "x-request-id": requestId,
+          },
+        },
+      );
+    }
+  }
+
+  // ── CSRF Protection (state-changing methods only) ──
+
   // Skip CSRF for safe methods (GET, HEAD, OPTIONS)
   if (!PROTECTED_METHODS.has(request.method)) {
     return undefined;
@@ -137,7 +278,10 @@ export function middleware(request: NextRequest): NextResponse | undefined {
         error: "Request rejected",
         code: "CSRF_ORIGIN_MISMATCH",
       },
-      { status: 403 },
+      {
+        status: 403,
+        headers: { "x-request-id": requestId },
+      },
     );
   }
 
@@ -164,13 +308,19 @@ export function middleware(request: NextRequest): NextResponse | undefined {
     form-action 'self';
     frame-ancestors 'none';
     upgrade-insecure-requests;
-  `.replace(/\s{2,}/g, " ").trim();
+  `
+    .replace(/\s{2,}/g, " ")
+    .trim();
 
   // Create response
   const response = NextResponse.next();
 
   // Set CSP header
   response.headers.set("Content-Security-Policy", cspHeader);
+
+  // Set correlation ID on response and request for downstream handlers/logging
+  response.headers.set("x-request-id", requestId);
+  request.headers.set("x-request-id", requestId);
 
   // Set nonce in request headers so server components can access it
   response.headers.set("x-nonce", nonce);

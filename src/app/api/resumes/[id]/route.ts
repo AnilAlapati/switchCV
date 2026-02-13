@@ -15,6 +15,7 @@ import {
   trackResumeView,
 } from "@/lib/services/resumeService";
 import { getUserTier } from "@/lib/services/userService";
+import { UpdateResumeRequestSchema } from "@/lib/schemas/api/resume.schemas";
 import type { ResumeProfile } from "@/types";
 
 export async function GET(
@@ -96,93 +97,39 @@ export async function GET(
 
     const isBeingEdited = resumeData?.isBeingEdited ?? false;
 
-    // 1. Owner Access
-    if (access === "owner") {
-      logger.info(`[ResumeAPI] User is owner.`);
+    // Define response configuration based on access level
+    const ACCESS_CONFIGS: Record<string, { scope: string; isOwner?: boolean; isMasked?: boolean; cacheControl: string }> = {
+      owner: { scope: "owner", isOwner: true, cacheControl: "private, max-age=300, stale-while-revalidate=60" },
+      admin: { scope: "admin-view", isOwner: false, isMasked: false, cacheControl: "private, max-age=300, stale-while-revalidate=60" },
+      granted: { scope: "full", isOwner: false, isMasked: false, cacheControl: "private, max-age=300, stale-while-revalidate=60" },
+      public_snapshot: { scope: "public", cacheControl: "public, s-maxage=60, stale-while-revalidate=300" },
+    };
+
+    const config = ACCESS_CONFIGS[access];
+    if (config) {
+      if (access === "granted" || access === "public_snapshot") {
+        await trackResumeView(id);
+      }
+
+      logger.info(`[ResumeAPI] Returning resume with access: ${access}`);
       return NextResponse.json(
         {
           ...resumeData,
           isBeingEdited,
-          viewerAccess: {
-            scope: "owner",
-            isOwner: true,
-          },
+          viewerAccess: access !== "public_snapshot" ? {
+            scope: config.scope,
+            isOwner: config.isOwner,
+            isMasked: config.isMasked,
+          } : undefined,
         },
         {
-          headers: {
-            "Cache-Control": "private, max-age=300, stale-while-revalidate=60",
-          },
-        }
-      );
-    }
-
-    // 2. Admin Access
-    if (access === "admin") {
-      logger.info(`[ResumeAPI] User is admin.`);
-      return NextResponse.json(
-        {
-          ...resumeData,
-          isBeingEdited,
-          viewerAccess: {
-            scope: "admin-view",
-            isOwner: false,
-            isMasked: false,
-          },
-        },
-        {
-          headers: {
-            "Cache-Control": "private, max-age=300, stale-while-revalidate=60",
-          },
-        }
-      );
-    }
-
-    // 3. Explicit Grant (Recruiter)
-    if (access === "granted") {
-      logger.info(`[ResumeAPI] Access granted via explicit grant.`);
-      // Track view could be moved to service ideally
-      await trackResumeView(id);
-
-      return NextResponse.json(
-        {
-          ...resumeData,
-          isBeingEdited,
-          viewerAccess: {
-            scope: "full",
-            isOwner: false,
-            isMasked: false,
-          },
-        },
-        {
-          headers: {
-            "Cache-Control": "private, max-age=300, stale-while-revalidate=60",
-          },
-        }
-      );
-    }
-
-    // 4. Public Snapshot
-    if (access === "public_snapshot") {
-      logger.info(`[ResumeAPI] Returning public snapshot.`);
-      // Track view
-      await trackResumeView(id);
-
-      return NextResponse.json(
-        { ...resumeData, isBeingEdited },
-        {
-          headers: {
-            "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
-          },
+          headers: { "Cache-Control": config.cacheControl },
         }
       );
     }
 
     // Default Deny
-    return handleApiError(
-      new Error("Permission denied"),
-      "Permission denied",
-      403
-    );
+    return handleApiError(new Error("Permission denied"), "Permission denied", 403);
   } catch (error) {
     return handleApiError(error, "Error fetching resume");
   }
@@ -268,92 +215,7 @@ export async function PUT(
     const body = await request.json();
 
     // Validate input using Zod
-    const updateSchema = z.object({
-      resume: z.object({
-        title: z.string().min(1, "Title is required"),
-        summary: z.string().optional(),
-        experience: z
-          .array(
-            z.object({
-              id: z.string().optional(),
-              company: z.string().min(1),
-              role: z.string().min(1),
-              startDate: z.string().min(1),
-              endDate: z.string().optional(),
-              description: z.string().default(""),
-              visibility: z
-                .enum(["public", "masked", "request"])
-                .default("public"),
-            })
-          )
-          .optional(),
-        education: z
-          .array(
-            z.object({
-              id: z.string().optional(),
-              institution: z.string().min(1),
-              degree: z.string().min(1),
-              startDate: z.string().min(1),
-              endDate: z.string().optional(),
-              description: z.string().optional(),
-              visibility: z
-                .enum(["public", "masked", "request"])
-                .default("public"),
-            })
-          )
-          .optional(),
-        skills: z
-          .array(
-            z.object({
-              id: z.string().optional(),
-              name: z.string().min(1),
-              level: z.string().default("intermediate"),
-              visibility: z
-                .enum(["public", "masked", "request"])
-                .default("public"),
-            })
-          )
-          .optional(),
-        projects: z
-          .array(
-            z.object({
-              id: z.string().optional(),
-              name: z.string().min(1),
-              url: z.string().optional(),
-              description: z.string().default(""),
-              visibility: z
-                .enum(["public", "masked", "request"])
-                .default("public"),
-            })
-          )
-          .optional(),
-        contact: z
-          .object({
-            email: z.object({
-              value: z.string().default(""), // Ensure it's a string, not optional
-              visibility: z.enum(["public", "masked", "request"]),
-            }),
-            phone: z
-              .object({
-                value: z.string().default(""),
-                visibility: z.enum(["public", "masked", "request"]),
-              })
-              .optional(),
-          })
-          .optional(),
-        personalInfo: z
-          .object({
-            name: z.string().optional(),
-            title: z.string().optional(),
-            location: z.string().optional(),
-            linkedin: z.string().url().optional().or(z.literal("")),
-            github: z.string().url().optional().or(z.literal("")),
-          })
-          .optional(),
-      }),
-    });
-
-    const result = updateSchema.safeParse(body);
+    const result = UpdateResumeRequestSchema.safeParse(body);
     if (!result.success) {
       return handleApiError(
         new Error("Invalid input"),

@@ -13,7 +13,6 @@
 
 import type { DashboardResume } from "@/types";
 import type {
-  ContentAnalysis,
   TemplateRecommendation,
 } from "./types";
 import { analyzeResumeContent } from "./contentAnalysis";

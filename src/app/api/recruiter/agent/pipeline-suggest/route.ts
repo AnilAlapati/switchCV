@@ -5,7 +5,7 @@ import {
   handleApiError,
 } from "@/lib/utils/api-helpers";
 import { logger } from "@/lib/logger";
-import { trackCost } from "@/lib/services/costControlService";
+import { BillingService } from "@/lib/services/billingService";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
 import { AgentPipelineSuggestSchema } from "@/lib/schemas/api";
 
@@ -52,9 +52,12 @@ export async function POST(req: NextRequest) {
     );
 
     // 2. Cost Tracking (Fire & Forget)
-    trackCost(userId!, ESTIMATED_COST_PIPELINE, "agent_pipeline_suggest").catch(
-      (err) =>
-        logger.error({ err }, "Failed to track cost for pipeline suggestion"),
+    BillingService.trackCost(
+      userId!,
+      ESTIMATED_COST_PIPELINE,
+      "agent_pipeline_suggest",
+    ).catch((err) =>
+      logger.error({ err }, "Failed to track cost for pipeline suggestion"),
     );
 
     return NextResponse.json(result);

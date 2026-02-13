@@ -1,0 +1,12 @@
+# SwitchCV Production Environment
+# Copy to terraform.tfvars and fill in values
+
+project_id  = "switchcv-prod"
+region      = "us-central1"
+environment = "prod"
+website_url = "https://switchcv.com"
+
+cors_origins = [
+  "https://switchcv.com",
+  "https://www.switchcv.com",
+]

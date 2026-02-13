@@ -1,45 +1,14 @@
-#!/usr/bin/env npx ts-node
-/**
- * Environment Comparison Script
- * 
- * Compares the structure and health of Dev vs Prod Firestore databases.
- * Usage: npx ts-node scripts/compare-environments.ts
- * 
- * This script connects to both environments using service account keys
- * and reports differences in:
- * - Collection existence
- * - Document counts
- * - Schema structure (field presence)
- * - Subcollection presence
- * - Index availability (via query tests)
- */
-
 import * as admin from 'firebase-admin';
 import * as fs from 'fs';
 import * as path from 'path';
-
-// ============================================================================
-// Configuration
-// ============================================================================
-
-interface EnvironmentConfig {
-    name: string;
-    projectId: string;
-    keyPath: string; // Path to service account key JSON
-}
-
-const ENVIRONMENTS: Record<string, EnvironmentConfig> = {
-    dev: {
-        name: 'Development',
-        projectId: 'switchcv-dev',
-        keyPath: '.agent/secrets/firebase-dev-sa-key.json',
-    },
-    prod: {
-        name: 'Production',
-        projectId: 'switchcv-e5136',
-        keyPath: '.agent/secrets/firebase-admin-sa-key.json',
-    },
-};
+import {
+    ENVIRONMENTS,
+    initializeApp,
+    getCollectionCount,
+    collectionExists,
+    documentExists,
+    subcollectionExists
+} from './env-sync-lib';
 
 // Collections to audit
 const CRITICAL_COLLECTIONS = [
@@ -54,7 +23,7 @@ const CRITICAL_COLLECTIONS = [
 ];
 
 // System documents to check for specific structure
-const SYSTEM_DOCUMENTS = [
+const SYSTEM_DOCUMENTS: Array<{ path: string; requiredFields: string[]; ignoredFields: string[] }> = [
     { path: 'system/resumeIdCounter', requiredFields: [], ignoredFields: ['nextId', 'migrationNote', 'migratedAt'] },
     { path: 'system/billing', requiredFields: ['tier', 'createdAt'], ignoredFields: [] },
     { path: 'system/stats', requiredFields: [], ignoredFields: [] },
@@ -114,100 +83,7 @@ interface EnvironmentReport {
 }
 
 // ============================================================================
-// Firebase Initialization
-// ============================================================================
-
-function initializeApp(env: EnvironmentConfig, appName: string): admin.app.App | null {
-    const keyFullPath = path.resolve(process.cwd(), env.keyPath);
-
-    // Try service account key first
-    if (fs.existsSync(keyFullPath)) {
-        try {
-            const serviceAccount = JSON.parse(fs.readFileSync(keyFullPath, 'utf8'));
-            console.log(`   Using key file for ${env.name}`);
-            return admin.initializeApp(
-                {
-                    credential: admin.credential.cert(serviceAccount),
-                    projectId: env.projectId,
-                },
-                appName
-            );
-        } catch (_err) {
-            console.error(`❌ Failed to read key file for ${env.name}:`, _err);
-        }
-    }
-
-    // Fallback to Application Default Credentials
-    console.log(`   ℹ️  Key file not found for ${env.name}, using Application Default Credentials`);
-    console.log(`      (Run 'gcloud auth application-default login' if not authenticated)`);
-
-    try {
-        return admin.initializeApp(
-            {
-                credential: admin.credential.applicationDefault(),
-                projectId: env.projectId,
-            },
-            appName
-        );
-    } catch (_err) {
-        console.error(`❌ Failed to initialize ${env.name} with ADC:`, _err);
-        return null;
-    }
-}
-
-// ============================================================================
-// Comparison Functions
-// ============================================================================
-
-async function getCollectionCount(db: admin.firestore.Firestore, collectionName: string): Promise<number> {
-    try {
-        const snapshot = await db.collection(collectionName).count().get();
-        return snapshot.data().count;
-    } catch (_err) {
-        return -1; // Error state
-    }
-}
-
-async function collectionExists(db: admin.firestore.Firestore, collectionName: string): Promise<boolean> {
-    try {
-        const snapshot = await db.collection(collectionName).limit(1).get();
-        return !snapshot.empty;
-    } catch {
-        return false;
-    }
-}
-
-async function documentExists(db: admin.firestore.Firestore, docPath: string): Promise<{ exists: boolean; fields: string[] }> {
-    try {
-        const doc = await db.doc(docPath).get();
-        if (doc.exists) {
-            return { exists: true, fields: Object.keys(doc.data() || {}) };
-        }
-        return { exists: false, fields: [] };
-    } catch {
-        return { exists: false, fields: [] };
-    }
-}
-
-async function subcollectionExists(
-    db: admin.firestore.Firestore,
-    parentPath: string,
-    subcollection: string
-): Promise<{ exists: boolean; count: number }> {
-    try {
-        const snapshot = await db.collection(`${parentPath}/${subcollection}`).limit(1).get();
-        if (snapshot.empty) {
-            return { exists: false, count: 0 };
-        }
-        const countSnapshot = await db.collection(`${parentPath}/${subcollection}`).count().get();
-        return { exists: true, count: countSnapshot.data().count };
-    } catch {
-        return { exists: false, count: 0 };
-    }
-}
-
-// ============================================================================
-// Report Generation
+// Report Generation Helpers
 // ============================================================================
 
 async function compareCollections(
@@ -273,7 +149,7 @@ async function compareDocuments(
         ]);
 
 
-        const ignored = (doc as any).ignoredFields || [];
+        const ignored = doc.ignoredFields || [];
         const missingInProd = devResult.fields
             .filter(f => !prodResult.fields.includes(f))
             .filter(f => !ignored.includes(f));

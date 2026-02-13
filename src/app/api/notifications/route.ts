@@ -82,27 +82,34 @@ export async function POST(request: NextRequest) {
       return handleApiError(null, "Forbidden", 403);
     }
 
+    // Type-narrow optional data fields for each action
+    const notificationId = (data?.notificationId ?? "") as string;
+    const preference = (data?.preference ?? {}) as Partial<NotificationPreference>;
+    const actionData = (data ?? undefined) as NotificationActionData | undefined;
+
     switch (action) {
       case "send":
-        return handleSend(userId, data);
+        if (!actionData) return handleApiError(null, "Missing notification data", 400);
+        return handleSend(userId, actionData);
 
       case "mark-read":
-        return handleMarkRead(data?.notificationId, authUserId);
+        return handleMarkRead(notificationId, authUserId);
 
       case "mark-all-read":
         return handleMarkAllRead(userId);
 
       case "delete":
-        return handleDelete(data?.notificationId, authUserId);
+        return handleDelete(notificationId, authUserId);
 
       case "get-preferences":
         return handleGetPreferences(userId);
 
       case "update-preference":
-        return handleUpdatePreference(userId, data?.preference);
+        if (!data?.preference) return handleApiError(null, "Missing required fields", 400);
+        return handleUpdatePreference(userId, preference);
 
       case "get-delivery-status":
-        return handleGetDeliveryStatus(data?.notificationId);
+        return handleGetDeliveryStatus(notificationId);
 
       default:
         return handleApiError(null, "Unknown action", 400);

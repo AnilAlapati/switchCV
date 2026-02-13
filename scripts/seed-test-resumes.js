@@ -1,4 +1,3 @@
-/* eslint-disable max-lines */
 /**
  * Seed script for creating 100 test resumes with dummy embeddings
  * 

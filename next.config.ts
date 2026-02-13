@@ -1,10 +1,6 @@
 import type { NextConfig } from "next";
 import packageJson from "./package.json";
 
-const isDev = process.env.NODE_ENV === "development";
-
-
-
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   compress: true,

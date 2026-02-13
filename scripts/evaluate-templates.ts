@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /**
  * Template Selector Agent - Sample Output
  *
@@ -78,22 +77,22 @@ function generateSampleOutput() {
   console.log();
   console.log(
     "ID".padEnd(4) +
-      "Name".padEnd(20) +
-      "Seniority".padEnd(12) +
-      "Density".padEnd(12) +
-      "Template".padEnd(22) +
-      "Score",
+    "Name".padEnd(20) +
+    "Seniority".padEnd(12) +
+    "Density".padEnd(12) +
+    "Template".padEnd(22) +
+    "Score",
   );
   console.log("-".repeat(80));
 
   results.forEach((r) => {
     console.log(
       r.id.padEnd(4) +
-        r.name.substring(0, 18).padEnd(20) +
-        r.seniority.padEnd(12) +
-        r.density.padEnd(12) +
-        r.recommended.padEnd(22) +
-        r.scores,
+      r.name.substring(0, 18).padEnd(20) +
+      r.seniority.padEnd(12) +
+      r.density.padEnd(12) +
+      r.recommended.padEnd(22) +
+      r.scores,
     );
   });
 

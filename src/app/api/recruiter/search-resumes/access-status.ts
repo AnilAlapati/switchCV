@@ -105,7 +105,7 @@ export async function buildAccessStatusMap(
   // collectionGroup is not available in some test environments; fall back to empty map
   const db = collectionRef(COLLECTIONS.RESUMES).firestore;
   if (
-    typeof (db as unknown as { collectionGroup?: Function }).collectionGroup !==
+    typeof (db as unknown as { collectionGroup?: (...args: any[]) => any }).collectionGroup !==
     "function"
   ) {
     return statusMap;

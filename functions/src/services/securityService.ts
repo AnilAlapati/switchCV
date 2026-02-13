@@ -16,7 +16,7 @@ export class SecurityService {
   async logSuspiciousActivity(
     userId: string,
     activityType: string,
-    details: string
+    details: string,
   ): Promise<void> {
     await auditLogger.logSuspiciousActivity(userId, activityType, details);
 
@@ -24,6 +24,7 @@ export class SecurityService {
     const admins = await this.db
       .collection("users")
       .where("role", "==", "admin")
+      .limit(50)
       .get();
 
     const adminEmails = admins.docs
@@ -40,14 +41,14 @@ export class SecurityService {
           userId,
           timestamp: new Date().toISOString(),
           adminUrl: `${process.env.WEBSITE_URL}/admin/security`,
-        }
+        },
       );
     }
   }
 
   async validateTokenAccess(
     tokenId: string,
-    recruiterId: string
+    recruiterId: string,
   ): Promise<boolean> {
     const tokenDoc = await this.db
       .collection("accessTokens")
@@ -59,7 +60,7 @@ export class SecurityService {
       await this.logSuspiciousActivity(
         recruiterId,
         "INVALID_TOKEN_ACCESS",
-        `Attempted to use invalid token: ${tokenId}`
+        `Attempted to use invalid token: ${tokenId}`,
       );
       return false;
     }
@@ -68,7 +69,7 @@ export class SecurityService {
       await this.logSuspiciousActivity(
         recruiterId,
         "INACTIVE_TOKEN_ACCESS",
-        `Attempted to use inactive token: ${tokenId}`
+        `Attempted to use inactive token: ${tokenId}`,
       );
       return false;
     }
@@ -77,7 +78,7 @@ export class SecurityService {
       await this.logSuspiciousActivity(
         recruiterId,
         "EXPIRED_TOKEN_ACCESS",
-        `Attempted to use expired token: ${tokenId}`
+        `Attempted to use expired token: ${tokenId}`,
       );
       return false;
     }

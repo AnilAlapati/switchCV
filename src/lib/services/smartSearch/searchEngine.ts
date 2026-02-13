@@ -192,7 +192,7 @@ export async function performSemanticSearch(
     },
 ): Promise<{ results: RankedCandidate[]; scanned: number }> {
     // 1. Generate embedding for query
-    const queryVector = await generateEmbedding(query);
+    await generateEmbedding(query);
 
     // 2. Query vector DB (in this implementation, we simulate vector search
     // using a combination of metadata filters and ranking)

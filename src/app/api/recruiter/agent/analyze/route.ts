@@ -5,7 +5,7 @@ import {
   handleApiError,
 } from "@/lib/utils/api-helpers";
 import { logger } from "@/lib/logger";
-import { trackCost } from "@/lib/services/costControlService";
+import { BillingService } from "@/lib/services/billingService";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
 import { AgentAnalyzeSchema } from "@/lib/schemas/api";
 
@@ -43,9 +43,11 @@ export async function POST(req: NextRequest) {
     const analysis = await RecruiterAgentService.analyzeMatch(candidate, job);
 
     // 2. Cost Tracking (Fire & Forget)
-    trackCost(userId!, ESTIMATED_COST_ANALYZE, "agent_analyze").catch((err) =>
-      logger.error({ err }, "Failed to track cost for analyze"),
-    );
+    BillingService.trackCost(
+      userId!,
+      ESTIMATED_COST_ANALYZE,
+      "agent_analyze",
+    ).catch((err) => logger.error({ err }, "Failed to track cost for analyze"));
 
     return NextResponse.json({ analysis });
   } catch (err) {

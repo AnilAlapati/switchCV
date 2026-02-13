@@ -9,7 +9,7 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import { ResumeEditChatHeader } from "@/components/resume/ResumeEditChatHeader";
 import { ResumeEditChatInput } from "@/components/resume/ResumeEditChatInput";
 import { ResumeEditChatStatus } from "@/components/resume/ResumeEditChatStatus";
-import Link from "next/link";
+import { ResumeEditMessageList } from "@/components/resume/ResumeEditMessageList";
 import { ResumeEditMessageList } from "@/components/resume/ResumeEditMessageList";
 import { ResumeSnapshotCard } from "@/components/resume/ResumeSnapshotCard";
 import { getVerificationRoute } from "@/lib/config";
@@ -17,23 +17,12 @@ import { BackgroundBlobs } from "@/components/ui/BackgroundBlobs";
 
 const VERIFICATION_ROUTE = getVerificationRoute();
 
-interface Message {
-  id: string;
-  content: string;
-  isUser: boolean;
-  timestamp: Date;
-}
-
-interface SessionData {
-  [key: string]: unknown;
-}
-
-interface ResumeMeta {
-  title?: string | null;
-  summary?: string | null;
-  updatedAt?: string | null;
-  numericId?: number | string | null;
-}
+import { Message, SessionData, ResumeMeta } from "./types";
+import {
+  AIEditMissingIdView,
+  AIEditLoadingView,
+  ResumeMissingNotice,
+} from "./AiEditComponents";
 
 export default function ResumeAIEditPage() {
   const params = useParams<{ id: string }>();
@@ -225,7 +214,6 @@ export default function ResumeAIEditPage() {
       }
 
       if (data.completed) {
-        // After applying updates successfully, let the user continue with more changes.
         setIsProcessing(false);
         return;
       }
@@ -238,24 +226,11 @@ export default function ResumeAIEditPage() {
   };
 
   if (!resumeId) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <p className="text-gray-300">Resume ID is missing from the URL.</p>
-      </div>
-    );
+    return <AIEditMissingIdView />;
   }
 
   if (!initialised || tierLoading || tier === "basic") {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-400 text-lg">
-            {tier === "basic" ? "Redirecting..." : "Loading editor…"}
-          </p>
-        </div>
-      </div>
-    );
+    return <AIEditLoadingView tier={tier} />;
   }
 
   return (
@@ -270,21 +245,7 @@ export default function ResumeAIEditPage() {
         />
 
         <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-          {resumeMissing && (
-            <div className="bg-yellow-900/30 border border-yellow-500/50 rounded-xl p-4 text-yellow-200">
-              <p className="font-semibold mb-2">No resume on file yet</p>
-              <p className="text-sm mb-3">
-                I can only edit an existing resume. Start by creating one with
-                our AI Resume Builder, then return here to keep refining it.
-              </p>
-              <Link
-                href="/create-resume"
-                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-yellow-400 to-orange-500 text-gray-900 font-semibold rounded-lg"
-              >
-                Launch AI Resume Builder
-              </Link>
-            </div>
-          )}
+          {resumeMissing && <ResumeMissingNotice />}
 
           {resumeMeta && (
             <ResumeSnapshotCard
@@ -318,3 +279,4 @@ export default function ResumeAIEditPage() {
     </div>
   );
 }
+

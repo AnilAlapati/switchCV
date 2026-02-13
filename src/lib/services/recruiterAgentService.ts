@@ -1,5 +1,11 @@
+/* eslint-disable max-lines */
 import { generateText } from "./aiGenerationService";
 import { logger } from "@/lib/logger";
+import { DEFAULT_MODEL } from "@/lib/config/aiModels";
+import {
+  sanitizeForPrompt,
+  containsPromptInjection,
+} from "@/lib/utils/promptSafety";
 
 interface CandidateProfile {
   name?: string;
@@ -36,6 +42,38 @@ interface InterviewPrepRequest {
 }
 
 /**
+ * Sanitize candidate/job text for safe inclusion in AI prompts.
+ * Uses shorter max length for names/titles (100) and longer for descriptions/bios (2000).
+ */
+function sanitizeField(value: string | undefined, maxLength = 100): string {
+  if (!value) return "N/A";
+  return sanitizeForPrompt(value, maxLength);
+}
+
+/**
+ * Sanitize an array of strings for prompt inclusion.
+ */
+function sanitizeArray(arr: string[] | undefined, maxLenPerItem = 100): string {
+  if (!arr || arr.length === 0) return "N/A";
+  return arr.map((item) => sanitizeForPrompt(item, maxLenPerItem)).join(", ");
+}
+
+/**
+ * Log a warning if any user-provided text contains prompt injection patterns.
+ * We still proceed (after sanitization) but log for security monitoring.
+ */
+function checkInjection(fields: Record<string, string | undefined>): void {
+  for (const [key, value] of Object.entries(fields)) {
+    if (value && containsPromptInjection(value)) {
+      logger.warn(
+        { field: key, length: value.length },
+        "Potential prompt injection detected in recruiter agent input",
+      );
+    }
+  }
+}
+
+/**
  * Service to handle Recruiter Agent capabilities
  *
  * Two-Agent System:
@@ -55,25 +93,35 @@ export const RecruiterAgentService = {
     candidate: CandidateProfile,
     job: JobContext,
     recruiter: RecruiterContext,
+    model: string = DEFAULT_MODEL,
   ): Promise<string> {
     try {
+      // Prompt injection check (log only — sanitization handles safety)
+      checkInjection({
+        candidateName: candidate.name,
+        candidateBio: candidate.bio,
+        candidateExperience: candidate.experience,
+        jobTitle: job.title,
+        jobDescription: job.description,
+      });
+
       const prompt = `
         You are an expert Executive Recruiter.
         Draft a personalized, professional, and engaging connection request or cold email to a candidate.
         
         CANDIDATE:
-        Name: ${candidate.name || "Candidate"}
-        Title: ${candidate.title || "Unknown"}
-        Skills: ${candidate.skills?.join(", ") || "N/A"}
-        Bio/Exp: ${candidate.bio || candidate.experience || "N/A"}
+        Name: ${sanitizeField(candidate.name)}
+        Title: ${sanitizeField(candidate.title)}
+        Skills: ${sanitizeArray(candidate.skills)}
+        Bio/Exp: ${sanitizeField(candidate.bio || candidate.experience, 2000)}
 
         JOB ID/CONTEXT:
-        Role: ${job.title}
-        Context: ${job.description || "N/A"}
+        Role: ${sanitizeField(job.title, 200)}
+        Context: ${sanitizeField(job.description, 2000)}
 
         SENDER (Recruiter):
-        Name: ${recruiter.recruiterName || "Hiring Manager"}
-        Company: ${recruiter.companyName || "Our Company"}
+        Name: ${sanitizeField(recruiter.recruiterName || "Hiring Manager")}
+        Company: ${sanitizeField(recruiter.companyName || "Our Company", 200)}
 
         INSTRUCTIONS:
         1. Keep it concise (under 200 words).
@@ -84,7 +132,7 @@ export const RecruiterAgentService = {
         6. Return ONLY the message body. Do not include subject lines or "Here is the email" headers.
       `;
 
-      const result = await generateText(prompt, 1000, 0.7, "gemini-1.5-pro");
+      const result = await generateText(prompt, 1000, 0.7, model);
       return result.text;
     } catch (error) {
       logger.error({ err: error }, "Failed to generate outreach message");
@@ -98,20 +146,28 @@ export const RecruiterAgentService = {
   async analyzeMatch(
     candidate: CandidateProfile,
     job: JobContext,
+    model: string = DEFAULT_MODEL,
   ): Promise<string> {
     try {
+      checkInjection({
+        candidateBio: candidate.bio,
+        candidateExperience: candidate.experience,
+        jobTitle: job.title,
+        jobDescription: job.description,
+      });
+
       const prompt = `
         You are an AI Talent Assessor.
         Analyze the fit between this Candidate and this Job.
 
         CANDIDATE:
-        Title: ${candidate.title || "Unknown"}
-        Skills: ${candidate.skills?.join(", ") || "N/A"}
-        Bio: ${candidate.bio || candidate.experience || "N/A"}
+        Title: ${sanitizeField(candidate.title)}
+        Skills: ${sanitizeArray(candidate.skills)}
+        Bio: ${sanitizeField(candidate.bio || candidate.experience, 2000)}
 
         JOB:
-        Role: ${job.title}
-        Desc: ${job.description || "N/A"}
+        Role: ${sanitizeField(job.title, 200)}
+        Desc: ${sanitizeField(job.description, 2000)}
 
         INSTRUCTIONS:
         1. Provide a bulleted list of 3-4 reasons why this is a good (or bad) match.
@@ -120,7 +176,7 @@ export const RecruiterAgentService = {
         4. Format as Markdown.
       `;
 
-      const result = await generateText(prompt, 600, 0.5, "gemini-1.5-flash");
+      const result = await generateText(prompt, 600, 0.5, model);
       return result.text;
     } catch (error) {
       logger.error({ err: error }, "Failed to analyze match");
@@ -134,6 +190,7 @@ export const RecruiterAgentService = {
   async screenCandidate(
     candidate: CandidateProfile,
     criteria: ScreeningCriteria,
+    model: string = DEFAULT_MODEL,
   ): Promise<{
     score: number;
     summary: string;
@@ -141,21 +198,27 @@ export const RecruiterAgentService = {
     highlights: string[];
   }> {
     try {
+      checkInjection({
+        candidateName: candidate.name,
+        candidateExperience: candidate.experience,
+        candidateBio: candidate.bio,
+      });
+
       const prompt = `
         You are an AI Screening Agent for recruiting.
         Evaluate this candidate against the screening criteria and provide a structured assessment.
 
         CANDIDATE:
-        Name: ${candidate.name || "Unknown"}
-        Title: ${candidate.title || "Unknown"}
-        Skills: ${candidate.skills?.join(", ") || "N/A"}
-        Experience: ${candidate.experience || candidate.bio || "N/A"}
+        Name: ${sanitizeField(candidate.name)}
+        Title: ${sanitizeField(candidate.title)}
+        Skills: ${sanitizeArray(candidate.skills)}
+        Experience: ${sanitizeField(candidate.experience || candidate.bio, 2000)}
 
         SCREENING CRITERIA:
-        Must-Have Skills: ${criteria.mustHave.join(", ")}
-        Nice-to-Have Skills: ${criteria.niceToHave?.join(", ") || "None specified"}
+        Must-Have Skills: ${sanitizeArray(criteria.mustHave)}
+        Nice-to-Have Skills: ${sanitizeArray(criteria.niceToHave) || "None specified"}
         Years of Experience Required: ${criteria.yearsExperience || "Not specified"}
-        Location Requirement: ${criteria.location || "Not specified"}
+        Location Requirement: ${sanitizeField(criteria.location)}
 
         INSTRUCTIONS:
         Return a JSON object (no markdown, just pure JSON) with:
@@ -167,7 +230,7 @@ export const RecruiterAgentService = {
         }
       `;
 
-      const result = await generateText(prompt, 500, 0.3, "gemini-1.5-flash");
+      const result = await generateText(prompt, 500, 0.3, model);
 
       // Parse the JSON response
       try {
@@ -198,23 +261,33 @@ export const RecruiterAgentService = {
    */
   async generateInterviewPrep(
     request: InterviewPrepRequest,
+    model: string = DEFAULT_MODEL,
   ): Promise<{ questions: string[]; brief: string; areasToProbe: string[] }> {
     try {
       const interviewType = request.interviewType || "general";
+
+      checkInjection({
+        candidateName: request.candidate.name,
+        candidateExperience: request.candidate.experience,
+        candidateBio: request.candidate.bio,
+        jobTitle: request.job.title,
+        jobDescription: request.job.description,
+      });
+
       const prompt = `
         You are an AI Interview Preparation Agent.
         Generate interview preparation materials for the hiring manager.
 
         CANDIDATE:
-        Name: ${request.candidate.name || "Candidate"}
-        Title: ${request.candidate.title || "Unknown"}
-        Skills: ${request.candidate.skills?.join(", ") || "N/A"}
-        Experience: ${request.candidate.experience || request.candidate.bio || "N/A"}
+        Name: ${sanitizeField(request.candidate.name)}
+        Title: ${sanitizeField(request.candidate.title)}
+        Skills: ${sanitizeArray(request.candidate.skills)}
+        Experience: ${sanitizeField(request.candidate.experience || request.candidate.bio, 2000)}
 
         JOB:
-        Role: ${request.job.title}
-        Description: ${request.job.description || "N/A"}
-        Requirements: ${request.job.requirements?.join(", ") || "N/A"}
+        Role: ${sanitizeField(request.job.title, 200)}
+        Description: ${sanitizeField(request.job.description, 2000)}
+        Requirements: ${sanitizeArray(request.job.requirements)}
 
         INTERVIEW TYPE: ${interviewType}
 
@@ -233,7 +306,7 @@ export const RecruiterAgentService = {
         - general: mix of all areas
       `;
 
-      const result = await generateText(prompt, 1200, 0.6, "gemini-1.5-pro");
+      const result = await generateText(prompt, 1200, 0.6, model);
 
       try {
         const parsed = JSON.parse(result.text.trim());
@@ -265,23 +338,30 @@ export const RecruiterAgentService = {
     candidate: CandidateProfile,
     currentStage: string,
     interactionHistory?: string,
+    model: string = DEFAULT_MODEL,
   ): Promise<{
     suggestedAction: string;
     reasoning: string;
     priority: "high" | "medium" | "low";
   }> {
     try {
+      checkInjection({
+        candidateName: candidate.name,
+        candidateTitle: candidate.title,
+        interactionHistory,
+      });
+
       const prompt = `
         You are an AI Pipeline Manager for recruiting.
         Suggest the best next action for this candidate.
 
         CANDIDATE:
-        Name: ${candidate.name || "Unknown"}
-        Title: ${candidate.title || "Unknown"}
-        Current Pipeline Stage: ${currentStage}
+        Name: ${sanitizeField(candidate.name)}
+        Title: ${sanitizeField(candidate.title)}
+        Current Pipeline Stage: ${sanitizeField(currentStage, 200)}
 
         INTERACTION HISTORY:
-        ${interactionHistory || "No previous interactions recorded"}
+        ${sanitizeField(interactionHistory, 2000)}
 
         INSTRUCTIONS:
         Based on the current stage and history, suggest the most appropriate next action.
@@ -293,7 +373,7 @@ export const RecruiterAgentService = {
         }
       `;
 
-      const result = await generateText(prompt, 400, 0.4, "gemini-1.5-flash");
+      const result = await generateText(prompt, 400, 0.4, model);
 
       try {
         const parsed = JSON.parse(result.text.trim());
@@ -318,21 +398,29 @@ export const RecruiterAgentService = {
   /**
    * Enhances a job description for better candidate matching.
    */
-  async enhanceJobDescription(job: JobContext): Promise<{
+  async enhanceJobDescription(
+    job: JobContext,
+    model: string = DEFAULT_MODEL,
+  ): Promise<{
     enhancedDescription: string;
     suggestedRequirements: string[];
     searchKeywords: string[];
   }> {
     try {
+      checkInjection({
+        jobTitle: job.title,
+        jobDescription: job.description,
+      });
+
       const prompt = `
         You are an AI Job Description Optimizer.
         Enhance this job posting to attract better candidates and improve search matching.
 
         CURRENT JOB:
-        Title: ${job.title}
-        Description: ${job.description || "N/A"}
-        Requirements: ${job.requirements?.join(", ") || "N/A"}
-        Location: ${job.location || "N/A"}
+        Title: ${sanitizeField(job.title, 200)}
+        Description: ${sanitizeField(job.description, 2000)}
+        Requirements: ${sanitizeArray(job.requirements)}
+        Location: ${sanitizeField(job.location, 200)}
 
         INSTRUCTIONS:
         Return a JSON object (no markdown, just pure JSON):
@@ -343,7 +431,7 @@ export const RecruiterAgentService = {
         }
       `;
 
-      const result = await generateText(prompt, 800, 0.6, "gemini-1.5-pro");
+      const result = await generateText(prompt, 800, 0.6, model);
 
       try {
         const parsed = JSON.parse(result.text.trim());

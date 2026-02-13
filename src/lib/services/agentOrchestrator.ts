@@ -1,6 +1,8 @@
 import { getSystemConfig } from "@/lib/getSystemConfig";
-import { checkBudget, trackCost } from "./costControlService";
+import { BillingService } from "./billingService";
 import { logger } from "@/lib/logger";
+import { getTierModels } from "@/lib/config/aiModels";
+import { withRetry } from "@/lib/utils/retry";
 import {
   ResearchAgent,
   PlanningAgent,
@@ -24,66 +26,96 @@ const COST_PER_RUN = {
 };
 
 /**
- * Get tier-based model configuration
- */
-function getTierModels(role: string): { planning: string; execution: string } {
-  if (["basic", "jobseeker", "free"].includes(role)) {
-    return { planning: "gemini-2.5-flash-lite", execution: "gemini-2.5-flash-lite" };
-  } else if (role === "enterprise") {
-    return { planning: "gemini-2.5-pro", execution: "gemini-2.5-pro" };
-  } else {
-    return { planning: "gemini-2.5-flash", execution: "gemini-2.5-flash" };
-  }
-}
-
-/**
  * Run the autonomous 4-agent workflow
  */
 async function runAutonomousWorkflow(
   context: AgentContext,
   planningModel: string,
-  executionModel: string
-): Promise<{ resumeMarkdown: string; templateId?: string; reasoning?: string }> {
-  // Step 1: Scout Agent (Research)
+  executionModel: string,
+): Promise<{
+  resumeMarkdown: string;
+  templateId?: string;
+  reasoning?: string;
+}> {
+  // Step 1: Scout Agent (Research) — with retry
   const scoutAgent = new ResearchAgent(planningModel);
-  const researchResult = await scoutAgent.run(undefined, context);
+  const researchResult = await withRetry(
+    () => scoutAgent.run(undefined, context),
+    1, // 1 retry (2 total attempts)
+    1000,
+  );
   if (!researchResult.success || !researchResult.data) {
     throw new Error(`ScoutAgent failed: ${researchResult.error}`);
   }
 
-  // Step 2: Architect Agent (Planning)
+  // Step 2: Architect Agent (Planning) — with retry
   const architectAgent = new PlanningAgent(planningModel);
-  const planResult = await architectAgent.run(
-    { researchOutput: researchResult.data },
-    context
+  const planResult = await withRetry(
+    () => architectAgent.run({ researchOutput: researchResult.data }, context),
+    1,
+    1000,
   );
   if (!planResult.success || !planResult.data) {
     throw new Error(`ArchitectAgent failed: ${planResult.error}`);
   }
 
-  // Step 3: Writer Agent (Writing + Polished)
+  // Step 3: Writer Agent (Writing + Polished) — with retry
   const writerAgent = new WritingAgent(executionModel);
-  const writingResult = await writerAgent.run(
-    { planOutput: planResult.data },
-    context
+  let writingResult = await withRetry(
+    () => writerAgent.run({ planOutput: planResult.data! }, context),
+    1,
+    1000,
   );
   if (!writingResult.success || !writingResult.data) {
     throw new Error(`WriterAgent failed: ${writingResult.error}`);
   }
 
-  // Step 4: Auditor Agent (Validation + Design)
+  // Step 4: Auditor Agent (Validation + Design) — with retry
   const auditorAgent = new AuditorAgent(planningModel);
-  const auditorResult = await auditorAgent.run(
-    { executionOutput: writingResult.data },
-    context
+  const auditorResult = await withRetry(
+    () => auditorAgent.run({ executionOutput: writingResult.data! }, context),
+    1,
+    1000,
   );
 
-  // Even if Auditor fails its validation check (NEEDS_WORK), 
-  // we return the resume but could log the critique.
-  // Template selection is the key "final" value here.
+  // Step 4b: If Auditor says NEEDS_WORK, re-run Writer once with critique
+  if (
+    auditorResult.data?.status === "NEEDS_WORK" &&
+    auditorResult.data?.critique
+  ) {
+    logger.info(
+      { critique: auditorResult.data.critique.slice(0, 200) },
+      "AuditorAgent returned NEEDS_WORK — re-running WriterAgent with critique",
+    );
+
+    const revisedContext: AgentContext = {
+      ...context,
+      // Append auditor critique as additional instructions for the writer
+      instructions: [
+        context.instructions || "",
+        `\n\nAUDITOR FEEDBACK (please address these issues):\n${auditorResult.data.critique}`,
+      ]
+        .join("")
+        .trim(),
+    };
+
+    const revisedWritingResult = await writerAgent.run(
+      { planOutput: planResult.data },
+      revisedContext,
+    );
+
+    if (revisedWritingResult.success && revisedWritingResult.data) {
+      writingResult = revisedWritingResult;
+      logger.info(
+        "WriterAgent revision after NEEDS_WORK completed successfully",
+      );
+    } else {
+      logger.warn("WriterAgent revision failed — using original output");
+    }
+  }
 
   return {
-    resumeMarkdown: writingResult.data.resumeMarkdown,
+    resumeMarkdown: writingResult.data!.resumeMarkdown,
     templateId: auditorResult.data?.suggestedTemplateId,
     reasoning: auditorResult.data?.designReasoning,
   };
@@ -95,20 +127,25 @@ async function runAutonomousWorkflow(
 async function runStandardWorkflow(
   context: AgentContext,
   planningModel: string,
-  executionModel: string
+  executionModel: string,
 ): Promise<string> {
-  // Step 1: Architect Agent (Planning)
+  // Step 1: Architect Agent (Planning) — with retry
   const architectAgent = new PlanningAgent(planningModel);
-  const planResult = await architectAgent.run({}, context);
+  const planResult = await withRetry(
+    () => architectAgent.run({}, context),
+    1,
+    1000,
+  );
   if (!planResult.success || !planResult.data) {
     throw new Error(`ArchitectAgent failed: ${planResult.error}`);
   }
 
-  // Step 2: Writer Agent (Writing)
+  // Step 2: Writer Agent (Writing) — with retry
   const writerAgent = new WritingAgent(executionModel);
-  const writingResult = await writerAgent.run(
-    { planOutput: planResult.data },
-    context
+  const writingResult = await withRetry(
+    () => writerAgent.run({ planOutput: planResult.data! }, context),
+    1,
+    1000,
   );
   if (!writingResult.success || !writingResult.data) {
     throw new Error(`WriterAgent failed: ${writingResult.error}`);
@@ -123,8 +160,12 @@ async function runStandardWorkflow(
 export async function runAgenticWorkflow(
   userId: string,
   userRole: string,
-  data: AgenticWorkflowData
-): Promise<{ resumeMarkdown: string; templateId?: string; reasoning?: string } | null> {
+  data: AgenticWorkflowData,
+): Promise<{
+  resumeMarkdown: string;
+  templateId?: string;
+  reasoning?: string;
+} | null> {
   const config = await getSystemConfig();
 
   // 1. GLOBAL KILL SWITCH
@@ -137,7 +178,9 @@ export async function runAgenticWorkflow(
   const isFreeTier = ["basic", "jobseeker", "free"].includes(userRole);
 
   if (isFreeTier) {
-    const isBudgetSafe = await checkBudget(config.agentic.budgetCap);
+    const isBudgetSafe = await BillingService.checkSystemBudget(
+      config.agentic.budgetCap,
+    );
     if (!isBudgetSafe) {
       logger.warn("Global budget cap exceeded.");
       return null;
@@ -154,7 +197,7 @@ export async function runAgenticWorkflow(
 
       if (usageCount >= FREE_TIER_AGENT_LIMIT) {
         logger.info(
-          `User ${userId} exceeded free agentic limit (${usageCount}/${FREE_TIER_AGENT_LIMIT}).`
+          `User ${userId} exceeded free agentic limit (${usageCount}/${FREE_TIER_AGENT_LIMIT}).`,
         );
         return null;
       }
@@ -175,6 +218,7 @@ export async function runAgenticWorkflow(
     userResume: data.userResume,
     model: planningModel,
     outputFormatInstruction: data.outputFormatInstruction,
+    instructions: data.instructions,
   };
 
   const mode = data.mode || "standard";
@@ -182,19 +226,23 @@ export async function runAgenticWorkflow(
   try {
     logger.info({ userId, role: userRole, mode }, "Starting Agentic Workflow");
 
-    let result: { resumeMarkdown: string; templateId?: string; reasoning?: string };
+    let result: {
+      resumeMarkdown: string;
+      templateId?: string;
+      reasoning?: string;
+    };
 
     if (mode === "autonomous") {
       result = await runAutonomousWorkflow(
         context,
         planningModel,
-        executionModel
+        executionModel,
       );
     } else {
       const resumeMarkdown = await runStandardWorkflow(
         context,
         planningModel,
-        executionModel
+        executionModel,
       );
       result = { resumeMarkdown };
     }
@@ -202,8 +250,8 @@ export async function runAgenticWorkflow(
     // TRACK COST (Mode-aware)
     if (isFreeTier) {
       const cost = COST_PER_RUN[mode];
-      trackCost(userId, cost, "agentic_workflow").catch((err) =>
-        logger.error({ err }, "Failed to track cost")
+      BillingService.trackCost(userId, cost, "agentic_workflow").catch((err) =>
+        logger.error({ err }, "Failed to track cost"),
       );
     }
 
@@ -224,7 +272,7 @@ export async function runAgenticWorkflow(
               lastTemplateRecommendation: result.templateId || null,
             },
           },
-          { merge: true }
+          { merge: true },
         );
     } catch (error) {
       logger.error({ err: error }, "Failed to track user usage");
@@ -232,7 +280,10 @@ export async function runAgenticWorkflow(
 
     return result;
   } catch (error) {
-    logger.error({ error }, "Agentic workflow failed, falling back to standard.");
+    logger.error(
+      { error },
+      "Agentic workflow failed, falling back to standard.",
+    );
     return null;
   }
 }

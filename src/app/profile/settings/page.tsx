@@ -15,15 +15,11 @@ import { getVerificationRoute } from "@/lib/config";
 
 const VERIFICATION_ROUTE = getVerificationRoute();
 
-interface UserSettings {
-  isRecruiter: boolean;
-  displayName: string;
-  companyName: string;
-  updatedAt: string;
-}
-
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { ProfileSettingsSkeleton } from "@/components/settings/ProfileSettingsSkeleton";
+import { UserSettings } from "./types";
+import { useSettingsHandlers } from "./useSettingsHandlers";
+import { SettingsHeader } from "./SettingsComponents";
 
 export default function SettingsPage() {
   const {
@@ -49,18 +45,30 @@ export default function SettingsPage() {
     updatedAt: new Date().toISOString(),
   });
 
-  const [savingDisplayName, setSavingDisplayName] = useState(false);
-  const [savingCompanyName, setSavingCompanyName] = useState(false);
-  const [savingRecruiter, setSavingRecruiter] = useState(false);
   const [showCompanyInput, setShowCompanyInput] = useState(false);
-  const [message, setMessage] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
+
+  // Custom Hub for Handlers
+  const {
+    savingDisplayName,
+    savingCompanyName,
+    savingRecruiter,
+    message,
+    setMessage,
+    handleRecruiterToggle,
+    handleSaveDisplayName,
+    handleSaveCompanyName,
+  } = useSettingsHandlers(
+    user,
+    settings,
+    setSettings,
+    mutateSettings,
+    setShowCompanyInput
+  );
 
   // Sync fetched settings to local state
   useEffect(() => {
-    if (fetchedSettings) {
+    if (fetchedSettings && fetchedSettings.updatedAt !== settings.updatedAt) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSettings({
         ...fetchedSettings,
         displayName: fetchedSettings.displayName ?? "",
@@ -68,7 +76,7 @@ export default function SettingsPage() {
       });
       setShowCompanyInput(fetchedSettings.isRecruiter);
     }
-  }, [fetchedSettings]);
+  }, [fetchedSettings, settings.updatedAt]);
 
   const handleLogout = useCallback(async () => {
     try {
@@ -86,181 +94,6 @@ export default function SettingsPage() {
       return;
     }
   }, [user, needsEmailVerification, authLoading, router]);
-
-  // IMPORTANT: Role changes MUST use /api/user/update-role — NOT /api/user/settings.
-  // /api/user/update-role updates BOTH Firestore AND Firebase Auth custom claims.
-  // /api/user/settings only updates Firestore, which causes the role to appear
-  // unchanged because the auth token still carries the old role.
-  // See: docs/ROLE_CHANGE_FIX.md for full explanation.
-  const handleRecruiterToggle = async (checked: boolean) => {
-    if (!user?.uid) {
-      setMessage({
-        type: "error",
-        text: "User ID not available. Please refresh and try again.",
-      });
-      return;
-    }
-
-    setSavingRecruiter(true);
-    try {
-      const idToken = await user.getIdToken();
-      // Use /api/user/update-role to update BOTH Firestore AND Firebase Auth custom claims
-      const response = await fetch("/api/user/update-role", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({
-          uid: user.uid,
-          newRole: checked ? "recruiter" : "jobseeker",
-          companyName: checked ? settings.companyName : "",
-        }),
-      });
-
-      if (response.ok) {
-        // Force-refresh the ID token to pick up the new custom claims immediately.
-        // Without this, the client token still carries the OLD role and server-side
-        // auth checks (getAuthenticatedUserId) will see the stale value.
-        await user.getIdToken(true);
-
-        // Update local state for immediate UI feedback
-        const newSettings = {
-          ...settings,
-          isRecruiter: checked,
-          companyName: checked ? (settings.companyName ?? "") : "",
-        };
-        await mutateSettings(newSettings, { revalidate: false });
-        setSettings(newSettings);
-        setShowCompanyInput(checked);
-
-        setMessage({
-          type: "success",
-          text: "Account type updated! Refreshing...",
-        });
-
-        // Reload the page to ensure all components (header, dashboard, etc.)
-        // re-render with the correct role from the refreshed token.
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to update account type");
-      }
-    } catch (err) {
-      setMessage({
-        type: "error",
-        text: err instanceof Error ? err.message : "An error occurred",
-      });
-      // Revalidate to sync with server in case of error mismatch
-      await mutateSettings();
-    } finally {
-      setSavingRecruiter(false);
-    }
-  };
-
-  const handleSaveDisplayName = async () => {
-    if (!settings.displayName?.trim()) {
-      setMessage({ type: "error", text: "Please enter a display name." });
-      return;
-    }
-
-    if (!user?.uid) {
-      setMessage({
-        type: "error",
-        text: "User ID not available. Please refresh and try again.",
-      });
-      return;
-    }
-
-    setSavingDisplayName(true);
-    try {
-      const idToken = await user.getIdToken();
-      const response = await fetch("/api/user/settings", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({
-          userId: user.uid,
-          displayName: settings.displayName,
-        }),
-      });
-
-      if (response.ok) {
-        // Optimistic update
-        await mutateSettings(
-          { ...settings, displayName: settings.displayName ?? "" },
-          { revalidate: false },
-        );
-        setMessage({ type: "success", text: "Display name saved!" });
-        setTimeout(() => setMessage(null), 3000);
-      } else {
-        throw new Error("Failed to save display name");
-      }
-    } catch (err) {
-      setMessage({
-        type: "error",
-        text: err instanceof Error ? err.message : "An error occurred",
-      });
-      await mutateSettings();
-    } finally {
-      setSavingDisplayName(false);
-    }
-  };
-
-  const handleSaveCompanyName = async () => {
-    if (!settings.companyName?.trim()) {
-      setMessage({ type: "error", text: "Please enter a company name." });
-      return;
-    }
-
-    if (!user?.uid) {
-      setMessage({
-        type: "error",
-        text: "User ID not available. Please refresh and try again.",
-      });
-      return;
-    }
-
-    setSavingCompanyName(true);
-    try {
-      const idToken = await user.getIdToken();
-      const response = await fetch("/api/user/settings", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({
-          userId: user.uid,
-          companyName: settings.companyName,
-        }),
-      });
-
-      if (response.ok) {
-        // Optimistic update
-        await mutateSettings(
-          { ...settings, companyName: settings.companyName ?? "" },
-          { revalidate: false },
-        );
-        setMessage({ type: "success", text: "Company name saved!" });
-        setTimeout(() => setMessage(null), 3000);
-      } else {
-        throw new Error("Failed to save company name");
-      }
-    } catch (err) {
-      setMessage({
-        type: "error",
-        text: err instanceof Error ? err.message : "An error occurred",
-      });
-      await mutateSettings();
-    } finally {
-      setSavingCompanyName(false);
-    }
-  };
 
   const handleCopyResumeId = () => {
     if (resumeId) {
@@ -281,22 +114,15 @@ export default function SettingsPage() {
     return null;
   }
 
+
   return (
     <DashboardBackground>
       <DashboardHeader userEmail={user.email} onLogout={handleLogout} />
 
       <main className="relative z-10 max-w-6xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-        <div className="mb-12 text-center">
-          <h1 className="text-5xl font-serif font-bold text-black tracking-tight">
-            Your Profile
-          </h1>
-          <p className="text-gray-500 text-lg mt-4 font-sans max-w-2xl mx-auto">
-            Manage your personal information and account settings in one place.
-          </p>
-        </div>
+        <SettingsHeader />
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Left Column: Profile Details (Main Focus) */}
           <div className="lg:col-span-7 space-y-8">
             <ProfileDetails
               displayName={settings.displayName}
@@ -316,7 +142,6 @@ export default function SettingsPage() {
             />
           </div>
 
-          {/* Right Column: Account Info (Secondary) */}
           <div className="lg:col-span-5 space-y-8">
             <AccountInformation
               email={user?.email}
@@ -335,3 +160,4 @@ export default function SettingsPage() {
     </DashboardBackground>
   );
 }
+

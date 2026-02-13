@@ -74,3 +74,80 @@ export const ResumeChatRequestSchema = z
     sessionData: z.record(z.string(), z.unknown()).optional(),
   })
   .strict();
+
+export const UpdateResumeRequestSchema = z.object({
+  resume: z.object({
+    title: z.string().min(1, "Title is required"),
+    summary: z.string().optional(),
+    experience: z
+      .array(
+        z.object({
+          id: z.string().optional(),
+          company: z.string().min(1),
+          role: z.string().min(1),
+          startDate: z.string().min(1),
+          endDate: z.string().optional(),
+          description: z.string().default(""),
+          visibility: z.enum(["public", "masked", "request"]).default("public"),
+        })
+      )
+      .optional(),
+    education: z
+      .array(
+        z.object({
+          id: z.string().optional(),
+          institution: z.string().min(1),
+          degree: z.string().min(1),
+          startDate: z.string().min(1),
+          endDate: z.string().optional(),
+          description: z.string().optional(),
+          visibility: z.enum(["public", "masked", "request"]).default("public"),
+        })
+      )
+      .optional(),
+    skills: z
+      .array(
+        z.object({
+          id: z.string().optional(),
+          name: z.string().min(1),
+          level: z.string().default("intermediate"),
+          visibility: z.enum(["public", "masked", "request"]).default("public"),
+        })
+      )
+      .optional(),
+    projects: z
+      .array(
+        z.object({
+          id: z.string().optional(),
+          name: z.string().min(1),
+          url: z.string().optional(),
+          description: z.string().default(""),
+          visibility: z.enum(["public", "masked", "request"]).default("public"),
+        })
+      )
+      .optional(),
+    contact: z
+      .object({
+        email: z.object({
+          value: z.string().default(""),
+          visibility: z.enum(["public", "masked", "request"]),
+        }),
+        phone: z
+          .object({
+            value: z.string().default(""),
+            visibility: z.enum(["public", "masked", "request"]),
+          })
+          .optional(),
+      })
+      .optional(),
+    personalInfo: z
+      .object({
+        name: z.string().optional(),
+        title: z.string().optional(),
+        location: z.string().optional(),
+        linkedin: z.string().url().optional().or(z.literal("")),
+        github: z.string().url().optional().or(z.literal("")),
+      })
+      .optional(),
+  }),
+});

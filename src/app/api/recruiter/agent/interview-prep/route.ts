@@ -5,7 +5,7 @@ import {
   handleApiError,
 } from "@/lib/utils/api-helpers";
 import { logger } from "@/lib/logger";
-import { trackCost } from "@/lib/services/costControlService";
+import { BillingService } from "@/lib/services/billingService";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
 import { AgentInterviewPrepSchema } from "@/lib/schemas/api";
 
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     });
 
     // 2. Cost Tracking (Fire & Forget)
-    trackCost(
+    BillingService.trackCost(
       userId!,
       ESTIMATED_COST_INTERVIEW_PREP,
       "agent_interview_prep",

@@ -1,5 +1,4 @@
 "use client";
-/* eslint-disable react-hooks/exhaustive-deps */
 
 import { useEffect, useState } from "react";
 import Script from "next/script";
@@ -21,7 +20,10 @@ export function ConsentAwareAnalytics({ nonce }: ConsentAwareAnalyticsProps) {
   useEffect(() => {
     // Check localStorage on client-side only
     const consent = localStorage.getItem(CONSENT_KEY);
-    setShowGA(consent === "accepted");
+    if (consent === "accepted") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setShowGA((prev) => (prev ? prev : true));
+    }
 
     // Listen for consent changes (when user clicks Accept)
     const handleStorage = (e: StorageEvent) => {

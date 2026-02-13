@@ -206,7 +206,7 @@ export async function performPremiumSearch(
       }
     }
 
-    const userCache = new Map<string, Record<string, any> | null>();
+    const userCache = new Map<string, Record<string, unknown> | null>();
     if (userIdsToFetch.size > 0) {
       const userRefs = Array.from(userIdsToFetch).map((id) =>
         collectionRef(COLLECTIONS.USERS).doc(id),
@@ -215,7 +215,7 @@ export async function performPremiumSearch(
       userSnapshots.forEach((snapshot) => {
         userCache.set(
           snapshot.id,
-          snapshot.exists ? (snapshot.data() as Record<string, any>) : null,
+          snapshot.exists ? (snapshot.data() as Record<string, unknown>) : null,
         );
       });
     }
@@ -236,7 +236,10 @@ export async function performPremiumSearch(
         continue;
       }
 
-      const userData = userCache.get(userId) ?? null;
+      const userData = (userCache.get(userId) ?? null) as Record<
+        string,
+        any
+      > | null;
 
       if (!userData) {
         continue;
@@ -244,8 +247,8 @@ export async function performPremiumSearch(
 
       const resumeSkills = Array.isArray(resumeData.skills)
         ? resumeData.skills.map((skill: string | { name?: string }) =>
-            typeof skill === "string" ? skill : skill?.name || "",
-          )
+          typeof skill === "string" ? skill : skill?.name || "",
+        )
         : [];
       const normalizedResumeSkills = resumeSkills
         .map((skill: string) => skill.toLowerCase())

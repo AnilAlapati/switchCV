@@ -67,7 +67,17 @@ jest.mock("@/lib/services/aiGenerationService", () => ({
 }));
 
 jest.mock("@/lib/utils/resumeVisibility", () => ({
-  sanitizeResumeForPublicView: jest.fn((data) => data),
+  resolveResumeIsPublic: jest.fn(
+    (resume: Record<string, unknown> | null | undefined) => {
+      if (!resume) return false;
+      if (resume.isBeingEdited === true) return false;
+      if (typeof resume.isPublic === "boolean") return resume.isPublic;
+      if (resume.visibility === "public") return true;
+      if (resume.published === true) return true;
+      return false;
+    },
+  ),
+  sanitizeResumeForPublicView: jest.fn((data: unknown) => data),
 }));
 
 jest.mock("@/lib/draftIdGenerator", () => ({

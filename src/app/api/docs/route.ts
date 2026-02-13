@@ -6,7 +6,7 @@ import {
 } from "@/lib/utils/api-helpers";
 
 export async function GET(request: NextRequest) {
-  const { userId, error } = await getAuthenticatedUserId(request);
+  const { error } = await getAuthenticatedUserId(request);
   if (error) return error;
 
   try {

@@ -44,6 +44,8 @@ export const BUDGET_CAPS = {
 
 export class BillingService {
   private static COLLECTION = "billing";
+  private static NUM_SHARDS = 10;
+  private static SHARD_COLLECTION = "system/billing/shards";
 
   /**
    * Calculate exact cost for a request
@@ -51,7 +53,7 @@ export class BillingService {
   static calculateCost(
     model: string,
     inputTokens: number,
-    outputTokens: number
+    outputTokens: number,
   ): number {
     const pricing = MODEL_PRICING[model] || MODEL_PRICING["default"];
     return (
@@ -61,12 +63,106 @@ export class BillingService {
   }
 
   /**
+   * Tracks the cost of an operation using sharded counters.
+   * Simplified API for quick cost tracking (e.g., agentic workflows).
+   *
+   * @param userId The user who incurred the cost
+   * @param cost The cost in USD
+   * @param operation The operation type (e.g., 'agentic_workflow', 'agent_analyze')
+   */
+  static async trackCost(
+    userId: string,
+    cost: number,
+    operation: string = "agentic_workflow",
+  ): Promise<void> {
+    const shardId = Math.floor(Math.random() * this.NUM_SHARDS);
+    const shardRef = adminDb.doc(`${this.SHARD_COLLECTION}/${shardId}`);
+
+    try {
+      const batch = adminDb.batch();
+
+      // 1. Sharded System Cost
+      batch.set(
+        shardRef,
+        {
+          monthCost: admin.firestore.FieldValue.increment(cost),
+          lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
+
+      // 2. User Cost (Direct update, assumed lower contention per user)
+      const userBillingRef = adminDb
+        .collection("users")
+        .doc(userId)
+        .collection("billing")
+        .doc("current_month");
+
+      batch.set(
+        userBillingRef,
+        {
+          totalCost: admin.firestore.FieldValue.increment(cost),
+          [`usage.${operation}`]: admin.firestore.FieldValue.increment(1),
+          lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
+
+      await batch.commit();
+    } catch (err) {
+      // Don't fail the user request just because billing tracking failed
+      logger.error({ err, userId, cost, operation }, "Billing tracking failed");
+    }
+  }
+
+  /**
+   * Checks if the total system spend is within the specified budget cap.
+   * Reads from shards directly (not the aggregate doc) to get accurate totals.
+   *
+   * @param cap The budget cap in USD.
+   * @returns True if current spend is LESS than the cap.
+   */
+  static async checkSystemBudget(cap: number): Promise<boolean> {
+    try {
+      const shardsSnapshot = await adminDb
+        .collection(this.SHARD_COLLECTION)
+        .get();
+
+      if (shardsSnapshot.empty) {
+        return true;
+      }
+
+      let totalCost = 0;
+      for (const shard of shardsSnapshot.docs) {
+        const data = shard.data();
+        totalCost += data?.monthCost || 0;
+      }
+
+      if (totalCost >= cap) {
+        logger.warn(
+          { totalCost, cap },
+          "Global budget cap reached — blocking AI requests",
+        );
+      }
+
+      return totalCost < cap;
+    } catch (err) {
+      // Fail CLOSED: if we can't verify budget, block the request
+      logger.error(
+        { err, cap },
+        "Failed to check global budget — failing closed",
+      );
+      return false;
+    }
+  }
+
+  /**
    * Check if user has exceeded their budget for the current month.
    * Returns true if allowed, false if blocked.
    */
   static async checkBudget(
     userId: string,
-    tier: keyof typeof BUDGET_CAPS = "basic"
+    tier: keyof typeof BUDGET_CAPS = "basic",
   ): Promise<boolean> {
     const date = new Date();
     const billingKey = `${date.getFullYear()}-${(date.getMonth() + 1)
@@ -87,7 +183,7 @@ export class BillingService {
       if (currentCost >= budgetLimit) {
         logger.warn(
           { userId, currentCost, budgetLimit },
-          "⛔ Budget cap exceeded"
+          "⛔ Budget cap exceeded",
         );
         return false;
       }
@@ -107,7 +203,7 @@ export class BillingService {
   static async trackUsage(
     userId: string,
     model: string,
-    usage: { input: number; output: number }
+    usage: { input: number; output: number },
   ): Promise<void> {
     const cost = this.calculateCost(model, usage.input, usage.output);
     const date = new Date();
@@ -133,12 +229,12 @@ export class BillingService {
         {
           totalCost: admin.firestore.FieldValue.increment(cost),
           totalTokens: admin.firestore.FieldValue.increment(
-            usage.input + usage.output
+            usage.input + usage.output,
           ),
           requestCount: admin.firestore.FieldValue.increment(1),
           lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
         },
-        { merge: true }
+        { merge: true },
       );
 
       // 2. Daily granular log (optional, good for charts)
@@ -148,11 +244,11 @@ export class BillingService {
         {
           cost: admin.firestore.FieldValue.increment(cost),
           tokens: admin.firestore.FieldValue.increment(
-            usage.input + usage.output
+            usage.input + usage.output,
           ),
           requests: admin.firestore.FieldValue.increment(1),
         },
-        { merge: true }
+        { merge: true },
       );
 
       // 3. System-wide ledger (for aggregateBilling cloud function to simplify)
@@ -167,7 +263,7 @@ export class BillingService {
           monthCost: admin.firestore.FieldValue.increment(cost),
           totalRequests: admin.firestore.FieldValue.increment(1),
         },
-        { merge: true }
+        { merge: true },
       );
 
       await batch.commit();

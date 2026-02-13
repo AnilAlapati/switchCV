@@ -13,7 +13,7 @@ export const notificationActionSchema = z.enum([
 export const notificationRequestSchema = z.object({
   action: notificationActionSchema,
   userId: z.string().min(1),
-  data: z.any().optional(),
+  data: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type NotificationRequest = z.infer<typeof notificationRequestSchema>;

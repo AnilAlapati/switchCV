@@ -1,7 +1,16 @@
 "use client";
 
+interface ActivityEvent {
+    eventId?: string;
+    eventType: string;
+    metadata?: {
+        source?: string;
+    };
+    timestamp: string | number | Date;
+}
+
 interface ActivityPulseFeedProps {
-    recentEvents: any[];
+    recentEvents: ActivityEvent[];
 }
 
 export function ActivityPulseFeed({ recentEvents }: ActivityPulseFeedProps) {
@@ -34,10 +43,10 @@ export function ActivityPulseFeed({ recentEvents }: ActivityPulseFeedProps) {
                             <div className="flex items-center gap-4">
                                 <div
                                     className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl shadow-sm border ${event.eventType === "view"
-                                            ? "bg-blue-50 text-blue-600 border-blue-100"
-                                            : event.eventType === "request"
-                                                ? "bg-amber-50 text-amber-600 border-amber-100"
-                                                : "bg-emerald-50 text-emerald-600 border-emerald-100"
+                                        ? "bg-blue-50 text-blue-600 border-blue-100"
+                                        : event.eventType === "request"
+                                            ? "bg-amber-50 text-amber-600 border-amber-100"
+                                            : "bg-emerald-50 text-emerald-600 border-emerald-100"
                                         }`}
                                 >
                                     {event.eventType === "view"

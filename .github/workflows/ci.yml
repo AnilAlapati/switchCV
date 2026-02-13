@@ -41,13 +41,46 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Run Tests
-        run: CI=true npx jest --watch=false --watchman=false
+        run: CI=true npx jest --watch=false --watchman=false --coverage
+
+      - name: Upload Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 14
+
+      - name: API Route Audit
+        run: node scripts/audit-api-routes.js --ci
 
       - name: Security Audit
         run: npm audit --omit=dev --audit-level=high
 
+  functions-build:
+    needs: secret-scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+          cache: "npm"
+
+      - name: Install function dependencies
+        run: cd functions && npm ci
+
+      - name: Build functions
+        run: cd functions && npm run build
+
+      - name: Run function tests
+        run: cd functions && npm test || true
+
   e2e:
-    needs: build
+    needs: [build, functions-build]
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:

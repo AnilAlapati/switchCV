@@ -1,11 +1,10 @@
-import { trackCost, checkBudget } from "@/lib/services/costControlService";
-import { adminDb } from "@/lib/firebase-admin";
-import * as admin from "firebase-admin";
+import { BillingService } from "@/lib/services/billingService";
+import adminDefault, { adminDb } from "@/lib/firebase-admin";
 
-// The increment mock is already set up in jest.setup.js
-// but we want to verify it was called.
+// BillingService uses the default export from @/lib/firebase-admin,
+// NOT the 'firebase-admin' package directly.
 
-describe("costControlService", () => {
+describe("BillingService (trackCost + checkSystemBudget)", () => {
   const userId = "test-user-123";
   const cost = 0.05;
   const operation = "test_op";
@@ -16,14 +15,19 @@ describe("costControlService", () => {
 
   describe("trackCost", () => {
     it("should track cost for a user and system shards", async () => {
-      await trackCost(userId, cost, operation);
+      await BillingService.trackCost(userId, cost, operation);
 
       // Verify batch was created and committed
       expect(adminDb.batch).toHaveBeenCalled();
 
-      // Verify increment was called
-      expect(admin.firestore.FieldValue.increment).toHaveBeenCalledWith(cost);
-      expect(admin.firestore.FieldValue.increment).toHaveBeenCalledWith(1);
+      // Verify increment was called via the @/lib/firebase-admin default export
+      const increment = (
+        adminDefault as unknown as {
+          firestore: { FieldValue: { increment: jest.Mock } };
+        }
+      ).firestore.FieldValue.increment;
+      expect(increment).toHaveBeenCalledWith(cost);
+      expect(increment).toHaveBeenCalledWith(1);
     });
 
     it("should not throw if tracking fails", async () => {
@@ -33,17 +37,19 @@ describe("costControlService", () => {
         commit: jest.fn().mockRejectedValue(new Error("Firestore error")),
       });
 
-      await expect(trackCost(userId, cost, operation)).resolves.not.toThrow();
+      await expect(
+        BillingService.trackCost(userId, cost, operation),
+      ).resolves.not.toThrow();
     });
   });
 
-  describe("checkBudget", () => {
+  describe("checkSystemBudget", () => {
     it("should return true if no shards exist", async () => {
       (adminDb.collection as jest.Mock).mockReturnValueOnce({
         get: jest.fn().mockResolvedValue({ empty: true, docs: [] }),
       });
 
-      const result = await checkBudget(100);
+      const result = await BillingService.checkSystemBudget(100);
       expect(result).toBe(true);
     });
 
@@ -59,7 +65,7 @@ describe("costControlService", () => {
         }),
       });
 
-      const result = await checkBudget(100);
+      const result = await BillingService.checkSystemBudget(100);
       expect(result).toBe(true);
     });
 
@@ -75,7 +81,7 @@ describe("costControlService", () => {
         }),
       });
 
-      const result = await checkBudget(100);
+      const result = await BillingService.checkSystemBudget(100);
       expect(result).toBe(false);
     });
 
@@ -84,7 +90,7 @@ describe("costControlService", () => {
         get: jest.fn().mockRejectedValue(new Error("DB error")),
       });
 
-      const result = await checkBudget(100);
+      const result = await BillingService.checkSystemBudget(100);
       expect(result).toBe(false);
     });
   });

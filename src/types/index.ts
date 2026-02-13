@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 // src/types/index.ts
 import { SubscriptionTier, UserRole } from "@/lib/config";
 

@@ -1,6 +1,95 @@
 // functions/src/services/userDataService.ts
 import * as admin from "firebase-admin";
 import { auditLogger, AuditAction, ResourceType } from "./auditLogger";
+import * as functions from "firebase-functions";
+
+/** Maximum operations per Firestore batch */
+const BATCH_LIMIT = 500;
+
+/**
+ * Helper to delete all documents in a query using batched writes.
+ * Handles Firestore's 500-operations-per-batch limit.
+ */
+async function deleteQueryResults(
+  db: FirebaseFirestore.Firestore,
+  query: FirebaseFirestore.Query,
+  label: string,
+): Promise<number> {
+  const snapshot = await query.limit(BATCH_LIMIT).get();
+  if (snapshot.empty) return 0;
+
+  let deleted = 0;
+  let batch = db.batch();
+  let batchCount = 0;
+
+  for (const doc of snapshot.docs) {
+    batch.delete(doc.ref);
+    batchCount++;
+    deleted++;
+
+    if (batchCount >= BATCH_LIMIT) {
+      await batch.commit();
+      batch = db.batch();
+      batchCount = 0;
+    }
+  }
+
+  if (batchCount > 0) {
+    await batch.commit();
+  }
+
+  if (deleted > 0) {
+    functions.logger.info(`GDPR delete: removed ${deleted} docs from ${label}`);
+  }
+  return deleted;
+}
+
+/**
+ * Helper to anonymize documents (replace userId with "DELETED_USER")
+ * instead of deleting — used for audit trails and compliance logs.
+ */
+async function anonymizeQueryResults(
+  db: FirebaseFirestore.Firestore,
+  query: FirebaseFirestore.Query,
+  userId: string,
+  label: string,
+): Promise<number> {
+  const snapshot = await query.limit(BATCH_LIMIT).get();
+  if (snapshot.empty) return 0;
+
+  let anonymized = 0;
+  let batch = db.batch();
+  let batchCount = 0;
+
+  for (const doc of snapshot.docs) {
+    batch.update(doc.ref, {
+      userId: "DELETED_USER",
+      email: "REDACTED",
+      name: "REDACTED",
+      anonymizedAt: new Date().toISOString(),
+      _originalUserId: admin.firestore.FieldValue.delete(),
+    });
+    batchCount++;
+    anonymized++;
+
+    if (batchCount >= BATCH_LIMIT) {
+      await batch.commit();
+      batch = db.batch();
+      batchCount = 0;
+    }
+  }
+
+  if (batchCount > 0) {
+    await batch.commit();
+  }
+
+  if (anonymized > 0) {
+    functions.logger.info(
+      `GDPR anonymize: processed ${anonymized} docs from ${label} for user ${userId}`,
+    );
+  }
+  return anonymized;
+}
 
 /**
  * Handles user data management including exports and deletions
@@ -14,7 +103,7 @@ export class UserDataService {
 
   async updateProfile(
     userId: string,
-    changes: Record<string, any>
+    changes: Record<string, any>,
   ): Promise<void> {
     const userRef = this.db.collection("users").doc(userId);
     const before = (await userRef.get()).data();
@@ -42,18 +131,22 @@ export class UserDataService {
     const profiles = await this.db
       .collection("profiles")
       .where("userId", "==", userId)
+      .limit(500)
       .get();
     const resumes = await this.db
       .collectionGroup("resumes")
       .where("userId", "==", userId)
+      .limit(500)
       .get();
     const requests = await this.db
       .collection("recruiterRequests")
       .where("toUserId", "==", userId)
+      .limit(500)
       .get();
     const accessTokens = await this.db
       .collection("accessTokens")
       .where("userId", "==", userId)
+      .limit(500)
       .get();
     const auditLogs = await auditLogger.getUserAuditLogs(userId, 1000);
 
@@ -90,25 +183,222 @@ export class UserDataService {
         status: "success",
       });
 
-      const batch = this.db.batch();
+      // ── Phase 1: Delete primary user data ──
+      // User document and subcollections
+      await deleteQueryResults(
+        this.db,
+        this.db.collection("users").doc(userId).collection("surveys"),
+        "users/{userId}/surveys",
+      );
+      await deleteQueryResults(
+        this.db,
+        this.db.collection("users").doc(userId).collection("billing"),
+        "users/{userId}/billing",
+      );
+      await this.db.collection("users").doc(userId).delete();
 
-      batch.delete(this.db.collection("users").doc(userId));
-
-      const profiles = await this.db
-        .collection("profiles")
+      // ── Phase 2: Delete profiles and resumes ──
+      await deleteQueryResults(
+        this.db,
+        this.db.collection("profiles").where("userId", "==", userId),
+        "profiles",
+      );
+      await deleteQueryResults(
+        this.db,
+        this.db.collectionGroup("resumes").where("userId", "==", userId),
+        "resumes (collectionGroup)",
+      );
+      // Legacy collection
+      const legacyProfiles = await this.db
+        .collection("resumeProfiles")
         .where("userId", "==", userId)
+        .limit(BATCH_LIMIT)
         .get();
-      profiles.forEach((doc) => batch.delete(doc.ref));
+      for (const doc of legacyProfiles.docs) {
+        // Delete subcollections first
+        await deleteQueryResults(
+          this.db,
+          doc.ref.collection("accessRequests"),
+          `resumeProfiles/${doc.id}/accessRequests`,
+        );
+        await deleteQueryResults(
+          this.db,
+          doc.ref.collection("accessGrants"),
+          `resumeProfiles/${doc.id}/accessGrants`,
+        );
+      }
+      await deleteQueryResults(
+        this.db,
+        this.db.collection("resumeProfiles").where("userId", "==", userId),
+        "resumeProfiles",
+      );
+      await deleteQueryResults(
+        this.db,
+        this.db.collection("allResumes").where("userId", "==", userId),
+        "allResumes",
+      );
 
-      const resumes = await this.db
-        .collectionGroup("resumes")
-        .where("userId", "==", userId)
-        .get();
-      resumes.forEach((doc) => batch.delete(doc.ref));
+      // ── Phase 3: Delete recruiter-related data ──
+      await deleteQueryResults(
+        this.db,
+        this.db
+          .collection("recruiterRequests")
+          .where("recruiterId", "==", userId),
+        "recruiterRequests (as recruiter)",
+      );
+      await deleteQueryResults(
+        this.db,
+        this.db.collection("recruiterRequests").where("userId", "==", userId),
+        "recruiterRequests (as candidate)",
+      );
+      await deleteQueryResults(
+        this.db,
+        this.db
+          .collection("recruiterNotifications")
+          .where("userId", "==", userId),
+        "recruiterNotifications",
+      );
+      await deleteQueryResults(
+        this.db,
+        this.db
+          .collection("recruiterSearchHistory")
+          .where("userId", "==", userId),
+        "recruiterSearchHistory",
+      );
+      await deleteQueryResults(
+        this.db,
+        this.db.collection("recruiterInterviews").where("userId", "==", userId),
+        "recruiterInterviews",
+      );
+      await deleteQueryResults(
+        this.db,
+        this.db.collection("recruiterPipelines").where("userId", "==", userId),
+        "recruiterPipelines",
+      );
+      await deleteQueryResults(
+        this.db,
+        this.db.collection("recruiterCandidates").where("userId", "==", userId),
+        "recruiterCandidates",
+      );
+      await deleteQueryResults(
+        this.db,
+        this.db
+          .collection("recruiterBulkActions")
+          .where("userId", "==", userId),
+        "recruiterBulkActions",
+      );
 
-      await batch.commit();
+      // ── Phase 4: Delete tokens, contacts, and misc user data ──
+      await deleteQueryResults(
+        this.db,
+        this.db.collection("accessTokens").where("userId", "==", userId),
+        "accessTokens",
+      );
+      await deleteQueryResults(
+        this.db,
+        this.db.collection("contactRequests").where("userId", "==", userId),
+        "contactRequests",
+      );
+      await deleteQueryResults(
+        this.db,
+        this.db
+          .collection("contactRequests")
+          .where("targetUserId", "==", userId),
+        "contactRequests (as target)",
+      );
+      await deleteQueryResults(
+        this.db,
+        this.db.collection("notifications").where("userId", "==", userId),
+        "notifications",
+      );
+      await deleteQueryResults(
+        this.db,
+        this.db.collection("drafts").where("userId", "==", userId),
+        "drafts",
+      );
+      await deleteQueryResults(
+        this.db,
+        this.db.collection("draftIdMapping").where("userId", "==", userId),
+        "draftIdMapping",
+      );
+      await deleteQueryResults(
+        this.db,
+        this.db.collection("searchQuotas").where("userId", "==", userId),
+        "searchQuotas",
+      );
+      await deleteQueryResults(
+        this.db,
+        this.db
+          .collection("userApprovalRequests")
+          .where("userId", "==", userId),
+        "userApprovalRequests",
+      );
+      await deleteQueryResults(
+        this.db,
+        this.db.collection("verificationTokens").where("userId", "==", userId),
+        "verificationTokens",
+      );
+      await deleteQueryResults(
+        this.db,
+        this.db.collection("passwordResetTokens").where("userId", "==", userId),
+        "passwordResetTokens",
+      );
+      await deleteQueryResults(
+        this.db,
+        this.db.collection("jobSeekerMetrics").where("userId", "==", userId),
+        "jobSeekerMetrics",
+      );
+      await deleteQueryResults(
+        this.db,
+        this.db.collection("profileAccessLogs").where("userId", "==", userId),
+        "profileAccessLogs",
+      );
 
+      // Username mapping cleanup
+      await deleteQueryResults(
+        this.db,
+        this.db.collection("usernames").where("userId", "==", userId),
+        "usernames",
+      );
+
+      // ── Phase 5: Delete AI-related usage data ──
+      await deleteQueryResults(
+        this.db,
+        this.db.collection("aiUsageLogs").where("userId", "==", userId),
+        "aiUsageLogs",
+      );
+      await deleteQueryResults(
+        this.db,
+        this.db.collection("billing").doc(userId).collection("monthly"),
+        "billing/{userId}/monthly",
+      );
+
+      // ── Phase 6: Anonymize audit/compliance logs (RETAIN for legal compliance) ──
+      await anonymizeQueryResults(
+        this.db,
+        this.db.collection("auditLogs").where("userId", "==", userId),
+        userId,
+        "auditLogs",
+      );
+      await anonymizeQueryResults(
+        this.db,
+        this.db.collection("aiAuditLogs").where("userId", "==", userId),
+        userId,
+        "aiAuditLogs",
+      );
+      await anonymizeQueryResults(
+        this.db,
+        this.db.collection("emailLogs").where("userId", "==", userId),
+        userId,
+        "emailLogs",
+      );
+
+      // ── Phase 7: Delete Firebase Auth user ──
       await admin.auth().deleteUser(userId);
+
+      functions.logger.info(
+        `GDPR: Account deletion completed for user ${userId}`,
+      );
     } catch (error) {
       await auditLogger.log({
         userId,

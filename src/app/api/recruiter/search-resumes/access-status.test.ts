@@ -174,7 +174,7 @@ describe("access-status", () => {
         it("builds map from requests and grants", async () => {
             // Mock requests query
             mockGet.mockResolvedValueOnce({
-                forEach: (cb: Function) => {
+                forEach: (cb: (arg: any) => void) => {
                     // 1. Pending request for resume-1
                     cb({
                         data: () => ({ status: "pending" }),
@@ -190,7 +190,7 @@ describe("access-status", () => {
 
             // Mock grants query
             mockGet.mockResolvedValueOnce({
-                forEach: (cb: Function) => {
+                forEach: (cb: (arg: any) => void) => {
                     // 3. Active grant for resume-3
                     cb({
                         data: () => ({ expiresAt: null }),
@@ -209,7 +209,7 @@ describe("access-status", () => {
         it("prioritizes approved grants over other statuses", async () => {
             // Mock requests query -> Pending for resume-1
             mockGet.mockResolvedValueOnce({
-                forEach: (cb: Function) => {
+                forEach: (cb: (arg: any) => void) => {
                     cb({
                         data: () => ({ status: "pending" }),
                         ref: { parent: { parent: { id: "resume-1" } } },
@@ -219,7 +219,7 @@ describe("access-status", () => {
 
             // Mock grants query -> Approved grant for resume-1
             mockGet.mockResolvedValueOnce({
-                forEach: (cb: Function) => {
+                forEach: (cb: (arg: any) => void) => {
                     cb({
                         data: () => ({ expiresAt: null }),
                         ref: { parent: { parent: { id: "resume-1" } } },
@@ -238,7 +238,7 @@ describe("access-status", () => {
 
             // Mock requests query
             mockGet.mockResolvedValueOnce({
-                forEach: (cb: Function) => {
+                forEach: (cb: (arg: any) => void) => {
                     // 1. Expired approved request (should be ignored)
                     cb({
                         data: () => ({ status: "approved", expiresAt: { toDate: () => past } }),
@@ -254,7 +254,7 @@ describe("access-status", () => {
 
             // Mock grants query
             mockGet.mockResolvedValueOnce({
-                forEach: (cb: Function) => {
+                forEach: (cb: (arg: any) => void) => {
                     // 3. Expired grant
                     cb({
                         data: () => ({ expiresAt: { toDate: () => past } }),
@@ -288,7 +288,7 @@ describe("access-status", () => {
         it("handles approved request without expiration in map", async () => {
             // Mock requests query
             mockGet.mockResolvedValueOnce({
-                forEach: (cb: Function) => {
+                forEach: (cb: (arg: any) => void) => {
                     cb({
                         data: () => ({ status: "approved", expiresAt: null }),
                         ref: { parent: { parent: { id: "resume-permanent" } } },
