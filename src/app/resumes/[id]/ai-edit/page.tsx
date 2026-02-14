@@ -10,7 +10,6 @@ import { ResumeEditChatHeader } from "@/components/resume/ResumeEditChatHeader";
 import { ResumeEditChatInput } from "@/components/resume/ResumeEditChatInput";
 import { ResumeEditChatStatus } from "@/components/resume/ResumeEditChatStatus";
 import { ResumeEditMessageList } from "@/components/resume/ResumeEditMessageList";
-import { ResumeEditMessageList } from "@/components/resume/ResumeEditMessageList";
 import { ResumeSnapshotCard } from "@/components/resume/ResumeSnapshotCard";
 import { getVerificationRoute } from "@/lib/config";
 import { BackgroundBlobs } from "@/components/ui/BackgroundBlobs";

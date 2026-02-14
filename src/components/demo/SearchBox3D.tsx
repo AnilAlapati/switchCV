@@ -1,8 +1,8 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
+import * as drei from "@react-three/drei";
 import * as THREE from "three";
 import { Stage } from "@/hooks/useAnimationSequence";
 
@@ -74,7 +74,7 @@ export function SearchBox3D({ stage, role, onSearchComplete }: SearchBox3DProps)
     return (
         <group ref={groupRef} position={[0, 0, 4]}>
             {/* Glassmorphism search box using HTML overlay */}
-            <Html
+            <drei.Html
                 center
                 transform
                 occlude={false}
@@ -125,7 +125,7 @@ export function SearchBox3D({ stage, role, onSearchComplete }: SearchBox3DProps)
                     <div className="absolute -top-2 -right-2 w-3 h-3 bg-blue-500 rounded-full animate-ping" />
                     <div className="absolute -bottom-3 -left-3 w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
                 </div>
-            </Html>
+            </drei.Html>
         </group>
     );
 }

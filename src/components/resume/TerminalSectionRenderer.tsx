@@ -1,25 +1,17 @@
 import React from "react";
-import { ResumeProfile } from "@/types";
-
-interface NormalizedItem {
-    headline: string;
-    subline: string;
-    description: string;
-    meta?: string;
-    technologies?: string[];
-    url?: string;
-}
+import { ResumeProfile, PersonalInfo } from "@/types";
+import { TimelineItem } from "./ResumeVisualPrimitives";
 
 interface TerminalSectionRendererProps {
     activeSection: string;
     heroName: string;
     heroTitle: string;
     data: ResumeProfile;
-    personalInfo: Record<string, string | undefined>;
+    personalInfo: PersonalInfo;
     skills: string[];
-    experience: NormalizedItem[];
-    projects: NormalizedItem[];
-    education: NormalizedItem[];
+    experience: TimelineItem[];
+    projects: TimelineItem[];
+    education: TimelineItem[];
     isTyping: boolean;
 }
 

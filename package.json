@@ -30,8 +30,6 @@
     "quality:fix": "bash scripts/quality-check.sh --fix",
     "quality:watch": "bash scripts/watch-quality.sh",
     "precommit": "bash scripts/quality-check.sh --quick",
-    "deploy:cloud": "bash scripts/deploy-sync.sh",
-    "deploy:prod": "bash scripts/deploy-prod.sh",
     "env:dev": "bash scripts/switch-env.sh dev",
     "env:prod": "bash scripts/switch-env.sh prod",
     "secrets:setup": "bash scripts/setup-firebase-secrets.sh",
@@ -43,7 +41,12 @@
     "health-check": "bash scripts/check-repo-health.sh",
     "release": "node scripts/increment-version.js",
     "backup:local": "bash scripts/backup-env-safe.sh",
-    "test:security": "jest tests/security --testPathPattern=backup"
+    "test:security": "jest tests/security --testPathPattern=backup",
+    "deploy": "bash scripts/deploy.sh sync",
+    "deploy:dev": "bash scripts/deploy.sh dev",
+    "deploy:prod": "bash scripts/deploy.sh prod",
+    "deploy:sync": "bash scripts/deploy.sh sync",
+    "deploy:prod:hotfix": "bash scripts/deploy.sh prod --no-bump"
   },
   "dependencies": {
     "@google-cloud/secret-manager": "^6.1.1",

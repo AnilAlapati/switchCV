@@ -46,7 +46,7 @@ export function CookieConsentBanner() {
     localStorage.setItem(CONSENT_KEY, "declined");
     // Signal to PostHog/GA to stop tracking
     if (typeof window !== "undefined") {
-      (window as Record<string, unknown>).__switchcv_tracking_disabled = true;
+      (window as unknown as Record<string, unknown>).__switchcv_tracking_disabled = true;
     }
     notifyListeners();
   }, []);

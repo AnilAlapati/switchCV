@@ -2,7 +2,7 @@
 
 import React, { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Html, Sparkles } from "@react-three/drei";
+import * as drei from "@react-three/drei";
 import * as THREE from "three";
 import { FloatingGeometrics } from "./role-selection/FloatingGeometrics";
 import { RoleCard3D } from "./role-selection/RoleCard3D";
@@ -30,32 +30,29 @@ export function RoleSelection({ onSelect }: RoleSelectionProps) {
             <FloatingGeometrics />
 
             {/* Particle field */}
-            <Sparkles
+            <drei.Sparkles
                 count={200}
-                scale={30}
-                size={2}
-                speed={0.3}
-                opacity={0.4}
-                color="#3B82F6"
+                scale={[20, 10, 10]}
+                size={1.5}
+                speed={0.4}
+                color="#f8fafc"
             />
-            <Sparkles
+            <drei.Sparkles
                 count={100}
-                scale={25}
+                scale={[20, 20, 20]}
                 size={3}
-                speed={0.5}
-                opacity={0.3}
-                color="#8B5CF6"
+                speed={0.2}
+                color="#60a5fa"
             />
 
             {/* Title - using Html for better text rendering */}
-            <Html center position={[0, 6, 0]}>
-                <div className="text-center select-none pointer-events-none">
-                    <h1 className="text-6xl font-serif font-bold text-white mb-4 tracking-tight animate-pulse">
-                        Choose Your Path
-                    </h1>
-                    <p className="text-xl text-gray-400">Experience the future of hiring</p>
+            <drei.Html center position={[0, 6, 0]}>
+                <div className="flex flex-col items-center gap-2 select-none">
+                    <h2 className="text-4xl md:text-6xl font-serif font-black tracking-tighter text-black uppercase">
+                        Select Your Voice
+                    </h2>
                 </div>
-            </Html>
+            </drei.Html>
 
             {/* Animated Role Cards */}
             <RoleCard3D

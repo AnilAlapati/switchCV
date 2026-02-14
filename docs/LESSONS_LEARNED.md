@@ -38,6 +38,50 @@ What changed operationally:
 - Legacy test expectations were aligned with stricter validation/auth contracts
 - UI tests were updated to current notification behavior (`toast` over `window.alert`)
 
+### Update: Deployment Dependency Sync Issue (2026-02-13/14)
+
+**Incident**: First deployment failure in 3 months of active development  
+**Root cause**: Code changes introduced before dependency declaration  
+**Impact**: 5 consecutive failed deploys, ~2 hours of CI/CD time wasted  
+**Resolution time**: 26 hours from first failure to successful prod deploy
+
+**Timeline:**
+
+- **Feb 12 23:02** - Commit `64938da` added code importing `tailwind-merge` for cost dashboard UI
+- **Feb 12 17:40-17:55** - Deploy attempts fail with: `Module not found: Can't resolve 'tailwind-merge'`
+- **Feb 13 07:34** - Commit `b861fda` finally added `tailwind-merge` to `package.json` AND created `src/lib/utils.ts`
+- **Feb 14 14:00+** - Deploy succeeds after both changes are in the code
+
+**Root cause pattern:**
+
+```
+Developer edits src/components/ → imports 'tailwind-merge'
+     ↓ (locally works: npm install was run)
+Developer forgets to commit package.json changes
+     ↓ (code committed, package.json unchanged)
+Firebase deploy runs → npm install (from package.json - missing tailwind-merge!)
+     ↓
+Build fails with "Module not found"
+```
+
+**Why this wasn't caught locally:**
+
+- Local dev uses `node_modules/` that was already installed
+- `npm install` from CI environment runs fresh from `package.json` + `package-lock.json`
+- Difference **not visible until deployed** (8-10 min into build process)
+
+**Prevention strategies implemented:**
+
+1. **Pre-commit hook strengthening**: `npm audit` to detect missing dependencies
+2. **CI validation before upload**: Run `npm ci` locally to verify clean install matches lockfile
+3. **Documentation**: This section to catch similar patterns
+
+**Key insight for team:**
+
+- Always verify both files changed when importing new packages: `package.json`, `package-lock.json`, AND code file
+- Use `git diff --name-status` before commit to confirm intent
+- Test with `npm ci` locally before pushing (simulates clean install)
+
 ---
 
 ## The Vicious Cycle

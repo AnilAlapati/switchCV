@@ -2,14 +2,7 @@
 
 import React, { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
-import {
-    Float,
-    Html,
-    RoundedBox,
-    Sparkles,
-    MeshWobbleMaterial,
-    Trail,
-} from "@react-three/drei";
+import * as drei from "@react-three/drei";
 import * as THREE from "three";
 
 interface RoleCard3DProps {
@@ -94,7 +87,7 @@ export function RoleCard3D({
     };
 
     return (
-        <Float speed={2} rotationIntensity={0.1} floatIntensity={0.3}>
+        <drei.Float speed={2} rotationIntensity={0.1} floatIntensity={0.3}>
             <group ref={groupRef} position={position}>
                 {orbitingIcons.map((orbit, i) => (
                     <OrbitingShape
@@ -116,7 +109,7 @@ export function RoleCard3D({
                         />
                     </mesh>
 
-                    <RoundedBox
+                    <drei.RoundedBox
                         args={[5.5, 7, 0.4]}
                         radius={0.4}
                         smoothness={4}
@@ -129,9 +122,9 @@ export function RoleCard3D({
                             metalness={0.3}
                             roughness={0.7}
                         />
-                    </RoundedBox>
+                    </drei.RoundedBox>
 
-                    <RoundedBox
+                    <drei.RoundedBox
                         args={[5.7, 7.2, 0.3]}
                         radius={0.45}
                         smoothness={4}
@@ -144,17 +137,17 @@ export function RoleCard3D({
                             transparent
                             opacity={0.5}
                         />
-                    </RoundedBox>
+                    </drei.RoundedBox>
 
                     <group position={[0, 1.5, 0.5]}>
-                        <Trail width={1} length={6} color={color} attenuation={(t) => t * t}>
+                        <drei.Trail width={1} length={6} color={color} attenuation={(t) => t * t}>
                             <mesh ref={iconRef}>
                                 {role === "recruiter" ? (
                                     <boxGeometry args={[1.2, 1.5, 0.1]} />
                                 ) : (
                                     <torusGeometry args={[0.6, 0.2, 16, 32]} />
                                 )}
-                                <MeshWobbleMaterial
+                                <drei.MeshWobbleMaterial
                                     color="#ffffff"
                                     emissive={color}
                                     emissiveIntensity={0.3}
@@ -162,10 +155,10 @@ export function RoleCard3D({
                                     speed={2}
                                 />
                             </mesh>
-                        </Trail>
+                        </drei.Trail>
                     </group>
 
-                    <Sparkles
+                    <drei.Sparkles
                         count={20}
                         scale={3}
                         size={1}
@@ -175,7 +168,7 @@ export function RoleCard3D({
                         color={color}
                     />
 
-                    <Html
+                    <drei.Html
                         center
                         transform
                         position={[0, -1.2, 0.3]}
@@ -189,14 +182,14 @@ export function RoleCard3D({
                             <button
                                 onClick={handleClick}
                                 className={`w-full py-3 px-4 rounded-lg font-bold text-sm transition-all duration-300 ${hovered
-                                        ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/50 scale-105"
-                                        : "bg-white/10 text-white/80 border border-white/20"
+                                    ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/50 scale-105"
+                                    : "bg-white/10 text-white/80 border border-white/20"
                                     }`}
                             >
                                 {hovered ? "✨ Enter Experience" : "Begin Experience →"}
                             </button>
                         </div>
-                    </Html>
+                    </drei.Html>
 
                     {hovered && (
                         <spotLight
@@ -209,7 +202,7 @@ export function RoleCard3D({
                     )}
                 </group>
             </group>
-        </Float>
+        </drei.Float>
     );
 }
 
