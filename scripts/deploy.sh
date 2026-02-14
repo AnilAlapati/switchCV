@@ -140,13 +140,13 @@ deploy_to_env() {
   
   # Deploy in order (Firestore indexes first, as per Firebase best practices)
   echo -e "${YELLOW}  [1/3] Firestore indexes & rules...${NC}"
-  firebase deploy --only firestore:indexes,firestore:rules $FLAG --quiet
+  firebase deploy --only firestore:indexes,firestore:rules $FLAG
   
   echo -e "${YELLOW}  [2/3] Cloud Functions...${NC}"
-  firebase deploy --only functions $FLAG --quiet
+  firebase deploy --only functions $FLAG
   
   echo -e "${YELLOW}  [3/3] Hosting + SSR...${NC}"
-  firebase deploy --only hosting $FLAG --quiet
+  firebase deploy --only hosting $FLAG
   
   echo -e "${GREEN}✅ $TARGET_ENV deployment complete!${NC}"
   
