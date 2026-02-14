@@ -14,11 +14,19 @@ export interface AIUsageRecord {
   metadata?: Record<string, unknown>;
 }
 
-// Pricing per 1k tokens (Estimated/Standard rates)
+// Pricing per 1k tokens (Estimated/Standard rates — updated Feb 2026)
 export const MODEL_PRICING: Record<string, { input: number; output: number }> =
   {
-    // Gemini
-    "gemini-1.5-flash": { input: 0.00035, output: 0.00105 }, // Free-ish tier but let's track value
+    // Gemini 2.5 (current active models)
+    "gemini-2.5-flash": { input: 0.00015, output: 0.0006 },
+    "gemini-2.5-flash-lite": { input: 0.000075, output: 0.0003 },
+    "gemini-2.5-pro": { input: 0.00125, output: 0.005 },
+
+    // Gemini 2.0
+    "gemini-2.0-flash": { input: 0.0001, output: 0.0004 },
+
+    // Gemini 1.5 (legacy — kept for historical cost tracking)
+    "gemini-1.5-flash": { input: 0.00035, output: 0.00105 },
     "gemini-1.5-pro": { input: 0.0035, output: 0.0105 },
 
     // OpenAI

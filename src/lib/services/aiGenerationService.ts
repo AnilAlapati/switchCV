@@ -3,17 +3,18 @@ import { AI_ENDPOINTS } from "@/config/aiEndpoints";
 import {
   fetchWithTimeout,
   checkGlobalSafetyLimit,
-  TokenUsage as CoreTokenUsage
+  TokenUsage as CoreTokenUsage,
 } from "./ai/core-utils";
 import {
   invalidateModelCache as coreInvalidateModelCache,
-  getCacheStatus as coreGetCacheStatus
+  getCacheStatus as coreGetCacheStatus,
 } from "./ai/model-manager";
 import { generateWithGemini } from "./ai/providers/gemini";
 import { generateWithOpenAI } from "./ai/providers/openai";
 import { generateWithGroq } from "./ai/providers/groq";
 import { providerFallback } from "@/lib/services/ai/ProviderFallbackChain";
 import { aiCircuitBreaker } from "@/lib/services/ai/CircuitBreaker";
+import { BillingService } from "@/lib/services/billingService";
 
 export type TokenUsage = CoreTokenUsage;
 
@@ -28,13 +29,15 @@ export const invalidateModelCache = coreInvalidateModelCache;
 export const getCacheStatus = coreGetCacheStatus;
 
 /**
- * Generate text with dynamic fallback based on provider health
+ * Generate text with dynamic fallback based on provider health.
+ * Tracks AI cost via BillingService when userId is provided.
  */
 export async function generateText(
   prompt: string,
   maxTokens: number = 150,
   temperature: number = 0.7,
   model?: string,
+  userId?: string,
 ): Promise<{
   text: string;
   model: string;
@@ -82,6 +85,19 @@ export async function generateText(
 
       providerFallback.reportSuccess(provider, duration);
       aiCircuitBreaker.recordSuccess(provider);
+
+      // Track AI cost via BillingService (fire-and-forget, don't block response)
+      if (userId && result.usage) {
+        BillingService.trackUsage(userId, result.model || model || "default", {
+          input: result.usage.promptTokens ?? result.usage.totalTokens ?? 0,
+          output: result.usage.completionTokens ?? 0,
+        }).catch((err: unknown) => {
+          logger.error(
+            { err, userId, model: result.model },
+            "Failed to track AI usage cost",
+          );
+        });
+      }
 
       return {
         text: result.text,

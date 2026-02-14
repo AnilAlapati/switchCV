@@ -38,10 +38,12 @@ export const generateJobMatchSuggestions = regionalFunctions
 // ==================== EMAIL NOTIFICATIONS ====================
 // SMTP credentials are loaded from .env files, not Secret Manager
 
-export const onUserCreated = regionalFunctions.auth.user().onCreate(async (user) => {
-  const { onUserCreatedHandler } = await import("./emailFunctions");
-  return onUserCreatedHandler(user);
-});
+export const onUserCreated = regionalFunctions.auth
+  .user()
+  .onCreate(async (user) => {
+    const { onUserCreatedHandler } = await import("./emailFunctions");
+    return onUserCreatedHandler(user);
+  });
 
 export const onRecruiterRequestCreated = regionalFunctions.firestore
   .document("recruiterRequests/{requestId}")
@@ -142,10 +144,12 @@ export const searchResumesAI = regionalFunctions
     return searchResumesAIHandler(data, context);
   });
 
-export const getSearchQuota = regionalFunctions.https.onCall(async (data, context) => {
-  const { getSearchQuotaHandler } = await import("./searchResumeService");
-  return getSearchQuotaHandler(data, context);
-});
+export const getSearchQuota = regionalFunctions.https.onCall(
+  async (data, context) => {
+    const { getSearchQuotaHandler } = await import("./searchResumeService");
+    return getSearchQuotaHandler(data, context);
+  },
+);
 
 // ==================== AUTH / ADMIN ====================
 
@@ -156,10 +160,12 @@ export const onUserRoleChanged = regionalFunctions.firestore
     return onUserRoleChangedHandler(change, context);
   });
 
-export const setUserRole = regionalFunctions.https.onCall(async (data, context) => {
-  const { setUserRoleHandler } = await import("./authFunctions");
-  return setUserRoleHandler(data, context);
-});
+export const setUserRole = regionalFunctions.https.onCall(
+  async (data, context) => {
+    const { setUserRoleHandler } = await import("./authFunctions");
+    return setUserRoleHandler(data, context);
+  },
+);
 
 export const syncAdminWhitelist = regionalFunctions.firestore
   .document("system/admins/whitelist/{email}")
@@ -290,16 +296,21 @@ export const notifyExpiringResumes = regionalFunctions.pubsub
   .schedule("0 9 * * *") // Daily at 9 AM UTC
   .timeZone("UTC")
   .onRun(async (context) => {
-    const { notifyExpiringResumesHandler } = await import(
-      "./scheduled/notifyExpiringResumes"
-    );
+    if (!isProductionEnvironment()) {
+      functions.logger.info(
+        "[COST GUARD] notifyExpiringResumes blocked in dev environment",
+      );
+      return { skipped: true, reason: "dev environment" };
+    }
+    const { notifyExpiringResumesHandler } =
+      await import("./scheduled/notifyExpiringResumes");
     return notifyExpiringResumesHandler(context);
   });
 
 // ==================== BILLING ====================
 
 export const aggregateBilling = regionalFunctions.pubsub
-  .schedule("every 5 minutes")
+  .schedule("every 1 hours")
   .timeZone("UTC")
   .onRun(async (context) => {
     if (!isProductionEnvironment()) {

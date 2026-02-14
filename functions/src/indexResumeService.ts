@@ -112,7 +112,11 @@ async function generateEmbedding(text: string): Promise<number[]> {
  *
  * Generates a vector embedding when a resume is published or updated.
  * Skips if the resume is marked as "being edited" (unpublished for editing).
+ * Debounces rapid writes: skips re-indexing if last embedding was generated
+ * within the past 60 seconds (prevents redundant Gemini API calls during editing).
  */
+const DEBOUNCE_MS = 60_000; // 60 seconds
+
 const indexResumeOnWriteHandler = async (
   change: functions.Change<functions.firestore.DocumentSnapshot>,
   context: functions.EventContext
@@ -138,6 +142,22 @@ const indexResumeOnWriteHandler = async (
       `Resume ${resumeId} is being edited, skipping indexing`
     );
     return null;
+  }
+
+  // Debounce: skip if last embedding was generated within DEBOUNCE_MS
+  const lastEmbeddingTime = resumeData.embeddingUpdatedAt;
+  if (lastEmbeddingTime) {
+    const lastUpdate = typeof lastEmbeddingTime === "string"
+      ? new Date(lastEmbeddingTime).getTime()
+      : lastEmbeddingTime.toMillis?.() ?? 0;
+    const elapsed = Date.now() - lastUpdate;
+
+    if (elapsed < DEBOUNCE_MS) {
+      functions.logger.info(
+        `Resume ${resumeId} was indexed ${Math.round(elapsed / 1000)}s ago, debouncing (threshold: ${DEBOUNCE_MS / 1000}s)`
+      );
+      return null;
+    }
   }
 
   // Generate search profile text
