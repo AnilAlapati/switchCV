@@ -100,7 +100,10 @@ export class AccessService {
           { resumeId, requesterId },
           "Missing Firestore index for accessRequests, falling back to full collection scan",
         );
-        const allRequests = await resumeRef.collection("accessRequests").get();
+        const allRequests = await resumeRef
+          .collection("accessRequests")
+          .limit(500)
+          .get();
         const filteredDocs = allRequests.docs.filter((doc) => {
           const d = doc.data();
           return d.fromUserId === requesterId && d.status === "pending";
@@ -132,7 +135,10 @@ export class AccessService {
           { resumeId, requesterId },
           "Missing Firestore index for accessGrants, falling back to full collection scan",
         );
-        activeGrants = await resumeRef.collection("accessGrants").get();
+        activeGrants = await resumeRef
+          .collection("accessGrants")
+          .limit(500)
+          .get();
         const filteredDocs = activeGrants.docs.filter(
           (doc) => doc.data().toUserId === requesterId,
         );

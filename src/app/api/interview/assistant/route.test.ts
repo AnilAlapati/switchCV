@@ -5,10 +5,25 @@
 import { NextRequest } from "next/server";
 import { POST, GET } from "@/app/api/interview/assistant/route";
 
+jest.mock("@/lib/utils/api-helpers", () => ({
+  getAuthenticatedUserId: jest.fn(),
+  handleApiError: jest
+    .fn()
+    .mockImplementation((err: unknown, msg: string, status?: number) => {
+      const { NextResponse } = require("next/server");
+      return NextResponse.json({ error: msg }, { status: status || 500 });
+    }),
+}));
+
 jest.mock("@/lib/interviewSession", () => ({
   createInterviewSession: jest.fn(),
   getInterviewTips: jest.fn(),
 }));
+
+import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
+const mockGetAuth = getAuthenticatedUserId as jest.MockedFunction<
+  typeof getAuthenticatedUserId
+>;
 
 import {
   createInterviewSession,
@@ -22,7 +37,10 @@ const mockGetInterviewTips = getInterviewTips as jest.MockedFunction<
 >;
 
 describe("POST /api/interview/assistant", () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetAuth.mockResolvedValue({ userId: "user-123" });
+  });
 
   it("should create interview session", async () => {
     const mockSession = {
@@ -55,7 +73,7 @@ describe("POST /api/interview/assistant", () => {
           userId: "user-123",
           jobTitle: "Engineer",
         }),
-      }
+      },
     );
 
     const response = await POST(request);
@@ -65,20 +83,38 @@ describe("POST /api/interview/assistant", () => {
     expect(data).toEqual(mockSession);
   });
 
-  it("should return 400 for missing required fields", async () => {
+  it("should use authenticated userId when body userId is missing", async () => {
+    mockCreateInterviewSession.mockReturnValue({
+      id: "session-456",
+      userId: "user-123",
+      jobTitle: "Engineer",
+      status: "pending" as const,
+      questions: [],
+      answers: [],
+      startTime: new Date(),
+      duration: 15,
+    });
+
     const request = new NextRequest(
       "http://localhost:3000/api/interview/assistant",
       {
         method: "POST",
         body: JSON.stringify({ action: "start-session", jobTitle: "Engineer" }),
-      }
+      },
     );
 
     const response = await POST(request);
     const data = await response.json();
 
-    expect(response.status).toBe(400);
-    expect(data.error).toBe("userId and jobTitle are required");
+    expect(response.status).toBe(201);
+    // Uses the authenticated userId from getAuthenticatedUserId mock
+    expect(mockCreateInterviewSession).toHaveBeenCalledWith(
+      "user-123",
+      "Engineer",
+      undefined,
+      undefined,
+      5,
+    );
   });
 
   it("should submit answer successfully", async () => {
@@ -93,7 +129,7 @@ describe("POST /api/interview/assistant", () => {
           answer: "My answer",
           duration: 120,
         }),
-      }
+      },
     );
 
     const response = await POST(request);
@@ -113,7 +149,7 @@ describe("POST /api/interview/assistant", () => {
           sessionId: "session-123",
           questionIndex: 0,
         }),
-      }
+      },
     );
 
     const response = await POST(request);
@@ -121,7 +157,7 @@ describe("POST /api/interview/assistant", () => {
 
     expect(response.status).toBe(400);
     expect(data.error).toBe(
-      "sessionId, questionIndex, and answer are required"
+      "sessionId, questionIndex, and answer are required",
     );
   });
 
@@ -134,7 +170,7 @@ describe("POST /api/interview/assistant", () => {
           action: "complete-session",
           sessionId: "session-123",
         }),
-      }
+      },
     );
 
     const response = await POST(request);
@@ -150,7 +186,7 @@ describe("POST /api/interview/assistant", () => {
       {
         method: "POST",
         body: JSON.stringify({ action: "invalid" }),
-      }
+      },
     );
 
     const response = await POST(request);
@@ -158,7 +194,7 @@ describe("POST /api/interview/assistant", () => {
 
     expect(response.status).toBe(400);
     expect(data.error).toBe(
-      "Invalid action. Use: start-session, submit-answer, or complete-session"
+      "Invalid action. Use: start-session, submit-answer, or complete-session",
     );
   });
 
@@ -168,7 +204,7 @@ describe("POST /api/interview/assistant", () => {
       {
         method: "POST",
         body: "invalid json",
-      }
+      },
     );
 
     const response = await POST(request);
@@ -176,13 +212,16 @@ describe("POST /api/interview/assistant", () => {
 
     expect(response.status).toBe(400);
     expect(data.error).toBe(
-      "Invalid action. Use: start-session, submit-answer, or complete-session"
+      "Invalid action. Use: start-session, submit-answer, or complete-session",
     );
   });
 });
 
 describe("GET /api/interview/assistant", () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetAuth.mockResolvedValue({ userId: "user-123" });
+  });
 
   it("should return interview tips", async () => {
     const mockTips = {
@@ -197,7 +236,7 @@ describe("GET /api/interview/assistant", () => {
 
     const request = new NextRequest(
       "http://localhost:3000/api/interview/assistant?action=tips",
-      { method: "GET" }
+      { method: "GET" },
     );
 
     const response = await GET(request);
@@ -220,7 +259,7 @@ describe("GET /api/interview/assistant", () => {
 
     const request = new NextRequest(
       "http://localhost:3000/api/interview/assistant?action=tips&jobTitle=Engineer",
-      { method: "GET" }
+      { method: "GET" },
     );
 
     const response = await GET(request);
@@ -232,7 +271,7 @@ describe("GET /api/interview/assistant", () => {
   it("should return 400 for invalid action", async () => {
     const request = new NextRequest(
       "http://localhost:3000/api/interview/assistant?action=invalid",
-      { method: "GET" }
+      { method: "GET" },
     );
 
     const response = await GET(request);

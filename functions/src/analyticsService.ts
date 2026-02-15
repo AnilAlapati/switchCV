@@ -17,7 +17,9 @@ const databaseConfig = config.get("database");
  * Aggregate analytics data daily
  * Runs at 1 AM UTC every day
  */
-const aggregateAnalyticsDailyHandler = async (context: functions.EventContext) => {
+const aggregateAnalyticsDailyHandler = async (
+  context: functions.EventContext,
+) => {
   return performanceMonitor.measure(
     "functions.aggregateAnalyticsDaily",
     async () => {
@@ -38,26 +40,29 @@ const aggregateAnalyticsDailyHandler = async (context: functions.EventContext) =
         // Pagination loop to prevent OOM with large collections
         // eslint-disable-next-line no-constant-condition
         while (true) {
-          let query = analyticsRef.orderBy(admin.firestore.FieldPath.documentId()).limit(ANALYTICS_BATCH_SIZE);
+          let query = analyticsRef
+            .orderBy(admin.firestore.FieldPath.documentId())
+            .limit(ANALYTICS_BATCH_SIZE);
           if (lastDoc) {
             query = query.startAfter(lastDoc);
           }
 
-          const analyticsSnap = await resilientCall(
-            () => query.get(),
-            {
-              retryOptions: { maxAttempts: databaseConfig.maxRetries },
-              timeoutMs: databaseConfig.timeoutMs,
-              operationName: "analytics-fetch-batch",
-            }
-          );
+          const analyticsSnap = await resilientCall(() => query.get(), {
+            retryOptions: { maxAttempts: databaseConfig.maxRetries },
+            timeoutMs: databaseConfig.timeoutMs,
+            operationName: "analytics-fetch-batch",
+          });
 
           if (analyticsSnap.empty) {
             break;
           }
 
           const CONCURRENCY_LIMIT = 10;
-          for (let i = 0; i < analyticsSnap.docs.length; i += CONCURRENCY_LIMIT) {
+          for (
+            let i = 0;
+            i < analyticsSnap.docs.length;
+            i += CONCURRENCY_LIMIT
+          ) {
             const chunk = analyticsSnap.docs.slice(i, i + CONCURRENCY_LIMIT);
             await Promise.all(
               chunk.map(async (doc) => {
@@ -70,18 +75,19 @@ const aggregateAnalyticsDailyHandler = async (context: functions.EventContext) =
                   () =>
                     eventsRef
                       .where("timestamp", ">=", sevenDaysAgo.toISOString())
+                      .limit(1000)
                       .get(),
                   {
                     retryOptions: { maxAttempts: databaseConfig.maxRetries },
                     timeoutMs: databaseConfig.timeoutMs,
                     operationName: "analytics-fetch-events",
-                  }
+                  },
                 );
 
                 const metrics = calculateEngagementMetrics(
                   analyticsId,
                   eventsSnap,
-                  now
+                  now,
                 );
 
                 const viewTrend = await getViewTrendLast7Days(analyticsId);
@@ -102,20 +108,22 @@ const aggregateAnalyticsDailyHandler = async (context: functions.EventContext) =
                     retryOptions: { maxAttempts: databaseConfig.maxRetries },
                     timeoutMs: databaseConfig.timeoutMs,
                     operationName: "analytics-write-engagement",
-                  }
+                  },
                 );
 
                 functions.logger.info("Analytics aggregated for document", {
                   analyticsId,
                   eventId: context.eventId,
                 });
-              })
+              }),
             );
           }
 
           lastDoc = analyticsSnap.docs[analyticsSnap.docs.length - 1];
           processedCount += analyticsSnap.size;
-          functions.logger.info(`Processed ${processedCount} analytics docs in current execution`);
+          functions.logger.info(
+            `Processed ${processedCount} analytics docs in current execution`,
+          );
         }
 
         functions.logger.info("Daily analytics aggregation completed", {
@@ -129,7 +137,7 @@ const aggregateAnalyticsDailyHandler = async (context: functions.EventContext) =
       }
     },
     MetricType.BACKGROUND_TASK,
-    { eventId: context.eventId }
+    { eventId: context.eventId },
   );
 };
 
@@ -144,7 +152,9 @@ export const aggregateAnalyticsDaily = functions.pubsub
  * Clean up old analytics events
  * Runs weekly to remove events older than 90 days
  */
-const cleanupAnalyticsEventsHandler = async (context: functions.EventContext) => {
+const cleanupAnalyticsEventsHandler = async (
+  context: functions.EventContext,
+) => {
   return performanceMonitor.measure(
     "functions.cleanupAnalyticsEvents",
     async () => {
@@ -167,9 +177,7 @@ const cleanupAnalyticsEventsHandler = async (context: functions.EventContext) =>
 
         for (const doc of analyticsSnap.docs) {
           const analyticsId = doc.id;
-          const eventsRef = analyticsRef
-            .doc(analyticsId)
-            .collection("events");
+          const eventsRef = analyticsRef.doc(analyticsId).collection("events");
 
           let hasMore = true;
           while (hasMore) {
@@ -183,7 +191,7 @@ const cleanupAnalyticsEventsHandler = async (context: functions.EventContext) =>
                 retryOptions: { maxAttempts: databaseConfig.maxRetries },
                 timeoutMs: databaseConfig.timeoutMs,
                 operationName: "analytics-cleanup-scan",
-              }
+              },
             );
 
             if (oldEventsSnap.empty) {
@@ -227,7 +235,7 @@ const cleanupAnalyticsEventsHandler = async (context: functions.EventContext) =>
       }
     },
     MetricType.BACKGROUND_TASK,
-    { eventId: context.eventId }
+    { eventId: context.eventId },
   );
 };
 
@@ -244,7 +252,7 @@ export const cleanupAnalyticsEvents = functions.pubsub
 function calculateEngagementMetrics(
   analyticsId: string,
   eventsSnap: FirebaseFirestore.QuerySnapshot,
-  now: Date
+  now: Date,
 ): Omit<EngagementMetrics, "viewTrendLast7Days"> {
   let totalViews = 0;
   const uniqueViewers = new Set<string>();
@@ -300,7 +308,7 @@ function calculateEngagementMetrics(
  * Optimized: Single query with in-memory grouping instead of 7 sequential queries
  */
 export async function getViewTrendLast7Days(
-  analyticsId: string
+  analyticsId: string,
 ): Promise<ViewTrendData[]> {
   const eventsRef = db
     .collection("analytics")
@@ -319,12 +327,13 @@ export async function getViewTrendLast7Days(
       eventsRef
         .where("timestamp", ">=", sevenDaysAgo.toISOString())
         .where("eventType", "==", "view")
+        .limit(1000)
         .get(),
     {
       retryOptions: { maxAttempts: databaseConfig.maxRetries },
       timeoutMs: databaseConfig.timeoutMs,
       operationName: "analytics-trend-fetch-batch",
-    }
+    },
   );
 
   // Group events by date in-memory (fast)
@@ -355,7 +364,7 @@ export async function getViewTrendLast7Days(
 async function handleAnalyticsError(
   functionName: string,
   error: unknown,
-  context: functions.EventContext
+  context: functions.EventContext,
 ): Promise<void> {
   const message = error instanceof Error ? error.message : String(error);
 
@@ -366,7 +375,7 @@ async function handleAnalyticsError(
     {
       eventId: context.eventId,
       stack: error instanceof Error ? error.stack : undefined,
-    }
+    },
   );
 
   functions.logger.error(`${functionName} failed`, {

@@ -36,10 +36,7 @@ export async function POST(req: NextRequest) {
 
     const parseResult = AgentAnalyzeSchema.safeParse(await req.json());
     if (!parseResult.success) {
-      return NextResponse.json(
-        { error: "Invalid input", details: parseResult.error.flatten() },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Invalid input" }, { status: 400 });
     }
     const { candidate, job } = parseResult.data;
 

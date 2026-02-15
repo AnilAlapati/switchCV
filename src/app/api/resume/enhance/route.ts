@@ -19,10 +19,10 @@ import { enhanceResumeRequestSchema } from "@/lib/validations/resume";
 
 export async function POST(request: NextRequest) {
   try {
-    // Rate Limiting
-    const { userId } = await getAuthenticatedUserId(request);
-    const identifier =
-      userId || request.headers.get("x-forwarded-for") || "anonymous";
+    // Authentication
+    const { userId, error } = await getAuthenticatedUserId(request);
+    if (error) return error;
+    const identifier = userId || "anonymous";
 
     const constants = await getConstants();
     const rateLimitResult = await checkRateLimit(
@@ -30,14 +30,14 @@ export async function POST(request: NextRequest) {
       {
         limit: constants.RATE_LIMITS.RESUME_ENHANCE_PER_HOUR,
         windowMs: 60 * 60 * 1000, // 1 hour
-      }
+      },
     );
 
     if (!rateLimitResult.allowed) {
       return handleApiError(
         null,
         "Rate limit exceeded. Max 20 enhancements per hour.",
-        429
+        429,
       );
     }
 
@@ -47,9 +47,8 @@ export async function POST(request: NextRequest) {
     if (!validationResult.success) {
       return handleApiError(
         new Error("Invalid resume data"),
-        "Invalid resume data: " +
-          validationResult.error?.issues?.map((e) => e.message).join(", "),
-        400
+        "Invalid resume data",
+        400,
       );
     }
 
@@ -57,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     const enhancement = generateResumeEnhancement(
       resume as Resume,
-      jobDescription
+      jobDescription,
     );
 
     return NextResponse.json(enhancement, { status: 200 });

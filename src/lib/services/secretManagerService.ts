@@ -44,13 +44,36 @@ export class SecretManagerService {
   private secretClient: SecretManagerServiceClient | null = null;
   private projectId: string | null = null;
 
+  private static parseJsonEnv<T>(raw: string | undefined): T | null {
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as T;
+    } catch {
+      return null;
+    }
+  }
+
   private constructor() {
     // Initialize Secret Manager client only in server context
     if (typeof window === "undefined") {
       try {
+        const firebaseConfig = SecretManagerService.parseJsonEnv<{
+          projectId?: string;
+        }>(process.env.FIREBASE_CONFIG);
+
+        const firebaseDefaults = SecretManagerService.parseJsonEnv<{
+          config?: { projectId?: string };
+        }>(process.env.__FIREBASE_DEFAULTS__);
+
+        // Prefer runtime project id signals; avoid direct `process.env.NEXT_PUBLIC_*`
+        // to prevent Next.js inlining `.env.local` dev values into prod bundles.
         this.projectId =
-          process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
           process.env.GCLOUD_PROJECT ||
+          process.env.GOOGLE_CLOUD_PROJECT ||
+          firebaseConfig?.projectId ||
+          firebaseDefaults?.config?.projectId ||
+          process.env.FIREBASE_PROJECT_ID ||
+          process.env["NEXT_PUBLIC_FIREBASE_PROJECT_ID"] ||
           null;
 
         if (this.projectId) {

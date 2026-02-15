@@ -69,7 +69,10 @@ export class BillingService {
    */
   async checkSystemBudget(cap: number): Promise<boolean> {
     try {
-      const shardsSnapshot = await adminDb.collection(SHARD_COLLECTION).get();
+      const shardsSnapshot = await adminDb
+        .collection(SHARD_COLLECTION)
+        .limit(20)
+        .get();
 
       if (shardsSnapshot.empty) {
         return true;

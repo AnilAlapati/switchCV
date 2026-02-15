@@ -576,5 +576,12 @@ service cloud.firestore {
       allow read: if false;
       allow write: if false;
     }
+
+    // DEFAULT DENY-ALL: Any collection not explicitly matched above is blocked.
+    // This prevents accidental exposure of new collections.
+    match /{document=**} {
+      allow read: if false;
+      allow write: if false;
+    }
   }
 }

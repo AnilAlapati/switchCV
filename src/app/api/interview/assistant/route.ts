@@ -59,13 +59,13 @@ export async function POST(request: NextRequest) {
       return handleApiError(
         null,
         "Invalid action. Use: start-session, submit-answer, or complete-session",
-        400
+        400,
       );
     }
 
-    const authResult = await getAuthenticatedUserId(request).catch(() => ({}));
-    const authenticatedUserId =
-      "userId" in authResult ? authResult.userId : undefined;
+    const { userId: authenticatedUserId, error: authError } =
+      await getAuthenticatedUserId(request);
+    if (authError) return authError;
 
     const parseResult = InterviewAssistantActionSchema.safeParse(payload);
     if (!parseResult.success) {
@@ -77,14 +77,14 @@ export async function POST(request: NextRequest) {
         return handleApiError(
           parseResult.error,
           "userId and jobTitle are required",
-          400
+          400,
         );
       }
       if (action === "submit-answer") {
         return handleApiError(
           parseResult.error,
           "sessionId, questionIndex, and answer are required",
-          400
+          400,
         );
       }
       if (action === "complete-session") {
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
       return handleApiError(
         parseResult.error,
         "Invalid action. Use: start-session, submit-answer, or complete-session",
-        400
+        400,
       );
     }
 
@@ -104,8 +104,7 @@ export async function POST(request: NextRequest) {
         jobDescription,
         companyName,
         numberOfQuestions,
-      } =
-        parseResult.data;
+      } = parseResult.data;
       const sessionUserId = authenticatedUserId || bodyUserId;
 
       if (!sessionUserId || !jobTitle) {
@@ -161,6 +160,9 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    const { userId, error } = await getAuthenticatedUserId(request);
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const action = searchParams.get("action");
     const jobTitle = searchParams.get("jobTitle");

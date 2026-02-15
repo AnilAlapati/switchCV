@@ -40,10 +40,7 @@ export async function POST(req: NextRequest) {
 
     const parseResult = AgentPipelineSuggestSchema.safeParse(await req.json());
     if (!parseResult.success) {
-      return NextResponse.json(
-        { error: "Invalid input", details: parseResult.error.flatten() },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Invalid input" }, { status: 400 });
     }
     const { candidate, currentStage, interactionHistory } = parseResult.data;
 

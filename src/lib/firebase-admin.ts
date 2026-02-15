@@ -14,6 +14,16 @@ export class FirebaseAdminConfigError extends Error {
 
 type ServiceAccount = admin.ServiceAccount & Record<string, unknown>;
 
+type FirebaseConfigEnv = {
+  projectId?: string;
+};
+
+type FirebaseDefaultsEnv = {
+  config?: {
+    projectId?: string;
+  };
+};
+
 function parseServiceAccount(raw: string): ServiceAccount | null {
   try {
     return JSON.parse(raw) as ServiceAccount;
@@ -25,6 +35,60 @@ function parseServiceAccount(raw: string): ServiceAccount | null {
       return null;
     }
   }
+}
+
+function parseJsonEnv<T>(raw: string | undefined): T | null {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+function resolveProjectId(): { projectId: string | null; source: string | null } {
+  if (process.env.GCLOUD_PROJECT) {
+    return { projectId: process.env.GCLOUD_PROJECT, source: "GCLOUD_PROJECT" };
+  }
+
+  if (process.env.GOOGLE_CLOUD_PROJECT) {
+    return {
+      projectId: process.env.GOOGLE_CLOUD_PROJECT,
+      source: "GOOGLE_CLOUD_PROJECT",
+    };
+  }
+
+  const firebaseConfig = parseJsonEnv<FirebaseConfigEnv>(process.env.FIREBASE_CONFIG);
+  if (firebaseConfig?.projectId) {
+    return { projectId: firebaseConfig.projectId, source: "FIREBASE_CONFIG" };
+  }
+
+  const firebaseDefaults = parseJsonEnv<FirebaseDefaultsEnv>(process.env.__FIREBASE_DEFAULTS__);
+  if (firebaseDefaults?.config?.projectId) {
+    return {
+      projectId: firebaseDefaults.config.projectId,
+      source: "__FIREBASE_DEFAULTS__",
+    };
+  }
+
+  if (process.env.FIREBASE_PROJECT_ID) {
+    return {
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      source: "FIREBASE_PROJECT_ID",
+    };
+  }
+
+  // LAST RESORT (local dev): avoid direct `process.env.NEXT_PUBLIC_*` access
+  // so Next.js doesn't inline `.env.local` values into production bundles.
+  const nextPublicProjectId = process.env["NEXT_PUBLIC_FIREBASE_PROJECT_ID"];
+  if (nextPublicProjectId) {
+    return {
+      projectId: nextPublicProjectId,
+      source: "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
+    };
+  }
+
+  return { projectId: null, source: null };
 }
 
 function loadServiceAccountFromFile(): ServiceAccount | null {
@@ -88,8 +152,7 @@ function resolveServiceAccount(): ServiceAccount | null {
  * Validate required environment variables for Firebase Admin
  */
 export function validateEnvironment(): void {
-  const projectId =
-    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT;
+  const { projectId } = resolveProjectId();
 
   if (!projectId) {
     // Fallback for production: Log warn but don't throw yet.
@@ -109,15 +172,20 @@ export function validateEnvironment(): void {
         {
           NODE_ENV: process.env.NODE_ENV,
           GCLOUD_PROJECT: process.env.GCLOUD_PROJECT,
+          GOOGLE_CLOUD_PROJECT: process.env.GOOGLE_CLOUD_PROJECT,
+          FIREBASE_CONFIG: process.env.FIREBASE_CONFIG ? "[set]" : undefined,
+          __FIREBASE_DEFAULTS__: process.env.__FIREBASE_DEFAULTS__
+            ? "[set]"
+            : undefined,
           NEXT_PUBLIC_FIREBASE_PROJECT_ID:
-            process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+            process.env["NEXT_PUBLIC_FIREBASE_PROJECT_ID"],
         },
         "Missing Project ID. Env snapshot:"
       );
     }
 
     throw new FirebaseAdminConfigError(
-      "Missing required environment variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID or GCLOUD_PROJECT."
+      "Missing required environment variable: GCLOUD_PROJECT/GOOGLE_CLOUD_PROJECT (or FIREBASE_CONFIG projectId)."
     );
   }
 }
@@ -136,8 +204,8 @@ export function initializeFirebaseAdmin(): void {
     // Validate environment before initialization
     validateEnvironment();
 
-    let projectId =
-      process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT;
+    const { projectId: resolvedProjectId, source } = resolveProjectId();
+    let projectId = resolvedProjectId;
 
     // Fallback for production if missing
     if (!projectId && (process.env.NODE_ENV as string) === "production") {
@@ -145,6 +213,10 @@ export function initializeFirebaseAdmin(): void {
       // Safe to set server-side vars (non-NEXT_PUBLIC)
       process.env.GCLOUD_PROJECT = projectId;
       process.env.GOOGLE_CLOUD_PROJECT = projectId;
+    }
+
+    if (projectId) {
+      logger.info({ projectId, source }, "Resolved Firebase project ID");
     }
 
     // Set GOOGLE_CLOUD_PROJECT for ADC quota project (required for identitytoolkit.googleapis.com)
@@ -158,12 +230,12 @@ export function initializeFirebaseAdmin(): void {
     if (serviceAccount) {
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
-        projectId,
+        projectId: projectId ?? undefined,
       });
     } else {
       // Use Application Default Credentials (ADC)
       admin.initializeApp({
-        projectId,
+        projectId: projectId ?? undefined,
       });
     }
     // console.log(

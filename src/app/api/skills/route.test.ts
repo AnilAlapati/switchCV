@@ -7,6 +7,17 @@
 import { NextRequest } from "next/server";
 import { POST } from "./route";
 
+// Mock auth
+jest.mock("@/lib/utils/api-helpers", () => ({
+  getAuthenticatedUserId: jest.fn(),
+  handleApiError: jest
+    .fn()
+    .mockImplementation((err: unknown, msg: string, status?: number) => {
+      const { NextResponse } = require("next/server");
+      return NextResponse.json({ error: msg }, { status: status || 500 });
+    }),
+}));
+
 // Mock the skill inventory functions
 jest.mock("@/lib/skillInventory", () => ({
   createSkill: jest.fn(),
@@ -19,6 +30,11 @@ jest.mock("@/lib/gapAnalysis", () => ({
   performGapAnalysis: jest.fn(),
   compareJobFit: jest.fn(),
 }));
+
+import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
+const mockGetAuth = getAuthenticatedUserId as jest.MockedFunction<
+  typeof getAuthenticatedUserId
+>;
 
 import {
   createSkill,
@@ -68,6 +84,7 @@ describe("POST /api/skills", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetAuth.mockResolvedValue({ userId: "user_123" });
     mockRequest = {
       json: jest.fn(),
     } as unknown as NextRequest;
@@ -92,7 +109,8 @@ describe("POST /api/skills", () => {
       expect(mockInitializeSkillInventory).toHaveBeenCalledWith("user_123");
     });
 
-    it("should return 400 when userId is missing", async () => {
+    it("should use authenticated userId when body userId is missing", async () => {
+      mockInitializeSkillInventory.mockReturnValue(mockInventory);
       (mockRequest.json as jest.Mock).mockResolvedValue({
         action: "create-inventory",
       });
@@ -100,8 +118,9 @@ describe("POST /api/skills", () => {
       const response = await POST(mockRequest);
       const data = await response.json();
 
-      expect(response.status).toBe(400);
-      expect(data.error).toBe("userId is required");
+      expect(response.status).toBe(201);
+      // Uses the authenticated userId from getAuthenticatedUserId mock
+      expect(mockInitializeSkillInventory).toHaveBeenCalledWith("user_123");
     });
   });
 
@@ -136,7 +155,7 @@ describe("POST /api/skills", () => {
         SkillCategory.TECHNICAL,
         ProficiencyLevel.ADVANCED,
         undefined,
-        undefined
+        undefined,
       );
     });
 
@@ -153,7 +172,7 @@ describe("POST /api/skills", () => {
 
       expect(response.status).toBe(400);
       expect(data.error).toBe(
-        "inventory, name, category, and proficiencyLevel are required"
+        "inventory, name, category, and proficiencyLevel are required",
       );
     });
   });
@@ -188,7 +207,7 @@ describe("POST /api/skills", () => {
       expect(response.status).toBe(200);
       expect(mockPerformGapAnalysis).toHaveBeenCalledWith(
         mockInventory,
-        mockJobPosting
+        mockJobPosting,
       );
     });
 

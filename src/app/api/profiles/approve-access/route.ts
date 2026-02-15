@@ -14,7 +14,7 @@ interface ApproveAccessPayload {
 }
 
 function mapDurationToDays(
-  duration: "1hour" | "1day" | "1week" | "forever"
+  duration: "1hour" | "1day" | "1week" | "forever",
 ): number {
   switch (duration) {
     case "1hour":
@@ -49,14 +49,14 @@ export async function POST(request: NextRequest) {
         payloadObj.resumeId === undefined ||
         payloadObj.duration === undefined;
       const hasDurationError = parseResult.error.issues.some(
-        (issue) => issue.path[0] === "duration"
+        (issue) => issue.path[0] === "duration",
       );
       return handleApiError(
         parseResult.error,
         !missingRequiredField && hasDurationError
           ? "Invalid duration"
           : "Missing required fields",
-        400
+        400,
       );
     }
 
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
       resumeId,
       requestId,
       "approve",
-      durationDays
+      durationDays,
     );
 
     return NextResponse.json({
@@ -92,10 +92,13 @@ export async function POST(request: NextRequest) {
     let status = 500;
     if (errorMessage.includes("not found")) {
       status = 404;
-    } else if (errorMessage.includes("Unauthorized") || errorMessage.includes("Permission denied")) {
+    } else if (
+      errorMessage.includes("Unauthorized") ||
+      errorMessage.includes("Permission denied")
+    ) {
       status = 403;
     }
 
-    return handleApiError(error, "Failed to approve access: " + errorMessage, status);
+    return handleApiError(error, "Failed to approve access", status);
   }
 }

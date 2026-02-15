@@ -3,14 +3,12 @@
 import { logger } from "@/lib/logger";
 // src/hooks/useResume.tsx
 
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useEffect } from "react";
 import useSWR from "swr";
 import { collection, query, where, getDocs, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "./useAuth";
 import { ResumeProfile, DashboardResume } from "@/types";
-
-
 
 interface ResumesData {
   resumes: DashboardResume[];
@@ -50,7 +48,7 @@ const fetchUserResumes = async (userId: string): Promise<ResumesData> => {
     const legacyQ = query(
       legacyResumesRef,
       where("userId", "==", userId),
-      limit(20)
+      limit(20),
     );
     const legacySnapshot = await getDocs(legacyQ);
 
@@ -68,7 +66,7 @@ const fetchUserResumes = async (userId: string): Promise<ResumesData> => {
       });
 
       logger.info(
-        `Loaded ${allLegacyResumes.length} resumes from 'resumeProfiles'`
+        `Loaded ${allLegacyResumes.length} resumes from 'resumeProfiles'`,
       );
       return {
         resumes: allLegacyResumes,
@@ -106,7 +104,7 @@ export const useResume = (options: { enabled?: boolean } = {}) => {
       revalidateOnReconnect: false,
       // Keep previous data while revalidating
       keepPreviousData: true,
-    }
+    },
   );
 
   const resume = data?.primaryResume || null;
@@ -117,19 +115,31 @@ export const useResume = (options: { enabled?: boolean } = {}) => {
   const resumeId = useMemo(() => {
     // Use numericId if available, otherwise fall back to Firestore document ID
     const id = resume?.numericId || resume?.id || null;
-    logger.info({
-      numericId: resume?.numericId,
-      docId: resume?.id,
-      resolved: id,
-    }, "Resume ID resolved:");
     return id;
   }, [resume]);
+
+  useEffect(() => {
+    if (resumeId !== undefined) {
+      logger.info(
+        {
+          numericId: resume?.numericId,
+          docId: resume?.id,
+          resolved: resumeId,
+        },
+        "Resume ID resolved:",
+      );
+    }
+  }, [resumeId, resume?.numericId, resume?.id]);
 
   return {
     resume: resume as DashboardResume | null,
     resumes: resumes as DashboardResume[],
     loading: isLoading,
-    error: error ? (error instanceof Error ? error.message : "Failed to fetch resume") : null,
+    error: error
+      ? error instanceof Error
+        ? error.message
+        : "Failed to fetch resume"
+      : null,
     hasResume,
     resumeId,
     refetch: useCallback(() => {

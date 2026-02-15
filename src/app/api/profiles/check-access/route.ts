@@ -9,9 +9,8 @@ import { AccessService } from "@/lib/services/accessService";
 export async function GET(request: NextRequest) {
   try {
     const resumeId = request.nextUrl.searchParams.get("resumeId");
-    const { userId: currentUserId, error } = await getAuthenticatedUserId(
-      request
-    );
+    const { userId: currentUserId, error } =
+      await getAuthenticatedUserId(request);
 
     if (error) return error;
     if (!currentUserId) {
@@ -22,14 +21,16 @@ export async function GET(request: NextRequest) {
       return handleApiError(null, "Resume ID is required", 400);
     }
 
-    const result = await AccessService.checkAccessStatus(currentUserId, resumeId);
+    const result = await AccessService.checkAccessStatus(
+      currentUserId,
+      resumeId,
+    );
     return NextResponse.json(result);
-
   } catch (error: unknown) {
     const errorMessage = String(error);
     if (errorMessage.toLowerCase().includes("not found")) {
       return handleApiError(error, "Resume not found", 404);
     }
-    return handleApiError(error, "Failed to check access: " + errorMessage);
+    return handleApiError(error, "Failed to check access");
   }
 }

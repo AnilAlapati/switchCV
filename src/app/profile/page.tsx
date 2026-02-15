@@ -23,7 +23,21 @@ export default function ProfileEditor() {
 
   useEffect(() => {
     if (serverProfile) {
-      setProfile(serverProfile);
+      setProfile({
+        ...serverProfile,
+        title: serverProfile.title ?? "",
+        summary: serverProfile.summary ?? "",
+        contact: {
+          email: {
+            value: serverProfile.contact?.email?.value ?? "",
+            visibility: serverProfile.contact?.email?.visibility ?? "public",
+          },
+          phone: {
+            value: serverProfile.contact?.phone?.value ?? "",
+            visibility: serverProfile.contact?.phone?.visibility ?? "public",
+          },
+        },
+      });
     }
   }, [serverProfile]);
 

@@ -69,9 +69,9 @@ const SkillsActionSchema = z.discriminatedUnion("action", [
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await getAuthenticatedUserId(request).catch(() => ({}));
-    const authenticatedUserId =
-      "userId" in authResult ? authResult.userId : undefined;
+    const { userId: authenticatedUserId, error } =
+      await getAuthenticatedUserId(request);
+    if (error) return error;
 
     const payload = await request.json();
     const parseResult = SkillsActionSchema.safeParse(payload);
@@ -84,21 +84,21 @@ export async function POST(request: NextRequest) {
         return handleApiError(
           parseResult.error,
           "inventory, name, category, and proficiencyLevel are required",
-          400
+          400,
         );
       }
       if (action === "analyze-gap") {
         return handleApiError(
           parseResult.error,
           "inventory and jobPosting are required",
-          400
+          400,
         );
       }
       if (action === "compare-jobs") {
         return handleApiError(
           parseResult.error,
           "inventory and jobs array are required",
-          400
+          400,
         );
       }
       return handleApiError(parseResult.error, "Unknown action", 400);
