@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     );
     if (invalidFields.length > 0) {
       return handleApiError(
-        new Error(`Invalid fields requested: ${invalidFields.join(", ")}`),
+        new Error("Invalid fields requested"),
         "Invalid fields requested in payload",
         400
       );
