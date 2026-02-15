@@ -52,7 +52,7 @@ class TokenGenerator {
     expiresAt: number;
   } {
     const now = Math.floor(Date.now() / 1000); // Unix timestamp in seconds
-    const tokenId = crypto.randomUUID();
+    const tokenId = payload.tokenId || crypto.randomUUID();
 
     const fullPayload: TokenPayload = {
       tokenId,

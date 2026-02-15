@@ -34,6 +34,25 @@ jest.mock("@/lib/services/analyticsService", () => ({
   aggregateToDashboard: jest.fn(),
 }));
 
+jest.mock("@/lib/dal", () => ({
+  COLLECTIONS: {
+    USERS: "users",
+    RESUMES: "resumes",
+    RESUME_PROFILES: "resumeProfiles",
+  },
+  collectionRef: jest.fn((name: string) => ({
+    doc: jest.fn(() => ({
+      get: jest.fn().mockResolvedValue(
+        name === "users"
+          ? { exists: true, data: () => ({ role: "jobseeker" }) }
+          : name === "resumes"
+            ? { exists: true, data: () => ({ userId: "user-123" }) }
+            : { exists: false, data: () => undefined }
+      ),
+    })),
+  })),
+}));
+
 jest.mock("@/lib/utils/api-helpers", () => ({
   getAuthenticatedUserId: jest.fn(),
   handleApiError: jest.fn((error, message, status = 500) => {

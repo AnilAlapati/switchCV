@@ -4,7 +4,11 @@ import { NextRequest } from "next/server";
 import { POST } from "./route";
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 import { getUserTier } from "@/lib/services/userService";
-import { consumeQuota, QuotaExceededError } from "@/lib/services/quotaService";
+import {
+  consumeQuota,
+  QuotaExceededError,
+  refundQuota,
+} from "@/lib/services/quotaService";
 // eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 
@@ -94,6 +98,10 @@ describe("POST /api/recruiter/request-access", () => {
 
     // Default quota
     (consumeQuota as jest.Mock).mockResolvedValue({ remaining: 1 });
+    (refundQuota as jest.Mock).mockResolvedValue({
+      refunded: true,
+      currentCount: 0,
+    });
 
     // Default resume found
     mockGet.mockImplementation(async () => {
@@ -194,5 +202,56 @@ describe("POST /api/recruiter/request-access", () => {
     const res = await POST(req);
 
     expect(res.status).toBe(409);
+    expect(consumeQuota).not.toHaveBeenCalled();
+  });
+
+  it("should refund quota if write fails after quota reservation", async () => {
+    // Sequence: recruiter profile -> resume -> user -> existingQuery(empty)
+    mockGet
+      .mockImplementationOnce(() =>
+        Promise.resolve({
+          exists: true,
+          data: () => ({ role: "recruiter" }),
+        })
+      )
+      .mockImplementationOnce(() =>
+        Promise.resolve({
+          exists: true,
+          data: () => ({ userId: mockUserId }),
+        })
+      )
+      .mockImplementationOnce(() =>
+        Promise.resolve({
+          exists: true,
+          data: () => ({ email: "candidate@example.com" }),
+        })
+      )
+      .mockImplementationOnce(() =>
+        Promise.resolve({
+          empty: true,
+        })
+      );
+
+    mockSet.mockRejectedValueOnce(new Error("write failed"));
+
+    const req = new NextRequest(
+      "http://localhost/api/recruiter/request-access",
+      {
+        method: "POST",
+        headers: { authorization: "Bearer test-token" },
+        body: JSON.stringify({ resumeId: mockResumeId }),
+      }
+    );
+
+    const res = await POST(req);
+    expect(res.status).toBe(500);
+    expect(consumeQuota).toHaveBeenCalledTimes(1);
+    expect(refundQuota).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subjectId: mockRecruiterId,
+        scope: "recruiter_contact",
+        period: "lifetime",
+      })
+    );
   });
 });

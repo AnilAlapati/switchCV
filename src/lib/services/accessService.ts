@@ -256,11 +256,23 @@ export class AccessService {
       return { status: "denied" };
     }
 
-    // Approve
-    const durationValue =
-      grantDurationDays || requestData.requestedDuration?.value || 30; // Default 30 days if missing
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + durationValue);
+    // Approve (supports fractional day durations, e.g. 1 hour = 1/24 day)
+    const requestedDurationValue = Number(requestData.requestedDuration?.value);
+    const rawDurationDays =
+      typeof grantDurationDays === "number"
+        ? grantDurationDays
+        : Number.isFinite(requestedDurationValue)
+          ? requestedDurationValue
+          : 30;
+    const durationDays = rawDurationDays > 0 ? rawDurationDays : 30;
+    const durationMs = Math.round(durationDays * 24 * 60 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + durationMs);
+    const durationLabel =
+      durationDays < 1
+        ? `${Math.max(1, Math.round(durationDays * 24))} hours`
+        : Number.isInteger(durationDays)
+          ? `${durationDays} days`
+          : `${durationDays.toFixed(2)} days`;
 
     await adminDb.runTransaction(async (t) => {
       // Update request
@@ -268,8 +280,8 @@ export class AccessService {
         status: "approved",
         updatedAt: FieldValue.serverTimestamp(),
         grantedDuration: {
-          value: durationValue,
-          label: `${durationValue} days`,
+          value: durationDays,
+          label: durationLabel,
         },
       });
 

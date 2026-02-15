@@ -25,7 +25,7 @@ const db = admin.firestore();
  * Combines relevant fields into a single string for embedding.
  */
 function generateSearchProfile(
-  resumeData: FirebaseFirestore.DocumentData
+  resumeData: FirebaseFirestore.DocumentData,
 ): string {
   // Handle both flat structure and nested profile structure
   const profile = resumeData.profile || resumeData;
@@ -56,7 +56,7 @@ function generateSearchProfile(
   if (profile.experience && Array.isArray(profile.experience)) {
     const expSummaries = profile.experience.map(
       (exp: { role?: string; company?: string; description?: string }) =>
-        `${exp.role || ""} at ${exp.company || ""}: ${exp.description || ""}`
+        `${exp.role || ""} at ${exp.company || ""}: ${exp.description || ""}`,
     );
     if (expSummaries.length > 0) {
       parts.push(`Experience: ${expSummaries.join(". ")}`);
@@ -67,7 +67,7 @@ function generateSearchProfile(
   if (profile.education && Array.isArray(profile.education)) {
     const eduSummaries = profile.education.map(
       (edu: { degree?: string; institution?: string }) =>
-        `${edu.degree || ""} from ${edu.institution || ""}`
+        `${edu.degree || ""} from ${edu.institution || ""}`,
     );
     if (eduSummaries.length > 0) {
       parts.push(`Education: ${eduSummaries.join(". ")}`);
@@ -100,7 +100,7 @@ async function generateEmbedding(text: string): Promise<number[]> {
 
   if (!embedding || embedding.length !== AI_SEARCH.VECTOR_DIMENSION) {
     throw new Error(
-      `Invalid embedding dimension: expected ${AI_SEARCH.VECTOR_DIMENSION}, got ${embedding?.length}`
+      `Invalid embedding dimension: expected ${AI_SEARCH.VECTOR_DIMENSION}, got ${embedding?.length}`,
     );
   }
 
@@ -119,7 +119,7 @@ const DEBOUNCE_MS = 60_000; // 60 seconds
 
 const indexResumeOnWriteHandler = async (
   change: functions.Change<functions.firestore.DocumentSnapshot>,
-  context: functions.EventContext
+  context: functions.EventContext,
 ) => {
   const resumeId = context.params.resumeId;
 
@@ -139,44 +139,46 @@ const indexResumeOnWriteHandler = async (
   // Skip if resume is being edited (unpublished temporarily)
   if (resumeData.isBeingEdited === true) {
     functions.logger.info(
-      `Resume ${resumeId} is being edited, skipping indexing`
+      `Resume ${resumeId} is being edited, skipping indexing`,
     );
     return null;
   }
 
-  // Debounce: skip if last embedding was generated within DEBOUNCE_MS
-  const lastEmbeddingTime = resumeData.embeddingUpdatedAt;
-  if (lastEmbeddingTime) {
-    const lastUpdate = typeof lastEmbeddingTime === "string"
-      ? new Date(lastEmbeddingTime).getTime()
-      : lastEmbeddingTime.toMillis?.() ?? 0;
-    const elapsed = Date.now() - lastUpdate;
-
-    if (elapsed < DEBOUNCE_MS) {
-      functions.logger.info(
-        `Resume ${resumeId} was indexed ${Math.round(elapsed / 1000)}s ago, debouncing (threshold: ${DEBOUNCE_MS / 1000}s)`
-      );
-      return null;
-    }
-  }
-
-  // Generate search profile text
+  // 1. Generate search profile text first to check if content actually changed
   const searchProfile = generateSearchProfile(resumeData);
 
   if (!searchProfile || searchProfile.length < 10) {
     functions.logger.warn(
-      `Resume ${resumeId} has insufficient content for indexing`
+      `Resume ${resumeId} has insufficient content for indexing`,
     );
     return null;
   }
 
-  // Check if content has meaningfully changed
+  // 2. Check if content has meaningfully changed (before debounce)
   const previousSearchProfile = resumeData.searchProfile;
   if (previousSearchProfile === searchProfile) {
     functions.logger.info(
-      `Resume ${resumeId} content unchanged, skipping re-indexing`
+      `Resume ${resumeId} content unchanged, skipping re-indexing`,
     );
     return null;
+  }
+
+  // 3. Debounce: skip if last embedding was generated within DEBOUNCE_MS
+  // Only applies when content DID change — prevents rapid re-indexing
+  const lastEmbeddingTime = resumeData.embeddingUpdatedAt;
+  if (lastEmbeddingTime) {
+    const lastUpdate =
+      typeof lastEmbeddingTime === "string"
+        ? new Date(lastEmbeddingTime).getTime()
+        : (lastEmbeddingTime.toMillis?.() ?? 0);
+    const elapsed = Date.now() - lastUpdate;
+
+    if (elapsed < DEBOUNCE_MS) {
+      functions.logger.info(
+        `Resume ${resumeId} was indexed ${Math.round(elapsed / 1000)}s ago, debouncing (threshold: ${DEBOUNCE_MS / 1000}s)`,
+      );
+      return null;
+    }
   }
 
   try {
@@ -193,7 +195,7 @@ const indexResumeOnWriteHandler = async (
     });
 
     functions.logger.info(
-      `Successfully indexed resume ${resumeId} with ${embedding.length}-dim embedding`
+      `Successfully indexed resume ${resumeId} with ${embedding.length}-dim embedding`,
     );
 
     return { success: true, resumeId };
@@ -218,25 +220,25 @@ export const indexResumeOnWrite = functions.firestore
  */
 const reindexResumeHandler = async (
   data: { resumeId: string },
-  context: functions.https.CallableContext
+  context: functions.https.CallableContext,
 ) => {
   // Verify authentication
   if (!context.auth) {
     throw new functions.https.HttpsError(
       "unauthenticated",
-      "Must be authenticated to reindex resumes"
+      "Must be authenticated to reindex resumes",
     );
   }
 
   // Rate limiting (using JOB_MATCHING preset as proxy for heavy op)
   const rateLimit = await checkRateLimit(
     context.auth.uid,
-    RateLimitPresets.JOB_MATCHING
+    RateLimitPresets.JOB_MATCHING,
   );
   if (!rateLimit.allowed) {
     throw new functions.https.HttpsError(
       "resource-exhausted",
-      `Rate limit exceeded. Try again in ${rateLimit.retryAfter} seconds.`
+      `Rate limit exceeded. Try again in ${rateLimit.retryAfter} seconds.`,
     );
   }
 
@@ -244,7 +246,7 @@ const reindexResumeHandler = async (
   if (!resumeId) {
     throw new functions.https.HttpsError(
       "invalid-argument",
-      "resumeId is required"
+      "resumeId is required",
     );
   }
 
@@ -265,7 +267,7 @@ const reindexResumeHandler = async (
   if (resumeData.userId !== callerUid && !isAdmin) {
     throw new functions.https.HttpsError(
       "permission-denied",
-      "Not authorized to reindex this resume"
+      "Not authorized to reindex this resume",
     );
   }
 

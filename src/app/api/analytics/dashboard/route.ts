@@ -14,6 +14,53 @@ import {
   DashboardAnalyticsRequestSchema,
 } from "@/lib/schemas/api";
 
+async function resolveResumeOwnerId(resumeId: string): Promise<string | null> {
+  let resumeDoc = await collectionRef(COLLECTIONS.RESUMES).doc(resumeId).get();
+  if (!resumeDoc.exists) {
+    resumeDoc = await collectionRef(COLLECTIONS.RESUME_PROFILES).doc(resumeId).get();
+  }
+
+  const ownerId = resumeDoc.data()?.userId;
+  return typeof ownerId === "string" && ownerId.length > 0 ? ownerId : null;
+}
+
+async function authorizeAnalyticsAccess(
+  authUserId: string,
+  resumeId: string,
+  requestedUserId?: string,
+): Promise<{ userId: string; error?: NextResponse }> {
+  const authUserDoc = await collectionRef(COLLECTIONS.USERS).doc(authUserId).get();
+  const isAdmin = authUserDoc.data()?.role === "admin";
+
+  const ownerId = await resolveResumeOwnerId(resumeId);
+  if (!ownerId) {
+    return {
+      userId: "",
+      error: handleApiError(null, "Resume not found", 404),
+    };
+  }
+
+  if (!isAdmin && ownerId !== authUserId) {
+    return {
+      userId: "",
+      error: handleApiError(null, "Forbidden: Access denied", 403),
+    };
+  }
+
+  if (requestedUserId && requestedUserId !== ownerId) {
+    return {
+      userId: "",
+      error: handleApiError(
+        null,
+        "Forbidden: Resume does not belong to specified user",
+        403,
+      ),
+    };
+  }
+
+  return { userId: requestedUserId || ownerId };
+}
+
 /**
  * POST /api/analytics/dashboard - Get analytics dashboard
  */
@@ -41,24 +88,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
     const { resumeId } = parseResult.data;
-    const userId = parseResult.data.userId || authUserId;
+    const requestedUserId = parseResult.data.userId || undefined;
 
-    if (!resumeId || !userId) {
+    if (!resumeId) {
       return NextResponse.json(
         { success: false, message: "Missing resumeId or userId" },
         { status: 400 }
       );
     }
 
-    // Security check: Ensure user owns the resume or is admin
-    if (userId !== authUserId) {
-      // NOTE: Ideally we check this via UserService too, but simple DB check is faster here for now
-      // Or we could trust the caller if we assume authUserId is verified
-      const userDoc = await collectionRef(COLLECTIONS.USERS).doc(authUserId!).get();
-      if (userDoc.data()?.role !== "admin") {
-        return handleApiError(null, "Forbidden: Access denied", 403);
-      }
-    }
+    const accessCheck = await authorizeAnalyticsAccess(
+      authUserId!,
+      resumeId,
+      requestedUserId,
+    );
+    if (accessCheck.error) return accessCheck.error;
+    const userId = accessCheck.userId;
 
     const dashboard = await getDashboardAnalytics(resumeId);
 
@@ -95,22 +140,22 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     const { resumeId } = parseResult.data;
-    const userId = parseResult.data.userId || authUserId;
+    const requestedUserId = parseResult.data.userId || undefined;
 
-    if (!resumeId || !userId) {
+    if (!resumeId) {
       return NextResponse.json(
         { success: false, message: "Missing resumeId or userId" },
         { status: 400 }
       );
     }
 
-    // Security check
-    if (userId !== authUserId) {
-      const userDoc = await collectionRef(COLLECTIONS.USERS).doc(authUserId!).get();
-      if (userDoc.data()?.role !== "admin") {
-        return handleApiError(null, "Forbidden: Access denied", 403);
-      }
-    }
+    const accessCheck = await authorizeAnalyticsAccess(
+      authUserId!,
+      resumeId,
+      requestedUserId,
+    );
+    if (accessCheck.error) return accessCheck.error;
+    const userId = accessCheck.userId;
 
     // Use regular getAnalytics for simple summary
     const result = await getAnalytics(resumeId);

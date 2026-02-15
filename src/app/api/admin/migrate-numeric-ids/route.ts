@@ -5,6 +5,8 @@ import { logger } from "@/lib/logger";
  *
  * Migrates all resumes to have numeric IDs (for one-time use)
  * or migrates a specific user's resumes
+ *
+ * SECURITY: Requires admin role. This is a destructive system-wide operation.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -17,6 +19,7 @@ import {
   handleApiError,
 } from "@/lib/utils/api-helpers";
 import { MigrateNumericIdsSchema } from "@/lib/schemas/api";
+import { verifyAdminRole } from "@/lib/services/userService";
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,9 +33,14 @@ export async function POST(request: NextRequest) {
     }
     const { userId, migrateAll } = parseResult.data;
 
-    // For security, check if request is authenticated
-    const { error } = await getAuthenticatedUserId(request);
+    // SECURITY: Verify authentication
+    const { userId: authUserId, error } = await getAuthenticatedUserId(request);
     if (error) return error;
+
+    // SECURITY: Verify admin role — only admins can trigger migrations
+    if (!authUserId || !(await verifyAdminRole(authUserId))) {
+      return handleApiError(null, "Forbidden: Admin access required", 403);
+    }
 
     let result;
 

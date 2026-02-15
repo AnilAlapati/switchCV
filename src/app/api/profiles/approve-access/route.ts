@@ -18,7 +18,7 @@ function mapDurationToDays(
 ): number {
   switch (duration) {
     case "1hour":
-      return 0.04; // 1/24
+      return 1 / 24;
     case "1day":
       return 1;
     case "1week":

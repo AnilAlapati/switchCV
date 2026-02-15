@@ -165,25 +165,21 @@ export class FirestoreNotificationRepository implements NotificationRepository {
   }
 
   async getStatistics(
-    userId?: string,
+    userId: string,
     days: number = 7,
   ): Promise<Record<string, number>> {
     const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     const timestamp = Timestamp.fromDate(cutoffDate);
 
-    let query: FirebaseFirestore.Query = adminDb
+    const query: FirebaseFirestore.Query = adminDb
       .collection(NOTIFICATIONS_COLLECTION)
-      .where("createdAt", ">", timestamp);
-
-    if (userId) {
-      query = query.where("recipientId", "==", userId);
-    }
+      .where("createdAt", ">", timestamp)
+      .where("recipientId", "==", userId)
+      .limit(500);
 
     const snapshot = await query.get();
     const notifications = snapshot.docs.map((doc) => doc.data());
 
-    // Note: Aggregation should ideally be done via Firestore Aggregation Queries for scalability
-    // But for now, we'll do it in memory to match the interface
     return {
       total: notifications.length,
       pending: notifications.filter((n) => n.status === "pending").length,

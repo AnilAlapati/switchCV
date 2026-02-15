@@ -21,12 +21,26 @@ export class RecruiterRequestService {
   }): Promise<string> {
     const batch = this.db.batch();
     const requestRef = this.db.collection("recruiterRequests").doc();
+    const createdAt = new Date();
 
     batch.set(requestRef, {
-      ...data,
+      // Normalized schema
+      fromRecruiter: {
+        recruiterId: data.recruiterId,
+        companyName: data.companyName,
+      },
+      toUserId: data.candidateId,
+      position: data.position,
+      purpose: data.message,
+      // Backward compatibility fields
+      recruiterId: data.recruiterId,
+      candidateId: data.candidateId,
+      userId: data.candidateId,
+      companyName: data.companyName,
+      message: data.message,
       status: "pending",
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt,
+      updatedAt: createdAt,
     });
 
     await batch.commit();
@@ -54,6 +68,14 @@ export class RecruiterRequestService {
     if (!requestData) {
       throw new Error("Request not found");
     }
+    const recruiterId =
+      requestData.fromRecruiter?.recruiterId ?? requestData.recruiterId;
+    const candidateId =
+      requestData.toUserId ?? requestData.userId ?? requestData.candidateId;
+
+    if (!recruiterId || !candidateId) {
+      throw new Error("Recruiter request schema missing required identifiers");
+    }
 
     batch.update(requestRef, {
       status: "approved",
@@ -65,8 +87,8 @@ export class RecruiterRequestService {
     // Generate access token
     const tokenRef = this.db.collection("accessTokens").doc();
     batch.set(tokenRef, {
-      recruiterId: requestData.fromRecruiter.recruiterId,
-      userId: requestData.toUserId,
+      recruiterId,
+      userId: candidateId,
       requestId,
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       createdAt: new Date(),
@@ -77,15 +99,15 @@ export class RecruiterRequestService {
 
     await auditLogger.logRecruiterRequest(
       requestId,
-      requestData.fromRecruiter.recruiterId,
-      requestData.toUserId,
+      recruiterId,
+      candidateId,
       AuditAction.RECRUITER_REQUEST_APPROVED,
       true
     );
 
     await auditLogger.logAccessToken(
-      requestData.fromRecruiter.recruiterId,
-      requestData.toUserId,
+      recruiterId,
+      candidateId,
       tokenRef.id,
       AuditAction.ACCESS_TOKEN_GENERATED
     );
@@ -105,6 +127,14 @@ export class RecruiterRequestService {
     if (!requestData) {
       throw new Error("Request not found");
     }
+    const recruiterId =
+      requestData.fromRecruiter?.recruiterId ?? requestData.recruiterId;
+    const candidateId =
+      requestData.toUserId ?? requestData.userId ?? requestData.candidateId;
+
+    if (!recruiterId || !candidateId) {
+      throw new Error("Recruiter request schema missing required identifiers");
+    }
 
     await requestRef.update({
       status: "denied",
@@ -115,8 +145,8 @@ export class RecruiterRequestService {
 
     await auditLogger.logRecruiterRequest(
       requestId,
-      requestData.fromRecruiter.recruiterId,
-      requestData.toUserId,
+      recruiterId,
+      candidateId,
       AuditAction.RECRUITER_REQUEST_DENIED,
       false
     );

@@ -12,6 +12,7 @@ import { logger } from "@/lib/logger";
 import {
   verifyRecruiterRole,
   getPipeline,
+  getPipelineOwner,
   initializePipeline,
   addCandidate,
   moveCandidate,
@@ -62,8 +63,9 @@ export async function POST(request: NextRequest) {
 
     switch (body.action) {
       case "initialize": {
-        const { jobId, jobTitle, recruiterId } = body as InitializeRequest;
-        const pipeline = await initializePipeline(jobId, jobTitle, recruiterId || authUserId);
+        const { jobId, jobTitle } = body as InitializeRequest;
+        // SECURITY: Always use authUserId — ignore client-supplied recruiterId
+        const pipeline = await initializePipeline(jobId, jobTitle, authUserId);
 
         return NextResponse.json(
           { success: true, pipeline, message: "Pipeline initialized successfully" },
@@ -73,6 +75,14 @@ export async function POST(request: NextRequest) {
 
       case "add-candidate": {
         const { pipelineId, name, email, position, phone, resumeUrl } = body as AddCandidateRequest;
+
+        // SECURITY: Verify pipeline ownership
+        const pipelineOwner = await getPipelineOwner(pipelineId);
+        if (!pipelineOwner) return handleApiError(null, "Pipeline not found", 404);
+        if (pipelineOwner !== authUserId) {
+          return handleApiError(null, "Forbidden: Not your pipeline", 403);
+        }
+
         const result = await addCandidate(pipelineId, { name, email, position, phone, resumeUrl });
 
         if (!result) return handleApiError(null, "Pipeline not found", 404);
@@ -90,6 +100,14 @@ export async function POST(request: NextRequest) {
 
       case "move-candidate": {
         const { pipelineId, candidateId, newStage } = body as MoveCandidateRequest;
+
+        // SECURITY: Verify pipeline ownership
+        const moveOwner = await getPipelineOwner(pipelineId);
+        if (!moveOwner) return handleApiError(null, "Pipeline not found", 404);
+        if (moveOwner !== authUserId) {
+          return handleApiError(null, "Forbidden: Not your pipeline", 403);
+        }
+
         const candidate = await moveCandidate(pipelineId, candidateId, newStage);
 
         if (!candidate) return handleApiError(null, "Candidate or Pipeline not found", 404);
@@ -102,6 +120,14 @@ export async function POST(request: NextRequest) {
 
       case "get-stage": {
         const { pipelineId, stage } = body as GetStageRequest;
+
+        // SECURITY: Verify pipeline ownership
+        const stageOwner = await getPipelineOwner(pipelineId);
+        if (!stageOwner) return handleApiError(null, "Pipeline not found", 404);
+        if (stageOwner !== authUserId) {
+          return handleApiError(null, "Forbidden: Not your pipeline", 403);
+        }
+
         const pipeline = await getPipeline(pipelineId);
 
         if (!pipeline) return handleApiError(null, "Pipeline not found", 404);
@@ -151,6 +177,12 @@ export async function GET(request: NextRequest) {
 
     if (!pipeline) {
       return handleApiError(null, "Pipeline not found", 404);
+    }
+
+    // SECURITY: Verify pipeline ownership
+    const getOwner = await getPipelineOwner(pipelineId);
+    if (getOwner !== authUserId) {
+      return handleApiError(null, "Forbidden: Not your pipeline", 403);
     }
 
     return NextResponse.json({

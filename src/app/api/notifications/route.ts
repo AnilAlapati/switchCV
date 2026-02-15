@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
         return handleUpdatePreference(userId, preference);
 
       case "get-delivery-status":
-        return handleGetDeliveryStatus(notificationId);
+        return handleGetDeliveryStatus(notificationId, authUserId);
 
       default:
         return handleApiError(null, "Unknown action", 400);
@@ -143,10 +143,10 @@ export async function GET(request: NextRequest) {
         return handleGetUnread(userId);
 
       case "get-statistics":
-        return handleGetStatistics(userId);
+        return handleGetStatistics(userId || authUserId);
 
       case "get-delivery-status":
-        return handleGetDeliveryStatus(notificationId);
+        return handleGetDeliveryStatus(notificationId, authUserId);
 
       default:
         return handleApiError(null, "Unknown action", 400);
@@ -300,7 +300,11 @@ async function handleUpdatePreference(userId: string, preference: Partial<Notifi
 }
 
 async function handleGetStatistics(userId: string | null) {
-  const stats = await getStatistics(userId || undefined);
+  if (!userId) {
+    return handleApiError(null, "Missing userId", 400);
+  }
+
+  const stats = await getStatistics(userId);
 
   return NextResponse.json({
     success: true,
@@ -308,9 +312,15 @@ async function handleGetStatistics(userId: string | null) {
   });
 }
 
-async function handleGetDeliveryStatus(notificationId: string | null) {
+async function handleGetDeliveryStatus(notificationId: string | null, authUserId: string) {
   if (!notificationId) {
     return handleApiError(null, "Missing notificationId", 400);
+  }
+
+  // Ownership check: verify notification belongs to this user
+  const notification = await getNotification(notificationId);
+  if (!notification || notification.recipientId !== authUserId) {
+    return handleApiError(null, "Forbidden: You do not own this notification", 403);
   }
 
   const status = getDeliveryStatus(notificationId);

@@ -155,6 +155,7 @@ export async function POST(request: NextRequest) {
             scheduledTime: new Date(scheduledTime),
             location: location || null,
             notes: notes || null,
+            createdBy: authUserId,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           });
@@ -183,6 +184,11 @@ export async function POST(request: NextRequest) {
 
         if (!interviewDoc.exists) {
           return handleApiError(null, "Interview not found", 404);
+        }
+
+        // SECURITY: Verify ownership — recruiters can only update their own interviews
+        if (interviewDoc.data()?.createdBy !== authUserId) {
+          return handleApiError(null, "Forbidden: Not your interview", 403);
         }
 
         // Update in Firestore
@@ -219,6 +225,11 @@ export async function POST(request: NextRequest) {
 
         if (!interviewDoc.exists) {
           return handleApiError(null, "Interview not found", 404);
+        }
+
+        // SECURITY: Verify ownership — recruiters can only add feedback to their own interviews
+        if (interviewDoc.data()?.createdBy !== authUserId) {
+          return handleApiError(null, "Forbidden: Not your interview", 403);
         }
 
         // Update in Firestore
@@ -258,6 +269,7 @@ export async function POST(request: NextRequest) {
         futureDate.setDate(futureDate.getDate() + daysToQuery);
 
         const snapshot = await collectionRef(COLLECTIONS.RECRUITER_INTERVIEWS)
+          .where("createdBy", "==", authUserId)
           .where("scheduledTime", ">=", now)
           .where("scheduledTime", "<=", futureDate)
           .where("status", "==", InterviewStatus.SCHEDULED)
@@ -311,6 +323,11 @@ export async function GET(request: NextRequest) {
         return handleApiError(null, "Interview not found", 404);
       }
 
+      // SECURITY: Verify ownership — recruiters can only view their own interviews
+      if (interviewDoc.data()?.createdBy !== authUserId) {
+        return handleApiError(null, "Forbidden: Not your interview", 403);
+      }
+
       return NextResponse.json(
         {
           success: true,
@@ -321,7 +338,9 @@ export async function GET(request: NextRequest) {
     }
 
     if (candidateId) {
+      // SECURITY: Filter by ownership
       const snapshot = await collectionRef(COLLECTIONS.RECRUITER_INTERVIEWS)
+        .where("createdBy", "==", authUserId)
         .where("candidateId", "==", candidateId)
         .orderBy("scheduledTime", "desc")
         .get();
@@ -340,8 +359,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Return all interviews (with pagination limit)
+    // Return all interviews (with pagination limit) — SECURITY: Filter by ownership
     const snapshot = await collectionRef(COLLECTIONS.RECRUITER_INTERVIEWS)
+      .where("createdBy", "==", authUserId)
       .orderBy("scheduledTime", "desc")
       .limit(100)
       .get();

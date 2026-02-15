@@ -46,10 +46,21 @@ describe("access-status", () => {
             get: mockGet,
         });
 
-        // Default chain for collectionGroupRef(...).where(...).get()
-        mockCollectionGroupRef.mockReturnValue({
-            where: mockWhere,
-        });
+        // Default chain for collectionGroupRef(...).where(...).limit(...).get()
+        const createCollectionGroupChain = () => {
+            const chain: any = {
+                where: (...args: any[]) => {
+                    mockWhere(...args);
+                    return chain;
+                },
+                orderBy: jest.fn().mockReturnThis(),
+                startAfter: jest.fn().mockReturnThis(),
+                limit: () => chain,
+                get: mockGet,
+            };
+            return chain;
+        };
+        mockCollectionGroupRef.mockReturnValue(createCollectionGroupChain());
     });
 
     describe("getAccessStatus (via fetchAccessStatusFromDb)", () => {

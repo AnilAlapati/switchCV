@@ -8,6 +8,7 @@ import { logger } from "@/lib/logger";
 import { BillingService } from "@/lib/services/billingService";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
 import { AgentPipelineSuggestSchema } from "@/lib/schemas/api";
+import { getUserRole } from "@/lib/services/userService";
 
 const ESTIMATED_COST_PIPELINE = 0.0003; // $0.0003 per run (Gemini 1.5 Flash)
 const RATE_LIMIT_PIPELINE = 100; // 100 requests per day
@@ -16,6 +17,12 @@ export async function POST(req: NextRequest) {
   try {
     const { userId, error } = await getAuthenticatedUserId(req);
     if (error) return error;
+
+    // Security: Only allow recruiter or admin roles
+    const userRole = await getUserRole(userId!);
+    if (userRole !== "recruiter" && userRole !== "admin") {
+      return handleApiError(null, "Forbidden: Recruiter role required", 403);
+    }
 
     // 1. Rate Limiting
     const rateLimit = await checkRateLimit(`${userId}:agent:pipeline-suggest`, {

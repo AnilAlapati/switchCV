@@ -92,6 +92,29 @@ async function anonymizeQueryResults(
 }
 
 /**
+ * Delete documents from a collection across multiple field mappings.
+ * This is useful during schema transitions where identity fields changed.
+ */
+async function deleteCollectionByUserMappings(
+  db: FirebaseFirestore.Firestore,
+  collectionName: string,
+  userId: string,
+  fieldMappings: Array<{ field: string; label: string }>,
+): Promise<number> {
+  let totalDeleted = 0;
+
+  for (const mapping of fieldMappings) {
+    totalDeleted += await deleteQueryResults(
+      db,
+      db.collection(collectionName).where(mapping.field, "==", userId),
+      `${collectionName} (${mapping.label})`,
+    );
+  }
+
+  return totalDeleted;
+}
+
+/**
  * Handles user data management including exports and deletions
  */
 export class UserDataService {
@@ -239,53 +262,78 @@ export class UserDataService {
       );
 
       // ── Phase 3: Delete recruiter-related data ──
-      await deleteQueryResults(
+      await deleteCollectionByUserMappings(
         this.db,
-        this.db
-          .collection("recruiterRequests")
-          .where("recruiterId", "==", userId),
-        "recruiterRequests (as recruiter)",
+        "recruiterRequests",
+        userId,
+        [
+          {
+            field: "fromRecruiter.recruiterId",
+            label: "as recruiter (normalized)",
+          },
+          { field: "recruiterId", label: "as recruiter (legacy)" },
+          { field: "toUserId", label: "as candidate (normalized)" },
+          { field: "userId", label: "as candidate (legacy)" },
+          { field: "candidateId", label: "as candidate (legacy-v2)" },
+        ],
       );
-      await deleteQueryResults(
+      await deleteCollectionByUserMappings(
         this.db,
-        this.db.collection("recruiterRequests").where("userId", "==", userId),
-        "recruiterRequests (as candidate)",
-      );
-      await deleteQueryResults(
-        this.db,
-        this.db
-          .collection("recruiterNotifications")
-          .where("userId", "==", userId),
         "recruiterNotifications",
+        userId,
+        [
+          { field: "recruiterId", label: "recipient (normalized)" },
+          { field: "toUserId", label: "candidate recipient (normalized)" },
+          { field: "userId", label: "recipient (legacy)" },
+        ],
       );
-      await deleteQueryResults(
+      await deleteCollectionByUserMappings(
         this.db,
-        this.db
-          .collection("recruiterSearchHistory")
-          .where("userId", "==", userId),
         "recruiterSearchHistory",
+        userId,
+        [
+          { field: "recruiterId", label: "owner (normalized)" },
+          { field: "userId", label: "owner (legacy)" },
+        ],
       );
-      await deleteQueryResults(
+      await deleteCollectionByUserMappings(
         this.db,
-        this.db.collection("recruiterInterviews").where("userId", "==", userId),
         "recruiterInterviews",
+        userId,
+        [
+          { field: "createdBy", label: "owner (normalized)" },
+          { field: "recruiterId", label: "owner (legacy)" },
+          { field: "userId", label: "owner (legacy-v2)" },
+        ],
       );
-      await deleteQueryResults(
+      await deleteCollectionByUserMappings(
         this.db,
-        this.db.collection("recruiterPipelines").where("userId", "==", userId),
         "recruiterPipelines",
+        userId,
+        [
+          { field: "recruiterId", label: "owner (normalized)" },
+          { field: "userId", label: "owner (legacy)" },
+        ],
       );
-      await deleteQueryResults(
+      await deleteCollectionByUserMappings(
         this.db,
-        this.db.collection("recruiterCandidates").where("userId", "==", userId),
         "recruiterCandidates",
+        userId,
+        [
+          { field: "createdBy", label: "owner (normalized)" },
+          { field: "recruiterId", label: "owner (legacy)" },
+          { field: "userId", label: "owner (legacy-v2)" },
+        ],
       );
-      await deleteQueryResults(
+      await deleteCollectionByUserMappings(
         this.db,
-        this.db
-          .collection("recruiterBulkActions")
-          .where("userId", "==", userId),
         "recruiterBulkActions",
+        userId,
+        [
+          { field: "createdBy", label: "owner (normalized)" },
+          { field: "recruiterId", label: "owner (legacy)" },
+          { field: "userId", label: "owner (legacy-v2)" },
+        ],
       );
 
       // ── Phase 4: Delete tokens, contacts, and misc user data ──

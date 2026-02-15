@@ -10,6 +10,7 @@ const STATUS_PRIORITY: Record<AccessStatus, number> = {
   pending: 2,
   approved: 3,
 };
+const ACCESS_STATUS_PAGE_SIZE = 1000;
 
 async function fetchAccessStatusFromDb(
   resumeId: string,
@@ -93,6 +94,65 @@ function resolveStatusFromMap(
   return fetchAccessStatusFromDb(resumeId, recruiterId);
 }
 
+type CollectionGroupDoc = {
+  data: () => Record<string, any>;
+  ref: { parent: { parent: { id: string } | null } };
+};
+
+function extractSnapshotDocs(snapshot: {
+  docs?: CollectionGroupDoc[];
+  forEach?: (cb: (doc: CollectionGroupDoc) => void) => void;
+}): CollectionGroupDoc[] {
+  if (Array.isArray(snapshot.docs)) {
+    return snapshot.docs;
+  }
+
+  if (typeof snapshot.forEach === "function") {
+    const docs: CollectionGroupDoc[] = [];
+    snapshot.forEach((doc) => docs.push(doc));
+    return docs;
+  }
+
+  return [];
+}
+
+async function fetchCollectionGroupDocsPaginated(
+  collectionName: string,
+  whereField: string,
+  whereValue: string,
+): Promise<CollectionGroupDoc[]> {
+  const docs: CollectionGroupDoc[] = [];
+  let lastDoc: any | null = null;
+
+  while (true) {
+    let query = collectionGroupRef(collectionName)
+      .where(whereField, "==", whereValue)
+      .orderBy("__name__")
+      .limit(ACCESS_STATUS_PAGE_SIZE);
+
+    if (lastDoc) {
+      query = query.startAfter(lastDoc);
+    }
+
+    const snapshot = await query.get();
+    const pageDocs = extractSnapshotDocs(snapshot);
+
+    if (pageDocs.length === 0) {
+      break;
+    }
+
+    docs.push(...pageDocs);
+
+    if (pageDocs.length < ACCESS_STATUS_PAGE_SIZE) {
+      break;
+    }
+
+    lastDoc = pageDocs[pageDocs.length - 1];
+  }
+
+  return docs;
+}
+
 export async function buildAccessStatusMap(
   recruiterId: string,
 ): Promise<AccessStatusMap> {
@@ -113,18 +173,18 @@ export async function buildAccessStatusMap(
 
   try {
     // 1. Populate from requests (pending/denied only)
-    const requestsSnapshot = await collectionGroupRef("accessRequests")
-      .where("fromUserId", "==", recruiterId)
-      .get();
+    const requestDocs = await fetchCollectionGroupDocsPaginated(
+      "accessRequests",
+      "fromUserId",
+      recruiterId,
+    );
 
     const now = new Date();
 
-    requestsSnapshot.forEach((doc) => {
+    requestDocs.forEach((doc) => {
       const data = doc.data() || {};
       const rawStatus = (data.status as AccessStatus) || "none";
-      const resumeId = (
-        doc as unknown as { ref: { parent: { parent: { id: string } | null } } }
-      ).ref.parent.parent?.id;
+      const resumeId = doc.ref.parent.parent?.id;
 
       if (!resumeId) return;
 
@@ -157,15 +217,15 @@ export async function buildAccessStatusMap(
     });
 
     // 2. Populate from grants (approved)
-    const grantsSnapshot = await collectionGroupRef("accessGrants")
-      .where("toUserId", "==", recruiterId)
-      .get();
+    const grantDocs = await fetchCollectionGroupDocsPaginated(
+      "accessGrants",
+      "toUserId",
+      recruiterId,
+    );
 
-    grantsSnapshot.forEach((doc) => {
+    grantDocs.forEach((doc) => {
       const data = doc.data();
-      const resumeId = (
-        doc as unknown as { ref: { parent: { parent: { id: string } | null } } }
-      ).ref.parent.parent?.id;
+      const resumeId = doc.ref.parent.parent?.id;
 
       if (!resumeId) return;
 

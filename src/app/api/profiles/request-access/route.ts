@@ -63,9 +63,7 @@ export async function POST(request: NextRequest) {
       resumeId: String(resumeId),
       message,
       durationLabel: normalizedDuration.label,
-      durationDays: Math.ceil(
-        normalizedDuration.durationMs / (24 * 60 * 60 * 1000)
-      ),
+      durationDays: normalizedDuration.durationMs / (24 * 60 * 60 * 1000),
     });
 
     return NextResponse.json({

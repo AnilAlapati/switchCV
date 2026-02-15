@@ -34,14 +34,15 @@ const generateCustomVerificationToken = async (
   userId: string,
 ): Promise<string> => {
   const token = randomUUID();
+  const tokenHash = createHash("sha256").update(token).digest("hex");
   const expiresAt = admin.firestore.Timestamp.fromMillis(
     Date.now() + 24 * 60 * 60 * 1000,
   ); // 24h
 
-  // Store token
+  // Store only the hash — never persist raw token
   await admin.firestore().collection("verificationTokens").add({
     userId,
-    token,
+    tokenHash,
     expiresAt,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     used: false,

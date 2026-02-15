@@ -32,8 +32,9 @@ This review focuses on critical cost control gaps identified in the SwitchCV pro
 **Impact:** Highest financial risk — single-user attack could cost $8–$110/hour.
 
 **Resolution:** Global rate limiting was already implemented in `src/middleware.ts` with path-based tiers:
+
 - Auth routes: 5 req/min
-- AI/generation routes: 10 req/min  
+- AI/generation routes: 10 req/min
 - Search routes: 20 req/min
 - Admin routes: 30 req/min
 - Default API routes: 100 req/min
@@ -55,6 +56,7 @@ CSRF protection and request correlation IDs are also included. No additional cha
 **Impact:** Permanent AI service lockout after month 1 if total lifetime costs exceed $70.
 
 **Fix:** Rewrote `aggregateBillingHandler` in `functions/src/billingService.ts` to:
+
 1. Track the current billing month in a `meta` document
 2. Detect month boundaries during aggregation
 3. Archive the previous month's total before resetting shards
@@ -110,16 +112,18 @@ All 7 cost control gaps identified in this review have been resolved:
 - **Embedding debounce** prevents redundant Gemini API calls during rapid resume editing.
 
 ### Files Changed
-| File | Change |
-| --- | --- |
-| `functions/src/index.ts` | Added dev guard to `notifyExpiringResumes`, changed `aggregateBilling` to hourly |
-| `functions/src/billingService.ts` | Added monthly shard reset logic with archival |
-| `functions/src/indexResumeService.ts` | Added 60s debounce to embedding generation |
-| `src/lib/services/billingService.ts` | Added gemini-2.5 model pricing |
-| `src/lib/services/aiGenerationService.ts` | Wired BillingService.trackUsage into generateText |
+
+| File                                      | Change                                                                           |
+| ----------------------------------------- | -------------------------------------------------------------------------------- |
+| `functions/src/index.ts`                  | Added dev guard to `notifyExpiringResumes`, changed `aggregateBilling` to hourly |
+| `functions/src/billingService.ts`         | Added monthly shard reset logic with archival                                    |
+| `functions/src/indexResumeService.ts`     | Added 60s debounce to embedding generation                                       |
+| `src/lib/services/billingService.ts`      | Added gemini-2.5 model pricing                                                   |
+| `src/lib/services/aiGenerationService.ts` | Wired BillingService.trackUsage into generateText                                |
 
 ### Verification
+
 - TypeScript: Compiles clean (both main project and functions)
 - Tests: 111/111 passing across 7 test suites
 - Lint: 0 errors, 2 pre-existing warnings (unrelated to changes)</content>
-<parameter name="filePath">/Users/anilalapati/Development/Switch_cv_Nov_21/docs/code_review_feb_14_v1.md
+  <parameter name="filePath">/Users/anilalapati/Development/Switch_cv_Nov_21/docs/code_review_feb_14_v1.md

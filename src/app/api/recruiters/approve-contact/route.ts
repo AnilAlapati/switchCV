@@ -126,13 +126,33 @@ export async function POST(request: NextRequest) {
 
     const expiresAt = now + durationSeconds;
 
-    // Generate secure token
+    // Step 1: Create Firestore doc first to get a stable ID
+    const tokenDocData = {
+      tokenId: "", // Will be set to doc ID below
+      recruiterId: contactRequest.fromRecruiter.recruiterId,
+      userId: contactRequest.toUserId,
+      resumeId: contactRequest.resumeId,
+      requestId: payload.requestId,
+      tokenHash: "", // Will be set after token generation
+      accessFields: contactRequest.requestedFields as string[],
+      accessType: "read-only",
+      issuedAt: new Date(now * 1000),
+      expiresAt: new Date(expiresAt * 1000),
+      duration,
+      isRevoked: false,
+      usageCount: 0,
+      ipAddressWhitelist: payload.ipAddress ? [payload.ipAddress] : undefined,
+    };
+
+    const tokenRef = await collectionRef(COLLECTIONS.ACCESS_TOKENS).add(tokenDocData);
+
+    // Step 2: Generate token using Firestore doc ID as tokenId (ensures consistency)
     const {
       token,
       tokenHash,
       expiresAt: tokenExpiry,
     } = tokenGenerator.generateToken({
-      tokenId: contactRequest.id, // Use request ID as token ID
+      tokenId: tokenRef.id, // Use Firestore doc ID — JWT, stored field, and doc ID all match
       recruiterId: contactRequest.fromRecruiter.recruiterId,
       userId: contactRequest.toUserId,
       resumeId: contactRequest.resumeId,
@@ -141,29 +161,10 @@ export async function POST(request: NextRequest) {
       expiresAt,
     });
 
-    // Store token in Firestore
-    const tokenData = {
-      tokenId: contactRequest.id,
-      recruiterId: contactRequest.fromRecruiter.recruiterId,
-      userId: contactRequest.toUserId,
-      resumeId: contactRequest.resumeId,
-      requestId: payload.requestId,
-      token, // Store encrypted token
-      tokenHash, // Store hash for verification
-      accessFields: contactRequest.requestedFields as string[],
-      accessType: "read-only",
-      issuedAt: new Date(now * 1000),
-      expiresAt: new Date(tokenExpiry * 1000),
-      duration,
-      isRevoked: false,
-      usageCount: 0,
-      ipAddressWhitelist: payload.ipAddress ? [payload.ipAddress] : undefined,
-    };
-
-    const tokenRef = await collectionRef(COLLECTIONS.ACCESS_TOKENS).add({
-      ...tokenData,
-      issuedAt: serverTimestamp(),
-      expiresAt: serverTimestamp(),
+    // Step 3: Update doc with tokenHash and correct tokenId
+    await tokenRef.update({
+      tokenId: tokenRef.id,
+      tokenHash,
     });
 
     // Update contact request status
@@ -173,7 +174,7 @@ export async function POST(request: NextRequest) {
       reviewedBy: payload.adminUserId,
       reviewedAt: serverTimestamp(),
       tokenId: tokenRef.id,
-      accessExpiresAt: serverTimestamp(),
+      accessExpiresAt: new Date(tokenExpiry * 1000),
     } as Record<string, unknown>);
 
     // Create notification for recruiter
@@ -184,13 +185,13 @@ export async function POST(request: NextRequest) {
       candidateId: contactRequest.toUserId,
       candidateEmail: contactRequest.toUserEmail,
       approvedAt: serverTimestamp(),
-      expiresAt: serverTimestamp(),
+      expiresAt: new Date(tokenExpiry * 1000),
       duration,
       message: `Your request to contact ${contactRequest.toUserEmail} has been approved. Access expires in ${duration}.`,
       timestamp: serverTimestamp(),
       read: false,
       actionUrl: `/recruiter/portal/requests/${payload.requestId}`,
-      token: token.substring(0, 20) + "...", // Safe token preview
+      // SECURITY: Token preview removed — do not leak tokens in notifications
     };
 
     await collectionRef(COLLECTIONS.RECRUITER_NOTIFICATIONS)
@@ -207,7 +208,7 @@ export async function POST(request: NextRequest) {
       requestId: payload.requestId,
       contactedFields: contactRequest.requestedFields,
       purpose: contactRequest.purpose,
-      expiresAt: serverTimestamp(),
+      expiresAt: new Date(tokenExpiry * 1000),
       duration,
       message: `Recruiter ${contactRequest.fromRecruiter.name} from ${contactRequest.fromRecruiter.companyName} has been granted access to view your contact information.`,
       timestamp: serverTimestamp(),
@@ -252,7 +253,7 @@ export async function POST(request: NextRequest) {
       duration,
       durationSeconds,
       message: `Contact request approved. Recruiter and candidate have been notified.`,
-      token: token.substring(0, 50) + "...", // Don't send full token
+      // SECURITY: Token removed from response — use tokenId to reference
     });
   } catch (error) {
     logger.error({ err: error }, "❌ Approve contact error:");

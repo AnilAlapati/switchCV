@@ -79,7 +79,7 @@ describe("Recruiter Pipeline API", () => {
         get: jest.fn().mockResolvedValue({
           id: mockPipelineId,
           exists: true,
-          data: () => ({ jobId: "job-1", jobTitle: "Engineer" }),
+          data: () => ({ jobId: "job-1", jobTitle: "Engineer", recruiterId: mockUserId }),
           docs: [],
         }),
       };

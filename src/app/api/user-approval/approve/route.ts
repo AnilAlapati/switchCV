@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     // Parse token to extract requestId
     const parsed = parseApprovalToken(token);
     if (!parsed || parsed.action !== "approve") {
-      logger.warn({ token }, "Invalid token format or wrong action");
+      logger.warn("Invalid token format or wrong action");
       return new NextResponse(
         `<!DOCTYPE html>
         <html>
@@ -210,13 +210,6 @@ export async function GET(request: NextRequest) {
         { error, userId, email: userEmail },
         "Failed to generate verification link",
       );
-      // Fallback: mark as verified if we can't generate link (user can resend later)
-      await adminAuth.updateUser(userId, { emailVerified: true });
-      await adminDb.collection("users").doc(userId).update({
-        emailVerified: true,
-        updatedAt: new Date(),
-      });
-
       return new NextResponse(
         `<!DOCTYPE html>
         <html>
@@ -230,8 +223,9 @@ export async function GET(request: NextRequest) {
             </style>
           </head>
           <body>
-            <h1>✅ User Approved & Verified</h1>
-            <p>User <span class="email">${userEmail}</span> has been approved and automatically verified.</p>
+            <h1>⚠️ User Approved</h1>
+            <p>User <span class="email">${userEmail}</span> was approved, but verification email generation failed.</p>
+            <p style="color: #64748b; font-size: 14px;">The account remains unverified. Ask the user to use "Resend verification email" later.</p>
             <p style="color: #64748b; font-size: 14px; margin-top: 30px;">
               You can close this window now.
             </p>

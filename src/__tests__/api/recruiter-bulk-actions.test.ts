@@ -116,11 +116,11 @@ describe("Recruiter Bulk Actions API", () => {
         }) // User
         .mockResolvedValueOnce({
           exists: true,
-          data: () => ({ status: "pending" }),
+          data: () => ({ status: "pending", createdBy: "recruiter-1" }),
         }) // Action
         .mockResolvedValueOnce({
           exists: true,
-          data: () => ({ status: "completed" }),
+          data: () => ({ status: "completed", createdBy: "recruiter-1" }),
         }); // Updated Action
 
       const req = new NextRequest(
@@ -152,7 +152,7 @@ describe("Recruiter Bulk Actions API", () => {
         }) // User
         .mockResolvedValueOnce({
           exists: true,
-          data: () => ({ status: "pending" }),
+          data: () => ({ status: "pending", createdBy: "recruiter-1" }),
         }); // Action
 
       const req = new NextRequest(
@@ -202,7 +202,7 @@ describe("Recruiter Bulk Actions API", () => {
         }) // User
         .mockResolvedValueOnce({
           exists: true,
-          data: () => ({ status: "pending" }),
+          data: () => ({ status: "pending", createdBy: "recruiter-1" }),
         }); // Action
 
       const req = new NextRequest(
@@ -227,8 +227,8 @@ describe("Recruiter Bulk Actions API", () => {
         }) // User
         .mockResolvedValueOnce({
           docs: [
-            { id: "b1", exists: true, data: () => ({ status: "pending" }) },
-            { id: "b2", exists: true, data: () => ({ status: "completed" }) },
+            { id: "b1", exists: true, data: () => ({ status: "pending", createdBy: "recruiter-1" }) },
+            { id: "b2", exists: true, data: () => ({ status: "completed", createdBy: "recruiter-1" }) },
           ],
         }); // List
 

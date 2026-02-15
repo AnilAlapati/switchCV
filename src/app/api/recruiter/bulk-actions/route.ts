@@ -165,6 +165,11 @@ export async function POST(request: NextRequest) {
 
         const actionData = actionDoc.data()!;
 
+        // SECURITY: Verify ownership — recruiters can only execute their own bulk actions
+        if (actionData.createdBy !== authUserId) {
+          return handleApiError(null, "Forbidden: Not your bulk action", 403);
+        }
+
         if (actionData.status !== "pending") {
           return handleApiError(null, "Action is not in pending status", 400);
         }
@@ -203,6 +208,11 @@ export async function POST(request: NextRequest) {
         }
 
         const actionData = actionDoc.data()!;
+
+        // SECURITY: Verify ownership — recruiters can only cancel their own bulk actions
+        if (actionData.createdBy !== authUserId) {
+          return handleApiError(null, "Forbidden: Not your bulk action", 403);
+        }
 
         if (actionData.status !== "pending") {
           return handleApiError(
@@ -259,6 +269,11 @@ export async function GET(request: NextRequest) {
         return handleApiError(null, "Bulk action not found", 404);
       }
 
+      // SECURITY: Verify ownership — recruiters can only view their own bulk actions
+      if (actionDoc.data()?.createdBy !== authUserId) {
+        return handleApiError(null, "Forbidden: Not your bulk action", 403);
+      }
+
       return NextResponse.json(
         {
           success: true,
@@ -268,8 +283,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Query with optional status filter
-    let query: Query = collectionRef(COLLECTIONS.RECRUITER_BULK_ACTIONS);
+    // Query with optional status filter — SECURITY: Always filter by ownership
+    let query: Query = collectionRef(COLLECTIONS.RECRUITER_BULK_ACTIONS)
+      .where("createdBy", "==", authUserId);
 
     if (status) {
       query = query.where("status", "==", status);

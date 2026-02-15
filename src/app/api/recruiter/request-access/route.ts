@@ -1,23 +1,31 @@
 import { logger } from "@/lib/logger";
 // src/app/api/recruiter/request-access/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { COLLECTIONS, collectionRef, increment } from "@/lib/dal";
+import { COLLECTIONS, collectionRef, increment, serverTimestamp } from "@/lib/dal";
 import {
   handleApiError,
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
 import { getUserTier } from "@/lib/services/userService";
 import { getRecruiterContactLimits } from "@/lib/config.server";
-import { consumeQuota, QuotaExceededError } from "@/lib/services/quotaService";
+import {
+  consumeQuota,
+  QuotaExceededError,
+  refundQuota,
+} from "@/lib/services/quotaService";
 import { RequestRecruiterAccessSchema } from "@/lib/schemas/api";
 
 /**
  * Helper to verify recruiter role
  */
-async function verifyRecruiterRole(userId: string): Promise<boolean> {
+async function getRecruiterProfile(userId: string) {
   const userSnap = await collectionRef(COLLECTIONS.USERS).doc(userId).get();
+  if (!userSnap.exists) return null;
   const userData = userSnap.data();
-  return userData?.role === "recruiter" || userData?.role === "admin";
+  if (userData?.role === "recruiter" || userData?.role === "admin") {
+    return userData;
+  }
+  return null;
 }
 
 export async function POST(request: NextRequest) {
@@ -27,7 +35,8 @@ export async function POST(request: NextRequest) {
     if (authError || !recruiterId)
       return authError || handleApiError(null, "Unauthorized", 401);
 
-    if (!(await verifyRecruiterRole(recruiterId))) {
+    const recruiterProfile = await getRecruiterProfile(recruiterId);
+    if (!recruiterProfile) {
       return handleApiError(null, "Forbidden: Recruiter role required", 403);
     }
 
@@ -43,28 +52,12 @@ export async function POST(request: NextRequest) {
       return handleApiError(null, "resumeId is required", 400);
     }
 
-    // Check Quota
+    // Resolve quota configuration (consumed later, after validations)
     const tier = await getUserTier(recruiterId!);
     const limitConfigs = await getRecruiterContactLimits();
     const limitConfig = limitConfigs[tier];
-
-    try {
-      await consumeQuota({
-        subjectId: recruiterId!,
-        scope: "recruiter_contact",
-        limit: limitConfig.amount,
-        period: limitConfig.interval === "month" ? "monthly" : "lifetime",
-      });
-    } catch (error) {
-      if (error instanceof QuotaExceededError) {
-        return handleApiError(
-          error,
-          `You have reached your ${limitConfig.interval} limit of ${limitConfig.amount} contacts. Please upgrade to contact more candidates.`,
-          403
-        );
-      }
-      throw error;
-    }
+    const quotaPeriod = limitConfig.interval === "month" ? "monthly" : "lifetime";
+    let quotaReserved = false;
 
     // Get resume to find owner
     const resumeRef = collectionRef(COLLECTIONS.RESUMES).doc(String(resumeId));
@@ -91,7 +84,7 @@ export async function POST(request: NextRequest) {
     // Check if request already exists
     const existingQuery = await collectionRef(COLLECTIONS.RECRUITER_REQUESTS)
       .where("resumeId", "==", String(resumeId))
-      .where("fromRecruiterId", "==", recruiterId) // Also check if THIS recruiter already requested
+      .where("fromRecruiter.recruiterId", "==", recruiterId)
       .where("status", "==", "pending")
       .limit(1)
       .get();
@@ -104,27 +97,69 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create new access request
-    const newRequestRef = collectionRef(COLLECTIONS.RECRUITER_REQUESTS).doc();
-    await newRequestRef.set({
-      resumeId: String(resumeId),
-      userId,
-      fromRecruiterId: recruiterId,
-      resumeTitle: title,
-      userEmail: userData?.email,
-      requestedFields,
-      status: "pending",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
-
-    // Increment request count in user document
     try {
-      await userRef.update({
-        requestCount: increment(1),
+      await consumeQuota({
+        subjectId: recruiterId!,
+        scope: "recruiter_contact",
+        limit: limitConfig.amount,
+        period: quotaPeriod,
       });
-    } catch (err) {
-      logger.warn({ err: err }, "Could not update request count:");
+      quotaReserved = true;
+    } catch (error) {
+      if (error instanceof QuotaExceededError) {
+        return handleApiError(
+          error,
+          `You have reached your ${limitConfig.interval} limit of ${limitConfig.amount} contacts. Please upgrade to contact more candidates.`,
+          403
+        );
+      }
+      throw error;
+    }
+
+    const newRequestRef = collectionRef(COLLECTIONS.RECRUITER_REQUESTS).doc();
+    try {
+      // Create new access request (Normalized Schema)
+      await newRequestRef.set({
+        resumeId: String(resumeId),
+        toUserId: userId, // Normalized field name
+        fromRecruiter: {
+          recruiterId,
+          name: recruiterProfile.displayName || "Recruiter",
+          email: recruiterProfile.email,
+          companyName: recruiterProfile.companyName || "",
+        },
+        resumeTitle: title,
+        userEmail: userData?.email, // Candidate email (masked or real depending on admin)
+        requestedFields,
+        status: "pending",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+
+      // Increment request count in user document
+      try {
+        await userRef.update({
+          requestCount: increment(1),
+        });
+      } catch (err) {
+        logger.warn({ err: err }, "Could not update request count:");
+      }
+    } catch (writeError) {
+      if (quotaReserved) {
+        try {
+          await refundQuota({
+            subjectId: recruiterId!,
+            scope: "recruiter_contact",
+            period: quotaPeriod,
+          });
+        } catch (refundError) {
+          logger.error(
+            { err: refundError, recruiterId, resumeId },
+            "Failed to refund recruiter contact quota after write failure"
+          );
+        }
+      }
+      throw writeError;
     }
 
     return NextResponse.json({

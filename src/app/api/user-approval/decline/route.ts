@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     // Parse token to extract requestId
     const parsed = parseApprovalToken(token);
     if (!parsed || parsed.action !== "decline") {
-      logger.warn({ token }, "Invalid token format or wrong action");
+      logger.warn("Invalid token format or wrong action");
       return new NextResponse(
         `<!DOCTYPE html>
         <html>

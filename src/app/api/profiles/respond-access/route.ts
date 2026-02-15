@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     if (action === "approve" && grantDuration) {
       try {
         const normalized = normalizeDuration(grantDuration, timezone || "UTC");
-        grantDurationDays = Math.ceil(normalized.durationMs / (24 * 60 * 60 * 1000));
+        grantDurationDays = normalized.durationMs / (24 * 60 * 60 * 1000);
       } catch (e) {
         return handleApiError(e, "Invalid duration", 400);
       }

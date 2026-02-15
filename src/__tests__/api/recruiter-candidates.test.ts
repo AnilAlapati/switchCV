@@ -68,7 +68,7 @@ describe("Recruiter Candidates API", () => {
         update: jest.fn().mockResolvedValue({}),
         get: jest.fn().mockResolvedValue({
           exists: true,
-          data: () => ({ id: mockCandidateId, name: "John Doe" }),
+          data: () => ({ id: mockCandidateId, name: "John Doe", createdBy: mockUserId }),
         }),
         collection: jest.fn().mockReturnThis(),
         count: jest.fn().mockReturnThis(),
@@ -148,7 +148,7 @@ describe("Recruiter Candidates API", () => {
           doc: jest.fn().mockReturnThis(),
           get: jest.fn().mockResolvedValue({
             exists: true,
-            data: () => ({ id: mockCandidateId }),
+            data: () => ({ id: mockCandidateId, createdBy: mockUserId }),
           }),
           set: jest.fn().mockResolvedValue({}),
           update: jest.fn().mockResolvedValue({}),
@@ -212,7 +212,7 @@ describe("Recruiter Candidates API", () => {
 
   describe("GET /api/recruiter/candidates", () => {
     it("should fetch a single candidate with notes", async () => {
-      const mockCandidateData = { name: "John Doe" };
+      const mockCandidateData = { name: "John Doe", createdBy: mockUserId };
       const mockNoteData = {
         content: "Note 1",
         createdAt: { toDate: () => new Date() },
@@ -277,6 +277,7 @@ describe("Recruiter Candidates API", () => {
           };
         }
         return {
+          where: jest.fn().mockReturnThis(),
           orderBy: jest.fn().mockReturnThis(),
           limit: jest.fn().mockReturnThis(),
           get: jest.fn().mockResolvedValue({

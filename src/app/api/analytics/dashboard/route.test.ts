@@ -41,6 +41,8 @@ jest.mock("@/lib/logger", () => ({
 jest.mock("@/lib/dal", () => ({
   COLLECTIONS: {
     USERS: "users",
+    RESUMES: "resumes",
+    RESUME_PROFILES: "resumeProfiles",
   },
   collectionRef: jest.fn(),
 }));
@@ -57,6 +59,41 @@ const mockCollectionObj = {
 const mockDocObj = {
   get: mockGet,
 };
+
+function setRoleAndOwner(
+  role: string | undefined,
+  ownerId: string,
+  options?: { resumeExists?: boolean; legacyOwnerId?: string }
+) {
+  const resumeExists = options?.resumeExists ?? true;
+  mockGet.mockReset();
+  mockGet.mockResolvedValueOnce({
+    exists: true,
+    data: () => ({ role }),
+  });
+  if (resumeExists) {
+    mockGet.mockResolvedValueOnce({
+      exists: true,
+      data: () => ({ userId: ownerId }),
+    });
+    return;
+  }
+  mockGet.mockResolvedValueOnce({
+    exists: false,
+    data: () => undefined,
+  });
+  if (options?.legacyOwnerId) {
+    mockGet.mockResolvedValueOnce({
+      exists: true,
+      data: () => ({ userId: options.legacyOwnerId }),
+    });
+  } else {
+    mockGet.mockResolvedValueOnce({
+      exists: false,
+      data: () => undefined,
+    });
+  }
+}
 
 // ---------------------------------------------------------------------
 // Tests
@@ -78,6 +115,7 @@ describe("Analytics Dashboard API", () => {
     // Default: Firestore returns empty/generic data (overridden in specific tests)
     mockCollectionRef.mockReturnValue(mockCollectionObj);
     mockDoc.mockReturnValue(mockDocObj);
+    setRoleAndOwner("jobseeker", "user-123");
   });
 
   describe("POST /api/analytics/dashboard", () => {
@@ -86,6 +124,7 @@ describe("Analytics Dashboard API", () => {
       (getDashboardAnalytics as jest.Mock).mockResolvedValue({
         summary: { totalViews: 10 },
       });
+      setRoleAndOwner("jobseeker", "user-123");
 
       const req = new NextRequest("http://localhost/api/analytics/dashboard", {
         method: "POST",
@@ -130,17 +169,13 @@ describe("Analytics Dashboard API", () => {
         body: JSON.stringify({ resumeId: "resume-xyz", userId: "user-456" }),
       });
 
-      // Mock user role lookup -> Not admin
-      mockGet.mockResolvedValue({
-        data: () => ({ role: "seeker" }),
-      });
+      setRoleAndOwner("seeker", "user-456");
 
       const res = await POST(req);
       // const data = await res.json();
 
       expect(res.status).toBe(403);
       expect(mockCollectionRef).toHaveBeenCalledWith("users");
-      expect(mockDoc).toHaveBeenCalledWith("user-123"); // Checks requester's role
     });
 
     it("should allow admin to access another user's data", async () => {
@@ -150,9 +185,7 @@ describe("Analytics Dashboard API", () => {
       });
 
       // Mock user role lookup -> Admin
-      mockGet.mockResolvedValue({
-        data: () => ({ role: "admin" }),
-      });
+      setRoleAndOwner("admin", "user-456");
 
       (getDashboardAnalytics as jest.Mock).mockResolvedValue({
         summary: { totalViews: 999 },
@@ -182,6 +215,7 @@ describe("Analytics Dashboard API", () => {
 
     it("should return 500 if service throws", async () => {
       (getDashboardAnalytics as jest.Mock).mockRejectedValue(new Error("Service Bomb"));
+      setRoleAndOwner("jobseeker", "user-123");
 
       const req = new NextRequest("http://localhost/api/analytics/dashboard", {
         method: "POST",
@@ -205,6 +239,7 @@ describe("Analytics Dashboard API", () => {
           lastUpdatedAt: "2023-01-01",
         },
       });
+      setRoleAndOwner("jobseeker", "user-123");
 
       const req = new NextRequest(
         "http://localhost/api/analytics/dashboard?resumeId=resume-abc&userId=user-123"
@@ -229,6 +264,7 @@ describe("Analytics Dashboard API", () => {
           lastUpdatedAt: null,
         },
       });
+      setRoleAndOwner("jobseeker", "user-123");
 
       const req = new NextRequest(
         "http://localhost/api/analytics/dashboard?resumeId=resume-abc&userId=user-123"
@@ -259,11 +295,7 @@ describe("Analytics Dashboard API", () => {
         "http://localhost/api/analytics/dashboard?resumeId=resume-xyz&userId=user-456"
       );
 
-      // Auth user is user-123 (default). Target is user-456.
-      // Mock role -> seeker
-      mockGet.mockResolvedValue({
-        data: () => ({ role: "seeker" }),
-      });
+      setRoleAndOwner("seeker", "user-456");
 
       const res = await GET(req);
       expect(res.status).toBe(403);
@@ -274,10 +306,7 @@ describe("Analytics Dashboard API", () => {
         "http://localhost/api/analytics/dashboard?resumeId=resume-xyz&userId=user-456"
       );
 
-      // Mock role -> admin
-      mockGet.mockResolvedValue({
-        data: () => ({ role: "admin" }),
-      });
+      setRoleAndOwner("admin", "user-456");
       (getAnalytics as jest.Mock).mockResolvedValue({ analytics: {} });
 
       const res = await GET(req);
@@ -286,6 +315,7 @@ describe("Analytics Dashboard API", () => {
 
     it("should return 500 on service error", async () => {
       (getAnalytics as jest.Mock).mockRejectedValue(new Error("DB Error"));
+      setRoleAndOwner("jobseeker", "user-123");
       const req = new NextRequest(
         "http://localhost/api/analytics/dashboard?resumeId=resume-abc&userId=user-123"
       );

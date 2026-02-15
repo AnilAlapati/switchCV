@@ -62,6 +62,18 @@ export async function verifyRecruiterRole(userId: string): Promise<boolean> {
 }
 
 /**
+ * Get the owner (recruiterId) of a pipeline without loading candidates.
+ * Used for efficient ownership checks.
+ */
+export async function getPipelineOwner(pipelineId: string): Promise<string | null> {
+    const doc = await collectionRef(COLLECTIONS.RECRUITER_PIPELINES)
+        .doc(pipelineId)
+        .get();
+    if (!doc.exists) return null;
+    return doc.data()?.recruiterId || null;
+}
+
+/**
  * Get pipeline from Firestore
  */
 export async function getPipeline(

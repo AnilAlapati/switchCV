@@ -41,7 +41,7 @@
     "health-check": "bash scripts/check-repo-health.sh",
     "release": "node scripts/increment-version.js",
     "backup:local": "bash scripts/backup-env-safe.sh",
-    "test:security": "jest tests/security --testPathPattern=backup",
+    "test:security": "jest --watchman=false --config jest.security.config.cjs",
     "deploy": "bash scripts/deploy.sh sync",
     "deploy:dev": "bash scripts/deploy.sh dev",
     "deploy:prod": "bash scripts/deploy.sh prod",

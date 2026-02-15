@@ -10,6 +10,7 @@ import {
   GetRecruiterContactRequestsQuerySchema,
   RequestRecruiterContactSchema,
 } from "@/lib/schemas/api";
+import { getUserRole } from "@/lib/services/userService";
 
 const FREE_RECRUITER_REQUEST_LIMIT = Number(
   process.env.RECRUITER_FREE_REQUEST_LIMIT ||
@@ -51,6 +52,12 @@ export async function POST(request: NextRequest) {
     const { userId: authUserId, error: authError } =
       await getAuthenticatedUserId(request);
     if (authError) return authError;
+
+    // Security: Only allow recruiter or admin roles
+    const userRole = await getUserRole(authUserId!);
+    if (userRole !== "recruiter" && userRole !== "admin") {
+      return handleApiError(null, "Forbidden: Recruiter role required", 403);
+    }
 
     const parseResult = RequestRecruiterContactSchema.safeParse(
       await request.json()
@@ -109,10 +116,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify resume exists
-    const resumeDoc = await collectionRef(COLLECTIONS.RESUME_PROFILES)
+    // Verify resume exists (canonical collection first, then legacy fallback)
+    let resumeDoc = await collectionRef(COLLECTIONS.RESUMES)
       .doc(String(payload.resumeId))
       .get();
+
+    if (!resumeDoc.exists) {
+      resumeDoc = await collectionRef(COLLECTIONS.RESUME_PROFILES)
+        .doc(String(payload.resumeId))
+        .get();
+    }
 
     if (!resumeDoc.exists) {
       return handleApiError(
@@ -166,6 +179,23 @@ export async function POST(request: NextRequest) {
     const subscriptionTier =
       (recruiterData?.subscriptionTier as string | undefined) || "basic";
 
+    // SECURITY: Use server-side recruiter identity only (never client payload)
+    const trustedName = String(
+      recruiterData?.displayName || recruiterData?.name || ""
+    ).trim();
+    const trustedEmail = String(recruiterData?.email || "").trim();
+    const trustedCompany = String(
+      recruiterData?.companyName || recruiterData?.company || ""
+    ).trim();
+
+    if (!trustedName || !trustedEmail) {
+      return handleApiError(
+        new Error("Recruiter profile is incomplete"),
+        "Recruiter profile is incomplete. Update your name and email before requesting contact access.",
+        400
+      );
+    }
+
     if (subscriptionTier === "basic") {
       const activeRequestSnapshot = await collectionRef(COLLECTIONS.RECRUITER_REQUESTS)
         .where("fromRecruiter.recruiterId", "==", payload.recruiterId)
@@ -186,9 +216,9 @@ export async function POST(request: NextRequest) {
     const contactRequest: Omit<RecruiterContactRequest, "id"> = {
       fromRecruiter: {
         recruiterId: payload.recruiterId,
-        name: payload.recruiterName,
-        email: payload.recruiterEmail,
-        companyName: payload.companyName,
+        name: trustedName,
+        email: trustedEmail,
+        companyName: trustedCompany,
       },
       toUserId: payload.userId,
       resumeId: String(payload.resumeId),
@@ -211,7 +241,7 @@ export async function POST(request: NextRequest) {
     });
 
     logger.info(
-      `📨 Contact request created: ${requestRef.id} from ${payload.recruiterEmail} to ${payload.userId}`
+      `📨 Contact request created: ${requestRef.id} from ${trustedEmail} to ${payload.userId}`
     );
 
     // Create admin notification for review
@@ -219,9 +249,9 @@ export async function POST(request: NextRequest) {
     const adminNotification = {
       type: "recruiter_request_pending",
       recruiterId: payload.recruiterId,
-      recruiterName: payload.recruiterName,
-      recruiterEmail: payload.recruiterEmail,
-      companyName: payload.companyName,
+      recruiterName: trustedName,
+      recruiterEmail: trustedEmail,
+      companyName: trustedCompany,
       candidateId: payload.userId,
       requestId: requestRef.id,
       requestedFields: payload.requestedFields,

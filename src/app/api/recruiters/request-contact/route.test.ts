@@ -69,6 +69,11 @@ jest.mock("@/lib/logger", () => ({
   },
 }));
 
+// Mock getUserRole to return 'recruiter' by default
+jest.mock("@/lib/services/userService", () => ({
+  getUserRole: jest.fn().mockResolvedValue("recruiter"),
+}));
+
 describe("POST /api/recruiters/request-contact", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -171,8 +176,10 @@ describe("POST /api/recruiters/request-contact", () => {
   });
 
   it("should return 404 when resume does not exist", async () => {
-    // Mock resume not found
+    // Mock resume not found (both canonical and legacy lookups)
     mockGet.mockResolvedValueOnce({
+      exists: false,
+    }).mockResolvedValueOnce({
       exists: false,
     });
 
@@ -282,7 +289,12 @@ describe("POST /api/recruiters/request-contact", () => {
       // Mock recruiter profile exists with premium tier
       .mockResolvedValueOnce({
         exists: true,
-        data: () => ({ subscriptionTier: "premium" }),
+        data: () => ({
+          subscriptionTier: "premium",
+          displayName: "John Recruiter",
+          email: "john@company.com",
+          companyName: "Tech Corp",
+        }),
       });
 
     // Mock successful add
@@ -327,7 +339,12 @@ describe("POST /api/recruiters/request-contact", () => {
       // Mock recruiter profile exists with basic tier
       .mockResolvedValueOnce({
         exists: true,
-        data: () => ({ subscriptionTier: "basic" }),
+        data: () => ({
+          subscriptionTier: "basic",
+          displayName: "John Recruiter",
+          email: "john@company.com",
+          companyName: "Tech Corp",
+        }),
       })
       // Mock active requests count (exceeds limit)
       .mockResolvedValueOnce({

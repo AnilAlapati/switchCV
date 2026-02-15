@@ -66,6 +66,7 @@ describe("Recruiter Interviews API", () => {
           data: () => ({
             id: mockInterviewId,
             status: InterviewStatus.SCHEDULED,
+            createdBy: mockUserId,
           }),
         }),
         where: jest.fn().mockReturnThis(),
@@ -201,6 +202,7 @@ describe("Recruiter Interviews API", () => {
         scheduledTime: { toDate: () => new Date() },
         createdAt: { toDate: () => new Date() },
         updatedAt: { toDate: () => new Date() },
+        createdBy: mockUserId,
       };
 
       (adminDb.collection as jest.Mock).mockImplementation((col) => {
@@ -239,6 +241,7 @@ describe("Recruiter Interviews API", () => {
         scheduledTime: { toDate: () => new Date() },
         createdAt: { toDate: () => new Date() },
         updatedAt: { toDate: () => new Date() },
+        createdBy: mockUserId,
       };
 
       (adminDb.collection as jest.Mock).mockImplementation((col) => {

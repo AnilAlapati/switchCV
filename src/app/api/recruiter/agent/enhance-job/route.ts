@@ -8,6 +8,7 @@ import { logger } from "@/lib/logger";
 import { BillingService } from "@/lib/services/billingService";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
 import { AgentEnhanceJobSchema } from "@/lib/schemas/api";
+import { getUserRole } from "@/lib/services/userService";
 
 const ESTIMATED_COST_ENHANCE_JOB = 0.002; // $0.002 per run (Gemini 1.5 Pro)
 const RATE_LIMIT_ENHANCE_JOB = 20; // 20 requests per day (job descriptions are less frequent)
@@ -16,6 +17,12 @@ export async function POST(req: NextRequest) {
   try {
     const { userId, error } = await getAuthenticatedUserId(req);
     if (error) return error;
+
+    // Security: Only allow recruiter or admin roles
+    const userRole = await getUserRole(userId!);
+    if (userRole !== "recruiter" && userRole !== "admin") {
+      return handleApiError(null, "Forbidden: Recruiter role required", 403);
+    }
 
     // 1. Rate Limiting
     const rateLimit = await checkRateLimit(`${userId}:agent:enhance-job`, {

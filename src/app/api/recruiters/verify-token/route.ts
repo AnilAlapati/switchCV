@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { COLLECTIONS, collectionRef, serverTimestamp } from "@/lib/dal";
 import { tokenGenerator, TokenVerificationResult } from "@/lib/tokenGenerator";
 import { SecureAccessToken } from "@/types/profileSearch";
-import { handleApiError } from "@/lib/utils/api-helpers";
+import { handleApiError, getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 import { VerifyRecruiterTokenSchema } from "@/lib/schemas/api";
 
 /**
@@ -17,13 +17,17 @@ import { VerifyRecruiterTokenSchema } from "@/lib/schemas/api";
  * - Expiration date
  */
 export async function GET(request: NextRequest) {
+  // SECURITY: Require authentication to verify tokens
+  const { userId: authUserId, error: authError } = await getAuthenticatedUserId(request);
+  if (authError || !authUserId)
+    return authError || handleApiError(null, "Unauthorized", 401);
+
   try {
     const searchParams = request.nextUrl.searchParams;
     const parseResult = VerifyRecruiterTokenSchema.safeParse({
       token: searchParams.get("token") || undefined,
       tokenId: searchParams.get("tokenId") || undefined,
       recruiterId: searchParams.get("recruiterId") || undefined,
-      ipAddress: searchParams.get("ipAddress") || undefined,
     });
     if (!parseResult.success) {
       return handleApiError(
@@ -32,7 +36,11 @@ export async function GET(request: NextRequest) {
         400
       );
     }
-    const { token, tokenId, recruiterId, ipAddress } = parseResult.data;
+    const { token, tokenId, recruiterId } = parseResult.data;
+
+    // SECURITY: Use trusted server IP, not client-supplied param
+    const forwardedFor = request.headers.get("x-forwarded-for");
+    const realIp = forwardedFor?.split(",")[0]?.trim() || "unknown";
 
     // If token ID provided, get from Firestore
     let tokenData: SecureAccessToken | null = null;
@@ -73,6 +81,42 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const resolvedTokenId = tokenId || verification.payload?.tokenId;
+
+    // For token-only flow, attempt token lookup using payload tokenId
+    if (!tokenData && resolvedTokenId) {
+      const tokenDoc = await collectionRef(COLLECTIONS.ACCESS_TOKENS)
+        .doc(resolvedTokenId)
+        .get();
+      if (tokenDoc.exists) {
+        tokenData = tokenDoc.data() as SecureAccessToken;
+      }
+    }
+
+    if (!token && tokenData) {
+      // tokenId-only flow: allow verification based on stored token record
+      verification = { valid: true };
+    }
+
+    // SECURITY: Verify the authenticated user owns this token
+    const tokenRecruiterId = verification.payload?.recruiterId || tokenData?.recruiterId;
+    if (tokenRecruiterId && authUserId !== tokenRecruiterId) {
+      return handleApiError(
+        new Error("Forbidden: Token does not belong to authenticated user"),
+        "Forbidden: Token does not belong to authenticated user",
+        403
+      );
+    }
+
+    // Optional recruiter check should work for both token and tokenId-only flows
+    if (recruiterId && tokenRecruiterId && recruiterId !== tokenRecruiterId) {
+      return handleApiError(
+        new Error("Token not issued to this recruiter"),
+        "Token not issued to this recruiter",
+        403
+      );
+    }
+
     // Check if token is revoked
     if (tokenData && tokenData.isRevoked) {
       return NextResponse.json({
@@ -84,12 +128,11 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Check IP whitelist if configured
     if (
       tokenData?.ipAddressWhitelist &&
       tokenData.ipAddressWhitelist.length > 0
     ) {
-      if (!ipAddress || !tokenData.ipAddressWhitelist.includes(ipAddress)) {
+      if (realIp === "unknown" || !tokenData.ipAddressWhitelist.includes(realIp)) {
         return handleApiError(
           new Error("IP address not whitelisted for this token"),
           "IP address not whitelisted for this token",
@@ -99,13 +142,18 @@ export async function GET(request: NextRequest) {
     }
 
     // Check expiration
-    if (tokenData && verification.valid) {
+    if (verification.valid) {
+      const payloadExpiresAt = verification.payload?.expiresAt;
       const expiresAtNum =
-        typeof tokenData.expiresAt === "string"
+        tokenData
+          ? typeof tokenData.expiresAt === "string"
           ? new Date(tokenData.expiresAt).getTime() / 1000
           : tokenData.expiresAt instanceof Date
-          ? tokenData.expiresAt.getTime() / 1000
-          : tokenData.expiresAt;
+            ? tokenData.expiresAt.getTime() / 1000
+            : (tokenData.expiresAt as any)?.toDate // Handle Firestore Timestamp
+              ? (tokenData.expiresAt as any).toDate().getTime() / 1000
+              : tokenData.expiresAt
+          : payloadExpiresAt;
 
       if (typeof expiresAtNum !== "number") {
         return NextResponse.json({
@@ -118,15 +166,17 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({
           valid: false,
           expired: true,
-          expiresAt: tokenData.expiresAt,
+          expiresAt:
+            tokenData?.expiresAt ||
+            (payloadExpiresAt ? new Date(payloadExpiresAt * 1000) : undefined),
           message: "Token has expired",
         });
       }
 
       // Track usage
-      if (tokenId) {
+      if (resolvedTokenId && tokenData) {
         await collectionRef(COLLECTIONS.ACCESS_TOKENS)
-          .doc(tokenId)
+          .doc(resolvedTokenId)
           .update({
             usageCount: (tokenData.usageCount || 0) + 1,
             lastUsedAt: serverTimestamp(),
@@ -145,11 +195,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         valid: true,
         verified: true,
-        tokenId: tokenId || payload?.tokenId,
-        recruiterId: recruiterId || payload?.recruiterId,
-        userId: payload?.userId,
-        resumeId: payload?.resumeId,
-        accessFields: payload?.accessFields || tokenData.accessFields,
+        tokenId: resolvedTokenId || payload?.tokenId,
+        recruiterId: recruiterId || payload?.recruiterId || tokenData?.recruiterId,
+        userId: payload?.userId || tokenData?.userId,
+        resumeId: payload?.resumeId || tokenData?.resumeId,
+        accessFields: payload?.accessFields || tokenData?.accessFields || [],
         accessType: tokenData?.accessType || "read-only",
         expiresAt: expiresAtDate,
         issuedAt: issuedAtDate,
@@ -178,6 +228,11 @@ export async function GET(request: NextRequest) {
  * Verify token with body payload (allows for more secure transmission)
  */
 export async function POST(request: NextRequest) {
+  // SECURITY: Require authentication to verify tokens
+  const { userId: authUserId, error: authError } = await getAuthenticatedUserId(request);
+  if (authError || !authUserId)
+    return authError || handleApiError(null, "Unauthorized", 401);
+
   try {
     const parseResult = VerifyRecruiterTokenSchema.safeParse(await request.json());
     if (!parseResult.success) {
@@ -187,21 +242,23 @@ export async function POST(request: NextRequest) {
         400
       );
     }
-    const { token, tokenId, recruiterId, ipAddress } = parseResult.data;
+    const { token, tokenId, recruiterId } = parseResult.data;
 
-    // Reuse GET logic
-    const searchParams = new URLSearchParams();
-    if (token) searchParams.append("token", token);
-    if (tokenId) searchParams.append("tokenId", tokenId);
-    if (recruiterId) searchParams.append("recruiterId", recruiterId);
-    if (ipAddress) searchParams.append("ipAddress", ipAddress);
-
+    // Reuse GET logic via direct call with modified request
     const url = new URL("/api/recruiters/verify-token", request.url);
-    url.search = searchParams.toString();
+    const searchParams = url.searchParams;
+    if (token) searchParams.set("token", token);
+    if (tokenId) searchParams.set("tokenId", tokenId);
+    if (recruiterId) searchParams.set("recruiterId", recruiterId);
 
-    const nextRequest = new NextRequest(url, { method: "GET" });
-    const response = await GET(nextRequest);
-    return response;
+    // Ensure headers (including X-Forwarded-For) are passed through
+    const headers = new Headers(request.headers);
+
+    const nextRequest = new NextRequest(url, {
+      method: "GET",
+      headers,
+    });
+    return await GET(nextRequest);
   } catch (error) {
     logger.error({ err: error }, "❌ Verify token error:");
     return handleApiError(error, "Failed to verify token");

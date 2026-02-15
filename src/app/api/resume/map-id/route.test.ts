@@ -1,6 +1,11 @@
 import { POST } from "./route";
 import { NextRequest } from "next/server";
-import { mapResumeId } from "@/lib/resumeIdMapping";
+import {
+  mapResumeId,
+  getDocumentIdFromResumeId,
+  getResumeIdFromDocumentId,
+} from "@/lib/resumeIdMapping";
+import { collectionRef } from "@/lib/dal";
 import {
   getAuthenticatedUserId,
   handleApiError,
@@ -9,6 +14,23 @@ import {
 // Mock resume ID mapping
 jest.mock("@/lib/resumeIdMapping", () => ({
   mapResumeId: jest.fn(),
+  getDocumentIdFromResumeId: jest.fn(),
+  getResumeIdFromDocumentId: jest.fn(),
+}));
+
+jest.mock("@/lib/dal", () => ({
+  COLLECTIONS: {
+    RESUMES: "resumes",
+    RESUME_PROFILES: "resumeProfiles",
+  },
+  collectionRef: jest.fn(() => ({
+    doc: jest.fn(() => ({
+      get: jest.fn().mockResolvedValue({
+        exists: true,
+        data: () => ({ userId: "test-user-123" }),
+      }),
+    })),
+  })),
 }));
 
 // Mock api-helpers
@@ -28,6 +50,16 @@ jest.mock("@/lib/utils/api-helpers", () => ({
 describe("POST /api/resume/map-id", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (getDocumentIdFromResumeId as jest.Mock).mockResolvedValue(null);
+    (getResumeIdFromDocumentId as jest.Mock).mockResolvedValue(null);
+    (collectionRef as jest.Mock).mockImplementation(() => ({
+      doc: jest.fn(() => ({
+        get: jest.fn().mockResolvedValue({
+          exists: true,
+          data: () => ({ userId: "test-user-123" }),
+        }),
+      })),
+    }));
   });
 
   describe("Authentication", () => {
@@ -202,6 +234,51 @@ describe("POST /api/resume/map-id", () => {
         "doc-456",
         "test-user-123"
       );
+    });
+
+    it("should return 403 when document belongs to another user", async () => {
+      (collectionRef as jest.Mock).mockImplementation(() => ({
+        doc: jest.fn(() => ({
+          get: jest.fn().mockResolvedValue({
+            exists: true,
+            data: () => ({ userId: "different-user" }),
+          }),
+        })),
+      }));
+
+      const request = new NextRequest(
+        "http://localhost:3000/api/resume/map-id",
+        {
+          method: "POST",
+          body: JSON.stringify({ resumeId: 123, documentId: "doc-123" }),
+        }
+      );
+
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(403);
+      expect(data.error).toContain("Forbidden");
+      expect(mapResumeId).not.toHaveBeenCalled();
+    });
+
+    it("should return 409 when numeric resumeId is already mapped to another document", async () => {
+      (getDocumentIdFromResumeId as jest.Mock).mockResolvedValue({
+        documentId: "other-doc",
+        userId: "test-user-123",
+      });
+
+      const request = new NextRequest(
+        "http://localhost:3000/api/resume/map-id",
+        {
+          method: "POST",
+          body: JSON.stringify({ resumeId: 123, documentId: "doc-123" }),
+        }
+      );
+
+      const response = await POST(request);
+      expect(response.status).toBe(409);
+      expect(mapResumeId).not.toHaveBeenCalled();
     });
   });
 

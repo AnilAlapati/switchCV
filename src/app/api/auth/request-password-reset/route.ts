@@ -7,7 +7,7 @@ import {
   timestampFromDate,
 } from "@/lib/dal";
 import { handleApiError } from "@/lib/utils/api-helpers";
-import { randomBytes } from "crypto";
+import { randomBytes, createHash } from "crypto";
 import { RequestPasswordResetSchema } from "@/lib/schemas/api";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
 
@@ -57,12 +57,13 @@ export async function POST(request: NextRequest) {
 
     // Generate secure reset token
     const resetToken = randomBytes(32).toString("hex");
+    const tokenHash = createHash("sha256").update(resetToken).digest("hex");
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 1); // 1 hour expiration
 
-    // Store reset token in Firestore
+    // Store only the hash — never persist the raw token
     await collectionRef(COLLECTIONS.PASSWORD_RESET_TOKENS).add({
-      token: resetToken,
+      tokenHash,
       userId: user.uid,
       email: email,
       used: false,

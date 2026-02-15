@@ -157,6 +157,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           return handleApiError(null, "Candidate not found", 404);
         }
 
+        // SECURITY: Verify ownership — recruiters can only update their own candidates
+        if (candidateDoc.data()?.createdBy !== authUserId) {
+          return handleApiError(null, "Forbidden: Not your candidate", 403);
+        }
+
         const candidateData = candidateDoc.data() as Candidate;
         const updated = updateCandidatePriority(candidateData, priority);
 
@@ -189,6 +194,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         if (!candidateDoc.exists) {
           return handleApiError(null, "Candidate not found", 404);
+        }
+
+        // SECURITY: Verify ownership — recruiters can only add notes to their own candidates
+        if (candidateDoc.data()?.createdBy !== authUserId) {
+          return handleApiError(null, "Forbidden: Not your candidate", 403);
         }
 
         const note = addCandidateNote(
@@ -268,6 +278,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
       const candidateData = candidateDoc.data();
 
+      // SECURITY: Verify ownership — recruiters can only view their own candidates
+      if (candidateData?.createdBy !== authUserId) {
+        return handleApiError(null, "Forbidden: Not your candidate", 403);
+      }
+
       // Fetch notes from subcollection
       const notesSnap = await collectionRef(COLLECTIONS.RECRUITER_CANDIDATES)
         .doc(candidateId)
@@ -294,8 +309,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Return all candidates
+    // Return all candidates — SECURITY: Filter by ownership
     const candidatesSnap = await collectionRef(COLLECTIONS.RECRUITER_CANDIDATES)
+      .where("createdBy", "==", authUserId)
       .orderBy("createdAt", "desc")
       .limit(100)
       .get();

@@ -163,4 +163,33 @@ describe("POST /api/profiles/respond-access", () => {
       10
     );
   });
+
+  it("should preserve 1-hour grant duration without rounding to full day", async () => {
+    mockGetAuthenticatedUserId.mockResolvedValue({ userId: "user123" });
+    mockRespondToRequest.mockResolvedValue({ status: "approved" });
+
+    const request = new NextRequest(
+      "http://localhost:3000/api/profiles/respond-access",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          requestId: "req1",
+          resumeId: "resume1",
+          action: "approve",
+          grantDuration: { preset: "1_hour" },
+        }),
+      }
+    );
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(200);
+    expect(mockRespondToRequest).toHaveBeenCalledWith(
+      "user123",
+      "resume1",
+      "req1",
+      "approve",
+      1 / 24
+    );
+  });
 });

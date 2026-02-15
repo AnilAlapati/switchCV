@@ -8,6 +8,7 @@ import {
 import { handleApiError } from "@/lib/utils/api-helpers";
 import { ResetPasswordSchema } from "@/lib/schemas/api";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
+import { createHash } from "crypto";
 
 /**
  * Reset password using token
@@ -64,9 +65,10 @@ export async function POST(request: NextRequest) {
     }
     const { token, newPassword } = parseResult.data;
 
-    // Lookup token
+    // Hash the incoming token and look up by hash
+    const tokenHash = createHash("sha256").update(token).digest("hex");
     const snapshot = await collectionRef(COLLECTIONS.PASSWORD_RESET_TOKENS)
-      .where("token", "==", token)
+      .where("tokenHash", "==", tokenHash)
       .where("used", "==", false)
       .limit(1)
       .get();

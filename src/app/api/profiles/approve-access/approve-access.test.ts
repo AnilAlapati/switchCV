@@ -186,6 +186,20 @@ describe("POST /api/profiles/approve-access", () => {
     );
   });
 
+  it("preserves 1-hour duration without truncation", async () => {
+    (AccessService.respondToRequest as jest.Mock).mockResolvedValue(undefined);
+
+    await POST(buildRequest({ ...basePayload, duration: "1hour" }));
+
+    expect(AccessService.respondToRequest).toHaveBeenCalledWith(
+      "owner-123",
+      "resume-123",
+      "request-123",
+      "approve",
+      1 / 24
+    );
+  });
+
   it("handles errors gracefully", async () => {
     (AccessService.respondToRequest as jest.Mock).mockRejectedValue(
       new Error("Unexpected error")

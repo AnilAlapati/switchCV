@@ -1,6 +1,7 @@
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import { logger } from "@/lib/logger";
 import { FieldValue } from "firebase-admin/firestore";
+import { createHash } from "crypto";
 
 /**
  * Retrieves user details from Firebase Auth.
@@ -24,10 +25,11 @@ export async function getAuthUser(userId: string) {
  */
 export async function verifyEmailToken(token: string): Promise<{ success: boolean; error?: string }> {
     try {
-        // 1. Lookup token
+        // 1. Hash incoming token and lookup by hash
+        const tokenHash = createHash("sha256").update(token).digest("hex");
         const snapshot = await adminDb
             .collection("verificationTokens")
-            .where("token", "==", token)
+            .where("tokenHash", "==", tokenHash)
             .where("used", "==", false)
             .limit(1)
             .get();
@@ -62,7 +64,7 @@ export async function verifyEmailToken(token: string): Promise<{ success: boolea
 
         return { success: true };
     } catch (error) {
-        logger.error({ err: error, token }, "Error detecting verification token");
+        logger.error({ err: error }, "Error detecting verification token");
         return { success: false, error: "verification-failed" };
     }
 }
