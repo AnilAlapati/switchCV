@@ -12,8 +12,11 @@ describe("Firebase Admin Initialization", () => {
 
   beforeEach(() => {
     jest.resetModules(); // CRITICAL: Clears the cache so the module re-runs
+    jest.dontMock("node:fs");
     process.env = { ...originalEnv };
     process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = "valid-project-id";
+    delete process.env.FIREBASE_SERVICE_ACCOUNT;
+    delete process.env.FIREBASE_SERVICE_ACCOUNT_FILE;
 
     // Default mock for logger
     jest.doMock("@/lib/logger", () => ({
@@ -79,6 +82,51 @@ describe("Firebase Admin Initialization", () => {
     });
   });
 
+  it("should initialize with service account from file when env JSON is missing", () => {
+    delete process.env.FIREBASE_SERVICE_ACCOUNT;
+    process.env.FIREBASE_SERVICE_ACCOUNT_FILE = "/secrets/service-account.json";
+
+    const serviceAccount = {
+      private_key: "file-key",
+      project_id: "valid-project-id",
+      client_email: "file@test.com",
+    };
+
+    const mockInitializeApp = jest.fn();
+    const mockCert = jest.fn(() => "mock-cert-credential");
+    const mockExistsSync = jest.fn((path: string) => path === "/secrets/service-account.json");
+    const mockReadFileSync = jest.fn(() => JSON.stringify(serviceAccount));
+
+    jest.doMock("node:fs", () => ({
+      existsSync: mockExistsSync,
+      readFileSync: mockReadFileSync,
+    }));
+
+    jest.doMock("firebase-admin", () => ({
+      apps: [],
+      credential: {
+        cert: mockCert,
+      },
+      initializeApp: mockInitializeApp,
+      firestore: jest.fn(),
+      auth: jest.fn(),
+    }));
+
+    const { initializeFirebaseAdmin } = require("../../lib/firebase-admin");
+    initializeFirebaseAdmin();
+
+    expect(mockExistsSync).toHaveBeenCalledWith("/secrets/service-account.json");
+    expect(mockReadFileSync).toHaveBeenCalledWith(
+      "/secrets/service-account.json",
+      "utf8",
+    );
+    expect(mockCert).toHaveBeenCalledWith(serviceAccount);
+    expect(mockInitializeApp).toHaveBeenCalledWith({
+      credential: "mock-cert-credential",
+      projectId: "valid-project-id",
+    });
+  });
+
   it("should initialize with ADC if service account is missing", () => {
     delete process.env.FIREBASE_SERVICE_ACCOUNT;
 
@@ -126,6 +174,9 @@ describe("Firebase Admin Initialization", () => {
 
     jest.doMock("firebase-admin", () => ({
       apps: ["existing-app"],
+      credential: {
+        cert: jest.fn(),
+      },
       initializeApp: jest.fn(),
       firestore: mockFirestore,
       auth: mockAuth,

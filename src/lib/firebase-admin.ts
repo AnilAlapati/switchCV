@@ -1,4 +1,5 @@
 import * as admin from "firebase-admin";
+import { existsSync, readFileSync } from "node:fs";
 import { logger } from "@/lib/logger";
 
 /**
@@ -9,6 +10,78 @@ export class FirebaseAdminConfigError extends Error {
     super(message);
     this.name = "FirebaseAdminConfigError";
   }
+}
+
+type ServiceAccount = admin.ServiceAccount & Record<string, unknown>;
+
+function parseServiceAccount(raw: string): ServiceAccount | null {
+  try {
+    return JSON.parse(raw) as ServiceAccount;
+  } catch {
+    // Support base64-encoded JSON payloads from some secret managers.
+    try {
+      return JSON.parse(Buffer.from(raw, "base64").toString("utf8")) as ServiceAccount;
+    } catch {
+      return null;
+    }
+  }
+}
+
+function loadServiceAccountFromFile(): ServiceAccount | null {
+  const candidatePaths = [
+    process.env.FIREBASE_SERVICE_ACCOUNT_FILE,
+    "/secrets/service-account.json",
+    "/workspace/secrets/service-account.json",
+  ].filter((p): p is string => Boolean(p));
+
+  for (const filePath of candidatePaths) {
+    try {
+      if (!existsSync(filePath)) {
+        continue;
+      }
+
+      const raw = readFileSync(filePath, "utf8").trim();
+      if (!raw) {
+        continue;
+      }
+
+      const parsed = parseServiceAccount(raw);
+      if (parsed) {
+        logger.info(
+          { filePath },
+          "Using Firebase Admin service account from file",
+        );
+        return parsed;
+      }
+
+      logger.warn(
+        { filePath },
+        "Service account file exists but could not be parsed as JSON",
+      );
+    } catch (error) {
+      logger.warn(
+        { err: error, filePath },
+        "Failed reading Firebase service account file",
+      );
+    }
+  }
+
+  return null;
+}
+
+function resolveServiceAccount(): ServiceAccount | null {
+  const fromEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (fromEnv) {
+    const parsed = parseServiceAccount(fromEnv);
+    if (parsed) {
+      return parsed;
+    }
+    logger.warn(
+      "FIREBASE_SERVICE_ACCOUNT is set but not valid JSON; falling back to file/ADC",
+    );
+  }
+
+  return loadServiceAccountFromFile();
 }
 
 /**
@@ -79,9 +152,10 @@ export function initializeFirebaseAdmin(): void {
       process.env.GOOGLE_CLOUD_PROJECT = projectId;
     }
 
-    // Try to get service account from environment variable first
-    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    // Prefer explicit service account credentials (env JSON or mounted file),
+    // then fall back to Application Default Credentials.
+    const serviceAccount = resolveServiceAccount();
+    if (serviceAccount) {
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
         projectId,

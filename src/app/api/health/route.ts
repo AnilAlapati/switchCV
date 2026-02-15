@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { COLLECTIONS, collectionRef } from "@/lib/dal";
-import nodemailer from "nodemailer";
 import { AI_ENDPOINTS } from "@/config/aiEndpoints";
 import { logger } from "@/lib/logger";
 
@@ -13,6 +12,26 @@ type ServiceStatus = {
 const shouldBypassChecks = () =>
   process.env.NODE_ENV === "test" &&
   process.env.HEALTHCHECK_RUN_FULL !== "true";
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  label: string,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out`)), timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
+}
 
 async function checkFirestore(): Promise<ServiceStatus> {
   if (shouldBypassChecks()) {
@@ -43,10 +62,14 @@ async function checkGemini(): Promise<ServiceStatus> {
 
   const start = Date.now();
   try {
-    const response = await fetch(AI_ENDPOINTS.GEMINI.MODELS(apiKey), {
-      method: "GET",
-      next: { revalidate: 0 },
-    });
+    const response = await withTimeout(
+      fetch(AI_ENDPOINTS.GEMINI.MODELS(apiKey), {
+        method: "GET",
+        next: { revalidate: 0 },
+      }),
+      5000,
+      "Gemini health check",
+    );
 
     if (!response.ok) {
       logger.warn(
@@ -83,19 +106,20 @@ async function checkEmail(): Promise<ServiceStatus> {
     };
   }
 
-  const transporter = nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    auth: {
-      user,
-      pass,
-    },
-  });
-
   const start = Date.now();
   try {
-    await transporter.verify();
+    const { default: nodemailer } = await import("nodemailer");
+    const transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure: port === 465,
+      auth: {
+        user,
+        pass,
+      },
+    });
+
+    await withTimeout(transporter.verify(), 5000, "SMTP health check");
     return { status: "ok", latencyMs: Date.now() - start };
   } catch (error) {
     logger.error({ err: error }, "Email health check failed");
@@ -106,16 +130,16 @@ async function checkEmail(): Promise<ServiceStatus> {
 }
 
 export async function GET() {
-  const [firestore, ai, email] = await Promise.all([
-    checkFirestore(),
-    checkGemini(),
-    checkEmail(),
-  ]);
+  // Run checks sequentially to reduce peak memory pressure in SSR containers.
+  const firestore = await checkFirestore();
+  const ai = await checkGemini();
+  const email = await checkEmail();
 
   const services = { firestore, ai, email };
   const allHealthy = Object.values(services).every(
     (service) => service.status === "ok",
   );
+  const criticalHealthy = firestore.status === "ok";
 
   // Only return status per service — no error details, no uptime, no infra info
   const sanitizedServices = Object.fromEntries(
@@ -131,6 +155,6 @@ export async function GET() {
       timestamp: new Date().toISOString(),
       services: sanitizedServices,
     },
-    { status: allHealthy ? 200 : 503 },
+    { status: criticalHealthy ? 200 : 503 },
   );
 }
