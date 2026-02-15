@@ -348,9 +348,7 @@ describe("ResumeCreationFlow", () => {
 
     // Unmount before async operation completes
     unmount();
-
-    // Should not crash
-    expect(true).toBe(true);
+    expect(mockGenerateResumeContent).toHaveBeenCalled();
   });
 
   it("handles rewrite with different tone preferences", async () => {
@@ -522,9 +520,4 @@ describe("ResumeCreationFlow", () => {
     jest.useRealTimers();
   });
 
-  it("handles retry count reset on new generation", async () => {
-    // This test would require component changes to support starting over
-    // For now, we'll skip testing this functionality as it's not implemented
-    expect(true).toBe(true);
-  });
 });

@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     if (invalidFields.length > 0) {
       return handleApiError(
         new Error(`Invalid fields requested: ${invalidFields.join(", ")}`),
-        `Invalid fields requested: ${invalidFields.join(", ")}`,
+        "Invalid fields requested in payload",
         400
       );
     }
@@ -206,7 +206,7 @@ export async function POST(request: NextRequest) {
       if (activeRequestSnapshot.size >= FREE_RECRUITER_REQUEST_LIMIT) {
         return handleApiError(
           new Error("Free recruiter limit reached"),
-          `Free recruiters can request up to ${FREE_RECRUITER_REQUEST_LIMIT} resumes. Upgrade your plan to request more access.`,
+          "Free recruiter request limit reached. Upgrade for more.",
           403
         );
       }

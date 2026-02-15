@@ -141,11 +141,11 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const body = await request.json();
-    const { isPublic } = body;
-
     const { userId, error } = await getAuthenticatedUserId(request);
     if (error || !userId) return error;
+
+    const body = await request.json();
+    const { isPublic } = body;
 
     if (typeof isPublic !== "boolean") {
       return handleApiError(

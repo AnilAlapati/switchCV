@@ -32,7 +32,7 @@ export function ResumeScoreCard({ analytics }: ResumeScoreCardProps) {
 
             <div className="text-center py-6">
                 <div className="relative inline-flex items-center justify-center">
-                    <svg className="h-32 w-32 transform -rotate-90">
+                    <svg className="h-32 w-32 transform -rotate-90" aria-hidden="true">
                         <circle
                             className="text-slate-100"
                             strokeWidth="8"

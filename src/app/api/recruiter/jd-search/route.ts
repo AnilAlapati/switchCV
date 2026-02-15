@@ -64,10 +64,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         const parseResult = JDSearchRequestSchema.safeParse(body);
         if (!parseResult.success) {
-            const errorMessage = parseResult.error.issues
-                .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
-                .join(", ");
-            return handleApiError(null, `Validation error: ${errorMessage}`, 400);
+            return handleApiError(parseResult.error, "Invalid input", 400);
         }
 
         const { jdText, limit, useAI } = parseResult.data;

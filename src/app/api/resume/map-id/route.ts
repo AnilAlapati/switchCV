@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
     ) {
       return handleApiError(
         null,
-        `Document is already mapped to resumeId ${existingResumeId}`,
+        "Document is already mapped to another resumeId",
         409
       );
     }

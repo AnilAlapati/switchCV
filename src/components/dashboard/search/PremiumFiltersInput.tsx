@@ -87,6 +87,7 @@ export function PremiumFiltersInput({
                     <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-slate-400">
                         <svg
                             className="h-4 w-4"
+                            aria-hidden="true"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -117,6 +118,7 @@ export function PremiumFiltersInput({
                 <p className="mt-2 flex items-start gap-2 text-xs leading-relaxed text-[black]/60">
                     <svg
                         className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-slate-400"
+                        aria-hidden="true"
                         fill="currentColor"
                         viewBox="0 0 20 20"
                     >
@@ -139,6 +141,8 @@ export function PremiumFiltersInput({
                         <>
                             <svg
                                 className="h-4 w-4 animate-spin"
+                                aria-hidden="true"
+                                role="status"
                                 fill="none"
                                 viewBox="0 0 24 24"
                             >
@@ -162,6 +166,7 @@ export function PremiumFiltersInput({
                         <>
                             <svg
                                 className="h-4 w-4"
+                                aria-hidden="true"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"

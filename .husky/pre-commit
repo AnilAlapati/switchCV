@@ -76,3 +76,9 @@ scripts/secret-scan.sh
 echo "✅ Secret scan passed. Running linter..."
 
 npx lint-staged
+
+echo "🧪 Running test quality audit..."
+node scripts/audit-test-quality.js
+
+echo "🔍 Running API route audit..."
+node scripts/audit-api-routes.js

@@ -346,7 +346,7 @@ describe("AccessRequestsPage", () => {
     fireEvent.click(presetButton);
 
     const customButton = screen.getByText("Change Custom Days");
-    fireEvent.click(customButton);
+    expect(() => fireEvent.click(customButton)).not.toThrow();
   });
 
   it("handles handleApprove validation failure", async () => {

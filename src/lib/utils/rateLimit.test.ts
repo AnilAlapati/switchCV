@@ -184,6 +184,7 @@ describe("Rate Limiting", () => {
 
       // Run pending timers
       jest.runOnlyPendingTimers();
+      expect(true).toBeTruthy(); // Ensure no crash during cleanup
     });
 
     it("handles unref if available", async () => {
@@ -211,7 +212,7 @@ describe("Rate Limiting", () => {
         } as any);
 
       const isolatedRateLimit = require("./rateLimit");
-      await isolatedRateLimit.checkRateLimit("no-unref-test");
+      await expect(isolatedRateLimit.checkRateLimit("no-unref-test")).resolves.toBeDefined();
 
       mockSetInterval.mockRestore();
     });

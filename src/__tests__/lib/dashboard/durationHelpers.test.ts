@@ -138,7 +138,7 @@ describe("durationHelpers", () => {
         error: null,
       });
 
-      // Behavior depends on maxHours calculation
+      expect(result.valid).toBe(false);
     });
 
     it("should validate valid preset duration", () => {
@@ -166,7 +166,7 @@ describe("durationHelpers", () => {
         error: null,
       });
 
-      // Should reject if preset duration > maxHours
+      expect(result.valid).toBe(false);
     });
 
     it("should handle missing requestedDuration gracefully", () => {

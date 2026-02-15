@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   sendSupportFeedback,
-  SupportFeedbackPayload,
   SupportFeedbackError,
   checkRateLimit,
 } from "@/lib/services/supportFeedbackService";
@@ -13,9 +12,24 @@ import {
 } from "@/lib/utils/api-helpers";
 import { getAuthUser } from "@/lib/services/authService";
 import type { SupportFeedbackMeta } from "@/types/supportFeedback";
+import { z } from "zod";
 
 // Bot protection constants
 const MIN_FORM_TIME_MS = 2000; // Server-side: minimum 2 seconds (slightly lower than client)
+
+/**
+ * Zod schema for feedback payload — runtime validation matching SupportFeedbackPayload type
+ */
+const SupportFeedbackSchema = z.object({
+  name: z.string().max(80).optional(),
+  email: z.string().email().max(255),
+  message: z.string().min(20).max(2000),
+  category: z.enum(["bug", "idea", "data", "billing", "other"]).optional(),
+  urgency: z.enum(["low", "normal", "high"]).optional(),
+  allowContact: z.boolean().optional(),
+  pageContext: z.string().max(120).optional(),
+  _formTime: z.number().optional(),
+});
 
 /**
  * Try to get authenticated user info from request (optional - doesn't fail if not logged in)
@@ -49,9 +63,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await safeParseBody<
-      SupportFeedbackPayload & { _formTime?: number }
-    >(request);
+    const rawBody = await safeParseBody(request);
+    const parseResult = SupportFeedbackSchema.safeParse(rawBody);
+    if (!parseResult.success) {
+      return handleApiError(parseResult.error, "Invalid feedback submission", 400);
+    }
+
+    const body = parseResult.data;
 
     // Bot protection: Check form fill time (server-side validation)
     if (body._formTime !== undefined && body._formTime < MIN_FORM_TIME_MS) {

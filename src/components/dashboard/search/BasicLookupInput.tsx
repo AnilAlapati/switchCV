@@ -21,6 +21,7 @@ export function BasicLookupInput({
                 <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-slate-400 transition-colors group-focus-within:text-[black]">
                     <svg
                         className="h-5 w-5"
+                        aria-hidden="true"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -50,6 +51,8 @@ export function BasicLookupInput({
                         {loading ? (
                             <svg
                                 className="h-4 w-4 animate-spin"
+                                aria-hidden="true"
+                                role="status"
                                 fill="none"
                                 viewBox="0 0 24 24"
                             >
@@ -70,6 +73,7 @@ export function BasicLookupInput({
                         ) : (
                             <svg
                                 className="h-5 w-5"
+                                aria-hidden="true"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -89,6 +93,7 @@ export function BasicLookupInput({
             <p className="flex items-start gap-2.5 text-xs leading-relaxed text-[black]/60">
                 <svg
                     className="mt-0.5 h-4 w-4 flex-shrink-0 text-[black]"
+                    aria-hidden="true"
                     fill="currentColor"
                     viewBox="0 0 20 20"
                 >

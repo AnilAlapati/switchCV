@@ -214,6 +214,59 @@ Option 4 - Type-safe defaults (best for APIs):
 
 ---
 
+### Rule 9: Test Quality — Tests MUST Call Real Handlers
+
+```
+EVERY API route test MUST:
+1. Import the actual route handler (GET, POST, PUT, DELETE from route.ts)
+2. Call the handler with a request object
+3. Assert on the RESPONSE (status code, body content)
+4. Mock getAuthenticatedUserId to return { userId: "test-user", error: null }
+
+NEVER:
+- Assert only on request.method (tests Node.js fetch, not your app)
+- Assert only on request.headers (tests request construction, not behavior)
+- Use expect(true).toBe(true) as a placeholder
+- Leave test bodies empty or with no assertions
+```
+
+**WHY:** 67+ placeholder tests were found inflating pass counts while testing NOTHING.
+
+**ENFORCEMENT:** `node scripts/audit-test-quality.js` runs in pre-commit and CI.
+
+### Rule 10: Auth-First Ordering — Auth Check BEFORE Body Parse
+
+```
+EVERY API route handler MUST:
+1. Call getAuthenticatedUserId() as the FIRST operation
+2. Return error if auth fails: if (error) return error;
+3. THEN parse request body: const body = await request.json();
+
+WRONG:
+  const body = await request.json();  // ← Runs for unauthenticated users
+  const { userId, error } = await getAuthenticatedUserId(request);
+
+RIGHT:
+  const { userId, error } = await getAuthenticatedUserId(request);
+  if (error) return error;
+  const body = await request.json();  // ← Only runs for authenticated users
+```
+
+**WHY:** Body parsing before auth wastes CPU and leaks endpoint behavior to unauthenticated users.
+
+**ENFORCEMENT:** `audit-api-routes.js` CHECK 11 (AUTH_ORDERING) — flags as CRITICAL.
+
+## Mechanical Enforcement Summary
+
+| Gate | Tool | What It Catches | Runs |
+|---|---|---|---|
+| Pre-commit | `audit-api-routes.js` | Missing auth, body userId, error leaks, auth ordering, a11y | `git commit` |
+| Pre-commit | `audit-test-quality.js` | Placeholder tests, trivial assertions, broken mocks | `git commit` |
+| CI | Same tools + `--ci` | Same checks, exits with code 1 | push/PR |
+| ESLint | `no-restricted-syntax` | `verifyIdToken`, `error.message`, `handleApiError` template literals | lint |
+
+---
+
 ## Project Overview
 
 SwitchCV is a Next.js 16 + Firebase + AI platform connecting jobseekers with recruiters. Frontend uses RSC with App Router, backend is Cloud Functions, data in Firestore. **Key constraint:** Agentic MVP budgets are hard-capped at $30/$70 USD monthly—no cost tracking yet.

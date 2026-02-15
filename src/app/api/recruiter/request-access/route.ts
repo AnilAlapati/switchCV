@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
       if (error instanceof QuotaExceededError) {
         return handleApiError(
           error,
-          `You have reached your ${limitConfig.interval} limit of ${limitConfig.amount} contacts. Please upgrade to contact more candidates.`,
+          "Contact limit reached for your plan. Upgrade to contact more candidates.",
           403
         );
       }

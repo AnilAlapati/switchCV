@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     if (currentCount >= limit) {
       return handleApiError(
         new Error("Plan limit reached"),
-        `You have reached the limit of ${limit} resumes for the ${tier} plan. Please upgrade to create more.`,
+        "Maximum resume limit reached for your plan",
         403
       );
     }

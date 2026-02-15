@@ -23,6 +23,10 @@ import { verifyAdminRole } from "@/lib/services/userService";
 
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Verify authentication first
+    const { userId: authUserId, error } = await getAuthenticatedUserId(request);
+    if (error) return error;
+
     const parseResult = MigrateNumericIdsSchema.safeParse(await request.json());
     if (!parseResult.success) {
       return handleApiError(
@@ -32,10 +36,6 @@ export async function POST(request: NextRequest) {
       );
     }
     const { userId, migrateAll } = parseResult.data;
-
-    // SECURITY: Verify authentication
-    const { userId: authUserId, error } = await getAuthenticatedUserId(request);
-    if (error) return error;
 
     // SECURITY: Verify admin role — only admins can trigger migrations
     if (!authUserId || !(await verifyAdminRole(authUserId))) {

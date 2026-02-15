@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 
     const parseResult = AgentScreenSchema.safeParse(await req.json());
     if (!parseResult.success) {
-      return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+      return handleApiError(parseResult.error, "Invalid input", 400);
     }
     const { candidate, criteria } = parseResult.data;
 

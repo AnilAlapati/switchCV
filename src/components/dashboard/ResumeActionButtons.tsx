@@ -35,6 +35,7 @@ export function ResumeActionButtons({
         View Resume
         <svg
           className="h-4 w-4"
+          aria-hidden="true"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -51,17 +52,17 @@ export function ResumeActionButtons({
       <button
         onClick={onToggleVisibility}
         disabled={isUpdatingVisibility}
-        className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all border ${
-          isPublished
+        className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all border ${isPublished
             ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20 hover:bg-emerald-500/20"
             : "bg-white/40 text-[black]/60 border-white/60 hover:bg-white/60 hover:text-[black]"
-        }`}
+          }`}
       >
         {isUpdatingVisibility ? (
-          <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+          <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" role="status" />
         ) : isPublished ? (
           <svg
             className="h-4 w-4"
+            aria-hidden="true"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -82,6 +83,7 @@ export function ResumeActionButtons({
         ) : (
           <svg
             className="h-4 w-4"
+            aria-hidden="true"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -111,6 +113,7 @@ export function ResumeActionButtons({
               Edit
               <svg
                 className="h-4 w-4"
+                aria-hidden="true"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -131,6 +134,7 @@ export function ResumeActionButtons({
               Edit
               <svg
                 className="h-4 w-4"
+                aria-hidden="true"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -161,6 +165,7 @@ export function ResumeActionButtons({
         Delete
         <svg
           className="h-4 w-4"
+          aria-hidden="true"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"

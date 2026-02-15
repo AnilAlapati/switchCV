@@ -283,7 +283,7 @@ Location: San Francisco (Hybrid)"
           >
             {isLoading ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin" role="status" />
                 Searching...
               </>
             ) : (
@@ -308,7 +308,7 @@ Location: San Francisco (Hybrid)"
       {isLoading && currentStep !== "idle" && (
         <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
           <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-            <Loader2 className="w-4 h-4 animate-spin" />
+            <Loader2 className="w-4 h-4 animate-spin" role="status" />
             <span>Processing your job description...</span>
           </div>
           <div className="space-y-2">
@@ -337,7 +337,7 @@ Location: San Francisco (Hybrid)"
                   {isComplete ? (
                     <CheckCircle2 className="w-4 h-4" />
                   ) : isCurrent ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="w-4 h-4 animate-spin" role="status" />
                   ) : (
                     <div className="w-4 h-4 rounded-full border-2 border-gray-300" />
                   )}

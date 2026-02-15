@@ -84,8 +84,8 @@ export async function POST(request: NextRequest) {
     // Verify request is still pending
     if (contactRequest.status !== "pending") {
       return handleApiError(
-        new Error(`Request is already ${contactRequest.status}`),
-        `Request is already ${contactRequest.status}`,
+        new Error("Request is no longer pending"),
+        "Request status is not pending",
         400
       );
     }

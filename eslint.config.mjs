@@ -97,6 +97,11 @@ const eslintConfig = [
           message:
             "⚠️ Do not access err.message in API routes. Use handleApiError() to prevent leaking internal error details to clients.",
         },
+        {
+          selector: "CallExpression[callee.name='handleApiError'] TemplateLiteral",
+          message:
+            "❌ Do not interpolate variables into handleApiError() messages. The message is sent to the client. Use a static string: handleApiError(err, 'Operation failed')",
+        },
       ],
       // API routes frequently handle Firestore errors and dynamic data
       "@typescript-eslint/no-explicit-any": "off",

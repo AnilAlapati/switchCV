@@ -53,7 +53,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         // Ideally we'd get the limit from the error or service, but generic message is OK for parity
         return handleApiError(
           error,
-          `You have reached your monthly search limit. Please upgrade to search more candidates.`,
+          "Monthly search limit reached. Please upgrade to search more candidates.",
           403
         );
       }

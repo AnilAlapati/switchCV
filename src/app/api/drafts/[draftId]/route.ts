@@ -89,10 +89,7 @@ export async function PATCH(
     const { DraftPatchRequestSchema } = await getDraftProfileUpdateSchema();
     const validationResult = DraftPatchRequestSchema.safeParse(body);
     if (!validationResult.success) {
-      const errorMessages = validationResult.error.issues
-        .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
-        .join("; ");
-      return handleApiError(null, `Validation failed: ${errorMessages}`, 400);
+      return handleApiError(validationResult.error, "Validation failed", 400);
     }
 
     const updates = validationResult.data;

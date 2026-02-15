@@ -104,7 +104,7 @@ export const Concept7SumieMotion = ({
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')] opacity-50 pointer-events-none" />
 
         {/* Ink Stroke Path */}
-        <svg width="400" height="200" viewBox="0 0 400 200">
+        <svg width="400" height="200" viewBox="0 0 400 200" aria-hidden="true">
           <motion.path
             d="M 50 150 Q 150 50 250 150 T 350 50"
             fill="transparent"

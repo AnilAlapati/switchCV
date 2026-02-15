@@ -85,13 +85,13 @@ export function DeleteResumeDialog({
                                 onClick={onConfirm}
                                 disabled={isDeleting}
                                 className={`flex-1 px-4 py-2.5 rounded-xl font-semibold text-white shadow-lg transition-all transform active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed ${isBasicUser
-                                        ? "bg-red-600 hover:bg-red-700 shadow-red-500/20"
-                                        : "bg-slate-900 hover:bg-slate-800 shadow-slate-900/20"
+                                    ? "bg-red-600 hover:bg-red-700 shadow-red-500/20"
+                                    : "bg-slate-900 hover:bg-slate-800 shadow-slate-900/20"
                                     }`}
                             >
                                 {isDeleting ? (
                                     <span className="flex items-center justify-center gap-2">
-                                        <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" role="status" />
                                         Deleting...
                                     </span>
                                 ) : (

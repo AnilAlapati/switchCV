@@ -93,7 +93,7 @@ export function RecruiterSearchLoadingState(): ReactElement {
     <section className="space-y-6">
       <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-6 lg:p-8">
         <div className="flex items-center justify-center py-12">
-          <div className="h-8 w-8 animate-spin border-4 border-black border-t-transparent" />
+          <div className="h-8 w-8 animate-spin border-4 border-black border-t-transparent" role="status" />
         </div>
       </div>
     </section>

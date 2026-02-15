@@ -17,7 +17,13 @@ export const ResumeQAForm: React.FC<ResumeQAFormProps> = ({
   onCancel,
 }) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<ResumeData>({});
+  const [answers, setAnswers] = useState<ResumeData>({
+    title: "",
+    summary: "",
+    experience: [],
+    education: [],
+    skills: []
+  } as ResumeData);
   const [tempAnswer, setTempAnswer] = useState<string>("");
   const [validationError, setValidationError] = useState<string | null>(null);
 

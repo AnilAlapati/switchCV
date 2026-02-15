@@ -23,12 +23,7 @@ describe("navigation", () => {
 
     it("should do nothing if window does not exist", () => {
       (getWindow as jest.Mock).mockReturnValue(null);
-
-      reloadPage();
-      // Since we can't easily spy on "doing nothing", we just ensure no error is thrown
-      // and if we had a spy on reload, it wouldn't be called.
-      // But here we can't spy on the previous mock because we changed the return value.
-      // So this test mainly ensures branch coverage for the "else" case (implicit).
+      expect(() => reloadPage()).not.toThrow();
     });
   });
 });

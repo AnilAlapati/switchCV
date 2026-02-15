@@ -34,6 +34,12 @@ const getRecruiterSearchRateLimiter = async () => {
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
+    const { userId: authenticatedUserId, error: authError } =
+      await getAuthenticatedUserId(request);
+    if (authError || !authenticatedUserId) {
+      return authError ?? handleApiError(null, "Unauthorized", 401);
+    }
+
     const body = await request.json();
 
     const validationResult = searchResumesSchema.safeParse(body);
@@ -41,7 +47,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return handleApiError(
         new Error("Invalid search parameters"),
         "Invalid search parameters: " +
-          validationResult.error.issues.map((e) => e.message).join(", "),
+        validationResult.error.issues.map((e) => e.message).join(", "),
         400,
       );
     }
@@ -51,12 +57,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       location,
       recruiterId: requestedRecruiterId,
     } = validationResult.data;
-
-    const { userId: authenticatedUserId, error: authError } =
-      await getAuthenticatedUserId(request);
-    if (authError || !authenticatedUserId) {
-      return authError ?? handleApiError(null, "Unauthorized", 401);
-    }
 
     const requesterRole = await getUserRole(authenticatedUserId);
     const isAdmin = requesterRole === "admin";

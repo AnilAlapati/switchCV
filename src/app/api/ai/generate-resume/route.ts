@@ -79,7 +79,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       if (!validationResult.success) {
         return handleApiError(
           new Error("Invalid request body"),
-          validationResult.error.issues.map(e => `${e.path.join('.')}: ${e.message}`).join(', '),
+          "Validation failed for request body",
           400,
           request
         );

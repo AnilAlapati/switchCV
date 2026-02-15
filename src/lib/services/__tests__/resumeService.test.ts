@@ -19,6 +19,7 @@ import { getDraft } from "@/lib/services/draftService";
 import { getNextResumeId } from "@/lib/resumeIdMapping";
 import { DRAFT_CONFIG } from "@/config/constants";
 import { getDocs as mockGetDocs } from "firebase/firestore";
+import { logger } from "@/lib/logger";
 
 // Mock dependencies
 jest.mock("firebase-admin", () => ({
@@ -569,7 +570,7 @@ describe("resumeService", () => {
       });
 
       await deleteResume(resumeId, userId);
-      // Should not throw, but log warning (verified by coverage)
+      expect(adminDb.recursiveDelete).toHaveBeenCalled();
     });
   });
 
@@ -633,7 +634,7 @@ describe("resumeService", () => {
       };
 
       await updateResumeEmbedding(resumeId, mockResume);
-      // Should not throw, but log error (verified by coverage)
+      expect(logger.error).toHaveBeenCalled();
     });
 
     it("should not generate embedding if text is empty", async () => {

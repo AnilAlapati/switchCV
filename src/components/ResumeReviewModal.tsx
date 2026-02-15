@@ -76,9 +76,8 @@ export const ResumeReviewModal: React.FC<ResumeReviewModalProps> = ({
                   {retryIndicators.map((used, idx) => (
                     <div
                       key={idx}
-                      className={`w-2 h-2 rounded-full transition-all ${
-                        used ? "bg-red-500" : "bg-cyan-500"
-                      }`}
+                      className={`w-2 h-2 rounded-full transition-all ${used ? "bg-red-500" : "bg-cyan-500"
+                        }`}
                     />
                   ))}
                 </div>
@@ -232,7 +231,7 @@ export const ResumeReviewModal: React.FC<ResumeReviewModalProps> = ({
               >
                 {acceptLoading ? (
                   <>
-                    <span className="animate-spin">⏳</span>
+                    <span className="animate-spin" role="status">⏳</span>
                     Saving...
                   </>
                 ) : (
@@ -255,7 +254,7 @@ export const ResumeReviewModal: React.FC<ResumeReviewModalProps> = ({
               >
                 {rewriteLoading ? (
                   <>
-                    <span className="animate-spin">⏳</span>
+                    <span className="animate-spin" role="status">⏳</span>
                     Regenerating...
                   </>
                 ) : (

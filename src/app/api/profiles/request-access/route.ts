@@ -23,8 +23,8 @@ export async function POST(request: NextRequest) {
     if (!parseResult.success) {
       const hasDurationValue = Boolean(
         payload &&
-          typeof payload === "object" &&
-          "duration" in (payload as Record<string, unknown>)
+        typeof payload === "object" &&
+        "duration" in (payload as Record<string, unknown>)
       );
       const hasResumeIdError = parseResult.error.issues.some(
         (issue) => issue.path[0] === "resumeId"
@@ -48,10 +48,9 @@ export async function POST(request: NextRequest) {
     try {
       normalizedDuration = normalizeDuration(duration, timezone || "UTC");
     } catch (durationError: unknown) {
-      const errorMessage = durationError instanceof Error ? durationError.message : String(durationError);
       return handleApiError(
         durationError,
-        `Invalid duration selection: ${errorMessage}`,
+        "Invalid duration selection",
         400
       );
     }

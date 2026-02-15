@@ -53,6 +53,9 @@ function runAudit() {
     checks.checkErrorLeakage(file, content, reporter);
     checks.checkFirestoreLimit(file, content, reporter);
     checks.checkEslintDisableAbuse(file, content, reporter);
+    checks.checkAuthOrdering(file, content, reporter, PROJECT_ROOT);
+    checks.checkErrorInterpolationInHandler(file, content, reporter);
+    checks.checkUserIdPriorityInversion(file, content, reporter, PROJECT_ROOT);
   }
 
   // 2. Audit components
@@ -61,6 +64,8 @@ function runAudit() {
   for (const file of componentFiles) {
     const content = fs.readFileSync(file, "utf8");
     checks.checkWindowAlert(file, content, reporter);
+    checks.checkAccessibilityBasics(file, content, reporter);
+    checks.checkFormControlledInputs(file, content, reporter);
   }
 
   // 3. Audit providers/hooks

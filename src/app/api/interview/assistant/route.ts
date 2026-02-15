@@ -52,6 +52,11 @@ const InterviewAssistantActionSchema = z.discriminatedUnion("action", [
 
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Auth check MUST come before body parsing
+    const { userId: authenticatedUserId, error: authError } =
+      await getAuthenticatedUserId(request);
+    if (authError) return authError;
+
     let payload: unknown;
     try {
       payload = await request.json();
@@ -62,10 +67,6 @@ export async function POST(request: NextRequest) {
         400,
       );
     }
-
-    const { userId: authenticatedUserId, error: authError } =
-      await getAuthenticatedUserId(request);
-    if (authError) return authError;
 
     const parseResult = InterviewAssistantActionSchema.safeParse(payload);
     if (!parseResult.success) {
@@ -99,13 +100,13 @@ export async function POST(request: NextRequest) {
 
     if (parseResult.data.action === "start-session") {
       const {
-        userId: bodyUserId,
         jobTitle,
         jobDescription,
         companyName,
         numberOfQuestions,
       } = parseResult.data;
-      const sessionUserId = authenticatedUserId || bodyUserId;
+      // SECURITY: Always use authenticated userId, never trust body userId
+      const sessionUserId = authenticatedUserId;
 
       if (!sessionUserId || !jobTitle) {
         return handleApiError(null, "userId and jobTitle are required", 400);

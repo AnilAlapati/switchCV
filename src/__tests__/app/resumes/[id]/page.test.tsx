@@ -223,7 +223,7 @@ describe("ResumeView", () => {
   it("handles privacy menu toggle", () => {
     render(<ResumeView />);
     fireEvent.click(screen.getByText("Toggle Menu"));
-    // This just updates internal state, but covers the path
+    expect(screen.getByText("Toggle Visibility")).toBeInTheDocument();
   });
 
   it("handles request access with success", async () => {
@@ -240,7 +240,7 @@ describe("ResumeView", () => {
     render(<ResumeView />);
     fireEvent.click(screen.getByText("Request Access"));
     fireEvent.click(screen.getByText("Close Dialog"));
-    // Covers the path
+    expect(screen.queryByTestId("request-dialog")).not.toBeInTheDocument();
   });
 
   it("renders legacy renderer when template is missing", () => {

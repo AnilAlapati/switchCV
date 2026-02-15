@@ -97,7 +97,7 @@ export function RequestManagement({
       {/* Loading */}
       {loading && (
         <div className="text-center py-8 text-gray-600">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" role="status"></div>
           <p className="mt-2">Loading requests...</p>
         </div>
       )}

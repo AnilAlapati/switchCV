@@ -30,9 +30,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (!validationResult.success) {
       return handleApiError(
         new Error("Validation failed"),
-        validationResult.error.issues
-          .map((e) => `${e.path.join(".")}: ${e.message}`)
-          .join(", "),
+        "Invalid input parameters",
         400
       );
     }

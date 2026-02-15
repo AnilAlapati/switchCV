@@ -161,18 +161,7 @@ describe("ResumeDataExtractor", () => {
       ];
 
       const result = ResumeDataExtractor.extractFromConversation(messages);
-      // Without context, this generic string shouldn't be confidently parsed as education
-      // (unless it matches other patterns, but let's assume it doesn't for this test)
-      // Actually, the other patterns are quite specific (require "Degree", "University", etc.)
-      // So this check verifies that context IS required for the generic pattern.
-      const edu = result.data.education;
-      if (edu) {
-        // If it IS extracted, it might be via another pattern, but let's check if it matches the generic one
-        // The generic one sets degree="Computer Science", inst="MIT".
-        // Other patterns might fail or parse differently.
-      }
-      // We expect it NOT to be extracted or at least not as cleanly
-      // But to be safe, let's just rely on the positive test above.
+      expect(result.data.education).toBeUndefined();
     });
 
     it("should handle context switching", () => {

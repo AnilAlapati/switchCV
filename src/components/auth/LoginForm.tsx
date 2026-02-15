@@ -54,8 +54,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         className="w-full py-3 px-6 glass-button font-bold rounded-xl"
       >
         {loading ? (
-          <div className="flex items-center justify-center" role="status" aria-live="polite">
-            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+          <div className="flex items-center justify-center" aria-live="polite">
+            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" role="status"></div>
             Processing...
           </div>
         ) : (

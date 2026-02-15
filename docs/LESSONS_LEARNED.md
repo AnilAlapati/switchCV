@@ -633,3 +633,112 @@ Added comprehensive rule with 4 safekeeping patterns and detailed code review ch
 
 **Last Updated**: 2026-02-09  
 **Latest Update**: Controlled input pattern documented (Rule 8), 2 components fixed, tests passing
+
+---
+
+## Recurring Patterns Catalog (2026-02-15)
+
+Over 19 code review documents (Feb 6–15), these 7 patterns kept re-appearing despite being "fixed" in previous rounds. Each now has a **mechanical gate** that blocks the pattern from entering the repo.
+
+### Pattern 1: Auth Ordering — Body Parse Before Auth Check
+
+**What it looks like:**
+```typescript
+export async function POST(request: NextRequest) {
+  const body = await request.json();  // ← Runs for unauthenticated users
+  const { userId, error } = await getAuthenticatedUserId(request);
+  if (error) return error;
+}
+```
+
+**Why agents generate this:** The body parse "feels" like setup, so agents put it first. Auth is seen as a later step.
+
+**Gate:** `audit-checks.js` CHECK 11 → `AUTH_ORDERING` (CRITICAL). Compares character positions of `request.json()` vs `getAuthenticatedUserId()`.
+
+### Pattern 2: Error Interpolation in "Safe" Handler
+
+**What it looks like:**
+```typescript
+return handleApiError(err, `Validation error: ${errorMessage}`);
+// Agent thinks handleApiError makes it safe — but the message IS sent to the client
+```
+
+**Gate:** `audit-checks.js` CHECK 12 → `ERROR_INTERPOLATION_IN_HANDLER` (HIGH) + ESLint `no-restricted-syntax` rule on `handleApiError` + `TemplateLiteral`.
+
+### Pattern 3: userId Priority Inversion
+
+**What it looks like:**
+```typescript
+const userId = parseResult.data.userId || authenticatedUserId;  // Body has priority!
+const userId = authenticatedUserId || bodyUserId;               // Body as fallback
+```
+
+**Gate:** `audit-checks.js` CHECK 13 → `USERID_PRIORITY_INVERSION` (CRITICAL) / `USERID_BODY_FALLBACK` (HIGH).
+
+### Pattern 4: Placeholder Tests
+
+**What it looks like:**
+```typescript
+it("should authenticate POST request", () => {
+  const request = new Request("http://localhost/api/search", { method: "POST" });
+  expect(request.method).toBe("POST");  // ← Tests Node.js fetch API, not your app
+});
+```
+
+**Gate:** `audit-test-quality.js` → `PLACEHOLDER_TESTS` (CRITICAL). Detects `expect(request.method)` / `expect(request.headers.get)` without route handler call.
+
+### Pattern 5: Trivial Test Assertions
+
+**What it looks like:**
+```typescript
+it("should validate authorization", () => {
+  expect(true).toBe(true);  // ← Tests nothing
+});
+```
+
+**Gate:** `audit-test-quality.js` → `TRIVIAL_TESTS` (CRITICAL). Detects `expect(true).toBe(true)` and empty test bodies.
+
+### Pattern 6: Broken Auth Mocks (All-403 Pattern)
+
+**What it looks like:**
+```typescript
+jest.mock("@/lib/utils/api-helpers", () => ({
+  getAuthenticatedUserId: jest.fn().mockResolvedValue({
+    userId: null, error: new Response("Unauthorized", { status: 403 })  // Always rejects!
+  }),
+}));
+
+it("should return 200", async () => {
+  const response = await POST(request);
+  expect(response.status).toBe(200);  // ← Will always fail with 403
+});
+```
+
+**Gate:** `audit-test-quality.js` → `AUTH_MOCK_ALWAYS_REJECTS` (HIGH).
+
+### Pattern 7: Missing SVG/Spinner Accessibility
+
+**What it looks like:**
+```tsx
+<svg viewBox="0 0 24 24">...</svg>           // Missing aria-hidden="true"
+<div className="animate-spin">Loading...</div> // Missing role="status"
+```
+
+**Gate:** `audit-checks.js` CHECK 14 → `A11Y_SVG_NO_ARIA` / `A11Y_SPINNER_NO_ROLE` (MEDIUM).
+
+### Summary of Enforcement
+
+| Pattern | Check | Severity | Gate |
+|---|---|---|---|
+| Auth ordering | CHECK 11 | CRITICAL | audit-api-routes.js |
+| Error interpolation | CHECK 12 + ESLint | HIGH | audit-api-routes.js + lint |
+| userId inversion | CHECK 13 | CRITICAL | audit-api-routes.js |
+| Placeholder tests | PLACEHOLDER_TESTS | CRITICAL | audit-test-quality.js |
+| Trivial tests | TRIVIAL_TESTS | CRITICAL | audit-test-quality.js |
+| Broken auth mocks | AUTH_MOCK_ALWAYS_REJECTS | HIGH | audit-test-quality.js |
+| Missing a11y attrs | CHECK 14 | MEDIUM | audit-api-routes.js |
+
+---
+
+**Last Updated**: 2026-02-15
+**Latest Update**: Recurring patterns catalog added, 14 mechanical checks now enforce across pre-commit and CI

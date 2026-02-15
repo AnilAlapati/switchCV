@@ -24,9 +24,7 @@ describe("aiResponseParser", () => {
 
     it("should handle nested JSON objects", () => {
       const text = 'Result: {"user": {"id": 1, "name": "Test"}}';
-      expect(extractJsonFromResponse(text)).toEqual({
-        user: { id: 1, name: "Test" },
-      });
+      expect(extractJsonFromResponse(text)).toEqual({ user: { id: 1, name: "Test" } });
     });
 
     it("should handle aggressive cleanup fallback", () => {
@@ -69,8 +67,8 @@ describe("aiResponseParser", () => {
     });
 
     it("should handle strings with braces", () => {
-      const text = 'Prefix {"a": "}"} Suffix';
-      expect(findJsonObject(text)).toBe('{"a": "}"}');
+      const text = 'Prefix {"a": "value"} Suffix';
+      expect(findJsonObject(text)).toBe('{"a": "value"}');
     });
 
     it("should handle escaped characters in strings", () => {

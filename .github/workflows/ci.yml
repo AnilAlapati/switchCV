@@ -51,6 +51,9 @@ jobs:
           path: coverage/
           retention-days: 14
 
+      - name: Test Quality Audit
+        run: node scripts/audit-test-quality.js --ci
+
       - name: API Route Audit
         run: node scripts/audit-api-routes.js --ci
 

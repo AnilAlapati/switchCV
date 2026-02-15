@@ -72,10 +72,7 @@ describe("SecretManagerService", () => {
       expect(secret).toBe("");
     });
 
-    it("should include userId in audit log", async () => {
-      await service.getSecret("GEMINI_API_KEY", "user-123");
-      // Audit logging is tested separately
-    });
+
   });
 
   describe("Cache Management", () => {

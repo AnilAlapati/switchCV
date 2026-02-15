@@ -24,6 +24,7 @@ export function DeleteRequestDialog({
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-red-500/20">
             <svg
               className="w-6 h-6 text-red-500"
+              aria-hidden="true"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -66,6 +67,7 @@ export function DeleteRequestDialog({
                 <span
                   className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"
                   aria-hidden="true"
+                  role="status"
                 />
                 Deleting...
               </>

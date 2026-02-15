@@ -36,6 +36,8 @@ function StatusIcon({
     return (
       <svg
         className="w-5 h-5 text-gray-400 animate-spin"
+        aria-hidden="true"
+        role="status"
         fill="none"
         viewBox="0 0 24 24"
       >

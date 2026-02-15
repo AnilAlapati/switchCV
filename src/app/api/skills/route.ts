@@ -105,7 +105,8 @@ export async function POST(request: NextRequest) {
     }
 
     if (parseResult.data.action === "create-inventory") {
-      const inventoryUserId = parseResult.data.userId || authenticatedUserId;
+      // SECURITY: Always use authenticated userId, never trust body userId
+      const inventoryUserId = authenticatedUserId;
       if (!inventoryUserId) {
         return handleApiError(null, "userId is required", 400);
       }

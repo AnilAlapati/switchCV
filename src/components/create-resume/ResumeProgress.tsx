@@ -43,7 +43,7 @@ export function ResumeProgress({
         title="Click to expand"
       >
         <div className="absolute inset-0 flex items-center justify-center">
-          <svg className="h-full w-full -rotate-90 transform p-1">
+          <svg className="h-full w-full -rotate-90 transform p-1" aria-hidden="true">
             <circle
               cx="50%"
               cy="50%"
@@ -94,6 +94,7 @@ export function ResumeProgress({
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
           width="14"
           height="14"
           viewBox="0 0 24 24"

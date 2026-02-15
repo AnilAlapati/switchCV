@@ -50,10 +50,10 @@ export const ResumeGenerationLoader: React.FC<ResumeGenerationLoaderProps> = ({
         <div className="mb-8 flex justify-center">
           <div className="relative w-24 h-24">
             {/* Outer spinning ring */}
-            <div className="absolute inset-0 rounded-full border-4 border-cyan-500/20 border-t-cyan-500 animate-spin" />
+            <div className="absolute inset-0 rounded-full border-4 border-cyan-500/20 border-t-cyan-500 animate-spin" aria-hidden="true" role="status" />
 
             {/* Middle pulsing ring */}
-            <div className="absolute inset-2 rounded-full border-2 border-blue-500/30 border-r-blue-500 animate-[spin_2s_linear_reverse]" />
+            <div className="absolute inset-2 rounded-full border-2 border-blue-500/30 border-r-blue-500 animate-[spin_2s_linear_reverse]" aria-hidden="true" role="status" />
 
             {/* Inner glow */}
             <div className="absolute inset-4 rounded-full bg-gradient-to-br from-cyan-500/10 to-blue-500/10 animate-pulse" />
@@ -94,33 +94,30 @@ export const ResumeGenerationLoader: React.FC<ResumeGenerationLoaderProps> = ({
         <div className="space-y-3 mb-8">
           {/* Step 1: Generating */}
           <div
-            className={`flex items-center gap-3 p-3 rounded-lg transition-all ${
-              status === "generating" ||
-              status === "saving" ||
-              status === "complete"
-                ? "bg-green-900/20 border border-green-500/50"
-                : "bg-gray-700/30 border border-gray-600/50"
-            }`}
-          >
-            <span
-              className={`text-lg ${
-                status === "generating" ||
+            className={`flex items-center gap-3 p-3 rounded-lg transition-all ${status === "generating" ||
                 status === "saving" ||
                 status === "complete"
+                ? "bg-green-900/20 border border-green-500/50"
+                : "bg-gray-700/30 border border-gray-600/50"
+              }`}
+          >
+            <span
+              className={`text-lg ${status === "generating" ||
+                  status === "saving" ||
+                  status === "complete"
                   ? "text-green-400"
                   : "text-gray-400"
-              }`}
+                }`}
             >
               {status === "generating" ? "⏳" : "✓"}
             </span>
             <span
-              className={`text-sm ${
-                status === "generating" ||
-                status === "saving" ||
-                status === "complete"
+              className={`text-sm ${status === "generating" ||
+                  status === "saving" ||
+                  status === "complete"
                   ? "text-green-300"
                   : "text-gray-400"
-              }`}
+                }`}
             >
               Enhancing content with AI
             </span>
@@ -128,27 +125,24 @@ export const ResumeGenerationLoader: React.FC<ResumeGenerationLoaderProps> = ({
 
           {/* Step 2: Saving */}
           <div
-            className={`flex items-center gap-3 p-3 rounded-lg transition-all ${
-              status === "saving" || status === "complete"
+            className={`flex items-center gap-3 p-3 rounded-lg transition-all ${status === "saving" || status === "complete"
                 ? "bg-green-900/20 border border-green-500/50"
                 : "bg-gray-700/30 border border-gray-600/50"
-            }`}
+              }`}
           >
             <span
-              className={`text-lg ${
-                status === "saving" || status === "complete"
+              className={`text-lg ${status === "saving" || status === "complete"
                   ? "text-green-400"
                   : "text-gray-400"
-              }`}
+                }`}
             >
               {status === "saving" ? "⏳" : status === "complete" ? "✓" : "○"}
             </span>
             <span
-              className={`text-sm ${
-                status === "saving" || status === "complete"
+              className={`text-sm ${status === "saving" || status === "complete"
                   ? "text-green-300"
                   : "text-gray-400"
-              }`}
+                }`}
             >
               Saving to your profile
             </span>
@@ -156,23 +150,20 @@ export const ResumeGenerationLoader: React.FC<ResumeGenerationLoaderProps> = ({
 
           {/* Step 3: Complete */}
           <div
-            className={`flex items-center gap-3 p-3 rounded-lg transition-all ${
-              status === "complete"
+            className={`flex items-center gap-3 p-3 rounded-lg transition-all ${status === "complete"
                 ? "bg-green-900/20 border border-green-500/50"
                 : "bg-gray-700/30 border border-gray-600/50"
-            }`}
+              }`}
           >
             <span
-              className={`text-lg ${
-                status === "complete" ? "text-green-400" : "text-gray-400"
-              }`}
+              className={`text-lg ${status === "complete" ? "text-green-400" : "text-gray-400"
+                }`}
             >
               {status === "complete" ? "✓" : "○"}
             </span>
             <span
-              className={`text-sm ${
-                status === "complete" ? "text-green-300" : "text-gray-400"
-              }`}
+              className={`text-sm ${status === "complete" ? "text-green-300" : "text-gray-400"
+                }`}
             >
               Getting your profile ready
             </span>

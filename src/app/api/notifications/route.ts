@@ -71,10 +71,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validationResult = notificationRequestSchema.safeParse(body);
     if (!validationResult.success) {
-      const errorMessage =
-        validationResult.error?.issues?.map((e) => e.message).join(", ") ||
-        "Validation failed";
-      return handleApiError(null, "Invalid request: " + errorMessage, 400);
+      return handleApiError(null, "Invalid request parameters", 400);
     }
     const { action, userId, data } = validationResult.data;
 

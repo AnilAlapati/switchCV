@@ -236,6 +236,182 @@ function checkServiceFirestoreLimit(filePath, content, reporter) {
     }
 }
 
+/**
+ * CHECK 11: Auth ordering — auth must come before body parsing
+ * Catches: request.json() called BEFORE getAuthenticatedUserId()
+ * Recurring issue: interview/assistant/route.ts (P0 in v5 review)
+ */
+function checkAuthOrdering(filePath, content, reporter, projectRoot) {
+    if (isPublicRoute(filePath, projectRoot)) return;
+
+    const hasAuth = content.includes("getAuthenticatedUserId");
+    if (!hasAuth) return; // Already caught by CHECK 1
+
+    // Find positions of body parsing and auth calls
+    const bodyParseMatch = content.match(/(?:await\s+)?request\.json\s*\(\s*\)/);
+    const authMatch = content.match(/getAuthenticatedUserId\s*\(/);
+
+    if (bodyParseMatch && authMatch) {
+        const bodyParsePos = content.indexOf(bodyParseMatch[0]);
+        const authPos = content.indexOf(authMatch[0]);
+
+        if (bodyParsePos < authPos) {
+            const lineNum = content.substring(0, bodyParsePos).split("\n").length;
+            reporter.addFinding(
+                "critical",
+                filePath,
+                "AUTH_ORDERING",
+                "request.json() is called BEFORE getAuthenticatedUserId(). " +
+                "Unauthenticated requests still trigger body parsing, wasting CPU and leaking endpoint behavior. " +
+                "Move auth check above body parse.",
+                lineNum
+            );
+        }
+    }
+}
+
+/**
+ * CHECK 12: Error interpolation inside handleApiError()
+ * Catches: handleApiError(err, `Validation error: ${errorMessage}`)
+ * The existing checkErrorLeakage only catches NextResponse.json({error: error.message}).
+ * This catches the subtler pattern where error details are interpolated into the
+ * "safe" message parameter of handleApiError().
+ * Recurring issue: request-access, jd-search, drafts routes (P1 in v5 review)
+ */
+function checkErrorInterpolationInHandler(filePath, content, reporter) {
+    const lines = content.split("\n");
+    lines.forEach((line, i) => {
+        const lineNum = i + 1;
+        // handleApiError(err, `...${anything}...`) — template literal as message
+        if (/handleApiError\s*\([^,]*,\s*`[^`]*\$\{/.test(line)) {
+            reporter.addFinding(
+                "high",
+                filePath,
+                "ERROR_INTERPOLATION_IN_HANDLER",
+                "Error details interpolated into handleApiError() message parameter. " +
+                "handleApiError() passes its message to the client. Use a static string instead: " +
+                "handleApiError(err, 'Operation failed')",
+                lineNum
+            );
+        }
+        // Also catch: handleApiError(err, "prefix" + errorMessage)
+        if (/handleApiError\s*\([^,]*,\s*[^)]*\+\s*(?:error|err|e\b)/.test(line)) {
+            reporter.addFinding(
+                "high",
+                filePath,
+                "ERROR_CONCAT_IN_HANDLER",
+                "Error variable concatenated into handleApiError() message. Use a static string.",
+                lineNum
+            );
+        }
+    });
+}
+
+/**
+ * CHECK 13: userId priority inversion — body userId takes precedence over auth userId
+ * Catches: const x = body.userId || authenticatedUserId (body has priority!)
+ *          const x = parseResult.data.userId || authenticatedUserId
+ * Recurring issue: skills/route.ts, interview/assistant/route.ts (P0 in v5 review)
+ */
+function checkUserIdPriorityInversion(filePath, content, reporter, projectRoot) {
+    if (isPublicRoute(filePath, projectRoot)) return;
+
+    const lines = content.split("\n");
+    lines.forEach((line, i) => {
+        const lineNum = i + 1;
+        // Pattern: someVar.userId || authenticatedUserId (body has priority over auth)
+        if (/(?:body|data|parseResult|parsed|input|params)\S*\.userId\s*\|\|?\s*authenticated/i.test(line)) {
+            reporter.addFinding(
+                "critical",
+                filePath,
+                "USERID_PRIORITY_INVERSION",
+                "Body-supplied userId has PRIORITY over authenticatedUserId! " +
+                "An attacker can impersonate any user by passing userId in the request body. " +
+                "Use authenticatedUserId exclusively: const userId = authenticatedUserId;",
+                lineNum
+            );
+        }
+        // Pattern: authenticatedUserId || body.userId (body used as fallback — also dangerous)
+        if (/authenticated\w*\s*\|\|?\s*(?:body|data|parseResult|parsed)\S*\.?userId/i.test(line)) {
+            reporter.addFinding(
+                "high",
+                filePath,
+                "USERID_BODY_FALLBACK",
+                "Body-supplied userId used as fallback for authenticatedUserId. " +
+                "NEVER use body userId even as a fallback. Use authenticatedUserId exclusively.",
+                lineNum
+            );
+        }
+    });
+}
+
+/**
+ * CHECK 14: Accessibility basics for components
+ * Catches: <svg without aria-hidden, animate-spin without role="status"
+ * Recurring issue: ~220 violations across 66+ files (P2 in v5 review)
+ */
+function checkAccessibilityBasics(filePath, content, reporter) {
+    const lines = content.split("\n");
+    let svgWithoutAria = 0;
+    let spinnerWithoutRole = 0;
+
+    lines.forEach((line, i) => {
+        // SVG without aria-hidden (only inline SVGs in JSX, not imports)
+        if (/<svg[\s>]/.test(line) && !line.includes("aria-hidden")) {
+            svgWithoutAria++;
+        }
+        // animate-spin without role="status" nearby (check current line and next 2 lines)
+        if (/animate-spin/.test(line)) {
+            const context = lines.slice(i, Math.min(i + 3, lines.length)).join(" ");
+            if (!context.includes('role="status"') && !context.includes("role={'status'}") && !context.includes("role=\"status\"")) {
+                spinnerWithoutRole++;
+            }
+        }
+    });
+
+    if (svgWithoutAria > 0) {
+        reporter.addFinding(
+            "medium",
+            filePath,
+            "A11Y_SVG_NO_ARIA",
+            `${svgWithoutAria} inline <svg> element(s) missing aria-hidden="true". Add aria-hidden="true" to decorative SVGs.`
+        );
+    }
+    if (spinnerWithoutRole > 0) {
+        reporter.addFinding(
+            "medium",
+            filePath,
+            "A11Y_SPINNER_NO_ROLE",
+            `${spinnerWithoutRole} loading spinner(s) using animate-spin without role="status". Add role="status" aria-live="polite".`
+        );
+    }
+}
+
+/**
+ * CHECK 15: Controlled form inputs — detect missing ?? "" / || "" fallbacks
+ * Catches: useState<SomeType>({}) without initialized string fields
+ * Recurring issue: 4 onboarding steps, profile settings (P2 in v5 review)
+ */
+function checkFormControlledInputs(filePath, content, reporter) {
+    // Only check files with form inputs
+    if (!/<input[\s>]/.test(content) && !/<textarea[\s>]/.test(content) && !/<Input[\s>]/.test(content)) return;
+
+    // Pattern: useState<Type>({}) — empty object initialization with a type parameter
+    const emptyStatePattern = /useState\s*<[^>]+>\s*\(\s*\{\s*\}\s*\)/g;
+    let match;
+    while ((match = emptyStatePattern.exec(content)) !== null) {
+        const lineNum = content.substring(0, match.index).split("\n").length;
+        reporter.addFinding(
+            "medium",
+            filePath,
+            "FORM_EMPTY_STATE",
+            "useState<Type>({}) with empty object — form inputs may switch between controlled/uncontrolled. " +
+            "Initialize all string fields with default values: useState({ field: '' })",
+            lineNum
+        );
+    }
+}
+
 module.exports = {
     checkAuthentication,
     checkInputValidation,
@@ -245,5 +421,10 @@ module.exports = {
     checkFirestoreLimit,
     checkEslintDisableAbuse,
     checkSWRPolling,
-    checkServiceFirestoreLimit
+    checkServiceFirestoreLimit,
+    checkAuthOrdering,
+    checkErrorInterpolationInHandler,
+    checkUserIdPriorityInversion,
+    checkAccessibilityBasics,
+    checkFormControlledInputs
 };
