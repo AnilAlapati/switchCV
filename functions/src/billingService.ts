@@ -2,7 +2,7 @@ import * as admin from "firebase-admin";
 import * as functions from "firebase-functions/v1";
 
 const SHARD_COLLECTION = "system/billing/shards";
-const AGGREGATE_DOC = "system/billing";
+const DASHBOARD_COLLECTION = "system/billing/dashboard";
 
 /**
  * Aggregates cost from sharded counters to a central document.
@@ -22,8 +22,8 @@ export const aggregateBillingHandler = async (
     const billingKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}`;
 
     // Check if we need to reset shards for a new month
-    const dashboardRef = db.doc(`${AGGREGATE_DOC}/dashboard/meta`);
-    const metaSnap = await dashboardRef.get();
+    const metaRef = db.doc(`system/billing/dashboard/meta`);
+    const metaSnap = await metaRef.get();
     const metaData = metaSnap.exists ? metaSnap.data() : undefined;
     const lastBillingKey = metaData?.lastBillingKey;
 
@@ -42,7 +42,7 @@ export const aggregateBillingHandler = async (
       }
 
       // Write the archived total
-      await db.doc(`${AGGREGATE_DOC}/dashboard/${lastBillingKey}`).set(
+      await db.doc(`${DASHBOARD_COLLECTION}/${lastBillingKey}`).set(
         {
           totalCost: previousTotal,
           finalizedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -75,23 +75,26 @@ export const aggregateBillingHandler = async (
     // Now aggregate current shards
     const shardsSnapshot = await db.collection(SHARD_COLLECTION).get();
     let totalCost = 0;
+    let totalRequests = 0;
 
     shardsSnapshot.forEach((doc) => {
       const data = doc.data();
       totalCost += data.monthCost || 0;
+      totalRequests += data.totalRequests || 0;
     });
 
-    // Write aggregated total to a central dashboard doc
-    await db.doc(`${AGGREGATE_DOC}/dashboard/${billingKey}`).set(
+    // Write aggregated total to the monthly dashboard doc
+    await db.doc(`${DASHBOARD_COLLECTION}/${billingKey}`).set(
       {
         totalCost: totalCost,
+        totalRequests: totalRequests,
         lastAggregated: admin.firestore.FieldValue.serverTimestamp(),
       },
       { merge: true },
     );
 
     // Update meta with current billing key
-    await dashboardRef.set(
+    await metaRef.set(
       {
         lastBillingKey: billingKey,
         lastAggregated: admin.firestore.FieldValue.serverTimestamp(),
@@ -100,7 +103,7 @@ export const aggregateBillingHandler = async (
     );
 
     functions.logger.info(
-      `Aggregated total cost for ${billingKey}: $${totalCost}`,
+      `Aggregated total cost for ${billingKey}: $${totalCost} (${totalRequests} requests)`,
     );
   } catch (error) {
     functions.logger.error("Error aggregating billing:", error);

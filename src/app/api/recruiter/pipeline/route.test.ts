@@ -1,5 +1,5 @@
 /* snyk:file:ignore javascript/NoHardcodedCredentials - Test file uses mock credentials intentionally */
- 
+
 
 import { NextRequest } from "next/server";
 import { POST } from "./route";
@@ -237,6 +237,7 @@ describe("POST /api/recruiter/pipeline", () => {
       mockFirestoreData.set("pipeline-123", {
         jobId: "job-123",
         jobTitle: "Software Engineer",
+        recruiterId: "test-user-id",
         totalCandidates: 0,
       });
 
@@ -312,6 +313,7 @@ describe("POST /api/recruiter/pipeline", () => {
       mockFirestoreData.set("pipeline-123", {
         jobId: "job-123",
         jobTitle: "Software Engineer",
+        recruiterId: "test-user-id",
         totalCandidates: 1,
       });
 
@@ -371,6 +373,7 @@ describe("POST /api/recruiter/pipeline", () => {
       mockFirestoreData.set("pipeline-123", {
         jobId: "job-123",
         jobTitle: "Software Engineer",
+        recruiterId: "test-user-id",
         totalCandidates: 0,
       });
 
@@ -392,7 +395,7 @@ describe("POST /api/recruiter/pipeline", () => {
       const data = await response.json();
 
       expect(response.status).toBe(404);
-      expect(data).toEqual({ error: "Candidate not found" });
+      expect(data).toEqual({ error: "Candidate or Pipeline not found" });
     });
   });
 
@@ -413,6 +416,7 @@ describe("POST /api/recruiter/pipeline", () => {
       mockFirestoreData.set("pipeline-123", {
         jobId: "job-123",
         jobTitle: "Software Engineer",
+        recruiterId: "test-user-id",
         totalCandidates: 1,
       });
 

@@ -161,7 +161,7 @@ describe("POST /api/recruiter/request-access", () => {
     const data = await res.json();
 
     expect(res.status).toBe(403);
-    expect(data.error).toContain("limit of 2 contacts");
+    expect(data.error).toBe("Contact limit reached for your plan. Upgrade to contact more candidates.");
   });
 
   it("should return 409 if request already exists", async () => {

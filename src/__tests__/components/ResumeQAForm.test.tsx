@@ -200,6 +200,9 @@ describe("ResumeQAForm", () => {
       skills: [], // Optional and skipped
       role: "Developer",
       summary: "I am a developer.",
+      title: "",
+      experience: [],
+      education: [],
     });
   });
 

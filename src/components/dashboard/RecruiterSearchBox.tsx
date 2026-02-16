@@ -10,7 +10,7 @@ import type { SearchResult, SearchModeType } from "./RecruiterSearchForm";
 import { RecruiterSearchForm } from "./RecruiterSearchForm";
 import { RecruiterSearchResults } from "./RecruiterSearchResults";
 import {
-  RecruiterSearchHeader,
+  SearchStatusIndicator,
   RecruiterSearchLoadingState,
 } from "./RecruiterSearchHeader";
 import { useAiSearch } from "./useAiSearch";
@@ -176,11 +176,13 @@ export function RecruiterSearchBox({ }: RecruiterSearchBoxProps = {}) {
   return (
     <section className="space-y-6">
       <div className="flex flex-col gap-6">
-        <RecruiterSearchHeader
-          loading={loading}
-          aiSearching={aiSearching}
-          searched={searched}
-        />
+        <div className="flex justify-end">
+          <SearchStatusIndicator
+            loading={loading}
+            aiSearching={aiSearching}
+            searched={searched}
+          />
+        </div>
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr),340px]">
           <div>

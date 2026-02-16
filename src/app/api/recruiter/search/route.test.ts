@@ -294,7 +294,7 @@ describe("GET /api/recruiter/search", () => {
     const data = await response.json();
 
     expect(response.status).toBe(403);
-    expect(data.error).toContain("monthly search limit");
+    expect(data.error).toContain("Monthly search limit");
   });
 
   it("returns 401 when authentication fails", async () => {

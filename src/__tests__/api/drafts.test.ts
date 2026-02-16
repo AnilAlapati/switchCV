@@ -132,7 +132,7 @@ describe("Drafts API", () => {
       });
       await PATCH(new NextRequest("http://localhost"), { params: mockParams });
       expect(handleApiError).toHaveBeenCalledWith(
-        null,
+        expect.objectContaining({ issues: expect.any(Array) }),
         expect.stringContaining("Validation failed"),
         400
       );

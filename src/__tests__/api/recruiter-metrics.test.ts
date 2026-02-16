@@ -26,6 +26,10 @@ jest.mock("@/lib/services/userService", () => ({
 
 jest.mock("@/lib/services/metricsService", () => ({
   getRecruiterMetrics: jest.fn(),
+  getMarketInsights: jest.fn(() => Promise.resolve({
+    totalCount: 100,
+    topSkills: ["React", "TypeScript", "Node.js"]
+  })),
 }));
 
 jest.mock("@/lib/logger", () => ({

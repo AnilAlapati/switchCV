@@ -23,9 +23,15 @@ jest.mock("@/lib/resumeMigration", () => ({
   migrateAllResumesToNumericIds: jest.fn(),
 }));
 
+jest.mock("@/lib/services/userService", () => ({
+  verifyAdminRole: jest.fn(),
+}));
+
 describe("Admin Migrate Numeric IDs API", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    const { verifyAdminRole } = require("@/lib/services/userService");
+    (verifyAdminRole as jest.Mock).mockResolvedValue(true);
   });
 
   const createRequest = (body: Record<string, unknown>) => {

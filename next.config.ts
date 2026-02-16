@@ -1,6 +1,14 @@
 import type { NextConfig } from "next";
 import packageJson from "./package.json";
 
+if (process.env.NODE_ENV === 'development') {
+  // HMR + Firebase Admin gRPC causes exit listener accumulation in dev.
+  // Setting to 0 = unlimited listeners, safe only in dev mode.
+  // See docs/error_v1.md for full explanation.
+  process.setMaxListeners(0);
+}
+
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   compress: true,

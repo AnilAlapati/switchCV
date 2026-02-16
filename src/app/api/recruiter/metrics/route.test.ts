@@ -42,6 +42,10 @@ jest.mock("@/lib/services/metricsService", () => ({
     accessRequests: { pending: 1, approved: 2, denied: 0 },
     lastActivityAt: "2024-01-01",
   }),
+  getMarketInsights: jest.fn().mockResolvedValue({
+    totalCount: 1000,
+    topSkills: ["React", "TypeScript", "Node.js"],
+  }),
 }));
 
 // Mock Firebase admin

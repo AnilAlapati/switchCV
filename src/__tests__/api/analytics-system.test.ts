@@ -81,7 +81,10 @@ describe("System Analytics API", () => {
 
     (adminDb.collection as jest.Mock).mockReturnValue({
       doc: jest.fn(() => ({
-        get: jest.fn().mockResolvedValue({ exists: false }),
+        get: jest.fn().mockResolvedValue({
+          exists: true,
+          data: () => ({ role: "admin" }),
+        }),
       })),
     });
 
@@ -280,7 +283,17 @@ describe("System Analytics API", () => {
     (getSystemAnalytics as jest.Mock).mockRejectedValue(
       new Error("Database error")
     );
-    (adminDb.collection as jest.Mock).mockImplementation(() => {
+    (adminDb.collection as jest.Mock).mockImplementation((col) => {
+      if (col === "users") {
+        return {
+          doc: jest.fn(() => ({
+            get: jest.fn().mockResolvedValue({
+              exists: true,
+              data: () => ({ role: "admin" }),
+            }),
+          })),
+        };
+      }
       throw new Error("DB error");
     });
 

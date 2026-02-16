@@ -268,3 +268,92 @@ export async function getRecruiterMetrics(
     accessRequests,
   };
 }
+
+interface MarketInsights {
+  topSkills: { name: string; count: number }[];
+  totalCount: number;
+  lastUpdated: number;
+}
+
+/**
+ * Aggegrate market insights from the resume database.
+ * Cached for 24 hours to prevent expensive queries.
+ */
+export async function getMarketInsights(): Promise<MarketInsights> {
+  const CACHE_DOC_ID = "market_insights_global_v3"; // Increment version to force refresh
+  const CACHE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+  try {
+    // 1. Try to get cached insights
+    const cacheRef = adminDb.collection("system").doc(CACHE_DOC_ID);
+    const cacheSnap = await cacheRef.get();
+
+    if (cacheSnap.exists) {
+      const data = cacheSnap.data();
+      const lastUpdated = data?.lastUpdated?.toMillis() || 0;
+      if (Date.now() - lastUpdated < CACHE_DURATION_MS) {
+        return {
+          topSkills: data?.topSkills || [],
+          totalCount: data?.totalCount || 0,
+          lastUpdated,
+        };
+      }
+    }
+
+    // 2. Cache expired or missing, regenerate
+    logger.info("Regenerating market insights cache");
+
+    // Limit to 200 most recent resumes for performance
+    const resumesSnap = await adminDb
+      .collection("resumes")
+      .orderBy("createdAt", "desc")
+      .limit(200)
+      .get();
+
+    const skillCounts = new Map<string, number>();
+    const totalCount = resumesSnap.size;
+
+    resumesSnap.forEach((doc) => {
+      const data = doc.data();
+      const skills = data.skills;
+
+      if (Array.isArray(skills)) {
+        skills.forEach((skill) => {
+          let name = "";
+          if (typeof skill === "string") {
+            name = skill.trim();
+          } else if (skill && typeof skill === "object" && "name" in skill) {
+            name = (skill as { name: string }).name?.trim() || "";
+          }
+
+          if (name) {
+            skillCounts.set(name, (skillCounts.get(name) || 0) + 1);
+          }
+        });
+      }
+    });
+
+    // Sort and take top 10
+    const topSkills = Array.from(skillCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([name, count]) => ({ name, count }));
+
+    // 3. Save to cache
+    await cacheRef.set({
+      topSkills,
+      totalCount,
+      lastUpdated: FieldValue.serverTimestamp(),
+    });
+
+    return {
+      topSkills,
+      totalCount,
+      lastUpdated: Date.now(),
+    };
+  } catch (error) {
+    logger.error({ err: error }, "Failed to get market insights");
+    // Return empty but don't crash
+    return { topSkills: [], totalCount: 0, lastUpdated: 0 };
+  }
+}

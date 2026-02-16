@@ -225,7 +225,7 @@ describe("POST /api/recruiters/approve-contact", () => {
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data.error).toBe("Request is already approved");
+    expect(data.error).toBe("Request status is not pending");
   });
 
   it("should successfully approve contact request", async () => {
@@ -255,7 +255,8 @@ describe("POST /api/recruiters/approve-contact", () => {
         }),
       });
 
-    mockAdd.mockResolvedValue({ id: "token-123" });
+    const mockTokenRef = { id: "token-123", update: mockUpdate };
+    mockAdd.mockResolvedValue(mockTokenRef);
     mockUpdate.mockResolvedValue(undefined);
 
     const request = new NextRequest(
@@ -277,7 +278,7 @@ describe("POST /api/recruiters/approve-contact", () => {
     expect(data.tokenId).toBe("token-123");
     expect(data.duration).toBe("1day");
     expect(mockAdd).toHaveBeenCalledTimes(4); // token + recruiter notification + candidate notification + audit log
-    expect(mockUpdate).toHaveBeenCalledTimes(1);
+    expect(mockUpdate).toHaveBeenCalledTimes(2); // token update + request update
   });
 
   it("should handle different durations correctly", async () => {
@@ -316,7 +317,8 @@ describe("POST /api/recruiters/approve-contact", () => {
           }),
         });
 
-      mockAdd.mockResolvedValue({ id: "token-123" });
+      const mockTokenRef = { id: "token-123", update: mockUpdate };
+      mockAdd.mockResolvedValue(mockTokenRef);
       mockUpdate.mockResolvedValue(undefined);
 
       const request = new NextRequest(

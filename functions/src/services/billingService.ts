@@ -3,6 +3,7 @@ import * as functions from "firebase-functions";
 
 const NUM_SHARDS = 10;
 const SHARD_COLLECTION = "system/billing/shards";
+const COLLECTION = "billing";
 
 /**
  * Service for managing system-wide and user-specific billing/cost tracking.
@@ -21,7 +22,12 @@ export class BillingService {
     operation: string,
   ): Promise<void> {
     const shardId = Math.floor(Math.random() * NUM_SHARDS);
-    const shardRef = adminDb.doc(`${SHARD_COLLECTION}/${shardId}`);
+    const shardRef = adminDb.collection(SHARD_COLLECTION).doc(`shard_${shardId}`);
+
+    const date = new Date();
+    const billingKey = `${date.getFullYear()}-${(date.getMonth() + 1)
+      .toString()
+      .padStart(2, "0")}`;
 
     try {
       const batch = adminDb.batch();
@@ -32,16 +38,18 @@ export class BillingService {
         {
           monthCost: admin.firestore.FieldValue.increment(cost),
           lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+          totalRequests: admin.firestore.FieldValue.increment(1),
         },
         { merge: true },
       );
 
-      // 2. User Cost (Direct update, assumed lower contention per user)
+      // 2. User Cost
       const userBillingRef = adminDb
-        .collection("users")
+        .collection(COLLECTION)
         .doc(userId)
-        .collection("billing")
-        .doc("current_month");
+        .collection("monthly")
+        .doc(billingKey);
+
       batch.set(
         userBillingRef,
         {
@@ -55,8 +63,6 @@ export class BillingService {
       await batch.commit();
     } catch (error) {
       functions.logger.error("Failed to track billing usage:", error);
-      // Critical: Tracking failures should be alerted, but we don't want to crash the request?
-      // For now, logging error.
     }
   }
 
@@ -71,7 +77,6 @@ export class BillingService {
     try {
       const shardsSnapshot = await adminDb
         .collection(SHARD_COLLECTION)
-        .limit(20)
         .get();
 
       if (shardsSnapshot.empty) {
@@ -100,15 +105,19 @@ export class BillingService {
 
   /**
    * Checks if a specific user has exceeded a monthly spending limit.
-   * Unused for Free Tier (usage counts used instead), but useful for API/Enterprise.
    */
   async checkUserBudget(userId: string, cap: number): Promise<boolean> {
+    const date = new Date();
+    const billingKey = `${date.getFullYear()}-${(date.getMonth() + 1)
+      .toString()
+      .padStart(2, "0")}`;
+
     try {
       const userBillingRef = await adminDb
-        .collection("users")
+        .collection(COLLECTION)
         .doc(userId)
-        .collection("billing")
-        .doc("current_month")
+        .collection("monthly")
+        .doc(billingKey)
         .get();
       if (!userBillingRef.exists) return true;
 

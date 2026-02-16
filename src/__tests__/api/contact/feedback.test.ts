@@ -163,7 +163,7 @@ describe("POST /api/contact/feedback", () => {
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data.error).toBe("Unable to process feedback submission");
+    expect(data.error).toBe("Invalid feedback submission");
   });
 
   it("should return 500 for unexpected errors", async () => {

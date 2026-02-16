@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
- 
+
 
 import { NextRequest } from "next/server";
 import { POST, GET } from "./route";
@@ -116,8 +116,14 @@ jest.mock("@/lib/firebase-admin", () => {
 
         return {
           doc: jest.fn().mockImplementation((id: string) => mockDocRef(id)),
+          where: jest.fn().mockReturnThis(),
           orderBy: jest.fn().mockReturnThis(),
           limit: jest.fn().mockReturnThis(),
+          count: jest.fn().mockImplementation(() => ({
+            get: jest.fn().mockResolvedValue({
+              data: () => ({ count: mockFirestoreData.size }),
+            }),
+          })),
           get: jest.fn().mockResolvedValue({
             docs: Array.from(mockFirestoreData.entries()).map(([id, data]) => ({
               id,
@@ -304,6 +310,7 @@ describe("POST /api/recruiter/candidates", () => {
         position: "Software Engineer",
         stage: PipelineStage.LEAD,
         priority: CandidatePriority.MEDIUM,
+        createdBy: "test-user-id",
         createdAt: { toDate: () => new Date() },
         updatedAt: { toDate: () => new Date() },
       };
@@ -379,6 +386,7 @@ describe("POST /api/recruiter/candidates", () => {
         position: "Software Engineer",
         stage: PipelineStage.LEAD,
         priority: CandidatePriority.MEDIUM,
+        createdBy: "test-user-id",
         createdAt: { toDate: () => new Date() },
         updatedAt: { toDate: () => new Date() },
       };
@@ -555,6 +563,7 @@ describe("GET /api/recruiter/candidates", () => {
       position: "Software Engineer",
       stage: PipelineStage.LEAD,
       priority: CandidatePriority.MEDIUM,
+      createdBy: "test-user-id",
       createdAt: { toDate: () => new Date() },
       updatedAt: { toDate: () => new Date() },
     };
@@ -623,6 +632,7 @@ describe("GET /api/recruiter/candidates", () => {
       position: "Software Engineer",
       stage: PipelineStage.LEAD,
       priority: CandidatePriority.MEDIUM,
+      createdBy: "test-user-id",
       createdAt: { toDate: () => new Date() },
       updatedAt: { toDate: () => new Date() },
     };
@@ -634,6 +644,7 @@ describe("GET /api/recruiter/candidates", () => {
       position: "Product Manager",
       stage: PipelineStage.SCREENED,
       priority: CandidatePriority.HIGH,
+      createdBy: "test-user-id",
       createdAt: { toDate: () => new Date() },
       updatedAt: { toDate: () => new Date() },
     };

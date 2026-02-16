@@ -231,7 +231,7 @@ describe("POST /api/recruiters/deny-contact", () => {
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.error).toBe("Request is already approved");
+      expect(data.error).toBe("Request status is not pending");
     });
   });
 

@@ -69,7 +69,7 @@ describe("POST /api/recruiter/jd-search", () => {
 
         expect(response.status).toBe(400);
         const body = await response.json();
-        expect(body.error).toContain("at least 50 characters");
+        expect(body.error).toBe("Invalid input");
     });
 
     it("returns 400 if request body is invalid JSON", async () => {

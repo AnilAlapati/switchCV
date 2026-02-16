@@ -21,6 +21,15 @@ import { DRAFT_CONFIG } from "@/config/constants";
 import { getDocs as mockGetDocs } from "firebase/firestore";
 import { logger } from "@/lib/logger";
 
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+  },
+}));
+
 // Mock dependencies
 jest.mock("firebase-admin", () => ({
   firestore: {

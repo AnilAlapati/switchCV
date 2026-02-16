@@ -153,7 +153,7 @@ describe("POST /api/resumes/create", () => {
     const data = await res.json();
 
     expect(res.status).toBe(403);
-    expect(data.error).toContain("You have reached the limit");
+    expect(data.error).toBe("Maximum resume limit reached for your plan");
   });
 
   it("should set expiration date for basic tier", async () => {

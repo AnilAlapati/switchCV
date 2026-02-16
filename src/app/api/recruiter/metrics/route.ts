@@ -4,7 +4,7 @@ import {
   getAuthenticatedUserId,
   handleApiError,
 } from "@/lib/utils/api-helpers";
-import { getRecruiterMetrics } from "@/lib/services/metricsService";
+import { getRecruiterMetrics, getMarketInsights } from "@/lib/services/metricsService";
 import { getUserRole } from "@/lib/services/userService";
 
 export async function GET(request: NextRequest) {
@@ -41,7 +41,16 @@ export async function GET(request: NextRequest) {
 
     // Get metrics from Service
     const metrics = await getRecruiterMetrics(userId);
-    const searchBreakdown = await getRecruiterSearchBreakdown(userId);
+    const userSearchBreakdown = await getRecruiterSearchBreakdown(userId);
+    const marketInsights = await getMarketInsights();
+
+    // Inject global market insights for the "Market Insights" section
+    const searchBreakdown = {
+      ...userSearchBreakdown,
+      // We use global data for the "Market Insights" breakdown to show the total talent pool
+      uniqueCandidatesLast7Days: marketInsights.totalCount,
+      topSkillsLast7Days: marketInsights.topSkills.slice(0, 3)
+    };
 
     return NextResponse.json(
       {

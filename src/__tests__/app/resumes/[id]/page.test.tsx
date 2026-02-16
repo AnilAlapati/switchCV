@@ -53,12 +53,13 @@ jest.mock("@/components/resume/PrivacyMenu", () => ({
   ),
 }));
 jest.mock("@/components/RequestAccessDialog", () => ({
-  RequestAccessDialog: ({ onSuccess, onClose }: any) => (
-    <div data-testid="request-dialog">
-      <button onClick={onSuccess}>Trigger Success</button>
-      <button onClick={onClose}>Close Dialog</button>
-    </div>
-  ),
+  RequestAccessDialog: ({ isOpen, onSuccess, onClose }: any) =>
+    isOpen ? (
+      <div data-testid="request-dialog">
+        <button onClick={onSuccess}>Trigger Success</button>
+        <button onClick={onClose}>Close Dialog</button>
+      </div>
+    ) : null,
 }));
 jest.mock("@/components/resume/TemplateRenderer", () => ({
   TemplateRenderer: ({ onRequestAccess }: any) => (

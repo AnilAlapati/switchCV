@@ -10,6 +10,17 @@ jest.mock("@/lib/logger");
 const mockCollectionRef = collectionRef as jest.Mock;
 const mockCollectionGroupRef = collectionGroupRef as jest.Mock;
 
+const createMockQuery = (snapshot: any) => {
+  const query: any = {
+    where: jest.fn(() => query),
+    orderBy: jest.fn(() => query),
+    limit: jest.fn(() => query),
+    startAfter: jest.fn(() => query),
+    get: jest.fn().mockResolvedValue(snapshot),
+  };
+  return query;
+};
+
 function makeMockDoc(
   id: string,
   data: Record<string, unknown>,
@@ -84,16 +95,8 @@ describe("access-status", () => {
         },
       });
       mockCollectionGroupRef
-        .mockReturnValueOnce({
-          where: jest.fn().mockReturnValue({
-            get: jest.fn().mockResolvedValue(requestSnapshot),
-          }),
-        })
-        .mockReturnValueOnce({
-          where: jest.fn().mockReturnValue({
-            get: jest.fn().mockResolvedValue(grantSnapshot),
-          }),
-        });
+        .mockReturnValueOnce(createMockQuery(requestSnapshot))
+        .mockReturnValueOnce(createMockQuery(grantSnapshot));
 
       const result = await buildAccessStatusMap("recruiter-1");
       expect(result.get("resume-1")).toBe("pending");
@@ -112,16 +115,8 @@ describe("access-status", () => {
         firestore: { collectionGroup: jest.fn() },
       });
       mockCollectionGroupRef
-        .mockReturnValueOnce({
-          where: jest.fn().mockReturnValue({
-            get: jest.fn().mockResolvedValue(requestSnapshot),
-          }),
-        })
-        .mockReturnValueOnce({
-          where: jest.fn().mockReturnValue({
-            get: jest.fn().mockResolvedValue(grantSnapshot),
-          }),
-        });
+        .mockReturnValueOnce(createMockQuery(requestSnapshot))
+        .mockReturnValueOnce(createMockQuery(grantSnapshot));
 
       const result = await buildAccessStatusMap("recruiter-1");
       expect(result.get("resume-2")).toBe("approved");
@@ -141,16 +136,8 @@ describe("access-status", () => {
         firestore: { collectionGroup: jest.fn() },
       });
       mockCollectionGroupRef
-        .mockReturnValueOnce({
-          where: jest.fn().mockReturnValue({
-            get: jest.fn().mockResolvedValue(requestSnapshot),
-          }),
-        })
-        .mockReturnValueOnce({
-          where: jest.fn().mockReturnValue({
-            get: jest.fn().mockResolvedValue(grantSnapshot),
-          }),
-        });
+        .mockReturnValueOnce(createMockQuery(requestSnapshot))
+        .mockReturnValueOnce(createMockQuery(grantSnapshot));
 
       const result = await buildAccessStatusMap("recruiter-1");
       expect(result.has("resume-3")).toBe(false);
@@ -169,16 +156,8 @@ describe("access-status", () => {
         firestore: { collectionGroup: jest.fn() },
       });
       mockCollectionGroupRef
-        .mockReturnValueOnce({
-          where: jest.fn().mockReturnValue({
-            get: jest.fn().mockResolvedValue(requestSnapshot),
-          }),
-        })
-        .mockReturnValueOnce({
-          where: jest.fn().mockReturnValue({
-            get: jest.fn().mockResolvedValue(grantSnapshot),
-          }),
-        });
+        .mockReturnValueOnce(createMockQuery(requestSnapshot))
+        .mockReturnValueOnce(createMockQuery(grantSnapshot));
 
       const result = await buildAccessStatusMap("recruiter-1");
       expect(result.get("resume-4")).toBe("approved");
@@ -197,16 +176,8 @@ describe("access-status", () => {
         firestore: { collectionGroup: jest.fn() },
       });
       mockCollectionGroupRef
-        .mockReturnValueOnce({
-          where: jest.fn().mockReturnValue({
-            get: jest.fn().mockResolvedValue(requestSnapshot),
-          }),
-        })
-        .mockReturnValueOnce({
-          where: jest.fn().mockReturnValue({
-            get: jest.fn().mockResolvedValue(grantSnapshot),
-          }),
-        });
+        .mockReturnValueOnce(createMockQuery(requestSnapshot))
+        .mockReturnValueOnce(createMockQuery(grantSnapshot));
 
       const result = await buildAccessStatusMap("recruiter-1");
       expect(result.get("resume-5")).toBe("denied");
@@ -230,16 +201,8 @@ describe("access-status", () => {
         firestore: { collectionGroup: jest.fn() },
       });
       mockCollectionGroupRef
-        .mockReturnValueOnce({
-          where: jest.fn().mockReturnValue({
-            get: jest.fn().mockResolvedValue(requestSnapshot),
-          }),
-        })
-        .mockReturnValueOnce({
-          where: jest.fn().mockReturnValue({
-            get: jest.fn().mockResolvedValue(grantSnapshot),
-          }),
-        });
+        .mockReturnValueOnce(createMockQuery(requestSnapshot))
+        .mockReturnValueOnce(createMockQuery(grantSnapshot));
 
       const result = await buildAccessStatusMap("recruiter-1");
       expect(result.get("resume-6")).toBe("pending");
@@ -277,10 +240,13 @@ describe("access-status", () => {
       mockCollectionRef.mockReturnValue({
         firestore: { collectionGroup: jest.fn() },
       });
+      mockCollectionGroupRef.mockReturnValueOnce(createMockQuery(null));
+      // Overwrite createMockQuery's get to throw
       mockCollectionGroupRef.mockReturnValueOnce({
-        where: jest.fn().mockReturnValue({
-          get: jest.fn().mockRejectedValue(new Error("Firestore error")),
-        }),
+        where: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        get: jest.fn().mockRejectedValue(new Error("Firestore error")),
       });
 
       const result = await buildAccessStatusMap("recruiter-1");

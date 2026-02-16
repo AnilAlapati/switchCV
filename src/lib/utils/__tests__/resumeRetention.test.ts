@@ -144,6 +144,7 @@ describe("resumeRetention utility", () => {
     it("should return critical message with hours", () => {
       const d = new Date();
       d.setHours(d.getHours() + 5);
+      d.setMinutes(d.getMinutes() + 1); // Add a small buffer to avoid millisecond drift rounding
       const status = calculateRetentionStatus(d.toISOString(), null, "basic");
       expect(getRetentionTooltipMessage(status)).toContain("5h");
     });

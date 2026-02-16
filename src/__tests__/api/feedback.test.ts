@@ -1,3 +1,6 @@
+/**
+ * @jest-environment node
+ */
 import { NextRequest } from "next/server";
 import { POST } from "@/app/api/contact/feedback/route";
 import {
@@ -21,12 +24,17 @@ jest.mock("@/lib/services/supportFeedbackService", () => {
     checkRateLimit: jest.fn(),
   };
 });
-jest.mock("@/lib/utils/api-helpers", () => ({
-  getClientIp: jest.fn(),
-  handleApiError: jest.fn(),
-  safeParseBody: jest.fn(),
-  maybeGetAuthenticatedUserId: jest.fn(),
-}));
+jest.mock("@/lib/utils/api-helpers", () => {
+  const { NextResponse } = require("next/server");
+  return {
+    getClientIp: jest.fn(),
+    handleApiError: jest.fn((error, message, status) =>
+      NextResponse.json({ error: message || "Error" }, { status: status || 500 })
+    ),
+    safeParseBody: jest.fn(),
+    maybeGetAuthenticatedUserId: jest.fn(),
+  };
+});
 jest.mock("@/lib/firebase-admin", () => ({
   adminAuth: {
     getUser: jest.fn(),
@@ -49,7 +57,7 @@ describe("Feedback API", () => {
     (safeParseBody as jest.Mock).mockResolvedValue({
       name: "Test User",
       email: "test@example.com",
-      message: "Hello",
+      message: "Hello world this is a long enough message for validation",
       _formTime: 5000,
     });
     (maybeGetAuthenticatedUserId as jest.Mock).mockResolvedValue(null);
@@ -73,7 +81,7 @@ describe("Feedback API", () => {
     (safeParseBody as jest.Mock).mockResolvedValue({
       name: "Test User",
       email: "test@example.com",
-      message: "Hello",
+      message: "Hello world this is a long enough message for validation",
       _formTime: 5000,
     });
     (maybeGetAuthenticatedUserId as jest.Mock).mockResolvedValue("user-123");
@@ -103,7 +111,7 @@ describe("Feedback API", () => {
       name: "Test",
       email: "test@example.com",
       subject: "Test",
-      message: "Test",
+      message: "Hello world this is a long enough message for validation",
       _formTime: 5000,
     });
     (sendSupportFeedback as jest.Mock).mockResolvedValue({ success: true });
@@ -128,6 +136,8 @@ describe("Feedback API", () => {
   it("should handle bot protection (fast fill)", async () => {
     (checkRateLimit as jest.Mock).mockReturnValue(false);
     (safeParseBody as jest.Mock).mockResolvedValue({
+      email: "bot@example.com",
+      message: "I am definitely a human being and not a bot at all.",
       _formTime: 100, // Too fast
     });
 
@@ -154,7 +164,11 @@ describe("Feedback API", () => {
 
   it("should handle SupportFeedbackError", async () => {
     (checkRateLimit as jest.Mock).mockReturnValue(false);
-    (safeParseBody as jest.Mock).mockResolvedValue({ _formTime: 5000 });
+    (safeParseBody as jest.Mock).mockResolvedValue({
+      email: "test@example.com",
+      message: "Valid message long enough",
+      _formTime: 5000,
+    });
     const error = new SupportFeedbackError("Service down", 503);
     (sendSupportFeedback as jest.Mock).mockRejectedValue(error);
 

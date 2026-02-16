@@ -74,7 +74,7 @@ describe("Generate Resume API", () => {
     expect(response.status).toBe(400);
     expect(handleApiError).toHaveBeenCalledWith(
       expect.any(Error),
-      "Missing resume data",
+      "Validation failed for request body",
       400,
       expect.any(NextRequest)
     );

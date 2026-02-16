@@ -14,12 +14,40 @@ jest.mock("@/lib/resumeMigration", () => ({
   migrateAllResumesToNumericIds: jest.fn(),
 }));
 
+jest.mock("@/lib/utils/api-helpers", () => ({
+  getAuthenticatedUserId: jest.fn(),
+  handleApiError: jest.fn((err, msg, status) => ({
+    status: status || 500,
+    json: async () => ({ error: msg }),
+  })),
+}));
+
+jest.mock("@/lib/services/userService", () => ({
+  verifyAdminRole: jest.fn().mockResolvedValue(true),
+}));
+
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    info: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
+import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
+import { verifyAdminRole } from "@/lib/services/userService";
+
 describe("POST /api/admin/migrate-numeric-ids", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: "admin-123", error: null });
+    (verifyAdminRole as jest.Mock).mockResolvedValue(true);
   });
 
   it("should return 401 if authorization header is missing", async () => {
+    (getAuthenticatedUserId as jest.Mock).mockResolvedValueOnce({
+      userId: null,
+      error: { status: 401, json: async () => ({ error: "Unauthorized" }) },
+    });
     const request = new NextRequest(
       "http://localhost:3000/api/admin/migrate-numeric-ids",
       {

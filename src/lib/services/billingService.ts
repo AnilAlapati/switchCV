@@ -16,33 +16,33 @@ export interface AIUsageRecord {
 
 // Pricing per 1k tokens (Estimated/Standard rates — updated Feb 2026)
 export const MODEL_PRICING: Record<string, { input: number; output: number }> =
-  {
-    // Gemini 2.5 (current active models)
-    "gemini-2.5-flash": { input: 0.00015, output: 0.0006 },
-    "gemini-2.5-flash-lite": { input: 0.000075, output: 0.0003 },
-    "gemini-2.5-pro": { input: 0.00125, output: 0.005 },
+{
+  // Gemini 2.5 (current active models)
+  "gemini-2.5-flash": { input: 0.00015, output: 0.0006 },
+  "gemini-2.5-flash-lite": { input: 0.000075, output: 0.0003 },
+  "gemini-2.5-pro": { input: 0.00125, output: 0.005 },
 
-    // Gemini 2.0
-    "gemini-2.0-flash": { input: 0.0001, output: 0.0004 },
+  // Gemini 2.0
+  "gemini-2.0-flash": { input: 0.0001, output: 0.0004 },
 
-    // Gemini 1.5 (legacy — kept for historical cost tracking)
-    "gemini-1.5-flash": { input: 0.00035, output: 0.00105 },
-    "gemini-1.5-pro": { input: 0.0035, output: 0.0105 },
+  // Gemini 1.5 (legacy — kept for historical cost tracking)
+  "gemini-1.5-flash": { input: 0.00035, output: 0.00105 },
+  "gemini-1.5-pro": { input: 0.0035, output: 0.0105 },
 
-    // OpenAI
-    "gpt-4o": { input: 0.005, output: 0.015 },
-    "gpt-4o-mini": { input: 0.00015, output: 0.0006 },
+  // OpenAI
+  "gpt-4o": { input: 0.005, output: 0.015 },
+  "gpt-4o-mini": { input: 0.00015, output: 0.0006 },
 
-    // Anthropic (Proxied via other providers or direct)
-    "claude-3-5-sonnet": { input: 0.003, output: 0.015 },
+  // Anthropic (Proxied via other providers or direct)
+  "claude-3-5-sonnet": { input: 0.003, output: 0.015 },
 
-    // Llama/Mistral (Groq/HF - usually cheap or free in some tiers, assigning low cost)
-    "llama-3.1-70b": { input: 0.0007, output: 0.0009 },
-    "mixtral-8x7b": { input: 0.00027, output: 0.00027 },
+  // Llama/Mistral (Groq/HF - usually cheap or free in some tiers, assigning low cost)
+  "llama-3.1-70b": { input: 0.0007, output: 0.0009 },
+  "mixtral-8x7b": { input: 0.00027, output: 0.00027 },
 
-    // Default fallback
-    default: { input: 0.001, output: 0.002 },
-  };
+  // Default fallback
+  default: { input: 0.001, output: 0.002 },
+};
 
 export const BUDGET_CAPS = {
   basic: 0.1, // Minimal hard cap for free tier (prevents abuse)
@@ -84,7 +84,12 @@ export class BillingService {
     operation: string = "agentic_workflow",
   ): Promise<void> {
     const shardId = Math.floor(Math.random() * this.NUM_SHARDS);
-    const shardRef = adminDb.doc(`${this.SHARD_COLLECTION}/${shardId}`);
+    const shardRef = adminDb.collection(this.SHARD_COLLECTION).doc(`shard_${shardId}`);
+
+    const date = new Date();
+    const billingKey = `${date.getFullYear()}-${(date.getMonth() + 1)
+      .toString()
+      .padStart(2, "0")}`;
 
     try {
       const batch = adminDb.batch();
@@ -99,12 +104,12 @@ export class BillingService {
         { merge: true },
       );
 
-      // 2. User Cost (Direct update, assumed lower contention per user)
+      // 2. User Cost
       const userBillingRef = adminDb
-        .collection("users")
+        .collection(this.COLLECTION)
         .doc(userId)
-        .collection("billing")
-        .doc("current_month");
+        .collection("monthly")
+        .doc(billingKey);
 
       batch.set(
         userBillingRef,
@@ -260,16 +265,16 @@ export class BillingService {
       );
 
       // 3. System-wide ledger (for aggregateBilling cloud function to simplify)
-      // "system/billing/shards/shard_X"
-      const shardId = Math.floor(Math.random() * 10);
+      const shardId = Math.floor(Math.random() * this.NUM_SHARDS);
       const shardRef = adminDb
-        .collection("system/billing/shards")
+        .collection(this.SHARD_COLLECTION)
         .doc(`shard_${shardId}`);
       batch.set(
         shardRef,
         {
           monthCost: admin.firestore.FieldValue.increment(cost),
           totalRequests: admin.firestore.FieldValue.increment(1),
+          lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
         },
         { merge: true },
       );

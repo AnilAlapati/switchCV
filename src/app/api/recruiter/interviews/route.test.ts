@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
- 
+
 
 import { NextRequest } from "next/server";
 import { POST, GET } from "./route";
@@ -230,6 +230,7 @@ describe("POST /api/recruiter/interviews", () => {
         duration: 60,
         interviewers: ["interviewer-1"],
         status: InterviewStatus.SCHEDULED,
+        createdBy: "test-user-id",
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -295,6 +296,7 @@ describe("POST /api/recruiter/interviews", () => {
         duration: 60,
         interviewers: ["interviewer-1"],
         status: InterviewStatus.SCHEDULED,
+        createdBy: "test-user-id",
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -400,6 +402,7 @@ describe("POST /api/recruiter/interviews", () => {
         duration: 60,
         interviewers: ["interviewer-1"],
         status: InterviewStatus.SCHEDULED,
+        createdBy: "test-user-id",
         createdAt: { toDate: () => new Date() },
         updatedAt: { toDate: () => new Date() },
       };
@@ -508,6 +511,7 @@ describe("GET /api/recruiter/interviews", () => {
       duration: 60,
       interviewers: ["interviewer-1"],
       status: InterviewStatus.SCHEDULED,
+      createdBy: "test-user-id",
       createdAt: { toDate: () => new Date() },
       updatedAt: { toDate: () => new Date() },
     };
@@ -563,6 +567,7 @@ describe("GET /api/recruiter/interviews", () => {
       duration: 90,
       interviewers: ["interviewer-2"],
       status: InterviewStatus.COMPLETED,
+      createdBy: "test-user-id",
       createdAt: { toDate: () => new Date() },
       updatedAt: { toDate: () => new Date() },
     };
@@ -609,6 +614,7 @@ describe("GET /api/recruiter/interviews", () => {
       duration: 90,
       interviewers: ["interviewer-2"],
       status: InterviewStatus.COMPLETED,
+      createdBy: "test-user-id",
       createdAt: { toDate: () => new Date() },
       updatedAt: { toDate: () => new Date() },
     };

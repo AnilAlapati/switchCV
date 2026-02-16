@@ -1,4 +1,4 @@
- 
+
 
 import { NextRequest } from "next/server";
 import { POST, GET } from "./route";
@@ -809,7 +809,7 @@ describe("GET /api/notifications", () => {
         success: true,
         statistics: mockStats,
       });
-      expect(mockGetStatistics).toHaveBeenCalledWith(undefined);
+      expect(mockGetStatistics).toHaveBeenCalledWith("user123");
     });
   });
 

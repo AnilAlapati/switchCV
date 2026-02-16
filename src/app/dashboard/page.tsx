@@ -47,7 +47,7 @@ export default function Dashboard() {
     refetch: refreshResume,
   } = useResume({ enabled: !authLoading && !!user });
 
-  const recruiterSearchRef = useRef<HTMLDivElement>(null);
+
 
   const handleLogout = useCallback(async () => {
     try {
@@ -78,14 +78,7 @@ export default function Dashboard() {
     }
   }, [authLoading, profileLoading, user, needsEmailVerification, role, router]);
 
-  const handleLaunchSearch = useCallback(() => {
-    if (recruiterSearchRef.current) {
-      recruiterSearchRef.current.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }
-  }, []);
+
 
   const metricsProviderValue: DashboardMetricsContextValue = useMemo(
     () => ({
@@ -146,8 +139,6 @@ export default function Dashboard() {
             <RecruiterDashboard
               metrics={recruiterMetrics}
               metricsLoading={metricsLoading}
-              onLaunchSearch={handleLaunchSearch}
-              searchSectionRef={recruiterSearchRef}
               resumes={resumes}
             />
           ) : (

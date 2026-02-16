@@ -19,13 +19,25 @@ jest.mock("@/lib/services/recruiterAgentService", () => ({
   },
 }));
 
-// Mock auth helper
-jest.mock("@/lib/utils/api-helpers", () => ({
-  getAuthenticatedUserId: jest
-    .fn()
-    .mockResolvedValue({ userId: "test-user", error: null }),
-  handleApiError: jest.requireActual("@/lib/utils/api-helpers").handleApiError,
+jest.mock("@/lib/services/userService", () => ({
+  getUserRole: jest.fn().mockResolvedValue("recruiter"),
 }));
+
+// Mock auth helper
+jest.mock("@/lib/utils/api-helpers", () => {
+  const { NextResponse } = require("next/server");
+  return {
+    getAuthenticatedUserId: jest
+      .fn()
+      .mockResolvedValue({ userId: "test-user", error: null }),
+    handleApiError: jest.fn((err, msg, status) =>
+      NextResponse.json(
+        { error: msg || "Internal Server Error" },
+        { status: status || 500 }
+      )
+    ),
+  };
+});
 
 describe("Recruiter Agent Endpoints", () => {
   beforeEach(() => {

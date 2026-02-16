@@ -20,6 +20,17 @@ jest.mock("@/lib/logger", () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() },
 }));
 
+const createMockQuery = (snapshot: any) => {
+  const query: any = {
+    where: jest.fn(() => query),
+    orderBy: jest.fn(() => query),
+    limit: jest.fn(() => query),
+    startAfter: jest.fn(() => query),
+    get: jest.fn().mockResolvedValue(snapshot),
+  };
+  return query;
+};
+
 describe("access-status", () => {
   const mockRecruiterId = "recruiter123";
   const mockResumeId = "resume123";
@@ -330,34 +341,24 @@ describe("access-status", () => {
 
       mockCollectionGroupRef.mockImplementation((name) => {
         if (name === "accessRequests") {
-          return {
-            where: jest.fn().mockReturnThis(),
-            get: jest
-              .fn()
-              .mockResolvedValue({
-                forEach: (
-                  cb: (doc: {
-                    id: string;
-                    data: () => Record<string, unknown>;
-                  }) => void,
-                ) => mockRequestsSnapshot.forEach(cb),
-              }),
-          };
+          return createMockQuery({
+            forEach: (
+              cb: (doc: {
+                id: string;
+                data: () => Record<string, unknown>;
+              }) => void,
+            ) => mockRequestsSnapshot.forEach(cb),
+          });
         }
         if (name === "accessGrants") {
-          return {
-            where: jest.fn().mockReturnThis(),
-            get: jest
-              .fn()
-              .mockResolvedValue({
-                forEach: (
-                  cb: (doc: {
-                    id: string;
-                    data: () => Record<string, unknown>;
-                  }) => void,
-                ) => mockGrantsSnapshot.forEach(cb),
-              }),
-          };
+          return createMockQuery({
+            forEach: (
+              cb: (doc: {
+                id: string;
+                data: () => Record<string, unknown>;
+              }) => void,
+            ) => mockGrantsSnapshot.forEach(cb),
+          });
         }
       });
 
