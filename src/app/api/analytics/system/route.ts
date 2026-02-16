@@ -5,6 +5,7 @@ import {
 } from "@/lib/utils/api-helpers";
 import { logger } from "@/lib/logger";
 import { getSystemAnalytics } from "@/lib/services/analyticsService";
+import { verifyAdminRole } from "@/lib/services/userService";
 
 export async function GET(request: NextRequest) {
   const { userId, error: authError } = await getAuthenticatedUserId(request);
@@ -13,6 +14,11 @@ export async function GET(request: NextRequest) {
       authError ||
       handleApiError(new Error("Unauthorized"), "Unauthorized", 401)
     );
+  }
+
+  // SECURITY: Only admins can access platform-wide analytics
+  if (!(await verifyAdminRole(userId))) {
+    return handleApiError(null, "Forbidden: Admin access required", 403);
   }
 
   try {

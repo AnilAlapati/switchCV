@@ -13,7 +13,7 @@ export async function getSystemAnalytics(
     if (!userDoc.exists) throw new Error("User not found");
     const role = userDoc.data()?.role;
 
-    if (role !== "admin" && role !== "recruiter") {
+    if (role !== "admin") {
         throw new Error("Unauthorized");
     }
 

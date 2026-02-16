@@ -17,9 +17,14 @@ jest.mock("@/lib/services/analyticsService", () => ({
   getSystemAnalytics: jest.fn(),
 }));
 
+// Mock user service
+jest.mock("@/lib/services/userService", () => ({
+  verifyAdminRole: jest.fn(),
+}));
+
 // Mock auth helpers
 jest.mock("@/lib/utils/api-helpers", () => {
-   
+
   const { NextResponse } = require("next/server");
   return {
     getAuthenticatedUserId: jest.fn(),
@@ -36,9 +41,12 @@ jest.mock("@/lib/utils/api-helpers", () => {
 
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 import { getSystemAnalytics } from "@/lib/services/analyticsService";
+import { verifyAdminRole } from "@/lib/services/userService";
 
 const mockGetAuthenticatedUserId =
   getAuthenticatedUserId as jest.MockedFunction<typeof getAuthenticatedUserId>;
+const mockVerifyAdminRole =
+  verifyAdminRole as jest.MockedFunction<typeof verifyAdminRole>;
 
 describe("System Analytics API", () => {
   beforeEach(() => {
@@ -60,25 +68,10 @@ describe("System Analytics API", () => {
     expect(response.status).toBe(401);
   });
 
-  it("should return 403 if user is not admin or recruiter", async () => {
+  it("should return 403 if user is not admin", async () => {
     const userId = "user123";
     mockGetAuthenticatedUserId.mockResolvedValue({ userId, error: undefined });
-
-    (getSystemAnalytics as jest.Mock).mockRejectedValue(
-      new Error("Unauthorized")
-    );
-
-    // Mock user doc with jobseeker role
-    const mockUserDoc = {
-      exists: true,
-      data: () => ({ role: "jobseeker", tier: "basic" }),
-    };
-
-    (adminDb.collection as jest.Mock).mockReturnValue({
-      doc: jest.fn().mockReturnValue({
-        get: jest.fn().mockResolvedValue(mockUserDoc),
-      }),
-    });
+    mockVerifyAdminRole.mockResolvedValue(false);
 
     const request = new NextRequest(
       "http://localhost:3000/api/analytics/system",
@@ -88,12 +81,13 @@ describe("System Analytics API", () => {
 
     expect(response.status).toBe(403);
     const data = await response.json();
-    expect(data.error).toContain("Unauthorized");
+    expect(data.error).toContain("Admin access required");
   });
 
   it("should return analytics data for admin user", async () => {
     const userId = "admin123";
     mockGetAuthenticatedUserId.mockResolvedValue({ userId, error: undefined });
+    mockVerifyAdminRole.mockResolvedValue(true);
 
     // Mock getSystemAnalytics to return expected data
     (getSystemAnalytics as jest.Mock).mockResolvedValue({
@@ -232,48 +226,19 @@ describe("System Analytics API", () => {
     expect(data).toHaveProperty("subscriptionDistribution");
   });
 
-  it("should return analytics data for recruiter user", async () => {
+  it("should return 403 for recruiter user (admin-only endpoint)", async () => {
     const userId = "recruiter123";
     mockGetAuthenticatedUserId.mockResolvedValue({ userId, error: undefined });
-
-    // Mock getSystemAnalytics to return expected data for recruiter
-    (getSystemAnalytics as jest.Mock).mockResolvedValue({
-      totalUsers: 10,
-      totalResumes: 15,
-      activeRecruiters: 3,
-      totalViews: 100,
-      topIndustries: [],
-      recentActivity: [],
-      subscriptionDistribution: { basic: 5, premium: 3, enterprise: 2 },
-    });
-
-    // Mock user doc with recruiter role
-    const mockUserDoc = {
-      exists: true,
-      data: () => ({ role: "recruiter", tier: "premium" }),
-    };
-
-    // Simplified mocks for recruiter test
-    (adminDb.collection as jest.Mock).mockImplementation(() => ({
-      doc: jest.fn().mockReturnValue({
-        get: jest.fn().mockResolvedValue(mockUserDoc),
-      }),
-      get: jest.fn().mockResolvedValue({ size: 0, forEach: () => { } }),
-      orderBy: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockReturnThis(),
-    }));
+    mockVerifyAdminRole.mockResolvedValue(false);
 
     const request = new NextRequest(
       "http://localhost:3000/api/analytics/system",
       { headers: { authorization: "Bearer test-token" } }
     );
-    Object.defineProperty(request, "nextUrl", {
-      value: { pathname: "/api/analytics/system" },
-      writable: true,
-      configurable: true,
-    });
     const response = await GET(request);
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(403);
+    const data = await response.json();
+    expect(data.error).toContain("Admin access required");
   });
 });

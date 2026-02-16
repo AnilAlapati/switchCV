@@ -19,9 +19,8 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
   const userInitial = userEmail ? userEmail.charAt(0).toUpperCase() : "U";
   const displayName = userEmail?.split("@")[0] || "User";
   const emailLabel = userEmail || "Signed out";
-  const appVersion = `${APP_CONFIG.VERSION_PREFIX}.${
-    process.env.NEXT_PUBLIC_APP_VERSION || "0.0.1"
-  }`;
+  const appVersion = `${APP_CONFIG.VERSION_PREFIX}.${process.env.NEXT_PUBLIC_APP_VERSION || "0.0.1"
+    }`;
 
   // Check if user has access to analytics (admin or recruiter)
   const hasAnalyticsAccess = role === "admin" || role === "recruiter";
@@ -87,9 +86,8 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
 
         {/* Chevron */}
         <svg
-          className={`relative h-4 w-4 text-[black]/60 transition-transform duration-200 group-hover:text-[black] ${
-            isOpen ? "rotate-180" : ""
-          }`}
+          className={`relative h-4 w-4 text-[black]/60 transition-transform duration-200 group-hover:text-[black] ${isOpen ? "rotate-180" : ""
+            }`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -229,13 +227,12 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
                     Job Seeker
                   </span>
                   <span
-                    className={`px-2 py-0.5 text-[10px] rounded-md font-bold border ${
-                      jobSeekerTier === "enterprise"
-                        ? "bg-purple-100 text-purple-700 border-purple-200"
-                        : jobSeekerTier === "premium"
-                          ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-                          : "bg-gray-100 text-gray-600 border-gray-200"
-                    }`}
+                    className={`px-2 py-0.5 text-[10px] rounded-md font-bold border ${jobSeekerTier === "enterprise"
+                      ? "bg-purple-100 text-purple-700 border-purple-200"
+                      : jobSeekerTier === "premium"
+                        ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+                        : "bg-gray-100 text-gray-600 border-gray-200"
+                      }`}
                   >
                     {jobSeekerTier.toUpperCase()}
                   </span>
@@ -245,13 +242,12 @@ export function UserProfileMenu({ userEmail, onLogout }: UserProfileMenuProps) {
                     Recruiter
                   </span>
                   <span
-                    className={`px-2 py-0.5 text-[10px] rounded-md font-bold border ${
-                      recruiterTier === "enterprise"
-                        ? "bg-purple-100 text-purple-700 border-purple-200"
-                        : recruiterTier === "premium"
-                          ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-                          : "bg-gray-100 text-gray-600 border-gray-200"
-                    }`}
+                    className={`px-2 py-0.5 text-[10px] rounded-md font-bold border ${recruiterTier === "enterprise"
+                      ? "bg-purple-100 text-purple-700 border-purple-200"
+                      : recruiterTier === "premium"
+                        ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+                        : "bg-gray-100 text-gray-600 border-gray-200"
+                      }`}
                   >
                     {recruiterTier.toUpperCase()}
                   </span>
