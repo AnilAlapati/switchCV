@@ -1,6 +1,6 @@
 /* eslint-disable max-lines */
 import Link from "next/link";
-import BetaDisclaimer from "./BetaDisclaimer";
+import BetaDisclaimer from "@/components/legal/BetaDisclaimer";
 
 const LAST_UPDATED = new Date().toLocaleDateString("en-US", {
   year: "numeric",

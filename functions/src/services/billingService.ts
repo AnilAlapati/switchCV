@@ -1,33 +1,45 @@
 /**
  * REPLICA of BillingService for Cloud Functions
- * TODO: Move to a shared library to avoid logic divergence.
- * Source of truth: src/lib/billing/shared.ts (Next.js side)
+ * Standardized across Next.js and Cloud Functions
+ * Source of truth: src/lib/billing/shared.ts
  */
 import { adminDb, admin } from "../lib/firebase";
 import * as functions from "firebase-functions";
-
-const NUM_SHARDS = 10;
-const SHARD_COLLECTION = "system/billing/shards";
-const COLLECTION = "billing";
+import {
+  BUDGET_CAPS,
+  BILLING_CONFIG,
+  calculateAicost,
+} from "../lib/billing/shared";
 
 /**
  * Service for managing system-wide and user-specific billing/cost tracking.
  */
 export class BillingService {
   /**
+   * Calculate exact cost for a request
+   */
+  static calculateCost(
+    model: string,
+    inputTokens: number,
+    outputTokens: number,
+  ): number {
+    return calculateAicost(model, inputTokens, outputTokens);
+  }
+
+  /**
    * Tracks the cost of an operation using sharded counters to avoid write contention.
    *
-   * @param userId The user ID (for future per-user tracking).
-   * @param cost The cost in USD to track.
-   * @param operation The operation type (e.g., 'resume_generation', 'agentic_flow').
+   * @param userId The user who incurred the cost
+   * @param cost The cost in USD
+   * @param operation The operation type (e.g., 'agentic_workflow', 'agent_analyze')
    */
-  async trackUsage(
+  static async trackCost(
     userId: string,
     cost: number,
-    operation: string,
+    operation: string = "agentic_workflow",
   ): Promise<void> {
-    const shardId = Math.floor(Math.random() * NUM_SHARDS);
-    const shardRef = adminDb.collection(SHARD_COLLECTION).doc(`shard_${shardId}`);
+    const shardId = Math.floor(Math.random() * BILLING_CONFIG.NUM_SHARDS);
+    const shardRef = adminDb.collection(BILLING_CONFIG.SHARD_COLLECTION).doc(`shard_${shardId}`);
 
     const date = new Date();
     const billingKey = `${date.getFullYear()}-${(date.getMonth() + 1)
@@ -50,7 +62,7 @@ export class BillingService {
 
       // 2. User Cost
       const userBillingRef = adminDb
-        .collection(COLLECTION)
+        .collection(BILLING_CONFIG.COLLECTION)
         .doc(userId)
         .collection("monthly")
         .doc(billingKey);
@@ -78,10 +90,10 @@ export class BillingService {
    * @param cap The budget cap in USD.
    * @returns True if current spend is LESS than the cap.
    */
-  async checkSystemBudget(cap: number): Promise<boolean> {
+  static async checkSystemBudget(cap: number): Promise<boolean> {
     try {
       const shardsSnapshot = await adminDb
-        .collection(SHARD_COLLECTION)
+        .collection(BILLING_CONFIG.SHARD_COLLECTION)
         .get();
 
       if (shardsSnapshot.empty) {
@@ -111,7 +123,10 @@ export class BillingService {
   /**
    * Checks if a specific user has exceeded a monthly spending limit.
    */
-  async checkUserBudget(userId: string, cap: number): Promise<boolean> {
+  static async checkBudget(
+    userId: string,
+    tier: keyof typeof BUDGET_CAPS = "basic",
+  ): Promise<boolean> {
     const date = new Date();
     const billingKey = `${date.getFullYear()}-${(date.getMonth() + 1)
       .toString()
@@ -119,20 +134,97 @@ export class BillingService {
 
     try {
       const userBillingRef = await adminDb
-        .collection(COLLECTION)
+        .collection(BILLING_CONFIG.COLLECTION)
         .doc(userId)
         .collection("monthly")
         .doc(billingKey)
         .get();
-      if (!userBillingRef.exists) return true;
 
-      const totalCost = userBillingRef.data()?.totalCost || 0;
-      return totalCost < cap;
+      const currentCost = userBillingRef.exists ? userBillingRef.data()?.totalCost || 0 : 0;
+      const budgetLimit = BUDGET_CAPS[tier] || BUDGET_CAPS.basic;
+
+      return currentCost < budgetLimit;
     } catch (error) {
       functions.logger.error("Failed to check user budget:", error);
       return false;
     }
   }
+
+  /**
+   * Track usage and cost in Firestore.
+   */
+  static async trackUsage(
+    userId: string,
+    model: string,
+    usage: { input: number; output: number },
+  ): Promise<void> {
+    const cost = this.calculateCost(model, usage.input, usage.output);
+    const date = new Date();
+    const billingKey = `${date.getFullYear()}-${(date.getMonth() + 1)
+      .toString()
+      .padStart(2, "0")}`;
+    const dayKey = `${billingKey}-${date
+      .getDate()
+      .toString()
+      .padStart(2, "0")}`;
+
+    try {
+      const batch = adminDb.batch();
+
+      // 1. User Monthly Record
+      const monthlyRef = adminDb
+        .collection(BILLING_CONFIG.COLLECTION)
+        .doc(userId)
+        .collection("monthly")
+        .doc(billingKey);
+
+      batch.set(
+        monthlyRef,
+        {
+          totalCost: admin.firestore.FieldValue.increment(cost),
+          totalTokens: admin.firestore.FieldValue.increment(
+            usage.input + usage.output,
+          ),
+          requestCount: admin.firestore.FieldValue.increment(1),
+          lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
+
+      // 2. Daily granular log
+      const dailyRef = monthlyRef.collection("daily").doc(dayKey);
+      batch.set(
+        dailyRef,
+        {
+          cost: admin.firestore.FieldValue.increment(cost),
+          tokens: admin.firestore.FieldValue.increment(
+            usage.input + usage.output,
+          ),
+          requests: admin.firestore.FieldValue.increment(1),
+        },
+        { merge: true },
+      );
+
+      // 3. System-wide ledger
+      const shardId = Math.floor(Math.random() * BILLING_CONFIG.NUM_SHARDS);
+      const shardRef = adminDb
+        .collection(BILLING_CONFIG.SHARD_COLLECTION)
+        .doc(`shard_${shardId}`);
+
+      batch.set(
+        shardRef,
+        {
+          monthCost: admin.firestore.FieldValue.increment(cost),
+          totalRequests: admin.firestore.FieldValue.increment(1),
+          lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
+
+      await batch.commit();
+    } catch (error) {
+      functions.logger.error("Failed to track usage cost:", error);
+    }
+  }
 }
 
-export const billingService = new BillingService();

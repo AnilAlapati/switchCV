@@ -1,8 +1,6 @@
 import * as admin from "firebase-admin";
 import * as functions from "firebase-functions/v1";
-
-const SHARD_COLLECTION = "system/billing/shards";
-const DASHBOARD_COLLECTION = "system/billing/dashboard";
+import { BILLING_CONFIG } from "./lib/billing/shared";
 
 /**
  * Aggregates cost from sharded counters to a central document.
@@ -22,7 +20,7 @@ export const aggregateBillingHandler = async (
     const billingKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}`;
 
     // Check if we need to reset shards for a new month
-    const metaRef = db.doc(`system/billing/dashboard/meta`);
+    const metaRef = db.doc(`${BILLING_CONFIG.DASHBOARD_COLLECTION}/meta`);
     const metaSnap = await metaRef.get();
     const metaData = metaSnap.exists ? metaSnap.data() : undefined;
     const lastBillingKey = metaData?.lastBillingKey;
@@ -33,7 +31,7 @@ export const aggregateBillingHandler = async (
         `New billing month detected: ${lastBillingKey} → ${billingKey}. Resetting shards.`,
       );
 
-      const shardsSnapshot = await db.collection(SHARD_COLLECTION).get();
+      const shardsSnapshot = await db.collection(BILLING_CONFIG.SHARD_COLLECTION).get();
 
       // Archive the previous month's total before reset
       let previousTotal = 0;
@@ -42,7 +40,7 @@ export const aggregateBillingHandler = async (
       }
 
       // Write the archived total
-      await db.doc(`${DASHBOARD_COLLECTION}/${lastBillingKey}`).set(
+      await db.doc(`${BILLING_CONFIG.DASHBOARD_COLLECTION}/${lastBillingKey}`).set(
         {
           totalCost: previousTotal,
           finalizedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -73,7 +71,7 @@ export const aggregateBillingHandler = async (
     }
 
     // Now aggregate current shards
-    const shardsSnapshot = await db.collection(SHARD_COLLECTION).get();
+    const shardsSnapshot = await db.collection(BILLING_CONFIG.SHARD_COLLECTION).get();
     let totalCost = 0;
     let totalRequests = 0;
 
@@ -84,7 +82,7 @@ export const aggregateBillingHandler = async (
     });
 
     // Write aggregated total to the monthly dashboard doc
-    await db.doc(`${DASHBOARD_COLLECTION}/${billingKey}`).set(
+    await db.doc(`${BILLING_CONFIG.DASHBOARD_COLLECTION}/${billingKey}`).set(
       {
         totalCost: totalCost,
         totalRequests: totalRequests,

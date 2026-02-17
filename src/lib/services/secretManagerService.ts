@@ -203,7 +203,7 @@ export class SecretManagerService {
 
     for (const [secretName, config] of Object.entries(SECRET_CONFIG)) {
       try {
-        const metadata = await this.getSecretMetadata();
+        const metadata = await this.getSecretMetadata(secretName);
         metadataList.push({
           name: secretName,
           lastRotated: metadata?.lastRotated || new Date(0),
@@ -228,13 +228,25 @@ export class SecretManagerService {
   /**
    * Get metadata for a specific secret
    */
-  private async getSecretMetadata(): Promise<{
+  private async getSecretMetadata(name: string): Promise<{
     lastRotated: Date;
     version: string;
   } | null> {
-    // TODO: Fetch from Firestore collection 'secretMetadata'
-    // For now, return null (will be populated after first rotation)
-    return null;
+    try {
+      const { adminDb } = await import("@/lib/firebase-admin");
+      const doc = await adminDb.collection("secretMetadata").doc(name).get();
+
+      if (!doc.exists) return null;
+
+      const data = doc.data();
+      return {
+        lastRotated: data?.lastRotated?.toDate() || new Date(0),
+        version: data?.version || "unknown"
+      };
+    } catch (error) {
+      logger.warn({ err: error, secretName: name }, "Failed to fetch secret metadata");
+      return null;
+    }
   }
 
   /**

@@ -18,6 +18,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return authError || handleApiError(null, "Unauthorized", 401);
     }
 
+    // 1.5 Rate Limiting
+    const { checkDistributedRateLimit, aiSearchRateLimiter } = await import("@/lib/utils/distributedRateLimit");
+    const rateLimit = await aiSearchRateLimiter(authUserId);
+
+    if (!rateLimit.allowed) {
+      return handleApiError(null, "Rate limit exceeded. Please try again later.", 429);
+    }
+
+
     // 2. Parse Query
     const { searchParams } = new URL(request.url);
     const rawQuery = searchParams.get("q");

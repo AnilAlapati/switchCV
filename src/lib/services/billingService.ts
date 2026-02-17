@@ -21,11 +21,14 @@ import {
   calculateAicost
 } from "../billing/shared";
 
-export class BillingService {
-  private static COLLECTION = BILLING_CONFIG.COLLECTION;
-  private static NUM_SHARDS = BILLING_CONFIG.NUM_SHARDS;
-  private static SHARD_COLLECTION = BILLING_CONFIG.SHARD_COLLECTION;
+export {
+  MODEL_PRICING,
+  BUDGET_CAPS,
+  BILLING_CONFIG,
+  calculateAicost
+};
 
+export class BillingService {
   /**
    * Calculate exact cost for a request
    */
@@ -50,8 +53,8 @@ export class BillingService {
     cost: number,
     operation: string = "agentic_workflow",
   ): Promise<void> {
-    const shardId = Math.floor(Math.random() * this.NUM_SHARDS);
-    const shardRef = adminDb.collection(this.SHARD_COLLECTION).doc(`shard_${shardId}`);
+    const shardId = Math.floor(Math.random() * BILLING_CONFIG.NUM_SHARDS);
+    const shardRef = adminDb.collection(BILLING_CONFIG.SHARD_COLLECTION).doc(`shard_${shardId}`);
 
     const date = new Date();
     const billingKey = `${date.getFullYear()}-${(date.getMonth() + 1)
@@ -73,7 +76,7 @@ export class BillingService {
 
       // 2. User Cost
       const userBillingRef = adminDb
-        .collection(this.COLLECTION)
+        .collection(BILLING_CONFIG.COLLECTION)
         .doc(userId)
         .collection("monthly")
         .doc(billingKey);
@@ -105,7 +108,7 @@ export class BillingService {
   static async checkSystemBudget(cap: number): Promise<boolean> {
     try {
       const shardsSnapshot = await adminDb
-        .collection(this.SHARD_COLLECTION)
+        .collection(BILLING_CONFIG.SHARD_COLLECTION)
         .get();
 
       if (shardsSnapshot.empty) {
@@ -151,7 +154,7 @@ export class BillingService {
 
     try {
       const docRef = adminDb
-        .collection(this.COLLECTION)
+        .collection(BILLING_CONFIG.COLLECTION)
         .doc(userId)
         .collection("monthly")
         .doc(billingKey);
@@ -200,7 +203,7 @@ export class BillingService {
 
       // 1. User Monthly Record
       const monthlyRef = adminDb
-        .collection(this.COLLECTION)
+        .collection(BILLING_CONFIG.COLLECTION)
         .doc(userId)
         .collection("monthly")
         .doc(billingKey);
@@ -232,9 +235,9 @@ export class BillingService {
       );
 
       // 3. System-wide ledger (for aggregateBilling cloud function to simplify)
-      const shardId = Math.floor(Math.random() * this.NUM_SHARDS);
+      const shardId = Math.floor(Math.random() * BILLING_CONFIG.NUM_SHARDS);
       const shardRef = adminDb
-        .collection(this.SHARD_COLLECTION)
+        .collection(BILLING_CONFIG.SHARD_COLLECTION)
         .doc(`shard_${shardId}`);
       batch.set(
         shardRef,

@@ -48,8 +48,8 @@ export function useUserProfile(): UseUserProfileResult {
     ([url]: [string, string]) =>
       user!.getIdToken().then((token) => fetcher(url, token)),
     {
-      // Keep data fresh for 10 seconds
-      dedupingInterval: 10000,
+      // Keep data fresh for 60 seconds
+      dedupingInterval: 60000,
       // Don't retry on 404s (profile doesn't exist yet)
       shouldRetryOnError: false,
       // PERF: Do NOT revalidateOnFocus — triggers Firestore reads on every tab switch
@@ -80,21 +80,21 @@ export function useUserProfile(): UseUserProfileResult {
   // Construct effective profile
   const effectiveProfile: UserProfile | null = data
     ? {
-        ...data,
+      ...data,
+      subscriptionTier: effectiveTier,
+      jobSeekerTier,
+      recruiterTier,
+      role: effectiveRole as UserRole,
+    }
+    : user
+      ? {
+        uid: user.uid,
+        email: user.email || "",
         subscriptionTier: effectiveTier,
         jobSeekerTier,
         recruiterTier,
         role: effectiveRole as UserRole,
       }
-    : user
-      ? {
-          uid: user.uid,
-          email: user.email || "",
-          subscriptionTier: effectiveTier,
-          jobSeekerTier,
-          recruiterTier,
-          role: effectiveRole as UserRole,
-        }
       : null;
 
   return {

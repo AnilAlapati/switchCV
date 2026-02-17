@@ -1,5 +1,5 @@
 import { adminDb } from "@/lib/firebase-admin";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, DocumentData } from "firebase-admin/firestore";
 import { logger } from "@/lib/logger";
 import {
   NotificationType,
@@ -85,72 +85,22 @@ export class AccessService {
       throw new Error("Cannot request access to own resume");
 
     // 3. Check for existing grants/requests
-    let existingRequests;
-    try {
-      existingRequests = await resumeRef
-        .collection("accessRequests")
-        .where("fromUserId", "==", requesterId)
-        .where("status", "==", "pending")
-        .limit(100)
-        .get();
-    } catch (e: unknown) {
-      const err = e as { code?: number; message?: string };
-      if (err.code === 9 || err.message?.toLowerCase().includes("index")) {
-        logger.warn(
-          { resumeId, requesterId },
-          "Missing Firestore index for accessRequests, falling back to full collection scan",
-        );
-        const allRequests = await resumeRef
-          .collection("accessRequests")
-          .limit(500)
-          .get();
-        const filteredDocs = allRequests.docs.filter((doc) => {
-          const d = doc.data();
-          return d.fromUserId === requesterId && d.status === "pending";
-        });
-        existingRequests = {
-          docs: filteredDocs,
-          empty: filteredDocs.length === 0,
-          size: filteredDocs.length,
-        };
-      } else {
-        throw err;
-      }
-    }
+    const existingRequests = await AccessService.queryWithFallback(
+      resumeRef.collection("accessRequests"),
+      (col) => col.where("fromUserId", "==", requesterId).where("status", "==", "pending"),
+      (data: DocumentData) => data.fromUserId === requesterId && data.status === "pending",
+      { resumeId, requesterId, type: "accessRequests" }
+    );
 
     if (!existingRequests.empty)
       throw new Error("Pending request already exists");
 
-    let activeGrants;
-    try {
-      activeGrants = await resumeRef
-        .collection("accessGrants")
-        .where("toUserId", "==", requesterId)
-        .limit(100)
-        .get();
-    } catch (e: unknown) {
-      const err = e as { code?: number; message?: string };
-      if (err.code === 9 || err.message?.toLowerCase().includes("index")) {
-        logger.warn(
-          { resumeId, requesterId },
-          "Missing Firestore index for accessGrants, falling back to full collection scan",
-        );
-        activeGrants = await resumeRef
-          .collection("accessGrants")
-          .limit(500)
-          .get();
-        const filteredDocs = activeGrants.docs.filter(
-          (doc) => doc.data().toUserId === requesterId,
-        );
-        activeGrants = {
-          docs: filteredDocs,
-          empty: filteredDocs.length === 0,
-          size: filteredDocs.length,
-        };
-      } else {
-        throw err;
-      }
-    }
+    const activeGrants = await AccessService.queryWithFallback(
+      resumeRef.collection("accessGrants"),
+      (col) => col.where("toUserId", "==", requesterId),
+      (data: DocumentData) => data.toUserId === requesterId,
+      { resumeId, requesterId, type: "accessGrants" }
+    );
 
     const now = new Date();
     const hasActive = activeGrants.docs.some((doc) => {
@@ -381,5 +331,35 @@ export class AccessService {
     }
 
     return { hasAccess: false, accessType: "none", message: "No access" };
+  }
+  /**
+   * Helper to execute query with fallback to client-side filtering if index is missing
+   */
+  public static async queryWithFallback(
+    collection: FirebaseFirestore.CollectionReference,
+    queryBuilder: (col: FirebaseFirestore.CollectionReference) => FirebaseFirestore.Query,
+    filterFn: (data: any) => boolean,
+    logContext: Record<string, any>
+  ) {
+    try {
+      const query = queryBuilder(collection);
+      const snap = await query.limit(100).get();
+      return { docs: snap.docs, empty: snap.empty, size: snap.size };
+    } catch (e: any) {
+      if (e.code === 9 || e.message?.toLowerCase().includes("index") || e.code === "FAILED_PRECONDITION") {
+        logger.warn(
+          logContext,
+          `Missing Firestore index for ${logContext.type}, falling back to full collection scan`
+        );
+        const allDocs = await collection.limit(500).get();
+        const filteredDocs = allDocs.docs.filter((doc) => filterFn(doc.data()));
+        return {
+          docs: filteredDocs,
+          empty: filteredDocs.length === 0,
+          size: filteredDocs.length,
+        };
+      }
+      throw e;
+    }
   }
 }

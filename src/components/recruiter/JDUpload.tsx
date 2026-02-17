@@ -117,22 +117,41 @@ export function JDUpload({
       return;
     }
 
-    if (extension !== "txt") {
-      // TODO: Implement actual parsing for PDF/DOC
-      // For now, we'll just set the filename and a placeholder or try to read text if possible
-      setFileName(file.name);
-      toast.info(`Selected ${file.name}. Note: Advanced parsing for PDF/DOC is coming soon. Please ensure text is readable.`);
-      // Proceeding with empty text for now or basic read if browser supports it
-      // In a real implementation, we'd send the file to an API endpoint
+    if (extension === "txt") {
+      try {
+        const text = await file.text();
+        setJdText(text);
+        setFileName(file.name);
+      } catch {
+        toast.error("Failed to read file.");
+      }
       return;
     }
 
+    // Handle PDF/DOCX via API
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const toastId = toast.loading("Parsing document...");
+
     try {
-      const text = await file.text();
-      setJdText(text);
+      const response = await fetch("/api/utils/parse-jd", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to parse document");
+      }
+
+      setJdText(data.text);
       setFileName(file.name);
-    } catch {
-      toast.error("Failed to read file.");
+      toast.success("Document parsed successfully", { id: toastId });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to parse document", { id: toastId });
+      setFileName(null);
     }
   }, []);
 
