@@ -76,15 +76,15 @@ export function SearchModeSelector({
                             type="button"
                             onClick={() => handleModeSwitch("ai")}
                             className={`group relative flex h-full flex-col justify-between gap-4 rounded-2xl border-2 p-5 text-left transition-all duration-300 ${searchMode === "ai"
-                                    ? "border-teal-400 bg-gradient-to-br from-cyan-100 to-teal-100 text-slate-800 shadow-lg shadow-teal-200/50"
-                                    : "border-slate-200/80 bg-white/80 hover:border-teal-300 hover:bg-teal-50/40 hover:shadow-md hover:scale-[1.01]"
+                                ? "border-teal-400 bg-gradient-to-br from-cyan-100 to-teal-100 text-slate-800 shadow-lg shadow-teal-200/50"
+                                : "border-slate-200/80 bg-white/80 hover:border-teal-300 hover:bg-teal-50/40 hover:shadow-md hover:scale-[1.01]"
                                 }`}
                         >
                             <div className="flex w-full items-start justify-between">
                                 <div
                                     className={`flex h-12 w-12 items-center justify-center rounded-xl text-xl transition-all duration-300 ${searchMode === "ai"
-                                            ? "bg-white/20 text-white"
-                                            : "bg-indigo-100 text-indigo-500 group-hover:bg-indigo-200 group-hover:text-indigo-600"
+                                        ? "bg-white/20 text-white"
+                                        : "bg-indigo-100 text-indigo-500 group-hover:bg-indigo-200 group-hover:text-indigo-600"
                                         }`}
                                 >
                                     ✨
@@ -99,8 +99,8 @@ export function SearchModeSelector({
                             <div>
                                 <span
                                     className={`block font-bold ${searchMode === "ai"
-                                            ? "text-teal-900"
-                                            : "text-slate-800 group-hover:text-indigo-700"
+                                        ? "text-teal-900"
+                                        : "text-slate-800 group-hover:text-indigo-700"
                                         }`}
                                 >
                                     Agent Search
@@ -121,15 +121,15 @@ export function SearchModeSelector({
                     type="button"
                     onClick={() => handleModeSwitch("basic")}
                     className={`group relative flex h-full flex-col justify-between gap-4 rounded-2xl border-2 p-5 text-left transition-all duration-300 ${searchMode === "basic"
-                            ? "border-blue-400 bg-gradient-to-br from-blue-100 to-sky-100 text-slate-800 shadow-lg shadow-blue-200/50"
-                            : "border-slate-200/80 bg-white/80 hover:border-blue-300 hover:bg-blue-50/40 hover:shadow-md hover:scale-[1.01]"
+                        ? "border-blue-400 bg-gradient-to-br from-blue-100 to-sky-100 text-slate-800 shadow-lg shadow-blue-200/50"
+                        : "border-slate-200/80 bg-white/80 hover:border-blue-300 hover:bg-blue-50/40 hover:shadow-md hover:scale-[1.01]"
                         }`}
                 >
                     <div className="flex w-full items-start justify-between">
                         <div
                             className={`flex h-12 w-12 items-center justify-center rounded-xl text-base font-black transition-all duration-300 ${searchMode === "basic"
-                                    ? "bg-blue-200/50 text-blue-700"
-                                    : "bg-slate-100 text-slate-500 group-hover:bg-slate-200 group-hover:text-slate-700"
+                                ? "bg-blue-200/50 text-blue-700"
+                                : "bg-slate-100 text-slate-500 group-hover:bg-slate-200 group-hover:text-slate-700"
                                 }`}
                         >
                             ID
@@ -138,8 +138,8 @@ export function SearchModeSelector({
                     <div>
                         <span
                             className={`block text-base font-bold transition-colors ${searchMode === "basic"
-                                    ? "text-blue-900"
-                                    : "text-slate-800 group-hover:text-slate-900"
+                                ? "text-blue-900"
+                                : "text-slate-800 group-hover:text-slate-900"
                                 }`}
                         >
                             Basic Lookup
@@ -199,15 +199,15 @@ export function SearchModeSelector({
                             type="button"
                             onClick={() => handleModeSwitch("premium")}
                             className={`group relative flex h-full flex-col justify-between gap-4 rounded-2xl border-2 p-5 text-left transition-all duration-300 ${searchMode === "premium"
-                                    ? "border-rose-300 bg-gradient-to-br from-rose-100 to-pink-100 text-slate-800 shadow-lg shadow-rose-200/50"
-                                    : "border-slate-200/80 bg-white/80 hover:border-rose-300 hover:bg-rose-50/40 hover:shadow-md hover:scale-[1.01]"
+                                ? "border-rose-300 bg-gradient-to-br from-rose-100 to-pink-100 text-slate-800 shadow-lg shadow-rose-200/50"
+                                : "border-slate-200/80 bg-white/80 hover:border-rose-300 hover:bg-rose-50/40 hover:shadow-md hover:scale-[1.01]"
                                 }`}
                         >
                             <div className="flex w-full items-start justify-between">
                                 <div
                                     className={`flex h-12 w-12 items-center justify-center rounded-xl text-lg transition-all duration-300 ${searchMode === "premium"
-                                            ? "bg-rose-200/50 text-rose-700"
-                                            : "bg-amber-100 text-amber-500 group-hover:bg-amber-200 group-hover:text-amber-600"
+                                        ? "bg-rose-200/50 text-rose-700"
+                                        : "bg-amber-100 text-amber-500 group-hover:bg-amber-200 group-hover:text-amber-600"
                                         }`}
                                 >
                                     ★
@@ -216,16 +216,16 @@ export function SearchModeSelector({
                             <div>
                                 <span
                                     className={`block text-base font-bold transition-colors ${searchMode === "premium"
-                                            ? "text-rose-900"
-                                            : "text-slate-800 group-hover:text-amber-700"
+                                        ? "text-rose-900"
+                                        : "text-slate-800 group-hover:text-amber-700"
                                         }`}
                                 >
                                     Premium Filters
                                 </span>
                                 <p
                                     className={`mt-1.5 text-xs leading-relaxed ${searchMode === "premium"
-                                            ? "text-rose-700"
-                                            : "text-slate-500"
+                                        ? "text-rose-700"
+                                        : "text-slate-500"
                                         }`}
                                 >
                                     Advanced search with skills and location filters
@@ -234,6 +234,7 @@ export function SearchModeSelector({
                         </button>
                     )}
                 </div>
+
             </div>
         </div>
     );

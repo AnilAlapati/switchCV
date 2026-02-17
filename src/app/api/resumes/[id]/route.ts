@@ -144,16 +144,15 @@ export async function PATCH(
     const { userId, error } = await getAuthenticatedUserId(request);
     if (error || !userId) return error;
 
-    const body = await request.json();
-    const { isPublic } = body;
+    const VisibilitySchema = z.object({
+      isPublic: z.boolean()
+    }).strict();
 
-    if (typeof isPublic !== "boolean") {
-      return handleApiError(
-        new Error("Invalid visibility state"),
-        "Invalid visibility state",
-        400
-      );
+    const parseResult = VisibilitySchema.safeParse(await request.json());
+    if (!parseResult.success) {
+      return handleApiError(parseResult.error, "Invalid visibility state", 400);
     }
+    const { isPublic } = parseResult.data;
 
     // Check ownership via service
     const { access } = await getResume(id, userId);

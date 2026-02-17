@@ -16,7 +16,7 @@ export interface SearchResult {
   summary?: string; // AI-generated or profile summary
 }
 
-export type SearchModeType = "basic" | "premium" | "ai";
+export type SearchModeType = "basic" | "premium" | "ai" | "jd";
 
 interface RecruiterSearchFormProps {
   searchMode: SearchModeType;
@@ -92,44 +92,45 @@ export function RecruiterSearchForm({
         premiumFiltersEnabled={premiumFiltersEnabled}
       />
 
-      <form
-        onSubmit={
-          searchMode === "ai"
-            ? (e) => {
+      <div className="space-y-5">
+        {searchMode === "ai" && setAiQuery && onAiSearch ? (
+          <form
+            onSubmit={(e) => {
               e.preventDefault();
               onAiSearch?.();
-            }
-            : onSearch
-        }
-        className="space-y-5"
-      >
-        {searchMode === "ai" && setAiQuery && onAiSearch ? (
-          <AiSearchInput
-            aiQuery={aiQuery}
-            setAiQuery={setAiQuery}
-            onAiSearch={onAiSearch}
-            aiSearching={aiSearching}
-            aiError={aiError}
-            aiQuota={aiQuota}
-            loading={loading}
-          />
+            }}
+          >
+            <AiSearchInput
+              aiQuery={aiQuery}
+              setAiQuery={setAiQuery}
+              onAiSearch={onAiSearch}
+              aiSearching={aiSearching}
+              aiError={aiError}
+              aiQuota={aiQuota}
+              loading={loading}
+            />
+          </form>
         ) : searchMode === "basic" ? (
-          <BasicLookupInput
-            userId={userId}
-            setUserId={setUserId}
-            loading={loading}
-          />
-        ) : (
-          <PremiumFiltersInput
-            skills={skills}
-            onAddSkill={onAddSkill}
-            onRemoveSkill={onRemoveSkill}
-            location={location}
-            setLocation={setLocation}
-            loading={loading}
-          />
-        )}
-      </form>
+          <form onSubmit={onSearch}>
+            <BasicLookupInput
+              userId={userId}
+              setUserId={setUserId}
+              loading={loading}
+            />
+          </form>
+        ) : searchMode === "premium" ? (
+          <form onSubmit={onSearch}>
+            <PremiumFiltersInput
+              skills={skills}
+              onAddSkill={onAddSkill}
+              onRemoveSkill={onRemoveSkill}
+              location={location}
+              setLocation={setLocation}
+              loading={loading}
+            />
+          </form>
+        ) : null}
+      </div>
     </div>
   );
 }

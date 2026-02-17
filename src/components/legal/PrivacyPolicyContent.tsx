@@ -1,7 +1,12 @@
 /* eslint-disable max-lines */
 import Link from "next/link";
+import BetaDisclaimer from "./BetaDisclaimer";
 
-const LAST_UPDATED = "February 8, 2026";
+const LAST_UPDATED = new Date().toLocaleDateString("en-US", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
 
 const sectionHeadingClass = "text-xl font-serif font-bold text-black mt-8 mb-3";
 const listClass = "list-disc pl-6 space-y-1";
@@ -19,6 +24,8 @@ export default function PrivacyPolicyContent() {
       >
         ← Back to Home
       </Link>
+
+      <BetaDisclaimer />
 
       <h1 className="text-4xl font-serif font-bold text-black mb-2">
         Privacy Policy
@@ -211,10 +218,10 @@ export default function PrivacyPolicyContent() {
           <p>
             To exercise these rights, contact us at{" "}
             <a
-              href="mailto:privacy@switchcv.com"
+              href="mailto:support@switchcv.com"
               className="text-blue-700 underline"
             >
-              privacy@switchcv.com
+              support@switchcv.com
             </a>{" "}
             or use the account settings in the platform.
           </p>
@@ -291,10 +298,10 @@ export default function PrivacyPolicyContent() {
             <li>
               Email:{" "}
               <a
-                href="mailto:privacy@switchcv.com"
+                href="mailto:support@switchcv.com"
                 className="text-blue-700 underline"
               >
-                privacy@switchcv.com
+                support@switchcv.com
               </a>
             </li>
             <li>

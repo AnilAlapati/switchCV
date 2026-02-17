@@ -47,6 +47,11 @@ function startNonceCleanup(): void {
       logger.debug("Cleared used nonces cache");
     }
   }, 5 * 60 * 1000);
+
+  // Don't prevent process exit
+  if (nounceCleanupInterval.unref) {
+    nounceCleanupInterval.unref();
+  }
 }
 
 /**

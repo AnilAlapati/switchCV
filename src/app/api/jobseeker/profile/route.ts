@@ -3,7 +3,7 @@ import { z } from "zod";
 import { COLLECTIONS, collectionRef } from "@/lib/dal";
 import { getAuthenticatedUserId, handleApiError } from "@/lib/utils/api-helpers";
 
-const JobseekerProfileUpdateSchema = z.record(z.string(), z.unknown());
+import { JobseekerProfileSchema } from "@/lib/schemas/api/jobseeker-profile.schemas";
 
 export async function GET(request: NextRequest) {
     try {
@@ -28,9 +28,9 @@ export async function POST(request: NextRequest) {
         const { userId, error } = await getAuthenticatedUserId(request);
         if (error) return error;
 
-        const parseResult = JobseekerProfileUpdateSchema.safeParse(await request.json());
+        const parseResult = JobseekerProfileSchema.safeParse(await request.json());
         if (!parseResult.success) {
-            return handleApiError(parseResult.error, "Invalid profile payload", 400);
+            return handleApiError(parseResult.error, "Invalid profile data", 400);
         }
 
         // Minimal validation - expand as needed

@@ -1,7 +1,12 @@
 /* eslint-disable max-lines */
 import Link from "next/link";
+import BetaDisclaimer from "./BetaDisclaimer";
 
-const LAST_UPDATED = "February 8, 2026";
+const LAST_UPDATED = new Date().toLocaleDateString("en-US", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
 
 const sectionHeadingClass = "text-xl font-serif font-bold text-black mt-8 mb-3";
 const listClass = "list-disc pl-6 space-y-1";
@@ -19,6 +24,8 @@ export default function TermsOfServiceContent() {
       >
         ← Back to Home
       </Link>
+
+      <BetaDisclaimer />
 
       <h1 className="text-4xl font-serif font-bold text-black mb-2">
         Terms of Service

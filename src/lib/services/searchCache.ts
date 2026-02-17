@@ -175,7 +175,9 @@ class SearchCache<T> {
     /**
      * Start periodic cleanup timer
      */
-    private startCleanupTimer(): void {
+    startCleanupTimer(): void {
+        if (this.cleanupTimer !== null) return;
+
         if (typeof setInterval !== "undefined") {
             this.cleanupTimer = setInterval(() => {
                 this.cleanup();
@@ -221,6 +223,9 @@ let skillPopularityCache: SearchCache<string[][]> | null = null;
 export function getSearchCache(): SearchCache<unknown[]> {
     if (searchResultCache === null) {
         searchResultCache = new SearchCache<unknown[]>(DEFAULT_TTL_MS, MAX_CACHE_SIZE);
+    } else {
+        // Ensure timer is running if it was stopped
+        searchResultCache.startCleanupTimer();
     }
     return searchResultCache;
 }
@@ -232,6 +237,9 @@ export function getSkillPopularityCache(): SearchCache<string[][]> {
     if (skillPopularityCache === null) {
         // Skill popularity cache has longer TTL (1 hour)
         skillPopularityCache = new SearchCache<string[][]>(60 * 60 * 1000, 200);
+    } else {
+        // Ensure timer is running if it was stopped
+        skillPopularityCache.startCleanupTimer();
     }
     return skillPopularityCache;
 }

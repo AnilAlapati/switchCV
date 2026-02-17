@@ -1,5 +1,3 @@
-"use client";
-
 import { logger } from "@/lib/logger";
 
 import { useMemo, useState } from "react";
@@ -11,6 +9,7 @@ import { RecruiterSearchForm } from "./RecruiterSearchForm";
 import { RecruiterSearchResults } from "./RecruiterSearchResults";
 import {
   SearchStatusIndicator,
+  RecruiterSearchHeader,
   RecruiterSearchLoadingState,
 } from "./RecruiterSearchHeader";
 import { useAiSearch } from "./useAiSearch";

@@ -37,7 +37,10 @@ const CLEANUP_INTERVAL_MS = 60 * 1000; // 1 minute
 let cleanupTimer: NodeJS.Timeout | null = null;
 
 function startCleanup(): void {
-  if (cleanupTimer) return;
+  if (cleanupTimer) {
+    clearInterval(cleanupTimer);
+  }
+
   cleanupTimer = setInterval(() => {
     const now = Date.now();
     for (const [key, entry] of rateLimitStore.entries()) {
@@ -46,6 +49,7 @@ function startCleanup(): void {
       }
     }
   }, CLEANUP_INTERVAL_MS);
+
   // Don't prevent process exit
   if (cleanupTimer.unref) {
     cleanupTimer.unref();

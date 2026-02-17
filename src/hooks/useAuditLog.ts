@@ -42,7 +42,7 @@ interface AuditLogData {
   action: ClientAuditAction;
   resourceType: string;
   resourceId?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export const useAuditLog = () => {
@@ -76,7 +76,7 @@ export const useAuditLog = () => {
   }, []);
 
   const logProfileView = useCallback(
-    (profileId: string, metadata?: Record<string, any>) => {
+    (profileId: string, metadata?: Record<string, unknown>) => {
       return logAction({
         action: ClientAuditAction.PROFILE_VIEW,
         resourceType: "profile",
@@ -88,7 +88,7 @@ export const useAuditLog = () => {
   );
 
   const logResumeView = useCallback(
-    (resumeId: string, metadata?: Record<string, any>) => {
+    (resumeId: string, metadata?: Record<string, unknown>) => {
       return logAction({
         action: ClientAuditAction.RESUME_VIEWED,
         resourceType: "resume",
@@ -112,7 +112,7 @@ export const useAuditLog = () => {
   );
 
   const logSearch = useCallback(
-    (query: string, filters?: Record<string, any>) => {
+    (query: string, filters?: Record<string, unknown>) => {
       return logAction({
         action: ClientAuditAction.SEARCH_PERFORMED,
         resourceType: "search",

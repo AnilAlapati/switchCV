@@ -35,6 +35,8 @@ const tokenStore = new Map<
   { token: string; createdAt: number; expiresAt: number }
 >();
 
+let cleanupInterval: NodeJS.Timeout | null = null;
+
 /**
  * CSRF token configuration
  */
@@ -279,7 +281,11 @@ export function startCsrfTokenCleanup(): void {
     return; // Don't run in browser
   }
 
-  setInterval(() => {
+  if (cleanupInterval) {
+    return;
+  }
+
+  cleanupInterval = setInterval(() => {
     const now = Date.now();
     let cleaned = 0;
 
@@ -294,6 +300,21 @@ export function startCsrfTokenCleanup(): void {
       logger.log(`[CSRF] Cleaned up ${cleaned} expired tokens`);
     }
   }, CSRF_CONFIG.CLEANUP_INTERVAL_MS);
+
+  // Don't prevent process exit
+  if (cleanupInterval.unref) {
+    cleanupInterval.unref();
+  }
+}
+
+/**
+ * Stop CSRF token cleanup (for testing or HMR)
+ */
+export function stopCsrfTokenCleanup(): void {
+  if (cleanupInterval) {
+    clearInterval(cleanupInterval);
+    cleanupInterval = null;
+  }
 }
 
 /**

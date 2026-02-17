@@ -1,3 +1,8 @@
+/**
+ * REPLICA of BillingService for Cloud Functions
+ * TODO: Move to a shared library to avoid logic divergence.
+ * Source of truth: src/lib/billing/shared.ts (Next.js side)
+ */
 import { adminDb, admin } from "../lib/firebase";
 import * as functions from "firebase-functions";
 

@@ -40,8 +40,14 @@ echo ""
 cleanup() {
   echo ""
   echo -e "${YELLOW}Stopping dev server and quality watch...${NC}"
-  kill %1 2>/dev/null || true
-  kill %2 2>/dev/null || true
+  
+  # Kill children of this script
+  pkill -P $$ 2>/dev/null || true
+  
+  # Also explicitly kill by PID if pkill wasn't enough
+  kill $DEV_PID 2>/dev/null || true
+  kill $WATCH_PID 2>/dev/null || true
+  
   wait
   echo -e "${GREEN}✅ Both processes stopped${NC}"
   exit 0

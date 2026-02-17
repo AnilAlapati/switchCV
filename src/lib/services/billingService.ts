@@ -14,46 +14,17 @@ export interface AIUsageRecord {
   metadata?: Record<string, unknown>;
 }
 
-// Pricing per 1k tokens (Estimated/Standard rates — updated Feb 2026)
-export const MODEL_PRICING: Record<string, { input: number; output: number }> =
-{
-  // Gemini 2.5 (current active models)
-  "gemini-2.5-flash": { input: 0.00015, output: 0.0006 },
-  "gemini-2.5-flash-lite": { input: 0.000075, output: 0.0003 },
-  "gemini-2.5-pro": { input: 0.00125, output: 0.005 },
-
-  // Gemini 2.0
-  "gemini-2.0-flash": { input: 0.0001, output: 0.0004 },
-
-  // Gemini 1.5 (legacy — kept for historical cost tracking)
-  "gemini-1.5-flash": { input: 0.00035, output: 0.00105 },
-  "gemini-1.5-pro": { input: 0.0035, output: 0.0105 },
-
-  // OpenAI
-  "gpt-4o": { input: 0.005, output: 0.015 },
-  "gpt-4o-mini": { input: 0.00015, output: 0.0006 },
-
-  // Anthropic (Proxied via other providers or direct)
-  "claude-3-5-sonnet": { input: 0.003, output: 0.015 },
-
-  // Llama/Mistral (Groq/HF - usually cheap or free in some tiers, assigning low cost)
-  "llama-3.1-70b": { input: 0.0007, output: 0.0009 },
-  "mixtral-8x7b": { input: 0.00027, output: 0.00027 },
-
-  // Default fallback
-  default: { input: 0.001, output: 0.002 },
-};
-
-export const BUDGET_CAPS = {
-  basic: 0.1, // Minimal hard cap for free tier (prevents abuse)
-  premium: 30.0,
-  enterprise: 70.0,
-} as const;
+import {
+  MODEL_PRICING,
+  BUDGET_CAPS,
+  BILLING_CONFIG,
+  calculateAicost
+} from "../billing/shared";
 
 export class BillingService {
-  private static COLLECTION = "billing";
-  private static NUM_SHARDS = 10;
-  private static SHARD_COLLECTION = "system/billing/shards";
+  private static COLLECTION = BILLING_CONFIG.COLLECTION;
+  private static NUM_SHARDS = BILLING_CONFIG.NUM_SHARDS;
+  private static SHARD_COLLECTION = BILLING_CONFIG.SHARD_COLLECTION;
 
   /**
    * Calculate exact cost for a request
@@ -63,11 +34,7 @@ export class BillingService {
     inputTokens: number,
     outputTokens: number,
   ): number {
-    const pricing = MODEL_PRICING[model] || MODEL_PRICING["default"];
-    return (
-      (inputTokens / 1000) * pricing.input +
-      (outputTokens / 1000) * pricing.output
-    );
+    return calculateAicost(model, inputTokens, outputTokens);
   }
 
   /**
