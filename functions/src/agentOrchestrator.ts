@@ -1,5 +1,5 @@
 import { getSystemConfig } from "./lib/getSystemConfig";
-import { billingService } from "./services/billingService";
+import { BillingService } from "./services/billingService";
 import * as functions from "firebase-functions";
 
 // We need to call resumeService's generation logic or AI logic from here.
@@ -39,7 +39,7 @@ export async function runAgenticWorkflow(
   const isFreeTier = ["basic", "jobseeker", "free"].includes(userRole);
 
   if (isFreeTier) {
-    const isBudgetSafe = await billingService.checkSystemBudget(
+    const isBudgetSafe = await BillingService.checkSystemBudget(
       config.agentic.budgetCap,
     );
     if (!isBudgetSafe) {
@@ -145,9 +145,9 @@ export async function runAgenticWorkflow(
     // --- TRACK COST ---
     if (isFreeTier) {
       // trackCost(ESTIMATED_COST_PER_RUN).catch(err => functions.logger.error("Failed to track cost", err));
-      billingService
-        .trackUsage(userId, ESTIMATED_COST_PER_RUN, "agentic_workflow")
-        .catch((err) =>
+      BillingService
+        .trackCost(userId, ESTIMATED_COST_PER_RUN, "agentic_workflow")
+        .catch((err: any) =>
           functions.logger.error("Failed to track billing usage", err),
         );
     }
