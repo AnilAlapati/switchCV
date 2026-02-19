@@ -11,15 +11,16 @@ updates:
       day: "monday"
       time: "09:00"
       timezone: "UTC"
-    open-pull-requests-limit: 10
-    
+    # Reduced from 10 to 5 — each open PR triggers a full CI run (~22 min)
+    open-pull-requests-limit: 5
+
     # Grouping strategy
     groups:
       # Group all patch updates together
       patch-updates:
         update-types:
           - "patch"
-      
+
       # Group minor updates by category
       react-ecosystem:
         patterns:
@@ -27,21 +28,21 @@ updates:
           - "@types/react*"
         update-types:
           - "minor"
-      
+
       firebase-ecosystem:
         patterns:
           - "firebase*"
           - "@firebase/*"
         update-types:
           - "minor"
-      
+
       next-ecosystem:
         patterns:
           - "next"
           - "next-*"
         update-types:
           - "minor"
-      
+
       testing-tools:
         patterns:
           - "jest*"
@@ -49,27 +50,27 @@ updates:
           - "playwright*"
         update-types:
           - "minor"
-    
+
     # Auto-merge patch updates for non-critical dependencies
     labels:
       - "dependencies"
       - "automated"
-    
+
     reviewers:
-      - "anilalapati"  # Replace with actual reviewer
-    
+      - "anilalapati" # Replace with actual reviewer
+
     # Commit message preferences
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
-    
+
     # Only allow updates that don't break semver
     versioning-strategy: auto
-    
-    # Security updates
+
+    # Security updates — direct only to reduce PR volume
+    # (indirect deps get updated transitively when direct deps update)
     allow:
       - dependency-type: "direct"
-      - dependency-type: "indirect"
 
   # GitHub Actions updates
   - package-ecosystem: "github-actions"

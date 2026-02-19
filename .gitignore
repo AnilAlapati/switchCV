@@ -126,3 +126,10 @@ scripts/setup-secrets.sh
 scripts/sync-secrets-from-firebase.sh
 src/app/api/admin/test-secrets/route.ts
 .env.production
+
+# Generated test/coverage outputs (do NOT commit — these are ephemeral)
+coverage_report.json
+coverage_resume.json
+full_test_log.txt
+test_output.txt
+docs/reports/artifacts/

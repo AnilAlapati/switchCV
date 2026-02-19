@@ -1,8 +1,8 @@
 name: Repository Health Check
+# NOTE: git fsck on every push is overkill — repo corruption is extremely rare.
+# Runs weekly + on-demand only.
 
 on:
-  push:
-    branches: [main, develop, feature/*]
   schedule:
     # Run weekly on Sundays at 2 AM
     - cron: "0 2 * * 0"

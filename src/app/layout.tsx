@@ -2,22 +2,8 @@ import type { Metadata } from "next";
 import "@/lib/env"; // Validates environment variables on startup
 import { Geist, Geist_Mono, Merriweather } from "next/font/google"; // 1. Import Merriweather
 import "./globals.css";
-import { AuthProvider } from "@/hooks/useAuth";
 import { ConnectivityStatusProvider } from "@/context/ConnectivityStatusProvider";
-import { SystemConfigProvider } from "@/context/SystemConfigProvider";
-import { BlockingGuard } from "@/components/layout/BlockingGuard";
-import { Footer } from "@/components/layout/Footer";
-import { MaintenanceBanner } from "@/components/layout/MaintenanceBanner";
-import { DevModeBanner } from "@/components/dev/DevModeBanner";
-import { SWRProvider } from "@/components/providers/SWRProvider";
 import { IntlProvider } from "@/components/providers/IntlProvider";
-import { Toaster } from "sonner";
-import { BetaBadge } from "@/components/layout/BetaBadge";
-import { MobileNotice } from "@/components/layout/MobileNotice";
-import { CookieConsentBanner } from "@/components/layout/CookieConsentBanner";
-import { ConsentAwareAnalytics } from "@/components/analytics/ConsentAwareAnalytics";
-import { getSystemConfig } from "@/lib/getSystemConfig";
-import { MaintenancePage } from "@/components/layout/MaintenancePage";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -48,15 +34,14 @@ import { headers } from "next/headers";
 
 // ... existing imports ...
 
+import { Suspense } from "react";
+import { ConfigLoader } from "@/components/layout/ConfigLoader";
+
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const config = await getSystemConfig();
-  const isMaintenance =
-    config.maintenance.isActive && config.maintenance.blocking;
-
   // Read nonce from headers (set by middleware)
   const nonce = (await headers()).get("x-nonce") || undefined;
 
@@ -68,34 +53,15 @@ export default async function RootLayout({
       >
         <IntlProvider>
           <ConnectivityStatusProvider>
-            <SystemConfigProvider initialConfig={config}>
-              {isMaintenance ? (
-                <MaintenancePage />
-              ) : (
-                <BlockingGuard>
-                  <AuthProvider>
-                    <SWRProvider>
-                      <Toaster
-                        position="top-right"
-                        richColors
-                        closeButton
-                        theme="dark"
-                      />
-                      <MaintenanceBanner />
-                      <div className="flex min-h-screen flex-col">
-                        <div className="flex-1">{children}</div>
-                        <Footer />
-                      </div>
-                      <DevModeBanner />
-                      <BetaBadge />
-                      <MobileNotice />
-                      <CookieConsentBanner />
-                      <ConsentAwareAnalytics nonce={nonce} />
-                    </SWRProvider>
-                  </AuthProvider>
-                </BlockingGuard>
-              )}
-            </SystemConfigProvider>
+            <Suspense
+              fallback={
+                <div className="min-h-screen flex items-center justify-center bg-[#FFFFF8]">
+                  <div className="w-8 h-8 border-4 border-black border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              }
+            >
+              <ConfigLoader nonce={nonce}>{children}</ConfigLoader>
+            </Suspense>
           </ConnectivityStatusProvider>
         </IntlProvider>
       </body>

@@ -5,7 +5,19 @@ on:
   push:
     branches:
       - develop
+    paths-ignore:
+      - "*.md"
+      - "docs/**"
+      - ".github/**"
+      - "e2e/**"
+      - "tests/**"
+      - "load-tests/**"
   workflow_dispatch: # Manual trigger also allowed
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   id-token: write

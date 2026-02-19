@@ -19,7 +19,7 @@
     ],
     "frameworksBackend": {
       "region": "us-central1",
-      "memory": "512MiB"
+      "memory": "1GiB"
     },
     "headers": [
       {

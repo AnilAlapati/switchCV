@@ -1,11 +1,11 @@
 name: Production Health Ping
+# DISABLED: Saves ~480 GitHub Actions min/month. Use a free external uptime
+# monitor instead (UptimeRobot, Better Stack, etc.) which is more reliable
+# because it tests from OUTSIDE your infrastructure.
+# Re-enable workflow_dispatch below if you need a one-off manual check.
 
 on:
-  schedule:
-    # Run every 90 minutes (at minute 0 and 30 of every 3rd hour, offset)
-    - cron: "0 */3 * * *"
-    - cron: "30 1,4,7,10,13,16,19,22 * * *"
-  workflow_dispatch:
+  workflow_dispatch: # Manual trigger only — no scheduled runs
 
 permissions:
   contents: read
@@ -24,7 +24,7 @@ jobs:
           RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 30 "$HEALTHCHECK_URL")
           BODY=$(echo "$RESPONSE" | head -n -1)
           STATUS_CODE=$(echo "$RESPONSE" | tail -n 1)
-          
+
           # Use a unique delimiter to avoid conflicts with response content
           DELIMITER="BODY_EOF_$(date +%s)"
           {
@@ -33,7 +33,7 @@ jobs:
             echo "${DELIMITER}"
             echo "status_code=$STATUS_CODE"
           } >> "$GITHUB_OUTPUT"
-          
+
           if [ "$STATUS_CODE" -ne 200 ] && [ "$STATUS_CODE" -ne 503 ]; then
             echo "::error::Health endpoint returned HTTP $STATUS_CODE"
             echo "$BODY" | jq '.' || echo "$BODY"

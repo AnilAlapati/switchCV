@@ -13,6 +13,10 @@ on:
       - "src/**/*.{ts,tsx,js,jsx}"
       - "functions/**/*.{ts,js}"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check-file-sizes:
     runs-on: ubuntu-latest
@@ -24,6 +28,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -49,7 +54,5 @@ jobs:
           else
             echo "✅ All files are within the 300-line limit"
           fi
-
-      - name: Run ESLint
-        run: npm run lint
-        continue-on-error: true
+      # NOTE: ESLint step removed — already runs in ci.yml build job.
+      # Running it here was a duplicate costing ~2 min/run.
