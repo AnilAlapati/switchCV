@@ -3,11 +3,31 @@
 # SwitchCV Deployment Script
 # Handles dev, prod, and sync deployments with automatic version bumping for prod releases
 #
+# ENVIRONMENT VARIABLE HANDLING:
+#   - DEV builds use: .env.local (switchcv-dev Firebase project)
+#   - PROD builds use: .env.production (switchcv-e5136 Firebase project)
+#   - Next.js automatically selects the correct .env file when NODE_ENV=production
+#
+# Firebase Projects:
+#   - DEV:  switchcv-dev (localhost testing)
+#   - PROD: switchcv-e5136 (https://switchcv.com) 
+#
 # Usage:
 #   ./scripts/deploy.sh dev               # Deploy to dev environment
 #   ./scripts/deploy.sh prod              # Deploy to prod (with version bump + release notes)
 #   ./scripts/deploy.sh sync              # Deploy to both dev AND prod, return to dev
 #   ./scripts/deploy.sh prod --no-bump    # Deploy to prod WITHOUT version bump (for hotfixes)
+#
+# Pre-deployment checks:
+#   1. Validates committed changes only
+#   2. Runs TypeScript type check
+#   3. Runs ESLint
+#   4. Runs Next.js build (with correct env vars)
+#
+# Deployment order (Firebase best practices):
+#   1. Firestore indexes (must be first)
+#   2. Cloud Functions
+#   3. Hosting + Streaming Runtime
 
 set -e
 
@@ -110,8 +130,8 @@ run_quality_checks() {
   echo "  • ESLint check..."
   npm run lint --silent 2>&1 | tail -1 || true
   
-  echo "  • Building Next.js..."
-  npm run build --silent 2>&1 | tail -5 || true
+  echo "  • Building Next.js (uses .env.local for dev, .env.production for prod)..."
+  NODE_ENV=production npm run build --silent 2>&1 | tail -5 || true
   
   echo -e "${GREEN}✅ Quality checks completed${NC}"
 }

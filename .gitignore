@@ -45,7 +45,7 @@ yarn-error.log*
 .env.local.prod-db
 .env*.local
 .env.dev
-.env.production
+# .env.production IS tracked - it only has public Firebase config (no secrets)
 .env.production.secrets.backup
 functions/.env.dev
 functions/.env.default
@@ -125,7 +125,6 @@ scripts/setup-firestore-backup.sh
 scripts/setup-secrets.sh
 scripts/sync-secrets-from-firebase.sh
 src/app/api/admin/test-secrets/route.ts
-.env.production
 
 # Generated test/coverage outputs (do NOT commit — these are ephemeral)
 coverage_report.json
