@@ -37,12 +37,23 @@ const resolveAuthDomain = (): string => {
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "",
-  authDomain: resolveAuthDomain(),
+  // Default to env var; override on client at runtime so the auth handler
+  // runs on the same origin (custom domain) when available.
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "",
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "",
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "",
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "",
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "",
 };
+
+// If running in the browser, ensure we use the page hostname for authDomain
+// when appropriate (this prevents auth/unauthorized-domain for custom domains).
+if (typeof window !== "undefined") {
+  const resolved = resolveAuthDomain();
+  if (resolved) {
+    firebaseConfig.authDomain = resolved;
+  }
+}
 
 type FirebaseStatus = {
   isConfigured: boolean;
