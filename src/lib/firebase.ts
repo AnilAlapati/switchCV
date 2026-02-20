@@ -11,49 +11,14 @@ import { getFunctions, type Functions } from "firebase/functions";
 import { getAnalytics, type Analytics, isSupported } from "firebase/analytics";
 import { logger } from "@/lib/logger";
 
-/**
- * Resolve the correct authDomain for Firebase Auth.
- *
- * When the app is hosted on a custom domain via Firebase Hosting (e.g. switchcv.com),
- * using the default `<project>.firebaseapp.com` as authDomain causes
- * `auth/unauthorized-domain` errors with signInWithPopup because the popup
- * opens on a different domain than the page.
- *
- * Google's recommended fix: set authDomain to the custom domain so the auth
- * handler (/__/auth/handler) runs on the same origin.
- *
- * @see https://firebase.google.com/docs/auth/web/redirect-best-practices
- */
-const resolveAuthDomain = (): string => {
-  // In browser, if the host is the custom production domain, use it directly
-  if (typeof window !== "undefined") {
-    const hostname = window.location.hostname;
-    if (hostname === "switchcv.com" || hostname === "www.switchcv.com") {
-      return hostname;
-    }
-  }
-  return process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "";
-};
-
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "",
-  // Default to env var; override on client at runtime so the auth handler
-  // runs on the same origin (custom domain) when available.
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "",
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "",
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "",
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "",
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "",
 };
-
-// If running in the browser, ensure we use the page hostname for authDomain
-// when appropriate (this prevents auth/unauthorized-domain for custom domains).
-if (typeof window !== "undefined") {
-  const resolved = resolveAuthDomain();
-  if (resolved) {
-    firebaseConfig.authDomain = resolved;
-  }
-}
 
 type FirebaseStatus = {
   isConfigured: boolean;
