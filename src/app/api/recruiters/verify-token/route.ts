@@ -6,6 +6,8 @@ import { SecureAccessToken } from "@/types/profileSearch";
 import { handleApiError, getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 import { VerifyRecruiterTokenSchema } from "@/lib/schemas/api";
 
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/recruiters/verify-token?token=XXX&recruiterId=YYY
  * Verify a recruiter's access token for PII fields
@@ -147,12 +149,12 @@ export async function GET(request: NextRequest) {
       const expiresAtNum =
         tokenData
           ? typeof tokenData.expiresAt === "string"
-          ? new Date(tokenData.expiresAt).getTime() / 1000
-          : tokenData.expiresAt instanceof Date
-            ? tokenData.expiresAt.getTime() / 1000
-            : (tokenData.expiresAt as any)?.toDate // Handle Firestore Timestamp
-              ? (tokenData.expiresAt as any).toDate().getTime() / 1000
-              : tokenData.expiresAt
+            ? new Date(tokenData.expiresAt).getTime() / 1000
+            : tokenData.expiresAt instanceof Date
+              ? tokenData.expiresAt.getTime() / 1000
+              : (tokenData.expiresAt as any)?.toDate // Handle Firestore Timestamp
+                ? (tokenData.expiresAt as any).toDate().getTime() / 1000
+                : tokenData.expiresAt
           : payloadExpiresAt;
 
       if (typeof expiresAtNum !== "number") {
