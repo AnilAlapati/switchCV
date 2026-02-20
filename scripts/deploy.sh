@@ -64,6 +64,11 @@ cleanup() {
   echo -e "${BLUE}🔄 Resetting to DEV environment...${NC}"
   npm run env:dev --silent 2>/dev/null || firebase use dev 2>/dev/null || true
   
+  # Ensure .env.local is restored if script was interrupted during build
+  if [ -f .env.local.temp_backup ]; then
+    mv .env.local.temp_backup .env.local
+  fi
+  
   exit $EXIT_CODE
 }
 
@@ -130,8 +135,19 @@ run_quality_checks() {
   echo "  • ESLint check..."
   npm run lint --silent 2>&1 | tail -1 || true
   
-  echo "  • Building Next.js (uses .env.local for dev, .env.production for prod)..."
+  echo "  • Building Next.js (forcing .env.production by hiding .env.local)..."
+  
+  # Temporarily move .env.local to avoid overriding .env.production during prod build
+  if [ -f .env.local ]; then
+    mv .env.local .env.local.temp_backup
+  fi
+  
   NODE_ENV=production npm run build --silent 2>&1 | tail -5 || true
+  
+  # Restore .env.local
+  if [ -f .env.local.temp_backup ]; then
+    mv .env.local.temp_backup .env.local
+  fi
   
   echo -e "${GREEN}✅ Quality checks completed${NC}"
 }

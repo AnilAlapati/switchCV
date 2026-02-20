@@ -77,10 +77,18 @@ const nextConfig: NextConfig = {
     ];
   },
   async rewrites() {
+    // Proxy Firebase Auth requests to the actual Firebase project domain.
+    // This allows using a custom domain (like switchcv.com) for NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    // without breaking the Google Sign-in flow which requires the /__/auth/handler.
+    const firebaseProjectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    const firebaseDomain = firebaseProjectId
+      ? `${firebaseProjectId}.firebaseapp.com`
+      : process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
+
     return [
       {
         source: "/__/auth/:path*",
-        destination: `https://${process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}/__/auth/:path*`,
+        destination: `https://${firebaseDomain}/__/auth/:path*`,
       },
     ];
   },
