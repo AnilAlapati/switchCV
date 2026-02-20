@@ -9,6 +9,8 @@ import {
 } from "@/lib/utils/api-helpers";
 import { ApproveRecruiterContactSchema } from "@/lib/schemas/api";
 
+export const dynamic = "force-dynamic";
+
 interface ApproveContactPayload {
   requestId: string;
   duration?: "1hour" | "1day" | "1week" | "30days";
