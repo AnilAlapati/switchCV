@@ -34,7 +34,10 @@ if (
   if (typeof window !== "undefined") {
     // Client-side: log prominently so it's immediately visible (use logger, avoid console)
     try {
-      logger.error({ source: "firebase.config", message: msg }, "Prod build using DEV Firebase config");
+      logger.error(
+        { source: "firebase.config", message: msg },
+        "Prod build using DEV Firebase config",
+      );
     } catch {
       // If logger fails for any reason, avoid calling console in production build
     }
