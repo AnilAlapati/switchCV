@@ -311,11 +311,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       return { needsUsername: result.needsUsername };
     } catch (error) {
       const authError = error as { code?: string; message?: string };
-      reportError(error, {
-        source: "useAuth.googleSignIn",
-        severity: "warning",
-        meta: { code: authError.code },
-      });
+      // Don't report popup-closed — it's user-initiated, not an app error
+      if (authError.code !== "auth/popup-closed-by-user") {
+        reportError(error, {
+          source: "useAuth.googleSignIn",
+          severity: "warning",
+          meta: { code: authError.code },
+        });
+      }
       throw new Error(getGoogleSignInErrorMessage(authError));
     }
   }, [ensureUserProfile, ensureAuthAvailable]);

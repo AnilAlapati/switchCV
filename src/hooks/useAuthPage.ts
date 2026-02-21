@@ -226,6 +226,14 @@ export function useAuthPage(): UseAuthPageReturn {
         result.needsUsername ? "/auth/choose-username" : "/dashboard"
       );
     } catch (err) {
+      // Silently ignore popup-closed — user closed the popup themselves.
+      // Showing it as an error creates confusion ("I didn't do anything wrong!").
+      if (
+        err instanceof Error &&
+        err.message === "Google sign-in was closed before completion."
+      ) {
+        return;
+      }
       setError(
         err instanceof Error ? err.message : "Failed to sign in with Google"
       );
