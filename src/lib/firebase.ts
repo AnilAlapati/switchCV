@@ -32,8 +32,12 @@ if (
     "This means .env.local was present during the build. " +
     "Ensure .env.local is removed before running `firebase deploy --only hosting` for prod.";
   if (typeof window !== "undefined") {
-    // Client-side: log prominently so it's immediately visible
-    console.error(`🚨 ${msg}`);
+    // Client-side: log prominently so it's immediately visible (use logger, avoid console)
+    try {
+      logger.error({ source: "firebase.config", message: msg }, "Prod build using DEV Firebase config");
+    } catch {
+      // If logger fails for any reason, avoid calling console in production build
+    }
   }
   throw new Error(msg);
 }
