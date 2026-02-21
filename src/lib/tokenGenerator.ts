@@ -29,18 +29,20 @@ class TokenGenerator {
   private algorithm = "HS256";
 
   constructor(secret?: string) {
-    // Require TOKEN_SECRET - will be loaded from Secret Manager in production
-    const envSecret = secret || process.env.TOKEN_SECRET;
+    // We defer the strict check to runtime so Next.js static builds 
+    // strictly pass when .env.local is hidden by deployment scripts.
+    this.secret = secret || process.env.TOKEN_SECRET || "";
+  }
 
-    if (!envSecret) {
+  private getSecret(): string {
+    const activeSecret = this.secret || process.env.TOKEN_SECRET;
+    if (!activeSecret) {
       throw new Error(
         "TOKEN_SECRET environment variable is required for secure token generation. " +
-        "Please set TOKEN_SECRET in your .env.local file.",
+        "Please set TOKEN_SECRET in your .env.local file."
       );
     }
-
-    // After guard, we know envSecret is a string
-    this.secret = envSecret;
+    return activeSecret;
   }
 
   /**
@@ -211,7 +213,7 @@ class TokenGenerator {
    * Private helper: Sign with HMAC
    */
   private sign(message: string): string {
-    const hmac = crypto.createHmac("sha256", this.secret);
+    const hmac = crypto.createHmac("sha256", this.getSecret());
     hmac.update(message);
     return this.base64urlEncode(hmac.digest().toString());
   }
