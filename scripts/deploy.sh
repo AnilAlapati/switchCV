@@ -64,9 +64,12 @@ cleanup() {
   echo -e "${BLUE}🔄 Resetting to DEV environment...${NC}"
   npm run env:dev --silent 2>/dev/null || firebase use dev 2>/dev/null || true
   
-  # Ensure .env.local is restored if script was interrupted during build
+  # Ensure .env.local is restored if script was interrupted during build or hosting deploy
   if [ -f .env.local.temp_backup ]; then
     mv .env.local.temp_backup .env.local
+  fi
+  if [ -f .env.local.deploy_backup ]; then
+    mv .env.local.deploy_backup .env.local
   fi
   
   exit $EXIT_CODE
@@ -181,8 +184,40 @@ deploy_to_env() {
   echo -e "${YELLOW}  [2/3] Cloud Functions...${NC}"
   firebase deploy --only functions $FLAG
   
+  # CRITICAL: For prod hosting deploy, .env.local must be removed so that
+  # Firebase framework-aware hosting (which runs its own `next build`) uses
+  # .env.production instead. Without this, .env.local (dev config) overrides
+  # .env.production and the prod site gets dev Firebase credentials.
+  # See: https://nextjs.org/docs/basic-features/environment-variables#default-environment-variables
+  if [ "$TARGET_ENV" == "prod" ] && [ -f .env.local ]; then
+    echo -e "${YELLOW}  ⚠ Temporarily hiding .env.local so prod build uses .env.production...${NC}"
+    mv .env.local .env.local.deploy_backup
+  fi
+  
+  # Double-check: verify .env.local is gone for prod
+  if [ "$TARGET_ENV" == "prod" ] && [ -f .env.local ]; then
+    echo -e "${RED}❌ ABORT: .env.local still exists! Prod build would use dev config.${NC}"
+    # Restore backup if we made one
+    if [ -f .env.local.deploy_backup ]; then
+      mv .env.local.deploy_backup .env.local
+    fi
+    exit 1
+  fi
+  
   echo -e "${YELLOW}  [3/3] Hosting + SSR...${NC}"
   firebase deploy --only hosting $FLAG
+  HOSTING_EXIT_CODE=$?
+  
+  # Restore .env.local immediately after hosting deploy
+  if [ -f .env.local.deploy_backup ]; then
+    mv .env.local.deploy_backup .env.local
+    echo -e "${BLUE}  ✓ Restored .env.local${NC}"
+  fi
+  
+  if [ $HOSTING_EXIT_CODE -ne 0 ]; then
+    echo -e "${RED}❌ Hosting deployment failed!${NC}"
+    exit $HOSTING_EXIT_CODE
+  fi
   
   echo -e "${GREEN}✅ $TARGET_ENV deployment complete!${NC}"
   

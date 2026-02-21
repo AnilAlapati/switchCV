@@ -20,6 +20,24 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "",
 };
 
+// SAFETY CHECK: Catch dev config leaking into production builds.
+// If NODE_ENV=production but projectId points to switchcv-dev, the build used
+// wrong env vars (e.g., .env.local was not removed before `firebase deploy`).
+if (
+  process.env.NODE_ENV === "production" &&
+  firebaseConfig.projectId === "switchcv-dev"
+) {
+  const msg =
+    "FATAL: Production build is using DEV Firebase config (switchcv-dev). " +
+    "This means .env.local was present during the build. " +
+    "Ensure .env.local is removed before running `firebase deploy --only hosting` for prod.";
+  if (typeof window !== "undefined") {
+    // Client-side: log prominently so it's immediately visible
+    console.error(`🚨 ${msg}`);
+  }
+  throw new Error(msg);
+}
+
 type FirebaseStatus = {
   isConfigured: boolean;
   isReady: boolean;
