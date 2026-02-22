@@ -104,7 +104,7 @@ export default function SelectRolePage() {
         "User selected role",
       );
 
-      // Force refresh of user profile to update role in SWR cache
+      // Force refresh of user profile to update role in SWR cache immediately for UI feedback
       await mutate(
         (currentProfile: unknown) => {
           if (!currentProfile) return null;
@@ -117,8 +117,15 @@ export default function SelectRolePage() {
         { revalidate: false },
       );
 
-      // Redirect based on role
-      router.push("/dashboard");
+      // CRITICAL FIX: The /dashboard page uses SWR which might refetch stale data from Firestore edge nodes
+      // and immediately redirect the user back here.
+      // 1. Give Firestore a moment to replicate the write
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      // 2. Use a hard navigation (window.location) instead of router.push().
+      // This forces the entire React tree to unmount and mount fresh on /dashboard, 
+      // ensuring SWR boots up fresh instead of using a potentially poisoned soft-nav cache.
+      window.location.href = "/dashboard";
     } catch (err: unknown) {
       const error = err as { code?: string; message?: string };
       logger.error(
@@ -171,8 +178,8 @@ export default function SelectRolePage() {
             onClick={handleSelectRole}
             disabled={!selectedRole || isSubmitting}
             className={`px-10 py-4 rounded-2xl font-semibold text-white transition-all duration-300 shadow-lg ${selectedRole && !isSubmitting
-                ? `bg-gradient-to-r ${selectedRoleData?.gradient} ${selectedRoleData?.hoverGradient} hover:shadow-xl hover:scale-105 hover:-translate-y-0.5`
-                : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+              ? `bg-gradient-to-r ${selectedRoleData?.gradient} ${selectedRoleData?.hoverGradient} hover:shadow-xl hover:scale-105 hover:-translate-y-0.5`
+              : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
               }`}
           >
             {isSubmitting ? (
