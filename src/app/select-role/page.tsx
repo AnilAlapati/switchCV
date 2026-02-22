@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { doc, setDoc, increment } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { logger } from "@/lib/logger";
+import { redirectWindow } from "@/lib/utils/window";
 
 import { BackgroundBlobs } from "@/components/ui/BackgroundBlobs";
 import { UserProfile } from "@/types";
@@ -125,7 +126,7 @@ export default function SelectRolePage() {
       // 2. Use a hard navigation (window.location) instead of router.push().
       // This forces the entire React tree to unmount and mount fresh on /dashboard, 
       // ensuring SWR boots up fresh instead of using a potentially poisoned soft-nav cache.
-      window.location.href = "/dashboard";
+      redirectWindow("/dashboard");
     } catch (err: unknown) {
       const error = err as { code?: string; message?: string };
       logger.error(

@@ -1,4 +1,3 @@
-/* eslint-disable max-lines */
 // src/hooks/useAuth.tsx
 "use client";
 
@@ -14,35 +13,15 @@ import {
 import {
   User,
   onAuthStateChanged,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
-  GoogleAuthProvider,
-  signInWithPopup,
 } from "firebase/auth";
-import { auth, db, functions } from "@/lib/firebase";
-import { httpsCallable } from "firebase/functions";
-import { doc, getDoc, serverTimestamp } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 import {
   createAuthProfileHelpers,
   isPasswordProvider,
-  sanitizeUsername,
-  USERNAME_REGEX,
 } from "./useAuth.helpers";
 import { useConnectivityStatus } from "@/context/ConnectivityStatusProvider";
 import { reportError } from "@/lib/errorReporter";
-import {
-  getSignInErrorMessage,
-  getSignUpErrorMessage,
-  getGoogleSignInErrorMessage,
-} from "./useAuth.errors";
-import { logger } from "@/lib/logger";
-
-const googleProvider =
-  typeof window !== "undefined" ? new GoogleAuthProvider() : null;
-if (googleProvider) {
-  googleProvider.setCustomParameters({ prompt: "select_account" });
-}
+import { useAuthActions } from "./useAuthActions";
 
 interface AuthContextType {
   user: User | null;
@@ -89,8 +68,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const { firebase: firebaseConnectivity } = useConnectivityStatus();
   const firebaseReady = Boolean(firebaseConnectivity?.isReady);
 
-  const { reserveUsername, ensureUserProfile, releaseUsernameReservation } =
-    useMemo(() => createAuthProfileHelpers(db), []);
+  const helpers = useMemo(() => createAuthProfileHelpers(db), []);
 
   const skipEmailVerification =
     process.env.NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION === "true";
@@ -112,6 +90,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   useEffect(() => {
     if (!firebaseReady) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setConnectivityIssue(
         firebaseConnectivity?.error ||
         "Firebase configuration is incomplete. Please contact support.",
@@ -136,270 +115,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   }, [firebaseReady, firebaseConnectivity?.error]);
 
-  const sendVerification = useCallback(
-    async (targetUser?: User | null) => {
-      ensureAuthAvailable();
-      const activeUser = targetUser || auth.currentUser;
-      if (!activeUser) {
-        throw new Error("No signed-in user to verify.");
-      }
-
-      // Use Cloud Function to send branded email via custom SMTP
-      try {
-        const resendVerificationEmailFn = httpsCallable(
-          functions,
-          "resendVerificationEmail",
-        );
-        await resendVerificationEmailFn();
-        setVerificationEmail(activeUser.email ?? null);
-      } catch (error) {
-        // Silently fail - verification resend error is non-critical
-        throw error;
-      }
-    },
-    [ensureAuthAvailable],
-  );
-
-  const signIn = useCallback(
-    async (email: string, password: string) => {
-      ensureAuthAvailable();
-      try {
-        const credential = await signInWithEmailAndPassword(
-          auth,
-          email,
-          password,
-        );
-        setVerificationEmail(credential.user.email ?? null);
-        await ensureUserProfile(credential.user);
-      } catch (error) {
-        const authError = error as { code?: string; message?: string };
-        reportError(error, {
-          source: "useAuth.signIn",
-          severity: "warning",
-          meta: { code: authError.code },
-        });
-        throw new Error(getSignInErrorMessage(authError));
-      }
-    },
-    [ensureUserProfile, ensureAuthAvailable],
-  );
-
-  const signUp = useCallback(
-    async (email: string, password: string, username: string) => {
-      ensureAuthAvailable();
-      let credential: { user: User } | null = null;
-      let reservedUsername: string | null = null;
-      try {
-        const normalized = sanitizeUsername(username);
-        if (!normalized || !USERNAME_REGEX.test(normalized)) {
-          throw new Error(
-            "Please choose a username between 3-30 characters using lowercase letters, numbers, hyphens, or underscores.",
-          );
-        }
-
-        credential = await createUserWithEmailAndPassword(
-          auth,
-          email,
-          password,
-        );
-        setVerificationEmail(credential.user.email ?? email);
-
-        // Wait for the auth token to be ready before writing to Firestore
-        // This prevents "Missing or insufficient permissions" errors
-        await credential.user.getIdToken(true);
-
-        reservedUsername = await reserveUsername(
-          credential.user.uid,
-          normalized,
-          {
-            email,
-            displayName: normalized,
-            authProvider: "password",
-            createdAt: serverTimestamp(),
-          },
-        );
-
-        // Username successfully reserved - mark that we don't need username selection
-        // This prevents race condition where checkNeedsUsername() is called before Firestore write propagates
-        setNeedsUsername(false);
-
-        setNeedsUsername(false);
-
-        // We rely on the 'onUserCreated' Cloud Function to send the welcome/verification email
-        // This ensures we use our custom SMTP and branded template instead of Firebase's default
-        // If the cloud function fails, the user can use the "Resend" button in the dashboard
-      } catch (error) {
-        // Only rollback if the error is NOT a permission error that might resolve
-        // (permission errors are now retried in reserveUsername with backoff)
-        const firestoreError = error as { code?: string; message?: string };
-        const errorMessage =
-          error instanceof Error ? error.message.toLowerCase() : "";
-        const isPermissionError =
-          firestoreError.code === "permission-denied" ||
-          errorMessage.includes("missing or insufficient permissions") ||
-          errorMessage.includes("permission denied");
-
-        // If it's a permission error after all retries, the user exists but profile doesn't
-        // Don't delete the user - they can try to complete signup later or use password reset
-        if (!isPermissionError && credential?.user) {
-          if (reservedUsername) {
-            try {
-              await releaseUsernameReservation(
-                credential.user.uid,
-                reservedUsername,
-              );
-            } catch (releaseError) {
-              reportError(releaseError, {
-                source: "useAuth.signUp.rollback",
-                severity: "warning",
-              });
-            }
-          }
-
-          try {
-            await credential.user.delete();
-          } catch (deleteError) {
-            reportError(deleteError, {
-              source: "useAuth.signUp.rollback",
-              severity: "warning",
-            });
-          }
-        }
-
-        const authError = error as { code?: string; message?: string };
-        reportError(error, {
-          source: "useAuth.signUp",
-          severity: "warning",
-          meta: { code: authError.code },
-        });
-        throw new Error(getSignUpErrorMessage(authError));
-      }
-    },
-    [ensureAuthAvailable, reserveUsername, releaseUsernameReservation],
-  );
-
-  const logout = useCallback(async () => {
-    ensureAuthAvailable();
-
-    // Clear all user-specific localStorage data
-    if (user?.uid) {
-      const SESSION_KEY = `resume_creation_session_${user.uid}`;
-      localStorage.removeItem(SESSION_KEY);
-      logger.info({ userId: user.uid }, "Cleared resume session on logout");
-    }
-
-    await signOut(auth);
-  }, [user?.uid, ensureAuthAvailable]);
-
-  const signInWithGoogle = useCallback(async (): Promise<{
-    needsUsername: boolean;
-  }> => {
-    ensureAuthAvailable();
-    if (!googleProvider) {
-      throw new Error("Google Sign-In is not available in this environment.");
-    }
-
-    try {
-      const credential = await signInWithPopup(auth, googleProvider);
-      setVerificationEmail(credential.user.email ?? null);
-      const result = await ensureUserProfile(credential.user);
-      setNeedsUsername(result.needsUsername);
-      return { needsUsername: result.needsUsername };
-    } catch (error) {
-      const authError = error as { code?: string; message?: string };
-      if (authError.code !== "auth/popup-closed-by-user") {
-        logger.error(
-          { err: error, code: authError.code, source: "signInWithGoogle" },
-          "Google sign-in failed",
-        );
-        reportError(error, {
-          source: "useAuth.googleSignIn",
-          severity: "warning",
-          meta: { code: authError.code },
-        });
-      }
-      throw new Error(getGoogleSignInErrorMessage(authError));
-    }
-  }, [ensureUserProfile, ensureAuthAvailable]);
-
-  /**
-   * Set username for a user who signed in via Google OAuth.
-   * Calls the server-side API which uses the Admin SDK to bypass
-   * client-side Firestore security rules.
-   */
-  const setUsername = useCallback(
-    async (username: string): Promise<void> => {
-      if (!user) {
-        throw new Error("No user is signed in.");
-      }
-
-      const normalized = sanitizeUsername(username);
-      if (!normalized || !USERNAME_REGEX.test(normalized)) {
-        throw new Error(
-          "Please choose a username between 3-30 characters using lowercase letters, numbers, hyphens, or underscores.",
-        );
-      }
-
-      // Get the Firebase ID token for server-side authentication
-      const idToken = await user.getIdToken();
-
-      const response = await fetch("/api/user/username/set", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({ username: normalized }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(
-          data.error || "Failed to set username. Please try again.",
-        );
-      }
-
-      setNeedsUsername(false);
-    },
-    [user],
-  );
-
-  /**
-   * Check if the current user needs to set a username.
-   * Called on app load to handle users who abandoned the username selection flow.
-   */
-  const checkNeedsUsername = useCallback(async (): Promise<boolean> => {
-    if (!user || !db) {
-      return false;
-    }
-
-    try {
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      const data = userDoc.data();
-      const needs = data?.needsUsername === true || !data?.username;
-      setNeedsUsername(needs);
-      return needs;
-    } catch (error) {
-      reportError(error, {
-        source: "useAuth.checkNeedsUsername",
-        severity: "warning",
-      });
-      return false;
-    }
-  }, [user]);
-
-  const resendVerificationEmail = useCallback(async () => {
-    await sendVerification();
-  }, [sendVerification]);
-
   const refreshUser = useCallback(async () => {
     if (!auth?.currentUser) {
       return;
     }
     try {
-      // Reload user data from Firebase Auth server
       await auth.currentUser.reload();
-      // Force refresh the ID token to get updated emailVerified status
       await auth.currentUser.getIdToken(true);
       setUser(auth.currentUser ? ({ ...auth.currentUser } as User) : null);
       setVerificationEmail(auth.currentUser?.email ?? null);
@@ -410,6 +131,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       });
     }
   }, []);
+
+  const {
+    signIn,
+    signUp,
+    signInWithGoogle,
+    logout,
+    setUsername,
+    checkNeedsUsername,
+    resendVerificationEmail,
+  } = useAuthActions({
+    ensureAuthAvailable,
+    setNeedsUsername,
+    setVerificationEmail,
+    helpers,
+    user,
+  });
 
   const value = useMemo(
     () => ({

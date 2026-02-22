@@ -119,10 +119,10 @@ describe("ChooseUsernamePage", () => {
             render(<ChooseUsernamePage />);
 
             expect(
-                screen.getByText(/Choose your username/i)
+                screen.getByText(/Claim Your Byline/i)
             ).toBeInTheDocument();
             expect(
-                screen.getByText(/This will be your unique identifier/i)
+                screen.getByText(/Choose a unique handle/i)
             ).toBeInTheDocument();
         });
 

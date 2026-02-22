@@ -36,6 +36,15 @@ jest.mock("@/lib/services/quotaService", () => {
   };
 });
 
+jest.mock("@/lib/utils/distributedRateLimit", () => ({
+  aiSearchRateLimiter: jest.fn().mockResolvedValue({ allowed: true }),
+  checkDistributedRateLimit: jest.fn().mockResolvedValue({ allowed: true }),
+}));
+
+jest.mock("@/lib/logger", () => ({
+  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
+}));
+
 const mockGetAuthenticatedUserId =
   getAuthenticatedUserId as jest.MockedFunction<typeof getAuthenticatedUserId>;
 const mockGetUserTier = getUserTier as jest.MockedFunction<typeof getUserTier>;

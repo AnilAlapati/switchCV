@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import SelectRolePage from "@/app/select-role/page";
+import { redirectWindow } from "@/lib/utils/window";
 
 // Mock modules
 jest.mock("next/navigation", () => ({
@@ -17,6 +18,9 @@ jest.mock("next/navigation", () => ({
 
 jest.mock("@/hooks/useAuth");
 jest.mock("@/hooks/useUserProfile");
+jest.mock("@/lib/utils/window", () => ({
+    redirectWindow: jest.fn(),
+}));
 
 // Mock firebase
 jest.mock("firebase/firestore", () => ({
@@ -282,8 +286,8 @@ describe("SelectRolePage", () => {
             });
 
             await waitFor(() => {
-                expect(mockRouter.push).toHaveBeenCalledWith("/dashboard");
-            });
+                expect(redirectWindow).toHaveBeenCalledWith("/dashboard");
+            }, { timeout: 2000 });
         });
 
         it("should show error on API failure", async () => {

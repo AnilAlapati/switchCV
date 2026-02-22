@@ -34,7 +34,7 @@ jest.mock("@/lib/config.server", () => ({
 
 jest.mock("@/lib/services/quotaService", () => ({
   consumeQuota: jest.fn(),
-  QuotaExceededError: class extends Error {},
+  QuotaExceededError: class extends Error { },
 }));
 
 jest.mock("@/lib/getSystemConfig", () => ({
@@ -52,6 +52,11 @@ jest.mock("@/lib/logger", () => ({
     error: jest.fn(),
     warn: jest.fn(),
   },
+}));
+
+jest.mock("@/lib/utils/distributedRateLimit", () => ({
+  aiSearchRateLimiter: jest.fn().mockResolvedValue({ allowed: true }),
+  checkDistributedRateLimit: jest.fn().mockResolvedValue({ allowed: true }),
 }));
 
 describe("Recruiter Search API", () => {

@@ -4,10 +4,14 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import { useRouter } from "next/navigation";
 import { doc, setDoc } from "firebase/firestore";
 import SelectRolePage from "@/app/select-role/page";
+import { redirectWindow } from "@/lib/utils/window";
 
 jest.mock("@/hooks/useAuth");
 jest.mock("@/hooks/useUserProfile");
 jest.mock("next/navigation");
+jest.mock("@/lib/utils/window", () => ({
+  redirectWindow: jest.fn(),
+}));
 jest.mock("firebase/firestore", () => ({
   doc: jest.fn(),
   setDoc: jest.fn(),
@@ -156,8 +160,8 @@ describe("SelectRolePage", () => {
     await waitFor(() => {
       expect(mockSetDoc).toHaveBeenCalledTimes(1); // Only stats update, user doc is handled by API
       expect(mockMutate).toHaveBeenCalled();
-      expect(mockPush).toHaveBeenCalledWith("/dashboard");
-    });
+      expect(redirectWindow).toHaveBeenCalledWith("/dashboard");
+    }, { timeout: 2000 });
   });
 
   it("should submit recruiter role and redirect to dashboard", async () => {
@@ -188,8 +192,8 @@ describe("SelectRolePage", () => {
 
     await waitFor(() => {
       expect(mockSetDoc).toHaveBeenCalledTimes(1);
-      expect(mockPush).toHaveBeenCalledWith("/dashboard");
-    });
+      expect(redirectWindow).toHaveBeenCalledWith("/dashboard");
+    }, { timeout: 2000 });
   });
 
   it("should display error message when submission fails", async () => {

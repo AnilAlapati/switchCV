@@ -1,4 +1,3 @@
-/* eslint-disable max-lines */
 import { generateText } from "./aiGenerationService";
 import { logger } from "@/lib/logger";
 import { DEFAULT_MODEL } from "@/lib/config/aiModels";

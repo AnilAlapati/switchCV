@@ -29,7 +29,10 @@ const mockCreateSettings = (overrides = {}) => ({
   isRecruiter: false,
   displayName: "Test User",
   companyName: "Test Company",
-  updatedAt: new Date().toISOString(),
+  // Use a fixed past date instead of new Date().toISOString() to guarantee it
+  // never accidentally matches the component's initial state initialization timestamp
+  // (which happens in the same millisecond during fast test runs).
+  updatedAt: "2020-01-01T00:00:00.000Z",
   ...overrides,
 });
 

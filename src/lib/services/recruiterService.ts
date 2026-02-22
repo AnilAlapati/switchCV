@@ -1,4 +1,3 @@
-/* eslint-disable max-lines */
 import { adminDb } from "@/lib/firebase-admin";
 import { logger } from "@/lib/logger";
 import { RecruiterSearchResponse, SearchResult } from "@/types/recruiter";

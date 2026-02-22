@@ -1,4 +1,3 @@
-/* eslint-disable max-lines */
 export type ResumeCategory = "creative" | "technical" | "executive" | "general";
 
 export interface SeedResume {
