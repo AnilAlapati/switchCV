@@ -25,11 +25,23 @@ export const sanitizeUsername = (value: string) =>
 const PROPAGATION_TIMEOUT_MS = 3000; // Reduced from 7s to 3s
 const PROPAGATION_POLL_INTERVAL_MS = 150; // Reduced from 250ms to 150ms for faster checks
 const RETRY_BASE_DELAY_MS = 200; // Reduced from 300ms to 200ms
+const PROFILE_SETUP_TIMEOUT_MS = 15000; // 15s max for ensureUserProfile
 
 const delay = (ms: number) =>
   new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+
+const withTimeout = <T>(promise: Promise<T>, ms: number, label: string): Promise<T> =>
+  Promise.race([
+    promise,
+    new Promise<never>((_, reject) => {
+      setTimeout(
+        () => reject(new Error(`${label} timed out after ${ms / 1000}s. Please try again.`)),
+        ms,
+      );
+    }),
+  ]);
 
 const isPermissionError = (error: { code?: string; message?: string }) => {
   if (!error) {
@@ -94,11 +106,6 @@ export function createAuthProfileHelpers(db: Firestore | null | undefined) {
 
     const usernameRef = doc(db, "usernames", normalized);
     const profileRef = doc(db, "users", uid);
-    const identitySafeProfile = {
-      ...profileData,
-      email: typeof profileData?.email === "string" ? profileData.email : "",
-      uid,
-    };
 
     // Retry logic with exponential backoff to handle Firebase Auth-to-Firestore
     // propagation delay. After creating a user, there can be a 0-2 second delay
@@ -108,7 +115,8 @@ export function createAuthProfileHelpers(db: Firestore | null | undefined) {
     // Only wait for auth propagation if the profile doesn't exist yet
     // For existing users (e.g., Google OAuth setting username), skip this wait
     const profileSnapshot = await getDoc(profileRef);
-    if (!profileSnapshot.exists()) {
+    const profileExists = profileSnapshot.exists();
+    if (!profileExists) {
       await waitForAuthPropagation(profileRef);
     }
 
@@ -129,16 +137,36 @@ export function createAuthProfileHelpers(db: Firestore | null | undefined) {
             createdAt: serverTimestamp(),
           });
 
-          transaction.set(
-            profileRef,
-            {
+          if (profileExists) {
+            // For existing users (e.g., Google OAuth setting username),
+            // use update to only change the username field — avoids
+            // overwriting email/emailVerified and bypasses ambiguous
+            // create/update rule evaluation in Firestore.
+            transaction.update(profileRef, {
               username: normalized,
-              emailVerified: false,
               updatedAt: serverTimestamp(),
-              ...identitySafeProfile,
-            },
-            { merge: true },
-          );
+            });
+          } else {
+            // For new users, use set with merge to create the profile
+            const identitySafeProfile = {
+              ...profileData,
+              email:
+                typeof profileData?.email === "string"
+                  ? profileData.email
+                  : "",
+              uid,
+            };
+            transaction.set(
+              profileRef,
+              {
+                username: normalized,
+                emailVerified: false,
+                updatedAt: serverTimestamp(),
+                ...identitySafeProfile,
+              },
+              { merge: true },
+            );
+          }
         });
 
         // Success - break out of retry loop
@@ -188,7 +216,7 @@ export function createAuthProfileHelpers(db: Firestore | null | undefined) {
     throw lastError || new Error("Unable to assign username.");
   };
 
-  const ensureUserProfile = async (
+  const ensureUserProfileCore = async (
     firebaseUser: User,
     options?: { username?: string; autoGenerate?: boolean },
   ): Promise<{ isNewUser: boolean; needsUsername: boolean }> => {
@@ -285,6 +313,16 @@ export function createAuthProfileHelpers(db: Firestore | null | undefined) {
 
     return { isNewUser: false, needsUsername: false };
   };
+
+  const ensureUserProfile = (
+    firebaseUser: User,
+    options?: { username?: string; autoGenerate?: boolean },
+  ): Promise<{ isNewUser: boolean; needsUsername: boolean }> =>
+    withTimeout(
+      ensureUserProfileCore(firebaseUser, options),
+      PROFILE_SETUP_TIMEOUT_MS,
+      "Profile setup",
+    );
 
   const releaseUsernameReservation = async (
     uid: string,

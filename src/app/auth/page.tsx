@@ -56,8 +56,8 @@ function AuthContent(): React.JSX.Element {
 
   return (
     <div className="min-h-screen relative flex p-4 justify-center items-center bg-[#FFFFF8]">
-      {/* Paper texture overlay */}
-      <div className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] mix-blend-multiply bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')]"></div>
+      {/* Subtle paper texture overlay */}
+      <div className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] mix-blend-multiply" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%274%27 height=%274%27%3E%3Crect width=%274%27 height=%274%27 fill=%27%23f5f5dc%27/%3E%3Crect width=%271%27 height=%271%27 fill=%27%23e8e4d4%27/%3E%3C/svg%3E")' }}></div>
 
       {/* Back to Home Link - Absolute Positioned */}
       <Link

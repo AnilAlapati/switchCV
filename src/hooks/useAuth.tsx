@@ -105,7 +105,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     if (!firebaseReady) {
       throw new Error(
         connectivityIssue ||
-          "Authentication service is temporarily unavailable. Please try again later.",
+        "Authentication service is temporarily unavailable. Please try again later.",
       );
     }
   }, [firebaseReady, connectivityIssue]);
@@ -114,7 +114,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     if (!firebaseReady) {
       setConnectivityIssue(
         firebaseConnectivity?.error ||
-          "Firebase configuration is incomplete. Please contact support.",
+        "Firebase configuration is incomplete. Please contact support.",
       );
       setLoading(false);
       return;
@@ -307,8 +307,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       return { needsUsername: result.needsUsername };
     } catch (error) {
       const authError = error as { code?: string; message?: string };
-      // Don't report popup-closed — it's user-initiated, not an app error
       if (authError.code !== "auth/popup-closed-by-user") {
+        logger.error(
+          { err: error, code: authError.code, source: "signInWithGoogle" },
+          "Google sign-in failed",
+        );
         reportError(error, {
           source: "useAuth.googleSignIn",
           severity: "warning",
@@ -321,7 +324,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   /**
    * Set username for a user who signed in via Google OAuth.
-   * This completes the username selection process.
+   * Calls the server-side API which uses the Admin SDK to bypass
+   * client-side Firestore security rules.
    */
   const setUsername = useCallback(
     async (username: string): Promise<void> => {
@@ -336,11 +340,28 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         );
       }
 
-      // Use ensureUserProfile with the username option to complete the flow
-      await ensureUserProfile(user, { username: normalized });
+      // Get the Firebase ID token for server-side authentication
+      const idToken = await user.getIdToken();
+
+      const response = await fetch("/api/user/username/set", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ username: normalized }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(
+          data.error || "Failed to set username. Please try again.",
+        );
+      }
+
       setNeedsUsername(false);
     },
-    [user, ensureUserProfile],
+    [user],
   );
 
   /**

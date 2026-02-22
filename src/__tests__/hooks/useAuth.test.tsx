@@ -6,7 +6,17 @@ import * as firestore from "firebase/firestore";
 import { createMockFirebaseUser } from "@/__tests__/support/mocks/firebase";
 
 // Mock Firebase modules
-jest.mock("firebase/auth");
+jest.mock("firebase/auth", () => ({
+  ...jest.requireActual("firebase/auth"),
+  onAuthStateChanged: jest.fn(),
+  signInWithEmailAndPassword: jest.fn(),
+  createUserWithEmailAndPassword: jest.fn(),
+  signOut: jest.fn(),
+  signInWithPopup: jest.fn(),
+  GoogleAuthProvider: jest.fn(() => ({
+    setCustomParameters: jest.fn(),
+  })),
+}));
 jest.mock("firebase/firestore", () => ({
   getDoc: jest.fn(),
   doc: jest.fn(),

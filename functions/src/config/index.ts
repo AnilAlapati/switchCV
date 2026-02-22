@@ -95,7 +95,7 @@ export class ConfigManager {
       enabled: process.env.EMAIL_ENABLED !== "false",
       // Centralized email addresses
       supportEmail: "support@switchcv.com",
-      adminEmail: "admin@switchcv.app",
+      adminEmail: "support@switchcv.com",
     };
 
     // AI service configuration

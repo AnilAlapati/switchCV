@@ -1,231 +1,147 @@
-# Google Sign-In Production Bug — Full Investigation & Fix Log
+# Google Sign-In Issue — Full Post-Mortem
 
-**Period:** 19–21 February 2026  
-**Status:** ✅ Resolved  
-**Affected environment:** Production only (`switchcv.com`)  
-**Dev was fine throughout:** Dev correctly redirected to `switchcv-dev.firebaseapp.com` auth handler
-
----
-
-## Timeline of Symptoms
-
-| Date                   | Error                              | User Impact                                                                                                       |
-| ---------------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| ~Feb 19                | `auth/unauthorized-domain`         | Google sign-in popup redirected to `switchcv-dev.firebaseapp.com` instead of prod auth handler — blocked entirely |
-| Feb 21 (first deploy)  | `Error 400: redirect_uri_mismatch` | Popup opened with correct **prod** project but OAuth rejected the callback                                        |
-| Feb 21 (second deploy) | `auth/popup-closed-by-user`        | Popup opened and showed Google account picker correctly — minor UX issue                                          |
+> **Timeline**: Feb 20–22, 2026  
+> **Status**: ✅ Resolved  
+> **Impact**: Google Sign-In/Sign-Up was completely non-functional on `switchcv.com`
 
 ---
 
-## Bug 1: Wrong Firebase Project in Production
+## Symptom
 
-### Symptom
+Users clicking "Continue with Google" on `switchcv.com/auth` experienced:
 
-Production (`switchcv.com`) was using the **dev** Firebase project (`switchcv-dev`).  
-The Google Sign-In popup redirected to `switchcv-dev.firebaseapp.com/__/auth/handler` with the dev API key (`AIzaSyCm1wvOw1fLZssQiJcgL0cDGyIxSH8Ytls`).
-
-Error in browser console:
-
-```
-code: "auth/unauthorized-domain"
-message: "Firebase: Error (auth/unauthorized-domain)."
-source: "useAuth.googleSignIn"
-```
-
-### Root Cause
-
-1. This project uses **Firebase Framework-Aware Hosting** (`firebase.json` → `"source": "."` + `frameworksBackend`).
-2. When `firebase deploy --only hosting` runs, Firebase CLI **rebuilds Next.js itself**.
-3. `scripts/deploy.sh` moved `.env.local` (dev config) out of the way for a **pre-check build**, then **restored it before the Firebase hosting deploy**.
-4. When Firebase CLI rebuilt Next.js, `.env.local` was present — and per [Next.js env precedence](https://nextjs.org/docs/basic-features/environment-variables#default-environment-variables), `.env.local` overrides `.env.production`.
-5. Result: prod bundle contained dev Firebase credentials (`switchcv-dev` project ID, dev API key).
-
-### Fix
-
-**File:** `scripts/deploy.sh`
-
-```bash
-# BEFORE (broken):
-# .env.local restored BEFORE firebase deploy --only hosting
-# → Firebase's internal Next.js build used dev config
-
-# AFTER (fixed):
-# For prod deployments, .env.local is hidden during the hosting deploy step
-if [ "$TARGET_ENV" == "prod" ] && [ -f .env.local ]; then
-  mv .env.local .env.local.deploy_backup
-fi
-
-firebase deploy --only hosting $FLAG
-
-# Restore immediately after
-if [ -f .env.local.deploy_backup ]; then
-  mv .env.local.deploy_backup .env.local
-fi
-```
-
-A **double-check guard** was also added: if `.env.local` still exists after the move attempt, the deploy aborts rather than silently shipping dev config.
-
-### Permanent Safety Net
-
-**File:** `src/lib/firebase.ts`
-
-A build-time check was added that throws a fatal error if `NODE_ENV=production` but `projectId === "switchcv-dev"`:
-
-```typescript
-if (
-  process.env.NODE_ENV === "production" &&
-  firebaseConfig.projectId === "switchcv-dev"
-) {
-  throw new Error(
-    "FATAL: Production build is using DEV Firebase config (switchcv-dev). " +
-      "Ensure .env.local is removed before running `firebase deploy --only hosting` for prod.",
-  );
-}
-```
-
-This makes the failure **loud and immediate** at build time instead of silently shipping wrong config.
+- A Google popup would open, the user would select their account, but the parent page would **hang indefinitely** in a loading state.
+- No visible error appeared on screen (the error was silently swallowed).
+- Browser console showed no obvious error unless closely inspected.
 
 ---
 
-## Bug 2: `redirect_uri_mismatch` (Error 400 from Google OAuth)
+## Root Causes (3 Layered Issues)
 
-### Symptom
+The outage was caused by **three independent but compounding issues** that had to be resolved in sequence. Fixing any one alone was insufficient.
 
-After Bug 1 was fixed, Google Sign-In showed the correct prod sign-in popup but then displayed:
+### Issue 1: `auth/unauthorized-domain` Error
+
+**When**: Feb 20  
+**Symptom**: Google Sign-In failed with `auth/unauthorized-domain` in the browser console.  
+**Root Cause**: The production domain `switchcv.com` was configured as `authDomain` in the Firebase SDK, but the `switchcv.com` domain was not added to **Firebase Console → Authentication → Settings → Authorized Domains**.  
+**Fix**: Added `switchcv.com` to the Firebase Authorized Domains list.
+
+**Files Changed**: None (Firebase Console config only)
+
+---
+
+### Issue 2: `redirect_uri_mismatch` and Cross-Origin Cookie Blocking
+
+**When**: Feb 20–22  
+**Symptom**: After fixing Issue 1, the popup would open but still fail silently. The error `auth/popup-closed-by-user` appeared even though the user did not close the popup.  
+**Root Cause**: Modern browsers (Chrome 120+, Safari) block **third-party cookies**. When `authDomain` was set to `switchcv-e5136.firebaseapp.com` (the default Firebase domain), the popup opened on a different origin than the parent page (`switchcv.com`). The browser blocked the cross-origin `postMessage` communication needed to pass the OAuth token back.  
+**Fix** (two parts):
+
+1. **Code**: Changed `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` from `switchcv-e5136.firebaseapp.com` to `switchcv.com` in `.env.production`. This makes the popup same-origin.
+2. **Google Cloud Console**: Added `https://switchcv.com/__/auth/handler` to the OAuth 2.0 Client's **Authorized redirect URIs** and `https://switchcv.com` to **Authorized JavaScript origins**.
+3. **Next.js Rewrite**: Added a rewrite rule in `next.config.ts` to proxy `/__/auth/:path*` requests to the Firebase project domain (`switchcv-e5136.firebaseapp.com/__/auth/:path*`), since `switchcv.com` doesn't natively serve Firebase's auth handler.
+
+**Files Changed**:
+- `.env.production` — `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=switchcv.com`
+- `next.config.ts` — Added `rewrites()` for `/__/auth/:path*`
+
+---
+
+### Issue 3: `Cross-Origin-Opener-Policy: same-origin` Severing Popup Connection
+
+**When**: Feb 22  
+**Symptom**: Even after fixing Issues 1 and 2, the popup STILL failed. The error message was now visible: "Sign-in popup closed prematurely or failed to communicate."  
+**Root Cause**: The app's `next.config.ts` was sending strict security headers:
 
 ```
-Access blocked: This app's request is invalid
-Error 400: redirect_uri_mismatch
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: require-corp
 ```
 
-### Root Cause
+The `same-origin` COOP header tells the browser to **completely sever the `window.opener` connection** whenever a popup navigates to a different origin. Since the Google Sign-In popup redirects to `accounts.google.com`, the browser cut the link between `switchcv.com` and the popup. Firebase Auth relies on `window.opener` and `postMessage` to pass the credential back — without it, the sign-in silently fails.
 
-`.env.production` had `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=switchcv.com` (custom domain).
+**Additionally**, the `require-corp` COEP header was blocking external images (avatars, background textures) from loading.
 
-Firebase uses `authDomain` to construct the OAuth **redirect URI**:  
-`https://<authDomain>/__/auth/handler`
-
-So Firebase was sending `https://switchcv.com/__/auth/handler` as the redirect URI to Google OAuth. But Google Cloud Console OAuth credentials for the `switchcv-e5136` project only had `https://switchcv-e5136.firebaseapp.com/__/auth/handler` registered — not the custom domain.
-
-### Fix
-
-**File:** `.env.production`
+**Fix**: Changed the security headers in `next.config.ts`:
 
 ```diff
-- NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=switchcv.com
-+ NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=switchcv-e5136.firebaseapp.com
+- Cross-Origin-Opener-Policy: same-origin
++ Cross-Origin-Opener-Policy: same-origin-allow-popups
+
+- Cross-Origin-Embedder-Policy: require-corp
++ Cross-Origin-Embedder-Policy: unsafe-none
 ```
 
-Firebase **automatically registers** `<project-id>.firebaseapp.com` as an authorized OAuth redirect URI, so no Google Cloud Console changes are needed.
+`same-origin-allow-popups` explicitly allows the parent window to maintain a reference to popups that navigate cross-origin — exactly what OAuth flows need.
 
-> **Note:** If you want to use `switchcv.com` as the `authDomain` (branded popup URL) in the future, you must:
->
-> 1. Go to [Google Cloud Console → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials?project=switchcv-e5136) → edit the Web Client OAuth 2.0 credential
-> 2. Add `https://switchcv.com/__/auth/handler` to **Authorized redirect URIs**
-> 3. Add `https://switchcv.com` to **Authorized JavaScript origins**
-> 4. Then change `authDomain` back to `switchcv.com` in `.env.production` and redeploy
+**Files Changed**:
+- `next.config.ts` — Relaxed COOP and COEP headers
+- `src/__tests__/security/headers.test.ts` — Updated expected header values
 
 ---
 
-## Bug 3: `auth/popup-closed-by-user` Shown as an Error
+## Additional Improvements Made
 
-### Symptom
+### Silent Error Swallowing Fix
+The `useAuthPage.ts` handler was catching the `auth/popup-closed-by-user` error and returning silently without showing anything to the user. This made the failure invisible. Updated to display a clear error message.
 
-After Bugs 1 & 2 were fixed, clicking the Google Sign-In button, getting the popup, and then closing it (or occasionally on popup-close after successful auth on some browsers) showed a red error message to the user:
+**File**: `src/hooks/useAuthPage.ts`
 
-```
-Google sign-in was closed before completion.
-```
+### Timeout Protection
+Added a 15-second timeout wrapper around `ensureUserProfile()` Firestore calls to prevent indefinite hangs if Firestore becomes unresponsive.
 
-### Root Cause
+**File**: `src/hooks/useAuth.helpers.ts`
 
-`useAuthPage.ts` → `handleGoogleSignIn` was catching ALL errors from `signInWithGoogle()` and displaying them as UI errors via `setError()`. But `auth/popup-closed-by-user` is a **user-initiated action** (closing the popup), not an application error. Showing it as a red error message is misleading and creates unnecessary friction.
+### Background Texture COEP Error
+Removed a `background-image: url(...)` CSS reference to an external texture that was being blocked by the strict COEP header and causing console errors.
 
-Additionally, `useAuth.tsx` was calling `reportError()` for `popup-closed-by-user`, which is noise in error monitoring.
-
-### Fix
-
-**File:** `src/hooks/useAuthPage.ts` — silently ignore `popup-closed-by-user`:
-
-```typescript
-const handleGoogleSignIn = useCallback(async () => {
-  setError("");
-  setLoading(true);
-  try {
-    const result = await signInWithGoogle();
-    router.push(result.needsUsername ? "/auth/choose-username" : "/dashboard");
-  } catch (err) {
-    // Don't show "popup closed" as an error — it's user-initiated
-    if (
-      err instanceof Error &&
-      err.message.includes("closed before completion")
-    ) {
-      return; // Silent - user closed the popup themselves
-    }
-    setError(
-      err instanceof Error ? err.message : "Failed to sign in with Google",
-    );
-  } finally {
-    setLoading(false);
-  }
-}, [signInWithGoogle, router]);
-```
-
-**File:** `src/hooks/useAuth.tsx` — skip `reportError` for popup-closed:
-
-```typescript
-} catch (error) {
-  const authError = error as { code?: string; message?: string };
-  // Don't report popup-closed — it's user-initiated, not an app error
-  if (authError.code !== "auth/popup-closed-by-user") {
-    reportError(error, {
-      source: "useAuth.googleSignIn",
-      severity: "warning",
-      meta: { code: authError.code },
-    });
-  }
-  throw new Error(getGoogleSignInErrorMessage(authError));
-}
-```
+**File**: `src/app/auth/page.tsx`
 
 ---
 
-## How Google Sign-In Works (Sign-In AND Sign-Up — No Separate Step)
+## Configuration Checklist
 
-Google Sign-In on SwitchCV is a **combined sign-in and sign-up flow**:
+For Google Sign-In to work correctly, ALL of the following must be true:
 
-- **Existing user** → authenticated immediately → redirected to `/dashboard`
-- **New user** → account created automatically in Firebase Auth → profile created in Firestore → redirected to `/auth/choose-username` (one-time username selection) → then `/dashboard`
+### Firebase Console (`console.firebase.google.com`)
+- [ ] `switchcv.com` is in **Authentication → Settings → Authorized Domains**
+- [ ] Google sign-in provider is enabled in **Authentication → Sign-in method**
 
-There is **no separate sign-up step** required for Google users. The Google button appears on the auth page in both sign-in and sign-up modes and handles both cases via `ensureUserProfile()` in `useAuth.tsx`.
+### Google Cloud Console (`console.cloud.google.com`)
+- [ ] `https://switchcv.com/__/auth/handler` is in OAuth Client → **Authorized redirect URIs**
+- [ ] `https://switchcv.com` is in OAuth Client → **Authorized JavaScript origins**
+- [ ] `https://switchcv-e5136.firebaseapp.com/__/auth/handler` is also kept (original Firebase default)
 
----
-
-## Commits
-
-| Commit    | Description                                                                                |
-| --------- | ------------------------------------------------------------------------------------------ |
-| `49e0971` | `fix(deploy): hide .env.local during prod hosting deploy; add firebase build safety check` |
-| `547ff45` | `fix(firebase): use logger.error in build safety check to avoid no-console`                |
-| `6ba8d79` | `chore(release): commit version bump artifacts`                                            |
-| `31be10f` | `fix(auth): use firebaseapp.com authDomain for prod to fix redirect_uri_mismatch`          |
-| `eb8900a` | `style: format logger.error call in firebase build safety check`                           |
-| `6fb9289` | `fix(auth): silent popup-closed-by-user; skip reportError for user-initiated close`        |
+### Code Configuration
+- [ ] `.env.production`: `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=switchcv.com`
+- [ ] `next.config.ts`: Rewrite rule for `/__/auth/:path*` → Firebase project domain
+- [ ] `next.config.ts`: `Cross-Origin-Opener-Policy: same-origin-allow-popups` (NOT `same-origin`)
+- [ ] `next.config.ts`: `Cross-Origin-Embedder-Policy: unsafe-none` (NOT `require-corp`)
+- [ ] `useAuthPage.ts`: Errors from popup closure are surfaced to the UI, not silently swallowed
 
 ---
 
-## Key Config Reference
+## Lessons Learned
 
-| Setting                            | Dev (`.env.local`)                        | Prod (`.env.production`)                  |
-| ---------------------------------- | ----------------------------------------- | ----------------------------------------- |
-| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`  | `switchcv-dev`                            | `switchcv-e5136`                          |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | `switchcv-dev.firebaseapp.com`            | `switchcv-e5136.firebaseapp.com`          |
-| `NEXT_PUBLIC_FIREBASE_API_KEY`     | `AIzaSyCm1wvOw1fLZssQiJcgL0cDGyIxSH8Ytls` | `AIzaSyCTHP5C_Mg3kv0E1WGAxNmCAN0Mxb8zbZc` |
+1. **Security headers can break OAuth flows.** `Cross-Origin-Opener-Policy: same-origin` is the strictest COOP setting and will break any popup-based OAuth (Google, GitHub, Facebook, etc.). Always use `same-origin-allow-popups` when using `signInWithPopup`.
+
+2. **Third-party cookies affect Firebase Auth.** When `authDomain` differs from the app domain, the popup is cross-origin and modern browsers block the token transfer. Always set `authDomain` to your custom domain.
+
+3. **Never silently swallow auth errors.** The original code caught `auth/popup-closed-by-user` and returned without showing any error. This made debugging nearly impossible. Always surface errors to the user, even if they seem benign.
+
+4. **Multiple root causes can stack.** This issue had three independent causes. Fixing only one or two still left the system broken, making it appear like the fixes "didn't work."
 
 ---
 
-## Prevention
+## Timeline
 
-- `scripts/deploy.sh` now guards `.env.local` removal for ALL prod hosting deploys
-- `src/lib/firebase.ts` safety check → build fails loudly if dev config leaks into prod
-- `auth/popup-closed-by-user` is silenced in both error monitoring and UI display
+| Date | Action | Result |
+|------|--------|--------|
+| Feb 20 | Investigated `auth/unauthorized-domain` | Added domain to Firebase Console |
+| Feb 20 | Attempted `authDomain: switchcv.com` | Got `redirect_uri_mismatch` — reverted |
+| Feb 22 | Re-attempted with Google Cloud Console redirect URI config | Popup still failed silently |
+| Feb 22 | Tried `signInWithRedirect` as alternative | `getRedirectResult` returned null |
+| Feb 22 | Reverted to `signInWithPopup` + custom `authDomain` | Still broken — discovered COOP header issue |
+| Feb 22 | Browser diagnostic identified COOP header | Found `same-origin` severing popup connection |
+| Feb 22 | Changed COOP to `same-origin-allow-popups` | ✅ **Sign-in works!** |

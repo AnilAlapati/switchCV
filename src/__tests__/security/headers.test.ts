@@ -95,7 +95,7 @@ describe("Security Headers", () => {
                 (h) => h.key === "Cross-Origin-Embedder-Policy"
             );
             expect(coep).toBeDefined();
-            expect(coep?.value).toBe("require-corp");
+            expect(coep?.value).toBe("unsafe-none");
         });
 
         it("should have Cross-Origin-Opener-Policy", () => {
@@ -103,7 +103,7 @@ describe("Security Headers", () => {
                 (h) => h.key === "Cross-Origin-Opener-Policy"
             );
             expect(coop).toBeDefined();
-            expect(coop?.value).toBe("same-origin");
+            expect(coop?.value).toBe("same-origin-allow-popups");
         });
 
         it("should have Cross-Origin-Resource-Policy", () => {

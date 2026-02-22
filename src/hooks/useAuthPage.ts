@@ -128,7 +128,7 @@ export function useAuthPage(): UseAuthPageReturn {
           } else {
             setError(
               firebaseError.message ||
-                "Failed to verify email. Please try again.",
+              "Failed to verify email. Please try again.",
             );
           }
         } finally {
@@ -232,12 +232,13 @@ export function useAuthPage(): UseAuthPageReturn {
         result.needsUsername ? "/auth/choose-username" : "/dashboard",
       );
     } catch (err) {
-      // Silently ignore popup-closed — user closed the popup themselves.
-      // Showing it as an error creates confusion ("I didn't do anything wrong!").
       if (
         err instanceof Error &&
         err.message === "Google sign-in was closed before completion."
       ) {
+        setError(
+          "Sign-in popup closed prematurely or failed to communicate. Please ensure the domain is authorized in Firebase.",
+        );
         return;
       }
       setError(

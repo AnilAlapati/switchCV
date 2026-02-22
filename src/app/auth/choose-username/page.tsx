@@ -156,54 +156,44 @@ export default function ChooseUsernamePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
-        <div data-testid="loading-spinner" className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[#FFFFF8]">
+        <div data-testid="loading-spinner" className="w-6 h-6 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
-        <div className="text-slate-400">Redirecting to sign in...</div>
+      <div className="min-h-screen flex items-center justify-center bg-[#FFFFF8]">
+        <p className="text-gray-500 font-serif italic">Redirecting to sign in...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 px-4 text-white">
-      {/* Background effects */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
-      </div>
+    <div className="min-h-screen relative flex p-4 justify-center items-center bg-[#FFFFF8]">
+      {/* Subtle paper texture overlay */}
+      <div className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] mix-blend-multiply" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%274%27 height=%274%27%3E%3Crect width=%274%27 height=%274%27 fill=%27%23f5f5dc%27/%3E%3Crect width=%271%27 height=%271%27 fill=%27%23e8e4d4%27/%3E%3C/svg%3E")' }}></div>
 
-      <div className="relative z-10 max-w-md w-full">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-2xl mb-6">
-            <svg
-              className="w-8 h-8 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-              />
-            </svg>
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-bold mb-3">
-            Choose your username
-          </h1>
-          <p className="text-slate-400 text-lg max-w-xl mx-auto">
-            This will be your unique identifier on SwitchCV
-          </p>
+      <div className="relative z-10 w-full max-w-md mx-auto">
+        <div className="mb-8 text-center">
+          <h1 className="font-serif text-3xl font-bold tracking-tight">SwitchCV.</h1>
+          <p className="font-mono text-xs uppercase tracking-widest text-gray-500 mt-2">The Career Agency</p>
         </div>
 
-        <div className="bg-white/5 border border-white/10 backdrop-blur-sm rounded-2xl p-6">
+        <div className="bg-white border border-gray-200 shadow-xl p-8 sm:p-12 relative overflow-hidden">
+          {/* Decorative Typewriter Line */}
+          <div className="absolute top-0 left-0 w-full h-1 bg-black" />
+
+          <div className="text-left mb-8">
+            <h2 className="text-2xl font-serif font-bold text-black mb-2">
+              Claim Your Byline
+            </h2>
+            <p className="text-gray-500 text-sm font-sans">
+              Choose a unique handle for your professional profile.
+            </p>
+          </div>
+
           <form onSubmit={handleSubmit}>
             <UsernameInput
               value={username}
@@ -217,51 +207,51 @@ export default function ChooseUsernamePage() {
             />
 
             {submitError && (
-              <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
-                <p className="text-sm text-red-400">{submitError}</p>
+              <div className="mb-4 border-l-4 border-red-600 bg-red-50 p-4">
+                <p className="text-sm text-red-900 font-medium">{submitError}</p>
               </div>
             )}
 
             <button
               type="submit"
               disabled={status !== "available" || isSubmitting || isPending}
-              className="w-full py-3 px-4 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-medium rounded-lg hover:from-cyan-400 hover:to-purple-500 focus:ring-4 focus:ring-cyan-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              className="w-full py-3 px-4 bg-black text-white text-sm font-bold uppercase tracking-widest hover:bg-gray-900 focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              {isSubmitting ? "Setting username..." : "Continue"}
+              {isSubmitting ? "Filing..." : "Continue"}
             </button>
           </form>
 
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-white/10" />
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-slate-900 text-slate-500">or</span>
-            </div>
+          <div className="flex items-center gap-3 my-6">
+            <span className="flex-1 h-px bg-gray-200"></span>
+            <span className="text-xs uppercase tracking-widest text-gray-400 font-bold font-mono">
+              or
+            </span>
+            <span className="flex-1 h-px bg-gray-200"></span>
           </div>
 
           <button
             type="button"
             onClick={handleSkip}
             disabled={isSubmitting}
-            className="w-full py-3 px-4 bg-white/10 text-white font-medium rounded-lg hover:bg-white/20 focus:ring-4 focus:ring-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full py-3 px-4 bg-gray-100 text-gray-700 text-sm font-medium border border-gray-200 hover:bg-gray-200 focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             Skip for now
           </button>
-          <p className="mt-2 text-center text-xs text-slate-500">
+          <p className="mt-2 text-center text-xs text-gray-400 font-mono">
             We&apos;ll assign you{" "}
-            <span className="font-mono text-slate-400">
+            <span className="font-medium text-gray-600">
               @{skipPreviewUsername}
             </span>
           </p>
-        </div>
 
-        {user.email && (
-          <p className="mt-6 text-center text-sm text-slate-500">
-            Signed in as{" "}
-            <span className="font-medium text-slate-400">{user.email}</span>
-          </p>
-        )}
+          <div className="mt-10 pt-6 border-t border-gray-100 flex justify-between items-center text-[10px] text-gray-400 font-mono uppercase tracking-wider">
+            {user.email && (
+              <span>
+                Signed in as <span className="text-gray-600">{user.email}</span>
+              </span>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
