@@ -742,3 +742,52 @@ it("should return 200", async () => {
 
 **Last Updated**: 2026-02-15
 **Latest Update**: Recurring patterns catalog added, 14 mechanical checks now enforce across pre-commit and CI
+
+---
+
+## State Race Conditions: Next.js Soft Navigation vs SWR & Firestore Cache (2026-02-22)
+
+### The Problem
+
+A severe "infinite redirect loop" affected the `/select-role` page. A user would choose their role, click "Continue to Dashboard", and instantly be redirected back to the `/select-role` screen. 
+
+When observing the database, the role **was** being saved correctly to Firestore! So why the loop?
+
+**The Chain of Events:**
+1. User clicks "Select Role"
+2. Arrow drops to `/api/user/role` and saves to Firestore.
+3. Client optimistically updates SWR cache: `mutate(newData, { revalidate: false })`
+4. Client navigates using Next.js App Router: `router.push('/dashboard')`
+5. `/dashboard` mounts and calls `useUserProfile()` (SWR hook)
+6. SWR reads the fallback cache, OR detects the route change/focus event and re-fetches from `GET /api/user/profile`.
+7. **The Race Condition:** Firestore replication latency means the backend fetch returns the *stale* profile (where role is still undefined).
+8. The dashboard sees `!role` and instantly redirects the user back via `router.push('/select-role')`.
+
+### Root Cause
+Combining three aggressive caching systems creates edge-case havoc:
+1. Next.js Client-Side Router Cache
+2. SWR's Memory/Dedupe Cache
+3. Firestore's Edge/Global Replication Latency
+
+When the soft navigation (`router.push`) happens, the React component tree is preserved. SWR aggressively attempts to manage the cache state, but often overwrites optimistic updates with stale server responses pulling from a pre-replicated database instance.
+
+### The Fix
+
+Break the soft navigation chain using a hard reload when critical state transitions occur that affect fundamental routing guards.
+
+```typescript
+// ❌ DANGEROUS: Soft navigation allows SWR to immediately fetch stale DB state
+router.push("/dashboard");
+
+// ✅ SAFE: Allow DB replication time, then hard reload to nuke the client cache
+await new Promise(resolve => setTimeout(resolve, 800));
+window.location.href = "/dashboard";
+```
+
+### Key Insight
+Opt for **hard navigation** (`window.location.href`) instead of soft navigation (`router.push`) whenever a user crosses a major **authentication or authorization boundary** (e.g. logging in, setting a mandatory profile flag, or verifying an email). The few milliseconds saved by the React Router aren't worth the catastrophic UX failures caused by stale client-side caches misinterpreting access controls.
+
+---
+
+**Last Updated**: 2026-02-22
+**Latest Update**: SWR + Next.js soft navigation race condition pattern documented.
