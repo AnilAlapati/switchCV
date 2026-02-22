@@ -105,7 +105,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     if (!firebaseReady) {
       throw new Error(
         connectivityIssue ||
-        "Authentication service is temporarily unavailable. Please try again later.",
+          "Authentication service is temporarily unavailable. Please try again later.",
       );
     }
   }, [firebaseReady, connectivityIssue]);
@@ -114,7 +114,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     if (!firebaseReady) {
       setConnectivityIssue(
         firebaseConnectivity?.error ||
-        "Firebase configuration is incomplete. Please contact support.",
+          "Firebase configuration is incomplete. Please contact support.",
       );
       setLoading(false);
       return;
@@ -275,11 +275,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         throw new Error(getSignUpErrorMessage(authError));
       }
     },
-    [
-      ensureAuthAvailable,
-      reserveUsername,
-      releaseUsernameReservation,
-    ],
+    [ensureAuthAvailable, reserveUsername, releaseUsernameReservation],
   );
 
   const logout = useCallback(async () => {

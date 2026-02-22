@@ -203,14 +203,14 @@ There is **no separate sign-up step** required for Google users. The Google butt
 
 ## Commits
 
-| Commit      | Description                                                                                |
-| ----------- | ------------------------------------------------------------------------------------------ |
-| `49e0971`   | `fix(deploy): hide .env.local during prod hosting deploy; add firebase build safety check` |
-| `547ff45`   | `fix(firebase): use logger.error in build safety check to avoid no-console`                |
-| `6ba8d79`   | `chore(release): commit version bump artifacts`                                            |
-| `31be10f`   | `fix(auth): use firebaseapp.com authDomain for prod to fix redirect_uri_mismatch`          |
-| `eb8900a`   | `style: format logger.error call in firebase build safety check`                           |
-| `6fb9289`   | `fix(auth): silent popup-closed-by-user; skip reportError for user-initiated close`        |
+| Commit    | Description                                                                                |
+| --------- | ------------------------------------------------------------------------------------------ |
+| `49e0971` | `fix(deploy): hide .env.local during prod hosting deploy; add firebase build safety check` |
+| `547ff45` | `fix(firebase): use logger.error in build safety check to avoid no-console`                |
+| `6ba8d79` | `chore(release): commit version bump artifacts`                                            |
+| `31be10f` | `fix(auth): use firebaseapp.com authDomain for prod to fix redirect_uri_mismatch`          |
+| `eb8900a` | `style: format logger.error call in firebase build safety check`                           |
+| `6fb9289` | `fix(auth): silent popup-closed-by-user; skip reportError for user-initiated close`        |
 
 ---
 

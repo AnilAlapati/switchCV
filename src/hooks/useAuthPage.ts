@@ -119,16 +119,16 @@ export function useAuthPage(): UseAuthPageReturn {
           const firebaseError = err as { code?: string; message?: string };
           if (firebaseError.code === "auth/expired-action-code") {
             setError(
-              "This verification link has expired. Please request a new one."
+              "This verification link has expired. Please request a new one.",
             );
           } else if (firebaseError.code === "auth/invalid-action-code") {
             setError(
-              "This verification link is invalid or has already been used."
+              "This verification link is invalid or has already been used.",
             );
           } else {
             setError(
               firebaseError.message ||
-              "Failed to verify email. Please try again."
+                "Failed to verify email. Please try again.",
             );
           }
         } finally {
@@ -141,8 +141,13 @@ export function useAuthPage(): UseAuthPageReturn {
   }, [searchParams, refreshUser]);
 
   // Redirect authenticated users
+  // NOTE: !loading guard prevents this effect from firing mid-Google-sign-in.
+  // When handleGoogleSignIn is awaiting ensureUserProfile(), onAuthStateChanged
+  // can fire and set `user` before needsUsername is updated, causing a premature
+  // redirect to /dashboard instead of /auth/choose-username. The explicit
+  // router.push inside handleGoogleSignIn is the source of truth during active sign-in.
   useEffect(() => {
-    if (!authLoading && user && !needsEmailVerification) {
+    if (!authLoading && !loading && user && !needsEmailVerification) {
       const target = needsUsername ? "/auth/choose-username" : "/dashboard";
 
       // If we just verified the email, show the success message for 2.5 seconds
@@ -160,6 +165,7 @@ export function useAuthPage(): UseAuthPageReturn {
     needsEmailVerification,
     needsUsername,
     authLoading,
+    loading,
     router,
     checkNeedsUsername,
     verificationSuccess,
@@ -181,7 +187,7 @@ export function useAuthPage(): UseAuthPageReturn {
           }
           if (isCheckingUsername || usernameStatus === "checking") {
             setUsernameError(
-              "Please wait for username availability check to complete."
+              "Please wait for username availability check to complete.",
             );
             return setLoading(false);
           }
@@ -214,7 +220,7 @@ export function useAuthPage(): UseAuthPageReturn {
       password,
       signUp,
       signIn,
-    ]
+    ],
   );
 
   const handleGoogleSignIn = useCallback(async () => {
@@ -223,7 +229,7 @@ export function useAuthPage(): UseAuthPageReturn {
     try {
       const result = await signInWithGoogle();
       router.push(
-        result.needsUsername ? "/auth/choose-username" : "/dashboard"
+        result.needsUsername ? "/auth/choose-username" : "/dashboard",
       );
     } catch (err) {
       // Silently ignore popup-closed — user closed the popup themselves.
@@ -235,7 +241,7 @@ export function useAuthPage(): UseAuthPageReturn {
         return;
       }
       setError(
-        err instanceof Error ? err.message : "Failed to sign in with Google"
+        err instanceof Error ? err.message : "Failed to sign in with Google",
       );
     } finally {
       setLoading(false);
@@ -251,7 +257,7 @@ export function useAuthPage(): UseAuthPageReturn {
       setError(
         err instanceof Error
           ? err.message
-          : "Failed to resend verification email"
+          : "Failed to resend verification email",
       );
     } finally {
       setResending(false);
@@ -267,7 +273,7 @@ export function useAuthPage(): UseAuthPageReturn {
       // Check if verification status changed
       if (auth.currentUser && !auth.currentUser.emailVerified) {
         setError(
-          "Email is not verified yet. Please check your inbox and try again."
+          "Email is not verified yet. Please check your inbox and try again.",
         );
       }
     } catch (err) {
