@@ -127,5 +127,12 @@
     "extends": [
       "plugin:storybook/recommended"
     ]
+  },
+  "overrides": {
+    "nanoid": "^3.3.8",
+    "fast-xml-parser": "^4.4.1",
+    "ajv": "^8.17.1",
+    "cross-spawn": "^7.0.6",
+    "minimatch": "^3.0.5"
   }
 }
