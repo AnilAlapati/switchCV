@@ -53,7 +53,7 @@ export const GenerateResumeRequestSchema = z
   .object({
     message: z.string().min(1),
     conversationHistory: z.array(ConversationHistoryItemSchema).optional().default([]),
-    sessionData: z.record(z.string(), z.unknown()).optional(),
+    sessionData: z.record(z.string(), z.unknown()).nullable().optional(),
     modelId: z.string().min(1).optional(),
     async: z.boolean().optional(),
   })

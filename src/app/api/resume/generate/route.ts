@@ -49,6 +49,10 @@ export async function POST(request: NextRequest) {
     // Billing & Budget Check
     const budgetAllowed = await BillingService.checkBudget(userId, userRole);
     if (!budgetAllowed) {
+      logger.warn(
+        { userId, userRole },
+        "⛔ Budget check blocked request (could be Firestore error or actual limit)",
+      );
       return handleApiError(
         new Error("Budget exceeded"),
         "Monthly usage limit reached. Please upgrade your plan.",
@@ -83,12 +87,17 @@ export async function POST(request: NextRequest) {
 
     // Enforce Quantity Limit for Basic Users
     if (userTier === "basic") {
-      const resumeCount = await getResumeCount(userId);
+      let resumeCount = 0;
+      try {
+        resumeCount = await getResumeCount(userId);
+      } catch (countError) {
+        logger.warn(
+          { err: countError, userId },
+          "Failed to get resume count, allowing request to proceed",
+        );
+      }
 
       if (resumeCount >= 1) {
-        // Check if user is trying to regenerate/edit an existing one (which is allowed if supported)
-        // But this is the CREATE endpoint.
-        // Basic users can't create a 2nd resume.
         logger.warn(
           { userId, resumeCount },
           "⛔ Basic user attempted to create 2nd resume",
@@ -126,7 +135,7 @@ export async function POST(request: NextRequest) {
       const { jobId } = await createGenerationJob(userId, {
         message,
         conversationHistory: normalizedConversationHistory,
-        sessionData,
+        sessionData: sessionData ?? undefined,
         modelId,
         userTier,
       });
@@ -169,7 +178,7 @@ export async function POST(request: NextRequest) {
         userId,
         message,
         conversationHistory,
-        sessionData,
+        sessionData: sessionData ?? undefined,
         modelId,
         userTier,
       });

@@ -57,7 +57,13 @@ function AuthContent(): React.JSX.Element {
   return (
     <div className="min-h-screen relative flex p-4 justify-center items-center bg-[#FFFFF8]">
       {/* Subtle paper texture overlay */}
-      <div className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] mix-blend-multiply" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%274%27 height=%274%27%3E%3Crect width=%274%27 height=%274%27 fill=%27%23f5f5dc%27/%3E%3Crect width=%271%27 height=%271%27 fill=%27%23e8e4d4%27/%3E%3C/svg%3E")' }}></div>
+      <div
+        className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] mix-blend-multiply"
+        style={{
+          backgroundImage:
+            'url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%274%27 height=%274%27%3E%3Crect width=%274%27 height=%274%27 fill=%27%23f5f5dc%27/%3E%3Crect width=%271%27 height=%271%27 fill=%27%23e8e4d4%27/%3E%3C/svg%3E")',
+        }}
+      ></div>
 
       {/* Back to Home Link - Absolute Positioned */}
       <Link
@@ -82,8 +88,12 @@ function AuthContent(): React.JSX.Element {
 
       <div className="relative z-10 w-full max-w-md mx-auto">
         <div className="mb-8 text-center">
-          <h1 className="font-serif text-3xl font-bold tracking-tight">SwitchCV.</h1>
-          <p className="font-mono text-xs uppercase tracking-widest text-gray-500 mt-2">The Career Agency</p>
+          <h1 className="font-serif text-3xl font-bold tracking-tight">
+            SwitchCV.
+          </h1>
+          <p className="font-mono text-xs uppercase tracking-widest text-gray-500 mt-2">
+            The Career Agency
+          </p>
         </div>
 
         <div className="bg-white border border-gray-200 shadow-xl p-8 sm:p-12 relative overflow-hidden">
@@ -94,7 +104,9 @@ function AuthContent(): React.JSX.Element {
             <div className="mb-6 border-l-4 border-blue-600 bg-blue-50 p-4">
               <div className="flex items-center">
                 <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-3"></div>
-                <p className="text-sm text-blue-900 font-medium font-serif italic">Verifying your credentials...</p>
+                <p className="text-sm text-blue-900 font-medium font-serif italic">
+                  Verifying your credentials...
+                </p>
               </div>
             </div>
           )}
@@ -110,20 +122,24 @@ function AuthContent(): React.JSX.Element {
             </div>
           )}
 
-          {needsEmailVerification && !isSignUp && !verificationSuccess && (
-            <EmailVerificationNotice
-              email={verificationEmail}
-              approvalStatus={profile?.approvalStatus}
-              onResend={handleResend}
-              onRefresh={async () => {
-                await handleRefreshVerification();
-                await mutate();
-              }}
-              onSignOut={actions.logout}
-              resending={resending}
-              refreshing={refreshing}
-            />
-          )}
+          {/* Show for password users awaiting email verification, AND for
+              Google/OAuth users whose account is pending admin approval */}
+          {(needsEmailVerification || profile?.approvalStatus === "pending") &&
+            !isSignUp &&
+            !verificationSuccess && (
+              <EmailVerificationNotice
+                email={verificationEmail ?? profile?.email ?? ""}
+                approvalStatus={profile?.approvalStatus}
+                onResend={handleResend}
+                onRefresh={async () => {
+                  await handleRefreshVerification();
+                  await mutate();
+                }}
+                onSignOut={actions.logout}
+                resending={resending}
+                refreshing={refreshing}
+              />
+            )}
 
           <div className="text-left mb-8">
             <h2 className="text-2xl font-serif font-bold text-black mb-2">
@@ -142,21 +158,21 @@ function AuthContent(): React.JSX.Element {
 
           {((!isSignUp && !loginDisabled) ||
             (isSignUp && !registrationClosed)) && (
-              <div className="mb-8">
-                <GoogleSignInButton
-                  onClick={handleGoogleSignIn}
-                  disabled={loading}
-                />
+            <div className="mb-8">
+              <GoogleSignInButton
+                onClick={handleGoogleSignIn}
+                disabled={loading}
+              />
 
-                <div className="flex items-center gap-3 mt-6">
-                  <span className="flex-1 h-px bg-gray-200"></span>
-                  <span className="text-xs uppercase tracking-widest text-gray-400 font-bold font-mono">
-                    or
-                  </span>
-                  <span className="flex-1 h-px bg-gray-200"></span>
-                </div>
+              <div className="flex items-center gap-3 mt-6">
+                <span className="flex-1 h-px bg-gray-200"></span>
+                <span className="text-xs uppercase tracking-widest text-gray-400 font-bold font-mono">
+                  or
+                </span>
+                <span className="flex-1 h-px bg-gray-200"></span>
               </div>
-            )}
+            </div>
+          )}
 
           {isSignUp && registrationClosed ? (
             <MaintenanceNotice
@@ -208,8 +224,12 @@ function AuthContent(): React.JSX.Element {
           <div className="mt-10 pt-6 border-t border-gray-100 flex justify-between items-center text-[10px] text-gray-400 font-mono uppercase tracking-wider">
             <span>Vol. 2025</span>
             <div className="space-x-4">
-              <a href="#" className="hover:text-black transition-colors">Terms</a>
-              <a href="#" className="hover:text-black transition-colors">Privacy</a>
+              <a href="#" className="hover:text-black transition-colors">
+                Terms
+              </a>
+              <a href="#" className="hover:text-black transition-colors">
+                Privacy
+              </a>
             </div>
           </div>
         </div>
