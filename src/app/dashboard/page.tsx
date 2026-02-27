@@ -13,7 +13,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { useResume } from "@/hooks/useResume";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
-import { DashboardMetricsProvider, type DashboardMetricsContextValue } from "@/context/DashboardMetricsContext";
+import {
+  DashboardMetricsProvider,
+  type DashboardMetricsContextValue,
+} from "@/context/DashboardMetricsContext";
 import { getVerificationRoute } from "@/lib/config";
 
 const VERIFICATION_ROUTE = getVerificationRoute();
@@ -27,7 +30,7 @@ export default function Dashboard() {
   } = useAuth();
   const router = useRouter();
 
-  const { role, loading: profileLoading } = useUserProfile();
+  const { role, loading: profileLoading, profile } = useUserProfile();
   const userIsRecruiter = role === "recruiter" || role === "admin";
 
   const {
@@ -47,8 +50,6 @@ export default function Dashboard() {
     refetch: refreshResume,
   } = useResume({ enabled: !authLoading && !!user });
 
-
-
   const handleLogout = useCallback(async () => {
     try {
       await logout();
@@ -63,22 +64,47 @@ export default function Dashboard() {
     if (!authLoading && (!user || needsEmailVerification)) {
       router.push(VERIFICATION_ROUTE);
     }
-  }, [user, authLoading, needsEmailVerification, router]);
+    // Google/OAuth users with pending admin approval must be sent back to /auth
+    // (profile must be loaded first to avoid a flash-redirect before we know the status)
+    if (
+      !authLoading &&
+      !profileLoading &&
+      user &&
+      profile?.approvalStatus === "pending"
+    ) {
+      router.push(VERIFICATION_ROUTE);
+    }
+  }, [
+    user,
+    authLoading,
+    profileLoading,
+    profile,
+    needsEmailVerification,
+    router,
+  ]);
 
   // Redirect to role selection if user hasn't selected a role yet
+  // (only for approved users — pending users are redirected to /auth above)
   useEffect(() => {
     if (
       !authLoading &&
       !profileLoading &&
       user &&
       !needsEmailVerification &&
+      profile?.approvalStatus !== "pending" &&
       !role
     ) {
       router.push("/select-role");
     }
-  }, [authLoading, profileLoading, user, needsEmailVerification, role, router]);
-
-
+  }, [
+    authLoading,
+    profileLoading,
+    user,
+    needsEmailVerification,
+    profile,
+    role,
+    router,
+  ]);
 
   const metricsProviderValue: DashboardMetricsContextValue = useMemo(
     () => ({
@@ -97,7 +123,7 @@ export default function Dashboard() {
       refreshJobSeekerMetrics,
       refreshRecruiterMetrics,
       userIsRecruiter,
-    ]
+    ],
   );
 
   // Don't show anything while checking auth
@@ -116,7 +142,11 @@ export default function Dashboard() {
     );
   }
 
-  if (!user || needsEmailVerification) {
+  if (
+    !user ||
+    needsEmailVerification ||
+    profile?.approvalStatus === "pending"
+  ) {
     return null;
   }
 

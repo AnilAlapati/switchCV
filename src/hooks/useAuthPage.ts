@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { applyActionCode } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { useDebouncedValue } from "@/hooks/useDebounce";
 import { USERNAME_CONFIG } from "@/config/constants";
 import { useUsernameChecker } from "./useAuthPage.helpers";
@@ -56,6 +57,10 @@ export function useAuthPage(): UseAuthPageReturn {
     refreshUser,
     checkNeedsUsername,
   } = useAuth();
+
+  // Profile — needed to gate Google/OAuth users who are pending admin approval
+  const { profile, loading: profileLoading } = useUserProfile();
+  const isPendingApproval = profile?.approvalStatus === "pending";
 
   // Username availability checker
   const { checkUsernameAvailability } = useUsernameChecker(debouncedUsername, {
@@ -128,7 +133,7 @@ export function useAuthPage(): UseAuthPageReturn {
           } else {
             setError(
               firebaseError.message ||
-              "Failed to verify email. Please try again.",
+                "Failed to verify email. Please try again.",
             );
           }
         } finally {
@@ -146,8 +151,17 @@ export function useAuthPage(): UseAuthPageReturn {
   // can fire and set `user` before needsUsername is updated, causing a premature
   // redirect to /dashboard instead of /auth/choose-username. The explicit
   // router.push inside handleGoogleSignIn is the source of truth during active sign-in.
+  // NOTE: Also wait for profileLoading — Google/OAuth users with approvalStatus "pending"
+  // must not be redirected to /dashboard before we've confirmed their approval state.
   useEffect(() => {
-    if (!authLoading && !loading && user && !needsEmailVerification) {
+    if (
+      !authLoading &&
+      !loading &&
+      !profileLoading &&
+      user &&
+      !needsEmailVerification &&
+      !isPendingApproval
+    ) {
       const target = needsUsername ? "/auth/choose-username" : "/dashboard";
 
       // If we just verified the email, show the success message for 2.5 seconds
@@ -163,9 +177,11 @@ export function useAuthPage(): UseAuthPageReturn {
   }, [
     user,
     needsEmailVerification,
+    isPendingApproval,
     needsUsername,
     authLoading,
     loading,
+    profileLoading,
     router,
     checkNeedsUsername,
     verificationSuccess,
