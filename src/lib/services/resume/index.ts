@@ -29,6 +29,9 @@ export {
     deleteResume,
     type CreateResumeInput,
     type GeneratedResumeInput,
+    type GeneratedResumeMetadata,
+    type GenerationQualityReport,
+    type ResumeGenerationVersion,
 } from "./resumeCrud";
 
 export { checkPrivateResumeAccess, getResume } from "./resumeAccess";

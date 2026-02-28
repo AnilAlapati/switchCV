@@ -27,6 +27,13 @@ interface TemplateCardData {
 const ALL_TEMPLATES: TemplateCardData[] = [
   // Free Templates
   {
+    id: "signal-v1",
+    name: "Signal",
+    description: "Engineering-first launch template",
+    tier: "free",
+    preview: "bg-gradient-to-br from-teal-50 to-cyan-100",
+  },
+  {
     id: "standard-v1",
     name: "Standard Professional",
     description: "Clean, professional design for any industry",
@@ -55,6 +62,20 @@ const ALL_TEMPLATES: TemplateCardData[] = [
     preview: "bg-gradient-to-br from-amber-50 to-orange-100",
   },
   // Premium Templates
+  {
+    id: "narrative-v1",
+    name: "Narrative",
+    description: "Leadership and product career arc storytelling",
+    tier: "premium",
+    preview: "bg-gradient-to-br from-sky-50 to-blue-100",
+  },
+  {
+    id: "studio-v1",
+    name: "Studio",
+    description: "Creative editorial layout with project spotlight",
+    tier: "premium",
+    preview: "bg-gradient-to-br from-amber-50 to-orange-100",
+  },
   {
     id: "bento-v1",
     name: "Bento",

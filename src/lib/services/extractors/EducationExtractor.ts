@@ -66,9 +66,9 @@ export class EducationExtractor implements IExtractor {
       for (const pattern of eduPatterns) {
         const eduMatch = fullText.match(pattern);
         if (eduMatch) {
-          let degree = "Degree";
-          let institution = "University";
-          let year = new Date().getFullYear().toString();
+          let degree = "";
+          let institution = "";
+          let year = "";
           let major = "";
 
           // Simple parsing logic derived from original God Class
@@ -94,9 +94,12 @@ export class EducationExtractor implements IExtractor {
           } else {
             degree = eduMatch[1]
               ? `${eduMatch[1]} ${eduMatch[2] || ""}`.trim()
-              : "Degree";
-            institution =
-              eduMatch[3]?.trim() || eduMatch[2]?.trim() || "University";
+              : "";
+            institution = eduMatch[3]?.trim() || eduMatch[2]?.trim() || "";
+          }
+
+          if (!degree || !institution) {
+            continue;
           }
 
           const education: EducationEntry = {

@@ -487,6 +487,18 @@ describe("TemplateRenderer", () => {
     expect(screen.getByText("John Test")).toBeInTheDocument();
   });
 
+  it("renders the signal template", () => {
+    render(
+      <AnyTemplateRenderer
+        template={{ ...mockTemplate, id: "signal-v1", name: "Signal" }}
+        data={mockData as ResumeProfile}
+      />,
+    );
+
+    expect(screen.getByText("Signal")).toBeInTheDocument();
+    expect(screen.getByText("Impact Summary")).toBeInTheDocument();
+  });
+
   it("includes github and linkedin when provided", () => {
     const { container } = render(
       <AnyTemplateRenderer

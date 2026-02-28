@@ -28,6 +28,13 @@ describe("ResumeDataExtractor", () => {
       expect(result.data.name).toBeUndefined();
     });
 
+    it("should NOT extract name from role phrase like 'I am the solo founder'", () => {
+      const text = "I am the solo founder of a startup";
+      const result = ResumeDataExtractor.extract(text);
+
+      expect(result.data.name).toBeUndefined();
+    });
+
     it("should extract email from text", () => {
       const text = "You can reach me at john.doe@example.com";
       const result = ResumeDataExtractor.extract(text);
@@ -55,6 +62,13 @@ describe("ResumeDataExtractor", () => {
 
       expect(result.data.skills).toBeDefined();
       expect(result.data.skills?.length).toBeGreaterThan(0);
+    });
+
+    it("should not infer substring skills from arbitrary words", () => {
+      const text = "I build digital products with guardrails for safety";
+      const result = ResumeDataExtractor.extract(text);
+
+      expect(result.data.skills).toBeUndefined();
     });
 
     it("should detect completion markers", () => {
@@ -92,6 +106,13 @@ describe("ResumeDataExtractor", () => {
       const result = ResumeDataExtractor.extract(text);
       expect(result.data.name).toBe("Bob Smith");
     });
+
+    it("should leave education year empty when not provided", () => {
+      const text = "I have a Bachelor degree in Computer Science from MIT";
+      const result = ResumeDataExtractor.extract(text, "education");
+
+      expect(result.data.education?.[0].year).toBe("");
+    });
   });
 
   describe("extractFromConversation", () => {
@@ -122,6 +143,16 @@ describe("ResumeDataExtractor", () => {
       const result = ResumeDataExtractor.extractFromConversation(messages);
 
       expect(result.isComplete).toBe(true);
+    });
+
+    it("should not extract assistant-authored fields as user data", () => {
+      const messages = [
+        { content: "Name: Fake Name", isUser: false },
+        { content: "My name is Real Name", isUser: true },
+      ];
+
+      const result = ResumeDataExtractor.extractFromConversation(messages);
+      expect(result.data.name).toBe("Real Name");
     });
 
     it("should detect context from AI messages", () => {
@@ -343,6 +374,7 @@ describe("ResumeDataExtractor", () => {
 
       expect(result.data.experience).toBeDefined();
       expect(result.data.experience?.length).toBeGreaterThan(0);
+      expect(result.data.experience?.[0].description).toBe("");
     });
 
     it("should extract education mentions", () => {

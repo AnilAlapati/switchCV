@@ -604,6 +604,38 @@ describe("resumeService", () => {
       const result = await saveGeneratedResume(userId, resumeData);
       expect(result.numericId).toBeDefined();
     });
+
+    it("should persist additive quality/evidence/generation metadata", async () => {
+      const userId = "user-123";
+      const resumeData = {
+        name: "Jane Doe",
+        email: "jane@example.com",
+        summary: "Summary",
+        skills: ["TypeScript"],
+      };
+
+      await saveGeneratedResume(userId, resumeData, {
+        qualityReport: {
+          schemaValid: true,
+          factualAlignmentScore: 0.97,
+        },
+        evidenceMap: {
+          summary: ["I build web apps"],
+        },
+        generationVersion: {
+          pipeline: "v2_structured",
+          version: "2026-02-28",
+        },
+      });
+
+      const resumeDocRef = mockDoc.mock.results[0]?.value;
+      expect(resumeDocRef?.set).toHaveBeenCalled();
+
+      const savedResume = resumeDocRef?.set.mock.calls[0]?.[0];
+      expect(savedResume?.qualityReport?.schemaValid).toBe(true);
+      expect(savedResume?.evidenceMap?.summary).toEqual(["I build web apps"]);
+      expect(savedResume?.generationVersion?.pipeline).toBe("v2_structured");
+    });
   });
 
   describe("updateResumeEmbedding", () => {

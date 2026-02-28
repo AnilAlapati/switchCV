@@ -207,6 +207,151 @@ export const getApiDocs = async () => {
               cost: { type: "number" },
             },
           },
+          ResumeGenerateRequest: {
+            type: "object",
+            required: ["message"],
+            properties: {
+              message: { type: "string" },
+              conversationHistory: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string" },
+                    content: { type: "string" },
+                    isUser: { type: "boolean" },
+                    timestamp: { type: "string", format: "date-time" },
+                  },
+                  required: ["content", "isUser"],
+                },
+              },
+              sessionData: { type: "object" },
+              modelId: { type: "string" },
+              inputSources: {
+                type: "array",
+                items: { type: "string", enum: ["chat", "paste", "pdf", "docx"] },
+              },
+              desiredStyle: {
+                type: "string",
+                enum: ["professional", "executive", "innovator"],
+              },
+              strictMode: { type: "boolean" },
+              async: { type: "boolean" },
+            },
+          },
+          ResumeGeneratePreviewRequest: {
+            type: "object",
+            required: ["message"],
+            properties: {
+              message: { type: "string" },
+              conversationHistory: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string" },
+                    content: { type: "string" },
+                    isUser: { type: "boolean" },
+                    timestamp: { type: "string", format: "date-time" },
+                  },
+                  required: ["content", "isUser"],
+                },
+              },
+              sessionData: { type: "object" },
+              modelId: { type: "string" },
+              inputSources: {
+                type: "array",
+                items: { type: "string", enum: ["chat", "paste", "pdf", "docx"] },
+              },
+              desiredStyle: {
+                type: "string",
+                enum: ["professional", "executive", "innovator"],
+              },
+              strictMode: { type: "boolean" },
+            },
+          },
+          ResumeGenerationQualityReport: {
+            type: "object",
+            properties: {
+              schemaValid: { type: "boolean" },
+              factualAlignmentScore: { type: "number" },
+              validationErrors: {
+                type: "array",
+                items: { type: "string" },
+              },
+              regenerationAttempts: { type: "number" },
+            },
+          },
+          ResumeGenerateResponse: {
+            type: "object",
+            properties: {
+              response: { type: "string" },
+              model: { type: "string" },
+              resumeId: { type: "string" },
+              numericId: { type: "number" },
+              created: { type: "boolean" },
+              progress: { type: "number" },
+              jobId: { type: "string" },
+              status: {
+                type: "string",
+                enum: ["pending", "processing", "completed", "failed"],
+              },
+              qualityReport: {
+                $ref: "#/components/schemas/ResumeGenerationQualityReport",
+              },
+              needsClarification: { type: "boolean" },
+              missingEvidenceFields: {
+                type: "array",
+                items: { type: "string" },
+              },
+              previewData: { type: "object" },
+              evidenceMap: {
+                type: "object",
+                additionalProperties: {
+                  type: "array",
+                  items: { type: "string" },
+                },
+              },
+            },
+          },
+          ResumeIntakeNormalizeRequest: {
+            type: "object",
+            required: ["sources"],
+            properties: {
+              sources: {
+                type: "array",
+                minItems: 1,
+                items: {
+                  type: "object",
+                  required: ["channel", "text"],
+                  properties: {
+                    channel: {
+                      type: "string",
+                      enum: ["chat", "paste", "pdf", "docx"],
+                    },
+                    text: { type: "string" },
+                  },
+                },
+              },
+            },
+          },
+          ResumeIntakeNormalizeResponse: {
+            type: "object",
+            properties: {
+              draft: { type: "object" },
+              evidenceMap: {
+                type: "object",
+                additionalProperties: {
+                  type: "array",
+                  items: { type: "string" },
+                },
+              },
+              missingCriticalFields: {
+                type: "array",
+                items: { type: "string" },
+              },
+            },
+          },
           Draft: {
             type: "object",
             properties: {

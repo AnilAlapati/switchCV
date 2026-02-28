@@ -161,7 +161,7 @@ describe("POST /api/resume/generate", () => {
     });
 
     const res = await POST(req);
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(200);
   });
 
   it("should create resume when ready", async () => {
@@ -184,7 +184,7 @@ describe("POST /api/resume/generate", () => {
       headers: { authorization: "Bearer test-token" },
     });
     const res = await POST(req);
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(200);
   });
 
   it("should handle authenticated requests correctly", async () => {
@@ -198,7 +198,7 @@ describe("POST /api/resume/generate", () => {
       model: "gpt-4",
     });
     const res = await POST(req);
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(200);
   });
 
   it("should handle invalid auth token gracefully", async () => {
@@ -235,7 +235,7 @@ describe("POST /api/resume/generate", () => {
       model: "gpt-4",
     });
     const res = await POST(req);
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(200);
   });
 
   it("should handle validation failure during creation attempt", async () => {
@@ -263,7 +263,9 @@ describe("POST /api/resume/generate", () => {
       headers: { authorization: "Bearer test-token" },
     });
     const res = await POST(req);
-    expect(res.status).toBe(500);
+    const data = await res.json();
+    expect(res.status).toBe(200);
+    expect(data.needsClarification).toBe(true);
   });
 
   it("should create resume when AI indicates completion", async () => {
@@ -291,7 +293,7 @@ describe("POST /api/resume/generate", () => {
       headers: { authorization: "Bearer test-token" },
     });
     const res = await POST(req);
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(200);
   });
 
   it("should use collected data if JSON extraction fails", async () => {
@@ -316,7 +318,7 @@ describe("POST /api/resume/generate", () => {
       headers: { authorization: "Bearer test-token" },
     });
     const res = await POST(req);
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(200);
   });
 
   it("should handle database error during resume creation", async () => {

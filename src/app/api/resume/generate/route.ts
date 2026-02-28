@@ -72,6 +72,9 @@ export async function POST(request: NextRequest) {
       conversationHistory,
       sessionData,
       modelId,
+      inputSources,
+      desiredStyle,
+      strictMode,
       async: asyncMode,
     } = body;
 
@@ -138,6 +141,9 @@ export async function POST(request: NextRequest) {
         sessionData: sessionData ?? undefined,
         modelId,
         userTier,
+        inputSources,
+        desiredStyle,
+        strictMode,
       });
 
       // Trigger Cloud Task to process the job
@@ -181,6 +187,9 @@ export async function POST(request: NextRequest) {
         sessionData: sessionData ?? undefined,
         modelId,
         userTier,
+        inputSources,
+        desiredStyle,
+        strictMode,
       });
 
       return NextResponse.json(result);

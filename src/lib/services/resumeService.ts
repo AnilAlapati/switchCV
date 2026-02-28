@@ -31,4 +31,7 @@ export {
   updateResumeEmbedding,
   type CreateResumeInput,
   type GeneratedResumeInput,
+  type GeneratedResumeMetadata,
+  type GenerationQualityReport,
+  type ResumeGenerationVersion,
 } from "./resume";

@@ -99,7 +99,7 @@ export const resumePaths = {
                 required: true,
                 content: {
                     "application/json": {
-                        schema: { $ref: "#/components/schemas/AIGenerateRequest" },
+                        schema: { $ref: "#/components/schemas/ResumeGenerateRequest" },
                     },
                 },
             },
@@ -108,12 +108,68 @@ export const resumePaths = {
                     description: "Generated resume",
                     content: {
                         "application/json": {
-                            schema: { $ref: "#/components/schemas/AIGenerateResponse" },
+                            schema: { $ref: "#/components/schemas/ResumeGenerateResponse" },
                         },
                     },
                 },
                 401: { $ref: "#/components/responses/Unauthorized" },
                 429: { $ref: "#/components/responses/RateLimited" },
+            },
+        },
+    },
+    "/api/resume/generate/preview": {
+        post: {
+            tags: ["Resume"],
+            summary: "Generate non-persisted resume preview",
+            description:
+                "Creates a preview with quality signals but does not persist a resume document.",
+            requestBody: {
+                required: true,
+                content: {
+                    "application/json": {
+                        schema: { $ref: "#/components/schemas/ResumeGeneratePreviewRequest" },
+                    },
+                },
+            },
+            responses: {
+                200: {
+                    description: "Preview generated",
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/ResumeGenerateResponse" },
+                        },
+                    },
+                },
+                401: { $ref: "#/components/responses/Unauthorized" },
+                400: { description: "Invalid request payload" },
+            },
+        },
+    },
+    "/api/resume/intake/normalize": {
+        post: {
+            tags: ["Resume"],
+            summary: "Normalize resume intake content",
+            description:
+                "Normalizes chat/paste/PDF/DOCX extracted text into sectioned draft data and evidence mapping.",
+            requestBody: {
+                required: true,
+                content: {
+                    "application/json": {
+                        schema: { $ref: "#/components/schemas/ResumeIntakeNormalizeRequest" },
+                    },
+                },
+            },
+            responses: {
+                200: {
+                    description: "Normalized draft with evidence map",
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/ResumeIntakeNormalizeResponse" },
+                        },
+                    },
+                },
+                401: { $ref: "#/components/responses/Unauthorized" },
+                400: { description: "Invalid request payload" },
             },
         },
     },

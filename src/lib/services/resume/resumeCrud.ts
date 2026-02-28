@@ -42,6 +42,24 @@ export interface GeneratedResumeInput {
     skills?: string[] | Array<{ name: string }>;
 }
 
+export interface GenerationQualityReport {
+    schemaValid: boolean;
+    factualAlignmentScore: number;
+    validationErrors?: string[];
+    regenerationAttempts?: number;
+}
+
+export interface ResumeGenerationVersion {
+    pipeline: "v1_regex" | "v2_structured" | "v2_creative";
+    version?: string;
+}
+
+export interface GeneratedResumeMetadata {
+    qualityReport?: GenerationQualityReport;
+    evidenceMap?: Record<string, string[]>;
+    generationVersion?: ResumeGenerationVersion;
+}
+
 /**
  * Creates a new blank resume for a user.
  */
@@ -72,7 +90,8 @@ export async function createResume(userId: string, data: CreateResumeInput) {
  */
 export async function saveGeneratedResume(
     userId: string,
-    resumeData: GeneratedResumeInput
+    resumeData: GeneratedResumeInput,
+    metadata?: GeneratedResumeMetadata
 ) {
     // Generate numeric ID
     const numericId = await generateNumericResumeId();
@@ -98,6 +117,10 @@ export async function saveGeneratedResume(
         major: edu.major || "",
     }));
 
+    const generationVersion: ResumeGenerationVersion = metadata?.generationVersion || {
+        pipeline: "v1_regex",
+    };
+
     // Prepare resume document
     const resumeDocument = {
         id: resumeId,
@@ -119,6 +142,9 @@ export async function saveGeneratedResume(
         createdVia: "ai-conversation",
         isPublic: false,
         status: "draft",
+        qualityReport: metadata?.qualityReport || null,
+        evidenceMap: metadata?.evidenceMap || null,
+        generationVersion,
     };
 
     // Save to Firestore

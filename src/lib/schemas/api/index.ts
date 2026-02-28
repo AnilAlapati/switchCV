@@ -55,6 +55,8 @@ export {
   MapResumeIdSchema,
   CompareResumesSchema,
   GenerateResumeRequestSchema,
+  GenerateResumePreviewRequestSchema,
+  NormalizeResumeIntakeRequestSchema,
   CreateResumeSchema,
   ResumeChatRequestSchema,
 } from "./resume.schemas";

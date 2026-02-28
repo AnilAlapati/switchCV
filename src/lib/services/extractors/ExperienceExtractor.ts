@@ -61,8 +61,6 @@ export class ExperienceExtractor implements IExtractor {
         /(?:worked|work|employed|position|job|role)\s+(?:as|at)\s+((?:(?! at ).)+)(?:\s+at\s+([^,.\n]+))?/i,
         // "Title @ Company"
         /([A-Za-z\s]+)\s+@\s+([A-Za-z\s]+)/,
-        // "I spent X years at Company"
-        /(?:spent|worked)\s+(?:.*?)\s+at\s+([A-Za-z\s]+)/i,
         // Block format
         /(?:^|\n)(?!Professional Experience|Work History|Experience)([A-Z][a-zA-Z0-9\s]+?)\s*\n\s*(?:at\s+)?([A-Z][a-zA-Z0-9\s]+?)(?=\s*\n|\s+\d{4})/,
         // Single line fallback
@@ -72,21 +70,18 @@ export class ExperienceExtractor implements IExtractor {
       for (const pattern of expPatterns) {
         const expMatch = textToSearch.match(pattern);
         if (expMatch) {
-          let title = "Professional";
-          let company = "Company";
+          const title = expMatch[1]?.trim() || "";
+          const company = expMatch[2]?.trim() || "";
 
-          if (pattern.source.includes("spent")) {
-            company = expMatch[1].trim();
-          } else {
-            title = expMatch[1]?.trim() || "Professional";
-            company = expMatch[2]?.trim() || "Company";
+          if (!title || !company) {
+            continue;
           }
 
           const experience: ExperienceEntry = {
             title,
             company,
-            duration: "Present",
-            description: "Contributed to various projects and initiatives",
+            duration: "",
+            description: "",
           };
 
           data.experience = [experience];

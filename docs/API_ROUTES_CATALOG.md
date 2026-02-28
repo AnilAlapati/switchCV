@@ -23,7 +23,7 @@
 13. [Profiles Routes](#13-profiles-routes) (6 routes)
 14. [Recruiter Routes](#14-recruiter-routes) (12 routes)
 15. [Recruiters Routes](#15-recruiters-routes) (4 routes)
-16. [Resume Routes](#16-resume-routes) (7 routes)
+16. [Resume Routes](#16-resume-routes) (9 routes)
 17. [Resumes Routes](#17-resumes-routes) (3 routes)
 18. [Search Routes](#18-search-routes) (2 routes)
 19. [Seed Routes](#19-seed-routes) (1 route)
@@ -38,6 +38,7 @@
 ## 1. Admin Routes
 
 ### `GET /api/admin/costs`
+
 - **AUTH:** Yes (`getAuthenticatedUserId` + admin role check via Firebase Auth custom claims)
 - **INPUT:** None
 - **RESPONSE:** `{ costs: Array<{ month: string, lastAggregated: string | null, ...billingData }> }`
@@ -47,6 +48,7 @@
 ---
 
 ### `POST /api/admin/init-system`
+
 - **AUTH:** Yes (`getAuthenticatedUserId` + admin role check)
 - **INPUT:** None (empty body)
 - **RESPONSE:** `{ success: boolean, message: string, status: string, counter: { currentId: number, message: string }, nextResumeId: number, firebaseLocation: string }`
@@ -54,6 +56,7 @@
 - **DESCRIPTION:** Initializes the system collection and numeric ID counter. One-time setup endpoint.
 
 ### `GET /api/admin/init-system`
+
 - **AUTH:** Yes (`getAuthenticatedUserId` + admin role check)
 - **INPUT:** None
 - **RESPONSE:** `{ success: boolean, message: string, status: string, counter: { currentId: number, message: string }, nextResumeId: number, firebaseLocation: string }`
@@ -63,6 +66,7 @@
 ---
 
 ### `POST /api/admin/migrate-numeric-ids`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `MigrateNumericIdsSchema`):**
   ```
@@ -75,6 +79,7 @@
 ---
 
 ### `POST /api/admin/migrate-resume-ids`
+
 - **AUTH:** Yes (`getAuthenticatedUserId` + admin role check)
 - **INPUT:** None (empty body)
 - **RESPONSE:** `{ message: string, totalResumes: number, migrated: number, mappings: Array<{ resumeId: number, documentId: string, userId: string, title: string }>, nextId: number }`
@@ -84,6 +89,7 @@
 ---
 
 ### `GET /api/admin/stats`
+
 - **AUTH:** Yes (`getAuthenticatedUserId` + admin role check via `verifyAdminAccess`)
 - **INPUT:** None
 - **RESPONSE:** System stats object (shape defined by `getSystemStats()` service)
@@ -93,6 +99,7 @@
 ---
 
 ### `GET /api/admin/test-secrets`
+
 - **AUTH:** Yes (`getAuthenticatedUserId` + admin role check)
 - **INPUT:** None
 - **RESPONSE:** `{ success: boolean, message: string, timestamp: string, results: { rotationStatus: TestResult, needingRotation: TestResult, secretAccess: TestResult, cacheTest: TestResult } }`
@@ -102,6 +109,7 @@
 ---
 
 ### `GET /api/admin/user-approval`
+
 - **AUTH:** Yes (`getAuthenticatedUserId` + admin role check via `isAdmin`)
 - **INPUT:** None
 - **RESPONSE:** `{ approvals: Array, totalPending: number }`
@@ -109,6 +117,7 @@
 - **DESCRIPTION:** Retrieves pending user approvals for admin review.
 
 ### `POST /api/admin/user-approval`
+
 - **AUTH:** Yes (`getAuthenticatedUserId` + admin role check via `isAdmin`)
 - **INPUT (Zod: `UserApprovalActionSchema`):**
   ```
@@ -123,6 +132,7 @@
 ## 2. AI Routes
 
 ### `POST /api/ai/generate`
+
 - **AUTH:** Yes (`getAuthenticatedUserId` + App Check)
 - **INPUT (Zod: `GenerateRequestSchema` — inline):**
   ```
@@ -142,10 +152,12 @@
 ---
 
 ### `OPTIONS /api/ai/generate-resume`
+
 - **AUTH:** No (CORS preflight)
 - **RESPONSE:** CORS headers
 
 ### `POST /api/ai/generate-resume`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (TypeScript interface `GenerateResumeRequest`):**
   ```
@@ -165,6 +177,7 @@
 ---
 
 ### `GET /api/ai/models`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT:** None
 - **RESPONSE:** `{ tier: string, models: Array }`
@@ -174,6 +187,7 @@
 ---
 
 ### `GET /api/ai/refresh-models`
+
 - **AUTH:** Yes (`getAuthenticatedUserId` + admin role check)
 - **INPUT:** None
 - **RESPONSE:** `{ success: boolean, timestamp: string, total: number, compatible: number, models: Array<{ name: string, displayName: string, methods: string[] }>, message: string }`
@@ -183,6 +197,7 @@
 ---
 
 ### `GET /api/ai/status`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT:** None
 - **RESPONSE:** `{ connected: boolean }`
@@ -194,6 +209,7 @@
 ## 3. Analytics Routes
 
 ### `POST /api/analytics/dashboard`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `DashboardAnalyticsRequestSchema`):**
   ```
@@ -204,6 +220,7 @@
 - **DESCRIPTION:** Get full analytics dashboard data for a resume.
 
 ### `GET /api/analytics/dashboard`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `DashboardAnalyticsQuerySchema` — from query params):**
 - **RESPONSE:** `{ success: boolean, data: { resumeId, userId, viewCount, uniqueViewCount, downloadCount, shareCount, attractivenessScore, lastViewedAt, createdAt, updatedAt }, timestamp: Date }`
@@ -213,6 +230,7 @@
 ---
 
 ### `GET /api/analytics/system`
+
 - **AUTH:** Yes (`getAuthenticatedUserId` — admin/recruiter role enforced by service)
 - **INPUT:** None
 - **RESPONSE:** System analytics object (shape from `getSystemAnalytics()` — includes `totalUsers` and more)
@@ -224,6 +242,7 @@
 ## 4. Auth Routes
 
 ### `POST /api/auth/request-password-reset`
+
 - **AUTH:** No (public, rate-limited)
 - **INPUT (Zod: `RequestPasswordResetSchema`):**
   ```
@@ -236,6 +255,7 @@
 ---
 
 ### `POST /api/auth/reset-password`
+
 - **AUTH:** No (public, token-based, rate-limited)
 - **INPUT (Zod: `ResetPasswordSchema`):**
   ```
@@ -248,6 +268,7 @@
 ---
 
 ### `GET /api/auth/verify`
+
 - **AUTH:** No (public, token-based)
 - **INPUT:** None
 - **RESPONSE:** Redirects (HTML redirect to `/auth?verificationSuccess=true` or error page)
@@ -259,6 +280,7 @@
 ## 5. Contact Routes
 
 ### `POST /api/contact/feedback`
+
 - **AUTH:** Optional (`maybeGetAuthenticatedUserId` — tries to identify user but doesn't require auth)
 - **INPUT (parsed via `safeParseBody`):**
   ```
@@ -273,6 +295,7 @@
 ## 6. CSRF Token
 
 ### `GET /api/csrf-token`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT:** None
 - **RESPONSE:** `{ csrfToken: string }` (also sets cookie)
@@ -284,6 +307,7 @@
 ## 7. Docs
 
 ### `GET /api/docs`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT:** None
 - **RESPONSE:** OpenAPI/Swagger spec JSON
@@ -295,6 +319,7 @@
 ## 8. Drafts
 
 ### `GET /api/drafts/[draftId]`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT:** None
 - **RESPONSE:** Draft object (ResumeProfile shape)
@@ -303,6 +328,7 @@
 - **DESCRIPTION:** Get a specific draft by ID. Owner only.
 
 ### `PATCH /api/drafts/[draftId]`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `DraftPatchRequestSchema` — dynamic via `getDraftProfileUpdateSchema()`):**
   ```
@@ -314,6 +340,7 @@
 - **DESCRIPTION:** Update a draft. Owner only. Rate-limited.
 
 ### `DELETE /api/drafts/[draftId]`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT:** None
 - **RESPONSE:** `{ success: boolean }`
@@ -326,6 +353,7 @@
 ## 9. Health
 
 ### `GET /api/health`
+
 - **AUTH:** No (public)
 - **INPUT:** None
 - **RESPONSE:**
@@ -346,6 +374,7 @@
 ---
 
 ### `GET /api/health/infra`
+
 - **AUTH:** No (public)
 - **INPUT:** None
 - **RESPONSE:**
@@ -366,6 +395,7 @@
 ## 10. Interview
 
 ### `POST /api/interview/assistant`
+
 - **AUTH:** Optional (`getAuthenticatedUserId` — catches errors, falls back to body userId)
 - **INPUT (Zod: `InterviewAssistantActionSchema` — discriminated union):**
   - **start-session:**
@@ -388,6 +418,7 @@
 - **DESCRIPTION:** Multi-action interview assistant. Starts sessions, submits answers, completes sessions.
 
 ### `GET /api/interview/assistant`
+
 - **AUTH:** No (public)
 - **INPUT:** None
 - **RESPONSE:** Interview tips object
@@ -399,6 +430,7 @@
 ## 11. Jobseeker Routes
 
 ### `GET /api/jobseeker/access-requests`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT:** None
 - **RESPONSE:** `{ requests: Array<{ id, resumeId, resumeTitle, timestamp, approvedAt?, expiresAt?, ...requestData }> }`
@@ -408,6 +440,7 @@
 ---
 
 ### `GET /api/jobseeker/metrics`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT:** None
 - **RESPONSE:** `{ profileViews: number, contactRequests: number, downloads: number, quality: number, lastUpdated: string | null }`
@@ -417,6 +450,7 @@
 ---
 
 ### `GET /api/jobseeker/profile`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT:** None
 - **RESPONSE:** Profile object (Firestore document data)
@@ -424,6 +458,7 @@
 - **DESCRIPTION:** Fetch authenticated jobseeker's profile.
 
 ### `POST /api/jobseeker/profile`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `JobseekerProfileUpdateSchema` — `z.record(z.string(), z.unknown())`):**
   ```
@@ -438,6 +473,7 @@
 ## 12. Notifications
 
 ### `POST /api/notifications`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `notificationRequestSchema`):**
   ```
@@ -459,6 +495,7 @@
 - **DESCRIPTION:** Multi-action notification management endpoint.
 
 ### `GET /api/notifications`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT:** None
 - **RESPONSE (varies by action):**
@@ -474,6 +511,7 @@
 ## 13. Profiles Routes
 
 ### `GET /api/profiles/analytics`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `GetProfileAnalyticsQuerySchema` — from query params):**
 - **RESPONSE:** `{ views, uniqueViewers, recentViews, accessRequests, approvalRate, popularSections, viewsByDay, viewsBySource }`
@@ -481,6 +519,7 @@
 - **DESCRIPTION:** Get analytics data for a profile/resume.
 
 ### `POST /api/profiles/analytics`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `TrackProfileAnalyticsSchema`):**
   ```
@@ -503,6 +542,7 @@
 ---
 
 ### `POST /api/profiles/approve-access`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `ApproveProfileAccessSchema`):**
   ```
@@ -519,6 +559,7 @@
 ---
 
 ### `GET /api/profiles/check-access`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT:** None
 - **RESPONSE:** Access check result object
@@ -528,6 +569,7 @@
 ---
 
 ### `POST /api/profiles/request-access`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `RequestProfileAccessSchema`):**
   ```
@@ -545,6 +587,7 @@
 ---
 
 ### `POST /api/profiles/respond-access`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `RespondProfileAccessSchema`):**
   ```
@@ -563,9 +606,11 @@
 ---
 
 ### `OPTIONS /api/profiles/search`
+
 - **AUTH:** No (CORS preflight)
 
 ### `POST /api/profiles/search`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `SearchProfilesSchema`):**
   ```
@@ -580,7 +625,7 @@
     cursor?: string
   }
   ```
-  *Either `query` or `filters` required.*
+  _Either `query` or `filters` required._
 - **RESPONSE:** `{ results: Array, total: number, query: string, hasMore: boolean, ... }`
 - **QUERY PARAMS:** None
 - **DESCRIPTION:** Search public profiles with text query and/or filters. Supports pagination.
@@ -590,6 +635,7 @@
 ## 14. Recruiter Routes
 
 ### `POST /api/recruiter/agent/analyze`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `AgentAnalyzeSchema`):**
   ```
@@ -605,6 +651,7 @@
 ---
 
 ### `POST /api/recruiter/agent/enhance-job`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `AgentEnhanceJobSchema`):**
   ```
@@ -617,6 +664,7 @@
 ---
 
 ### `POST /api/recruiter/agent/interview-prep`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `AgentInterviewPrepSchema`):**
   ```
@@ -633,6 +681,7 @@
 ---
 
 ### `POST /api/recruiter/agent/outreach`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `OutreachRequestSchema` — inline):**
   ```
@@ -649,6 +698,7 @@
 ---
 
 ### `POST /api/recruiter/agent/pipeline-suggest`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `AgentPipelineSuggestSchema`):**
   ```
@@ -665,6 +715,7 @@
 ---
 
 ### `POST /api/recruiter/agent/screen`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `AgentScreenSchema`):**
   ```
@@ -687,6 +738,7 @@
 ---
 
 ### `POST /api/recruiter/bulk-actions`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `RecruiterBulkActionSchema` — discriminated union):**
   - **create:**
@@ -706,6 +758,7 @@
 - **DESCRIPTION:** Create, execute, or cancel bulk actions on candidates.
 
 ### `GET /api/recruiter/bulk-actions`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT:** None
 - **RESPONSE:** `{ bulkActions: Array, total: number }`
@@ -715,6 +768,7 @@
 ---
 
 ### `POST /api/recruiter/candidates`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `RecruiterCandidatesActionSchema` — discriminated union):**
   - **create:**
@@ -734,6 +788,7 @@
 - **DESCRIPTION:** Manage recruiter candidates (create, update priority, add notes).
 
 ### `GET /api/recruiter/candidates`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT:** None
 - **RESPONSE:** `{ candidates: Array, total: number }` or single candidate
@@ -743,6 +798,7 @@
 ---
 
 ### `GET /api/recruiter/debug-resumes`
+
 - **AUTH:** Yes (`getAuthenticatedUserId` + admin role check)
 - **INPUT:** None
 - **RESPONSE:** `{ resumes: Array<{ resumeId, title, userId, userName, published, ... }>, total: number }`
@@ -752,6 +808,7 @@
 ---
 
 ### `POST /api/recruiter/interviews`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `RecruiterInterviewsActionSchema` — discriminated union):**
   - **schedule:**
@@ -775,6 +832,7 @@
 - **DESCRIPTION:** Manage recruiter interviews (schedule, update status, add feedback, get upcoming).
 
 ### `GET /api/recruiter/interviews`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT:** None
 - **RESPONSE:** Single interview or list of interviews
@@ -784,6 +842,7 @@
 ---
 
 ### `POST /api/recruiter/jd-search`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `JDSearchRequestSchema` — inline):**
   ```
@@ -800,6 +859,7 @@
 ---
 
 ### `GET /api/recruiter/metrics`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT:** None
 - **RESPONSE:** `{ totalSearches: number, totalProfileViews: number, accessRequests: { pending, approved, denied }, totalCandidatesInteracted: number, lastActivityAt: string | null, searchBreakdown: object }`
@@ -809,6 +869,7 @@
 ---
 
 ### `POST /api/recruiter/pipeline`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `RecruiterPipelineActionSchema` — discriminated union):**
   - **initialize:**
@@ -832,6 +893,7 @@
 - **DESCRIPTION:** Manage recruiting pipelines (initialize, add/move candidates, get stage).
 
 ### `GET /api/recruiter/pipeline`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT:** None
 - **RESPONSE:** `{ pipelines: Array, total: number }`
@@ -841,6 +903,7 @@
 ---
 
 ### `POST /api/recruiter/request-access`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `RequestRecruiterAccessSchema`):**
   ```
@@ -853,6 +916,7 @@
 ---
 
 ### `GET /api/recruiter/requests`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT:** None
 - **RESPONSE:** `{ requests: Array }`
@@ -860,6 +924,7 @@
 - **DESCRIPTION:** Get all recruiter's outgoing requests.
 
 ### `POST /api/recruiter/requests`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT:** None
 - **RESPONSE:** 405 Method Not Allowed (placeholder)
@@ -867,6 +932,7 @@
 - **DESCRIPTION:** Placeholder for future recruiter-specific POST actions.
 
 ### `DELETE /api/recruiter/requests`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `DeleteRecruiterRequestQuerySchema` — from query params):**
 - **RESPONSE:** Result object
@@ -876,6 +942,7 @@
 ---
 
 ### `POST /api/recruiter/search-resumes`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `searchResumesSchema`):**
   ```
@@ -888,6 +955,7 @@
 ---
 
 ### `GET /api/recruiter/search`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT:** None
 - **RESPONSE:** Search result object (from `RecruiterService.searchCandidates`)
@@ -899,6 +967,7 @@
 ## 15. Recruiters Routes
 
 ### `POST /api/recruiters/approve-contact`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `ApproveRecruiterContactSchema`):**
   ```
@@ -917,6 +986,7 @@
 ---
 
 ### `POST /api/recruiters/deny-contact`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `DenyRecruiterContactSchema`):**
   ```
@@ -929,6 +999,7 @@
 ---
 
 ### `POST /api/recruiters/request-contact`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `RequestRecruiterContactSchema`):**
   ```
@@ -951,6 +1022,7 @@
 - **DESCRIPTION:** Recruiter requests contact info for a jobseeker.
 
 ### `GET /api/recruiters/request-contact`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `GetRecruiterContactRequestsQuerySchema` — from query params):**
 - **RESPONSE:** `{ requests: Array, total: number }`
@@ -960,6 +1032,7 @@
 ---
 
 ### `GET /api/recruiters/verify-token`
+
 - **AUTH:** No (token-based)
 - **INPUT (Zod: `VerifyRecruiterTokenSchema` — from query params):**
 - **RESPONSE:** `{ valid: boolean, ...tokenData }`
@@ -967,6 +1040,7 @@
 - **DESCRIPTION:** Verify a recruiter access token via query params.
 
 ### `POST /api/recruiters/verify-token`
+
 - **AUTH:** No (token-based)
 - **INPUT (Zod: `VerifyRecruiterTokenSchema`):**
   ```
@@ -981,6 +1055,7 @@
 ## 16. Resume Routes
 
 ### `POST /api/resume/compare`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `CompareResumesSchema`):**
   ```
@@ -996,6 +1071,7 @@
 ---
 
 ### `POST /api/resume/create`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `createResumeSchema`):**
   ```
@@ -1018,6 +1094,7 @@
 ---
 
 ### `POST /api/resume/delete`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `DeleteResumeSchema`):**
   ```
@@ -1030,6 +1107,7 @@
 ---
 
 ### `POST /api/resume/enhance`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `enhanceResumeRequestSchema`):**
   ```
@@ -1045,6 +1123,7 @@
 ---
 
 ### `POST /api/resume/generate`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `GenerateResumeRequestSchema`):**
   ```
@@ -1053,16 +1132,20 @@
     conversationHistory?: Array<{ id?, content: string, isUser: boolean, timestamp? }>,
     sessionData?: Record<string, unknown>,
     modelId?: string,
+    inputSources?: Array<"chat" | "paste" | "pdf" | "docx">,
+    desiredStyle?: "professional" | "executive" | "innovator",
+    strictMode?: boolean,
     async?: boolean
   }
   ```
-- **RESPONSE:** Generated resume data or async job reference
+- **RESPONSE:** Generated resume data or async job reference. When v2 strict validation is enabled, may include `qualityReport`, `needsClarification: boolean`, and `missingEvidenceFields: string[]`. Persisted resumes include `generationVersion` metadata with `pipeline` field.
 - **QUERY PARAMS:** None
 - **DESCRIPTION:** Conversational AI resume generation. Supports async mode.
 
 ---
 
 ### `GET /api/resume/generate/status/[jobId]`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT:** None
 - **RESPONSE:** `{ jobId: string, status: string, progress: number, result?: object, error?: string }`
@@ -1072,7 +1155,44 @@
 
 ---
 
+### `POST /api/resume/generate/preview`
+
+- **AUTH:** Yes (`getAuthenticatedUserId`)
+- **INPUT (Zod: `GenerateResumePreviewRequestSchema`):**
+  ```
+  {
+    message: string,
+    conversationHistory?: Array<{ id?, content: string, isUser: boolean, timestamp? }>,
+    sessionData?: Record<string, unknown>,
+    modelId?: string,
+    inputSources?: Array<"chat" | "paste" | "pdf" | "docx">,
+    desiredStyle?: "professional" | "executive" | "innovator",
+    strictMode?: boolean
+  }
+  ```
+- **RESPONSE:** Generated resume preview data (non-persisted). May include `needsClarification: boolean` and `missingEvidenceFields: string[]` if validation fails.
+- **QUERY PARAMS:** None
+- **DESCRIPTION:** Generate a non-persisted resume preview for UX iteration. Uses the same generation pipeline as `/api/resume/generate` but with `persistResult: false`. Supports v2 structured generation with strict validation when `strictMode` is enabled.
+
+---
+
+### `POST /api/resume/intake/normalize`
+
+- **AUTH:** Yes (`getAuthenticatedUserId`)
+- **INPUT (Zod: `NormalizeResumeIntakeRequestSchema`):**
+  ```
+  {
+    sources: Array<{ channel: "chat" | "paste" | "pdf" | "docx", text: string }>
+  }
+  ```
+- **RESPONSE:** `{ draft: NormalizedResumeDraft, evidenceMap: Record<string, string[]> }` — structured draft with section segmentation and evidence tracking for each extracted field.
+- **QUERY PARAMS:** None
+- **DESCRIPTION:** Normalize raw intake from multiple input channels (chat, paste, PDF, DOCX) into a structured resume draft with evidence map. Performs deterministic cleaning, section segmentation, and evidence tracking. Does not persist data.
+
+---
+
 ### `POST /api/resume/map-id`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `MapResumeIdSchema`):**
   ```
@@ -1087,6 +1207,7 @@
 ## 17. Resumes Routes
 
 ### `GET /api/resumes/[id]`
+
 - **AUTH:** Optional (`maybeGetAuthenticatedUserId` — public access with rate limits for unauthenticated)
 - **INPUT:** None
 - **RESPONSE:** Resume object with `viewerAccess: { scope: "owner" | "admin-view" | "full" | "public_snapshot", isOwner: boolean, isMasked?: boolean }` and `isBeingEdited: boolean`
@@ -1095,6 +1216,7 @@
 - **DESCRIPTION:** Get a resume by ID. Access level determined by authentication and ownership. Rate-limited, scraping-protected.
 
 ### `PATCH /api/resumes/[id]`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT:**
   ```
@@ -1106,6 +1228,7 @@
 - **DESCRIPTION:** Toggle resume visibility (public/private). Owner only.
 
 ### `PUT /api/resumes/[id]`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: inline `updateSchema`):**
   ```
@@ -1127,6 +1250,7 @@
 - **DESCRIPTION:** Full resume update. Owner only. Requires Premium+ tier.
 
 ### `DELETE /api/resumes/[id]`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT:** None
 - **RESPONSE:** `{ success: boolean, message: "Resume deleted successfully" }`
@@ -1137,6 +1261,7 @@
 ---
 
 ### `GET /api/resumes/[id]/chat`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT:** None
 - **RESPONSE:** `{ messages: Array, sessionId: string }`
@@ -1145,6 +1270,7 @@
 - **DESCRIPTION:** Get chat history for a resume.
 
 ### `POST /api/resumes/[id]/chat`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `ResumeChatRequestSchema`):**
   ```
@@ -1162,6 +1288,7 @@
 ---
 
 ### `POST /api/resumes/create`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `CreateResumeSchema`):**
   ```
@@ -1176,6 +1303,7 @@
 ## 18. Search Routes
 
 ### `POST /api/search/ai`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `AiSearchRequestSchema`):**
   ```
@@ -1188,6 +1316,7 @@
 ---
 
 ### `POST /api/search/semantic`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `SemanticSearchSchema` — inline):**
   ```
@@ -1202,6 +1331,7 @@
 ## 19. Seed Routes
 
 ### `POST /api/seed/generate`
+
 - **AUTH:** Yes (`getAuthenticatedUserId` + App Check)
 - **INPUT (Zod: `SeedGenerateRequestSchema` — inline):**
   ```
@@ -1216,6 +1346,7 @@
 ## 20. Skills
 
 ### `POST /api/skills`
+
 - **AUTH:** Optional (`getAuthenticatedUserId` — catches errors)
 - **INPUT (Zod: `SkillsActionSchema` — discriminated union):**
   - **create-inventory:**
@@ -1247,6 +1378,7 @@
 ## 21. System Config
 
 ### `GET /api/system-config`
+
 - **AUTH:** No (public)
 - **INPUT:** None
 - **RESPONSE:** `{ config: SystemConfig, fetchedAt: string }`
@@ -1258,6 +1390,7 @@
 ## 22. Templates
 
 ### `GET /api/templates`
+
 - **AUTH:** No (public, rate-limited by IP)
 - **INPUT:** None
 - **RESPONSE:** `{ success: boolean, templates: Array, count: number }`
@@ -1269,6 +1402,7 @@
 ## 23. User Approval Routes
 
 ### `GET /api/user-approval/approve`
+
 - **AUTH:** No (public, token-based, rate-limited)
 - **INPUT:** None
 - **RESPONSE:** HTML page (success or error)
@@ -1278,6 +1412,7 @@
 ---
 
 ### `GET /api/user-approval/decline`
+
 - **AUTH:** No (public, token-based)
 - **INPUT:** None
 - **RESPONSE:** HTML page (success or error)
@@ -1289,6 +1424,7 @@
 ## 24. User Routes
 
 ### `GET /api/user/profile`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `UserProfileQuerySchema` — from query params):**
 - **RESPONSE:** Full user profile object
@@ -1296,6 +1432,7 @@
 - **DESCRIPTION:** Get user profile. Self-access only.
 
 ### `POST /api/user/profile`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `CreateUserProfileSchema`):**
   ```
@@ -1306,6 +1443,7 @@
 - **DESCRIPTION:** Create a new user profile. Self-creation only.
 
 ### `PUT /api/user/profile`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `UpdateUserProfileSchema`):**
   ```
@@ -1318,6 +1456,7 @@
 ---
 
 ### `POST /api/user/role`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `UserRoleSchema`):**
   ```
@@ -1330,6 +1469,7 @@
 ---
 
 ### `GET /api/user/settings`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `UserSettingsQuerySchema` — from query params):**
 - **RESPONSE:** `{ isRecruiter: boolean, displayName: string, companyName: string, notifications: object, privacy: object, updatedAt: string }`
@@ -1337,6 +1477,7 @@
 - **DESCRIPTION:** Get user settings. Self-access only.
 
 ### `PUT /api/user/settings`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `UserSettingsUpdateSchema`):**
   ```
@@ -1356,6 +1497,7 @@
 ---
 
 ### `POST /api/user/update-role`
+
 - **AUTH:** Yes (`getAuthenticatedUserId`)
 - **INPUT (Zod: `updateRoleSchema` — inline):**
   ```
@@ -1368,6 +1510,7 @@
 ---
 
 ### `GET /api/user/username/check`
+
 - **AUTH:** No (public, rate-limited by IP)
 - **INPUT (Zod: `UsernameSchema` — inline string validation):**
 - **RESPONSE:** `{ available: boolean, reason?: string, suggestion?: string, username?: string, retryAfter?: number }`
@@ -1378,35 +1521,36 @@
 
 ## Summary Statistics
 
-| Category | Routes | Auth Required | Public |
-|----------|--------|---------------|--------|
-| Admin | 7 (10 methods) | All | 0 |
-| AI | 5 (6 methods) | All | 0 |
-| Analytics | 2 (3 methods) | All | 0 |
-| Auth | 3 | 0 | All 3 |
-| Contact | 1 | Optional | 1 |
-| CSRF | 1 | Yes | 0 |
-| Docs | 1 | Yes | 0 |
-| Drafts | 1 (3 methods) | All | 0 |
-| Health | 2 | 0 | All 2 |
-| Interview | 1 (2 methods) | Optional/No | Mixed |
-| Jobseeker | 3 (4 methods) | All | 0 |
-| Notifications | 1 (2 methods) | All | 0 |
-| Profiles | 6 (8 methods) | All | 0 |
-| Recruiter | 12 (19 methods) | All | 0 |
-| Recruiters | 4 (6 methods) | Mixed | 2 |
-| Resume | 7 (7 methods) | All | 0 |
-| Resumes | 3 (7 methods) | Mixed | 1 (GET public) |
-| Search | 2 | All | 0 |
-| Seed | 1 | Yes | 0 |
-| Skills | 1 | Optional | 0 |
-| System Config | 1 | No | 1 |
-| Templates | 1 | No | 1 |
-| User Approval | 2 | No | 2 (token-based) |
-| User | 5 (8 methods) | Mixed | 1 |
-| **TOTAL** | **78 routes** | | |
+| Category      | Routes          | Auth Required | Public          |
+| ------------- | --------------- | ------------- | --------------- |
+| Admin         | 7 (10 methods)  | All           | 0               |
+| AI            | 5 (6 methods)   | All           | 0               |
+| Analytics     | 2 (3 methods)   | All           | 0               |
+| Auth          | 3               | 0             | All 3           |
+| Contact       | 1               | Optional      | 1               |
+| CSRF          | 1               | Yes           | 0               |
+| Docs          | 1               | Yes           | 0               |
+| Drafts        | 1 (3 methods)   | All           | 0               |
+| Health        | 2               | 0             | All 2           |
+| Interview     | 1 (2 methods)   | Optional/No   | Mixed           |
+| Jobseeker     | 3 (4 methods)   | All           | 0               |
+| Notifications | 1 (2 methods)   | All           | 0               |
+| Profiles      | 6 (8 methods)   | All           | 0               |
+| Recruiter     | 12 (19 methods) | All           | 0               |
+| Recruiters    | 4 (6 methods)   | Mixed         | 2               |
+| Resume        | 7 (7 methods)   | All           | 0               |
+| Resumes       | 3 (7 methods)   | Mixed         | 1 (GET public)  |
+| Search        | 2               | All           | 0               |
+| Seed          | 1               | Yes           | 0               |
+| Skills        | 1               | Optional      | 0               |
+| System Config | 1               | No            | 1               |
+| Templates     | 1               | No            | 1               |
+| User Approval | 2               | No            | 2 (token-based) |
+| User          | 5 (8 methods)   | Mixed         | 1               |
+| **TOTAL**     | **78 routes**   |               |                 |
 
 ### Public (No Auth) Endpoints:
+
 1. `GET /api/health`
 2. `GET /api/health/infra`
 3. `GET /api/system-config`

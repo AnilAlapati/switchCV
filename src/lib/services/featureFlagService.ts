@@ -46,6 +46,26 @@ const flagCache = new Map<string, CacheEntry>();
 // ── Hard-coded defaults (fallback when Firestore is unreachable) ──────
 
 const FLAG_DEFAULTS: Record<string, FeatureFlagDoc> = {
+  "resume_v2_intake": {
+    enabled: true,
+    description: "Normalized intake path for resume generation",
+  },
+  "resume_v2_writer": {
+    enabled: true,
+    description: "Structured writer orchestration path",
+  },
+  "resume_v2_templates": {
+    enabled: false,
+    description: "Resume v2 premium template rendering track",
+  },
+  "resume_v2_strict_validation": {
+    enabled: true,
+    description: "Block persistence unless strict quality checks pass",
+  },
+  "resume_v2_creative_polish": {
+    enabled: false,
+    description: "Evidence-backed creative polish stage for resume v2",
+  },
   "agentic-pipeline": {
     enabled: true,
     description: "4-agent autonomous resume generation pipeline",

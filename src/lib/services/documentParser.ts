@@ -1,6 +1,5 @@
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdf = require("pdf-parse");
+import { PDFParse } from "pdf-parse";
 import mammoth from "mammoth";
 import { logger } from "@/lib/logger";
 
@@ -36,12 +35,20 @@ export class DocumentParser {
      * Parse PDF buffer
      */
     private static async parsePdf(buffer: Buffer): Promise<string> {
+        const parser = new PDFParse({ data: new Uint8Array(buffer) });
+
         try {
-            const data = await pdf(buffer);
-            return data.text;
+            const result = await parser.getText();
+            return result.text || "";
         } catch (error) {
             logger.error({ err: error }, "Failed to parse PDF");
             throw new Error("Failed to parse PDF file");
+        } finally {
+            try {
+                await parser.destroy();
+            } catch (destroyError) {
+                logger.warn({ err: destroyError }, "Failed to cleanup PDF parser");
+            }
         }
     }
 

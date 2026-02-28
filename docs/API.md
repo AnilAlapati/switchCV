@@ -33,7 +33,11 @@ Most endpoints require authentication via Firebase Auth. Include the ID token in
 - **DELETE /resume/delete**
   - Delete a resume.
 - **POST /resume/generate**
-  - Generate resume content using AI.
+  - Generate resume content using AI. Supports v2 structured generation with `inputSources`, `desiredStyle`, and `strictMode` fields.
+- **POST /resume/generate/preview**
+  - Generate a non-persisted resume preview for UX iteration. Same pipeline as generate but without persistence.
+- **POST /resume/intake/normalize**
+  - Normalize raw intake from chat, paste, PDF, or DOCX into a structured draft with evidence map.
 
 ### Recruiters
 

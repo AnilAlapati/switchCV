@@ -29,6 +29,13 @@ const ResumeChatConversationItemSchema = z
   })
   .passthrough();
 
+const IntakeSourceSchema = z
+  .object({
+    channel: z.enum(["chat", "paste", "pdf", "docx"]),
+    text: z.string().min(1),
+  })
+  .strict();
+
 export const DeleteResumeSchema = z
   .object({
     resumeId: ResumeIdSchema,
@@ -55,9 +62,30 @@ export const GenerateResumeRequestSchema = z
     conversationHistory: z.array(ConversationHistoryItemSchema).optional().default([]),
     sessionData: z.record(z.string(), z.unknown()).nullable().optional(),
     modelId: z.string().min(1).optional(),
+    inputSources: z.array(z.enum(["chat", "paste", "pdf", "docx"])).optional(),
+    desiredStyle: z.enum(["professional", "executive", "innovator"]).optional(),
+    strictMode: z.boolean().optional(),
     async: z.boolean().optional(),
   })
   .passthrough();
+
+export const GenerateResumePreviewRequestSchema = z
+  .object({
+    message: z.string().min(1),
+    conversationHistory: z.array(ConversationHistoryItemSchema).optional().default([]),
+    sessionData: z.record(z.string(), z.unknown()).nullable().optional(),
+    modelId: z.string().min(1).optional(),
+    inputSources: z.array(z.enum(["chat", "paste", "pdf", "docx"])).optional(),
+    desiredStyle: z.enum(["professional", "executive", "innovator"]).optional(),
+    strictMode: z.boolean().optional(),
+  })
+  .strict();
+
+export const NormalizeResumeIntakeRequestSchema = z
+  .object({
+    sources: z.array(IntakeSourceSchema).min(1),
+  })
+  .strict();
 
 export const CreateResumeSchema = z
   .object({

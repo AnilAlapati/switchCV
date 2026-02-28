@@ -2,6 +2,35 @@ import { ResumeDataRequirements } from "../conversationManager";
 import { IExtractor } from "./IExtractor";
 
 export class ContactExtractor implements IExtractor {
+  private static readonly ROLE_WORDS = new Set([
+    "developer",
+    "engineer",
+    "manager",
+    "founder",
+    "intern",
+    "consultant",
+    "analyst",
+    "designer",
+    "architect",
+    "scientist",
+    "specialist",
+    "lead",
+    "director",
+    "officer",
+    "president",
+    "coordinator",
+    "administrator",
+    "recruiter",
+    "marketer",
+    "product",
+    "software",
+    "fullstack",
+    "frontend",
+    "backend",
+    "devops",
+    "qa",
+  ]);
+
   extract(text: string): Partial<ResumeDataRequirements> {
     const data: Partial<ResumeDataRequirements> = {};
     const trimmedText = text.trim();
@@ -23,7 +52,12 @@ export class ContactExtractor implements IExtractor {
     for (const pattern of namePatterns) {
       const match = trimmedText.match(pattern);
       if (match && match[1]) {
-        data.name = this.toTitleCase(match[1].trim());
+        const candidate = match[1].trim();
+        if (this.looksLikeRolePhrase(candidate, trimmedText)) {
+          continue;
+        }
+
+        data.name = this.toTitleCase(candidate);
         break;
       }
     }
@@ -122,5 +156,28 @@ export class ContactExtractor implements IExtractor {
       /\w\S*/g,
       (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
     );
+  }
+
+  private looksLikeRolePhrase(candidate: string, fullText: string): boolean {
+    const normalized = candidate
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (!normalized) return true;
+    if (/^(a|an|the)\b/.test(normalized)) return true;
+    if (/^(currently|working|looking)\b/.test(normalized)) return true;
+
+    const tokens = normalized.split(" ");
+    const startsWithSelfIntro = /^(?:i['’]?m|i am)\b/i.test(fullText.trim());
+    if (
+      startsWithSelfIntro &&
+      tokens.some((token) => ContactExtractor.ROLE_WORDS.has(token))
+    ) {
+      return true;
+    }
+
+    return false;
   }
 }

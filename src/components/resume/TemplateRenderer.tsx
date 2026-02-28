@@ -23,6 +23,7 @@ import { TerminalResumeRenderer } from "./TerminalResumeRenderer";
 import { EditorialResumeRenderer } from "./EditorialResumeRenderer";
 import { NoirResumeRenderer } from "./NoirResumeRenderer";
 import { CREATIVE_TEMPLATES_ENABLED } from "@/lib/features/creativeTemplates";
+import { SignalResumeRenderer } from "./SignalResumeRenderer";
 
 type VisibilityLevel = "public" | "masked" | "request";
 type ContactField = "email" | "phone";
@@ -91,6 +92,17 @@ export const TemplateRenderer: React.FC<TemplateRendererProps> = ({
   if (template.id === "terminal-v1") {
     return (
       <TerminalResumeRenderer
+        template={template}
+        data={data}
+        isAuthenticated={isAuthenticated}
+        onRequestAccess={onRequestAccess}
+      />
+    );
+  }
+
+  if (template.id === "signal-v1") {
+    return (
+      <SignalResumeRenderer
         template={template}
         data={data}
         isAuthenticated={isAuthenticated}

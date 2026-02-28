@@ -36,6 +36,9 @@ export interface GenerationJobPayload {
     }>;
     sessionData?: unknown;
     modelId?: string;
+    inputSources?: Array<"chat" | "paste" | "pdf" | "docx">;
+    desiredStyle?: "professional" | "executive" | "innovator";
+    strictMode?: boolean;
     userTier: string;
 }
 

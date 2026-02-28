@@ -238,15 +238,22 @@ export class ResumeDataExtractor {
 
     // Extract from each message sequentially
     for (const message of messages) {
-      // Detect context from the message (usually from AI question)
+      // Detect context from the message (assistant prompts often provide section cues)
       const detectedContext = this.detectContext(message.content);
       if (detectedContext) {
         currentContext = detectedContext;
       }
 
-      // We treat User and AI messages similarly now, as the context detector works on both
-      // and extractors are robust.
-      // Pass the current context to ensure generic answers are parsed correctly
+      if (!message.isUser) {
+        // Assistant messages can indicate completion, but never provide extractable user values.
+        if (this.hasCompletionMarker(message.content)) {
+          isComplete = true;
+          maxConfidence = Math.max(maxConfidence, 0.8);
+        }
+        continue;
+      }
+
+      // Only user-authored content is eligible for extraction.
       const result = this.extract(message.content, currentContext);
 
       // Merge into aggregated state

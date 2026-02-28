@@ -144,6 +144,45 @@ describe("ConversationManager", () => {
       const result = manager.validate();
       expect(result.valid).toBe(true);
     });
+
+    it("should enforce strict validation for skills and experience/education", () => {
+      const manager = new ConversationManager({
+        name: "John Doe",
+        email: "john@example.com",
+        summary: "Summary",
+      });
+
+      const result = manager.validate({ strictMode: true });
+      expect(result.valid).toBe(false);
+      expect(
+        result.errors.some((error) =>
+          error.includes("At least one of experience or education"),
+        ),
+      ).toBe(true);
+      expect(
+        result.errors.some((error) => error.includes("At least one skill")),
+      ).toBe(true);
+    });
+
+    it("should pass strict validation when required structures are present", () => {
+      const manager = new ConversationManager({
+        name: "John Doe",
+        email: "john@example.com",
+        summary: "Summary",
+        experience: [
+          {
+            title: "Developer",
+            company: "Tech Corp",
+            duration: "",
+            description: "",
+          },
+        ],
+        skills: ["TypeScript"],
+      });
+
+      const result = manager.validate({ strictMode: true });
+      expect(result.valid).toBe(true);
+    });
   });
 
   describe("getNextQuestion", () => {

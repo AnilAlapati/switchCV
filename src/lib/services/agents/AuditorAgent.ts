@@ -30,10 +30,13 @@ DRAFTED RESUME:
 ${input.executionOutput.resumeMarkdown}
 
 AVAILABLE TEMPLATES:
+- signal-v1: Engineering-first signal density. Best for technical candidates with impact metrics.
 - standard-v1: Balanced, two-column. Good for mid-level technical or professional roles.
 - modern-creative-v1: Single-column, clean. Best for entry-level or creative roles with less content.
 - executive-v1: Traditional, dense, single-column. Best for leadership, management, and senior roles.
 - masonry-v1: Grid layout. Best for project-heavy or visual portfolios.
+- narrative-v1: Story-led leadership format for product/program and people management roles.
+- studio-v1: Editorial portfolio format for creative/brand/design roles.
 - bento-v1: Modern, modular. Premium look for product, design, and tech roles.
 - terminal-v1: Developer aesthetic. Best for technical IC (Individual Contributor) roles.
 - editorial-v1: Magazine style. Best for thought leaders and consultants.

@@ -310,9 +310,10 @@ export class ConversationManager {
   /**
    * Validate if data is complete enough to create a resume
    */
-  validate(): { valid: boolean; errors: string[] } {
+  validate(options?: { strictMode?: boolean }): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
     const progress = this.getProgress();
+    const strictMode = options?.strictMode ?? false;
 
     if (!progress.hasMinimumData) {
       errors.push("Missing required fields for minimum resume");
@@ -353,6 +354,26 @@ export class ConversationManager {
       ConversationManager.MINIMUM_REQUIRED_FIELDS.includes("skills")
     ) {
       errors.push("Skills array is empty");
+    }
+
+    if (strictMode) {
+      const hasExperience =
+        Array.isArray(this.collectedData.experience) &&
+        this.collectedData.experience.length > 0;
+      const hasEducation =
+        Array.isArray(this.collectedData.education) &&
+        this.collectedData.education.length > 0;
+      const hasSkills =
+        Array.isArray(this.collectedData.skills) &&
+        this.collectedData.skills.length > 0;
+
+      if (!hasExperience && !hasEducation) {
+        errors.push("At least one of experience or education is required");
+      }
+
+      if (!hasSkills) {
+        errors.push("At least one skill is required");
+      }
     }
 
     return {

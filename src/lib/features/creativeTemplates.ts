@@ -29,11 +29,14 @@ export interface TemplateTierConfig {
  */
 export const TEMPLATE_TIERS: Record<string, TemplateTier> = {
   // Free templates - available to all users
+  "signal-v1": "free",
   "standard-v1": "free",
   "modern-creative-v1": "free",
   "executive-v1": "free",
   "masonry-v1": "free",
   // Premium templates - require premium subscription
+  "narrative-v1": "premium",
+  "studio-v1": "premium",
   "bento-v1": "premium",
   "terminal-v1": "premium",
   // Enterprise templates - require enterprise subscription
@@ -49,7 +52,12 @@ export const getAvailableTemplates = (
 ): string[] => {
   if (!CREATIVE_TEMPLATES_ENABLED) {
     // Feature disabled - only return basic templates
-    return ["standard-v1", "modern-creative-v1", "executive-v1"];
+    return [
+      "signal-v1",
+      "standard-v1",
+      "modern-creative-v1",
+      "executive-v1",
+    ];
   }
 
   const tierHierarchy = {
@@ -74,9 +82,12 @@ export const canAccessTemplate = (
 ): boolean => {
   if (!CREATIVE_TEMPLATES_ENABLED) {
     // Feature disabled - only allow basic templates
-    return ["standard-v1", "modern-creative-v1", "executive-v1"].includes(
-      templateId,
-    );
+    return [
+      "signal-v1",
+      "standard-v1",
+      "modern-creative-v1",
+      "executive-v1",
+    ].includes(templateId);
   }
 
   const templateTier = TEMPLATE_TIERS[templateId] || "free";
@@ -126,6 +137,18 @@ export const PREMIUM_TEMPLATE_INFO: Record<
     color: string;
   }
 > = {
+  "narrative-v1": {
+    tagline: "Career arc storytelling for leadership and product roles",
+    preview: "Outcome-led sections with strong progression cues",
+    bestFor: ["Product Leaders", "Program Managers", "Directors"],
+    color: "#1E6FA8",
+  },
+  "studio-v1": {
+    tagline: "Editorial project spotlight with modular creative blocks",
+    preview: "Portfolio-first hierarchy with expressive rhythm",
+    bestFor: ["Designers", "Creative Technologists", "Brand Strategists"],
+    color: "#C05A2B",
+  },
   "bento-v1": {
     tagline: "Apple-inspired modular grid layout",
     preview: "Clean cards, subtle shadows, modern aesthetics",
@@ -149,5 +172,11 @@ export const PREMIUM_TEMPLATE_INFO: Record<
     preview: "Pure black, gradient accents, premium feel",
     bestFor: ["C-Suite", "Directors", "VIPs"],
     color: "#000000",
+  },
+  "signal-v1": {
+    tagline: "Engineering-first signal density for fast recruiter scans",
+    preview: "Impact bullets and technical stack clustering",
+    bestFor: ["Software Engineers", "Platform Engineers", "DevOps"],
+    color: "#1F9D8E",
   },
 };

@@ -17,6 +17,7 @@ import { BillingService } from "@/lib/services/billingService";
 import {
   ConversationManager,
   type ConversationProgress,
+  type ResumeDataRequirements,
 } from "@/lib/services/conversationManager";
 import { ResumeDataExtractor } from "@/lib/services/resumeDataExtractor";
 import {
@@ -28,8 +29,22 @@ import { getActiveConfig } from "@/lib/services/conversationConfig";
 import {
   saveGeneratedResume,
   GeneratedResumeInput,
+  GenerationQualityReport,
+  ResumeGenerationVersion,
 } from "@/lib/services/resumeService";
 import type { SubscriptionTier } from "@/lib/config";
+import {
+  buildEvidenceMap,
+  buildQualityReport,
+  evaluateFactualAlignment,
+  buildRepairPrompt,
+  evaluateResumeV2Flags,
+  validateStructuredResumeContract,
+} from "@/lib/services/resumeGenerationQuality";
+import {
+  applyCreativePolish,
+  type CreativeStyle,
+} from "@/lib/services/resumeCreativePolisher";
 
 export interface ConversationEntry {
   id?: string;
@@ -43,6 +58,34 @@ interface SessionData {
   progress?: Record<string, unknown>;
 }
 
+const EMPTY_EXTRACTION_RESULT = {
+  data: {},
+  confidence: 0,
+  extractedFields: [] as string[],
+  isComplete: false,
+};
+
+interface NormalizedAIResponse {
+  text: string;
+  model?: string;
+}
+
+function normalizeAIResponse(payload: unknown): NormalizedAIResponse {
+  if (typeof payload === "string") {
+    return { text: payload };
+  }
+
+  if (payload && typeof payload === "object") {
+    const candidate = payload as { text?: unknown; model?: unknown };
+    return {
+      text: typeof candidate.text === "string" ? candidate.text : "",
+      model: typeof candidate.model === "string" ? candidate.model : undefined,
+    };
+  }
+
+  return { text: "" };
+}
+
 export interface SyncGenerationInput {
   userId: string;
   message: string;
@@ -50,6 +93,10 @@ export interface SyncGenerationInput {
   sessionData?: SessionData;
   modelId?: string;
   userTier: SubscriptionTier;
+  strictMode?: boolean;
+  desiredStyle?: "professional" | "executive" | "innovator";
+  inputSources?: Array<"chat" | "paste" | "pdf" | "docx">;
+  persistResult?: boolean;
 }
 
 export interface SyncGenerationResult {
@@ -63,6 +110,11 @@ export interface SyncGenerationResult {
     collectedData: Record<string, unknown>;
     progress: ConversationProgress;
   };
+  qualityReport?: GenerationQualityReport;
+  needsClarification?: boolean;
+  missingEvidenceFields?: string[];
+  previewData?: GeneratedResumeInput;
+  evidenceMap?: Record<string, string[]>;
 }
 
 /**
@@ -79,13 +131,36 @@ export async function processSyncGeneration(
     sessionData,
     modelId,
     userTier,
+    strictMode,
+    desiredStyle,
+    persistResult,
   } = input;
 
+  const shouldPersistResult = persistResult ?? true;
+
+  const flags = await evaluateResumeV2Flags();
+  const strictValidationEnabled = strictMode ?? flags.resume_v2_strict_validation;
+  const allMessages = [...conversationHistory, { content: message, isUser: true }];
+
+  logger.info(
+    {
+      flags,
+      strictValidationEnabled,
+    },
+    "🚩 Resume generation flags evaluated",
+  );
+
   // Step 1: Extract data from conversation history
-  const extractionResult = ResumeDataExtractor.extractFromConversation([
-    ...conversationHistory,
-    { content: message, isUser: true },
-  ]);
+  let extractionResult = EMPTY_EXTRACTION_RESULT;
+  try {
+    const extracted = ResumeDataExtractor.extractFromConversation(allMessages);
+    extractionResult = extracted ?? EMPTY_EXTRACTION_RESULT;
+  } catch (extractError) {
+    logger.warn(
+      { err: extractError, userId },
+      "Resume extraction failed; proceeding with empty extracted data",
+    );
+  }
 
   logger.info(
     {
@@ -117,7 +192,7 @@ export async function processSyncGeneration(
   let config = getActiveConfig();
 
   // Check for user constraints on questions
-  const allText = [...conversationHistory, { content: message, isUser: true }]
+  const allText = allMessages
     .filter((m) => m.isUser)
     .map((m) => m.content)
     .join(" ");
@@ -180,10 +255,11 @@ export async function processSyncGeneration(
     );
     aiResponse = await generateText(prompt, 4000, 0.7);
   }
-  const responseText = aiResponse.text;
+  const normalizedAIResponse = normalizeAIResponse(aiResponse);
+  const responseText = normalizedAIResponse.text;
 
   // Track Billing
-  await BillingService.trackUsage(userId, aiResponse.model || "default", {
+  await BillingService.trackUsage(userId, normalizedAIResponse.model || "default", {
     input: Math.ceil(prompt.length / 4),
     output: Math.ceil(responseText.length / 4),
   });
@@ -193,13 +269,15 @@ export async function processSyncGeneration(
 
   // CRITICAL FIX: Sync generated JSON with ConversationManager
   let updatedProgress = progress;
-  const generatedJson = extractResumeJSON(responseText);
+  const generatedJson = flags.resume_v2_writer ? extractResumeJSON(responseText) : null;
 
   if (generatedJson) {
     logger.info("🧠 Syncing AI-generated JSON back to ConversationManager");
     conversationManager.updateData(generatedJson);
     conversationManager.markAsComplete();
     updatedProgress = conversationManager.getProgress();
+  } else if (!flags.resume_v2_writer) {
+    logger.info("🛑 resume_v2_writer disabled; using extracted conversation data only");
   }
 
   // Determine if we should create the resume
@@ -231,31 +309,146 @@ export async function processSyncGeneration(
   // Step 6: Create resume if ready
   if (shouldCreateResume && updatedProgress.hasMinimumData) {
     try {
-      let resumeData = extractResumeJSON(responseText);
+      let resumeData = generatedJson;
+      let regenerationAttempts = 0;
 
       if (!resumeData) {
         resumeData = conversationManager.getData();
       }
 
-      const validation = conversationManager.validate();
+      let candidateData =
+        resumeData && typeof resumeData === "object"
+          ? (resumeData as Record<string, unknown>)
+          : {};
+
+      const evaluateCandidate = (candidate: Record<string, unknown>) => {
+        const candidateManager = new ConversationManager(
+          candidate as Partial<ResumeDataRequirements>,
+        );
+        const baseValidation = candidateManager.validate({
+          strictMode: strictValidationEnabled,
+        });
+        const baseErrors = Array.isArray(baseValidation.errors)
+          ? baseValidation.errors
+          : [];
+        const contractErrors = validateStructuredResumeContract(candidate, {
+          strictMode: strictValidationEnabled,
+        });
+        const factualAlignment = evaluateFactualAlignment(candidate, allMessages);
+        const strictFactualErrors = strictValidationEnabled
+          ? factualAlignment.errors
+          : [];
+        const errors = [
+          ...new Set([
+            ...baseErrors,
+            ...contractErrors,
+            ...strictFactualErrors,
+          ]),
+        ];
+
+        return {
+          valid: errors.length === 0,
+          errors,
+          factualAlignment,
+        };
+      };
+
+      let validation = evaluateCandidate(candidateData);
+      let creativeAnnotations: string[] = [];
+      let creativePolishApplied = false;
+
+      if (
+        !validation.valid &&
+        flags.resume_v2_writer &&
+        validation.errors.length > 0
+      ) {
+        const repairPrompt = buildRepairPrompt(
+          responseText,
+          candidateData,
+          validation.errors,
+        );
+
+        try {
+          regenerationAttempts = 1;
+          const repairResponse = await generateTextWithTier({
+            prompt: repairPrompt,
+            maxTokens: 2500,
+            temperature: 0.2,
+            userTier,
+            modelId,
+          });
+
+          await BillingService.trackUsage(userId, repairResponse.model || "default", {
+            input: Math.ceil(repairPrompt.length / 4),
+            output: Math.ceil(repairResponse.text.length / 4),
+          });
+
+          const repairedJson = extractResumeJSON(repairResponse.text);
+          if (repairedJson) {
+            resumeData = repairedJson;
+            candidateData = repairedJson as Record<string, unknown>;
+            validation = evaluateCandidate(candidateData);
+          }
+        } catch (repairError) {
+          logger.warn(
+            { err: repairError, userId },
+            "Validation repair pass failed; falling back to clarification flow",
+          );
+        }
+      }
+
+      if (validation.valid && flags.resume_v2_creative_polish) {
+        const polishStyle: CreativeStyle = desiredStyle || "professional";
+        const polishResult = applyCreativePolish(candidateData, polishStyle);
+        const polishedValidation = evaluateCandidate(polishResult.polishedData);
+
+        if (polishedValidation.valid) {
+          candidateData = polishResult.polishedData;
+          resumeData = candidateData;
+          validation = polishedValidation;
+          creativePolishApplied = polishResult.appliedCount > 0;
+          creativeAnnotations = polishResult.annotations.map(
+            (annotation) =>
+              `${annotation.path} | confidence=${annotation.confidence} | ${annotation.reason}`,
+          );
+        } else {
+          logger.warn(
+            {
+              polishStyle,
+              errors: polishedValidation.errors,
+            },
+            "Creative polish result failed validation; using factual baseline",
+          );
+        }
+      }
+
+      const qualityReport = buildQualityReport(
+        {
+          schemaValid: validation.valid,
+          validationErrors: validation.errors,
+          regenerationAttempts,
+          factualAlignmentScore: validation.factualAlignment.score,
+        },
+      );
+
       if (!validation.valid) {
         logger.warn({ errors: validation.errors }, "⚠️ Validation failed");
 
-        let safeResponse = responseText;
-        if (extractResumeJSON(responseText)) {
-          safeResponse =
-            "I'm almost ready to create your resume, but I need a few more details. " +
-            (validation.errors.length > 0
-              ? "Specifically: " + validation.errors.join(", ")
-              : "Please provide more information.");
-        }
+        const safeResponse =
+          "I'm almost ready to create your resume, but I need a few more details. " +
+          (validation.errors.length > 0
+            ? "Specifically: " + validation.errors.join(", ")
+            : "Please provide more information.");
 
         return {
           response: safeResponse,
-          model: aiResponse.model,
+          model: normalizedAIResponse.model,
           progress: updatedProgress.completenessPercentage,
+          qualityReport,
+          needsClarification: true,
+          missingEvidenceFields: validation.errors,
           sessionData: {
-            collectedData: conversationManager.getData(),
+            collectedData: candidateData,
             progress: updatedProgress,
           },
         };
@@ -263,9 +456,42 @@ export async function processSyncGeneration(
 
       logger.info("✨ Creating generated resume via Service");
 
+      const evidenceMap = buildEvidenceMap(candidateData, allMessages);
+      if (creativeAnnotations.length > 0) {
+        evidenceMap.creativePolishAnnotations = creativeAnnotations.slice(0, 25);
+      }
+      const generationVersion: ResumeGenerationVersion = {
+        pipeline: creativePolishApplied
+          ? "v2_creative"
+          : flags.resume_v2_writer
+            ? "v2_structured"
+            : "v1_regex",
+      };
+
+      if (!shouldPersistResult) {
+        return {
+          response: "Preview generated successfully",
+          model: normalizedAIResponse.model,
+          created: false,
+          progress: 100,
+          qualityReport,
+          previewData: candidateData as GeneratedResumeInput,
+          evidenceMap,
+          sessionData: {
+            collectedData: candidateData,
+            progress: updatedProgress,
+          },
+        };
+      }
+
       const { resumeId, numericId } = await saveGeneratedResume(
         userId,
-        resumeData as GeneratedResumeInput,
+        candidateData as GeneratedResumeInput,
+        {
+          qualityReport,
+          evidenceMap,
+          generationVersion,
+        },
       );
 
       const cleanResponse = "One moment, I'm finalizing your resume...";
@@ -274,11 +500,12 @@ export async function processSyncGeneration(
 
       return {
         response: cleanResponse,
-        model: aiResponse.model,
+        model: normalizedAIResponse.model,
         resumeId,
         numericId,
         created: true,
         progress: 100,
+        qualityReport,
       };
     } catch (createError) {
       logger.error({ err: createError }, "❌ Error creating resume:");
@@ -289,7 +516,7 @@ export async function processSyncGeneration(
   // Step 7: Continue conversation (not ready yet)
   return {
     response: responseText,
-    model: aiResponse.model,
+    model: normalizedAIResponse.model,
     progress: updatedProgress.completenessPercentage,
     sessionData: {
       collectedData: conversationManager.getData(),
