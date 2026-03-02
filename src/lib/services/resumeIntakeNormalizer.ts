@@ -1,5 +1,6 @@
 import { ResumeDataRequirements } from "@/lib/services/conversationManager";
 import { ResumeDataExtractor } from "@/lib/services/resumeDataExtractor";
+import { logger } from "@/lib/logger";
 
 export type ResumeIntakeSourceChannel = "chat" | "paste" | "pdf" | "docx";
 
@@ -72,16 +73,26 @@ const REQUIRED_FIELDS: Array<keyof ResumeDataRequirements> = [
 ];
 
 function normalizeWhitespace(text: string): string {
-  return text
-    .replace(/\r\n/g, "\n")
-    .replace(/\r/g, "\n")
-    .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, " ")
-    .replace(/[ \t]+/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  return (
+    text
+      .replace(/\r\n/g, "\n")
+      .replace(/\r/g, "\n")
+      // Preserve structure: convert Unicode dashes/hyphens to ASCII hyphen before stripping
+      .replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, "-")
+      // Normalize curly/smart quotes to straight quotes
+      .replace(/[\u2018\u2019\u02BC]/g, "'")
+      .replace(/[\u201C\u201D]/g, '"')
+      .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, " ")
+      .replace(/[ \t]+/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
+  );
 }
 
-function isLikelyHeaderFooter(line: string, counts: Map<string, number>): boolean {
+function isLikelyHeaderFooter(
+  line: string,
+  counts: Map<string, number>,
+): boolean {
   const normalizedLine = line.trim().toLowerCase();
   if (!normalizedLine) return false;
   if (/^page\s*\d+(\s*of\s*\d+)?$/.test(normalizedLine)) return true;
@@ -117,8 +128,18 @@ function mergeBrokenLines(lines: string[]): string[] {
     const currentStartsLikeNewBullet = /^[-•*]\s+/.test(line);
     const currentStartsWithUpper = /^[A-Z0-9]/.test(line);
     const previousLooksHeading = /^[A-Z][A-Z\s]+$/.test(buffer);
+    // Detect if the current line is contact-style info (email, pipe-separated, URL)
+    const currentLooksLikeContactInfo =
+      /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,}/i.test(line) ||
+      /\|/.test(line) ||
+      /https?:\/\//i.test(line);
 
-    if (currentStartsLikeNewBullet || previousEndsWithHardStop || previousLooksHeading) {
+    if (
+      currentStartsLikeNewBullet ||
+      previousEndsWithHardStop ||
+      previousLooksHeading ||
+      currentLooksLikeContactInfo
+    ) {
       merged.push(buffer);
       buffer = line;
       continue;
@@ -163,7 +184,8 @@ function buildEvidenceMap(
       const matchingLines = cleanedLines.filter((line, index) =>
         lowercaseLines[index]?.includes(value.toLowerCase()),
       );
-      evidenceMap[field] = matchingLines.length > 0 ? matchingLines.slice(0, 3) : [value];
+      evidenceMap[field] =
+        matchingLines.length > 0 ? matchingLines.slice(0, 3) : [value];
       continue;
     }
 
@@ -204,9 +226,11 @@ function getMissingCriticalFields(
   });
 
   const hasExperience =
-    Array.isArray(extractedData.experience) && extractedData.experience.length > 0;
+    Array.isArray(extractedData.experience) &&
+    extractedData.experience.length > 0;
   const hasEducation =
-    Array.isArray(extractedData.education) && extractedData.education.length > 0;
+    Array.isArray(extractedData.education) &&
+    extractedData.education.length > 0;
   const hasSkills =
     Array.isArray(extractedData.skills) && extractedData.skills.length > 0;
 
@@ -222,7 +246,9 @@ function getMissingCriticalFields(
 }
 
 export class ResumeIntakeNormalizer {
-  static normalize(input: NormalizeResumeIntakeInput): NormalizeResumeIntakeResult {
+  static normalize(
+    input: NormalizeResumeIntakeInput,
+  ): NormalizeResumeIntakeResult {
     const mergedText = input.sources
       .map((source) => source.text.trim())
       .filter((text) => text.length > 0)
@@ -264,7 +290,11 @@ export class ResumeIntakeNormalizer {
 
     const cleanedText = cleanedLines.join("\n");
     const extraction = ResumeDataExtractor.extract(cleanedText);
-    const evidenceMap = buildEvidenceMap(extraction.data, cleanedLines, sections);
+    const evidenceMap = buildEvidenceMap(
+      extraction.data,
+      cleanedLines,
+      sections,
+    );
     const missingCriticalFields = getMissingCriticalFields(extraction.data);
 
     return {
@@ -277,6 +307,130 @@ export class ResumeIntakeNormalizer {
       },
       evidenceMap,
       missingCriticalFields,
+    };
+  }
+
+  /**
+   * AI-powered normalize for paste and PDF sources.
+   * Uses AI structured extraction first, falls back to regex.
+   * Reuses the same cleaning/section pipeline but replaces
+   * the extraction step with AI when available.
+   *
+   * @param input - Resume intake sources
+   * @param options - AI extraction options (tier, skip flag)
+   * @returns NormalizeResumeIntakeResult with AI-extracted or regex-extracted data
+   */
+  static async normalizeWithAI(
+    input: NormalizeResumeIntakeInput,
+    options?: {
+      userTier?: "basic" | "premium" | "enterprise";
+      skipAI?: boolean;
+    },
+  ): Promise<
+    NormalizeResumeIntakeResult & { extractionMethod: "ai" | "regex" }
+  > {
+    // Run the same cleaning pipeline
+    const mergedText = input.sources
+      .map((source) => source.text.trim())
+      .filter((text) => text.length > 0)
+      .join("\n\n");
+
+    const normalized = normalizeWhitespace(mergedText);
+    const rawLines = normalized.split("\n").map((line) => line.trim());
+    const lineCounts = new Map<string, number>();
+
+    for (const line of rawLines) {
+      const normalizedLine = line.toLowerCase();
+      lineCounts.set(normalizedLine, (lineCounts.get(normalizedLine) ?? 0) + 1);
+    }
+
+    const cleanedLines = mergeBrokenLines(
+      rawLines.filter((line) => !isLikelyHeaderFooter(line, lineCounts)),
+    );
+
+    const sections: Record<ResumeSection, string[]> = {
+      contact: [],
+      summary: [],
+      experience: [],
+      education: [],
+      skills: [],
+      projects: [],
+      other: [],
+    };
+
+    let currentSection: ResumeSection = "other";
+    for (const line of cleanedLines) {
+      const detectedSection = detectSection(line);
+      if (detectedSection) {
+        currentSection = detectedSection;
+        continue;
+      }
+      sections[currentSection].push(line);
+    }
+
+    const cleanedText = cleanedLines.join("\n");
+    let extractionMethod: "ai" | "regex" = "regex";
+    let extractedData: Partial<ResumeDataRequirements> = {};
+    let extractedFields: string[] = [];
+
+    // Try AI extraction for paste/PDF sources
+    const hasPasteOrPdfSource = input.sources.some(
+      (s) =>
+        s.channel === "paste" || s.channel === "pdf" || s.channel === "docx",
+    );
+
+    if (hasPasteOrPdfSource && !options?.skipAI) {
+      try {
+        const { extractWithStructuredOutput } =
+          await import("@/lib/services/aiExtractionService");
+
+        const aiResult = await extractWithStructuredOutput(cleanedText, {
+          userTier: options?.userTier ?? "premium",
+        });
+
+        if (aiResult.success && aiResult.data) {
+          extractedData = aiResult.data;
+          extractedFields = Object.keys(aiResult.data);
+          extractionMethod = "ai";
+
+          logger.info(
+            {
+              fields: extractedFields,
+              latencyMs: aiResult.latencyMs,
+              channel: input.sources.map((s) => s.channel),
+            },
+            "AI extraction used for intake normalization",
+          );
+        }
+      } catch (error) {
+        logger.warn(
+          { err: error },
+          "AI extraction failed in normalizer, falling back to regex",
+        );
+      }
+    }
+
+    // Fallback to regex extraction
+    if (extractionMethod === "regex") {
+      const extraction = ResumeDataExtractor.extract(cleanedText);
+      extractedData = extraction.data;
+      extractedFields = extraction.extractedFields;
+    }
+
+    const evidenceMap = buildEvidenceMap(extractedData, cleanedLines, sections);
+    const missingCriticalFields = getMissingCriticalFields(extractedData);
+
+    return {
+      draft: {
+        mergedText,
+        cleanedText,
+        sections,
+        extractedData,
+        extractedFields,
+      },
+      evidenceMap,
+      missingCriticalFields,
+      extractionMethod,
     };
   }
 }

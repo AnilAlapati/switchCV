@@ -32,6 +32,9 @@ import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import type { ResumeProfile, Visibility } from "@/types";
 import { checkRateLimit, RateLimitResult } from "@/lib/utils/rateLimit";
 import { validateCorsOrigin, createCorsHeaders } from "@/lib/utils/cors";
+import { cacheService } from "@/lib/services/cacheService";
+
+const RESUME_CACHE_TTL_SECONDS = 15 * 60; // 15 minutes
 
 // Re-export secure error handlers from dedicated module
 export {
@@ -71,7 +74,7 @@ import { logger } from "@/lib/logger";
  * ```
  */
 export function validateCorsRequest(
-  request: NextRequest
+  request: NextRequest,
 ): NextResponse | undefined {
   const corsValidation = validateCorsOrigin(request);
 
@@ -83,7 +86,7 @@ export function validateCorsRequest(
         method: request.method,
         reason: corsValidation.reason,
       },
-      "CORS validation failed"
+      "CORS validation failed",
     );
 
     return NextResponse.json(
@@ -91,7 +94,7 @@ export function validateCorsRequest(
       {
         status: 403,
         headers: createCorsHeaders(request),
-      }
+      },
     );
   }
 
@@ -113,7 +116,7 @@ export function validateCorsRequest(
  * ```
  */
 export async function getAuthenticatedUserId(
-  request: NextRequest
+  request: NextRequest,
 ): Promise<{ userId?: string; error?: NextResponse }> {
   const authHeader = request.headers.get("authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -123,7 +126,7 @@ export async function getAuthenticatedUserId(
         {
           status: 401,
           headers: createCorsHeaders(request),
-        }
+        },
       ),
     };
   }
@@ -145,7 +148,7 @@ export async function getAuthenticatedUserId(
  * Returns the user ID when available, or null when the caller is anonymous.
  */
 export async function maybeGetAuthenticatedUserId(
-  request: NextRequest
+  request: NextRequest,
 ): Promise<string | null> {
   const authHeader = request.headers.get("authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -168,6 +171,18 @@ export async function maybeGetAuthenticatedUserId(
  * Returns the document reference, snapshot, and data if found, or null if not.
  */
 export async function fetchResumeDocument(id: string) {
+  const cacheKey = `resume:${id}`;
+
+  // Check L1+L2 cache first
+  const cached = await cacheService.get<{
+    data: FirebaseFirestore.DocumentData;
+    collection: string;
+  }>(cacheKey);
+  if (cached !== null) {
+    const docRef = adminDb.collection(cached.collection).doc(id);
+    return { docRef, docSnap: null, data: cached.data };
+  }
+
   // Fetch from both collections in parallel to avoid sequential N+1-like pattern
   const resumesRef = adminDb.collection("resumes").doc(id);
   const legacyRef = adminDb.collection("resumeProfiles").doc(id);
@@ -179,15 +194,24 @@ export async function fetchResumeDocument(id: string) {
 
   // Prefer 'resumes' collection (new system), fallback to 'resumeProfiles' (legacy)
   if (resumesSnap.exists) {
-    return {
-      docRef: resumesRef,
-      docSnap: resumesSnap,
-      data: resumesSnap.data(),
-    };
+    const data = resumesSnap.data();
+    // Fire-and-forget cache write — don't block the response
+    void cacheService.set(
+      cacheKey,
+      { data, collection: "resumes" },
+      { ttlSeconds: RESUME_CACHE_TTL_SECONDS, namespace: "resumes" },
+    );
+    return { docRef: resumesRef, docSnap: resumesSnap, data };
   }
 
   if (legacySnap.exists) {
-    return { docRef: legacyRef, docSnap: legacySnap, data: legacySnap.data() };
+    const data = legacySnap.data();
+    void cacheService.set(
+      cacheKey,
+      { data, collection: "resumeProfiles" },
+      { ttlSeconds: RESUME_CACHE_TTL_SECONDS, namespace: "resumes" },
+    );
+    return { docRef: legacyRef, docSnap: legacySnap, data };
   }
 
   return null;
@@ -202,7 +226,7 @@ export function handleApiError(
   error: unknown,
   message = "Internal server error",
   status = 500,
-  request?: NextRequest
+  request?: NextRequest,
 ) {
   if (status >= 500) {
     logger.error({ err: error, status }, `API Error: ${message}`);
@@ -227,7 +251,7 @@ export function handleApiError(
               : undefined,
       }),
     },
-    { status, headers }
+    { status, headers },
   );
 }
 
@@ -237,14 +261,14 @@ export function handleApiError(
  */
 export async function verifyResumeOwnership(
   request: NextRequest,
-  resumeId: string
+  resumeId: string,
 ): Promise<
   | {
-    success: true;
-    userId: string;
-    resumeData: ResumeDocumentData;
-    docRef: FirebaseFirestore.DocumentReference;
-  }
+      success: true;
+      userId: string;
+      resumeData: ResumeDocumentData;
+      docRef: FirebaseFirestore.DocumentReference;
+    }
   | { success: false; error: NextResponse }
 > {
   // 1. Authenticate
@@ -263,7 +287,7 @@ export async function verifyResumeOwnership(
         {
           status: 404,
           headers: createCorsHeaders(request),
-        }
+        },
       ),
     };
   }
@@ -280,7 +304,7 @@ export async function verifyResumeOwnership(
         {
           status: 403,
           headers: createCorsHeaders(request),
-        }
+        },
       ),
     };
   }
@@ -315,7 +339,7 @@ export async function verifyResumeOwnership(
  */
 export async function safeParseBody<T = unknown>(
   request: NextRequest,
-  limitBytes: number = 1024 * 1024 // 1MB default
+  limitBytes: number = 1024 * 1024, // 1MB default
 ): Promise<T> {
   const contentLength = request.headers.get("content-length");
   if (contentLength && parseInt(contentLength, 10) > limitBytes) {
@@ -349,7 +373,7 @@ export async function safeParseBody<T = unknown>(
  */
 export async function applyRateLimit(
   identifier: string,
-  options?: { limit?: number; windowMs?: number }
+  options?: { limit?: number; windowMs?: number },
 ): Promise<
   | { allowed: true; result: RateLimitResult }
   | { allowed: false; response: NextResponse }
@@ -362,7 +386,7 @@ export async function applyRateLimit(
         error: "Too many requests",
         retryAfter: Math.ceil(result.resetIn / 1000),
       },
-      { status: 429 }
+      { status: 429 },
     );
     attachRateLimitHeaders(response, result);
     return { allowed: false, response };
@@ -380,13 +404,13 @@ export async function applyRateLimit(
  */
 export function attachRateLimitHeaders(
   response: NextResponse,
-  result: RateLimitResult
+  result: RateLimitResult,
 ): void {
   response.headers.set("X-RateLimit-Limit", result.limit.toString());
   response.headers.set("X-RateLimit-Remaining", result.remaining.toString());
   response.headers.set(
     "X-RateLimit-Reset",
-    Math.ceil(Date.now() / 1000 + result.resetIn / 1000).toString()
+    Math.ceil(Date.now() / 1000 + result.resetIn / 1000).toString(),
   );
 }
 
@@ -404,5 +428,3 @@ export function getClientIp(request: NextRequest): string {
   }
   return request.headers.get("x-real-ip") || "unknown";
 }
-
-

@@ -1,9 +1,11 @@
 import { logger } from "@/lib/logger";
 /**
- * Hook for tracking analytics events
+ * Hook for tracking analytics events.
+ * Sends events to PostHog when initialized (requires cookie consent).
  */
 
 import { useCallback } from "react";
+import posthog from "@/lib/posthog";
 
 interface AnalyticsEvent {
   eventName: string;
@@ -13,22 +15,38 @@ interface AnalyticsEvent {
 
 export const useAnalyticsTracking = () => {
   const trackEvent = useCallback((event: AnalyticsEvent) => {
-    logger.info({
-      event: event.eventName,
-      properties: event.properties,
-      timestamp: event.timestamp || new Date(),
-    }, "📊 Analytics Event:");
-    // In production, this would send to analytics service
+    logger.info(
+      {
+        event: event.eventName,
+        properties: event.properties,
+        timestamp: event.timestamp || new Date(),
+      },
+      "📊 Analytics Event:",
+    );
+
+    // Send to PostHog if initialized (client-side only; requires cookie consent)
+    try {
+      posthog.capture(event.eventName, {
+        ...event.properties,
+        timestamp: (event.timestamp || new Date()).toISOString(),
+      });
+    } catch {
+      // PostHog may not be initialized (no consent granted, or SSR) — silently skip
+    }
   }, []);
 
   const track = useCallback(
-    (category: string, action: string, properties?: Record<string, unknown>) => {
+    (
+      category: string,
+      action: string,
+      properties?: Record<string, unknown>,
+    ) => {
       trackEvent({
         eventName: `${category}_${action}`,
         properties,
       });
     },
-    [trackEvent]
+    [trackEvent],
   );
 
   const trackSearch = useCallback(
@@ -43,7 +61,7 @@ export const useAnalyticsTracking = () => {
         },
       });
     },
-    [trackEvent]
+    [trackEvent],
   );
 
   const trackProfileView = useCallback(
@@ -57,7 +75,7 @@ export const useAnalyticsTracking = () => {
         },
       });
     },
-    [trackEvent]
+    [trackEvent],
   );
 
   const trackAccessRequest = useCallback(
@@ -71,7 +89,7 @@ export const useAnalyticsTracking = () => {
         },
       });
     },
-    [trackEvent]
+    [trackEvent],
   );
 
   return {

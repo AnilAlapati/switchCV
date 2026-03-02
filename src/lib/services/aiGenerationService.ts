@@ -9,7 +9,7 @@ import {
   invalidateModelCache as coreInvalidateModelCache,
   getCacheStatus as coreGetCacheStatus,
 } from "./ai/model-manager";
-import { generateWithGemini } from "./ai/providers/gemini";
+import { generateWithGemini, type GeminiStructuredOutputOptions } from "./ai/providers/gemini";
 import { generateWithOpenAI } from "./ai/providers/openai";
 import { generateWithGroq } from "./ai/providers/groq";
 import { providerFallback } from "@/lib/services/ai/ProviderFallbackChain";
@@ -31,6 +31,13 @@ export const getCacheStatus = coreGetCacheStatus;
 /**
  * Generate text with dynamic fallback based on provider health.
  * Tracks AI cost via BillingService when userId is provided.
+ *
+ * @param prompt - The prompt text
+ * @param maxTokens - Max output tokens (default 150)
+ * @param temperature - Temperature (default 0.7)
+ * @param model - Optional model override
+ * @param userId - Optional user ID for billing tracking
+ * @param structuredOutput - Optional structured output config for guaranteed JSON (Gemini only)
  */
 export async function generateText(
   prompt: string,
@@ -38,6 +45,7 @@ export async function generateText(
   temperature: number = 0.7,
   model?: string,
   userId?: string,
+  structuredOutput?: GeminiStructuredOutputOptions,
 ): Promise<{
   text: string;
   model: string;
@@ -64,13 +72,14 @@ export async function generateText(
             maxTokens,
             temperature,
             model,
+            structuredOutput,
           );
           break;
         case "openai":
-          result = await generateWithOpenAI(prompt, maxTokens, temperature);
+          result = await generateWithOpenAI(prompt, maxTokens, temperature, structuredOutput ? true : false);
           break;
         case "groq":
-          result = await generateWithGroq(prompt, maxTokens, temperature);
+          result = await generateWithGroq(prompt, maxTokens, temperature, structuredOutput ? true : false);
           break;
         default:
           throw new Error(`Unknown provider: ${provider}`);

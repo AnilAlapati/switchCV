@@ -7,7 +7,7 @@ import { IExtractor } from "./IExtractor";
 export class ExperienceExtractor implements IExtractor {
   extract(
     text: string,
-    context?: "education" | "experience" | "skills" | "contact" | null
+    context?: "education" | "experience" | "skills" | "contact" | null,
   ): Partial<ResumeDataRequirements> {
     const data: Partial<ResumeDataRequirements> = {};
     const fullText = text;
@@ -55,15 +55,31 @@ export class ExperienceExtractor implements IExtractor {
       isExperienceContext
     ) {
       const expPatterns = [
+        // "Title, Company — Location (dates)" — em/en dash separator (after normalization becomes -)
+        /(?:^|\n)([A-Z][a-zA-Z\s]+?),\s+([A-Z][a-zA-Z0-9\s]+?)\s+(?:—|–|-)\s/m,
+        // "Title, Company (dates)" — company followed directly by opening paren (no dash separator)
+        /(?:^|\n)([A-Z][a-zA-Z\s]+?),\s+([A-Z][a-zA-Z0-9.]+(?:\s+[A-Z.][a-zA-Z0-9.]+)*)\s*\(/m,
+        // "Title, Company, year" — comma separated with year
+        /(?:^|\n)([A-Z][a-zA-Z\s]+?),\s+([A-Z][a-zA-Z0-9.]+(?:\s+[A-Z.][a-zA-Z0-9.]+)*)\s*,\s*\d{4}/m,
+        // "Title • Company (dates)" — bullet between title and company
+        /(?:^|\n)([A-Za-z][a-zA-Z\s]+?)\s+[•]\s+([A-Za-z][a-zA-Z0-9\s]+?)(?:\s+\(|\s+\d{4})/m,
+        // "Title | Company (dates)" — pipe separator
+        /(?:^|\n)([A-Za-z][a-zA-Z\s]+?)\s+\|\s+([A-Za-z][a-zA-Z0-9\s]+?)(?:\s+\(|\s+\d{4}|–|—)/m,
+        // "Title at Company (year)" — title followed by year in parens
+        /(?:^|\n)([A-Za-z][a-zA-Z\s]+?)\s+at\s+([A-Za-z][a-zA-Z0-9\s]+?)\s*[(\d]{1}/m,
+        // Chat format: "at a [startup|company] called CompanyName" — for informal chat messages
+        /at\s+(?:a|an)\s+(?:\w+\s+)?(?:startup|company|firm|agency|organization|bank|client)\s+called\s+([A-Z][a-zA-Z0-9\s]+?)(?:\s+in\s+|\s+for\s+|\.|,|$)/i,
+        // Chat format: "at Company for N months/years" — "at TechCo for 3 years"
+        /at\s+([A-Z][a-zA-Z0-9\s]+?)\s+(?:for|over|about|–|since)/i,
         // Bullet: "- Title at Company"
         /(?:^|\n)\s*[-•]\s*([A-Za-z0-9\s]+?)\s+(?:at|\||@)\s+([A-Za-z0-9\s]+)(?=\n|$)/,
-        // Standard "Title at Company"
+        // Standard keyword-based "worked/employed/position at Company"
         /(?:worked|work|employed|position|job|role)\s+(?:as|at)\s+((?:(?! at ).)+)(?:\s+at\s+([^,.\n]+))?/i,
         // "Title @ Company"
         /([A-Za-z\s]+)\s+@\s+([A-Za-z\s]+)/,
-        // Block format
+        // Block multiline: TITLE on first line, Company on next
         /(?:^|\n)(?!Professional Experience|Work History|Experience)([A-Z][a-zA-Z0-9\s]+?)\s*\n\s*(?:at\s+)?([A-Z][a-zA-Z0-9\s]+?)(?=\s*\n|\s+\d{4})/,
-        // Single line fallback
+        // Single line fallback "Title at Company"
         /(?:^|\n)([A-Za-z0-9\s]+?)\s+(?:at|@)\s+([A-Za-z0-9\s]+?)(?=\s*\n|$)/,
       ];
 

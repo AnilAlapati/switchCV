@@ -120,7 +120,7 @@ else
   )
   
   TEST_RESULT=0
-  npm test -- --passWithNoTests --testPathPattern="api-helpers|security" 2>&1 || TEST_RESULT=$?
+  npm test -- --passWithNoTests --testPathPattern="api-helpers|security|resumeLaunchGateKPI|resumeGenerationQualityKPI|agentOrchestrator.revisionLoop|AuditorAgent.test|WritingAgent.test" 2>&1 || TEST_RESULT=$?
   
   if [ "$TEST_RESULT" -ne "0" ]; then
     echo -e "${RED}⚠️  WARNING: Some tests failing (review before PR)${NC}"

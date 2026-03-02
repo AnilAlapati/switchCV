@@ -121,6 +121,33 @@ function extractTokens(text: string): string[] {
     .filter((token) => !STOP_WORDS.has(token));
 }
 
+/**
+ * Known-good rewrite mappings that should receive a confidence boost.
+ * These are standard resume-writing improvements that are always safe.
+ */
+const KNOWN_GOOD_REWRITES = new Map<string, string>([
+  ["helped", "contributed to"],
+  ["responsible for", "led"],
+  ["worked on", "built"],
+  ["utilized", "used"],
+  ["in order to", "to"],
+]);
+
+function hasKnownGoodRewrite(original: string, polished: string): boolean {
+  const origLower = original.toLowerCase();
+  const polishedLower = polished.toLowerCase();
+  for (const [from, to] of KNOWN_GOOD_REWRITES) {
+    if (
+      origLower.includes(from) &&
+      !polishedLower.includes(from) &&
+      polishedLower.includes(to)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function scoreConfidence(original: string, polished: string): number {
   const originalTokens = extractTokens(original);
   const polishedTokens = extractTokens(polished);
@@ -140,13 +167,22 @@ function scoreConfidence(original: string, polished: string): number {
   }
 
   const polishedSet = new Set(polishedTokens);
-  const overlap = originalTokens.filter((token) => polishedSet.has(token)).length;
+  const overlap = originalTokens.filter((token) =>
+    polishedSet.has(token),
+  ).length;
   const overlapRatio = overlap / Math.max(1, originalTokens.length);
   const lengthRatio =
     Math.min(original.length, polished.length) /
     Math.max(1, Math.max(original.length, polished.length));
 
-  return Number((overlapRatio * 0.7 + lengthRatio * 0.3).toFixed(2));
+  let score = overlapRatio * 0.7 + lengthRatio * 0.3;
+
+  // Boost confidence for known-good resume writing improvements
+  if (hasKnownGoodRewrite(original, polished)) {
+    score = Math.max(score, 0.75);
+  }
+
+  return Number(score.toFixed(2));
 }
 
 function applyRewrites(text: string, style: CreativeStyle): string {
@@ -250,27 +286,31 @@ export function applyCreativePolish(
       }
 
       if (Array.isArray(normalized.achievements)) {
-        normalized.achievements = normalized.achievements.map((achievement, achIndex) => {
-          if (typeof achievement !== "string" || !achievement.trim()) {
-            return achievement;
-          }
+        normalized.achievements = normalized.achievements.map(
+          (achievement, achIndex) => {
+            if (typeof achievement !== "string" || !achievement.trim()) {
+              return achievement;
+            }
 
-          const result = polishStatements(
-            achievement,
-            "experience.achievements",
-            `experience.${index}.achievements.${achIndex}`,
-            style,
-          );
-          annotations.push(...result.annotations);
-          return result.output || achievement;
-        });
+            const result = polishStatements(
+              achievement,
+              "experience.achievements",
+              `experience.${index}.achievements.${achIndex}`,
+              style,
+            );
+            annotations.push(...result.annotations);
+            return result.output || achievement;
+          },
+        );
       }
 
       return normalized;
     });
   }
 
-  const appliedCount = annotations.filter((annotation) => annotation.applied).length;
+  const appliedCount = annotations.filter(
+    (annotation) => annotation.applied,
+  ).length;
   const revertedCount = annotations.length - appliedCount;
 
   return {

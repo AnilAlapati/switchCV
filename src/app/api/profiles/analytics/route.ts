@@ -34,9 +34,8 @@ import {
  * Retrieve analytics for a specific resume
  */
 export async function GET(request: NextRequest) {
-  const { userId: authUserId, error: authError } = await getAuthenticatedUserId(
-    request
-  );
+  const { userId: authUserId, error: authError } =
+    await getAuthenticatedUserId(request);
   if (authError || !authUserId)
     return authError || handleApiError(null, "Unauthorized", 401);
 
@@ -58,14 +57,19 @@ export async function GET(request: NextRequest) {
     const { data: resumeData } = resumeDoc;
     if (resumeData?.userId !== authUserId) {
       // Check if user is admin
-      const userSnap = await collectionRef(COLLECTIONS.USERS).doc(authUserId).get();
+      const userSnap = await collectionRef(COLLECTIONS.USERS)
+        .doc(authUserId)
+        .get();
       const userData = userSnap.data();
       if (userData?.role !== "admin") {
-        logger.warn({ authUserId, resumeId, ownerId: resumeData?.userId }, "Unauthorized analytics access attempt");
+        logger.warn(
+          { authUserId, resumeId, ownerId: resumeData?.userId },
+          "Unauthorized analytics access attempt",
+        );
         return handleApiError(
           null,
           "Forbidden: You do not own this resume",
-          403
+          403,
         );
       }
     }
@@ -76,21 +80,33 @@ export async function GET(request: NextRequest) {
         .doc(resumeData?.userId || "")
         .get();
       const ownerData = ownerSnap.data();
-      const ownerName = ownerData?.displayName || ownerData?.email?.split('@')[0] || "Unknown User";
+      const ownerName =
+        ownerData?.displayName ||
+        ownerData?.email?.split("@")[0] ||
+        "Unknown User";
 
       const result = await getAnalytics(resumeId);
 
       return NextResponse.json({
         ...result,
         ownerName,
-        resumeTitle: resumeData?.title || `Resume #${resumeId}`
+        resumeTitle: resumeData?.title || `Resume #${resumeId}`,
       });
     } catch (innerError) {
-      logger.error({ err: innerError, resumeId }, "Error fetching analytics from service");
-      return handleApiError(innerError, "Failed to retrieve analytics data from service");
+      logger.error(
+        { err: innerError, resumeId },
+        "Error fetching analytics from service",
+      );
+      return handleApiError(
+        innerError,
+        "Failed to retrieve analytics data from service",
+      );
     }
   } catch (outerError) {
-    logger.error({ err: outerError }, "Top-level error in resume analytics GET route");
+    logger.error(
+      { err: outerError },
+      "Top-level error in resume analytics GET route",
+    );
     return handleApiError(outerError, "Failed to retrieve analytics");
   }
 }
@@ -101,25 +117,26 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   const { userId: authUserId } = await getAuthenticatedUserId(request);
-  // POST can be anonymous for public profiles, but if userId is provided, it must match authUserId
+  // Anonymous OK for public profile tracking — auth is optional here.
+  // If userId is provided in the request body, it MUST match the authenticated user (enforced below).
 
   try {
     const parseResult = TrackProfileAnalyticsSchema.safeParse(
-      await request.json()
+      await request.json(),
     );
     if (!parseResult.success) {
       const hasResumeIdError = parseResult.error.issues.some(
-        (issue) => issue.path[0] === "resumeId"
+        (issue) => issue.path[0] === "resumeId",
       );
       const hasEventTypeError = parseResult.error.issues.some(
-        (issue) => issue.path[0] === "eventType"
+        (issue) => issue.path[0] === "eventType",
       );
       return handleApiError(
         parseResult.error,
         hasResumeIdError || hasEventTypeError
           ? "resumeId and eventType are required"
           : "Invalid request payload",
-        400
+        400,
       );
     }
     const trackingRequest = parseResult.data as TrackingRequest;
@@ -159,7 +176,7 @@ export async function POST(request: NextRequest) {
       if (trackingRequest.userId && trackingRequest.eventType === "view") {
         await incrementRecruiterMetric(
           trackingRequest.userId,
-          "profilesViewed"
+          "profilesViewed",
         );
       }
     } catch (metricError) {

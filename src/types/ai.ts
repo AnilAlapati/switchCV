@@ -20,6 +20,10 @@ export interface GenerateOptions {
   userTier: UserTier;
   /** Optional explicit model selection (id from AI_MODELS) */
   modelId?: string;
+  /** When true, request JSON mode from the provider (OpenAI/Groq response_format) */
+  jsonMode?: boolean;
+  /** Optional Gemini-specific structured output schema */
+  responseSchema?: Record<string, unknown>;
 }
 
 export interface GenerateResult {

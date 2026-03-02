@@ -47,6 +47,15 @@ jest.mock("@/lib/utils/rateLimit", () => ({
   checkRateLimit: jest.fn(),
 }));
 
+// Mock cacheService to prevent L1 in-memory cache cross-test pollution
+jest.mock("@/lib/services/cacheService", () => ({
+  cacheService: {
+    get: jest.fn().mockResolvedValue(null),
+    set: jest.fn().mockResolvedValue(undefined),
+    invalidate: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+
 describe("api-helpers", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -103,7 +112,7 @@ describe("api-helpers", () => {
       } as unknown as NextRequest;
 
       (adminAuth.verifyIdToken as jest.Mock).mockRejectedValue(
-        new Error("Invalid token")
+        new Error("Invalid token"),
       );
 
       const result = await getAuthenticatedUserId(req);
@@ -147,7 +156,7 @@ describe("api-helpers", () => {
       } as unknown as NextRequest;
 
       (adminAuth.verifyIdToken as jest.Mock).mockRejectedValue(
-        new Error("Invalid token")
+        new Error("Invalid token"),
       );
 
       const result = await maybeGetAuthenticatedUserId(req);
@@ -320,6 +329,8 @@ describe("api-helpers", () => {
         headers: {
           get: jest.fn().mockReturnValue("Bearer valid-token"),
         },
+        method: "GET",
+        nextUrl: { pathname: "/api/profiles/resume-1" },
       } as unknown as NextRequest;
 
       (adminAuth.verifyIdToken as jest.Mock).mockResolvedValue({
@@ -365,7 +376,7 @@ describe("api-helpers", () => {
       } as unknown as NextRequest;
 
       await expect(safeParseBody(req, 1000)).rejects.toThrow(
-        "Request body too large"
+        "Request body too large",
       );
     });
 
@@ -445,15 +456,15 @@ describe("api-helpers", () => {
       attachRateLimitHeaders(response, result);
       expect(response.headers.set).toHaveBeenCalledWith(
         "X-RateLimit-Limit",
-        "100"
+        "100",
       );
       expect(response.headers.set).toHaveBeenCalledWith(
         "X-RateLimit-Remaining",
-        "50"
+        "50",
       );
       expect(response.headers.set).toHaveBeenCalledWith(
         "X-RateLimit-Reset",
-        expect.any(String)
+        expect.any(String),
       );
     });
   });
@@ -503,7 +514,7 @@ describe("api-helpers", () => {
       expect(response.status).toBe(500);
       // @ts-expect-error - accessing mocked body
       expect(response.body.error).toBe(
-        "An error occurred processing your request"
+        "An error occurred processing your request",
       );
     });
 
@@ -548,16 +559,16 @@ describe("api-helpers", () => {
   describe("getSecureAuthErrorMessage", () => {
     it("should return specific message for known auth errors", () => {
       expect(getSecureAuthErrorMessage(new Error("auth/user-not-found"))).toBe(
-        "Invalid email or password"
+        "Invalid email or password",
       );
       expect(getSecureAuthErrorMessage("auth/too-many-requests")).toBe(
-        "Too many login attempts. Please try again later."
+        "Too many login attempts. Please try again later.",
       );
     });
 
     it("should return default message for unknown auth errors", () => {
       expect(getSecureAuthErrorMessage(new Error("auth/unknown-code"))).toBe(
-        "Authentication failed. Please try again."
+        "Authentication failed. Please try again.",
       );
     });
   });
@@ -565,28 +576,28 @@ describe("api-helpers", () => {
   describe("getSecureFirestoreErrorMessage", () => {
     it("should return specific message for known firestore errors", () => {
       expect(
-        getSecureFirestoreErrorMessage(new Error("PERMISSION_DENIED"))
+        getSecureFirestoreErrorMessage(new Error("PERMISSION_DENIED")),
       ).toBe("You do not have permission to perform this action");
       expect(getSecureFirestoreErrorMessage("NOT_FOUND")).toBe(
-        "The requested resource was not found"
+        "The requested resource was not found",
       );
       expect(getSecureFirestoreErrorMessage("ALREADY_EXISTS")).toBe(
-        "This resource already exists"
+        "This resource already exists",
       );
       expect(getSecureFirestoreErrorMessage("FAILED_PRECONDITION")).toBe(
-        "Cannot perform this operation at this time"
+        "Cannot perform this operation at this time",
       );
       expect(getSecureFirestoreErrorMessage("RESOURCE_EXHAUSTED")).toBe(
-        "Service limit exceeded. Please try again later."
+        "Service limit exceeded. Please try again later.",
       );
       expect(getSecureFirestoreErrorMessage("UNAVAILABLE")).toBe(
-        "Service temporarily unavailable. Please try again later."
+        "Service temporarily unavailable. Please try again later.",
       );
     });
 
     it("should return default message for unknown firestore errors", () => {
       expect(getSecureFirestoreErrorMessage(new Error("UNKNOWN_ERROR"))).toBe(
-        "Unable to process your request. Please try again."
+        "Unable to process your request. Please try again.",
       );
     });
   });

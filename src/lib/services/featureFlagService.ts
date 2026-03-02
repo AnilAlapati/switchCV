@@ -13,6 +13,7 @@
 
 import { adminDb } from "@/lib/firebase-admin";
 import { logger } from "@/lib/logger";
+import { cacheService } from "@/lib/services/cacheService";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -32,39 +33,38 @@ export interface FeatureFlagContext {
   tier?: string;
 }
 
-// ── In-memory cache ────────────────────────────────────────────────────
+// ── Cache constants ─────────────────────────────────────────────────────
 
-interface CacheEntry {
-  data: FeatureFlagDoc | null;
-  fetchedAt: number;
-}
-
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-
-const flagCache = new Map<string, CacheEntry>();
+const FLAG_CACHE_TTL_SECONDS = 5 * 60; // 5 minutes
 
 // ── Hard-coded defaults (fallback when Firestore is unreachable) ──────
 
 const FLAG_DEFAULTS: Record<string, FeatureFlagDoc> = {
-  "resume_v2_intake": {
+  resume_v2_intake: {
     enabled: true,
     description: "Normalized intake path for resume generation",
   },
-  "resume_v2_writer": {
+  resume_v2_writer: {
     enabled: true,
     description: "Structured writer orchestration path",
   },
-  "resume_v2_templates": {
+  resume_v2_templates: {
     enabled: false,
     description: "Resume v2 premium template rendering track",
   },
-  "resume_v2_strict_validation": {
+  resume_v2_strict_validation: {
     enabled: true,
     description: "Block persistence unless strict quality checks pass",
   },
-  "resume_v2_creative_polish": {
+  resume_v2_creative_polish: {
     enabled: false,
     description: "Evidence-backed creative polish stage for resume v2",
+  },
+  resume_v2_ai_extraction: {
+    enabled: true,
+    description:
+      "AI-powered structured extraction for resume data (replaces regex). Enabled for premium+ only.",
+    tiers: ["premium", "enterprise"],
   },
   "agentic-pipeline": {
     enabled: true,
@@ -90,26 +90,35 @@ const FLAG_DEFAULTS: Record<string, FeatureFlagDoc> = {
 // ── Service ────────────────────────────────────────────────────────────
 
 /**
- * Fetch a single feature flag from Firestore (with cache).
+ * Fetch a single feature flag from Firestore (with L1+L2 cacheService).
+ * Only caches positive results — missing flags are not stored so defaults apply.
  */
 async function fetchFlag(flagName: string): Promise<FeatureFlagDoc | null> {
-  const cached = flagCache.get(flagName);
-  if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
-    return cached.data;
+  const cacheKey = `flags:${flagName}`;
+
+  // L1+L2 cache hit
+  const cached = await cacheService.get<FeatureFlagDoc>(cacheKey);
+  if (cached !== null) {
+    return cached;
   }
 
   try {
     const doc = await adminDb.collection("featureFlags").doc(flagName).get();
     const data = doc.exists ? (doc.data() as FeatureFlagDoc) : null;
-    flagCache.set(flagName, { data, fetchedAt: Date.now() });
+    // Only cache defined flags — null means "not in Firestore", let defaults handle it
+    if (data !== null) {
+      await cacheService.set(cacheKey, data, {
+        ttlSeconds: FLAG_CACHE_TTL_SECONDS,
+        namespace: "flags",
+      });
+    }
     return data;
   } catch (error) {
     logger.warn(
       { err: error, flagName },
       "Failed to fetch feature flag, using default",
     );
-    // Return cached value even if stale, or fall through to default
-    return cached?.data ?? null;
+    return null;
   }
 }
 
@@ -180,8 +189,8 @@ export async function getAllFlags(): Promise<
  */
 export function invalidateFlagCache(flagName?: string): void {
   if (flagName) {
-    flagCache.delete(flagName);
+    void cacheService.invalidate(`flags:${flagName}`);
   } else {
-    flagCache.clear();
+    void cacheService.invalidatePattern("flags:*");
   }
 }

@@ -55,6 +55,52 @@ npm test                  # Run tests (if applicable)
 
 If any of these fail locally, they **will fail in Firebase deploy**.
 
+### 3b. AI Generation Quality Check (Production Only — Manual)
+
+> **Launch-blocking.** Run this before every production deploy. Skipping is allowed for hotfixes only — document the exception in the PR.
+
+```bash
+# Requires GEMINI_API_KEY with active quota
+export GEMINI_API_KEY=<your-key>
+node scripts/eval-generation-quality.js
+
+# Add --verbose for per-field accuracy detail
+node scripts/eval-generation-quality.js --verbose
+
+# Optionally test a specific model
+node scripts/eval-generation-quality.js --model gemini-1.5-pro
+```
+
+**What it checks:** 10 representative gold cases (4 chat, 3 paste, 3 PDF) run through live Gemini AI.
+
+| Metric         | Pass threshold | Fail action                               |
+| -------------- | -------------- | ----------------------------------------- |
+| Schema valid   | ≥ 95%          | Block deploy — AI responses are malformed |
+| Field accuracy | ≥ 90%          | Block deploy — extraction has regressed   |
+| Avg latency    | ≤ 5000 ms      | Warn only — monitor post-deploy           |
+| Total cost     | ≤ $0.50        | Never exceeds this for 10 cases           |
+
+**Expected output on pass:**
+
+```
+✅  QUALITY GATE: PASS — all thresholds met
+    Safe to deploy.
+```
+
+**Expected output on fail:**
+
+```
+❌  QUALITY GATE: FAIL
+    Schema valid 87% < 95% threshold
+    Investigate failures before deploying.
+```
+
+Script exits `0` on pass, `1` on fail — safe to chain into deploy scripts:
+
+```bash
+node scripts/eval-generation-quality.js && firebase deploy --only hosting
+```
+
 ### 4. Increment Version (Optional but Recommended)
 
 Before pushing a release to production:

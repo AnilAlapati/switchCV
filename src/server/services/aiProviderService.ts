@@ -18,17 +18,8 @@ import type {
   SelectableModel,
   UserTier,
 } from "@/types/ai";
-import {
-  AI_MODELS,
-  TIER_ACCESS,
-  TIER_PROVIDER_PRIORITY
-} from "./ai/registry";
-import {
-  callOpenAI,
-  callGemini,
-  callAnthropic,
-  callXAI
-} from "./ai/providers";
+import { AI_MODELS, TIER_ACCESS, TIER_PROVIDER_PRIORITY } from "./ai/registry";
+import { callOpenAI, callGemini, callAnthropic, callXAI } from "./ai/providers";
 
 export type {
   AIModelConfig,
@@ -88,7 +79,7 @@ export function getModelsForTier(userTier: UserTier): AIModelConfig[] {
       }
       // For premium/enterprise, prioritize quality
       return b.quality - a.quality;
-    }
+    },
   );
 }
 
@@ -116,13 +107,19 @@ async function callProvider(
   model: AIModelConfig,
   prompt: string,
   maxTokens: number,
-  temperature: number
+  temperature: number,
+  options?: { jsonMode?: boolean; responseSchema?: Record<string, unknown> },
 ): Promise<{ text: string; model: string }> {
   switch (model.provider) {
     case "openai":
-      return callOpenAI(model.id, prompt, maxTokens, temperature);
+      return callOpenAI(model.id, prompt, maxTokens, temperature, {
+        jsonMode: options?.jsonMode,
+      });
     case "google":
-      return callGemini(model.id, prompt, maxTokens, temperature);
+      return callGemini(model.id, prompt, maxTokens, temperature, {
+        jsonMode: options?.jsonMode,
+        responseSchema: options?.responseSchema,
+      });
     case "anthropic":
       return callAnthropic(model.id, prompt, maxTokens, temperature);
     case "xai":
@@ -142,7 +139,7 @@ async function callProvider(
  * @throws Error if no models are available or all fail
  */
 export async function generateTextWithTier(
-  options: GenerateOptions
+  options: GenerateOptions,
 ): Promise<GenerateResult> {
   const {
     prompt,
@@ -150,6 +147,8 @@ export async function generateTextWithTier(
     temperature = 0.7,
     userTier,
     modelId,
+    jsonMode,
+    responseSchema,
   } = options;
 
   let preferredModel: AIModelConfig | undefined;
@@ -168,14 +167,14 @@ export async function generateTextWithTier(
     ) {
       logger.warn(
         { modelId, userTier },
-        "Requested AI model is not allowed or not configured; falling back to automatic selection"
+        "Requested AI model is not allowed or not configured; falling back to automatic selection",
       );
       preferredModel = undefined;
     }
   }
 
   const tierModels = getModelsForTier(userTier).filter((model) =>
-    isProviderConfigured(model.provider)
+    isProviderConfigured(model.provider),
   );
 
   const availableModels: AIModelConfig[] = preferredModel
@@ -186,7 +185,7 @@ export async function generateTextWithTier(
     throw new Error(
       userTier === "basic"
         ? "AI service temporarily unavailable. Please try again later."
-        : "No AI providers configured. Please contact support."
+        : "No AI providers configured. Please contact support.",
     );
   }
 
@@ -196,17 +195,23 @@ export async function generateTextWithTier(
     const breaker = breakers[model.provider as keyof typeof breakers];
 
     if (breaker && breaker.isOpen()) {
-      logger.warn({ model: model.id, provider: model.provider }, "🚫 Circuit Breaker OPEN - Skipping");
+      logger.warn(
+        { model: model.id, provider: model.provider },
+        "🚫 Circuit Breaker OPEN - Skipping",
+      );
       continue;
     }
 
     try {
       logger.info(
         { model: model.id, provider: model.provider, tier: userTier },
-        `Trying ${model.name}...`
+        `Trying ${model.name}...`,
       );
 
-      const result = await callProvider(model, prompt, maxTokens, temperature);
+      const result = await callProvider(model, prompt, maxTokens, temperature, {
+        jsonMode,
+        responseSchema,
+      });
 
       if (breaker) breaker.recordSuccess();
 
@@ -216,7 +221,7 @@ export async function generateTextWithTier(
 
       logger.info(
         { model: model.id, provider: model.provider, estimatedCost },
-        `${model.name} success`
+        `${model.name} success`,
       );
 
       return {
@@ -234,14 +239,14 @@ export async function generateTextWithTier(
 
       logger.warn(
         { model: model.id, error: errorMsg },
-        `${model.name} failed, trying next...`
+        `${model.name} failed, trying next...`,
       );
     }
   }
 
   if (userTier === "basic") {
     throw new Error(
-      "AI service is currently unavailable. Please try again in a few minutes."
+      "AI service is currently unavailable. Please try again in a few minutes.",
     );
   }
 

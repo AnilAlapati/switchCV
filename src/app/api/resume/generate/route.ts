@@ -12,6 +12,7 @@ import { getResumeCount } from "@/lib/services/resumeService";
 import { createGenerationJob } from "@/lib/services/resumeGenerationQueue";
 import { GenerateResumeRequestSchema } from "@/lib/schemas/api";
 import { processSyncGeneration } from "@/lib/services/resumeGenerationOrchestrator";
+import { RESUME_GENERATION_HARD_CAP } from "@/lib/config/rateLimits";
 
 // Cloud Functions URL for async processing (configured per environment)
 const ASYNC_PROCESSOR_URL = process.env.ASYNC_RESUME_PROCESSOR_URL;
@@ -42,6 +43,29 @@ export async function POST(request: NextRequest) {
       return handleApiError(
         new Error("Too many requests"),
         "Too many requests. Please try again later.",
+        429,
+      );
+    }
+
+    // Hard per-user cap: max 10 resume generations per hour (regardless of tier)
+    const generationCap = await checkDistributedRateLimit(userId, {
+      limit: RESUME_GENERATION_HARD_CAP.limit,
+      windowMs: RESUME_GENERATION_HARD_CAP.windowMs,
+      scope: "resume_generation",
+    });
+
+    if (!generationCap.allowed) {
+      logger.warn(
+        {
+          userId,
+          remaining: generationCap.remaining,
+          resetIn: generationCap.resetIn,
+        },
+        "⛔ Per-user resume generation cap reached",
+      );
+      return handleApiError(
+        new Error("Resume generation limit reached"),
+        `You have reached the limit of ${RESUME_GENERATION_HARD_CAP.limit} resume generations per hour. Please try again later.`,
         429,
       );
     }

@@ -12,6 +12,8 @@ import { SkillsExtractor } from "./extractors/SkillsExtractor";
 import { ExperienceExtractor } from "./extractors/ExperienceExtractor";
 import { EducationExtractor } from "./extractors/EducationExtractor";
 import { JSONExtractor } from "./extractors/JSONExtractor";
+import { logger } from "@/lib/logger";
+import type { AIExtractionResult } from "@/lib/services/aiExtractionService";
 
 export interface ExtractionResult {
   /** Successfully extracted data */
@@ -36,7 +38,7 @@ export class ResumeDataExtractor {
    */
   static extract(
     responseText: string,
-    context?: "education" | "experience" | "skills" | "contact" | null
+    context?: "education" | "experience" | "skills" | "contact" | null,
   ): ExtractionResult {
     const data: Partial<ResumeDataRequirements> = {};
     const extractedFields: string[] = [];
@@ -99,7 +101,7 @@ export class ResumeDataExtractor {
    * Detect context from AI message
    */
   private static detectContext(
-    text: string
+    text: string,
   ): "education" | "experience" | "skills" | "contact" | null {
     const lower = text.toLowerCase();
     if (
@@ -156,7 +158,7 @@ export class ResumeDataExtractor {
     ];
 
     return completionMarkers.some((marker) =>
-      text.toLowerCase().includes(marker.toLowerCase())
+      text.toLowerCase().includes(marker.toLowerCase()),
     );
   }
 
@@ -165,7 +167,7 @@ export class ResumeDataExtractor {
    */
   static mergeData(
     existing: Partial<ResumeDataRequirements>,
-    extracted: Partial<ResumeDataRequirements>
+    extracted: Partial<ResumeDataRequirements>,
   ): Partial<ResumeDataRequirements> {
     // Merge simple fields (strings) - Overwrite if present in extracted
     if (extracted.name) existing.name = extracted.name;
@@ -187,9 +189,9 @@ export class ResumeDataExtractor {
           !existingExp.some(
             (existingItem) =>
               existingItem.company.toLowerCase() ===
-              newItem.company.toLowerCase() &&
-              existingItem.title.toLowerCase() === newItem.title.toLowerCase()
-          )
+                newItem.company.toLowerCase() &&
+              existingItem.title.toLowerCase() === newItem.title.toLowerCase(),
+          ),
       );
       existing.experience = [...existingExp, ...newExp];
     }
@@ -202,9 +204,10 @@ export class ResumeDataExtractor {
           !existingEdu.some(
             (existingItem) =>
               existingItem.institution.toLowerCase() ===
-              newItem.institution.toLowerCase() &&
-              existingItem.degree.toLowerCase() === newItem.degree.toLowerCase()
-          )
+                newItem.institution.toLowerCase() &&
+              existingItem.degree.toLowerCase() ===
+                newItem.degree.toLowerCase(),
+          ),
       );
       existing.education = [...existingEdu, ...newEdu];
     }
@@ -222,7 +225,7 @@ export class ResumeDataExtractor {
    * Extract data from entire conversation history
    */
   static extractFromConversation(
-    messages: Array<{ content: string; isUser: boolean }>
+    messages: Array<{ content: string; isUser: boolean }>,
   ): ExtractionResult {
     let aggregatedData: Partial<ResumeDataRequirements> = {};
     let maxConfidence = 0;
@@ -268,5 +271,78 @@ export class ResumeDataExtractor {
       extractedFields: Object.keys(aggregatedData),
       isComplete,
     };
+  }
+
+  /**
+   * Extract from conversation with AI-first strategy.
+   * Combines all user messages, sends to AI for extraction, falls back to regex.
+   *
+   * @param messages - Conversation messages
+   * @param options - AI extraction options (tier, skip flag)
+   * @returns ExtractionResult with data, confidence, and method used
+   */
+  static async extractFromConversationWithAI(
+    messages: Array<{ content: string; isUser: boolean }>,
+    options?: {
+      userTier?: "basic" | "premium" | "enterprise";
+      skipAI?: boolean;
+    },
+  ): Promise<ExtractionResult & { method: "ai" | "regex" }> {
+    // Combine all user messages into a single text block
+    const userText = messages
+      .filter((m) => m.isUser)
+      .map((m) => m.content)
+      .join("\n\n");
+
+    if (!options?.skipAI && userText.trim().length >= 10) {
+      try {
+        const { extractWithStructuredOutput } =
+          await import("@/lib/services/aiExtractionService");
+
+        const aiResult: AIExtractionResult = await extractWithStructuredOutput(
+          userText,
+          {
+            userTier: options?.userTier ?? "premium",
+          },
+        );
+
+        if (aiResult.success && aiResult.data) {
+          // Check completion from assistant messages
+          let isComplete = false;
+          for (const message of messages) {
+            if (!message.isUser && this.hasCompletionMarker(message.content)) {
+              isComplete = true;
+              break;
+            }
+          }
+
+          logger.info(
+            {
+              method: "ai",
+              fields: Object.keys(aiResult.data),
+              latencyMs: aiResult.latencyMs,
+            },
+            "AI extraction succeeded for conversation",
+          );
+
+          return {
+            data: aiResult.data,
+            confidence: 0.95,
+            extractedFields: Object.keys(aiResult.data),
+            isComplete,
+            method: "ai",
+          };
+        }
+      } catch (error) {
+        logger.warn(
+          { err: error },
+          "AI extraction failed for conversation, falling back to regex",
+        );
+      }
+    }
+
+    // Fallback to regex extraction
+    const regexResult = this.extractFromConversation(messages);
+    return { ...regexResult, method: "regex" };
   }
 }

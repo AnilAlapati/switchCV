@@ -31,6 +31,38 @@ export class ContactExtractor implements IExtractor {
     "qa",
   ]);
 
+  private static readonly SECTION_HEADINGS = new Set([
+    "professional summary",
+    "work experience",
+    "work history",
+    "professional experience",
+    "employment history",
+    "education",
+    "academic background",
+    "academic history",
+    "skills",
+    "technical skills",
+    "core skills",
+    "technologies",
+    "projects",
+    "project experience",
+    "contact",
+    "personal info",
+    "personal information",
+    "profile",
+    "summary",
+    "objective",
+    "about",
+    "certifications",
+    "references",
+    "publications",
+    "awards",
+    "interests",
+    "hobbies",
+    "languages",
+    "volunteer experience",
+  ]);
+
   extract(text: string): Partial<ResumeDataRequirements> {
     const data: Partial<ResumeDataRequirements> = {};
     const trimmedText = text.trim();
@@ -38,13 +70,23 @@ export class ContactExtractor implements IExtractor {
     // 1. Extract Name
     const commonWordsToExclude =
       "and|with|but|starting|going|looking|working|here|just|not|very|really";
+    const locationExclusion = "based|located|living|from|moved|moving";
     const namePatterns = [
+      // "My name is ...", "I'm ...", "I am ...", "Call me ..."
       new RegExp(
-        `(?:[Mm]y name is|[Ii]'m|[Ii] am|[Cc]all me)\\s+(?!(?:${commonWordsToExclude})\\b)([a-zA-Z]+(?:\\s+(?!${commonWordsToExclude}\\b)[a-zA-Z]+|[a-zA-Z]\\.?){0,3})(?=\\s|$|[.,])`,
-        "i"
+        `(?:[Mm]y name is|[Ii]'m|[Ii] am|[Cc]all me)\\s+(?!(?:${commonWordsToExclude}|${locationExclusion})\\b)([a-zA-Z]+(?:\\s+(?!${commonWordsToExclude}|${locationExclusion}\\b)[a-zA-Z]+|[a-zA-Z]\\.?){0,3})(?=\\s|$|[.,])`,
+        "i",
       ),
+      // "Name: John Smith" labeled field
       /[Nn]ame:\s*([a-zA-Z]+(?:\s+(?!and\b|with\b|but\b)[a-zA-Z]+|[a-zA-Z]\.?){0,3})(?=\s|$|[.,])/i,
-      /^([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})$/,
+      // "Dr./Mr./Ms./Prof. FirstName LastName" with honorific prefix
+      /^(?:Dr|Mr|Ms|Mrs|Prof|Ir)\.\s+([A-Z][a-zA-Z-]+(?:\s+[A-Z][a-zA-Z-]+){1,2})(?=\s|$|[.,|])/m,
+      // "FirstName LastName | email@..." — pipe-separated contact line
+      /^([A-Z][a-zA-Z-]+(?:\s+[A-Z][a-zA-Z-]+){1,2})\s*\|/m,
+      // "FirstName LastName, email@..." — comma before email
+      /^([A-Z][a-zA-Z-]+(?:\s+[A-Z][a-zA-Z-]+){1,2})\s*,\s*[A-Za-z0-9._%+-]+@/m,
+      // Standalone name line: "First Last" or "First Middle Last" (proper case, no email/pipe)
+      /^([A-Z][a-z-]+(?:\s+[A-Z][a-z-]+){1,2})$/m,
       /^[A-Z][a-z]+$/i,
       /^([a-z]+(?:\s+[a-z]+){1,2})$/i,
     ];
@@ -102,11 +144,13 @@ export class ContactExtractor implements IExtractor {
     }
 
     // 5. Extract GitHub URL
-    const githubRegex = /(?:github\.com\/|@)([a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)/i;
-    const githubUrlRegex = /https?:\/\/(?:www\.)?github\.com\/[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\/)?/i;
+    const githubRegex =
+      /(?:github\.com\/|@)([a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)/i;
+    const githubUrlRegex =
+      /https?:\/\/(?:www\.)?github\.com\/[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\/)?/i;
     const githubUrlMatch = trimmedText.match(githubUrlRegex);
     if (githubUrlMatch) {
-      data.github = githubUrlMatch[0].replace(/\/$/, ''); // Remove trailing slash
+      data.github = githubUrlMatch[0].replace(/\/$/, ""); // Remove trailing slash
     } else {
       const githubMatch = trimmedText.match(githubRegex);
       if (githubMatch) {
@@ -115,21 +159,28 @@ export class ContactExtractor implements IExtractor {
     }
 
     // 6. Extract LinkedIn URL
-    const linkedinUrlRegex = /https?:\/\/(?:www\.)?linkedin\.com\/in\/[a-zA-Z0-9-]+(?:\/)?/i;
+    const linkedinUrlRegex =
+      /https?:\/\/(?:www\.)?linkedin\.com\/in\/[a-zA-Z0-9-]+(?:\/)?/i;
     const linkedinUrlMatch = trimmedText.match(linkedinUrlRegex);
     if (linkedinUrlMatch) {
-      data.linkedin = linkedinUrlMatch[0].replace(/\/$/, '');
+      data.linkedin = linkedinUrlMatch[0].replace(/\/$/, "");
     }
 
     // 7. Extract X (Twitter) URL
-    const twitterUrlRegex = /https?:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/[a-zA-Z0-9_]+(?:\/)?/i;
+    const twitterUrlRegex =
+      /https?:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/[a-zA-Z0-9_]+(?:\/)?/i;
     const twitterHandleRegex = /@([a-zA-Z0-9_]{1,15})\b/;
     const twitterUrlMatch = trimmedText.match(twitterUrlRegex);
     if (twitterUrlMatch) {
-      data.twitter = twitterUrlMatch[0].replace(/\/$/, '');
-    } else if (!data.github) { // Avoid confusing GitHub @username with Twitter
+      data.twitter = twitterUrlMatch[0].replace(/\/$/, "");
+    } else if (!data.github) {
+      // Avoid confusing GitHub @username with Twitter
       const twitterHandleMatch = trimmedText.match(twitterHandleRegex);
-      if (twitterHandleMatch && twitterHandleMatch[1].toLowerCase() !== 'gmail' && twitterHandleMatch[1].toLowerCase() !== 'email') {
+      if (
+        twitterHandleMatch &&
+        twitterHandleMatch[1].toLowerCase() !== "gmail" &&
+        twitterHandleMatch[1].toLowerCase() !== "email"
+      ) {
         data.twitter = `https://x.com/${twitterHandleMatch[1]}`;
       }
     }
@@ -154,7 +205,7 @@ export class ContactExtractor implements IExtractor {
   private toTitleCase(str: string) {
     return str.replace(
       /\w\S*/g,
-      (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
+      (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase(),
     );
   }
 
@@ -169,6 +220,9 @@ export class ContactExtractor implements IExtractor {
     if (/^(a|an|the)\b/.test(normalized)) return true;
     if (/^(currently|working|looking)\b/.test(normalized)) return true;
 
+    // Reject well-known resume section headings
+    if (ContactExtractor.SECTION_HEADINGS.has(normalized)) return true;
+
     const tokens = normalized.split(" ");
     const startsWithSelfIntro = /^(?:i['’]?m|i am)\b/i.test(fullText.trim());
     if (
@@ -177,7 +231,14 @@ export class ContactExtractor implements IExtractor {
     ) {
       return true;
     }
-
+    // Block location-context phrases like "based in Bangalore"
+    if (
+      /^based\b/i.test(normalized) ||
+      /^located\b/i.test(normalized) ||
+      /^living\b/i.test(normalized)
+    ) {
+      return true;
+    }
     return false;
   }
 }

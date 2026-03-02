@@ -87,22 +87,24 @@ export class SkillsExtractor implements IExtractor {
       /(?:I know|I use|experience with)\s+([^\n]+)/i,
     ];
 
-    // 1. Try explicit patterns first
+    // 1. Try explicit patterns — accumulate from ALL matching patterns
+    const accumulatedSkills: string[] = [];
     for (const pattern of skillsPatterns) {
       const match = trimmedText.match(pattern);
       if (match && match[1]) {
         const skillsList = this.parseExplicitSkills(match[1]);
-
-        if (skillsList.length > 0) {
-          data.skills = skillsList;
-          return data;
-        }
+        accumulatedSkills.push(...skillsList);
       }
+    }
+
+    if (accumulatedSkills.length > 0) {
+      data.skills = [...new Set(accumulatedSkills)];
+      return data;
     }
 
     // 2. Fallback: boundary-based keyword matching only (no substring inference)
     const boundaryMatches = SkillsExtractor.TECH_KEYWORDS.filter((keyword) =>
-      this.hasBoundaryMatch(trimmedText, keyword)
+      this.hasBoundaryMatch(trimmedText, keyword),
     );
 
     if (boundaryMatches.length > 0) {
@@ -115,7 +117,12 @@ export class SkillsExtractor implements IExtractor {
   private parseExplicitSkills(text: string): string[] {
     const parts = text
       .split(/,|;|\n|\s+and\s+/i)
-      .map((value) => value.trim().replace(/^[\-\u2022*]\s*/, "").replace(/\.$/, ""))
+      .map((value) =>
+        value
+          .trim()
+          .replace(/^[\-\u2022*]\s*/, "")
+          .replace(/\.$/, ""),
+      )
       .filter((value) => value.length > 0 && value.length <= 50);
 
     const normalized = parts.filter((value) => {
@@ -128,7 +135,10 @@ export class SkillsExtractor implements IExtractor {
 
   private hasBoundaryMatch(text: string, keyword: string): boolean {
     const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const regex = new RegExp(`(^|[^A-Za-z0-9])${escapedKeyword}([^A-Za-z0-9]|$)`, "i");
+    const regex = new RegExp(
+      `(^|[^A-Za-z0-9])${escapedKeyword}([^A-Za-z0-9]|$)`,
+      "i",
+    );
     return regex.test(text);
   }
 }

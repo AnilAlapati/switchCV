@@ -10,7 +10,10 @@
  *   5. Resume creation when ready
  */
 
+import * as Sentry from "@sentry/nextjs";
 import { logger } from "@/lib/logger";
+import { reportError } from "@/lib/errorReporter";
+import { captureServerEvent } from "@/lib/services/serverAnalytics";
 import { generateText } from "@/lib/services/aiGenerationService";
 import { generateTextWithTier } from "@/lib/services/aiProviderService";
 import { BillingService } from "@/lib/services/billingService";
@@ -45,6 +48,8 @@ import {
   applyCreativePolish,
   type CreativeStyle,
 } from "@/lib/services/resumeCreativePolisher";
+import { AIResumeResponseSchema } from "@/lib/schemas/aiResumeSchema";
+import { zodToGeminiSchema } from "@/lib/utils/zodToGeminiSchema";
 
 export interface ConversationEntry {
   id?: string;
@@ -68,6 +73,27 @@ const EMPTY_EXTRACTION_RESULT = {
 interface NormalizedAIResponse {
   text: string;
   model?: string;
+}
+
+/**
+ * Add a Sentry breadcrumb for an orchestrator pipeline step.
+ * Wrapped in try/catch so a Sentry initialisation failure never breaks generation.
+ */
+function addPipelineBreadcrumb(
+  message: string,
+  data?: Record<string, unknown>,
+  level: Sentry.SeverityLevel = "info",
+): void {
+  try {
+    Sentry.addBreadcrumb({
+      category: "resume.generation",
+      message,
+      level,
+      data,
+    });
+  } catch {
+    // Sentry may be unavailable (tests, edge runtime) — never block generation
+  }
 }
 
 function normalizeAIResponse(payload: unknown): NormalizedAIResponse {
@@ -139,8 +165,12 @@ export async function processSyncGeneration(
   const shouldPersistResult = persistResult ?? true;
 
   const flags = await evaluateResumeV2Flags();
-  const strictValidationEnabled = strictMode ?? flags.resume_v2_strict_validation;
-  const allMessages = [...conversationHistory, { content: message, isUser: true }];
+  const strictValidationEnabled =
+    strictMode ?? flags.resume_v2_strict_validation;
+  const allMessages = [
+    ...conversationHistory,
+    { content: message, isUser: true },
+  ];
 
   logger.info(
     {
@@ -149,6 +179,12 @@ export async function processSyncGeneration(
     },
     "🚩 Resume generation flags evaluated",
   );
+  addPipelineBreadcrumb("flags evaluated", {
+    resume_v2_writer: flags.resume_v2_writer,
+    resume_v2_strict_validation: flags.resume_v2_strict_validation,
+    strictValidationEnabled,
+    userTier,
+  });
 
   // Step 1: Extract data from conversation history
   let extractionResult = EMPTY_EXTRACTION_RESULT;
@@ -170,6 +206,11 @@ export async function processSyncGeneration(
     },
     "📊 Extraction Result:",
   );
+  addPipelineBreadcrumb("data extraction complete", {
+    confidence: extractionResult.confidence,
+    fieldCount: extractionResult.extractedFields.length,
+    isComplete: extractionResult.isComplete,
+  });
 
   // Step 2: Initialize conversation manager with extracted data
   const conversationManager = new ConversationManager(
@@ -235,10 +276,15 @@ export async function processSyncGeneration(
   );
 
   // Step 4: Generate AI response (tier-aware with graceful fallback)
+  // When resume_v2_writer is enabled, use structured output for guaranteed valid JSON
   type TieredResult = Awaited<ReturnType<typeof generateTextWithTier>>;
   type LegacyResult = Awaited<ReturnType<typeof generateText>>;
 
   let aiResponse: TieredResult | LegacyResult;
+
+  const geminiResponseSchema = flags.resume_v2_writer
+    ? zodToGeminiSchema(AIResumeResponseSchema)
+    : undefined;
 
   try {
     aiResponse = await generateTextWithTier({
@@ -247,29 +293,80 @@ export async function processSyncGeneration(
       temperature: 0.7,
       userTier,
       modelId,
+      jsonMode: flags.resume_v2_writer ? true : undefined,
+      responseSchema: geminiResponseSchema as unknown as
+        | Record<string, unknown>
+        | undefined,
     });
   } catch (tieredError) {
     logger.error(
       { err: tieredError, userId, userTier, modelId },
       "Tier-based AI provider selection failed, falling back to legacy generator",
     );
+    reportError(tieredError, {
+      source: "resumeGenerationOrchestrator.tieredAI",
+      severity: "warning",
+      meta: { userId, userTier, modelId },
+    });
     aiResponse = await generateText(prompt, 4000, 0.7);
   }
   const normalizedAIResponse = normalizeAIResponse(aiResponse);
   const responseText = normalizedAIResponse.text;
+  addPipelineBreadcrumb("AI generation complete", {
+    model: normalizedAIResponse.model ?? "unknown",
+    responseLength: responseText.length,
+    jsonMode: flags.resume_v2_writer ?? false,
+  });
 
   // Track Billing
-  await BillingService.trackUsage(userId, normalizedAIResponse.model || "default", {
-    input: Math.ceil(prompt.length / 4),
-    output: Math.ceil(responseText.length / 4),
-  });
+  await BillingService.trackUsage(
+    userId,
+    normalizedAIResponse.model || "default",
+    {
+      input: Math.ceil(prompt.length / 4),
+      output: Math.ceil(responseText.length / 4),
+    },
+  );
 
   // Step 5: Check if AI indicates completion or if we have enough data
   const aiIndicatesCompletion = isCompletionResponse(responseText);
 
   // CRITICAL FIX: Sync generated JSON with ConversationManager
   let updatedProgress = progress;
-  const generatedJson = flags.resume_v2_writer ? extractResumeJSON(responseText) : null;
+  let generatedJson: Record<string, unknown> | null = null;
+
+  if (flags.resume_v2_writer) {
+    // With structured output enabled, try to parse the response directly as JSON first
+    // (Gemini structured output returns raw JSON, no markdown fences)
+    try {
+      const parsed = JSON.parse(responseText);
+      const validated = AIResumeResponseSchema.safeParse(parsed);
+      if (validated.success) {
+        generatedJson = validated.data as unknown as Record<string, unknown>;
+        logger.info(
+          "✅ Structured output: AI response is valid JSON matching schema",
+        );
+      } else {
+        logger.warn(
+          { errors: validated.error.flatten() },
+          "⚠️ Structured output: AI returned JSON but schema validation failed, falling back to regex",
+        );
+        generatedJson = extractResumeJSON(responseText) as unknown as Record<
+          string,
+          unknown
+        > | null;
+      }
+    } catch {
+      // Not raw JSON — fall back to regex extraction (legacy markdown-fenced JSON)
+      logger.info(
+        "📋 Falling back to regex-based JSON extraction from AI response",
+      );
+      generatedJson = extractResumeJSON(responseText) as unknown as Record<
+        string,
+        unknown
+      > | null;
+    }
+  }
 
   if (generatedJson) {
     logger.info("🧠 Syncing AI-generated JSON back to ConversationManager");
@@ -277,7 +374,9 @@ export async function processSyncGeneration(
     conversationManager.markAsComplete();
     updatedProgress = conversationManager.getProgress();
   } else if (!flags.resume_v2_writer) {
-    logger.info("🛑 resume_v2_writer disabled; using extracted conversation data only");
+    logger.info(
+      "🛑 resume_v2_writer disabled; using extracted conversation data only",
+    );
   }
 
   // Determine if we should create the resume
@@ -308,12 +407,27 @@ export async function processSyncGeneration(
 
   // Step 6: Create resume if ready
   if (shouldCreateResume && updatedProgress.hasMinimumData) {
+    addPipelineBreadcrumb("starting resume creation", {
+      completenessPercentage: updatedProgress.completenessPercentage,
+      pipeline: flags.resume_v2_writer ? "v2_structured" : "v1_regex",
+      hasGeneratedJson: generatedJson !== null,
+    });
     try {
       let resumeData = generatedJson;
       let regenerationAttempts = 0;
 
       if (!resumeData) {
         resumeData = conversationManager.getData();
+      } else {
+        // Merge extracted conversation fields (name, email, phone, etc.)
+        // with AI-generated structured data. The AI schema produces
+        // summary/skills/experience/education but extraction provides
+        // top-level name/email needed by contract validation.
+        const extractedData = conversationManager.getData();
+        resumeData = {
+          ...(extractedData as Record<string, unknown>),
+          ...resumeData,
+        };
       }
 
       let candidateData =
@@ -334,7 +448,10 @@ export async function processSyncGeneration(
         const contractErrors = validateStructuredResumeContract(candidate, {
           strictMode: strictValidationEnabled,
         });
-        const factualAlignment = evaluateFactualAlignment(candidate, allMessages);
+        const factualAlignment = evaluateFactualAlignment(
+          candidate,
+          allMessages,
+        );
         const strictFactualErrors = strictValidationEnabled
           ? factualAlignment.errors
           : [];
@@ -370,6 +487,19 @@ export async function processSyncGeneration(
 
         try {
           regenerationAttempts = 1;
+          addPipelineBreadcrumb(
+            "repair loop triggered",
+            {
+              errorCount: validation.errors.length,
+              errors: validation.errors.slice(0, 5),
+            },
+            "warning",
+          );
+          await captureServerEvent(userId, "resume_repair_triggered", {
+            errorCount: validation.errors.length,
+            userTier,
+            pipeline: flags.resume_v2_writer ? "v2_structured" : "v1_regex",
+          });
           const repairResponse = await generateTextWithTier({
             prompt: repairPrompt,
             maxTokens: 2500,
@@ -378,15 +508,19 @@ export async function processSyncGeneration(
             modelId,
           });
 
-          await BillingService.trackUsage(userId, repairResponse.model || "default", {
-            input: Math.ceil(repairPrompt.length / 4),
-            output: Math.ceil(repairResponse.text.length / 4),
-          });
+          await BillingService.trackUsage(
+            userId,
+            repairResponse.model || "default",
+            {
+              input: Math.ceil(repairPrompt.length / 4),
+              output: Math.ceil(repairResponse.text.length / 4),
+            },
+          );
 
           const repairedJson = extractResumeJSON(repairResponse.text);
           if (repairedJson) {
-            resumeData = repairedJson;
-            candidateData = repairedJson as Record<string, unknown>;
+            resumeData = repairedJson as unknown as Record<string, unknown>;
+            candidateData = repairedJson as unknown as Record<string, unknown>;
             validation = evaluateCandidate(candidateData);
           }
         } catch (repairError) {
@@ -394,6 +528,11 @@ export async function processSyncGeneration(
             { err: repairError, userId },
             "Validation repair pass failed; falling back to clarification flow",
           );
+          reportError(repairError, {
+            source: "resumeGenerationOrchestrator.repairLoop",
+            severity: "warning",
+            meta: { userId },
+          });
         }
       }
 
@@ -422,14 +561,12 @@ export async function processSyncGeneration(
         }
       }
 
-      const qualityReport = buildQualityReport(
-        {
-          schemaValid: validation.valid,
-          validationErrors: validation.errors,
-          regenerationAttempts,
-          factualAlignmentScore: validation.factualAlignment.score,
-        },
-      );
+      const qualityReport = buildQualityReport({
+        schemaValid: validation.valid,
+        validationErrors: validation.errors,
+        regenerationAttempts,
+        factualAlignmentScore: validation.factualAlignment.score,
+      });
 
       if (!validation.valid) {
         logger.warn({ errors: validation.errors }, "⚠️ Validation failed");
@@ -458,7 +595,10 @@ export async function processSyncGeneration(
 
       const evidenceMap = buildEvidenceMap(candidateData, allMessages);
       if (creativeAnnotations.length > 0) {
-        evidenceMap.creativePolishAnnotations = creativeAnnotations.slice(0, 25);
+        evidenceMap.creativePolishAnnotations = creativeAnnotations.slice(
+          0,
+          25,
+        );
       }
       const generationVersion: ResumeGenerationVersion = {
         pipeline: creativePolishApplied
@@ -497,6 +637,22 @@ export async function processSyncGeneration(
       const cleanResponse = "One moment, I'm finalizing your resume...";
 
       logger.info({ data: resumeId }, "✅ Resume created successfully:");
+      addPipelineBreadcrumb("resume created", {
+        resumeId,
+        numericId,
+        pipeline: generationVersion.pipeline,
+        regenerationAttempts,
+        factualAlignmentScore: validation.factualAlignment.score,
+      });
+      await captureServerEvent(userId, "resume_generated", {
+        resumeId,
+        numericId,
+        pipeline: generationVersion.pipeline,
+        creativePolishApplied,
+        regenerationAttempts,
+        factualAlignmentScore: validation.factualAlignment.score,
+        userTier,
+      });
 
       return {
         response: cleanResponse,
@@ -508,7 +664,24 @@ export async function processSyncGeneration(
         qualityReport,
       };
     } catch (createError) {
+      addPipelineBreadcrumb(
+        "resume creation failed",
+        {
+          pipeline: flags.resume_v2_writer ? "v2_structured" : "v1_regex",
+          userTier,
+        },
+        "error",
+      );
       logger.error({ err: createError }, "❌ Error creating resume:");
+      reportError(createError, {
+        source: "resumeGenerationOrchestrator.createResume",
+        severity: "error",
+        meta: { userId, userTier },
+      });
+      await captureServerEvent(userId, "resume_generation_failed", {
+        userTier,
+        pipeline: flags.resume_v2_writer ? "v2_structured" : "v1_regex",
+      });
       throw createError;
     }
   }

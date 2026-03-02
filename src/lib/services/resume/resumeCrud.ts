@@ -7,81 +7,82 @@ import { adminDb } from "@/lib/firebase-admin";
 import type { ResumeProfile } from "@/types";
 import { logger } from "@/lib/logger";
 import { generateNumericResumeId } from "@/lib/numericIdGenerator";
+import { cacheService } from "@/lib/services/cacheService";
 
 /** Input data for creating a blank resume */
 export interface CreateResumeInput {
-    title?: string;
-    profile?: Partial<ResumeProfile>;
+  title?: string;
+  profile?: Partial<ResumeProfile>;
 }
 
 /** Generated resume data from AI conversation */
 export interface GeneratedResumeInput {
-    name?: string;
-    email?: string;
-    phone?: string;
-    location?: string;
-    summary?: string;
-    experience?: Array<{
-        company: string;
-        role?: string;
-        title?: string; // Alternative to role from CollectedResumeData
-        startDate?: string;
-        endDate?: string;
-        duration?: string; // Alternative to startDate/endDate
-        description?: string;
-        achievements?: string[];
-    }>;
-    education?: Array<{
-        institution: string;
-        degree: string;
-        startDate?: string;
-        endDate?: string;
-        year?: string; // Alternative to endDate from CollectedResumeData
-        major?: string;
-    }>;
-    skills?: string[] | Array<{ name: string }>;
+  name?: string;
+  email?: string;
+  phone?: string;
+  location?: string;
+  summary?: string;
+  experience?: Array<{
+    company: string;
+    role?: string;
+    title?: string; // Alternative to role from CollectedResumeData
+    startDate?: string;
+    endDate?: string;
+    duration?: string; // Alternative to startDate/endDate
+    description?: string;
+    achievements?: string[];
+  }>;
+  education?: Array<{
+    institution: string;
+    degree: string;
+    startDate?: string;
+    endDate?: string;
+    year?: string; // Alternative to endDate from CollectedResumeData
+    major?: string;
+  }>;
+  skills?: string[] | Array<{ name: string }>;
 }
 
 export interface GenerationQualityReport {
-    schemaValid: boolean;
-    factualAlignmentScore: number;
-    validationErrors?: string[];
-    regenerationAttempts?: number;
+  schemaValid: boolean;
+  factualAlignmentScore: number;
+  validationErrors?: string[];
+  regenerationAttempts?: number;
 }
 
 export interface ResumeGenerationVersion {
-    pipeline: "v1_regex" | "v2_structured" | "v2_creative";
-    version?: string;
+  pipeline: "v1_regex" | "v2_structured" | "v2_creative";
+  version?: string;
 }
 
 export interface GeneratedResumeMetadata {
-    qualityReport?: GenerationQualityReport;
-    evidenceMap?: Record<string, string[]>;
-    generationVersion?: ResumeGenerationVersion;
+  qualityReport?: GenerationQualityReport;
+  evidenceMap?: Record<string, string[]>;
+  generationVersion?: ResumeGenerationVersion;
 }
 
 /**
  * Creates a new blank resume for a user.
  */
 export async function createResume(userId: string, data: CreateResumeInput) {
-    const numericId = await generateNumericResumeId();
-    const resumeId = numericId.toString();
+  const numericId = await generateNumericResumeId();
+  const resumeId = numericId.toString();
 
-    const resumeData = {
-        ...data,
-        id: resumeId,
-        userId,
-        numericId,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        isPublic: false,
-        published: false,
-        status: "draft",
-    };
+  const resumeData = {
+    ...data,
+    id: resumeId,
+    userId,
+    numericId,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    isPublic: false,
+    published: false,
+    status: "draft",
+  };
 
-    await adminDb.collection("resumes").doc(resumeId).set(resumeData);
+  await adminDb.collection("resumes").doc(resumeId).set(resumeData);
 
-    return { resumeId, numericId };
+  return { resumeId, numericId };
 }
 
 /**
@@ -89,158 +90,168 @@ export async function createResume(userId: string, data: CreateResumeInput) {
  * Handles dual-writing to main collection and user subcollection.
  */
 export async function saveGeneratedResume(
-    userId: string,
-    resumeData: GeneratedResumeInput,
-    metadata?: GeneratedResumeMetadata
+  userId: string,
+  resumeData: GeneratedResumeInput,
+  metadata?: GeneratedResumeMetadata,
 ) {
-    // Generate numeric ID
-    const numericId = await generateNumericResumeId();
-    const resumeId = numericId.toString();
+  // Generate numeric ID
+  const numericId = await generateNumericResumeId();
+  const resumeId = numericId.toString();
 
-    // Normalize experience data (handle both CollectedResumeData and legacy formats)
-    const normalizedExperience = (resumeData.experience || []).map((exp) => ({
-        company: exp.company,
-        role: exp.role || exp.title || "",
-        startDate: exp.startDate || "",
-        endDate: exp.endDate || "",
-        duration: exp.duration || "",
-        description: exp.description || "",
-        achievements: exp.achievements || [],
-    }));
+  // Normalize experience data (handle both CollectedResumeData and legacy formats)
+  const normalizedExperience = (resumeData.experience || []).map((exp) => ({
+    company: exp.company,
+    role: exp.role || exp.title || "",
+    startDate: exp.startDate || "",
+    endDate: exp.endDate || "",
+    duration: exp.duration || "",
+    description: exp.description || "",
+    achievements: exp.achievements || [],
+  }));
 
-    // Normalize education data
-    const normalizedEducation = (resumeData.education || []).map((edu) => ({
-        institution: edu.institution,
-        degree: edu.degree,
-        startDate: edu.startDate || "",
-        endDate: edu.endDate || edu.year || "",
-        major: edu.major || "",
-    }));
+  // Normalize education data
+  const normalizedEducation = (resumeData.education || []).map((edu) => ({
+    institution: edu.institution,
+    degree: edu.degree,
+    startDate: edu.startDate || "",
+    endDate: edu.endDate || edu.year || "",
+    major: edu.major || "",
+  }));
 
-    const generationVersion: ResumeGenerationVersion = metadata?.generationVersion || {
-        pipeline: "v1_regex",
+  const generationVersion: ResumeGenerationVersion =
+    metadata?.generationVersion || {
+      pipeline: "v1_regex",
     };
 
-    // Prepare resume document
-    const resumeDocument = {
-        id: resumeId,
-        userId,
-        numericId,
-        title: `${resumeData.name || "User"}'s Resume` || "AI Generated Resume",
-        personalInfo: {
-            name: resumeData.name || "",
-            email: resumeData.email || "",
-            phone: resumeData.phone || "",
-            location: resumeData.location || "",
-        },
-        summary: resumeData.summary || "",
-        experience: normalizedExperience,
-        education: normalizedEducation,
-        skills: resumeData.skills || [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        createdVia: "ai-conversation",
-        isPublic: false,
-        status: "draft",
-        qualityReport: metadata?.qualityReport || null,
-        evidenceMap: metadata?.evidenceMap || null,
-        generationVersion,
-    };
+  // Prepare resume document
+  const resumeDocument = {
+    id: resumeId,
+    userId,
+    numericId,
+    title: `${resumeData.name || "User"}'s Resume` || "AI Generated Resume",
+    personalInfo: {
+      name: resumeData.name || "",
+      email: resumeData.email || "",
+      phone: resumeData.phone || "",
+      location: resumeData.location || "",
+    },
+    summary: resumeData.summary || "",
+    experience: normalizedExperience,
+    education: normalizedEducation,
+    skills: resumeData.skills || [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    createdVia: "ai-conversation",
+    isPublic: false,
+    status: "draft",
+    qualityReport: metadata?.qualityReport || null,
+    evidenceMap: metadata?.evidenceMap || null,
+    generationVersion,
+  };
 
-    // Save to Firestore
-    await adminDb.collection("resumes").doc(resumeId).set(resumeDocument);
+  // Save to Firestore
+  await adminDb.collection("resumes").doc(resumeId).set(resumeDocument);
 
-    // Also save to user's subcollection (Legacy support or fast lookup)
-    await adminDb
-        .collection("users")
-        .doc(userId)
-        .collection("userResumes")
-        .doc(resumeId)
-        .set({
-            id: resumeId,
-            title: resumeDocument.title,
-            createdAt: resumeDocument.createdAt,
-            updatedAt: resumeDocument.updatedAt,
-            numericId,
-        });
+  // Also save to user's subcollection (Legacy support or fast lookup)
+  await adminDb
+    .collection("users")
+    .doc(userId)
+    .collection("userResumes")
+    .doc(resumeId)
+    .set({
+      id: resumeId,
+      title: resumeDocument.title,
+      createdAt: resumeDocument.createdAt,
+      updatedAt: resumeDocument.updatedAt,
+      numericId,
+    });
 
-    return { resumeId, numericId };
+  return { resumeId, numericId };
 }
 
 /**
  * Counts the number of resumes owned by a user.
  */
 export async function getResumeCount(userId: string): Promise<number> {
-    const snapshot = await adminDb
-        .collection("resumes")
-        .where("userId", "==", userId)
-        .count()
-        .get();
+  const snapshot = await adminDb
+    .collection("resumes")
+    .where("userId", "==", userId)
+    .count()
+    .get();
 
-    return snapshot.data().count;
+  return snapshot.data().count;
 }
 
 /**
  * Updates a resume with new data.
  */
 export async function updateResume(
-    id: string,
-    userId: string,
-    data: Partial<ResumeProfile>
+  id: string,
+  userId: string,
+  data: Partial<ResumeProfile>,
 ): Promise<void> {
-    const { sanitizeResumePayload } = await import("@/lib/utils/resumeEditor");
-    const sanitized = sanitizeResumePayload(data);
-    const timestamp = new Date().toISOString();
+  const { sanitizeResumePayload } = await import("@/lib/utils/resumeEditor");
+  const sanitized = sanitizeResumePayload(data);
+  const timestamp = new Date().toISOString();
 
-    await adminDb
-        .collection("resumes")
-        .doc(id)
-        .set(
-            {
-                ...sanitized,
-                updatedAt: timestamp,
-                lastUpdatedAt: timestamp,
-            },
-            { merge: true }
-        );
+  await adminDb
+    .collection("resumes")
+    .doc(id)
+    .set(
+      {
+        ...sanitized,
+        updatedAt: timestamp,
+        lastUpdatedAt: timestamp,
+      },
+      { merge: true },
+    );
+
+  // Invalidate cached resume document so next read reflects the update
+  void cacheService.invalidate(`resume:${id}`);
 }
 
 /**
  * Deletes a resume and recycles its ID.
  */
 export async function deleteResume(id: string, userId: string): Promise<void> {
-    const { addDeletedIdToPool } = await import("@/lib/resumeIdRecycler");
+  const { addDeletedIdToPool } = await import("@/lib/resumeIdRecycler");
 
-    // Safety check - though controller should handle ownership
-    const docRef = adminDb.collection("resumes").doc(id);
-    const doc = await docRef.get();
+  // Safety check - though controller should handle ownership
+  const docRef = adminDb.collection("resumes").doc(id);
+  const doc = await docRef.get();
 
-    if (!doc.exists) throw new Error("Resume not found");
-    if (doc.data()?.userId !== userId) throw new Error("Unauthorized");
+  if (!doc.exists) throw new Error("Resume not found");
+  if (doc.data()?.userId !== userId) throw new Error("Unauthorized");
 
-    // Use recursive delete to handle subcollections (accessRequests, accessGrants)
-    await adminDb.recursiveDelete(docRef);
+  // Use recursive delete to handle subcollections (accessRequests, accessGrants)
+  await adminDb.recursiveDelete(docRef);
 
-    // Also delete the denormalized reference in user's collection
-    try {
-        await adminDb
-            .collection("users")
-            .doc(userId)
-            .collection("userResumes")
-            .doc(id)
-            .delete();
-    } catch (error) {
-        logger.warn(
-            { err: error, userId, resumeId: id },
-            "Failed to delete userResume reference"
-        );
-    }
+  // Also delete the denormalized reference in user's collection
+  try {
+    await adminDb
+      .collection("users")
+      .doc(userId)
+      .collection("userResumes")
+      .doc(id)
+      .delete();
+  } catch (error) {
+    logger.warn(
+      { err: error, userId, resumeId: id },
+      "Failed to delete userResume reference",
+    );
+  }
 
-    // Recycle ID
-    const numericId = parseInt(id, 10);
-    if (!isNaN(numericId)) {
-        addDeletedIdToPool(numericId).catch((err) =>
-            logger.error({ err, numericId }, "Failed to recycle resume ID in service")
-        );
-    }
+  // Recycle ID
+  const numericId = parseInt(id, 10);
+  if (!isNaN(numericId)) {
+    addDeletedIdToPool(numericId).catch((err) =>
+      logger.error(
+        { err, numericId },
+        "Failed to recycle resume ID in service",
+      ),
+    );
+  }
+
+  // Invalidate cached resume document
+  void cacheService.invalidate(`resume:${id}`);
 }
