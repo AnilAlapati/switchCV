@@ -52,6 +52,13 @@ export const AIEducationSchema = z.object({
   degree: z.string().min(1).max(200),
   startDate: z.string().min(1).max(20),
   endDate: z.string().min(1).max(20).optional(),
+  grade: z
+    .string()
+    .max(50)
+    .optional()
+    .describe(
+      "Academic grade/score exactly as stated: GPA (3.8/4.0), CGPA (8.5/10), percentage (85%), degree classification (First Class, 2:1, 2:2), or other format",
+    ),
   description: z.string().max(1000).optional(),
   visibility: VisibilitySchema,
 });

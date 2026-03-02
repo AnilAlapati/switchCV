@@ -22,6 +22,13 @@ export const educationSchema = z.object({
   degree: z.string().min(1).max(200),
   startDate: z.string(),
   endDate: z.string().optional(),
+  grade: z
+    .string()
+    .max(50)
+    .optional()
+    .describe(
+      "Academic grade exactly as stated: GPA (3.8/4.0), CGPA (8.5/10), percentage (85%), degree classification (First Class, 2:1)",
+    ),
   description: z.string().max(5000).optional(),
   visibility: visibilitySchema.optional().default("public"),
 });
@@ -82,7 +89,7 @@ export const comparisonResumeSchema = z.object({
       endDate: z.string().optional(),
       description: z.string(),
       achievements: z.array(z.string()).optional(),
-    })
+    }),
   ),
   education: z.array(
     z.object({
@@ -91,7 +98,7 @@ export const comparisonResumeSchema = z.object({
       field: z.string(),
       year: z.number(),
       gpa: z.number().optional(),
-    })
+    }),
   ),
   certifications: z.array(z.string()).optional(),
   languages: z.array(z.string()).optional(),

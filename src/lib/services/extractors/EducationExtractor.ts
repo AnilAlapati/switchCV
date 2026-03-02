@@ -4,7 +4,7 @@ import { IExtractor } from "./IExtractor";
 export class EducationExtractor implements IExtractor {
   extract(
     text: string,
-    context?: "education" | "experience" | "skills" | "contact" | null
+    context?: "education" | "experience" | "skills" | "contact" | null,
   ): Partial<ResumeDataRequirements> {
     const data: Partial<ResumeDataRequirements> = {};
     const fullText = text;
@@ -59,7 +59,7 @@ export class EducationExtractor implements IExtractor {
       if (context === "education") {
         eduPatterns.push(
           /^(.+?)\s+(?:at|from|in)\s+(.+?)(?:\s+(\d{4}))?$/i,
-          /^(.+?),\s*(.+?)(?:,\s*(\d{4}))?$/i
+          /^(.+?),\s*(.+?)(?:,\s*(\d{4}))?$/i,
         );
       }
 
@@ -107,6 +107,7 @@ export class EducationExtractor implements IExtractor {
             institution,
             year,
             major: major || undefined,
+            gpa: this.extractGrade(fullText) || undefined,
           };
           data.education = [education];
           break;
@@ -115,5 +116,38 @@ export class EducationExtractor implements IExtractor {
     }
 
     return data;
+  }
+
+  /**
+   * Extract grade/GPA/CGPA/percentage/classification from text.
+   * Supports India (CGPA out of 10, percentage), USA (GPA out of 4.0),
+   * UK (degree classification like 2:1, First Class), and other formats.
+   */
+  private extractGrade(text: string): string | null {
+    const gradePatterns = [
+      // CGPA patterns (India): "CGPA 8.5/10", "CGPA 8.5 out of 10", "CGPA: 8.5"
+      /CGPA\s*[:\-]?\s*(\d+\.?\d*\s*(?:\/\s*\d+|out\s+of\s+\d+)?)/i,
+      // GPA patterns (USA): "GPA 3.8", "GPA 3.8/4.0", "GPA: 3.8"
+      /GPA\s*[:\-]?\s*(\d+\.?\d*\s*(?:\/\s*\d+\.?\d*)?)/i,
+      // Grade patterns: "Grade - 7.2/10", "Grade: 7.2"
+      /Grade\s*[:\-]\s*(\d+\.?\d*\s*(?:\/\s*\d+)?)/i,
+      // Marks patterns (India): "Marks - 85-89.9%", "Marks: 85%", "scored 85%"
+      /(?:Marks|scored)\s*[:\-]?\s*(\d+(?:\.\d+)?(?:\s*-\s*\d+(?:\.\d+)?)?%)/i,
+      // Percentage standalone: "with 85%", "85% marks"
+      /(?:with\s+)?(\d{2,3}(?:\.\d+)?%)\s*(?:marks|aggregate)?/i,
+      // UK degree classification
+      /(?:with\s+(?:a\s+)?|,\s*)(First Class(?:\s+Honours)?|Upper Second Class|Lower Second Class|Third Class|[12]:[12]|2\.[12])/i,
+      // German grade: "grade 1.3", "final grade 1.3"
+      /(?:final\s+)?grade\s*[:\-]?\s*(\d\.\d)/i,
+    ];
+
+    for (const pattern of gradePatterns) {
+      const match = text.match(pattern);
+      if (match && match[1]) {
+        return match[1].trim();
+      }
+    }
+
+    return null;
   }
 }

@@ -35,6 +35,7 @@ export interface CollectedResumeData {
     institution: string;
     year: string;
     major?: string;
+    grade?: string;
   }>;
   skills?: string[];
   isComplete?: boolean;
@@ -94,7 +95,8 @@ Example 1 - Software Engineer:
       "degree": "Bachelor of Science",
       "institution": "UC Berkeley",
       "year": "2018",
-      "major": "Computer Science"
+      "major": "Computer Science",
+      "grade": "3.8/4.0 GPA"
     }
   ],
   "skills": ["TypeScript", "React", "Node.js", "PostgreSQL", "AWS", "Docker"]
@@ -127,7 +129,8 @@ Example 2 - Marketing Manager:
       "degree": "MBA",
       "institution": "Northwestern Kellogg",
       "year": "2019",
-      "major": "Marketing"
+      "major": "Marketing",
+      "grade": ""
     }
   ],
   "skills": ["SEO", "Google Analytics", "HubSpot", "Content Strategy", "Paid Advertising"]
@@ -141,7 +144,15 @@ Example 2 - Marketing Manager:
 - Infer skills from their experience if they don't explicitly list them.
 - Never hallucinate achievements or metrics the user didn't mention.
 - Keep JSON output complete and valid (do not truncate).
-- When confirming details, briefly repeat: "Got it: [Title] at [Company]. Nice!"`;
+- When confirming details, briefly repeat: "Got it: [Title] at [Company]. Nice!"
+- PRESERVE ALL GRADES EXACTLY as given: GPA (3.8), CGPA (8.5/10), percentage (92%), degree classification (2:1, First Class), German grades (1.3), or any other grading format. Include in the "grade" field of each education entry.
+- For Indian education: B.Tech CGPA is usually out of 10 (e.g. "8.5/10"), Class XII/X marks are percentages (e.g. "85%" or "85-89.9%"). ALWAYS include the grade field.
+- For UK education: Include degree classification (First Class Honours, Upper Second Class / 2:1, Lower Second Class / 2:2, Third). A-level grades go in grade field (e.g. "Geography A, Maths B, Economics B").
+- For US education: Include GPA if mentioned (e.g. "3.8/4.0 GPA"). Leave grade empty if not mentioned.
+- If the user mentions ANY grade, score, CGPA, GPA, percentage, marks, or classification — it MUST appear in the "grade" field of that education entry. NEVER drop it.
+- ALWAYS include professional registrations, licenses, and certifications the user mentions (e.g. AHPRA, CPA, CFA, ICAN, PMP, AWS certified, bar admission). Add them either as skills or in education — never drop them.
+- Support international education formats: B.Tech, B.Com, M.Sc., BA, BSc, BFA, MBA, etc. Use the exact format the user stated.
+- Preserve currency symbols as given: $, £, €, ₦, ₹, etc.`;
 
 /**
  * Generate initial greeting message
@@ -172,7 +183,7 @@ export function buildConversationalPrompt(
   currentProgress?: ResumeProgress,
   collectedData?: CollectedResumeData,
   config?: Partial<ConversationConfig>,
-  forceCreate?: boolean
+  forceCreate?: boolean,
 ): string {
   const activeConfig = config
     ? { ...getActiveConfig(), ...config }
@@ -193,7 +204,7 @@ INSTRUCTION: Stop asking questions. Generate the "RESUME_COMPLETE" response with
     prompt += `CURRENTLY COLLECTED DATA:\n${JSON.stringify(
       collectedData,
       null,
-      2
+      2,
     )}\n\n`;
   }
 
@@ -219,27 +230,27 @@ INSTRUCTION: Stop asking questions. Generate the "RESUME_COMPLETE" response with
         const questionsAsked = conversationHistory.length;
         const remainingQuestions = Math.max(
           0,
-          activeConfig.maxBetaQuestions - questionsAsked / 2
+          activeConfig.maxBetaQuestions - questionsAsked / 2,
         );
 
         if (remainingQuestions > 0) {
           prompt += `BETA MODE: Ask ONE smart question from priority fields: ${activeConfig.priorityFields.join(
-            ", "
+            ", ",
           )}\n`;
           prompt += `REMAINING QUESTIONS ALLOWED: ${Math.ceil(
-            remainingQuestions
+            remainingQuestions,
           )}\n`;
         } else {
           prompt += `BETA MODE: Maximum questions reached (${activeConfig.maxBetaQuestions}). Offer to create resume.\n`;
           prompt += `STATUS: The following fields are NOT yet structured: ${missing.join(
-            ", "
+            ", ",
           )}\n`;
           prompt += `INSTRUCTION: Check the "Previous conversation" carefully. If the user has already mentioned details relevant to these fields (even if informal), DO NOT ask for them again. Instead, confirm what you understood and ask for specific details to formalize it (e.g. "You mentioned building X, what was your role there?"). Only ask for the field if it is completely missing.\n`;
           prompt += `Ask: "I have good information. Shall I create your resume now, or add more details?"\n`;
         }
       } else {
         prompt += `STATUS: The following fields are NOT yet structured: ${missing.join(
-          ", "
+          ", ",
         )}\n`;
         prompt += `INSTRUCTION: Check the "Previous conversation" carefully. If the user has already mentioned details relevant to these fields (even if informal), DO NOT ask for them again. Instead, confirm what you understood and ask for specific details to formalize it (e.g. "You mentioned building X, what was your role there?"). Only ask for the field if it is completely missing.\n`;
       }
@@ -258,7 +269,7 @@ INSTRUCTION: Stop asking questions. Generate the "RESUME_COMPLETE" response with
  * Build prompt for final resume creation
  */
 export function buildResumeCreationPrompt(
-  collectedData: CollectedResumeData
+  collectedData: CollectedResumeData,
 ): string {
   return `Based on the following information, create a professional resume:
 
@@ -293,7 +304,7 @@ export function isCompletionResponse(response: string): boolean {
   ];
 
   return completionIndicators.some((indicator) =>
-    response.toLowerCase().includes(indicator.toLowerCase())
+    response.toLowerCase().includes(indicator.toLowerCase()),
   );
 }
 
@@ -301,7 +312,7 @@ export function isCompletionResponse(response: string): boolean {
  * Extract JSON from completion response
  */
 export function extractResumeJSON(
-  response: string
+  response: string,
 ): CollectedResumeData | null {
   try {
     // Look for JSON code blocks
@@ -331,7 +342,8 @@ export function getFollowUpQuestion(missingFields: string[]): string {
     phone:
       "Would you like to add a phone number? It's optional - you can say 'skip' or 'N/A' if you prefer not to share it.",
     location: "What city are you located in? (Optional)",
-    github: "Do you have a GitHub profile you'd like to include? (Optional - great for tech roles!)",
+    github:
+      "Do you have a GitHub profile you'd like to include? (Optional - great for tech roles!)",
     linkedin: "What's your LinkedIn profile URL? (Optional but recommended)",
     twitter: "Do you have an X (Twitter) profile to include? (Optional)",
     summary:

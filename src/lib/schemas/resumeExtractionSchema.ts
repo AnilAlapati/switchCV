@@ -40,7 +40,15 @@ export const ExtractionEducationEntrySchema = z.object({
     .string()
     .describe("Graduation year or date range, e.g. '2020' or '2016 - 2020'"),
   major: z.string().optional().describe("Field of study or major"),
-  gpa: z.string().optional().describe("GPA if mentioned"),
+  gpa: z
+    .string()
+    .optional()
+    .describe(
+      "Academic grade/score EXACTLY as stated by user. Supports all international formats: " +
+        "USA: GPA (3.8/4.0) | India: CGPA (8.5/10), percentage (85%), marks (85-89.9%) | " +
+        "UK: degree classification (First Class Honours, 2:1, 2:2, Third) | " +
+        "Germany: grade (1.3) | Other: any numeric or text grade",
+    ),
 });
 
 /**

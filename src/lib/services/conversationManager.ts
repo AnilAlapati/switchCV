@@ -49,7 +49,7 @@ export interface ExperienceEntry {
 }
 
 export interface EducationEntry {
-  /** Degree type (e.g., "Bachelor of Science") */
+  /** Degree type (e.g., "Bachelor of Science", "B.Tech", "BA", "Class XII") */
   degree: string;
   /** Institution name */
   institution: string;
@@ -57,7 +57,11 @@ export interface EducationEntry {
   year: string;
   /** Field of study (optional) */
   major?: string;
-  /** GPA (optional) */
+  /**
+   * Academic grade/score — MUST be preserved exactly as stated.
+   * USA: GPA (3.8/4.0) | India: CGPA (8.5/10), percentage (85%), marks (80-84.9%)
+   * UK: degree classification (First Class, 2:1, 2:2) | Germany: grade (1.3)
+   */
   gpa?: string;
 }
 
@@ -204,21 +208,23 @@ export class ConversationManager {
 
     // Calculate completeness based on CORE fields only
     // This allows 100% completion without optional fields
-    const coreCollected = collectedFields.filter(f => ConversationManager.CORE_FIELDS.includes(f));
+    const coreCollected = collectedFields.filter((f) =>
+      ConversationManager.CORE_FIELDS.includes(f),
+    );
 
     const completenessPercentage = Math.round(
-      (coreCollected.length / ConversationManager.CORE_FIELDS.length) * 100
+      (coreCollected.length / ConversationManager.CORE_FIELDS.length) * 100,
     );
 
     const hasMinimumData = ConversationManager.MINIMUM_REQUIRED_FIELDS.every(
       (field) => {
         const value = this.collectedData[field as keyof ResumeDataRequirements];
         return this.isFieldPopulated(field, value);
-      }
+      },
     );
 
     // Ready to create if we have minimum data (completeness logic can be adjusted)
-    // Here we stick to: Ready if minimums are met. 
+    // Here we stick to: Ready if minimums are met.
     // High bar for "completeness" is 100% of CORE fields.
     const isReadyToCreate = hasMinimumData || completenessPercentage >= 80;
 
@@ -242,7 +248,7 @@ export class ConversationManager {
       | ExperienceEntry[]
       | EducationEntry[]
       | null
-      | undefined
+      | undefined,
   ): boolean {
     if (value === null || value === undefined) return false;
 
@@ -310,7 +316,10 @@ export class ConversationManager {
   /**
    * Validate if data is complete enough to create a resume
    */
-  validate(options?: { strictMode?: boolean }): { valid: boolean; errors: string[] } {
+  validate(options?: { strictMode?: boolean }): {
+    valid: boolean;
+    errors: string[];
+  } {
     const errors: string[] = [];
     const progress = this.getProgress();
     const strictMode = options?.strictMode ?? false;
@@ -318,7 +327,7 @@ export class ConversationManager {
     if (!progress.hasMinimumData) {
       errors.push("Missing required fields for minimum resume");
       errors.push(
-        `Required: ${ConversationManager.MINIMUM_REQUIRED_FIELDS.join(", ")}`
+        `Required: ${ConversationManager.MINIMUM_REQUIRED_FIELDS.join(", ")}`,
       );
     }
 
@@ -427,7 +436,7 @@ export class ConversationManager {
       this.collectedData.experience.length > 0
     ) {
       lines.push(
-        `💼 Experience: ${this.collectedData.experience.length} position(s)`
+        `💼 Experience: ${this.collectedData.experience.length} position(s)`,
       );
     }
 
@@ -436,7 +445,7 @@ export class ConversationManager {
       this.collectedData.education.length > 0
     ) {
       lines.push(
-        `🎓 Education: ${this.collectedData.education.length} degree(s)`
+        `🎓 Education: ${this.collectedData.education.length} degree(s)`,
       );
     }
 
@@ -448,7 +457,7 @@ export class ConversationManager {
       lines.push(`\n✅ You have enough information to create your resume!`);
     } else {
       lines.push(
-        `\n⏳ Still need: ${progress.missingFields.slice(0, 3).join(", ")}`
+        `\n⏳ Still need: ${progress.missingFields.slice(0, 3).join(", ")}`,
       );
     }
 

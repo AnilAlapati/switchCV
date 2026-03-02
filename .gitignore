@@ -124,6 +124,7 @@ scripts/rotate-secret.sh
 scripts/setup-firestore-backup.sh
 scripts/setup-secrets.sh
 scripts/sync-secrets-from-firebase.sh
+scripts/delete-my-resume-prod.js
 src/app/api/admin/test-secrets/route.ts
 
 # Generated test/coverage outputs (do NOT commit — these are ephemeral)

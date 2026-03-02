@@ -43,9 +43,9 @@ const modelIndex = process.argv.indexOf("--model");
 const MODEL =
   modelIndex !== -1 && process.argv[modelIndex + 1]
     ? process.argv[modelIndex + 1]
-    : "gemini-1.5-flash";
+    : "gemini-2.0-flash-lite";
 
-// Gemini Flash 1.5 pricing (per 1M tokens, as of March 2026)
+// Gemini Flash 2.0 Lite pricing (per 1M tokens, as of March 2026)
 const COST_PER_1M_INPUT_TOKENS = 0.075;  // $0.075 / 1M input tokens
 const COST_PER_1M_OUTPUT_TOKENS = 0.30;  // $0.30  / 1M output tokens
 
@@ -65,7 +65,7 @@ try {
 try {
   require("ts-node").register({
     transpileOnly: true,
-    compilerOptions: { module: "commonjs", target: "es2020", esModuleInterop: true },
+    compilerOptions: { module: "commonjs", moduleResolution: "node", target: "es2020", esModuleInterop: true },
   });
 } catch {
   console.warn("ts-node not available. Run: npm install -D ts-node");
@@ -124,7 +124,7 @@ function buildResumeText(goldCase) {
  */
 function callGeminiAPI(apiKey, prompt, model) {
   return new Promise((resolve, reject) => {
-    const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
     const body = JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
