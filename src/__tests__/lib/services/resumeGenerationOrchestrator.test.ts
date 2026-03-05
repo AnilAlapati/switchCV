@@ -13,8 +13,6 @@
  *   8. Conversation continues → not ready yet
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 // ============================================================================
 // MOCKS — must be declared before imports
 // ============================================================================

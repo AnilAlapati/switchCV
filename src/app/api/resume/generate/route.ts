@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       );
       return handleApiError(
         new Error("Resume generation limit reached"),
-        `You have reached the limit of ${RESUME_GENERATION_HARD_CAP.limit} resume generations per hour. Please try again later.`,
+        "You have reached the limit of 10 resume generations per hour. Please try again later.",
         429,
       );
     }

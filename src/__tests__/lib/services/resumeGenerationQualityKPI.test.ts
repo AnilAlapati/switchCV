@@ -284,7 +284,6 @@ describe("Resume Generation Quality KPI Gate", () => {
         "Completeness (avg)": `${(avgComplete * 100).toFixed(1)}%`,
       };
 
-      // eslint-disable-next-line no-console
       console.table(report);
       expect(true).toBe(true); // informational test
     });
