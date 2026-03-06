@@ -110,9 +110,7 @@ export function JDUpload({
     const validExtensions = ["txt", "pdf", "docx"];
 
     if (!extension || !validExtensions.includes(extension)) {
-      toast.warning(
-        "Please upload a .txt, .pdf, or .docx file.",
-      );
+      toast.warning("Please upload a .txt, .pdf, or .docx file.");
       return;
     }
 
@@ -149,7 +147,10 @@ export function JDUpload({
       setFileName(file.name);
       toast.success("Document parsed successfully", { id: toastId });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to parse document", { id: toastId });
+      toast.error(
+        error instanceof Error ? error.message : "Failed to parse document",
+        { id: toastId },
+      );
       setFileName(null);
     }
   }, []);
@@ -200,10 +201,11 @@ export function JDUpload({
       <form onSubmit={handleSubmit}>
         {/* Drag and drop area / Text input */}
         <div
-          className={`relative border-2 border-dashed rounded-xl transition-all duration-200 ${isDragOver
-            ? "border-black bg-gray-50"
-            : "border-gray-300 hover:border-gray-400"
-            }`}
+          className={`relative border-2 border-dashed rounded-xl transition-all duration-200 ${
+            isDragOver
+              ? "border-black bg-gray-50"
+              : "border-gray-300 hover:border-gray-400"
+          }`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -215,7 +217,9 @@ export function JDUpload({
               <p className="text-gray-600 font-medium text-center">
                 Drag & drop a job description file here
               </p>
-              <p className="text-gray-400 text-sm mt-1">Supports .pdf, .docx, .txt</p>
+              <p className="text-gray-400 text-sm mt-1">
+                Supports .pdf, .docx, .txt
+              </p>
               <p className="text-gray-400 text-sm mt-3">or paste/type below</p>
             </div>
           )}
@@ -228,9 +232,14 @@ export function JDUpload({
               setJdText(e.target.value);
               setFileName(null);
             }}
-            placeholder={fileName ? "" : "Paste your job description here...\n\nExample:\nSenior Software Engineer\n\nRequirements:\n- 5+ years experience with Python and Java\n- Experience with AWS, Docker, Kubernetes\n- Strong background in distributed systems\n\nNice to have:\n- Machine learning experience\n- Go or Rust experience\n\nLocation: San Francisco (Hybrid)"}
-            className={`w-full min-h-[250px] p-4 bg-transparent resize-y rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-1 ${jdText.length === 0 ? "text-transparent" : "text-gray-900"
-              }`}
+            placeholder={
+              fileName
+                ? ""
+                : "Paste your job description here...\n\nExample:\nSenior Software Engineer\n\nRequirements:\n- 5+ years experience with Python and Java\n- Experience with AWS, Docker, Kubernetes\n- Strong background in distributed systems\n\nNice to have:\n- Machine learning experience\n- Go or Rust experience\n\nLocation: San Francisco (Hybrid)"
+            }
+            className={`w-full min-h-[250px] p-4 bg-transparent resize-y rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-1 ${
+              jdText.length === 0 ? "text-transparent" : "text-gray-900"
+            }`}
             disabled={isLoading}
           />
 
@@ -250,9 +259,7 @@ export function JDUpload({
                 </button>
               </div>
             )}
-            <span
-              className={isValid ? "text-green-600" : "text-gray-400"}
-            >
+            <span className={isValid ? "text-green-600" : "text-gray-400"}>
               {charCount > 0 ? `${charCount}/50 min` : ""}
             </span>
           </div>
@@ -345,12 +352,13 @@ export function JDUpload({
               return (
                 <div
                   key={step}
-                  className={`flex items-center gap-2 text-sm ${isComplete
-                    ? "text-green-600"
-                    : isCurrent
-                      ? "text-gray-900 font-medium"
-                      : "text-gray-400"
-                    }`}
+                  className={`flex items-center gap-2 text-sm ${
+                    isComplete
+                      ? "text-green-600"
+                      : isCurrent
+                        ? "text-gray-900 font-medium"
+                        : "text-gray-400"
+                  }`}
                 >
                   {isComplete ? (
                     <CheckCircle2 className="w-4 h-4" />

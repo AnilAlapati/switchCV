@@ -9,7 +9,10 @@ import {
   invalidateModelCache as coreInvalidateModelCache,
   getCacheStatus as coreGetCacheStatus,
 } from "./ai/model-manager";
-import { generateWithGemini, type GeminiStructuredOutputOptions } from "./ai/providers/gemini";
+import {
+  generateWithGemini,
+  type GeminiStructuredOutputOptions,
+} from "./ai/providers/gemini";
 import { generateWithOpenAI } from "./ai/providers/openai";
 import { generateWithGroq } from "./ai/providers/groq";
 import { providerFallback } from "@/lib/services/ai/ProviderFallbackChain";
@@ -69,12 +72,7 @@ export async function generateText(
         case "gemini":
           result =
             structuredOutput === undefined
-              ? await generateWithGemini(
-                  prompt,
-                  maxTokens,
-                  temperature,
-                  model,
-                )
+              ? await generateWithGemini(prompt, maxTokens, temperature, model)
               : await generateWithGemini(
                   prompt,
                   maxTokens,
@@ -84,10 +82,20 @@ export async function generateText(
                 );
           break;
         case "openai":
-          result = await generateWithOpenAI(prompt, maxTokens, temperature, structuredOutput ? true : false);
+          result = await generateWithOpenAI(
+            prompt,
+            maxTokens,
+            temperature,
+            structuredOutput ? true : false,
+          );
           break;
         case "groq":
-          result = await generateWithGroq(prompt, maxTokens, temperature, structuredOutput ? true : false);
+          result = await generateWithGroq(
+            prompt,
+            maxTokens,
+            temperature,
+            structuredOutput ? true : false,
+          );
           break;
         default:
           throw new Error(`Unknown provider: ${provider}`);
