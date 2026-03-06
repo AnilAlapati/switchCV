@@ -5,7 +5,7 @@ import { formatLastActivity } from "@/lib/dashboard/recruiterInsights";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useAuth } from "@/hooks/useAuth";
 import type { RecruiterMetrics } from "@/types/dashboard";
-import { Users, Search, TrendingUp, Info } from "lucide-react";
+import { TrendingUp, Info } from "lucide-react";
 
 interface WelcomeBannerProps {
     metrics: RecruiterMetrics | null;
@@ -29,10 +29,8 @@ export function WelcomeBanner({ metrics, loading }: WelcomeBannerProps) {
     );
 
     const displayName = profile?.displayName || user?.displayName || "Recruiter";
-    const uniqueCandidates = metrics?.searchBreakdown?.uniqueCandidatesLast7Days ?? 0;
-
     return (
-        <section className="relative overflow-hidden bg-white border-2 border-black p-6 lg:p-8 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <section className="relative overflow-hidden bg-white border-2 border-black p-6 lg:p-8 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" aria-busy={loading}>
             {/* Subtle decorative grid */}
             <div className="absolute inset-0 opacity-[0.03]"
                 style={{
@@ -58,7 +56,7 @@ export function WelcomeBanner({ metrics, loading }: WelcomeBannerProps) {
                     </p>
                     <div className="flex items-center gap-3 pt-1">
                         <span className="inline-flex items-center gap-1.5 text-[10px] font-mono font-bold uppercase tracking-widest text-gray-400">
-                            <svg className="h-3 w-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="h-3 w-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6l3 3" />
                             </svg>
                             {lastActivity}

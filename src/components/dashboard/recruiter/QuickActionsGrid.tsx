@@ -94,7 +94,7 @@ export function QuickActionsGrid() {
 
                         {/* Arrow indicator */}
                         <div className="absolute top-5 right-5 opacity-0 transform translate-x-1 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
-                            <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true" focusable="false">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 17l9.2-9.2M17 17V7H7" />
                             </svg>
                         </div>

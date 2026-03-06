@@ -1,6 +1,5 @@
 "use client";
 
-import { useAuth } from "@/hooks/useAuth";
 import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
 import { CandidatesSearchedCard } from "@/components/dashboard/recruiter/CandidatesSearchedCard";
 import { AvailableResumesCard } from "@/components/dashboard/recruiter/AvailableResumesCard";
@@ -10,7 +9,6 @@ import { DashboardMetricsProvider } from "@/context/DashboardMetricsContext";
 import { Sparkles, RefreshCcw } from "lucide-react";
 
 export function RecruiterAnalyticsView() {
-    const { user } = useAuth();
     const {
         recruiterMetrics,
         loading: metricsLoading,
@@ -47,9 +45,15 @@ export function RecruiterAnalyticsView() {
 
                     <button
                         onClick={() => refreshRecruiterMetrics?.()}
+                        aria-busy={metricsLoading}
                         className="inline-flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-all shadow-sm active:scale-95 text-sm"
                     >
-                        <RefreshCcw className={`w-4 h-4 ${metricsLoading ? "animate-spin" : ""}`} />
+                        <RefreshCcw
+                            className={`w-4 h-4 ${metricsLoading ? "animate-spin" : ""}`}
+                            role="status"
+                            aria-live="polite"
+                            aria-label={metricsLoading ? "Refreshing data" : undefined}
+                        />
                         Refresh Data
                     </button>
                 </div>

@@ -429,8 +429,9 @@ function generateSearchQuery(parsed: {
 }
 
 /**
- * Parse a JD file (PDF, DOCX, or TXT)
- * Note: This requires additional libraries for PDF/DOCX parsing
+ * Parse a JD file (PDF, DOCX, or TXT).
+ * TXT is parsed locally; PDF and DOCX are delegated to the authenticated
+ * server-side parsing route used by the recruiter upload flow.
  */
 export async function parseJDFile(
     file: File | Blob,
@@ -445,13 +446,27 @@ export async function parseJDFile(
             text = await file.text();
             break;
         case "pdf":
-            // For PDF parsing, you'd need a library like pdf-parse
-            // For now, we'll throw an error suggesting text input
-            throw new Error("PDF parsing requires server-side processing. Please paste the JD text instead.");
         case "docx":
+            {
+                const formData = new FormData();
+                formData.append("file", file, fileName);
+
+                const response = await fetch("/api/utils/parse-jd", {
+                    method: "POST",
+                    body: formData,
+                });
+
+                const data = await response.json().catch(() => null) as { error?: string; text?: string } | null;
+
+                if (!response.ok || !data?.text) {
+                    throw new Error(data?.error || "Failed to parse document file.");
+                }
+
+                text = data.text;
+            }
+            break;
         case "doc":
-            // For DOCX parsing, you'd need a library like mammoth
-            throw new Error("DOCX parsing requires server-side processing. Please paste the JD text instead.");
+            throw new Error("Legacy .doc files are not supported. Please upload a .docx, .pdf, or .txt file.");
         default:
             throw new Error(`Unsupported file type: ${extension}`);
     }

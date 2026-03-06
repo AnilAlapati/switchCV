@@ -106,12 +106,12 @@ export function JDUpload({
   const handleFile = useCallback(async (file: File) => {
     const extension = file.name.split(".").pop()?.toLowerCase();
 
-    // Valid extensions: txt, pdf, doc, docx
-    const validExtensions = ["txt", "pdf", "doc", "docx"];
+    // Valid extensions: txt, pdf, docx
+    const validExtensions = ["txt", "pdf", "docx"];
 
     if (!extension || !validExtensions.includes(extension)) {
       toast.warning(
-        "Please upload a .txt, .pdf, or .doc/.docx file.",
+        "Please upload a .txt, .pdf, or .docx file.",
       );
       return;
     }
@@ -215,7 +215,7 @@ export function JDUpload({
               <p className="text-gray-600 font-medium text-center">
                 Drag & drop a job description file here
               </p>
-              <p className="text-gray-400 text-sm mt-1">Supports .pdf, .doc, .docx, .txt</p>
+              <p className="text-gray-400 text-sm mt-1">Supports .pdf, .docx, .txt</p>
               <p className="text-gray-400 text-sm mt-3">or paste/type below</p>
             </div>
           )}
@@ -264,7 +264,7 @@ export function JDUpload({
             <input
               ref={fileInputRef}
               type="file"
-              accept=".txt,.pdf,.doc,.docx"
+              accept=".txt,.pdf,.docx"
               onChange={handleFileSelect}
               className="hidden"
               id="jd-file-upload"

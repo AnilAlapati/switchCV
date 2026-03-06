@@ -67,13 +67,21 @@ export async function generateText(
       let result;
       switch (provider) {
         case "gemini":
-          result = await generateWithGemini(
-            prompt,
-            maxTokens,
-            temperature,
-            model,
-            structuredOutput,
-          );
+          result =
+            structuredOutput === undefined
+              ? await generateWithGemini(
+                  prompt,
+                  maxTokens,
+                  temperature,
+                  model,
+                )
+              : await generateWithGemini(
+                  prompt,
+                  maxTokens,
+                  temperature,
+                  model,
+                  structuredOutput,
+                );
           break;
         case "openai":
           result = await generateWithOpenAI(prompt, maxTokens, temperature, structuredOutput ? true : false);
