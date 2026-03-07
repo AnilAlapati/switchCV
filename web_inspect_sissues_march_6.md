@@ -49,6 +49,15 @@ Live production headers included `x-powered-by: Next.js`.
 **Assessment:**
 Low severity. This is not a direct compromise. A mitigation attempt was added in middleware, but post-deployment verification shows `x-powered-by` is still present in live responses. This likely means the header is being injected after middleware processing by the hosting/runtime layer.
 
+**Follow-up investigation:**
+
+- [next.config.ts](next.config.ts) already sets `poweredByHeader: false`
+- Next.js docs state that `poweredByHeader: false` should disable the header
+- Firebase's framework-aware Next.js hosting docs say the CLI respects Next.js settings, but the same docs also warn that this integration is still an early public preview and recommend App Hosting for full-stack Next.js apps
+
+**Current conclusion:**
+This remaining header is most likely a platform/runtime behavior in the Firebase framework-hosting path, not an application-code bug that can be fully fixed from inside this repository alone.
+
 **Risk level:** Low
 
 ---
@@ -123,7 +132,7 @@ Documented only. No direct code change in this patch.
 1. Decide whether to split `/api/system-config` into:
    - a minimal public client config route
    - a private internal/server config path
-2. Investigate where `x-powered-by` is injected in the Firebase/Next hosting path and whether it can be removed upstream
+2. If removing `x-powered-by` is a strict requirement, test whether Firebase App Hosting or a different SSR deployment path removes it upstream
 
 ## Outcome
 
