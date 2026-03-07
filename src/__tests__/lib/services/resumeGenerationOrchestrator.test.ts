@@ -21,6 +21,59 @@ jest.mock("@/lib/services/featureFlagService", () => ({
   isFeatureEnabled: jest.fn().mockResolvedValue(true),
 }));
 
+// Mock AI extraction — controllable per-test via mockExtractWithStructuredOutput.
+const mockExtractWithStructuredOutput = jest.fn();
+jest.mock("@/lib/services/aiExtractionService", () => ({
+  extractWithStructuredOutput: (...args: unknown[]) =>
+    mockExtractWithStructuredOutput(...args),
+}));
+
+/** Default successful AI extraction result matching the test fixture data */
+const SUCCESSFUL_AI_EXTRACTION = {
+  success: true,
+  data: {
+    name: "Alex Johnson",
+    email: "alex@example.com",
+    phone: "555-0100",
+    experience: [
+      {
+        title: "Software Engineer",
+        company: "Acme Corp",
+        duration: "2021-2024",
+        description:
+          "Built customer-facing web applications using React and Node.js.",
+      },
+    ],
+    education: [
+      {
+        degree: "B.S. Computer Science",
+        institution: "MIT",
+        year: "2021",
+      },
+    ],
+    skills: ["React", "Node.js", "TypeScript"],
+  },
+  method: "ai" as const,
+  latencyMs: 120,
+};
+
+/** Minimal AI extraction (user said very little) — almost no data */
+const MINIMAL_AI_EXTRACTION = {
+  success: true,
+  data: {},
+  method: "ai" as const,
+  latencyMs: 50,
+};
+
+/** Failed AI extraction — service unavailable */
+const FAILED_AI_EXTRACTION = {
+  success: false,
+  data: null,
+  method: "fallback" as const,
+  latencyMs: 0,
+  error: "AI service unavailable",
+};
+
 jest.mock("@/server/services/aiProviderService", () => ({
   generateTextWithTier: jest.fn(),
 }));
@@ -184,6 +237,9 @@ beforeEach(() => {
   // Default: all feature flags enabled
   mockIsFeatureEnabled.mockResolvedValue(true);
 
+  // Default: AI extraction returns full data
+  mockExtractWithStructuredOutput.mockResolvedValue(SUCCESSFUL_AI_EXTRACTION);
+
   // Default mock: save succeeds
   mockSaveGeneratedResume.mockResolvedValue({
     resumeId: "mock-resume-id",
@@ -285,6 +341,8 @@ describe("Resume Generation Orchestrator", () => {
   // -------------------------------------------------------------------------
   describe("Clarification flow", () => {
     it("returns response text when data is insufficient", async () => {
+      // User said very little → AI extraction returns minimal data
+      mockExtractWithStructuredOutput.mockResolvedValue(MINIMAL_AI_EXTRACTION);
       mockGenerateTextWithTier.mockResolvedValue(
         mockAIResponse(
           "I'd like to help create your resume! Could you tell me your name and email?",
@@ -422,6 +480,13 @@ describe("Resume Generation Orchestrator", () => {
   // -------------------------------------------------------------------------
   describe("Conversation continuation", () => {
     it("returns AI response when progress is below threshold", async () => {
+      // User provided only a name → AI extraction returns minimal data
+      mockExtractWithStructuredOutput.mockResolvedValue({
+        success: true,
+        data: { name: "Sam" },
+        method: "ai",
+        latencyMs: 50,
+      });
       mockGenerateTextWithTier.mockResolvedValue(
         mockAIResponse("Thanks! What about your education background?"),
       );
@@ -496,6 +561,29 @@ describe("Resume Generation Orchestrator", () => {
 
       expect(result.evidenceMap).toBeDefined();
       expect(typeof result.evidenceMap).toBe("object");
+    });
+
+    it("returns user-friendly error when AI extraction service fails", async () => {
+      mockExtractWithStructuredOutput.mockResolvedValue(FAILED_AI_EXTRACTION);
+
+      const result = await processSyncGeneration(buildInput());
+
+      expect(result.response).toContain("try again");
+      expect(result.response).toContain("temporarily unavailable");
+      expect(result.created).toBeUndefined();
+      expect(mockGenerateTextWithTier).not.toHaveBeenCalled();
+    });
+
+    it("returns user-friendly error when AI extraction throws an exception", async () => {
+      mockExtractWithStructuredOutput.mockRejectedValue(
+        new Error("Gemini API timeout"),
+      );
+
+      const result = await processSyncGeneration(buildInput());
+
+      expect(result.response).toContain("try again");
+      expect(result.created).toBeUndefined();
+      expect(mockGenerateTextWithTier).not.toHaveBeenCalled();
     });
   });
 });

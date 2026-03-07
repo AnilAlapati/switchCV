@@ -189,16 +189,62 @@ export async function processSyncGeneration(
     userTier,
   });
 
-  // Step 1: Extract data from conversation history
+  // Step 1: Extract data from conversation history using AI (Gemini).
+  // NO regex fallback — if AI extraction fails, we return a user-friendly
+  // error asking them to try again later.
   let extractionResult = EMPTY_EXTRACTION_RESULT;
+
   try {
-    const extracted = ResumeDataExtractor.extractFromConversation(allMessages);
-    extractionResult = extracted ?? EMPTY_EXTRACTION_RESULT;
-  } catch (extractError) {
-    logger.warn(
-      { err: extractError, userId },
-      "Resume extraction failed; proceeding with empty extracted data",
+    const aiExtracted = await ResumeDataExtractor.extractFromConversationWithAI(
+      allMessages,
+      {
+        userTier:
+          userTier === "basic" ||
+          userTier === "premium" ||
+          userTier === "enterprise"
+            ? userTier
+            : "premium",
+      },
     );
+    extractionResult = aiExtracted ?? EMPTY_EXTRACTION_RESULT;
+
+    // Distinguish between AI service failure (confidence=0) and legitimate
+    // "user hasn't provided enough data yet" (confidence>0 with empty fields).
+    // Only show the error when the AI service itself failed.
+    const aiServiceFailed =
+      aiExtracted &&
+      aiExtracted.confidence === 0 &&
+      aiExtracted.extractedFields.length === 0;
+
+    if (!aiExtracted || aiServiceFailed) {
+      logger.error(
+        {
+          method: (aiExtracted as { method?: string })?.method ?? "unknown",
+          userId,
+        },
+        "AI extraction service failed — asking user to retry",
+      );
+      return {
+        response:
+          "I'm having trouble processing your information right now. Our AI service may be temporarily unavailable. Please try again in a few minutes.",
+        progress: 0,
+      };
+    }
+
+    logger.info(
+      { method: (aiExtracted as { method?: string })?.method ?? "unknown" },
+      "AI extraction path used",
+    );
+  } catch (extractError) {
+    logger.error(
+      { err: extractError, userId },
+      "Resume extraction failed — asking user to retry",
+    );
+    return {
+      response:
+        "I'm having trouble processing your information right now. Our AI service may be temporarily unavailable. Please try again in a few minutes.",
+      progress: 0,
+    };
   }
 
   logger.info(

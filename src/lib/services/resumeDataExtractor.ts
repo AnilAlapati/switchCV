@@ -408,8 +408,9 @@ export class ResumeDataExtractor {
   }
 
   /**
-   * Extract from conversation with AI-first strategy.
-   * Combines all user messages, sends to AI for extraction, falls back to regex.
+   * Extract from conversation using AI structured output (Gemini).
+   * NO regex fallback — if AI fails, returns a failure result so the caller
+   * can surface a user-friendly error.
    *
    * @param messages - Conversation messages
    * @param options - AI extraction options (tier, skip flag)
@@ -428,55 +429,93 @@ export class ResumeDataExtractor {
       .map((m) => m.content)
       .join("\n\n");
 
-    if (!options?.skipAI && userText.trim().length >= 10) {
-      try {
-        const { extractWithStructuredOutput } =
-          await import("@/lib/services/aiExtractionService");
-
-        const aiResult: AIExtractionResult = await extractWithStructuredOutput(
-          userText,
-          {
-            userTier: options?.userTier ?? "premium",
-          },
-        );
-
-        if (aiResult.success && aiResult.data) {
-          // Check completion from assistant messages
-          let isComplete = false;
-          for (const message of messages) {
-            if (!message.isUser && this.hasCompletionMarker(message.content)) {
-              isComplete = true;
-              break;
-            }
-          }
-
-          logger.info(
-            {
-              method: "ai",
-              fields: Object.keys(aiResult.data),
-              latencyMs: aiResult.latencyMs,
-            },
-            "AI extraction succeeded for conversation",
-          );
-
-          return {
-            data: aiResult.data,
-            confidence: 0.95,
-            extractedFields: Object.keys(aiResult.data),
-            isComplete,
-            method: "ai",
-          };
-        }
-      } catch (error) {
-        logger.warn(
-          { err: error },
-          "AI extraction failed for conversation, falling back to regex",
-        );
-      }
+    if (options?.skipAI) {
+      logger.warn("AI extraction explicitly skipped — returning empty result");
+      return {
+        data: {},
+        confidence: 0,
+        extractedFields: [],
+        isComplete: false,
+        method: "regex", // legacy label kept for type compat
+      };
     }
 
-    // Fallback to regex extraction
-    const regexResult = this.extractFromConversation(messages);
-    return { ...regexResult, method: "regex" };
+    if (userText.trim().length < 10) {
+      logger.warn(
+        "User text too short for AI extraction — returning empty result",
+      );
+      return {
+        data: {},
+        confidence: 0.1, // Low but non-zero: "no data yet", NOT "AI failure"
+        extractedFields: [],
+        isComplete: false,
+        method: "ai",
+      };
+    }
+
+    try {
+      const { extractWithStructuredOutput } =
+        await import("@/lib/services/aiExtractionService");
+
+      const aiResult: AIExtractionResult = await extractWithStructuredOutput(
+        userText,
+        {
+          userTier: options?.userTier ?? "premium",
+        },
+      );
+
+      if (aiResult.success && aiResult.data) {
+        // Check completion from assistant messages
+        let isComplete = false;
+        for (const message of messages) {
+          if (!message.isUser && this.hasCompletionMarker(message.content)) {
+            isComplete = true;
+            break;
+          }
+        }
+
+        logger.info(
+          {
+            method: "ai",
+            fields: Object.keys(aiResult.data),
+            latencyMs: aiResult.latencyMs,
+          },
+          "AI extraction succeeded for conversation",
+        );
+
+        return {
+          data: aiResult.data,
+          confidence: 0.95,
+          extractedFields: Object.keys(aiResult.data),
+          isComplete,
+          method: "ai",
+        };
+      }
+
+      // AI returned but extraction was unsuccessful (empty, parse error, etc.)
+      logger.error(
+        { error: aiResult.error, latencyMs: aiResult.latencyMs },
+        "AI extraction returned unsuccessful result — no regex fallback",
+      );
+      return {
+        data: {},
+        confidence: 0,
+        extractedFields: [],
+        isComplete: false,
+        method: "ai",
+      };
+    } catch (error) {
+      logger.error(
+        { err: error },
+        "AI extraction threw an exception — no regex fallback",
+      );
+      return {
+        data: {},
+        confidence: 0,
+        extractedFields: [],
+        isComplete: false,
+        method: "ai",
+      };
+    }
   }
 }

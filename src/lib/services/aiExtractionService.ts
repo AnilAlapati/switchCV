@@ -1,14 +1,15 @@
 /**
  * AI Extraction Service
  *
- * Replaces regex-based resume extraction with Gemini Structured Output.
- * Sends raw resume text to the AI with a strict extraction schema, returning
- * typed, validated data. Regex extractors remain as fallback when AI is down.
+ * Uses Gemini Structured Output to extract resume data from raw text.
+ * This is the ONLY extraction path — there is no regex fallback.
+ * If AI is unavailable, the caller must surface an error to the user.
  *
  * @module services/aiExtractionService
  */
 
 import { logger } from "@/lib/logger";
+import { reportError } from "@/lib/errorReporter";
 import {
   ResumeExtractionSchema,
   type ResumeExtractionResult,
@@ -24,6 +25,8 @@ Rules:
 - If a field is not present in the text, omit it entirely (do not set it to null or empty string).
 - For experience entries, keep the original wording of descriptions and achievements.
 - For skills, list each distinct skill as a separate string.
+- CRITICAL: Lines that list technology keywords separated by spaces (e.g. "API Nextjs UiPath Firebase") are SKILLS, NOT job titles or company names. Only extract experience entries where there is a clear job title (e.g. "Software Engineer", "RPA Developer") and a real company name (e.g. "JPMorgan Chase", "IBM India").
+- If a section is labelled "KEY SKILLS", "SKILLS", "TECHNICAL SKILLS", "CERTIFICATION", or "PROJECTS", its contents are NOT work experience.
 - For dates, preserve the original format found in the text.
 - For names, use the full name as written (capitalize correctly).
 - For phone numbers, keep the original formatting.
@@ -49,6 +52,92 @@ export interface AIExtractionResult {
   latencyMs: number;
   /** Error message if extraction failed */
   error?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Failure tracking — alert admin when AI extraction is down for extended period
+// ---------------------------------------------------------------------------
+
+const ADMIN_ALERT_THRESHOLD_MS = 60 * 60 * 1000; // 1 hour
+
+interface FailureTracker {
+  /** Timestamp of the first consecutive failure (null = no active failure window) */
+  firstFailureAt: number | null;
+  /** Whether an admin alert has already been sent for the current failure window */
+  adminAlertSent: boolean;
+  /** Total consecutive failures in current window */
+  consecutiveFailures: number;
+}
+
+const failureTracker: FailureTracker = {
+  firstFailureAt: null,
+  adminAlertSent: false,
+  consecutiveFailures: 0,
+};
+
+/** Reset tracker on success */
+function recordExtractionSuccess(): void {
+  failureTracker.firstFailureAt = null;
+  failureTracker.adminAlertSent = false;
+  failureTracker.consecutiveFailures = 0;
+}
+
+/** Record failure and alert admin if threshold exceeded */
+function recordExtractionFailure(errorMsg: string): void {
+  const now = Date.now();
+  failureTracker.consecutiveFailures += 1;
+
+  if (failureTracker.firstFailureAt === null) {
+    failureTracker.firstFailureAt = now;
+  }
+
+  const downDurationMs = now - failureTracker.firstFailureAt;
+
+  if (
+    downDurationMs >= ADMIN_ALERT_THRESHOLD_MS &&
+    !failureTracker.adminAlertSent
+  ) {
+    failureTracker.adminAlertSent = true;
+    const downMinutes = Math.round(downDurationMs / 60_000);
+
+    logger.error(
+      {
+        consecutiveFailures: failureTracker.consecutiveFailures,
+        downMinutes,
+        firstFailureAt: new Date(failureTracker.firstFailureAt).toISOString(),
+        latestError: errorMsg,
+      },
+      `🚨 ADMIN ALERT: AI extraction has been failing for ${downMinutes} minutes (${failureTracker.consecutiveFailures} consecutive failures)`,
+    );
+
+    // Send to Sentry as a critical alert — this triggers PagerDuty/email
+    reportError(
+      new Error(
+        `AI extraction outage: ${failureTracker.consecutiveFailures} failures over ${downMinutes} minutes. Latest: ${errorMsg}`,
+      ),
+      {
+        source: "aiExtractionService.outageAlert",
+        severity: "error",
+        meta: {
+          consecutiveFailures: failureTracker.consecutiveFailures,
+          downMinutes,
+          firstFailureAt: failureTracker.firstFailureAt,
+        },
+      },
+    );
+  }
+}
+
+/** Expose tracker state for testing */
+export function getFailureTrackerState(): Readonly<FailureTracker> {
+  return { ...failureTracker };
+}
+
+/** Reset tracker (for testing only) */
+export function resetFailureTracker(): void {
+  failureTracker.firstFailureAt = null;
+  failureTracker.adminAlertSent = false;
+  failureTracker.consecutiveFailures = 0;
 }
 
 /**
@@ -112,6 +201,7 @@ export async function extractWithStructuredOutput(
     });
 
     if (!result.text) {
+      recordExtractionFailure("AI returned empty response");
       return {
         success: false,
         data: null,
@@ -128,6 +218,7 @@ export async function extractWithStructuredOutput(
         { responseLength: result.text.length },
         "AI extraction returned non-JSON response",
       );
+      recordExtractionFailure("AI response was not valid JSON");
       return {
         success: false,
         data: null,
@@ -144,6 +235,7 @@ export async function extractWithStructuredOutput(
         { errors: validated.error.flatten() },
         "AI extraction response failed schema validation",
       );
+      recordExtractionFailure("AI response failed schema validation");
       return {
         success: false,
         data: null,
@@ -167,6 +259,8 @@ export async function extractWithStructuredOutput(
       "AI extraction succeeded",
     );
 
+    recordExtractionSuccess();
+
     return {
       success: true,
       data,
@@ -174,16 +268,19 @@ export async function extractWithStructuredOutput(
       latencyMs: Date.now() - startTime,
     };
   } catch (error) {
+    const errorMsg =
+      error instanceof Error ? error.message : "AI extraction call failed";
     logger.error(
       { err: error },
-      "AI extraction failed, will fall back to regex",
+      "AI extraction failed — no fallback, user will be asked to retry",
     );
+    recordExtractionFailure(errorMsg);
     return {
       success: false,
       data: null,
       method: "fallback",
       latencyMs: Date.now() - startTime,
-      error: "AI extraction call failed",
+      error: errorMsg,
     };
   }
 }
