@@ -64,7 +64,7 @@ This remaining header is most likely a platform/runtime behavior in the Firebase
 
 ### 3. Public `/api/system-config` reveals operational detail
 
-**Status:** Real but mostly information exposure
+**Status:** Real issue, now reduced
 
 **Why it matters:**
 The public response includes model names, quotas, budget caps, approval settings, and admin contact information. That is useful reconnaissance, but it is not the same as exposing credentials.
@@ -78,12 +78,13 @@ The public route returned fields including:
 - `userApproval.adminEmail`
 
 **Assessment:**
-This is not a critical secret leak in the current architecture because much of the config is already used client-side and some defaults are bundled into client code. Fixing it safely needs a larger separation between public config and internal config.
+This was a real information-exposure issue. It was not a credential leak, but it unnecessarily exposed operational details that were useful for reconnaissance.
 
 **Action taken in this patch:**
-Documented only. No direct code change in this patch.
+- The public route now returns only the client-required subset of config.
+- Operational fields such as AI model preferences, agentic budget caps, and user approval admin contact details are no longer returned by `/api/system-config`.
 
-**Risk level:** Low to Medium
+**Risk level:** Reduced from Low/Medium to Low
 
 ---
 
@@ -100,11 +101,14 @@ Documented only. No direct code change in this patch.
 
 - [src/middleware.ts](src/middleware.ts)
 - [src/__tests__/middleware/security-headers.test.ts](src/__tests__/middleware/security-headers.test.ts)
+- [src/app/api/system-config/route.ts](src/app/api/system-config/route.ts)
+- [src/__tests__/api/system-config.test.ts](src/__tests__/api/system-config.test.ts)
 
 ## Tests added
 
 - Page requests now receive CSP and security headers
 - Invalid cross-site state-changing API requests still fail and keep security headers
+- Public system-config responses now exclude internal-only fields while preserving client-required fields
 
 ## Validation performed
 
@@ -127,13 +131,16 @@ Documented only. No direct code change in this patch.
 - Page responses now include per-request `x-nonce` and `x-request-id`
 - `x-powered-by: Next.js` is still present after deployment
 
+### Repository validation after system-config hardening
+
+- Route tests verify the public config subset and exclusion of internal fields
+- Existing hook/provider consumers continue to rely on the returned public subset plus client-side defaults
+
 ## Residual follow-up items
 
-1. Decide whether to split `/api/system-config` into:
-   - a minimal public client config route
-   - a private internal/server config path
+1. If server-only callers need dynamic internal config over HTTP, introduce a separate authenticated/internal config path
 2. If removing `x-powered-by` is a strict requirement, test whether Firebase App Hosting or a different SSR deployment path removes it upstream
 
 ## Outcome
 
-The missing page CSP was a real issue and is now fixed live in production. The `system-config` exposure and `x-powered-by` header remain real but lower-severity hardening concerns; they are documented here, with the config exposure intentionally deferred to a broader refactor.
+The missing page CSP was a real issue and is now fixed live in production. The public `system-config` exposure has been reduced by limiting the route to client-required fields only. The remaining `x-powered-by` header is still a low-severity hosting-layer concern.

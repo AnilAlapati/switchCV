@@ -38,6 +38,22 @@ describe("GET /api/system-config", () => {
     jest.clearAllMocks();
   });
 
+  const expectedPublicConfig = {
+    maintenance: defaultSystemConfig.maintenance,
+    auth: defaultSystemConfig.auth,
+    tiers: defaultSystemConfig.tiers,
+    pricing: defaultSystemConfig.pricing,
+    cache: {
+      systemConfigTtlMs: defaultSystemConfig.cache.systemConfigTtlMs,
+    },
+    validation: {
+      username: defaultSystemConfig.validation.username,
+    },
+    rateLimits: {
+      usernameCheck: defaultSystemConfig.rateLimits.usernameCheck,
+    },
+  };
+
   it("should return config when snapshot exists", async () => {
     const rawData: Partial<SystemConfig> = {
       maintenance: { isActive: false, message: "Down", blocking: false },
@@ -71,7 +87,25 @@ describe("GET /api/system-config", () => {
     );
     expect(mockValidateAICosts).toHaveBeenCalledWith(validatedConfig);
     expect(response.status).toBe(200);
-    expect(data.config).toEqual(validatedConfig);
+    expect(data.config).toEqual({
+      ...expectedPublicConfig,
+      maintenance: validatedConfig.maintenance,
+      auth: validatedConfig.auth,
+      tiers: validatedConfig.tiers,
+      pricing: validatedConfig.pricing,
+      cache: {
+        systemConfigTtlMs: validatedConfig.cache.systemConfigTtlMs,
+      },
+      validation: {
+        username: validatedConfig.validation.username,
+      },
+      rateLimits: {
+        usernameCheck: validatedConfig.rateLimits.usernameCheck,
+      },
+    });
+    expect(data.config.agentic).toBeUndefined();
+    expect(data.config.userApproval).toBeUndefined();
+    expect(data.config.ai).toBeUndefined();
     expect(data.fetchedAt).toBeDefined();
   });
 
@@ -93,7 +127,7 @@ describe("GET /api/system-config", () => {
     expect(mockMergeWithDefaultConfig).not.toHaveBeenCalled();
     expect(mockValidateSystemConfig).not.toHaveBeenCalled();
     expect(response.status).toBe(200);
-    expect(data.config).toEqual(defaultSystemConfig);
+    expect(data.config).toEqual(expectedPublicConfig);
     expect(data.fetchedAt).toBeDefined();
   });
 

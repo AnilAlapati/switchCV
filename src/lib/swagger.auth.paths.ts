@@ -38,13 +38,13 @@ export const authPaths = {
     "/api/system-config": {
         get: {
             tags: ["System"],
-            summary: "Get system configuration",
+            summary: "Get public system configuration",
             description:
-                "Returns merged system config with defaults. Public endpoint, cached for 5 minutes.",
+                "Returns the client-safe subset of merged system config with defaults. Public endpoint, cached for 5 minutes.",
             security: [],
             responses: {
                 200: {
-                    description: "System configuration",
+                    description: "Public system configuration",
                     content: {
                         "application/json": {
                             schema: { $ref: "#/components/schemas/SystemConfig" },

@@ -12,6 +12,31 @@ import {
 import { handleApiError } from "@/lib/utils/api-helpers";
 import { logger } from "@/lib/logger";
 
+type PublicSystemConfig = Pick<SystemConfig, "maintenance" | "auth" | "tiers"> & {
+  pricing?: SystemConfig["pricing"];
+  cache: Pick<SystemConfig["cache"], "systemConfigTtlMs">;
+  validation: Pick<SystemConfig["validation"], "username">;
+  rateLimits: Pick<SystemConfig["rateLimits"], "usernameCheck">;
+};
+
+function toPublicSystemConfig(config: SystemConfig): PublicSystemConfig {
+  return {
+    maintenance: config.maintenance,
+    auth: config.auth,
+    tiers: config.tiers,
+    pricing: config.pricing,
+    cache: {
+      systemConfigTtlMs: config.cache.systemConfigTtlMs,
+    },
+    validation: {
+      username: config.validation.username,
+    },
+    rateLimits: {
+      usernameCheck: config.rateLimits.usernameCheck,
+    },
+  };
+}
+
 export async function GET() {
   try {
     const snapshot = await collectionRef(COLLECTIONS.CONFIG).doc("system").get();
@@ -29,14 +54,17 @@ export async function GET() {
       logger.warn("⚠️ No system config found in Firebase, using defaults");
     }
 
-    return NextResponse.json({
-      config,
-      fetchedAt: new Date().toISOString(),
-    }, {
-      headers: {
-        'Cache-Control': 'public, max-age=300, stale-while-revalidate=600',
+    return NextResponse.json(
+      {
+        config: toPublicSystemConfig(config),
+        fetchedAt: new Date().toISOString(),
       },
-    });
+      {
+        headers: {
+          "Cache-Control": "public, max-age=300, stale-while-revalidate=600",
+        },
+      },
+    );
   } catch (error) {
     return handleApiError(error, "Unable to fetch system configuration");
   }
