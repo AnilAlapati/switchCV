@@ -33,6 +33,123 @@ export interface ExtractionResult {
  * Uses Strategy Pattern with specialized extractors.
  */
 export class ResumeDataExtractor {
+  private static normalizeComparableString(value?: string): string {
+    return typeof value === "string" ? value.trim().toLowerCase() : "";
+  }
+
+  private static mergeStringField(
+    existingValue?: string,
+    extractedValue?: string,
+  ): string {
+    return extractedValue?.trim() || existingValue?.trim() || "";
+  }
+
+  private static mergeStringArray(
+    existingValues?: string[],
+    extractedValues?: string[],
+  ): string[] | undefined {
+    const merged = [...(existingValues || []), ...(extractedValues || [])]
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0);
+
+    if (merged.length === 0) {
+      return undefined;
+    }
+
+    return [...new Set(merged)];
+  }
+
+  private static findMatchingExperienceIndex(
+    existing: ResumeDataRequirements["experience"],
+    candidate: ResumeDataRequirements["experience"][number],
+  ): number {
+    const candidateTitle = this.normalizeComparableString(candidate.title);
+    const candidateCompany = this.normalizeComparableString(candidate.company);
+
+    return existing.findIndex((entry) => {
+      const entryTitle = this.normalizeComparableString(entry.title);
+      const entryCompany = this.normalizeComparableString(entry.company);
+
+      if (!candidateTitle || !entryTitle || candidateTitle !== entryTitle) {
+        return false;
+      }
+
+      if (candidateCompany && entryCompany) {
+        return candidateCompany === entryCompany;
+      }
+
+      return true;
+    });
+  }
+
+  private static mergeExperienceEntry(
+    existing: ResumeDataRequirements["experience"][number],
+    extracted: ResumeDataRequirements["experience"][number],
+  ): ResumeDataRequirements["experience"][number] {
+    return {
+      ...existing,
+      ...extracted,
+      title: this.mergeStringField(existing.title, extracted.title),
+      company: this.mergeStringField(existing.company, extracted.company),
+      duration: this.mergeStringField(existing.duration, extracted.duration),
+      description: this.mergeStringField(
+        existing.description,
+        extracted.description,
+      ),
+      achievements:
+        this.mergeStringArray(existing.achievements, extracted.achievements) ||
+        [],
+    };
+  }
+
+  private static findMatchingEducationIndex(
+    existing: ResumeDataRequirements["education"],
+    candidate: ResumeDataRequirements["education"][number],
+  ): number {
+    const candidateInstitution = this.normalizeComparableString(
+      candidate.institution,
+    );
+    const candidateDegree = this.normalizeComparableString(candidate.degree);
+
+    return existing.findIndex((entry) => {
+      const entryInstitution = this.normalizeComparableString(
+        entry.institution,
+      );
+      const entryDegree = this.normalizeComparableString(entry.degree);
+
+      if (!candidateInstitution || !entryInstitution) {
+        return candidateDegree.length > 0 && candidateDegree === entryDegree;
+      }
+
+      if (!candidateDegree || !entryDegree) {
+        return candidateInstitution === entryInstitution;
+      }
+
+      return (
+        candidateInstitution === entryInstitution &&
+        candidateDegree === entryDegree
+      );
+    });
+  }
+
+  private static mergeEducationEntry(
+    existing: ResumeDataRequirements["education"][number],
+    extracted: ResumeDataRequirements["education"][number],
+  ): ResumeDataRequirements["education"][number] {
+    return {
+      ...existing,
+      ...extracted,
+      degree: this.mergeStringField(existing.degree, extracted.degree),
+      institution: this.mergeStringField(
+        existing.institution,
+        extracted.institution,
+      ),
+      year: this.mergeStringField(existing.year, extracted.year),
+      major: this.mergeStringField(existing.major, extracted.major),
+      gpa: this.mergeStringField(existing.gpa, extracted.gpa),
+    };
+  }
+
   /**
    * Extract resume data from AI response text
    */
@@ -183,33 +300,50 @@ export class ResumeDataExtractor {
 
     // Experience
     if (extracted.experience) {
-      const existingExp = existing.experience || [];
-      const newExp = extracted.experience.filter(
-        (newItem) =>
-          !existingExp.some(
-            (existingItem) =>
-              existingItem.company.toLowerCase() ===
-                newItem.company.toLowerCase() &&
-              existingItem.title.toLowerCase() === newItem.title.toLowerCase(),
-          ),
-      );
-      existing.experience = [...existingExp, ...newExp];
+      const existingExp = [...(existing.experience || [])];
+
+      for (const extractedEntry of extracted.experience) {
+        const matchIndex = this.findMatchingExperienceIndex(
+          existingExp,
+          extractedEntry,
+        );
+
+        if (matchIndex >= 0) {
+          existingExp[matchIndex] = this.mergeExperienceEntry(
+            existingExp[matchIndex],
+            extractedEntry,
+          );
+          continue;
+        }
+
+        existingExp.push(extractedEntry);
+      }
+
+      existing.experience = existingExp;
     }
 
     // Education
     if (extracted.education) {
-      const existingEdu = existing.education || [];
-      const newEdu = extracted.education.filter(
-        (newItem) =>
-          !existingEdu.some(
-            (existingItem) =>
-              existingItem.institution.toLowerCase() ===
-                newItem.institution.toLowerCase() &&
-              existingItem.degree.toLowerCase() ===
-                newItem.degree.toLowerCase(),
-          ),
-      );
-      existing.education = [...existingEdu, ...newEdu];
+      const existingEdu = [...(existing.education || [])];
+
+      for (const extractedEntry of extracted.education) {
+        const matchIndex = this.findMatchingEducationIndex(
+          existingEdu,
+          extractedEntry,
+        );
+
+        if (matchIndex >= 0) {
+          existingEdu[matchIndex] = this.mergeEducationEntry(
+            existingEdu[matchIndex],
+            extractedEntry,
+          );
+          continue;
+        }
+
+        existingEdu.push(extractedEntry);
+      }
+
+      existing.education = existingEdu;
     }
 
     // Skills

@@ -37,7 +37,9 @@ import {
 } from "@/lib/services/resumeService";
 import type { SubscriptionTier } from "@/lib/config";
 import {
+  buildClarificationChecklist,
   buildEvidenceMap,
+  buildClarificationMessage,
   buildQualityReport,
   evaluateFactualAlignment,
   buildRepairPrompt,
@@ -139,6 +141,7 @@ export interface SyncGenerationResult {
   qualityReport?: GenerationQualityReport;
   needsClarification?: boolean;
   missingEvidenceFields?: string[];
+  clarificationChecklist?: string[];
   previewData?: GeneratedResumeInput;
   evidenceMap?: Record<string, string[]>;
 }
@@ -483,6 +486,7 @@ export async function processSyncGeneration(
           responseText,
           candidateData,
           validation.errors,
+          allMessages,
         );
 
         try {
@@ -571,19 +575,22 @@ export async function processSyncGeneration(
       if (!validation.valid) {
         logger.warn({ errors: validation.errors }, "⚠️ Validation failed");
 
-        const safeResponse =
-          "I'm almost ready to create your resume, but I need a few more details. " +
-          (validation.errors.length > 0
-            ? "Specifically: " + validation.errors.join(", ")
-            : "Please provide more information.");
+        const safeResponse = buildClarificationMessage(
+          candidateData,
+          validation.errors,
+        );
 
         return {
           response: safeResponse,
           model: normalizedAIResponse.model,
-          progress: updatedProgress.completenessPercentage,
+          progress: Math.min(updatedProgress.completenessPercentage, 95),
           qualityReport,
           needsClarification: true,
           missingEvidenceFields: validation.errors,
+          clarificationChecklist: buildClarificationChecklist(
+            candidateData,
+            validation.errors,
+          ),
           sessionData: {
             collectedData: candidateData,
             progress: updatedProgress,

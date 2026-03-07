@@ -302,6 +302,50 @@ describe("Resume Generation Orchestrator", () => {
       expect(result.response).toBeDefined();
       expect(result.progress).toBeLessThan(100);
     });
+
+    it("returns exact missing-entry guidance when validation fails during creation", async () => {
+      const incompleteResume = {
+        isComplete: true,
+        title: "Software Engineer Resume",
+        templateId: "signal-v1",
+        summary: "Software engineer building web apps with React and Node.js.",
+        skills: [{ name: "React", level: "Advanced", visibility: "public" }],
+        experience: [
+          {
+            company: "Acme Corp",
+            role: "Software Engineer",
+            startDate: "2021",
+            endDate: "2024",
+            description: "",
+            visibility: "public",
+          },
+        ],
+        education: [],
+        contact: {
+          email: { value: "alex@example.com", visibility: "public" },
+          phone: { value: "555-0100", visibility: "masked" },
+        },
+        projects: [],
+      };
+
+      mockGenerateTextWithTier
+        .mockResolvedValueOnce(
+          mockAIResponse(
+            "```json\n" + JSON.stringify(incompleteResume) + "\n```",
+          ),
+        )
+        .mockResolvedValueOnce(mockAIResponse("not-json"));
+
+      const result = await processSyncGeneration(
+        buildInput({ strictMode: true }),
+      );
+
+      expect(result.needsClarification).toBe(true);
+      expect(result.progress).toBe(95);
+      expect(result.response).toContain("Experience entry 1");
+      expect(result.response).toContain('title/role="Software Engineer"');
+      expect(result.response).toContain("description=missing");
+    });
   });
 
   // -------------------------------------------------------------------------

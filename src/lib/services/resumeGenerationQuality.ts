@@ -33,6 +33,12 @@ interface BuildQualityReportInput {
   factualAlignmentScore?: number;
 }
 
+interface IndexedValidationIssue {
+  section: "experience" | "education";
+  index: number;
+  kind: "company" | "title" | "description" | "institution" | "degree";
+}
+
 const DEFAULT_RESUME_V2_FLAGS: ResumeV2Flags = {
   resume_v2_intake: true,
   resume_v2_writer: true,
@@ -165,7 +171,8 @@ function classifyClaimText(
   metricKind: "summary_metric" | "experience_metric",
 ): ClaimCandidate | null {
   const hasNumericClaim =
-    extractSummaryClaims(text).length > 0 || extractNumericTokens(text).length > 0;
+    extractSummaryClaims(text).length > 0 ||
+    extractNumericTokens(text).length > 0;
   if (hasNumericClaim) {
     return { text, kind: metricKind };
   }
@@ -181,7 +188,9 @@ function classifyClaimText(
   return null;
 }
 
-function collectClaimCandidates(resumeData: Record<string, unknown>): ClaimCandidate[] {
+function collectClaimCandidates(
+  resumeData: Record<string, unknown>,
+): ClaimCandidate[] {
   const candidates: ClaimCandidate[] = [];
 
   const summary =
@@ -204,7 +213,9 @@ function collectClaimCandidates(resumeData: Record<string, unknown>): ClaimCandi
 
     const experience = entry as Record<string, unknown>;
     const description =
-      typeof experience.description === "string" ? experience.description.trim() : "";
+      typeof experience.description === "string"
+        ? experience.description.trim()
+        : "";
 
     for (const sentence of splitSentences(description)) {
       const claim = classifyClaimText(sentence, "experience_metric");
@@ -224,7 +235,10 @@ function collectClaimCandidates(resumeData: Record<string, unknown>): ClaimCandi
           continue;
         }
 
-        const claim = classifyClaimText(normalizedAchievement, "experience_metric");
+        const claim = classifyClaimText(
+          normalizedAchievement,
+          "experience_metric",
+        );
         if (claim) {
           candidates.push(claim);
         }
@@ -243,7 +257,9 @@ function collectClaimCandidates(resumeData: Record<string, unknown>): ClaimCandi
   });
 }
 
-function buildEvidenceDocuments(allMessages: EvidenceMessage[]): EvidenceDocument[] {
+function buildEvidenceDocuments(
+  allMessages: EvidenceMessage[],
+): EvidenceDocument[] {
   return allMessages
     .filter((entry) => entry.isUser)
     .map((entry) => entry.content.trim())
@@ -256,7 +272,10 @@ function buildEvidenceDocuments(allMessages: EvidenceMessage[]): EvidenceDocumen
     }));
 }
 
-function countTokenOverlap(tokens: string[], evidenceTokens: Set<string>): number {
+function countTokenOverlap(
+  tokens: string[],
+  evidenceTokens: Set<string>,
+): number {
   let overlap = 0;
   for (const token of tokens) {
     if (evidenceTokens.has(token)) {
@@ -405,7 +424,8 @@ export function validateStructuredResumeContract(
         }
 
         const company = isNonEmptyString(record.company);
-        const title = isNonEmptyString(record.title) || isNonEmptyString(record.role);
+        const title =
+          isNonEmptyString(record.title) || isNonEmptyString(record.role);
         const description = isNonEmptyString(record.description);
         const achievements = Array.isArray(record.achievements)
           ? record.achievements.filter((achievement) =>
@@ -461,6 +481,247 @@ export function validateStructuredResumeContract(
   return [...new Set(errors)];
 }
 
+function firstNonEmptyString(...values: unknown[]): string | null {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+
+  return null;
+}
+
+function buildExperienceDatePreview(
+  entry: Record<string, unknown>,
+): string | null {
+  const duration = firstNonEmptyString(entry.duration);
+  if (duration) {
+    return duration;
+  }
+
+  const startDate = firstNonEmptyString(entry.startDate);
+  const endDate = firstNonEmptyString(entry.endDate);
+
+  if (startDate && endDate) {
+    return `${startDate} - ${endDate}`;
+  }
+
+  return startDate || endDate;
+}
+
+function summarizeExperienceEntry(
+  entry: Record<string, unknown> | null,
+): string {
+  if (!entry) {
+    return "I do not have any structured details for that experience entry yet.";
+  }
+
+  const role = firstNonEmptyString(entry.role, entry.title) || "missing";
+  const company = firstNonEmptyString(entry.company) || "missing";
+  const dates = buildExperienceDatePreview(entry);
+  const hasDescription = isNonEmptyString(entry.description);
+  const achievements = Array.isArray(entry.achievements)
+    ? entry.achievements.filter((achievement) => isNonEmptyString(achievement))
+        .length
+    : 0;
+
+  const parts = [`title/role="${role}"`, `company="${company}"`];
+
+  if (dates) {
+    parts.push(`dates="${dates}"`);
+  }
+
+  parts.push(`description=${hasDescription ? "present" : "missing"}`);
+  parts.push(`achievements=${achievements}`);
+
+  return `Current details: ${parts.join(", ")}.`;
+}
+
+function summarizeEducationEntry(
+  entry: Record<string, unknown> | null,
+): string {
+  if (!entry) {
+    return "I do not have any structured details for that education entry yet.";
+  }
+
+  const institution = firstNonEmptyString(entry.institution) || "missing";
+  const degree = firstNonEmptyString(entry.degree) || "missing";
+  const year = firstNonEmptyString(entry.year, entry.endDate, entry.startDate);
+  const parts = [`institution="${institution}"`, `degree="${degree}"`];
+
+  if (year) {
+    parts.push(`year/date="${year}"`);
+  }
+
+  return `Current details: ${parts.join(", ")}.`;
+}
+
+function parseIndexedValidationIssue(
+  error: string,
+): IndexedValidationIssue | null {
+  let match = error.match(/^Experience entry (\d+) is missing company$/);
+  if (match?.[1]) {
+    return {
+      section: "experience",
+      index: Number.parseInt(match[1], 10) - 1,
+      kind: "company",
+    };
+  }
+
+  match = error.match(/^Experience entry (\d+) is missing title\/role$/);
+  if (match?.[1]) {
+    return {
+      section: "experience",
+      index: Number.parseInt(match[1], 10) - 1,
+      kind: "title",
+    };
+  }
+
+  match = error.match(
+    /^Experience entry (\d+) must include description or achievements$/,
+  );
+  if (match?.[1]) {
+    return {
+      section: "experience",
+      index: Number.parseInt(match[1], 10) - 1,
+      kind: "description",
+    };
+  }
+
+  match = error.match(/^Education entry (\d+) is missing institution$/);
+  if (match?.[1]) {
+    return {
+      section: "education",
+      index: Number.parseInt(match[1], 10) - 1,
+      kind: "institution",
+    };
+  }
+
+  match = error.match(/^Education entry (\d+) is missing degree$/);
+  if (match?.[1]) {
+    return {
+      section: "education",
+      index: Number.parseInt(match[1], 10) - 1,
+      kind: "degree",
+    };
+  }
+
+  return null;
+}
+
+function buildValidationChecklistItem(
+  issue: IndexedValidationIssue,
+  resumeData: Record<string, unknown>,
+): string {
+  const experienceEntries = Array.isArray(resumeData.experience)
+    ? resumeData.experience
+    : [];
+  const educationEntries = Array.isArray(resumeData.education)
+    ? resumeData.education
+    : [];
+
+  if (issue.section === "experience") {
+    const entry = asRecord(experienceEntries[issue.index]);
+    const label = `Experience entry ${issue.index + 1}`;
+    const role = firstNonEmptyString(entry?.role, entry?.title);
+
+    if (issue.kind === "company") {
+      return role
+        ? `${label}: add the company name for ${role}.`
+        : `${label}: add the company name.`;
+    }
+
+    if (issue.kind === "title") {
+      return `${label}: add the job title or role.`;
+    }
+
+    return `${label}: add a short description of what you did, or at least one achievement.`;
+  }
+
+  const label = `Education entry ${issue.index + 1}`;
+  if (issue.kind === "institution") {
+    return `${label}: add the school or institution name.`;
+  }
+
+  return `${label}: add the degree or qualification name.`;
+}
+
+export function buildClarificationChecklist(
+  resumeData: Record<string, unknown>,
+  validationErrors: string[],
+): string[] {
+  return validationErrors.slice(0, 5).map((error) => {
+    const indexedIssue = parseIndexedValidationIssue(error);
+    if (!indexedIssue) {
+      return error;
+    }
+
+    return buildValidationChecklistItem(indexedIssue, resumeData);
+  });
+}
+
+export function buildClarificationMessage(
+  resumeData: Record<string, unknown>,
+  validationErrors: string[],
+): string {
+  if (validationErrors.length === 0) {
+    return (
+      "I'm almost ready to create your resume, but I still need a few more " +
+      "details. Please share any missing information and I'll continue."
+    );
+  }
+
+  const experienceEntries = Array.isArray(resumeData.experience)
+    ? resumeData.experience
+    : [];
+  const educationEntries = Array.isArray(resumeData.education)
+    ? resumeData.education
+    : [];
+  const checklist = buildClarificationChecklist(resumeData, validationErrors);
+
+  const formattedIssues = validationErrors.map((error) => {
+    const indexedIssue = parseIndexedValidationIssue(error);
+    if (!indexedIssue) {
+      return `- ${error}`;
+    }
+
+    if (indexedIssue.section === "experience") {
+      const experienceEntry = asRecord(experienceEntries[indexedIssue.index]);
+      const label = `Experience entry ${indexedIssue.index + 1}`;
+
+      if (indexedIssue.kind === "company") {
+        return `- ${label}: company is still missing. ${summarizeExperienceEntry(experienceEntry)}`;
+      }
+
+      if (indexedIssue.kind === "title") {
+        return `- ${label}: title or role is still missing. ${summarizeExperienceEntry(experienceEntry)}`;
+      }
+
+      return `- ${label}: I need either a short description of the work or at least one achievement. ${summarizeExperienceEntry(experienceEntry)}`;
+    }
+
+    const educationEntry = asRecord(educationEntries[indexedIssue.index]);
+    const label = `Education entry ${indexedIssue.index + 1}`;
+
+    if (indexedIssue.kind === "institution") {
+      return `- ${label}: institution is still missing. ${summarizeEducationEntry(educationEntry)}`;
+    }
+
+    return `- ${label}: degree is still missing. ${summarizeEducationEntry(educationEntry)}`;
+  });
+
+  return [
+    "You're very close — I just need a few exact details before I can create the resume:",
+    "Quick checklist:",
+    ...checklist.map((item) => `• ${item}`),
+    "",
+    "More detail on what I have so far:",
+    ...formattedIssues.slice(0, 5),
+    "",
+    "Fastest reply format: 'Experience entry 1 description: Built...; achievement: Reduced...'.",
+  ].join("\n");
+}
+
 export async function evaluateResumeV2Flags(): Promise<ResumeV2Flags> {
   try {
     const [
@@ -469,14 +730,13 @@ export async function evaluateResumeV2Flags(): Promise<ResumeV2Flags> {
       resume_v2_templates,
       resume_v2_strict_validation,
       resume_v2_creative_polish,
-    ] =
-      await Promise.all([
-        isFeatureEnabled("resume_v2_intake"),
-        isFeatureEnabled("resume_v2_writer"),
-        isFeatureEnabled("resume_v2_templates"),
-        isFeatureEnabled("resume_v2_strict_validation"),
-        isFeatureEnabled("resume_v2_creative_polish"),
-      ]);
+    ] = await Promise.all([
+      isFeatureEnabled("resume_v2_intake"),
+      isFeatureEnabled("resume_v2_writer"),
+      isFeatureEnabled("resume_v2_templates"),
+      isFeatureEnabled("resume_v2_strict_validation"),
+      isFeatureEnabled("resume_v2_creative_polish"),
+    ]);
 
     return {
       resume_v2_intake,
@@ -598,7 +858,14 @@ export function buildRepairPrompt(
   originalResponseText: string,
   currentData: Record<string, unknown>,
   validationErrors: string[],
+  allMessages?: EvidenceMessage[],
 ): string {
+  const userEvidence = (allMessages || [])
+    .filter((entry) => entry.isUser)
+    .map((entry) => entry.content.trim())
+    .filter((entry) => entry.length > 0)
+    .slice(-8);
+
   return [
     "Repair the resume JSON so it passes validation.",
     "Return strict JSON only, with no markdown or explanation.",
@@ -606,6 +873,8 @@ export function buildRepairPrompt(
     `Validation errors: ${validationErrors.join("; ")}`,
     "Current candidate data:",
     JSON.stringify(currentData),
+    userEvidence.length > 0 ? "Recent user-authored evidence:" : "",
+    userEvidence.length > 0 ? JSON.stringify(userEvidence) : "",
     "Original model response:",
     originalResponseText,
   ].join("\n");
@@ -628,7 +897,8 @@ export function buildEvidenceMap(
       const sourceMatches = userMessages.filter((msg) =>
         msg.toLowerCase().includes(value.toLowerCase()),
       );
-      evidenceMap[field] = sourceMatches.length > 0 ? sourceMatches.slice(0, 3) : [value];
+      evidenceMap[field] =
+        sourceMatches.length > 0 ? sourceMatches.slice(0, 3) : [value];
       continue;
     }
 
@@ -645,7 +915,10 @@ export function buildEvidenceMap(
         searchableCorpus.toLowerCase().includes(entry.toLowerCase()),
       );
 
-      evidenceMap[field] = (matches.length > 0 ? matches : rawStrings).slice(0, 3);
+      evidenceMap[field] = (matches.length > 0 ? matches : rawStrings).slice(
+        0,
+        3,
+      );
     }
   }
 

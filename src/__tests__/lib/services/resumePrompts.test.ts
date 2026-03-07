@@ -57,7 +57,7 @@ describe("resumePrompts", () => {
         "msg",
         [],
         undefined,
-        collectedData
+        collectedData,
       );
       expect(prompt).toContain("CURRENTLY COLLECTED DATA:");
       expect(prompt).toContain('"name": "John"');
@@ -70,12 +70,13 @@ describe("resumePrompts", () => {
         undefined,
         undefined,
         undefined,
-        true
+        true,
       );
       expect(prompt).toContain(
-        "USER REQUEST: The user explicitly wants to create the resume NOW"
+        "USER REQUEST: The user explicitly wants to create the resume NOW",
       );
       expect(prompt).toContain('Generate the "RESUME_COMPLETE" response');
+      expect(prompt).toContain("Do NOT infer or fabricate missing companies");
     });
 
     it("should include missing info hints", () => {
@@ -89,7 +90,7 @@ describe("resumePrompts", () => {
       const prompt = buildConversationalPrompt("msg", [], progress);
       // New format uses "STATUS: The following fields are NOT yet structured:"
       expect(prompt).toContain(
-        "STATUS: The following fields are NOT yet structured: email, work experience"
+        "STATUS: The following fields are NOT yet structured: email, work experience",
       );
     });
 
@@ -103,7 +104,7 @@ describe("resumePrompts", () => {
       };
       const prompt = buildConversationalPrompt("msg", [], progress);
       expect(prompt).toContain(
-        "INFO COMPLETE: All required information collected"
+        "INFO COMPLETE: All required information collected",
       );
     });
 
@@ -143,7 +144,7 @@ describe("resumePrompts", () => {
       const data = { name: "John", email: "john@example.com" };
       const prompt = buildResumeCreationPrompt(data);
       expect(prompt).toContain(
-        "Based on the following information, create a professional resume"
+        "Based on the following information, create a professional resume",
       );
       expect(prompt).toContain('"name": "John"');
       expect(prompt).toContain('"email": "john@example.com"');
@@ -204,7 +205,7 @@ ${JSON.stringify(json)}
 
     it("should return generic question for unknown field", () => {
       expect(getFollowUpQuestion(["unknown"])).toContain(
-        "I need more information about your unknown"
+        "I need more information about your unknown",
       );
     });
   });

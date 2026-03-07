@@ -22,7 +22,15 @@ jest.mock("@/components/create-resume/CreateResumeHeader", () => ({
   CreateResumeHeader: () => <div data-testid="create-resume-header" />,
 }));
 jest.mock("@/components/create-resume/CreateResumeInputForm", () => ({
-  CreateResumeInputForm: ({ onInputChange, onSubmit, currentInput }: { onInputChange: (value: string) => void; onSubmit: () => void; currentInput: string }) => (
+  CreateResumeInputForm: ({
+    onInputChange,
+    onSubmit,
+    currentInput,
+  }: {
+    onInputChange: (value: string) => void;
+    onSubmit: () => void;
+    currentInput: string;
+  }) => (
     <form onSubmit={onSubmit} data-testid="input-form">
       <input
         value={currentInput}
@@ -34,7 +42,13 @@ jest.mock("@/components/create-resume/CreateResumeInputForm", () => ({
   ),
 }));
 jest.mock("@/components/create-resume/AILoadingState", () => ({
-  AILoadingState: ({ aiLoading, aiError }: { aiLoading: boolean; aiError: string | null }) => (
+  AILoadingState: ({
+    aiLoading,
+    aiError,
+  }: {
+    aiLoading: boolean;
+    aiError: string | null;
+  }) => (
     <div data-testid="ai-loading-state">
       {aiLoading && "Loading..."}
       {aiError && `Error: ${aiError}`}
@@ -57,6 +71,7 @@ describe("CreateResume Page", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    localStorage.clear();
     (useRouter as jest.Mock).mockReturnValue(mockRouter);
     (useAuth as jest.Mock).mockReturnValue({
       user: mockUser,
@@ -138,7 +153,7 @@ describe("CreateResume Page", () => {
         expect.objectContaining({
           method: "POST",
           body: expect.stringContaining("I am a software engineer"),
-        })
+        }),
       );
     });
 
@@ -198,5 +213,52 @@ describe("CreateResume Page", () => {
 
     expect(mockRouter.push).toHaveBeenCalledWith("/resumes/new-resume-123");
     jest.useRealTimers();
+  });
+
+  it("shows clarification issues and hides force-create while exact details are missing", async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ connected: true }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          response:
+            "I'm almost ready to create your resume, but I need one more detail.",
+          sessionData: { progress: { collectedFields: [], missingFields: [] } },
+          progress: 95,
+          needsClarification: true,
+          clarificationChecklist: [
+            "Experience entry 1: add a short description of what you did, or at least one achievement.",
+          ],
+        }),
+      });
+
+    render(<CreateResume />);
+
+    const input = screen.getByTestId("chat-input");
+    fireEvent.change(input, { target: { value: "Create it now" } });
+    fireEvent.submit(screen.getByTestId("input-form"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("A few quick details are still needed"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          "Reply with just the missing pieces below and I can keep going.",
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          "Experience entry 1: add a short description of what you did, or at least one achievement.",
+        ),
+      ).toBeInTheDocument();
+    });
+
+    expect(
+      screen.queryByRole("button", { name: /create resume now/i }),
+    ).not.toBeInTheDocument();
   });
 });

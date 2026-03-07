@@ -19,7 +19,19 @@ export interface SessionData {
   stage: "input" | "generating" | "complete";
   sessionData: unknown;
   progress: number;
+  needsClarification?: boolean;
+  clarificationIssues?: string[];
   lastActivity?: string;
+}
+
+interface ResumeGenerationResponse {
+  response?: string;
+  sessionData?: unknown;
+  progress?: number;
+  resumeId?: string;
+  needsClarification?: boolean;
+  missingEvidenceFields?: string[];
+  clarificationChecklist?: string[];
 }
 
 export function useResumeCreation() {
@@ -40,6 +52,8 @@ export function useResumeCreation() {
   } | null>(null);
   const [sessionData, setSessionData] = useState<unknown>(null);
   const [progress, setProgress] = useState<number>(0);
+  const [needsClarification, setNeedsClarification] = useState(false);
+  const [clarificationIssues, setClarificationIssues] = useState<string[]>([]);
   const [availableModels, setAvailableModels] = useState<
     Array<{
       id: string;
@@ -93,11 +107,21 @@ export function useResumeCreation() {
         stage,
         sessionData,
         progress,
+        needsClarification,
+        clarificationIssues,
         lastActivity: new Date().toISOString(),
       };
       localStorage.setItem(SESSION_KEY, JSON.stringify(sessionToSave));
     }
-  }, [messages, stage, sessionData, progress, user?.uid]);
+  }, [
+    messages,
+    stage,
+    sessionData,
+    progress,
+    needsClarification,
+    clarificationIssues,
+    user?.uid,
+  ]);
 
   const handleContinueSession = useCallback(() => {
     if (!pendingSession) return;
@@ -110,6 +134,8 @@ export function useResumeCreation() {
     if (pendingSession.stage) setStage(pendingSession.stage);
     if (pendingSession.sessionData) setSessionData(pendingSession.sessionData);
     if (pendingSession.progress) setProgress(pendingSession.progress);
+    setNeedsClarification(!!pendingSession.needsClarification);
+    setClarificationIssues(pendingSession.clarificationIssues || []);
     setShowRestoreDialog(false);
     setPendingSession(null);
     logger.info("✅ Session restored");
@@ -122,6 +148,8 @@ export function useResumeCreation() {
     setStage("input");
     setProgress(0);
     setSessionData(null);
+    setNeedsClarification(false);
+    setClarificationIssues([]);
     setShowRestoreDialog(false);
     setPendingSession(null);
     logger.info("🆕 Started fresh");
@@ -174,6 +202,8 @@ export function useResumeCreation() {
       setCurrentInput("");
       setAiLoading(true);
       setAiError(null);
+      setNeedsClarification(false);
+      setClarificationIssues([]);
       setStage("generating");
 
       try {
@@ -205,7 +235,7 @@ export function useResumeCreation() {
           throw new Error(errorMsg);
         }
 
-        const data = await response.json();
+        const data = (await response.json()) as ResumeGenerationResponse;
         const aiMessage: Message = {
           id: (Date.now() + 1).toString(),
           content: data.response || "Resume generated successfully!",
@@ -216,6 +246,10 @@ export function useResumeCreation() {
         setMessages((prev) => [...prev, aiMessage]);
         if (data.sessionData) setSessionData(data.sessionData);
         if (data.progress !== undefined) setProgress(data.progress);
+        setNeedsClarification(!!data.needsClarification);
+        setClarificationIssues(
+          data.clarificationChecklist || data.missingEvidenceFields || [],
+        );
 
         if (data.resumeId) {
           setStage("complete");
@@ -250,6 +284,8 @@ export function useResumeCreation() {
     setMessages((prev) => [...prev, userMessage]);
     setAiLoading(true);
     setAiError(null);
+    setNeedsClarification(false);
+    setClarificationIssues([]);
     setStage("generating");
 
     try {
@@ -281,7 +317,7 @@ export function useResumeCreation() {
         throw new Error(errorMsg);
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as ResumeGenerationResponse;
 
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -299,6 +335,11 @@ export function useResumeCreation() {
       if (data.progress !== undefined) {
         setProgress(data.progress);
       }
+
+      setNeedsClarification(!!data.needsClarification);
+      setClarificationIssues(
+        data.clarificationChecklist || data.missingEvidenceFields || [],
+      );
 
       if (data.resumeId) {
         setStage("complete");
@@ -335,6 +376,8 @@ export function useResumeCreation() {
     aiConnectionStatus,
     sessionData,
     progress,
+    needsClarification,
+    clarificationIssues,
     availableModels,
     selectedModelId,
     setSelectedModelId,

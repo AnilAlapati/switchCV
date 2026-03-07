@@ -274,6 +274,42 @@ describe("ResumeDataExtractor", () => {
       expect(merged.experience).toHaveLength(2);
     });
 
+    it("should backfill matching experience entries instead of dropping new details", () => {
+      const existing = {
+        experience: [
+          {
+            title: "Engineer",
+            company: "Acme",
+            duration: "",
+            description: "",
+            achievements: [],
+          },
+        ],
+      };
+      const extracted = {
+        experience: [
+          {
+            title: "Engineer",
+            company: "Acme",
+            duration: "2021 - Present",
+            description: "Built onboarding automation.",
+            achievements: ["Reduced onboarding time by 30%"],
+          },
+        ],
+      };
+
+      const merged = ResumeDataExtractor.mergeData(existing, extracted);
+
+      expect(merged.experience).toHaveLength(1);
+      expect(merged.experience?.[0].duration).toBe("2021 - Present");
+      expect(merged.experience?.[0].description).toBe(
+        "Built onboarding automation.",
+      );
+      expect(merged.experience?.[0].achievements).toContain(
+        "Reduced onboarding time by 30%",
+      );
+    });
+
     it("should concatenate education arrays", () => {
       const existing = {
         education: [
@@ -297,6 +333,35 @@ describe("ResumeDataExtractor", () => {
       const merged = ResumeDataExtractor.mergeData(existing, extracted);
 
       expect(merged.education).toHaveLength(2);
+    });
+
+    it("should backfill matching education entries instead of duplicating them", () => {
+      const existing = {
+        education: [
+          {
+            degree: "B.S. Computer Science",
+            institution: "MIT",
+            year: "",
+            major: "",
+          },
+        ],
+      };
+      const extracted = {
+        education: [
+          {
+            degree: "B.S. Computer Science",
+            institution: "MIT",
+            year: "2021",
+            major: "Computer Science",
+          },
+        ],
+      };
+
+      const merged = ResumeDataExtractor.mergeData(existing, extracted);
+
+      expect(merged.education).toHaveLength(1);
+      expect(merged.education?.[0].year).toBe("2021");
+      expect(merged.education?.[0].major).toBe("Computer Science");
     });
 
     it("should deduplicate experience items", () => {

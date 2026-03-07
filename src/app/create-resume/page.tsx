@@ -34,6 +34,8 @@ export default function CreateResume() {
     aiConnectionStatus,
     sessionData,
     progress,
+    needsClarification,
+    clarificationIssues,
     availableModels,
     selectedModelId,
     setSelectedModelId,
@@ -173,11 +175,33 @@ export default function CreateResume() {
               </div>
             ) : (
               <div className="space-y-6 pb-2 pl-2">
+                {needsClarification && clarificationIssues.length > 0 && (
+                  <div
+                    className="max-w-3xl rounded-2xl border border-amber-300 bg-amber-50/90 p-4 text-amber-950 shadow-sm"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <p className="font-semibold text-sm">
+                      A few quick details are still needed
+                    </p>
+                    <p className="mt-1 text-sm leading-relaxed text-amber-900/90">
+                      Reply with just the missing pieces below and I can keep
+                      going.
+                    </p>
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed">
+                      {clarificationIssues.map((issue) => (
+                        <li key={issue}>{issue}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
                 {messages.map((message) => (
                   <div
                     key={message.id}
-                    className={`flex items-end gap-3 ${message.isUser ? "justify-end" : "justify-start"
-                      }`}
+                    className={`flex items-end gap-3 ${
+                      message.isUser ? "justify-end" : "justify-start"
+                    }`}
                   >
                     {!message.isUser && (
                       <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 border border-primary/20">
@@ -186,19 +210,21 @@ export default function CreateResume() {
                     )}
 
                     <div
-                      className={`max-w-[85%] sm:max-w-[75%] p-5 rounded-2xl shadow-sm ${message.isUser
-                        ? "bg-primary text-primary-foreground rounded-br-none"
-                        : "bg-white/60 backdrop-blur-sm text-foreground border border-white/40 rounded-bl-none"
-                        }`}
+                      className={`max-w-[85%] sm:max-w-[75%] p-5 rounded-2xl shadow-sm ${
+                        message.isUser
+                          ? "bg-primary text-primary-foreground rounded-br-none"
+                          : "bg-white/60 backdrop-blur-sm text-foreground border border-white/40 rounded-bl-none"
+                      }`}
                     >
                       <p className="whitespace-pre-wrap leading-relaxed">
                         {message.content}
                       </p>
                       <p
-                        className={`text-[10px] mt-2 ${message.isUser
-                          ? "text-primary-foreground/70"
-                          : "text-muted-foreground"
-                          }`}
+                        className={`text-[10px] mt-2 ${
+                          message.isUser
+                            ? "text-primary-foreground/70"
+                            : "text-muted-foreground"
+                        }`}
                       >
                         {message.timestamp.toLocaleTimeString([], {
                           hour: "2-digit",
@@ -226,7 +252,8 @@ export default function CreateResume() {
               {messages.length > 0 &&
                 progress >= 60 &&
                 stage !== "complete" &&
-                !aiLoading && (
+                !aiLoading &&
+                !needsClarification && (
                   <div className="flex justify-center mb-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <button
                       onClick={handleForceCreate}
