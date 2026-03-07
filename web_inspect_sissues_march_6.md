@@ -47,7 +47,7 @@ This exposes framework fingerprinting information. It does not by itself create 
 Live production headers included `x-powered-by: Next.js`.
 
 **Assessment:**
-Low severity. This is not a direct compromise. A mitigation was added in middleware by clearing `x-powered-by` on middleware-managed responses, but final live verification requires deployment because the current production site still reflects the previous release.
+Low severity. This is not a direct compromise. A mitigation attempt was added in middleware, but post-deployment verification shows `x-powered-by` is still present in live responses. This likely means the header is being injected after middleware processing by the hosting/runtime layer.
 
 **Risk level:** Low
 
@@ -90,7 +90,7 @@ Documented only. No direct code change in this patch.
 ## Files changed
 
 - [src/middleware.ts](src/middleware.ts)
-- [src/**tests**/middleware/security-headers.test.ts](src/__tests__/middleware/security-headers.test.ts)
+- [src/__tests__/middleware/security-headers.test.ts](src/__tests__/middleware/security-headers.test.ts)
 
 ## Tests added
 
@@ -111,14 +111,20 @@ Documented only. No direct code change in this patch.
 - Targeted middleware tests passed: `2/2`
 - Quick quality gate passed: `quality:quick`
 
+### Live validation after deployment
+
+- Production redeployed successfully on `v0.1.45`
+- `/`, `/auth`, and `/create-resume` now return `Content-Security-Policy`
+- Page responses now include per-request `x-nonce` and `x-request-id`
+- `x-powered-by: Next.js` is still present after deployment
+
 ## Residual follow-up items
 
-1. Deploy the middleware fix and verify live headers again on `/`, `/auth`, and `/create-resume`
-2. Decide whether to split `/api/system-config` into:
+1. Decide whether to split `/api/system-config` into:
    - a minimal public client config route
    - a private internal/server config path
-3. Re-check whether `x-powered-by` is still visible after deployment
+2. Investigate where `x-powered-by` is injected in the Firebase/Next hosting path and whether it can be removed upstream
 
 ## Outcome
 
-The missing page CSP was a real issue and was fixed in code. The `system-config` exposure and `x-powered-by` header are real but lower-severity hardening concerns; they are documented here, with the config exposure intentionally deferred to a broader refactor.
+The missing page CSP was a real issue and is now fixed live in production. The `system-config` exposure and `x-powered-by` header remain real but lower-severity hardening concerns; they are documented here, with the config exposure intentionally deferred to a broader refactor.
