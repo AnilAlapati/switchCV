@@ -222,78 +222,17 @@ function validateOrigin(request: NextRequest): boolean {
   return false;
 }
 
-export function middleware(request: NextRequest): NextResponse | undefined {
-  const { pathname } = request.nextUrl;
-
-  // Only process API routes
-  if (!pathname.startsWith("/api/")) {
-    return undefined;
-  }
-
-  // ── Correlation ID ──
-  // Propagate incoming x-request-id or generate a new one for tracing
-  const requestId = request.headers.get("x-request-id") || crypto.randomUUID();
-
-  // ── Rate Limiting (all methods, all API routes except exempt) ──
-  if (!isRateLimitExempt(pathname)) {
-    const ip =
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      request.headers.get("x-real-ip") ||
-      "unknown";
-
-    const rateResult = checkRateLimitMiddleware(ip, pathname);
-
-    if (!rateResult.allowed) {
-      const retryAfterSec = Math.ceil(rateResult.resetMs / 1000);
-      return NextResponse.json(
-        { error: "Too many requests", code: "RATE_LIMIT_EXCEEDED" },
-        {
-          status: 429,
-          headers: {
-            "Retry-After": String(retryAfterSec),
-            "X-RateLimit-Remaining": "0",
-            "x-request-id": requestId,
-          },
-        },
-      );
-    }
-  }
-
-  // ── CSRF Protection (state-changing methods only) ──
-
-  // Skip CSRF for safe methods (GET, HEAD, OPTIONS)
-  if (!PROTECTED_METHODS.has(request.method)) {
-    return undefined;
-  }
-
-  // Skip CSRF for exempt paths
-  if (isCsrfExemptPath(pathname)) {
-    return undefined;
-  }
-
-  // Validate origin
-  if (!validateOrigin(request)) {
-    return NextResponse.json(
-      {
-        error: "Request rejected",
-        code: "CSRF_ORIGIN_MISMATCH",
-      },
-      {
-        status: 403,
-        headers: { "x-request-id": requestId },
-      },
-    );
-  }
-
-  // Generate CSP Nonce
+function createSecurityContext(
+  request: NextRequest,
+  requestId: string,
+): {
+  nonce: string;
+  cspHeader: string;
+  requestHeaders: Headers;
+} {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
-
-  // Define CSP directives
   const isDev = process.env.NODE_ENV === "development";
 
-  // We need 'unsafe-eval' in dev for hot reloading
-  // 'unsafe-inline' is replaced by 'nonce-...' for scripts
-  // We still need 'unsafe-inline' for styles due to Next.js inline styles and some third-party libs
   const cspHeader = `
     default-src 'self';
     script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${isDev ? "'unsafe-eval'" : ""} https: http:;
@@ -312,26 +251,107 @@ export function middleware(request: NextRequest): NextResponse | undefined {
     .replace(/\s{2,}/g, " ")
     .trim();
 
-  // Create response
-  const response = NextResponse.next();
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-request-id", requestId);
+  requestHeaders.set("x-nonce", nonce);
 
-  // Set CSP header
+  return { nonce, cspHeader, requestHeaders };
+}
+
+function applySecurityHeaders(
+  response: NextResponse,
+  requestId: string,
+  nonce: string,
+  cspHeader: string,
+): NextResponse {
   response.headers.set("Content-Security-Policy", cspHeader);
-
-  // Set correlation ID on response and request for downstream handlers/logging
   response.headers.set("x-request-id", requestId);
-  request.headers.set("x-request-id", requestId);
-
-  // Set nonce in request headers so server components can access it
   response.headers.set("x-nonce", nonce);
-  // Also set it on the request object for downstream middleware/handlers
-  request.headers.set("x-nonce", nonce);
-
+  response.headers.delete("x-powered-by");
   return response;
 }
 
+export function middleware(request: NextRequest): NextResponse | undefined {
+  const { pathname } = request.nextUrl;
+
+  // ── Correlation ID ──
+  // Propagate incoming x-request-id or generate a new one for tracing
+  const requestId = request.headers.get("x-request-id") || crypto.randomUUID();
+  const { nonce, cspHeader, requestHeaders } = createSecurityContext(
+    request,
+    requestId,
+  );
+
+  if (pathname.startsWith("/api/")) {
+    // ── Rate Limiting (all methods, all API routes except exempt) ──
+    if (!isRateLimitExempt(pathname)) {
+      const ip =
+        request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+        request.headers.get("x-real-ip") ||
+        "unknown";
+
+      const rateResult = checkRateLimitMiddleware(ip, pathname);
+
+      if (!rateResult.allowed) {
+        const retryAfterSec = Math.ceil(rateResult.resetMs / 1000);
+        return applySecurityHeaders(
+          NextResponse.json(
+            { error: "Too many requests", code: "RATE_LIMIT_EXCEEDED" },
+            {
+              status: 429,
+              headers: {
+                "Retry-After": String(retryAfterSec),
+                "X-RateLimit-Remaining": "0",
+                "x-request-id": requestId,
+              },
+            },
+          ),
+          requestId,
+          nonce,
+          cspHeader,
+        );
+      }
+    }
+
+    // ── CSRF Protection (state-changing methods only) ──
+
+    // Skip CSRF for safe methods (GET, HEAD, OPTIONS)
+    if (PROTECTED_METHODS.has(request.method) && !isCsrfExemptPath(pathname)) {
+      // Validate origin
+      if (!validateOrigin(request)) {
+        return applySecurityHeaders(
+          NextResponse.json(
+            {
+              error: "Request rejected",
+              code: "CSRF_ORIGIN_MISMATCH",
+            },
+            {
+              status: 403,
+              headers: { "x-request-id": requestId },
+            },
+          ),
+          requestId,
+          nonce,
+          cspHeader,
+        );
+      }
+    }
+  }
+
+  return applySecurityHeaders(
+    NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    }),
+    requestId,
+    nonce,
+    cspHeader,
+  );
+}
+
 /**
- * Matcher config — only run middleware on API routes
+ * Matcher config — run middleware on application routes while skipping static assets
  */
 export const config = {
   matcher: [
