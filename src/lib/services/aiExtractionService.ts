@@ -9,7 +9,7 @@
  */
 
 import { logger } from "@/lib/logger";
-import { reportError } from "@/lib/errorReporter";
+import { adminDb } from "@/lib/firebase-admin";
 import {
   ResumeExtractionSchema,
   type ResumeExtractionResult,
@@ -100,6 +100,9 @@ function recordExtractionFailure(errorMsg: string): void {
     failureTracker.adminAlertSent = true;
     const downMinutes = Math.round(downDurationMs / 60_000);
 
+    const alertTime = new Date();
+    const alertLabel = `[SWITCHCV ALERT] AI Extraction Down — ${alertTime.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}`;
+
     logger.error(
       {
         consecutiveFailures: failureTracker.consecutiveFailures,
@@ -107,24 +110,39 @@ function recordExtractionFailure(errorMsg: string): void {
         firstFailureAt: new Date(failureTracker.firstFailureAt).toISOString(),
         latestError: errorMsg,
       },
-      `🚨 ADMIN ALERT: AI extraction has been failing for ${downMinutes} minutes (${failureTracker.consecutiveFailures} consecutive failures)`,
+      `🚨 ${alertLabel}: ${failureTracker.consecutiveFailures} consecutive failures`,
     );
 
-    // Send to Sentry as a critical alert — this triggers PagerDuty/email
-    reportError(
-      new Error(
-        `AI extraction outage: ${failureTracker.consecutiveFailures} failures over ${downMinutes} minutes. Latest: ${errorMsg}`,
-      ),
-      {
-        source: "aiExtractionService.outageAlert",
-        severity: "error",
-        meta: {
-          consecutiveFailures: failureTracker.consecutiveFailures,
-          downMinutes,
-          firstFailureAt: failureTracker.firstFailureAt,
+    // Send admin email via Firestore mail collection (Firebase Trigger Email extension)
+    const alertId = `ai-alert-${alertTime.getTime()}`;
+    const html = `
+      <h2 style="color:#c0392b">🚨 AI Extraction Service Alert</h2>
+      <p>The AI extraction service on <strong>SwitchCV</strong> has been failing continuously for <strong>${downMinutes} minutes</strong> and requires attention.</p>
+      <table style="border-collapse:collapse;width:100%;font-family:monospace;font-size:14px">
+        <tr><td style="padding:6px 12px;background:#f8f9fa;border:1px solid #dee2e6">Consecutive failures</td><td style="padding:6px 12px;border:1px solid #dee2e6">${failureTracker.consecutiveFailures}</td></tr>
+        <tr><td style="padding:6px 12px;background:#f8f9fa;border:1px solid #dee2e6">Down since</td><td style="padding:6px 12px;border:1px solid #dee2e6">${new Date(failureTracker.firstFailureAt!).toISOString()}</td></tr>
+        <tr><td style="padding:6px 12px;background:#f8f9fa;border:1px solid #dee2e6">Down for</td><td style="padding:6px 12px;border:1px solid #dee2e6">${downMinutes} minutes</td></tr>
+        <tr><td style="padding:6px 12px;background:#f8f9fa;border:1px solid #dee2e6">Latest error</td><td style="padding:6px 12px;border:1px solid #dee2e6">${errorMsg}</td></tr>
+        <tr><td style="padding:6px 12px;background:#f8f9fa;border:1px solid #dee2e6">Alert time</td><td style="padding:6px 12px;border:1px solid #dee2e6">${alertTime.toISOString()}</td></tr>
+      </table>
+      <p style="margin-top:16px">Users are currently seeing a &ldquo;please try again later&rdquo; message. No data has been lost.</p>
+    `;
+
+    void adminDb
+      .collection("mail")
+      .doc(alertId)
+      .set({
+        to: "support@switchcv.com",
+        message: {
+          subject: alertLabel,
+          html,
+          text: `AI Extraction Service Alert\n\nDown for ${downMinutes} minutes (${failureTracker.consecutiveFailures} consecutive failures).\nLatest error: ${errorMsg}\nFirst failure: ${new Date(failureTracker.firstFailureAt!).toISOString()}`,
         },
-      },
-    );
+        createdAt: alertTime,
+      })
+      .catch((mailErr: unknown) => {
+        logger.error({ err: mailErr }, "Failed to queue admin alert email");
+      });
   }
 }
 
