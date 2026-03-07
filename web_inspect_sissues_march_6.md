@@ -81,6 +81,7 @@ The public route returned fields including:
 This was a real information-exposure issue. It was not a credential leak, but it unnecessarily exposed operational details that were useful for reconnaissance.
 
 **Action taken in this patch:**
+
 - The public route now returns only the client-required subset of config.
 - Operational fields such as AI model preferences, agentic budget caps, and user approval admin contact details are no longer returned by `/api/system-config`.
 
@@ -100,9 +101,9 @@ This was a real information-exposure issue. It was not a credential leak, but it
 ## Files changed
 
 - [src/middleware.ts](src/middleware.ts)
-- [src/__tests__/middleware/security-headers.test.ts](src/__tests__/middleware/security-headers.test.ts)
+- [src/**tests**/middleware/security-headers.test.ts](src/__tests__/middleware/security-headers.test.ts)
 - [src/app/api/system-config/route.ts](src/app/api/system-config/route.ts)
-- [src/__tests__/api/system-config.test.ts](src/__tests__/api/system-config.test.ts)
+- [src/**tests**/api/system-config.test.ts](src/__tests__/api/system-config.test.ts)
 
 ## Tests added
 

@@ -12,7 +12,10 @@ import {
 import { handleApiError } from "@/lib/utils/api-helpers";
 import { logger } from "@/lib/logger";
 
-type PublicSystemConfig = Pick<SystemConfig, "maintenance" | "auth" | "tiers"> & {
+type PublicSystemConfig = Pick<
+  SystemConfig,
+  "maintenance" | "auth" | "tiers"
+> & {
   pricing?: SystemConfig["pricing"];
   cache: Pick<SystemConfig["cache"], "systemConfigTtlMs">;
   validation: Pick<SystemConfig["validation"], "username">;
@@ -39,7 +42,9 @@ function toPublicSystemConfig(config: SystemConfig): PublicSystemConfig {
 
 export async function GET() {
   try {
-    const snapshot = await collectionRef(COLLECTIONS.CONFIG).doc("system").get();
+    const snapshot = await collectionRef(COLLECTIONS.CONFIG)
+      .doc("system")
+      .get();
 
     let config: SystemConfig;
     if (snapshot.exists) {

@@ -83,7 +83,7 @@ describe("GET /api/system-config", () => {
     expect(mockMergeWithDefaultConfig).toHaveBeenCalledWith(rawData);
     expect(mockValidateSystemConfig).toHaveBeenCalledWith(
       mergedConfig,
-      defaultSystemConfig
+      defaultSystemConfig,
     );
     expect(mockValidateAICosts).toHaveBeenCalledWith(validatedConfig);
     expect(response.status).toBe(200);
@@ -122,7 +122,7 @@ describe("GET /api/system-config", () => {
     const data = await response.json();
 
     expect(mockLogger.warn).toHaveBeenCalledWith(
-      "⚠️ No system config found in Firebase, using defaults"
+      "⚠️ No system config found in Firebase, using defaults",
     );
     expect(mockMergeWithDefaultConfig).not.toHaveBeenCalled();
     expect(mockValidateSystemConfig).not.toHaveBeenCalled();
@@ -135,7 +135,7 @@ describe("GET /api/system-config", () => {
     const error = new Error("Database connection error");
     const errorResponse = NextResponse.json(
       { error: "Unable to fetch system configuration" },
-      { status: 500 }
+      { status: 500 },
     );
 
     const mockDoc = { get: jest.fn().mockRejectedValue(error) };
@@ -148,7 +148,7 @@ describe("GET /api/system-config", () => {
 
     expect(mockHandleApiError).toHaveBeenCalledWith(
       error,
-      "Unable to fetch system configuration"
+      "Unable to fetch system configuration",
     );
     expect(response).toBe(errorResponse);
   });
@@ -167,7 +167,7 @@ describe("GET /api/system-config", () => {
 
     // Verify fetchedAt is a valid ISO 8601 timestamp
     expect(data.fetchedAt).toMatch(
-      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/,
     );
     expect(new Date(data.fetchedAt).toISOString()).toBe(data.fetchedAt);
   });
@@ -194,7 +194,7 @@ describe("GET /api/system-config", () => {
 
     const errorResponse = NextResponse.json(
       { error: "Unable to fetch system configuration" },
-      { status: 500 }
+      { status: 500 },
     );
     mockHandleApiError.mockReturnValue(errorResponse);
 
@@ -202,7 +202,7 @@ describe("GET /api/system-config", () => {
 
     expect(mockHandleApiError).toHaveBeenCalledWith(
       expect.any(Error),
-      "Unable to fetch system configuration"
+      "Unable to fetch system configuration",
     );
     expect(response).toBe(errorResponse);
   });
