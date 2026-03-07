@@ -137,6 +137,18 @@ This was a real information-exposure issue. It was not a credential leak, but it
 - Route tests verify the public config subset and exclusion of internal fields
 - Existing hook/provider consumers continue to rely on the returned public subset plus client-side defaults
 
+### Live validation after system-config hardening
+
+- Production redeployed with the reduced public config response
+- Live `/api/system-config` now returns only client-safe sections:
+  - `maintenance`
+  - `auth`
+  - `tiers`
+  - `cache.systemConfigTtlMs`
+  - `validation.username`
+  - `rateLimits.usernameCheck`
+- Internal operational sections such as `agentic`, `userApproval`, `ai`, `search`, and broader rate-limit details are no longer exposed
+
 ## Residual follow-up items
 
 1. If server-only callers need dynamic internal config over HTTP, introduce a separate authenticated/internal config path
