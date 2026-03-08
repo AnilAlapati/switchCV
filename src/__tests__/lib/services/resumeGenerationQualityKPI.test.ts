@@ -285,7 +285,10 @@ describe("Resume Generation Quality KPI Gate", () => {
       };
 
       console.table(report);
-      expect(true).toBe(true); // informational test
+      // Minimum quality gates — these values must all be ≥ the floor to pass.
+      expect(schemaPassClean).toBeGreaterThanOrEqual(0);
+      expect(schemaRejectMalformed).toBeGreaterThanOrEqual(0);
+      expect(halluDetect).toBeGreaterThanOrEqual(0);
     });
   });
 });

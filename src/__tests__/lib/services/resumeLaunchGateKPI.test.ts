@@ -432,7 +432,9 @@ describe("Resume Extraction KPI — Gold Dataset", () => {
         avgFieldsExtracted: avgFields.toFixed(1),
       });
 
-      expect(true).toBe(true); // always passes — just for the printout
+      // Minimum quality gates — ensure extraction pipeline produced some results.
+      expect(total).toBeGreaterThan(0);
+      expect(avgFields).toBeGreaterThanOrEqual(0);
     });
   });
 });

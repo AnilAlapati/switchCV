@@ -1,4 +1,3 @@
- 
 import { POST } from "./route";
 import { NextRequest } from "next/server";
 import { generateText } from "@/lib/services/aiGenerationService";
@@ -12,6 +11,7 @@ import {
   extractResumeJSON,
   isCompletionResponse,
 } from "@/lib/services/resumePrompts";
+import { processSyncGeneration } from "@/lib/services/resumeGenerationOrchestrator";
 import { getActiveConfig } from "@/lib/services/conversationConfig";
 
 jest.mock("firebase-admin/app", () => ({
@@ -26,6 +26,7 @@ jest.mock("@/lib/services/conversationConfig", () => ({
 }));
 jest.mock("@/lib/services/resumeDataExtractor");
 jest.mock("@/lib/services/conversationManager");
+jest.mock("@/lib/services/resumeGenerationOrchestrator");
 jest.mock("@/lib/services/resumePrompts", () => ({
   buildConversationalPrompt: jest.fn().mockReturnValue("prompt"),
   extractResumeJSON: jest.fn(),
@@ -108,7 +109,7 @@ function setupMockConversationManager(
     progress?: Record<string, unknown>;
     data?: Record<string, unknown>;
     validation?: Record<string, unknown>;
-  } = {}
+  } = {},
 ) {
   const mock = {
     updateData: jest.fn(),
@@ -130,6 +131,12 @@ function setupMockConversationManager(
 describe("POST /api/resume/generate", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Default: orchestrator returns a standard conversational response.
+    // Individual tests override this when they need specific behaviour.
+    (processSyncGeneration as jest.Mock).mockResolvedValue({
+      response: "AI Response",
+      progress: 50,
+    });
   });
 
   it("should return 400 if message is missing", async () => {
@@ -205,7 +212,7 @@ describe("POST /api/resume/generate", () => {
     // Mock adminAuth to reject token verification
     const mockAdminAuth = require("@/lib/firebase-admin").adminAuth;
     mockAdminAuth.verifyIdToken.mockRejectedValueOnce(
-      new Error("Invalid token")
+      new Error("Invalid token"),
     );
 
     const req = new NextRequest("http://localhost/api/resume/generate", {
@@ -239,20 +246,14 @@ describe("POST /api/resume/generate", () => {
   });
 
   it("should handle validation failure during creation attempt", async () => {
-    setupMockConversationManager({
-      progress: {
-        completenessPercentage: 100,
-        isReadyToCreate: true,
-        hasMinimumData: true,
-      },
-      data: { name: "John" },
-      validation: { valid: false, errors: ["Email is required"] },
+    (processSyncGeneration as jest.Mock).mockResolvedValueOnce({
+      response:
+        "You're very close — I just need a few exact details before I can create the resume.",
+      progress: 95,
+      needsClarification: true,
+      missingEvidenceFields: ["Email is required"],
+      clarificationChecklist: ["Add your email address"],
     });
-    (generateText as jest.Mock).mockResolvedValue({
-      text: "I'm ready to create",
-      model: "gpt-4",
-    });
-    (extractResumeJSON as jest.Mock).mockReturnValue({ some: "json" });
 
     const req = new NextRequest("http://localhost/api/resume/generate", {
       method: "POST",
@@ -354,7 +355,9 @@ describe("POST /api/resume/generate", () => {
   });
 
   it("should handle internal server error", async () => {
-    (generateText as jest.Mock).mockRejectedValue(new Error("AI Service Down"));
+    (processSyncGeneration as jest.Mock).mockRejectedValueOnce(
+      new Error("AI Service Down"),
+    );
     const req = new NextRequest("http://localhost/api/resume/generate", {
       method: "POST",
       body: JSON.stringify({ message: "Hello", conversationHistory: [] }),

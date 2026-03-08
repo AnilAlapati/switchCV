@@ -423,11 +423,18 @@ export class ResumeDataExtractor {
       skipAI?: boolean;
     },
   ): Promise<ExtractionResult & { method: "ai" | "regex" }> {
-    // Combine all user messages into a single text block
+    // Build a labeled conversation transcript so the extraction AI has
+    // context from assistant questions when classifying user replies.
+    // Pure user-only text loses the crucial signal of what was asked.
+    const conversationText = messages
+      .map((m) => `[${m.isUser ? "USER" : "ASSISTANT"}]: ${m.content}`)
+      .join("\n");
+
+    // Still derive userText for the "too short" guard (user content only).
     const userText = messages
       .filter((m) => m.isUser)
       .map((m) => m.content)
-      .join("\n\n");
+      .join(" ");
 
     if (options?.skipAI) {
       logger.warn("AI extraction explicitly skipped — returning empty result");
@@ -458,7 +465,7 @@ export class ResumeDataExtractor {
         await import("@/lib/services/aiExtractionService");
 
       const aiResult: AIExtractionResult = await extractWithStructuredOutput(
-        userText,
+        conversationText,
         {
           userTier: options?.userTier ?? "premium",
         },

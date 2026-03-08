@@ -17,20 +17,123 @@ import {
 import { zodToGeminiSchema } from "@/lib/utils/zodToGeminiSchema";
 import type { ResumeDataRequirements } from "@/lib/services/conversationManager";
 
+/**
+ * Known technology / skill keywords. If both the extracted "title" and
+ * "company" consist mostly of these tokens, the AI made a false-positive
+ * experience extraction from a KEY SKILLS section.
+ */
+const KNOWN_TECH_TOKENS = new Set([
+  "api",
+  "nextjs",
+  "next.js",
+  "uipath",
+  "firebase",
+  "react",
+  "react.js",
+  "angular",
+  "vue",
+  "node",
+  "node.js",
+  "python",
+  "java",
+  "sql",
+  "nosql",
+  "mongodb",
+  "postgresql",
+  "graphql",
+  "docker",
+  "kubernetes",
+  "aws",
+  "azure",
+  "gcp",
+  "typescript",
+  "javascript",
+  "html",
+  "css",
+  "git",
+  "linux",
+  "bash",
+  "redis",
+  "elasticsearch",
+  "tailwind",
+  "bootstrap",
+  "sass",
+  "less",
+  "flutter",
+  "swift",
+  "kotlin",
+  "php",
+  "ruby",
+  "rails",
+  "laravel",
+  "django",
+  "flask",
+  "fastapi",
+  "spring",
+  ".net",
+  "c#",
+  "c++",
+  "go",
+  "rust",
+  "svelte",
+  "nuxt",
+  "supabase",
+  "microservices",
+  "ci/cd",
+  "agile",
+  "scrum",
+  "prompt",
+  "engineering",
+  "vibe",
+  "coding",
+  "machine learning",
+  "deep learning",
+  "nlp",
+  "llm",
+  "genai",
+  "gen ai",
+]);
+
+/** Returns true when a string looks like a list of tech skills rather than a job title/company. */
+function looksLikeSkillsList(value: string): boolean {
+  const tokens = value
+    .toLowerCase()
+    .split(/[\s,;|•·]+/)
+    .filter(Boolean);
+  if (tokens.length === 0) return false;
+  const techCount = tokens.filter((t) => KNOWN_TECH_TOKENS.has(t)).length;
+  return techCount / tokens.length >= 0.6 && tokens.length >= 2;
+}
+
 /** System prompt optimised for extraction (not generation). */
-const EXTRACTION_SYSTEM_PROMPT = `You are a resume data extraction assistant. Your ONLY task is to extract structured fields from unstructured resume text.
+const EXTRACTION_SYSTEM_PROMPT = `You are a resume data extraction assistant. Your ONLY task is to extract structured fields from a conversation transcript where a user is describing their resume.
 
 Rules:
-- Extract ONLY information that is explicitly stated in the text. Do NOT infer or fabricate any data.
-- If a field is not present in the text, omit it entirely (do not set it to null or empty string).
+- Extract ONLY information that is explicitly stated by the user. Do NOT infer or fabricate any data.
+- If a field is not present, omit it entirely (do not set it to null or empty string).
 - For experience entries, keep the original wording of descriptions and achievements.
 - For skills, list each distinct skill as a separate string.
-- CRITICAL: Lines that list technology keywords separated by spaces (e.g. "API Nextjs UiPath Firebase") are SKILLS, NOT job titles or company names. Only extract experience entries where there is a clear job title (e.g. "Software Engineer", "RPA Developer") and a real company name (e.g. "JPMorgan Chase", "IBM India").
+- When the input is a conversation transcript, [ASSISTANT] lines are questions — use them as CONTEXT ONLY to understand what the user is answering. Never extract data from [ASSISTANT] lines.
+- CRITICAL — Skills vs Experience: A list of technology keywords (e.g. "API Nextjs UiPath Firebase", "prompt engineering vibe coding") is ALWAYS a skills list, NOT a job title or company name. Only extract an experience entry when there is a clear human job title (e.g. "Software Engineer", "RPA Developer", "Project Manager") paired with a clear organization name (e.g. "JPMorgan Chase", "IBM India", "Startup XYZ").
 - If a section is labelled "KEY SKILLS", "SKILLS", "TECHNICAL SKILLS", "CERTIFICATION", or "PROJECTS", its contents are NOT work experience.
 - For dates, preserve the original format found in the text.
-- For names, use the full name as written (capitalize correctly).
+- For names, use the full name as written.
 - For phone numbers, keep the original formatting.
-- If the input text is not a resume or contains no extractable resume data, return an empty object.`;
+- If the input contains no extractable resume data, return an empty object.
+
+EXAMPLE — correct classification (few-shot):
+
+[ASSISTANT]: What technologies do you work with?
+[USER]: API Nextjs UiPath Firebase prompt engineering vibe coding
+→ These are SKILLS: ["API", "Next.js", "UiPath", "Firebase", "Prompt Engineering"]. Do NOT create an experience entry.
+
+[ASSISTANT]: Tell me about your most recent job.
+[USER]: I worked as an RPA Developer at Infosys for 2 years. I built automation workflows using UiPath.
+→ experience entry: title="RPA Developer", company="Infosys", duration="2 years", description="Built automation workflows using UiPath".
+
+[ASSISTANT]: Any achievements you're proud of?
+[USER]: Reduced invoice processing time by 60%.
+→ This is an achievement for the most recent experience entry, not a new entry.`;
 
 /** Options for the extraction call. */
 export interface ExtractionOptions {
@@ -204,7 +307,7 @@ export async function extractWithStructuredOutput(
     const { generateTextWithTier } =
       await import("@/server/services/aiProviderService");
 
-    const prompt = `${EXTRACTION_SYSTEM_PROMPT}\n\nExtract all resume fields from the following text. Return ONLY the structured data — no explanations, no commentary.\n\n---\nRESUME TEXT:\n${text}\n---`;
+    const prompt = `${EXTRACTION_SYSTEM_PROMPT}\n\nExtract all resume fields from the following conversation transcript. Return ONLY the structured data — no explanations, no commentary.\n\n---\nCONVERSATION TRANSCRIPT:\n${text}\n---`;
 
     const result = await generateTextWithTier({
       prompt,
@@ -350,13 +453,19 @@ function mapExtractionToRequirements(
   if (extracted.summary) data.summary = extracted.summary;
 
   if (extracted.experience && extracted.experience.length > 0) {
-    data.experience = extracted.experience.map((exp) => ({
-      title: exp.title,
-      company: exp.company,
-      duration: exp.duration,
-      description: exp.description,
-      achievements: exp.achievements,
-    }));
+    const validExperience = extracted.experience.filter(
+      (exp) =>
+        !looksLikeSkillsList(exp.title) && !looksLikeSkillsList(exp.company),
+    );
+    if (validExperience.length > 0) {
+      data.experience = validExperience.map((exp) => ({
+        title: exp.title,
+        company: exp.company,
+        duration: exp.duration,
+        description: exp.description,
+        achievements: exp.achievements,
+      }));
+    }
   }
 
   if (extracted.education && extracted.education.length > 0) {
