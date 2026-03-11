@@ -347,8 +347,11 @@ export const budgetMonitor = regionalFunctions.pubsub
  * Health Monitor — runs every 30 minutes, emails when Firestore/Gemini/SMTP are down.
  * Tracks consecutive failures, sends recovery notifications when services come back.
  */
-export const healthMonitor = regionalFunctions.pubsub
-  .schedule("*/30 * * * *") // Every 30 minutes
+export const healthMonitor = regionalFunctions
+  .runWith({
+    secrets: ["GEMINI_API_KEY"],
+  })
+  .pubsub.schedule("*/30 * * * *") // Every 30 minutes
   .timeZone("UTC")
   .onRun(async (context) => {
     if (!isProductionEnvironment()) {

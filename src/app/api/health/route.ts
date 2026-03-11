@@ -21,7 +21,10 @@ async function withTimeout<T>(
   let timer: ReturnType<typeof setTimeout> | null = null;
 
   const timeoutPromise = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`${label} timed out`)), timeoutMs);
+    timer = setTimeout(
+      () => reject(new Error(`${label} timed out`)),
+      timeoutMs,
+    );
   });
 
   try {
@@ -55,7 +58,15 @@ async function checkGemini(): Promise<ServiceStatus> {
     return { status: "ok" };
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  let apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    try {
+      const { getSecret } = await import("@/lib/services/secretManagerService");
+      apiKey = await getSecret("GEMINI_API_KEY");
+    } catch {
+      // Secret Manager unavailable — fall through to error
+    }
+  }
   if (!apiKey) {
     return { status: "error" };
   }

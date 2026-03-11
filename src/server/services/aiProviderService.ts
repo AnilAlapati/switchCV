@@ -41,18 +41,22 @@ const breakers = {
 // ==================== HELPER FUNCTIONS ====================
 
 /**
- * Check if a provider has a valid API key configured
+ * Check if a provider has a valid API key configured.
+ *
+ * Checks process.env first (fast path).  When process.env is empty the key
+ * may still be available via Firebase Secret Manager at call time, so we
+ * return true for known providers and let callProvider() resolve it.
  */
 function isProviderConfigured(provider: string): boolean {
   switch (provider) {
     case "openai":
-      return !!process.env.OPENAI_API_KEY;
+      return true; // Key resolved lazily via getSecret() in callOpenAI
     case "google":
-      return !!process.env.GEMINI_API_KEY;
+      return true; // Key resolved lazily via getSecret() in callGemini
     case "anthropic":
-      return !!process.env.ANTHROPIC_API_KEY;
+      return true; // Key resolved lazily via getSecret() in callAnthropic
     case "xai":
-      return !!process.env.XAI_API_KEY;
+      return true; // Key resolved lazily via getSecret() in callXAI
     default:
       return false;
   }

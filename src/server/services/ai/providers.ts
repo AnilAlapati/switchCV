@@ -1,5 +1,6 @@
 import { withRetry } from "@/lib/utils/retry";
 import { AI_ENDPOINTS, DEFAULT_STOP_SEQUENCES } from "@/config/aiEndpoints";
+import { getSecret } from "@/lib/services/secretManagerService";
 
 export async function callOpenAI(
   modelId: string,
@@ -8,7 +9,8 @@ export async function callOpenAI(
   temperature: number,
   options?: { jsonMode?: boolean },
 ): Promise<{ text: string; model: string }> {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey =
+    process.env.OPENAI_API_KEY || (await getSecret("OPENAI_API_KEY"));
   if (!apiKey) throw new Error("OpenAI API key not configured");
 
   const requestBody: Record<string, unknown> = {
@@ -54,7 +56,8 @@ export async function callGemini(
   temperature: number,
   options?: { jsonMode?: boolean; responseSchema?: Record<string, unknown> },
 ): Promise<{ text: string; model: string }> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey =
+    process.env.GEMINI_API_KEY || (await getSecret("GEMINI_API_KEY"));
   if (!apiKey) throw new Error("Gemini API key not configured");
 
   const generationConfig: Record<string, unknown> = {
@@ -102,7 +105,8 @@ export async function callAnthropic(
   maxTokens: number,
   temperature: number,
 ): Promise<{ text: string; model: string }> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey =
+    process.env.ANTHROPIC_API_KEY || (await getSecret("ANTHROPIC_API_KEY"));
   if (!apiKey) throw new Error("Anthropic API key not configured");
 
   const response = await withRetry(() =>
@@ -141,7 +145,7 @@ export async function callXAI(
   maxTokens: number,
   temperature: number,
 ): Promise<{ text: string; model: string }> {
-  const apiKey = process.env.XAI_API_KEY;
+  const apiKey = process.env.XAI_API_KEY || (await getSecret("XAI_API_KEY"));
   if (!apiKey) throw new Error("xAI API key not configured");
 
   const response = await withRetry(() =>

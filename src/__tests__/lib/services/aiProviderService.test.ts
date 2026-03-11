@@ -13,6 +13,11 @@ jest.mock("@/lib/logger", () => ({
   },
 }));
 
+// Mock Secret Manager so provider fallback to getSecret also returns ""
+jest.mock("@/lib/services/secretManagerService", () => ({
+  getSecret: jest.fn().mockResolvedValue(""),
+}));
+
 // Mock retry to just execute the function immediately
 jest.mock("@/lib/utils/retry", () => ({
   withRetry: jest.fn((fn) => fn()),
@@ -126,7 +131,7 @@ describe("AI Provider Service", () => {
       delete process.env.XAI_API_KEY;
       await expect(
         generateTextWithTier({ prompt: "p", userTier: "basic" }),
-      ).rejects.toThrow(/temporarily unavailable/);
+      ).rejects.toThrow(/unavailable/);
     });
 
     it("should retry and fallback", async () => {
