@@ -52,7 +52,11 @@ export default function ResumeAIEditPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!loading && (!user || needsEmailVerification)) {
+    if (!loading && !user) {
+      router.push("/auth");
+      return;
+    }
+    if (!loading && user && needsEmailVerification) {
       router.push(VERIFICATION_ROUTE);
     }
   }, [loading, user, needsEmailVerification, router]);
@@ -132,7 +136,7 @@ export default function ResumeAIEditPage() {
         setAiError(
           error instanceof Error
             ? error.message
-            : "Failed to load resume context"
+            : "Failed to load resume context",
         );
       } finally {
         setInitialised(true);
@@ -278,4 +282,3 @@ export default function ResumeAIEditPage() {
     </div>
   );
 }
-

@@ -62,7 +62,7 @@ export default function SettingsPage() {
     settings,
     setSettings,
     mutateSettings,
-    setShowCompanyInput
+    setShowCompanyInput,
   );
 
   // Sync fetched settings to local state
@@ -89,9 +89,12 @@ export default function SettingsPage() {
   }, [logout, router]);
 
   useEffect(() => {
-    if (!authLoading && (!user || needsEmailVerification)) {
-      router.push(VERIFICATION_ROUTE);
+    if (!authLoading && !user) {
+      router.push("/auth");
       return;
+    }
+    if (!authLoading && user && needsEmailVerification) {
+      router.push(VERIFICATION_ROUTE);
     }
   }, [user, needsEmailVerification, authLoading, router]);
 
@@ -113,7 +116,6 @@ export default function SettingsPage() {
   if (!user || needsEmailVerification) {
     return null;
   }
-
 
   return (
     <DashboardBackground>
@@ -160,4 +162,3 @@ export default function SettingsPage() {
     </DashboardBackground>
   );
 }
-

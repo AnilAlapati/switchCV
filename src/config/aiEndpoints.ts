@@ -18,10 +18,10 @@ export const AI_ENDPOINTS = {
   GEMINI: {
     /** Get list of available models */
     MODELS: (apiKey: string) =>
-      `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
     /** Generate content with a specific model */
     GENERATE: (modelName: string, apiKey: string) =>
-      `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
     /** Generate embeddings with a specific model */
     EMBED: (model: string, apiKey: string) =>
       `https://generativelanguage.googleapis.com/v1beta/${model}:embedContent?key=${apiKey}`,

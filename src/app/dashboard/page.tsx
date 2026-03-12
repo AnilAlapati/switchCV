@@ -61,8 +61,13 @@ export default function Dashboard() {
   }, [logout, router]);
 
   useEffect(() => {
-    if (!authLoading && (!user || needsEmailVerification)) {
+    if (!authLoading && !user) {
+      router.push("/auth");
+      return;
+    }
+    if (!authLoading && user && needsEmailVerification) {
       router.push(VERIFICATION_ROUTE);
+      return;
     }
     // Google/OAuth users with pending admin approval must be sent back to /auth
     // (profile must be loaded first to avoid a flash-redirect before we know the status)
@@ -72,7 +77,7 @@ export default function Dashboard() {
       user &&
       profile?.approvalStatus === "pending"
     ) {
-      router.push(VERIFICATION_ROUTE);
+      router.push("/auth");
     }
   }, [
     user,

@@ -100,13 +100,17 @@ function ManualResumeEditor({ resumeId }: { resumeId: string }) {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [baseResume, setBaseResume] = useState<Record<string, any> | null>(
-    null
+    null,
   );
   const [meta, setMeta] = useState<ResumeEditorMeta | null>(null);
   const [isDirty, setIsDirty] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && (!user || needsEmailVerification)) {
+    if (!authLoading && !user) {
+      router.replace("/auth");
+      return;
+    }
+    if (!authLoading && user && needsEmailVerification) {
       router.replace(VERIFICATION_ROUTE);
     }
   }, [authLoading, needsEmailVerification, router, user]);
@@ -141,7 +145,7 @@ function ManualResumeEditor({ resumeId }: { resumeId: string }) {
         logger.error({ err: error }, "Failed to fetch resume:");
         setFetchState("error");
         setFetchError(
-          error instanceof Error ? error.message : "Failed to load resume"
+          error instanceof Error ? error.message : "Failed to load resume",
         );
       }
     };
@@ -164,7 +168,7 @@ function ManualResumeEditor({ resumeId }: { resumeId: string }) {
       markDirty();
       updateProfile(updates);
     },
-    [markDirty, updateProfile]
+    [markDirty, updateProfile],
   );
 
   const handleNext = useCallback(() => {

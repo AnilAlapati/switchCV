@@ -72,7 +72,9 @@ export default function CreateResume() {
 
   useEffect(() => {
     if (!loading) {
-      if (!user || needsEmailVerification) {
+      if (!user) {
+        router.push("/auth");
+      } else if (needsEmailVerification) {
         router.push(VERIFICATION_ROUTE);
       } else if (!role) {
         router.push("/select-role");
