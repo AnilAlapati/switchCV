@@ -32,8 +32,55 @@ interface HealthState {
   consecutiveFailures: number;
   lastStatus: "ok" | "degraded";
   lastChecked: FirebaseFirestore.Timestamp | null;
+  failureStartedAt: FirebaseFirestore.Timestamp | null;
   failingServices: string[];
   lastAlertSent: FirebaseFirestore.Timestamp | null;
+}
+
+const MAX_ERROR_DETAIL_LENGTH = 200;
+
+function summarizeHttpError(status: number, rawBody: string): string {
+  const body = rawBody.trim();
+  if (!body) {
+    return `API returned ${status}`;
+  }
+
+  try {
+    const parsed = JSON.parse(body) as { error?: { message?: string } };
+    const message = parsed.error?.message?.trim();
+    if (message) {
+      const truncated =
+        message.length > MAX_ERROR_DETAIL_LENGTH
+          ? `${message.slice(0, MAX_ERROR_DETAIL_LENGTH)}...`
+          : message;
+      return `API returned ${status}: ${truncated}`;
+    }
+  } catch {
+    // Fall through to plain-text summarization.
+  }
+
+  const normalized = body.replace(/\s+/g, " ");
+  const truncated =
+    normalized.length > MAX_ERROR_DETAIL_LENGTH
+      ? `${normalized.slice(0, MAX_ERROR_DETAIL_LENGTH)}...`
+      : normalized;
+  return `API returned ${status}: ${truncated}`;
+}
+
+function computeApproxDowntimeMinutes(
+  failureStartedAt: FirebaseFirestore.Timestamp | null | undefined,
+  consecutiveFailures: number,
+  now: Date,
+): number {
+  const failureStartedDate = failureStartedAt?.toDate?.();
+  if (failureStartedDate instanceof Date && !Number.isNaN(failureStartedDate.valueOf())) {
+    return Math.max(
+      1,
+      Math.round((now.getTime() - failureStartedDate.getTime()) / (60 * 1000)),
+    );
+  }
+
+  return Math.max(1, consecutiveFailures * 30);
 }
 
 /**
@@ -80,10 +127,15 @@ async function checkGeminiAI(): Promise<ServiceCheckResult> {
     );
 
     if (!response.ok) {
+      const error = summarizeHttpError(response.status, await response.text());
+      functions.logger.warn("Gemini AI health check failed", {
+        statusCode: response.status,
+        error,
+      });
       return {
         name: "gemini_ai",
         status: "error",
-        error: `API returned ${response.status}`,
+        error,
       };
     }
 
@@ -107,7 +159,15 @@ async function checkGeminiAI(): Promise<ServiceCheckResult> {
 async function checkEmail(): Promise<ServiceCheckResult> {
   const start = Date.now();
   try {
-    await emailService.verifyConnection();
+    const isConnected = await emailService.verifyConnection();
+    if (!isConnected) {
+      return {
+        name: "email_smtp",
+        status: "error",
+        error: "SMTP verification failed",
+      };
+    }
+
     return {
       name: "email_smtp",
       status: "ok",
@@ -143,6 +203,7 @@ async function getHealthState(
     consecutiveFailures: 0,
     lastStatus: "ok",
     lastChecked: null,
+    failureStartedAt: null,
     failingServices: [],
     lastAlertSent: null,
   };
@@ -181,6 +242,7 @@ export const healthMonitorHandler = async (
   services: ServiceCheckResult[];
 }> => {
   const db = admin.firestore();
+  const checkedAt = new Date();
 
   // Run all checks in parallel
   const results = await Promise.all([
@@ -212,13 +274,18 @@ export const healthMonitorHandler = async (
       prevState.consecutiveFailures > 0
     ) {
       const recoveredServices = prevState.failingServices.join(", ");
+      const downtimeMinutes = computeApproxDowntimeMinutes(
+        prevState.failureStartedAt,
+        prevState.consecutiveFailures,
+        checkedAt,
+      );
       await alertManager.sendAlert(
         AlertSeverity.INFO,
         "Services recovered ✅",
         `Previously failing services have recovered: ${recoveredServices}. All systems operational.`,
         {
           recoveredServices: prevState.failingServices,
-          downtime: prevState.consecutiveFailures * 30 + " minutes (approx)",
+          downtime: `${downtimeMinutes} minutes (approx)`,
         },
       );
     }
@@ -227,6 +294,7 @@ export const healthMonitorHandler = async (
     await saveHealthState(db, {
       consecutiveFailures: 0,
       lastStatus: "ok",
+      failureStartedAt: null,
       failingServices: [],
     });
 
@@ -236,6 +304,10 @@ export const healthMonitorHandler = async (
   // Some services are failing
   const newConsecutiveFailures = prevState.consecutiveFailures + 1;
   const failingNames = failingServices.map((s) => s.name);
+  const failureStartedAt =
+    prevState.lastStatus === "degraded" && prevState.failureStartedAt
+      ? prevState.failureStartedAt
+      : admin.firestore.Timestamp.fromDate(checkedAt);
 
   // Only alert after threshold AND don't spam (alert every 3rd failure after the first)
   const shouldSendAlert =
@@ -273,12 +345,13 @@ export const healthMonitorHandler = async (
   await saveHealthState(db, {
     consecutiveFailures: newConsecutiveFailures,
     lastStatus: "degraded",
+    failureStartedAt,
     failingServices: failingNames,
   });
 
   // Also store to monitoring timeseries for historical tracking
   try {
-    const now = new Date();
+    const now = checkedAt;
     const dateKey = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
     await db
       .collection("monitoring")

@@ -1,6 +1,4 @@
-// Lazy loaded import
-// import nodemailer from "nodemailer";
-import type { Transporter } from "nodemailer";
+import * as admin from "firebase-admin";
 import * as functions from "firebase-functions/v1";
 import {
   EmailTemplate,
@@ -9,49 +7,27 @@ import {
   CustomEmailOptions,
   EmailTemplateName,
 } from "../types/email";
-import { retryWithBackoff } from "../utils/retryHandler";
-
-import { config } from "../config";
 
 /**
- * Email Service for user/recruiter communication
- * Handles email sending with templating system
+ * Email Service — single delivery path for all system emails.
+ *
+ * Every method writes a document to the Firestore `mail` collection. The
+ * Firebase firestore-send-email extension picks it up and delivers via
+ * Gmail SMTP (switchcvs@gmail.com). This is the only working, credentialed
+ * email path in production — no direct SMTP, no extra secrets required.
  */
 export class EmailService {
-  private transporter: Transporter | undefined;
-  private fromEmail: string;
-  private fromName: string;
+  private readonly mailCollection = "mail";
 
-  constructor() {
-    const emailConfig = config.get("email");
-    const smtpUser = process.env.SMTP_USER || emailConfig.supportEmail;
-    this.fromEmail = smtpUser;
-    this.fromName = "SwitchCV";
-  }
-
-  private async getTransporter(): Promise<Transporter> {
-    if (!this.transporter) {
-      const nodemailer = (await import("nodemailer")).default;
-
-      // Get email settings from centralized config
-      const emailConfig = config.get("email");
-
-      const smtpHost = process.env.SMTP_HOST || "smtp.titan.email";
-      const smtpPort = parseInt(process.env.SMTP_PORT || "465");
-      const smtpUser = process.env.SMTP_USER || emailConfig.supportEmail || "support@switchcv.com";
-      const smtpPass = process.env.SMTP_PASS || "";
-
-      this.transporter = nodemailer.createTransport({
-        host: smtpHost,
-        port: smtpPort,
-        secure: smtpPort === 465, // true for 465, false for other ports
-        auth: {
-          user: smtpUser,
-          pass: smtpPass,
-        },
-      });
-    }
-    return this.transporter!;
+  private async writeToMailCollection(doc: {
+    to: string | string[];
+    message: { subject: string; html: string; text: string };
+  }): Promise<string> {
+    const ref = await admin
+      .firestore()
+      .collection(this.mailCollection)
+      .add({ ...doc, createdAt: admin.firestore.FieldValue.serverTimestamp() });
+    return ref.id;
   }
 
   /**
@@ -59,32 +35,17 @@ export class EmailService {
    */
   async sendCustomEmail(options: CustomEmailOptions): Promise<EmailResult> {
     try {
-      const mailOptions = {
-        from: `${this.fromName} <${this.fromEmail}>`,
+      const docId = await this.writeToMailCollection({
         to: options.to,
-        subject: options.subject,
-        html: options.html,
-        text: options.text || options.html.replace(/<[^>]+>/g, ""),
-      };
-
-      const transporter = await this.getTransporter();
-
-      const info = await retryWithBackoff(
-        () => transporter.sendMail(mailOptions),
-        {
-          maxAttempts: 3,
-          initialDelayMs: 1000,
+        message: {
+          subject: options.subject,
+          html: options.html,
+          text: options.text || options.html.replace(/<[^>]+>/g, ""),
         },
-        "sendCustomEmail"
-      );
-
-      return {
-        success: true,
-        messageId: (info as any).messageId,
-        timestamp: new Date(),
-      };
+      });
+      return { success: true, messageId: docId, timestamp: new Date() };
     } catch (error) {
-      functions.logger.error("Custom email sending failed:", error);
+      functions.logger.error("Custom email queuing failed:", error);
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
@@ -99,34 +60,17 @@ export class EmailService {
   async sendEmail(options: EmailOptions): Promise<EmailResult> {
     try {
       const template = this.getTemplate(options.template);
-      const html = this.renderTemplate(template, options.data);
-
-      const mailOptions = {
-        from: `${this.fromName} <${this.fromEmail}>`,
+      const docId = await this.writeToMailCollection({
         to: options.to,
-        subject: template.subject,
-        html: html,
-        text: template.text, // Fallback plain text
-      };
-
-      const transporter = await this.getTransporter();
-
-      const info = await retryWithBackoff(
-        () => transporter.sendMail(mailOptions),
-        {
-          maxAttempts: 3,
-          initialDelayMs: 1000,
+        message: {
+          subject: this.renderString(template.subject, options.data),
+          html: this.renderString(template.html, options.data),
+          text: this.renderString(template.text, options.data),
         },
-        "sendEmail"
-      );
-
-      return {
-        success: true,
-        messageId: (info as any).messageId,
-        timestamp: new Date(),
-      };
+      });
+      return { success: true, messageId: docId, timestamp: new Date() };
     } catch (error) {
-      functions.logger.error("Email sending failed:", error);
+      functions.logger.error("Email queuing failed:", error);
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
@@ -141,16 +85,10 @@ export class EmailService {
   async sendBulkEmails(
     recipients: string[],
     template: EmailTemplateName,
-    data: Record<string, any>
+    data: Record<string, any>,
   ): Promise<EmailResult[]> {
     return Promise.all(
-      recipients.map((to) =>
-        this.sendEmail({
-          to,
-          template: template,
-          data,
-        })
-      )
+      recipients.map((to) => this.sendEmail({ to, template, data })),
     );
   }
 
@@ -303,35 +241,22 @@ export class EmailService {
     return templates[templateName];
   }
 
-  /**
-   * Render template with data
-   */
-  private renderTemplate(
-    template: EmailTemplate,
-    data: Record<string, any>
-  ): string {
-    let html = template.html;
-
-    // Replace all {{variable}} with data values
-    Object.entries(data).forEach(([key, value]) => {
-      const regex = new RegExp(`{{${key}}}`, "g");
-      html = html.replace(regex, String(value || ""));
-    });
-
-    return html;
+  private renderString(str: string, data: Record<string, any>): string {
+    return Object.entries(data).reduce((result, [key, value]) => {
+      return result.replace(new RegExp(`{{${key}}}`, "g"), String(value ?? ""));
+    }, str);
   }
 
   /**
-   * Verify email configuration
+   * Verify email service availability (checks Firestore connectivity)
    */
   async verifyConnection(): Promise<boolean> {
     try {
-      const transporter = await this.getTransporter();
-      await transporter.verify();
-      functions.logger.info("Email service configured successfully");
+      await admin.firestore().collection(this.mailCollection).limit(1).get();
+      functions.logger.info("Email service (Firestore path) is ready");
       return true;
     } catch (error) {
-      functions.logger.error("Email service configuration error:", error);
+      functions.logger.error("Email service Firestore check failed:", error);
       return false;
     }
   }

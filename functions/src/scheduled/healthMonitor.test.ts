@@ -27,6 +27,23 @@ const mockFirestoreInstance = {
   doc: jest.fn(() => mockDoc),
 };
 
+const createMockTimestamp = (date: Date | string) => {
+  const resolvedDate = date instanceof Date ? date : new Date(date);
+  return {
+    toDate: () => resolvedDate,
+  };
+};
+
+const createMockFetchResponse = (
+  ok: boolean,
+  status: number,
+  text: string = "",
+) => ({
+  ok,
+  status,
+  text: jest.fn().mockResolvedValue(text),
+});
+
 // Mock Firebase Admin
 jest.mock("firebase-admin", () => ({
   firestore: Object.assign(
@@ -35,6 +52,9 @@ jest.mock("firebase-admin", () => ({
       FieldValue: {
         serverTimestamp: jest.fn(() => "MOCK_TIMESTAMP"),
         arrayUnion: jest.fn((...args: unknown[]) => args),
+      },
+      Timestamp: {
+        fromDate: jest.fn((date: Date) => createMockTimestamp(date)),
       },
     },
   ),
@@ -86,10 +106,12 @@ describe("healthMonitorHandler", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date("2026-02-09T03:00:00Z"));
     process.env.GEMINI_API_KEY = "test-api-key";
 
     // Default: all services healthy
-    mockFetch.mockResolvedValue({ ok: true, status: 200 });
+    mockFetch.mockResolvedValue(createMockFetchResponse(true, 200));
     mockVerifyConnection.mockResolvedValue(true);
 
     // Default health state: previously healthy
@@ -99,10 +121,15 @@ describe("healthMonitorHandler", () => {
         consecutiveFailures: 0,
         lastStatus: "ok",
         lastChecked: null,
+        failureStartedAt: null,
         failingServices: [],
         lastAlertSent: null,
       }),
     });
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it("should return ok when all services are healthy", async () => {
@@ -133,13 +160,16 @@ describe("healthMonitorHandler", () => {
   });
 
   it("should detect Gemini AI failure", async () => {
-    mockFetch.mockResolvedValue({ ok: false, status: 500 });
+    mockFetch.mockResolvedValue(
+      createMockFetchResponse(false, 500, '{"error":{"message":"Internal error"}}'),
+    );
 
     const result = await healthMonitorHandler(mockContext);
 
     expect(result.status).toBe("degraded");
     const geminiResult = result.services.find((s) => s.name === "gemini_ai");
     expect(geminiResult?.status).toBe("error");
+    expect(geminiResult?.error).toContain("API returned 500");
   });
 
   it("should detect SMTP failure", async () => {
@@ -152,6 +182,17 @@ describe("healthMonitorHandler", () => {
     expect(result.status).toBe("degraded");
     const emailResult = result.services.find((s) => s.name === "email_smtp");
     expect(emailResult?.status).toBe("error");
+  });
+
+  it("should detect SMTP verification returning false", async () => {
+    mockVerifyConnection.mockResolvedValue(false);
+
+    const result = await healthMonitorHandler(mockContext);
+
+    expect(result.status).toBe("degraded");
+    const emailResult = result.services.find((s) => s.name === "email_smtp");
+    expect(emailResult?.status).toBe("error");
+    expect(emailResult?.error).toContain("SMTP verification failed");
   });
 
   it("should send WARNING when 1 service fails", async () => {
@@ -194,6 +235,7 @@ describe("healthMonitorHandler", () => {
         consecutiveFailures: 3,
         lastStatus: "degraded",
         lastChecked: null,
+        failureStartedAt: createMockTimestamp("2026-02-09T02:00:00Z"),
         failingServices: ["gemini_ai"],
         lastAlertSent: null,
       }),
@@ -208,6 +250,7 @@ describe("healthMonitorHandler", () => {
       expect.stringContaining("recovered"),
       expect.stringContaining("gemini_ai"),
       expect.objectContaining({
+        downtime: "60 minutes (approx)",
         recoveredServices: ["gemini_ai"],
       }),
     );
@@ -221,6 +264,7 @@ describe("healthMonitorHandler", () => {
         consecutiveFailures: 1, // Will become 2 — not a trigger
         lastStatus: "degraded",
         lastChecked: null,
+        failureStartedAt: createMockTimestamp("2026-02-09T02:30:00Z"),
         failingServices: ["gemini_ai"],
         lastAlertSent: null,
       }),
@@ -254,6 +298,7 @@ describe("healthMonitorHandler", () => {
     expect(mockDoc.set).toHaveBeenCalledWith(
       expect.objectContaining({
         consecutiveFailures: 1,
+        failureStartedAt: expect.any(Object),
         lastStatus: "degraded",
         failingServices: ["gemini_ai"],
       }),
