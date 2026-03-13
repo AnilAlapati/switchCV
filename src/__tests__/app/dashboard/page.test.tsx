@@ -115,7 +115,7 @@ describe("Dashboard", () => {
     });
 
     render(<Dashboard />);
-    expect(mockPush).toHaveBeenCalledWith(VERIFICATION_ROUTE);
+    expect(mockPush).toHaveBeenCalledWith("/auth");
   });
 
   it("redirects to auth if email verification needed", () => {
@@ -150,7 +150,7 @@ describe("Dashboard", () => {
       expect(screen.getByTestId("recruiter-dashboard")).toBeInTheDocument();
     });
     expect(
-      screen.queryByTestId("job-seeker-dashboard")
+      screen.queryByTestId("job-seeker-dashboard"),
     ).not.toBeInTheDocument();
   });
 

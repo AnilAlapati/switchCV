@@ -29,12 +29,12 @@ global.fetch = mockFetch;
 process.env.GEMINI_API_KEY = "test-gemini-key";
 
 const createRequest = () =>
-({
-  headers: new Headers({
-    authorization: "Bearer test-token",
-    "x-forwarded-for": "203.0.113.10",
-  }),
-} as unknown as NextRequest);
+  ({
+    headers: new Headers({
+      authorization: "Bearer test-token",
+      "x-forwarded-for": "203.0.113.10",
+    }),
+  }) as unknown as NextRequest;
 
 describe("/api/ai/refresh-models route", () => {
   beforeEach(() => {
@@ -49,7 +49,7 @@ describe("/api/ai/refresh-models route", () => {
       allowed: true,
       result: { limit: 5, remaining: 4, resetIn: 1000 },
     });
-    (attachRateLimitHeaders as jest.Mock).mockImplementation(() => { });
+    (attachRateLimitHeaders as jest.Mock).mockImplementation(() => {});
   });
 
   it("should successfully refresh models list", async () => {
@@ -271,7 +271,7 @@ describe("/api/ai/refresh-models route", () => {
     await GET(createRequest());
 
     expect(mockFetch).toHaveBeenCalledWith(
-      "https://generativelanguage.googleapis.com/v1/models?key=test-gemini-key"
+      "https://generativelanguage.googleapis.com/v1beta/models?key=test-gemini-key",
     );
   });
 

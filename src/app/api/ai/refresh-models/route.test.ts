@@ -113,7 +113,7 @@ describe("GET /api/ai/refresh-models", () => {
     expect(data.message).toBe("Model cache will be refreshed on next API call");
 
     expect(mockFetch).toHaveBeenCalledWith(
-      "https://generativelanguage.googleapis.com/v1/models?key=test-api-key"
+      "https://generativelanguage.googleapis.com/v1beta/models?key=test-api-key",
     );
     expect(mockConsoleError).not.toHaveBeenCalled();
   });
@@ -333,7 +333,7 @@ describe("GET /api/ai/refresh-models", () => {
   it("should return 401 when authentication fails", async () => {
     const unauthorized = NextResponse.json(
       { error: "Unauthorized" },
-      { status: 401 }
+      { status: 401 },
     );
     mockGetAuthenticatedUserId.mockResolvedValueOnce({ error: unauthorized });
 
@@ -356,7 +356,7 @@ describe("GET /api/ai/refresh-models", () => {
   it("should enforce rate limiting", async () => {
     const rateLimitedResponse = NextResponse.json(
       { error: "Too many requests" },
-      { status: 429 }
+      { status: 429 },
     );
     mockApplyRateLimit.mockReturnValueOnce({
       allowed: false,

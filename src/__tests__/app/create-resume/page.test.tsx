@@ -98,7 +98,7 @@ describe("CreateResume Page", () => {
     });
 
     render(<CreateResume />);
-    expect(mockRouter.push).toHaveBeenCalledWith(VERIFICATION_ROUTE);
+    expect(mockRouter.push).toHaveBeenCalledWith("/auth");
   });
 
   it("shows loading state when auth is loading", () => {
