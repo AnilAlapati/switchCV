@@ -72,6 +72,8 @@ export class ContactExtractor implements IExtractor {
       "and|with|but|starting|going|looking|working|here|just|not|very|really";
     const locationExclusion = "based|located|living|from|moved|moving";
     const namePatterns = [
+      // "My name is A Anil and my email is ..." or similar inline contact phrasing
+      /(?:[Mm]y name is|[Ii]'m|[Ii] am|[Cc]all me)\s+([A-Za-z](?:[A-Za-z'-]*)(?:\s+[A-Za-z](?:[A-Za-z'-]*)){0,3})(?=\s+(?:and\b|email\b|my\b)|$|[.,])/,
       // "My name is ...", "I'm ...", "I am ...", "Call me ..."
       new RegExp(
         `(?:[Mm]y name is|[Ii]'m|[Ii] am|[Cc]all me)\\s+(?!(?:${commonWordsToExclude}|${locationExclusion})\\b)([a-zA-Z]+(?:\\s+(?!${commonWordsToExclude}|${locationExclusion}\\b)[a-zA-Z]+|[a-zA-Z]\\.?){0,3})(?=\\s|$|[.,])`,
@@ -94,7 +96,7 @@ export class ContactExtractor implements IExtractor {
     for (const pattern of namePatterns) {
       const match = trimmedText.match(pattern);
       if (match && match[1]) {
-        const candidate = match[1].trim();
+        const candidate = this.sanitizeCandidateName(match[1]);
         if (this.looksLikeRolePhrase(candidate, trimmedText)) {
           continue;
         }
@@ -145,7 +147,7 @@ export class ContactExtractor implements IExtractor {
 
     // 5. Extract GitHub URL
     const githubRegex =
-      /(?:github\.com\/|@)([a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)/i;
+      /(?:github\.com\/|(?<![A-Za-z0-9._%+-])@)([a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)/i;
     const githubUrlRegex =
       /https?:\/\/(?:www\.)?github\.com\/[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\/)?/i;
     const githubUrlMatch = trimmedText.match(githubUrlRegex);
@@ -169,7 +171,8 @@ export class ContactExtractor implements IExtractor {
     // 7. Extract X (Twitter) URL
     const twitterUrlRegex =
       /https?:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/[a-zA-Z0-9_]+(?:\/)?/i;
-    const twitterHandleRegex = /@([a-zA-Z0-9_]{1,15})\b/;
+    const twitterHandleRegex =
+      /(?<![A-Za-z0-9._%+-])@([a-zA-Z0-9_]{1,15})\b/;
     const twitterUrlMatch = trimmedText.match(twitterUrlRegex);
     if (twitterUrlMatch) {
       data.twitter = twitterUrlMatch[0].replace(/\/$/, "");
@@ -202,6 +205,13 @@ export class ContactExtractor implements IExtractor {
     return data;
   }
 
+  private sanitizeCandidateName(value: string): string {
+    return value
+      .trim()
+      .replace(/\s+(?:and|email|mail|my)\b.*$/i, "")
+      .replace(/\s{2,}/g, " ");
+  }
+
   private toTitleCase(str: string) {
     return str.replace(
       /\w\S*/g,
@@ -217,13 +227,21 @@ export class ContactExtractor implements IExtractor {
       .trim();
 
     if (!normalized) return true;
-    if (/^(a|an|the)\b/.test(normalized)) return true;
+    const tokens = normalized.split(" ");
+    const looksLikeInitialBasedName =
+      tokens.length >= 2 &&
+      tokens.length <= 4 &&
+      tokens[0]?.length === 1 &&
+      tokens.slice(1).every((token) => /^[a-z]+$/.test(token));
+
+    if (!looksLikeInitialBasedName && /^(a|an|the)\b/.test(normalized)) {
+      return true;
+    }
     if (/^(currently|working|looking)\b/.test(normalized)) return true;
 
     // Reject well-known resume section headings
     if (ContactExtractor.SECTION_HEADINGS.has(normalized)) return true;
 
-    const tokens = normalized.split(" ");
     const startsWithSelfIntro = /^(?:i['’]?m|i am)\b/i.test(fullText.trim());
     if (
       startsWithSelfIntro &&

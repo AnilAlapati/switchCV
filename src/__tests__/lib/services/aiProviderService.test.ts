@@ -4,6 +4,10 @@ import {
   getSelectableModels,
 } from "@/lib/services/aiProviderService";
 
+const mockPersistAIFailureEvent = jest.fn().mockResolvedValue("event-1");
+const mockMarkAIStageSuccess = jest.fn().mockResolvedValue(undefined);
+const mockMarkAIStageFailed = jest.fn();
+
 // Mock logger
 jest.mock("@/lib/logger", () => ({
   logger: {
@@ -23,11 +27,38 @@ jest.mock("@/lib/utils/retry", () => ({
   withRetry: jest.fn((fn) => fn()),
 }));
 
+jest.mock("@/lib/services/aiMonitoringService", () => ({
+  classifyAIFailure: jest.fn((input: { errorMessage?: string }) => ({
+    failureCode: "AI_PROVIDER_5XX",
+    errorMessage: input.errorMessage ?? "Unknown error",
+  })),
+  markAIStageFailed: (...args: unknown[]) => mockMarkAIStageFailed(...args),
+  markAIStageSuccess: (...args: unknown[]) => mockMarkAIStageSuccess(...args),
+  noteAIStageAttempt: jest.fn(),
+  persistAIFailureEvent: (...args: unknown[]) =>
+    mockPersistAIFailureEvent(...args),
+}));
+
+const observationContext = {
+  requestId: "req-123",
+  sessionId: "session-123",
+  userIdHash: "hash-123",
+  userTier: "enterprise" as const,
+  entrypoint: "resume_generate",
+  deployVersion: "test-build",
+  environment: "test",
+  conversationTurn: 1,
+  startedAt: new Date("2026-03-13T12:00:00Z"),
+  stages: {},
+  failureCount: 0,
+  fallbackCount: 0,
+};
+
 describe("AI Provider Service", () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
-    jest.resetModules();
+    jest.clearAllMocks();
     process.env = {
       ...originalEnv,
       OPENAI_API_KEY: "test-openai",
@@ -142,8 +173,11 @@ describe("AI Provider Service", () => {
       const res = await generateTextWithTier({
         prompt: "p",
         userTier: "enterprise",
+        observationContext,
       });
       expect(res.text).toBe("Success 2");
+      expect(mockPersistAIFailureEvent).toHaveBeenCalled();
+      expect(mockMarkAIStageSuccess).toHaveBeenCalled();
     });
 
     it("should handle Anthropic specific error", async () => {
@@ -194,9 +228,11 @@ describe("AI Provider Service", () => {
         prompt: "p",
         userTier: "enterprise",
         modelId: "gpt-4o",
+        observationContext,
       });
       expect(res.provider).not.toBe("openai");
       expect(res.text).toBe("Safe");
+      expect(mockPersistAIFailureEvent).toHaveBeenCalled();
     });
   });
 });

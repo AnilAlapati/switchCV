@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
@@ -19,6 +20,8 @@ const ASYNC_PROCESSOR_URL = process.env.ASYNC_RESUME_PROCESSOR_URL;
 
 export async function POST(request: NextRequest) {
   try {
+    const requestId = request.headers.get("x-request-id") ?? randomUUID();
+
     // CRITICAL: Authentication is REQUIRED - no anonymous access
     const { userId: rawUserId, error } = await getAuthenticatedUserId(request);
 
@@ -195,10 +198,15 @@ export async function POST(request: NextRequest) {
 
       // Return immediately with job ID
       return NextResponse.json({
+        requestId,
         jobId,
         status: "pending",
         message:
           "Resume generation queued. Poll /api/resume/generate/status/{jobId} for updates.",
+      }, {
+        headers: {
+          "x-request-id": requestId,
+        },
       });
     }
 
@@ -214,9 +222,15 @@ export async function POST(request: NextRequest) {
         inputSources,
         desiredStyle,
         strictMode,
+        requestId,
+        entrypoint: "resume_generate",
       });
 
-      return NextResponse.json(result);
+      return NextResponse.json(result, {
+        headers: {
+          "x-request-id": requestId,
+        },
+      });
     } catch (syncError) {
       logger.error({ err: syncError }, "Sync resume generation failed");
       return handleApiError(syncError, "Resume generation failed");

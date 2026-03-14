@@ -21,6 +21,12 @@ jest.mock("@/lib/services/featureFlagService", () => ({
   isFeatureEnabled: jest.fn().mockResolvedValue(true),
 }));
 
+const mockPersistAIRequestSummary = jest.fn().mockResolvedValue(undefined);
+const mockPersistAIFailureEvent = jest.fn().mockResolvedValue("event-1");
+const mockMarkAIStageRecoveredWithFallback = jest
+  .fn()
+  .mockResolvedValue(undefined);
+
 // Mock AI extraction — controllable per-test via mockExtractWithStructuredOutput.
 const mockExtractWithStructuredOutput = jest.fn();
 jest.mock("@/lib/services/aiExtractionService", () => ({
@@ -101,6 +107,34 @@ jest.mock("@/lib/services/conversationConfig", () => ({
     maxBetaQuestions: 5,
     completionThreshold: 80,
   }),
+}));
+
+jest.mock("@/lib/services/aiMonitoringService", () => ({
+  classifyAIFailure: jest.fn(() => ({
+    failureCode: "AI_SCHEMA_VALIDATION_FAILED",
+    errorMessage: "Resume generation response failed schema validation",
+  })),
+  createAIObservationContext: jest.fn((input: { requestId?: string }) => ({
+    requestId: input.requestId ?? "generated-request-id",
+    sessionId: "session-123",
+    userIdHash: "hash-123",
+    userTier: "premium",
+    entrypoint: "resume_generate",
+    deployVersion: "test-build",
+    environment: "test",
+    conversationTurn: 5,
+    startedAt: new Date("2026-03-13T12:00:00Z"),
+    stages: {},
+    failureCount: 0,
+    fallbackCount: 0,
+  })),
+  markAIStageRecoveredWithFallback: (...args: unknown[]) =>
+    mockMarkAIStageRecoveredWithFallback(...args),
+  persistAIFailureEvent: (...args: unknown[]) =>
+    mockPersistAIFailureEvent(...args),
+  persistAIRequestSummary: (...args: unknown[]) =>
+    mockPersistAIRequestSummary(...args),
+  resolveMonitoringSessionId: jest.fn(() => "session-123"),
 }));
 
 // ============================================================================
@@ -263,12 +297,14 @@ describe("Resume Generation Orchestrator", () => {
 
       const result = await processSyncGeneration(buildInput());
 
+      expect(result.requestId).toEqual(expect.any(String));
       expect(result.created).toBe(true);
       expect(result.resumeId).toBe("mock-resume-id");
       expect(result.numericId).toBe(42);
       expect(result.progress).toBe(100);
       expect(result.qualityReport).toBeDefined();
       expect(result.qualityReport!.schemaValid).toBe(true);
+      expect(mockPersistAIRequestSummary).toHaveBeenCalled();
     });
 
     it("calls billingService.trackUsage", async () => {
@@ -444,6 +480,8 @@ describe("Resume Generation Orchestrator", () => {
       expect(mockGenerateText).toHaveBeenCalled();
       // Should still attempt to process the response
       expect(result).toBeDefined();
+      expect(mockMarkAIStageRecoveredWithFallback).toHaveBeenCalled();
+      expect(mockPersistAIRequestSummary).toHaveBeenCalled();
     });
   });
 
@@ -563,27 +601,58 @@ describe("Resume Generation Orchestrator", () => {
       expect(typeof result.evidenceMap).toBe("object");
     });
 
-    it("returns user-friendly error when AI extraction service fails", async () => {
+    it("continues with deterministic extraction when AI extraction service fails", async () => {
       mockExtractWithStructuredOutput.mockResolvedValue(FAILED_AI_EXTRACTION);
+      mockGenerateTextWithTier.mockResolvedValue(
+        mockAIResponse("Tell me about your most recent work experience."),
+      );
 
-      const result = await processSyncGeneration(buildInput());
+      const result = await processSyncGeneration(
+        buildInput({
+          message: "My name is Alex Johnson and email alex@example.com",
+          conversationHistory: [
+            {
+              content: "My name is Alex Johnson and email alex@example.com",
+              isUser: true,
+            },
+          ],
+          persistResult: false,
+        }),
+      );
 
-      expect(result.response).toContain("try again");
-      expect(result.response).toContain("temporarily unavailable");
+      expect(result.response).toBe(
+        "Tell me about your most recent work experience.",
+      );
+      expect(result.progress).toBeGreaterThan(0);
       expect(result.created).toBeUndefined();
-      expect(mockGenerateTextWithTier).not.toHaveBeenCalled();
+      expect(mockGenerateTextWithTier).toHaveBeenCalled();
     });
 
-    it("returns user-friendly error when AI extraction throws an exception", async () => {
+    it("continues with deterministic extraction when AI extraction throws an exception", async () => {
       mockExtractWithStructuredOutput.mockRejectedValue(
         new Error("Gemini API timeout"),
       );
+      mockGenerateTextWithTier.mockResolvedValue(
+        mockAIResponse("What are your strongest skills?"),
+      );
 
-      const result = await processSyncGeneration(buildInput());
+      const result = await processSyncGeneration(
+        buildInput({
+          message: "My name is Alex Johnson and email alex@example.com",
+          conversationHistory: [
+            {
+              content: "My name is Alex Johnson and email alex@example.com",
+              isUser: true,
+            },
+          ],
+          persistResult: false,
+        }),
+      );
 
-      expect(result.response).toContain("try again");
+      expect(result.response).toBe("What are your strongest skills?");
       expect(result.created).toBeUndefined();
-      expect(mockGenerateTextWithTier).not.toHaveBeenCalled();
+      expect(result.progress).toBeGreaterThan(0);
+      expect(mockGenerateTextWithTier).toHaveBeenCalled();
     });
   });
 });

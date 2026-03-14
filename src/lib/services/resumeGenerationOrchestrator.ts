@@ -10,12 +10,21 @@
  *   5. Resume creation when ready
  */
 
+import { randomUUID } from "node:crypto";
 import * as Sentry from "@sentry/nextjs";
 import { logger } from "@/lib/logger";
 import { reportError } from "@/lib/errorReporter";
 import { captureServerEvent } from "@/lib/services/serverAnalytics";
 import { generateText } from "@/lib/services/aiGenerationService";
 import { generateTextWithTier } from "@/lib/services/aiProviderService";
+import {
+  classifyAIFailure,
+  createAIObservationContext,
+  markAIStageRecoveredWithFallback,
+  persistAIFailureEvent,
+  persistAIRequestSummary,
+  resolveMonitoringSessionId,
+} from "@/lib/services/aiMonitoringService";
 import { BillingService } from "@/lib/services/billingService";
 import {
   ConversationManager,
@@ -77,6 +86,19 @@ interface NormalizedAIResponse {
   model?: string;
 }
 
+function getProviderFromAIResponse(payload: unknown): string | undefined {
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "provider" in payload &&
+    typeof payload.provider === "string"
+  ) {
+    return payload.provider;
+  }
+
+  return undefined;
+}
+
 /**
  * Add a Sentry breadcrumb for an orchestrator pipeline step.
  * Wrapped in try/catch so a Sentry initialisation failure never breaks generation.
@@ -125,9 +147,13 @@ export interface SyncGenerationInput {
   desiredStyle?: "professional" | "executive" | "innovator";
   inputSources?: Array<"chat" | "paste" | "pdf" | "docx">;
   persistResult?: boolean;
+  requestId?: string;
+  sessionId?: string;
+  entrypoint?: string;
 }
 
 export interface SyncGenerationResult {
+  requestId: string;
   response?: string;
   model?: string;
   resumeId?: string;
@@ -163,9 +189,13 @@ export async function processSyncGeneration(
     strictMode,
     desiredStyle,
     persistResult,
+    requestId: providedRequestId,
+    sessionId: providedSessionId,
+    entrypoint: providedEntrypoint,
   } = input;
 
   const shouldPersistResult = persistResult ?? true;
+  const requestId = providedRequestId ?? randomUUID();
 
   const flags = await evaluateResumeV2Flags();
   const strictValidationEnabled =
@@ -174,7 +204,25 @@ export async function processSyncGeneration(
     ...conversationHistory,
     { content: message, isUser: true },
   ];
+  const observationContext = createAIObservationContext({
+    userId,
+    userTier,
+    entrypoint:
+      providedEntrypoint ?? (shouldPersistResult ? "resume_generate" : "resume_preview"),
+    requestId,
+    sessionId:
+      providedSessionId ??
+      resolveMonitoringSessionId(sessionData, requestId),
+    conversationTurn: allMessages.length,
+  });
+  let monitoringSummary = {
+    userVisibleFailure: true,
+    finalOutcome: "unhandled_error",
+    createdResume: false,
+  };
+  let generationValidationFailureLogged = false;
 
+  try {
   logger.info(
     {
       flags,
@@ -204,6 +252,7 @@ export async function processSyncGeneration(
           userTier === "enterprise"
             ? userTier
             : "premium",
+        observationContext,
       },
     );
     extractionResult = aiExtracted ?? EMPTY_EXTRACTION_RESULT;
@@ -224,7 +273,13 @@ export async function processSyncGeneration(
         },
         "AI extraction service failed — asking user to retry",
       );
+      monitoringSummary = {
+        userVisibleFailure: true,
+        finalOutcome: "extraction_failed",
+        createdResume: false,
+      };
       return {
+        requestId: observationContext.requestId,
         response:
           "I'm having trouble processing your information right now. Our AI service may be temporarily unavailable. Please try again in a few minutes.",
         progress: 0,
@@ -240,7 +295,13 @@ export async function processSyncGeneration(
       { err: extractError, userId },
       "Resume extraction failed — asking user to retry",
     );
+    monitoringSummary = {
+      userVisibleFailure: true,
+      finalOutcome: "extraction_exception",
+      createdResume: false,
+    };
     return {
+      requestId: observationContext.requestId,
       response:
         "I'm having trouble processing your information right now. Our AI service may be temporarily unavailable. Please try again in a few minutes.",
       progress: 0,
@@ -346,6 +407,8 @@ export async function processSyncGeneration(
       responseSchema: geminiResponseSchema as unknown as
         | Record<string, unknown>
         | undefined,
+      observationContext,
+      stage: "generation",
     });
   } catch (tieredError) {
     logger.error(
@@ -357,10 +420,24 @@ export async function processSyncGeneration(
       severity: "warning",
       meta: { userId, userTier, modelId },
     });
-    aiResponse = await generateText(prompt, 4000, 0.7);
+    try {
+      aiResponse = await generateText(prompt, 4000, 0.7);
+      await markAIStageRecoveredWithFallback(
+        observationContext,
+        "generation",
+      );
+    } catch (legacyGenerationError) {
+      monitoringSummary = {
+        userVisibleFailure: true,
+        finalOutcome: "generation_failed",
+        createdResume: false,
+      };
+      throw legacyGenerationError;
+    }
   }
   const normalizedAIResponse = normalizeAIResponse(aiResponse);
   const responseText = normalizedAIResponse.text;
+  const responseProvider = getProviderFromAIResponse(aiResponse);
   addPipelineBreadcrumb("AI generation complete", {
     model: normalizedAIResponse.model ?? "unknown",
     responseLength: responseText.length,
@@ -523,11 +600,40 @@ export async function processSyncGeneration(
       let creativeAnnotations: string[] = [];
       let creativePolishApplied = false;
 
+      const logGenerationSchemaFailure = async (
+        validationErrors: string[],
+      ): Promise<void> => {
+        if (generationValidationFailureLogged || validationErrors.length === 0) {
+          return;
+        }
+
+        generationValidationFailureLogged = true;
+        const classification = classifyAIFailure({
+          errorMessage: "Resume generation response failed schema validation",
+          schemaValidationFailed: true,
+          schemaErrorCount: validationErrors.length,
+        });
+
+        await persistAIFailureEvent({
+          context: observationContext,
+          stage: "generation",
+          provider: responseProvider,
+          model: normalizedAIResponse.model,
+          failureCode: classification.failureCode,
+          errorMessage: classification.errorMessage,
+          promptPreview: prompt,
+          responsePreview: responseText,
+          providerErrorClass: classification.providerErrorClass,
+          schemaErrorCount: validationErrors.length,
+        });
+      };
+
       if (
         !validation.valid &&
         flags.resume_v2_writer &&
         validation.errors.length > 0
       ) {
+        await logGenerationSchemaFailure(validation.errors);
         const repairPrompt = buildRepairPrompt(
           responseText,
           candidateData,
@@ -556,6 +662,8 @@ export async function processSyncGeneration(
             temperature: 0.2,
             userTier,
             modelId,
+            observationContext,
+            stage: "repair",
           });
 
           await BillingService.trackUsage(
@@ -572,6 +680,12 @@ export async function processSyncGeneration(
             resumeData = repairedJson as unknown as Record<string, unknown>;
             candidateData = repairedJson as unknown as Record<string, unknown>;
             validation = evaluateCandidate(candidateData);
+            if (validation.valid) {
+              await markAIStageRecoveredWithFallback(
+                observationContext,
+                "generation",
+              );
+            }
           }
         } catch (repairError) {
           logger.warn(
@@ -619,14 +733,21 @@ export async function processSyncGeneration(
       });
 
       if (!validation.valid) {
+        await logGenerationSchemaFailure(validation.errors);
         logger.warn({ errors: validation.errors }, "⚠️ Validation failed");
 
         const safeResponse = buildClarificationMessage(
           candidateData,
           validation.errors,
         );
+        monitoringSummary = {
+          userVisibleFailure: false,
+          finalOutcome: "clarification_required",
+          createdResume: false,
+        };
 
         return {
+          requestId: observationContext.requestId,
           response: safeResponse,
           model: normalizedAIResponse.model,
           progress: Math.min(updatedProgress.completenessPercentage, 95),
@@ -662,7 +783,13 @@ export async function processSyncGeneration(
       };
 
       if (!shouldPersistResult) {
+        monitoringSummary = {
+          userVisibleFailure: false,
+          finalOutcome: "preview_generated",
+          createdResume: false,
+        };
         return {
+          requestId: observationContext.requestId,
           response: "Preview generated successfully",
           model: normalizedAIResponse.model,
           created: false,
@@ -706,8 +833,14 @@ export async function processSyncGeneration(
         factualAlignmentScore: validation.factualAlignment.score,
         userTier,
       });
+      monitoringSummary = {
+        userVisibleFailure: false,
+        finalOutcome: "resume_created",
+        createdResume: true,
+      };
 
       return {
+        requestId: observationContext.requestId,
         response: cleanResponse,
         model: normalizedAIResponse.model,
         resumeId,
@@ -735,12 +868,23 @@ export async function processSyncGeneration(
         userTier,
         pipeline: flags.resume_v2_writer ? "v2_structured" : "v1_regex",
       });
+      monitoringSummary = {
+        userVisibleFailure: true,
+        finalOutcome: "resume_creation_failed",
+        createdResume: false,
+      };
       throw createError;
     }
   }
 
   // Step 7: Continue conversation (not ready yet)
+  monitoringSummary = {
+    userVisibleFailure: false,
+    finalOutcome: "conversation_continues",
+    createdResume: false,
+  };
   return {
+    requestId: observationContext.requestId,
     response: responseText,
     model: normalizedAIResponse.model,
     progress: updatedProgress.completenessPercentage,
@@ -749,4 +893,12 @@ export async function processSyncGeneration(
       progress: updatedProgress,
     },
   };
+  } finally {
+    await persistAIRequestSummary({
+      context: observationContext,
+      userVisibleFailure: monitoringSummary.userVisibleFailure,
+      finalOutcome: monitoringSummary.finalOutcome,
+      createdResume: monitoringSummary.createdResume,
+    });
+  }
 }

@@ -116,10 +116,17 @@ describe("budgetMonitorHandler", () => {
       set: jest.fn().mockResolvedValue(undefined),
       collection: jest.fn(),
     };
-    // db.doc(ALERT_STATE_DOC) returns this isolated mock
-    mockFirestoreInstance.doc.mockReturnValueOnce(alertStateDoc);
-    // saveAlertState also calls db.doc(ALERT_STATE_DOC).set() — provide a second one
-    mockFirestoreInstance.doc.mockReturnValueOnce(alertStateDoc);
+
+    // In our implementation, db.doc(ALERT_STATE_DOC) is called twice:
+    // 1. in getAlertState
+    // 2. in saveAlertState
+    // So we need to provide the isolated mock for BOTH calls, otherwise
+    // the second call falls back to the default mockDoc which may leak state.
+
+    // We get around this by explicitly looking for the alert state doc path 
+    // in the global mock if needed, but the simpler approach is just overriding
+    // the single global mockDoc for the duration of the test.
+    mockFirestoreInstance.doc.mockReturnValue(alertStateDoc);
   }
 
   it("should return checked:true when spending is under 50%", async () => {
@@ -135,8 +142,10 @@ describe("budgetMonitorHandler", () => {
 
   it("should send WARNING when spending exceeds 70%", async () => {
     setupShards(50); // $50 of $70 = 71%
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, "0")}`;
     setupAlertState({
-      monthKey: "2026-02",
+      monthKey: monthKey,
       lastAlertLevel: null,
       lastAlertTimestamp: null,
     });
@@ -154,8 +163,10 @@ describe("budgetMonitorHandler", () => {
 
   it("should send CRITICAL when spending exceeds 90%", async () => {
     setupShards(64); // $64 of $70 = 91%
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, "0")}`;
     setupAlertState({
-      monthKey: "2026-02",
+      monthKey: monthKey,
       lastAlertLevel: null,
       lastAlertTimestamp: null,
     });
@@ -172,8 +183,10 @@ describe("budgetMonitorHandler", () => {
 
   it("should send SHUTDOWN alert when spending reaches 100%", async () => {
     setupShards(70); // $70 of $70 = 100%
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, "0")}`;
     setupAlertState({
-      monthKey: "2026-02",
+      monthKey: monthKey,
       lastAlertLevel: null,
       lastAlertTimestamp: null,
     });
@@ -190,8 +203,10 @@ describe("budgetMonitorHandler", () => {
 
   it("should NOT re-send alert at the same level", async () => {
     setupShards(50); // 71% → WARNING
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, "0")}`;
     setupAlertState({
-      monthKey: "2026-02",
+      monthKey: monthKey,
       lastAlertLevel: "WARNING", // Already alerted at this level
       lastAlertTimestamp: "MOCK_TIMESTAMP",
     });
@@ -203,8 +218,10 @@ describe("budgetMonitorHandler", () => {
 
   it("should escalate alert from WARNING to CRITICAL", async () => {
     setupShards(64); // 91% → CRITICAL
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, "0")}`;
     setupAlertState({
-      monthKey: "2026-02",
+      monthKey: monthKey,
       lastAlertLevel: "WARNING", // Previously warned
       lastAlertTimestamp: "MOCK_TIMESTAMP",
     });

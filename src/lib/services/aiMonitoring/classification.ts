@@ -142,7 +142,10 @@ export function classifyAIFailure(
     };
   }
 
-  if (input.allModelsFailed || lowerMessage.includes("all ai providers failed")) {
+  if (
+    input.allModelsFailed ||
+    lowerMessage.includes("all ai providers failed")
+  ) {
     return {
       failureCode: "AI_ALL_MODELS_FAILED",
       errorMessage,

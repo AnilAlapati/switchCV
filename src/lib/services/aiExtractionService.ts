@@ -1,15 +1,21 @@
 /**
  * AI Extraction Service
  *
- * Uses Gemini Structured Output to extract resume data from raw text.
- * This is the ONLY extraction path — there is no regex fallback.
- * If AI is unavailable, the caller must surface an error to the user.
+ * Uses AI structured output to extract resume data from raw text.
+ * If this AI path is unavailable, the caller may choose a deterministic
+ * fallback based on local extractors.
  *
  * @module services/aiExtractionService
  */
 
 import { logger } from "@/lib/logger";
 import { adminDb } from "@/lib/firebase-admin";
+import {
+  classifyAIFailure,
+  markAIStageFailed,
+  persistAIFailureEvent,
+  type AIObservationContext,
+} from "@/lib/services/aiMonitoringService";
 import {
   ResumeExtractionSchema,
   type ResumeExtractionResult,
@@ -141,6 +147,8 @@ export interface ExtractionOptions {
   userTier?: "basic" | "premium" | "enterprise";
   /** If true, skip AI and return null (for testing / fallback path). */
   skipAI?: boolean;
+  /** Shared AI monitoring context for request correlation. */
+  observationContext?: AIObservationContext;
 }
 
 /** Result of the AI extraction attempt. */
@@ -279,7 +287,11 @@ export async function extractWithStructuredOutput(
   options: ExtractionOptions = {},
 ): Promise<AIExtractionResult> {
   const startTime = Date.now();
-  const { userTier = "premium", skipAI = false } = options;
+  const {
+    userTier = "premium",
+    skipAI = false,
+    observationContext,
+  } = options;
 
   if (skipAI) {
     return {
@@ -319,10 +331,32 @@ export async function extractWithStructuredOutput(
         string,
         unknown
       >,
+      observationContext,
+      stage: "extraction",
     });
 
     if (!result.text) {
       recordExtractionFailure("AI returned empty response");
+      if (observationContext) {
+        const classification = classifyAIFailure({
+          errorMessage: "AI returned empty response",
+          emptyResponse: true,
+        });
+        await persistAIFailureEvent({
+          context: observationContext,
+          stage: "extraction",
+          provider: result.provider,
+          model: result.model,
+          failureCode: classification.failureCode,
+          errorMessage: classification.errorMessage,
+          latencyMs: Date.now() - startTime,
+          promptPreview: prompt,
+          providerErrorClass: classification.providerErrorClass,
+        });
+        markAIStageFailed(observationContext, "extraction", {
+          latencyMs: Date.now() - startTime,
+        });
+      }
       return {
         success: false,
         data: null,
@@ -340,6 +374,27 @@ export async function extractWithStructuredOutput(
         "AI extraction returned non-JSON response",
       );
       recordExtractionFailure("AI response was not valid JSON");
+      if (observationContext) {
+        const classification = classifyAIFailure({
+          errorMessage: "AI response was not valid JSON",
+          invalidJson: true,
+        });
+        await persistAIFailureEvent({
+          context: observationContext,
+          stage: "extraction",
+          provider: result.provider,
+          model: result.model,
+          failureCode: classification.failureCode,
+          errorMessage: classification.errorMessage,
+          latencyMs: Date.now() - startTime,
+          promptPreview: prompt,
+          responsePreview: result.text,
+          providerErrorClass: classification.providerErrorClass,
+        });
+        markAIStageFailed(observationContext, "extraction", {
+          latencyMs: Date.now() - startTime,
+        });
+      }
       return {
         success: false,
         data: null,
@@ -357,6 +412,36 @@ export async function extractWithStructuredOutput(
         "AI extraction response failed schema validation",
       );
       recordExtractionFailure("AI response failed schema validation");
+      if (observationContext) {
+        const flattened = validated.error.flatten();
+        const schemaIssueCount =
+          flattened.formErrors.length +
+          Object.values(flattened.fieldErrors).reduce(
+            (count, fieldErrors) => count + fieldErrors.length,
+            0,
+          );
+        const classification = classifyAIFailure({
+          errorMessage: "AI response failed schema validation",
+          schemaValidationFailed: true,
+          schemaErrorCount: schemaIssueCount,
+        });
+        await persistAIFailureEvent({
+          context: observationContext,
+          stage: "extraction",
+          provider: result.provider,
+          model: result.model,
+          failureCode: classification.failureCode,
+          errorMessage: classification.errorMessage,
+          latencyMs: Date.now() - startTime,
+          promptPreview: prompt,
+          responsePreview: result.text,
+          providerErrorClass: classification.providerErrorClass,
+          schemaErrorCount: schemaIssueCount,
+        });
+        markAIStageFailed(observationContext, "extraction", {
+          latencyMs: Date.now() - startTime,
+        });
+      }
       return {
         success: false,
         data: null,
@@ -393,7 +478,7 @@ export async function extractWithStructuredOutput(
       error instanceof Error ? error.message : "AI extraction call failed";
     logger.error(
       { err: error },
-      "AI extraction failed — no fallback, user will be asked to retry",
+      "AI extraction failed — caller may choose a deterministic fallback",
     );
     recordExtractionFailure(errorMsg);
     return {

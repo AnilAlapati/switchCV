@@ -183,6 +183,74 @@ async function checkEmail(): Promise<ServiceCheckResult> {
 }
 
 /**
+ * Check AI Monitoring pipeline health
+ * 
+ * Verifies that the scheduled aggregateAiMonitoring function is
+ * successfully persisting data. If lastHourlySummaryAt is missing
+ * or older than 2 hours, the monitoring pipeline is down.
+ */
+async function checkAiMonitoring(
+  db: FirebaseFirestore.Firestore,
+  now: Date,
+): Promise<ServiceCheckResult> {
+  const start = Date.now();
+  try {
+    const stateDoc = await db.collection("monitoring").doc("aiAlertState").get();
+    if (!stateDoc.exists) {
+      return {
+        name: "ai_monitoring_pipeline",
+        status: "ok", // Hasn't initialized yet, or no traffic
+        latencyMs: Date.now() - start,
+      };
+    }
+
+    const state = stateDoc.data() || {};
+    const lastHourlySummaryAt = state.lastHourlySummaryAt;
+
+    if (!lastHourlySummaryAt) {
+      // Possible that it just hasn't run yet, but if the doc exists it should be there.
+      // We will let it pass if no traffic triggered an update.
+      return {
+        name: "ai_monitoring_pipeline",
+        status: "ok",
+        latencyMs: Date.now() - start,
+      };
+    }
+
+    const lastSummaryDate = lastHourlySummaryAt.toDate?.() || new Date(lastHourlySummaryAt);
+    if (!(lastSummaryDate instanceof Date) || Number.isNaN(lastSummaryDate.valueOf())) {
+      return {
+        name: "ai_monitoring_pipeline",
+        status: "error",
+        error: "aiAlertState.lastHourlySummaryAt is not a valid date",
+      };
+    }
+
+    // Pipeline runs every 15 mins. If it's been > 2 hours, it's definitively broken.
+    const hoursSinceLastSummary = (now.getTime() - lastSummaryDate.getTime()) / (1000 * 60 * 60);
+    if (hoursSinceLastSummary > 2) {
+      return {
+        name: "ai_monitoring_pipeline",
+        status: "error",
+        error: `AI monitoring aggregation hasn't run in ${hoursSinceLastSummary.toFixed(1)} hours. The scheduled function might be failing.`,
+      };
+    }
+
+    return {
+      name: "ai_monitoring_pipeline",
+      status: "ok",
+      latencyMs: Date.now() - start,
+    };
+  } catch (error) {
+    return {
+      name: "ai_monitoring_pipeline",
+      status: "error",
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+/**
  * Load previous health state
  */
 async function getHealthState(
@@ -249,6 +317,7 @@ export const healthMonitorHandler = async (
     checkFirestore(db),
     checkGeminiAI(),
     checkEmail(),
+    checkAiMonitoring(db, checkedAt),
   ]);
 
   const failingServices = results.filter((r) => r.status === "error");
@@ -329,7 +398,7 @@ export const healthMonitorHandler = async (
       severity,
       `Production services degraded: ${failingNames.join(", ")}`,
       `${failingServices.length} of ${results.length} services are failing:\n\n${serviceDetails}\n\n` +
-        `Consecutive failures: ${newConsecutiveFailures}`,
+      `Consecutive failures: ${newConsecutiveFailures}`,
       {
         failingServices: failingNames,
         consecutiveFailures: newConsecutiveFailures,

@@ -364,6 +364,71 @@ export const healthMonitor = regionalFunctions
     return healthMonitorHandler(context);
   });
 
+export const aggregateAiMonitoring = regionalFunctions
+  .runWith({ timeoutSeconds: 120, memory: "256MB" })
+  .pubsub.schedule("every 15 minutes")
+  .timeZone("UTC")
+  .onRun(async (context) => {
+    if (!isProductionEnvironment()) {
+      functions.logger.info(
+        "[COST GUARD] aggregateAiMonitoring blocked in dev environment",
+      );
+      return { skipped: true, reason: "dev environment" };
+    }
+    const { aggregateAiMonitoringHandler } = await import(
+      "./scheduled/aggregateAiMonitoring"
+    );
+    return aggregateAiMonitoringHandler(context);
+  });
+
+export const sendAiMonitoringDigest = regionalFunctions.pubsub
+  .schedule("0 8 * * *")
+  .timeZone("UTC")
+  .onRun(async (context) => {
+    if (!isProductionEnvironment()) {
+      functions.logger.info(
+        "[COST GUARD] sendAiMonitoringDigest blocked in dev environment",
+      );
+      return { skipped: true, reason: "dev environment" };
+    }
+    const { sendAiMonitoringDigestHandler } = await import(
+      "./scheduled/sendAiMonitoringDigest"
+    );
+    return sendAiMonitoringDigestHandler(context);
+  });
+
+export const cleanupAiMonitoringData = regionalFunctions.pubsub
+  .schedule("30 3 * * *")
+  .timeZone("UTC")
+  .onRun(async (context) => {
+    if (!isProductionEnvironment()) {
+      functions.logger.info(
+        "[COST GUARD] cleanupAiMonitoringData blocked in dev environment",
+      );
+      return { skipped: true, reason: "dev environment" };
+    }
+    const { cleanupAiMonitoringDataHandler } = await import(
+      "./scheduled/cleanupAiMonitoringData"
+    );
+    return cleanupAiMonitoringDataHandler(context);
+  });
+
+export const monitorAiMonitoringHealth = regionalFunctions.pubsub
+  .schedule("0 4 * * *") // Daily at 4 AM UTC
+  .timeZone("UTC")
+  .onRun(async (context) => {
+    if (!isProductionEnvironment()) {
+      functions.logger.info(
+        "[COST GUARD] monitorAiMonitoringHealth blocked in dev environment",
+      );
+      return { skipped: true, reason: "dev environment" };
+    }
+    const { monitorAiMonitoringHealthHandler } = await import(
+      "./scheduled/monitorAiMonitoringHealth"
+    );
+    return monitorAiMonitoringHealthHandler(context);
+  });
+
 /**
  * Secret Rotation Monitor — runs daily to check for expiring secrets.
  */

@@ -10,6 +10,15 @@ import "server-only";
  */
 
 import { logger } from "@/lib/logger";
+import {
+  classifyAIFailure,
+  markAIStageFailed,
+  markAIStageSuccess,
+  noteAIStageAttempt,
+  persistAIFailureEvent,
+  type AIObservationContext,
+  type AIObservationStage,
+} from "@/lib/services/aiMonitoringService";
 import { CircuitBreaker } from "@/lib/utils/CircuitBreaker";
 import type {
   AIModelConfig,
@@ -28,6 +37,11 @@ export type {
   SelectableModel,
   UserTier,
 } from "@/types/ai";
+
+type MonitoredGenerateOptions = GenerateOptions & {
+  observationContext?: AIObservationContext;
+  stage?: AIObservationStage;
+};
 
 // ==================== CIRCUIT BREAKERS ====================
 
@@ -143,7 +157,7 @@ async function callProvider(
  * @throws Error if no models are available or all fail
  */
 export async function generateTextWithTier(
-  options: GenerateOptions,
+  options: MonitoredGenerateOptions,
 ): Promise<GenerateResult> {
   const {
     prompt,
@@ -153,7 +167,10 @@ export async function generateTextWithTier(
     modelId,
     jsonMode,
     responseSchema,
+    observationContext,
+    stage = "generation",
   } = options;
+  const stageStartTime = Date.now();
 
   let preferredModel: AIModelConfig | undefined;
   if (modelId) {
@@ -186,25 +203,73 @@ export async function generateTextWithTier(
     : tierModels;
 
   if (availableModels.length === 0) {
-    throw new Error(
+    const message =
       userTier === "basic"
         ? "AI service temporarily unavailable. Please try again later."
-        : "No AI providers configured. Please contact support.",
-    );
+        : "No AI providers configured. Please contact support.";
+
+    if (observationContext) {
+      const classification = classifyAIFailure({
+        errorMessage: message,
+        providerNotConfigured: true,
+      });
+      await persistAIFailureEvent({
+        context: observationContext,
+        stage,
+        failureCode: classification.failureCode,
+        errorMessage: classification.errorMessage,
+        httpStatus: classification.httpStatus,
+        latencyMs: Date.now() - stageStartTime,
+        promptPreview: prompt,
+        providerErrorClass: classification.providerErrorClass,
+      });
+      markAIStageFailed(observationContext, stage, {
+        latencyMs: Date.now() - stageStartTime,
+      });
+    }
+
+    throw new Error(message);
   }
 
   const errors: Record<string, string> = {};
 
-  for (const model of availableModels) {
+  for (const [modelIndex, model] of availableModels.entries()) {
     const breaker = breakers[model.provider as keyof typeof breakers];
+    noteAIStageAttempt(observationContext ?? null, stage, {
+      provider: model.provider,
+      model: model.id,
+    });
 
     if (breaker && breaker.isOpen()) {
       logger.warn(
         { model: model.id, provider: model.provider },
         "🚫 Circuit Breaker OPEN - Skipping",
       );
+
+      if (observationContext) {
+        const classification = classifyAIFailure({
+          errorMessage: `Circuit breaker open for provider ${model.provider}`,
+          circuitOpen: true,
+        });
+
+        await persistAIFailureEvent({
+          context: observationContext,
+          stage,
+          provider: model.provider,
+          model: model.id,
+          failureCode: classification.failureCode,
+          errorMessage: classification.errorMessage,
+          latencyMs: 0,
+          fallbackUsed: modelIndex < availableModels.length - 1,
+          fallbackSucceeded: false,
+          promptPreview: prompt,
+          providerErrorClass: classification.providerErrorClass,
+        });
+      }
       continue;
     }
+
+    const attemptStartTime = Date.now();
 
     try {
       logger.info(
@@ -228,6 +293,14 @@ export async function generateTextWithTier(
         `${model.name} success`,
       );
 
+      if (observationContext) {
+        await markAIStageSuccess(observationContext, stage, {
+          provider: model.provider,
+          model: result.model,
+          latencyMs: Date.now() - stageStartTime,
+        });
+      }
+
       return {
         text: result.text,
         model: result.model,
@@ -245,7 +318,56 @@ export async function generateTextWithTier(
         { model: model.id, error: errorMsg },
         `${model.name} failed, trying next...`,
       );
+
+      if (observationContext) {
+        const classification = classifyAIFailure({
+          error,
+          errorMessage: errorMsg,
+        });
+
+        await persistAIFailureEvent({
+          context: observationContext,
+          stage,
+          provider: model.provider,
+          model: model.id,
+          failureCode: classification.failureCode,
+          errorMessage: classification.errorMessage,
+          httpStatus: classification.httpStatus,
+          latencyMs: Date.now() - attemptStartTime,
+          fallbackUsed: modelIndex < availableModels.length - 1,
+          fallbackSucceeded: false,
+          promptPreview: prompt,
+          responsePreview: errorMsg,
+          failureSubcode: classification.failureSubcode,
+          providerErrorClass: classification.providerErrorClass,
+          schemaErrorCount: classification.schemaErrorCount,
+        });
+      }
     }
+  }
+
+  const finalErrorMessage = `All AI providers failed. Errors: ${JSON.stringify(errors)}`;
+
+  if (observationContext) {
+    const classification = classifyAIFailure({
+      errorMessage: finalErrorMessage,
+      allModelsFailed: true,
+    });
+    await persistAIFailureEvent({
+      context: observationContext,
+      stage,
+      failureCode: classification.failureCode,
+      errorMessage: classification.errorMessage,
+      latencyMs: Date.now() - stageStartTime,
+      promptPreview: prompt,
+      responsePreview: finalErrorMessage,
+      failureSubcode: classification.failureSubcode,
+      providerErrorClass: classification.providerErrorClass,
+      schemaErrorCount: classification.schemaErrorCount,
+    });
+    markAIStageFailed(observationContext, stage, {
+      latencyMs: Date.now() - stageStartTime,
+    });
   }
 
   if (userTier === "basic") {
@@ -254,5 +376,5 @@ export async function generateTextWithTier(
     );
   }
 
-  throw new Error(`All AI providers failed. Errors: ${JSON.stringify(errors)}`);
+  throw new Error(finalErrorMessage);
 }

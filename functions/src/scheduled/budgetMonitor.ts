@@ -201,9 +201,9 @@ export const budgetMonitorHandler = async (
     const message =
       alertInfo.level === "SHUTDOWN"
         ? `URGENT: Monthly spending ($${totalCost.toFixed(2)}) has reached the $${SYSTEM_BUDGET_CAP} cap. ` +
-          `AI features should be disabled to prevent over-budget spending.`
+        `AI features should be disabled to prevent over-budget spending.`
         : `Monthly spending is $${totalCost.toFixed(2)} out of $${SYSTEM_BUDGET_CAP} budget (${percentage}%). ` +
-          `Monitor closely to avoid exceeding the cap.`;
+        `Monitor closely to avoid exceeding the cap.`;
 
     await alertManager.sendAlert(alertInfo.severity, title, message, {
       monthKey,
@@ -252,8 +252,7 @@ export const budgetMonitorHandler = async (
       await alertManager.sendAlert(
         AlertSeverity.ERROR,
         "Budget monitor failed",
-        `The hourly budget monitoring function encountered an error: ${
-          error instanceof Error ? error.message : String(error)
+        `The hourly budget monitoring function encountered an error: ${error instanceof Error ? error.message : String(error)
         }`,
         { monthKey },
       );

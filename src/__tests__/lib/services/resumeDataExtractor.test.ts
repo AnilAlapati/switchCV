@@ -2,9 +2,20 @@
  * Tests for ResumeDataExtractor
  */
 
+const mockExtractWithStructuredOutput = jest.fn();
+
+jest.mock("@/lib/services/aiExtractionService", () => ({
+  extractWithStructuredOutput: (...args: unknown[]) =>
+    mockExtractWithStructuredOutput(...args),
+}));
+
 import { ResumeDataExtractor } from "@/lib/services/resumeDataExtractor";
 
 describe("ResumeDataExtractor", () => {
+  beforeEach(() => {
+    mockExtractWithStructuredOutput.mockReset();
+  });
+
   describe("extract", () => {
     it("should extract name from text", () => {
       const text = "My name is John Doe and I'm a developer";
@@ -40,6 +51,22 @@ describe("ResumeDataExtractor", () => {
       const result = ResumeDataExtractor.extract(text);
 
       expect(result.data.email).toBe("john.doe@example.com");
+    });
+
+    it("should extract names with a single-letter first token in inline contact text", () => {
+      const text =
+        "Hey there, my name is A Anil and my email is anilalapati.66@gmail.com";
+      const result = ResumeDataExtractor.extract(text);
+
+      expect(result.data.name).toBe("A Anil");
+      expect(result.data.email).toBe("anilalapati.66@gmail.com");
+    });
+
+    it("should not infer a github handle from an email address", () => {
+      const text = "You can reach me at john.doe@example.com";
+      const result = ResumeDataExtractor.extract(text);
+
+      expect(result.data.github).toBeUndefined();
     });
 
     it("should extract phone number", () => {
@@ -212,6 +239,55 @@ describe("ResumeDataExtractor", () => {
       const text = `Here is some json: {"foo": "bar"}`;
       const result = ResumeDataExtractor.extract(text);
       expect(result.data.name).toBeUndefined();
+    });
+  });
+
+  describe("extractFromConversationWithAI", () => {
+    it("falls back to deterministic extractors when AI extraction fails", async () => {
+      mockExtractWithStructuredOutput.mockResolvedValue({
+        success: false,
+        data: null,
+        method: "fallback",
+        latencyMs: 0,
+        error: "Gemini timeout",
+      });
+
+      const result = await ResumeDataExtractor.extractFromConversationWithAI([
+        { content: "Hi there!", isUser: false },
+        {
+          content: "My name is A Anil and my email is anilalapati.66@gmail.com",
+          isUser: true,
+        },
+        {
+          content: "Skills: React, TypeScript, Firebase",
+          isUser: true,
+        },
+      ]);
+
+      expect(result.method).toBe("regex");
+      expect(result.data.name).toBe("A Anil");
+      expect(result.data.email).toBe("anilalapati.66@gmail.com");
+      expect(result.data.skills).toEqual(
+        expect.arrayContaining(["React", "TypeScript", "Firebase"]),
+      );
+      expect(result.confidence).toBeGreaterThan(0);
+    });
+
+    it("uses deterministic extraction when skipAI is true", async () => {
+      const result = await ResumeDataExtractor.extractFromConversationWithAI(
+        [
+          { content: "Tell me about your contact info", isUser: false },
+          {
+            content: "My name is John Doe and email john@example.com",
+            isUser: true,
+          },
+        ],
+        { skipAI: true },
+      );
+
+      expect(result.method).toBe("regex");
+      expect(result.data.name).toBe("John Doe");
+      expect(result.data.email).toBe("john@example.com");
     });
   });
 

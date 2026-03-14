@@ -137,7 +137,7 @@ describe("healthMonitorHandler", () => {
 
     expect(result.status).toBe("ok");
     expect(result.checked).toBe(true);
-    expect(result.services).toHaveLength(3);
+    expect(result.services).toHaveLength(4);
     expect(result.services.every((s) => s.status === "ok")).toBe(true);
     expect(mockSendAlert).not.toHaveBeenCalled();
   });

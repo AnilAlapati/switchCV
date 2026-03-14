@@ -72,7 +72,25 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Quick Actions - Currently no actions available */}
+
+        {/* Quick Actions */}
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-slate-700">Quick Actions</h2>
+          <div className="grid gap-4 md:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => router.push("/admin/ai-monitoring")}
+              className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 text-left hover:border-slate-300 hover:shadow-md transition-all group"
+            >
+              <h3 className="text-sm font-semibold text-slate-900 group-hover:text-emerald-700 transition-colors">
+                AI Monitoring →
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                View failure rates, open incidents, and trace individual requests.
+              </p>
+            </button>
+          </div>
+        </div>
         {/* User approvals are handled via email links */}
       </div>
     </div>

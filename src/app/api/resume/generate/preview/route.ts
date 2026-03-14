@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 import {
@@ -10,6 +11,7 @@ import type { SubscriptionTier } from "@/lib/config";
 import { processSyncGeneration } from "@/lib/services/resumeGenerationOrchestrator";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const requestId = request.headers.get("x-request-id") ?? randomUUID();
   const { userId: rawUserId, error } = await getAuthenticatedUserId(request);
   if (error) return error;
 
@@ -54,9 +56,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       desiredStyle,
       strictMode,
       persistResult: false,
+      requestId,
+      entrypoint: "resume_preview",
     });
 
-    return NextResponse.json(result);
+    return NextResponse.json(result, {
+      headers: {
+        "x-request-id": requestId,
+      },
+    });
   } catch (routeError: unknown) {
     logger.error(
       { err: routeError, userId },

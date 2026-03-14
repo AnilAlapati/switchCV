@@ -13,6 +13,10 @@ import { ExperienceExtractor } from "./extractors/ExperienceExtractor";
 import { EducationExtractor } from "./extractors/EducationExtractor";
 import { JSONExtractor } from "./extractors/JSONExtractor";
 import { logger } from "@/lib/logger";
+import {
+  markAIStageRecoveredWithFallback,
+  type AIObservationContext,
+} from "@/lib/services/aiMonitoringService";
 import type { AIExtractionResult } from "@/lib/services/aiExtractionService";
 
 export interface ExtractionResult {
@@ -407,10 +411,37 @@ export class ResumeDataExtractor {
     };
   }
 
+  private static buildDeterministicFallbackResult(
+    messages: Array<{ content: string; isUser: boolean }>,
+    reason: string,
+  ): ExtractionResult & { method: "regex" } {
+    const fallbackResult = this.extractFromConversation(messages);
+    const extractedFieldCount = fallbackResult.extractedFields.length;
+
+    logger.warn(
+      {
+        reason,
+        extractedFields: fallbackResult.extractedFields,
+      },
+      extractedFieldCount > 0
+        ? "AI extraction unavailable — using deterministic fallback extractors"
+        : "AI extraction unavailable — deterministic fallback found no structured data",
+    );
+
+    return {
+      ...fallbackResult,
+      confidence:
+        extractedFieldCount > 0
+          ? Math.max(fallbackResult.confidence, 0.35)
+          : 0.1,
+      method: "regex",
+    };
+  }
+
   /**
-   * Extract from conversation using AI structured output (Gemini).
-   * NO regex fallback — if AI fails, returns a failure result so the caller
-   * can surface a user-friendly error.
+   * Extract from conversation using AI structured output first.
+   * If the AI path fails, fall back to the deterministic extractors so the
+   * conversation can continue instead of hard-failing immediately.
    *
    * @param messages - Conversation messages
    * @param options - AI extraction options (tier, skip flag)
@@ -421,6 +452,7 @@ export class ResumeDataExtractor {
     options?: {
       userTier?: "basic" | "premium" | "enterprise";
       skipAI?: boolean;
+      observationContext?: AIObservationContext;
     },
   ): Promise<ExtractionResult & { method: "ai" | "regex" }> {
     // Build a labeled conversation transcript so the extraction AI has
@@ -437,14 +469,8 @@ export class ResumeDataExtractor {
       .join(" ");
 
     if (options?.skipAI) {
-      logger.warn("AI extraction explicitly skipped — returning empty result");
-      return {
-        data: {},
-        confidence: 0,
-        extractedFields: [],
-        isComplete: false,
-        method: "regex", // legacy label kept for type compat
-      };
+      logger.warn("AI extraction explicitly skipped — using deterministic fallback");
+      return this.buildDeterministicFallbackResult(messages, "skip_ai");
     }
 
     if (userText.trim().length < 10) {
@@ -468,6 +494,7 @@ export class ResumeDataExtractor {
         conversationText,
         {
           userTier: options?.userTier ?? "premium",
+          observationContext: options?.observationContext,
         },
       );
 
@@ -502,27 +529,36 @@ export class ResumeDataExtractor {
       // AI returned but extraction was unsuccessful (empty, parse error, etc.)
       logger.error(
         { error: aiResult.error, latencyMs: aiResult.latencyMs },
-        "AI extraction returned unsuccessful result — no regex fallback",
+        "AI extraction returned unsuccessful result — using deterministic fallback",
       );
-      return {
-        data: {},
-        confidence: 0,
-        extractedFields: [],
-        isComplete: false,
-        method: "ai",
-      };
+      const fallbackResult = this.buildDeterministicFallbackResult(
+        messages,
+        aiResult.error ?? "ai_extraction_unsuccessful",
+      );
+      if (options?.observationContext) {
+        await markAIStageRecoveredWithFallback(
+          options.observationContext,
+          "extraction",
+          { latencyMs: aiResult.latencyMs },
+        );
+      }
+      return fallbackResult;
     } catch (error) {
       logger.error(
         { err: error },
-        "AI extraction threw an exception — no regex fallback",
+        "AI extraction threw an exception — using deterministic fallback",
       );
-      return {
-        data: {},
-        confidence: 0,
-        extractedFields: [],
-        isComplete: false,
-        method: "ai",
-      };
+      const fallbackResult = this.buildDeterministicFallbackResult(
+        messages,
+        error instanceof Error ? error.message : "ai_extraction_exception",
+      );
+      if (options?.observationContext) {
+        await markAIStageRecoveredWithFallback(
+          options.observationContext,
+          "extraction",
+        );
+      }
+      return fallbackResult;
     }
   }
 }
