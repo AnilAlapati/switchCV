@@ -74,24 +74,26 @@ export async function getUserApprovalConfig(): Promise<{
       const configData = configDoc.data()?.userApproval;
       const resolvedAdminEmail =
         configData?.adminEmail || config.get("email").adminEmail;
+      const enabled = configData?.enabled === true; // explicit true required — missing/undefined = disabled
       functions.logger.info(
-        `[UserApprovalConfig] enabled=${configData?.enabled ?? true}, adminEmail="${resolvedAdminEmail}" (source: ${configData?.adminEmail ? "Firestore config/system" : "code default"})`,
+        `[UserApprovalConfig] enabled=${enabled}, adminEmail="${resolvedAdminEmail}" (source: ${configData?.adminEmail ? "Firestore config/system" : "code default"})`,
       );
       return {
-        enabled: configData?.enabled ?? true,
+        enabled,
         adminEmail: resolvedAdminEmail,
         autoApproveDomains: configData?.autoApproveDomains || [],
       };
     }
   } catch (error) {
     functions.logger.warn(
-      "Failed to fetch user approval config, using defaults:",
+      "Failed to fetch user approval config, using defaults (disabled):",
       error,
     );
   }
 
+  // Safe default: approval disabled when config is missing or unreadable
   return {
-    enabled: true,
+    enabled: false,
     adminEmail: config.get("email").adminEmail,
     autoApproveDomains: [],
   };
