@@ -6,7 +6,7 @@ import {
   maybeGetAuthenticatedUserId,
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
-import { checkRateLimit } from "@/lib/utils/rateLimit";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 import { checkSequentialAccess } from "@/lib/security/accessMonitor";
 import {
   getResume,
@@ -20,7 +20,7 @@ import type { ResumeProfile } from "@/types";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
@@ -29,7 +29,7 @@ export async function GET(
       return handleApiError(
         new Error("Resume ID is required"),
         "Resume ID is required",
-        400
+        400,
       );
     }
 
@@ -42,33 +42,37 @@ export async function GET(
 
     // Stricter limit for unauthenticated (public) access to prevent scraping
     const limit = optionalUserId ? 30 : 10;
-    const rateLimitResult = await checkRateLimit(rateLimitIdentifier, {
-      limit,
-      windowMs: 60 * 1000, // 1 minute
-    });
+    const rateLimitResult = await checkDistributedRateLimit(
+      rateLimitIdentifier,
+      {
+        scope: "resume-read",
+        limit,
+        windowMs: 60 * 1000, // 1 minute
+      },
+    );
 
     if (!rateLimitResult.allowed) {
       logger.warn(
         { identifier: rateLimitIdentifier, path: `/api/resumes/${id}` },
-        "[ResumeAPI] Rate limit exceeded"
+        "[ResumeAPI] Rate limit exceeded",
       );
       return handleApiError(
         null,
         "Too many requests. Please try again later.",
-        429
+        429,
       );
     }
 
     // Scraping Protection (Sequential Access)
     const isSequentialSafe = await checkSequentialAccess(
       rateLimitIdentifier,
-      id
+      id,
     );
     if (!isSequentialSafe) {
       return handleApiError(
         null,
         "Access denied due to suspicious activity.",
-        403
+        403,
       );
     }
 
@@ -77,32 +81,57 @@ export async function GET(
       return handleApiError(
         new Error("Reserved System ID"),
         "This ID is reserved for system demonstration purposes and is not publicly accessible.",
-        403
+        403,
       );
     }
 
     // Use Service Layer
     const { resume: resumeData, access } = await getResume(
       id,
-      optionalUserId || undefined
+      optionalUserId || undefined,
     );
 
     if (!resumeData || access === "none") {
       return handleApiError(
         new Error("Resume not found or access denied"),
         "Resume not found or access denied",
-        404
+        404,
       );
     }
 
     const isBeingEdited = resumeData?.isBeingEdited ?? false;
 
     // Define response configuration based on access level
-    const ACCESS_CONFIGS: Record<string, { scope: string; isOwner?: boolean; isMasked?: boolean; cacheControl: string }> = {
-      owner: { scope: "owner", isOwner: true, cacheControl: "private, max-age=300, stale-while-revalidate=60" },
-      admin: { scope: "admin-view", isOwner: false, isMasked: false, cacheControl: "private, max-age=300, stale-while-revalidate=60" },
-      granted: { scope: "full", isOwner: false, isMasked: false, cacheControl: "private, max-age=300, stale-while-revalidate=60" },
-      public_snapshot: { scope: "public", cacheControl: "public, s-maxage=60, stale-while-revalidate=300" },
+    const ACCESS_CONFIGS: Record<
+      string,
+      {
+        scope: string;
+        isOwner?: boolean;
+        isMasked?: boolean;
+        cacheControl: string;
+      }
+    > = {
+      owner: {
+        scope: "owner",
+        isOwner: true,
+        cacheControl: "private, max-age=300, stale-while-revalidate=60",
+      },
+      admin: {
+        scope: "admin-view",
+        isOwner: false,
+        isMasked: false,
+        cacheControl: "private, max-age=300, stale-while-revalidate=60",
+      },
+      granted: {
+        scope: "full",
+        isOwner: false,
+        isMasked: false,
+        cacheControl: "private, max-age=300, stale-while-revalidate=60",
+      },
+      public_snapshot: {
+        scope: "public",
+        cacheControl: "public, s-maxage=60, stale-while-revalidate=300",
+      },
     };
 
     const config = ACCESS_CONFIGS[access];
@@ -116,20 +145,27 @@ export async function GET(
         {
           ...resumeData,
           isBeingEdited,
-          viewerAccess: access !== "public_snapshot" ? {
-            scope: config.scope,
-            isOwner: config.isOwner,
-            isMasked: config.isMasked,
-          } : undefined,
+          viewerAccess:
+            access !== "public_snapshot"
+              ? {
+                  scope: config.scope,
+                  isOwner: config.isOwner,
+                  isMasked: config.isMasked,
+                }
+              : undefined,
         },
         {
           headers: { "Cache-Control": config.cacheControl },
-        }
+        },
       );
     }
 
     // Default Deny
-    return handleApiError(new Error("Permission denied"), "Permission denied", 403);
+    return handleApiError(
+      new Error("Permission denied"),
+      "Permission denied",
+      403,
+    );
   } catch (error) {
     return handleApiError(error, "Error fetching resume");
   }
@@ -137,16 +173,18 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
     const { userId, error } = await getAuthenticatedUserId(request);
     if (error || !userId) return error;
 
-    const VisibilitySchema = z.object({
-      isPublic: z.boolean()
-    }).strict();
+    const VisibilitySchema = z
+      .object({
+        isPublic: z.boolean(),
+      })
+      .strict();
 
     const parseResult = VisibilitySchema.safeParse(await request.json());
     if (!parseResult.success) {
@@ -178,7 +216,7 @@ export async function PATCH(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
@@ -186,7 +224,7 @@ export async function PUT(
       return handleApiError(
         new Error("Resume ID is required"),
         "Resume ID is required",
-        400
+        400,
       );
     }
 
@@ -207,7 +245,7 @@ export async function PUT(
       return handleApiError(
         new Error("Editing restricted"),
         "Editing is not allowed on the Basic tier. Please upgrade to Premium to edit your resume.",
-        403
+        403,
       );
     }
 
@@ -219,7 +257,7 @@ export async function PUT(
       return handleApiError(
         new Error("Invalid input"),
         result.error.issues.map((e: z.ZodIssue) => e.message).join(", "),
-        400
+        400,
       );
     }
 
@@ -244,7 +282,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
@@ -252,7 +290,7 @@ export async function DELETE(
       return handleApiError(
         new Error("Resume ID is required"),
         "Resume ID is required",
-        400
+        400,
       );
     }
 

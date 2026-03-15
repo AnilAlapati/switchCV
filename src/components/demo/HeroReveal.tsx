@@ -11,7 +11,14 @@ interface HeroRevealProps {
   onRevealComplete?: () => void;
 }
 
-export function HeroReveal({ stage, role: _role, onRevealComplete: _onRevealComplete }: HeroRevealProps) {
+export function HeroReveal({
+  stage,
+  role: _role,
+  onRevealComplete: _onRevealComplete,
+}: HeroRevealProps) {
+  // Props reserved for future animation phases
+  void _role;
+  void _onRevealComplete;
   const groupRef = useRef<THREE.Group>(null);
   const opacity = stage === "reveal" ? 1 : 0;
 
@@ -26,13 +33,7 @@ export function HeroReveal({ stage, role: _role, onRevealComplete: _onRevealComp
   return (
     <group ref={groupRef} position={[0, 0, 5]}>
       {/* Sparkles around hero */}
-      <drei.Sparkles
-        count={50}
-        scale={20}
-        size={2}
-        speed={0.2}
-        opacity={0.1}
-      />
+      <drei.Sparkles count={50} scale={20} size={2} speed={0.2} opacity={0.1} />
 
       {/* Decorative rings */}
       <mesh rotation={[Math.PI / 2, 0, 0]}>

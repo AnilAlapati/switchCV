@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { COLLECTIONS, collectionRef } from "@/lib/dal";
-import { checkRateLimit } from "@/lib/utils/rateLimit";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 import { RESERVED_USERNAMES, USERNAME_CONFIG } from "@/config/constants";
 import { logger } from "@/lib/logger";
 
@@ -18,10 +18,20 @@ import { logger } from "@/lib/logger";
 const USERNAME_REGEX = /^[a-z0-9](?:[a-z0-9-_]{1,28}[a-z0-9])?$/;
 
 // Username validation schema (shared with useAuth.helpers.ts)
-const UsernameSchema = z.string()
-  .min(USERNAME_CONFIG.MIN_LENGTH, `Username must be at least ${USERNAME_CONFIG.MIN_LENGTH} characters`)
-  .max(USERNAME_CONFIG.MAX_LENGTH, `Username must be at most ${USERNAME_CONFIG.MAX_LENGTH} characters`)
-  .regex(USERNAME_REGEX, "Username can only contain lowercase letters, numbers, hyphens, and underscores. Must start and end with a letter or number.");
+const UsernameSchema = z
+  .string()
+  .min(
+    USERNAME_CONFIG.MIN_LENGTH,
+    `Username must be at least ${USERNAME_CONFIG.MIN_LENGTH} characters`,
+  )
+  .max(
+    USERNAME_CONFIG.MAX_LENGTH,
+    `Username must be at most ${USERNAME_CONFIG.MAX_LENGTH} characters`,
+  )
+  .regex(
+    USERNAME_REGEX,
+    "Username can only contain lowercase letters, numbers, hyphens, and underscores. Must start and end with a letter or number.",
+  );
 
 /**
  * Sanitize username input
@@ -50,7 +60,8 @@ export async function GET(request: NextRequest) {
     const ip = forwardedFor?.split(",")[0]?.trim() || "unknown";
 
     // Apply rate limiting (10 requests per minute per IP)
-    const rateLimitResult = await checkRateLimit(ip, {
+    const rateLimitResult = await checkDistributedRateLimit(ip, {
+      scope: "username-check",
       limit: USERNAME_CONFIG.CHECK_RATE_LIMIT_PER_MINUTE,
       windowMs: 60 * 1000,
     });
@@ -58,7 +69,7 @@ export async function GET(request: NextRequest) {
     if (!rateLimitResult.allowed) {
       logger.warn(
         { ip, remaining: rateLimitResult.remaining },
-        "Username check rate limited"
+        "Username check rate limited",
       );
       return NextResponse.json(
         {
@@ -73,7 +84,7 @@ export async function GET(request: NextRequest) {
             "X-RateLimit-Limit": rateLimitResult.limit.toString(),
             "X-RateLimit-Remaining": rateLimitResult.remaining.toString(),
           },
-        }
+        },
       );
     }
 
@@ -91,7 +102,7 @@ export async function GET(request: NextRequest) {
           reason: parseResult.error.issues[0].message,
           suggestion: username ? generateSuggestion(username) : undefined,
         },
-        { status: 200 }
+        { status: 200 },
       );
     }
 
@@ -103,7 +114,7 @@ export async function GET(request: NextRequest) {
           reason: "This username is reserved",
           suggestion: generateSuggestion(username),
         },
-        { status: 200 }
+        { status: 200 },
       );
     }
 
@@ -119,7 +130,7 @@ export async function GET(request: NextRequest) {
           reason: "This username is already taken",
           suggestion: generateSuggestion(username),
         },
-        { status: 200 }
+        { status: 200 },
       );
     }
 
@@ -135,7 +146,7 @@ export async function GET(request: NextRequest) {
           "X-RateLimit-Limit": rateLimitResult.limit.toString(),
           "X-RateLimit-Remaining": rateLimitResult.remaining.toString(),
         },
-      }
+      },
     );
   } catch (error) {
     logger.error({ err: error }, "Error checking username availability");
@@ -144,7 +155,7 @@ export async function GET(request: NextRequest) {
         available: false,
         reason: "An error occurred. Please try again.",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

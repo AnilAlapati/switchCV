@@ -87,9 +87,13 @@ export class AccessService {
     // 3. Check for existing grants/requests
     const existingRequests = await AccessService.queryWithFallback(
       resumeRef.collection("accessRequests"),
-      (col) => col.where("fromUserId", "==", requesterId).where("status", "==", "pending"),
-      (data: DocumentData) => data.fromUserId === requesterId && data.status === "pending",
-      { resumeId, requesterId, type: "accessRequests" }
+      (col) =>
+        col
+          .where("fromUserId", "==", requesterId)
+          .where("status", "==", "pending"),
+      (data: DocumentData) =>
+        data.fromUserId === requesterId && data.status === "pending",
+      { resumeId, requesterId, type: "accessRequests" },
     );
 
     if (!existingRequests.empty)
@@ -99,7 +103,7 @@ export class AccessService {
       resumeRef.collection("accessGrants"),
       (col) => col.where("toUserId", "==", requesterId),
       (data: DocumentData) => data.toUserId === requesterId,
-      { resumeId, requesterId, type: "accessGrants" }
+      { resumeId, requesterId, type: "accessGrants" },
     );
 
     const now = new Date();
@@ -337,19 +341,26 @@ export class AccessService {
    */
   public static async queryWithFallback(
     collection: FirebaseFirestore.CollectionReference,
-    queryBuilder: (col: FirebaseFirestore.CollectionReference) => FirebaseFirestore.Query,
-    filterFn: (data: any) => boolean,
-    logContext: Record<string, any>
+    queryBuilder: (
+      col: FirebaseFirestore.CollectionReference,
+    ) => FirebaseFirestore.Query,
+    filterFn: (data: FirebaseFirestore.DocumentData) => boolean,
+    logContext: Record<string, string>,
   ) {
     try {
       const query = queryBuilder(collection);
       const snap = await query.limit(100).get();
       return { docs: snap.docs, empty: snap.empty, size: snap.size };
-    } catch (e: any) {
-      if (e.code === 9 || e.message?.toLowerCase().includes("index") || e.code === "FAILED_PRECONDITION") {
+    } catch (e: unknown) {
+      const err = e as { code?: number | string; message?: string };
+      if (
+        err.code === 9 ||
+        err.message?.toLowerCase().includes("index") ||
+        err.code === "FAILED_PRECONDITION"
+      ) {
         logger.warn(
           logContext,
-          `Missing Firestore index for ${logContext.type}, falling back to full collection scan`
+          `Missing Firestore index for ${logContext.type}, falling back to full collection scan`,
         );
         const allDocs = await collection.limit(500).get();
         const filteredDocs = allDocs.docs.filter((doc) => filterFn(doc.data()));

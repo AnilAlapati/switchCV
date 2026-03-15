@@ -11,6 +11,8 @@ import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { checkRateLimit, RateLimitPresets } from "./middleware/rateLimiter";
+import { BillingService } from "./services/billingService";
+import { BUDGET_CAPS } from "./lib/billing/shared";
 
 // Constants (mirrored from frontend config)
 const AI_SEARCH = {
@@ -179,6 +181,17 @@ const indexResumeOnWriteHandler = async (
       );
       return null;
     }
+  }
+
+  // Budget enforcement: check system cap before embedding generation
+  const systemBudgetOk = await BillingService.checkSystemBudget(
+    BUDGET_CAPS.enterprise,
+  );
+  if (!systemBudgetOk) {
+    functions.logger.warn(
+      `System budget exceeded — skipping embedding for resume ${resumeId}`,
+    );
+    return null;
   }
 
   try {

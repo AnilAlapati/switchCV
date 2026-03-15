@@ -4,7 +4,7 @@ import {
   handleApiError,
   safeParseBody,
 } from "@/lib/utils/api-helpers";
-import { checkRateLimit } from "@/lib/utils/rateLimit";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 import { getConstants } from "@/lib/getSystemConfig";
 import { createResumeSchema } from "@/lib/validations/resume";
 import { createResume } from "@/lib/services/resumeService";
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       if (idempotencyCheck.status === "cached" && idempotencyCheck.data) {
         logger.info(
           { userId, idempotencyKey },
-          "Returning cached idempotent resume create response"
+          "Returning cached idempotent resume create response",
         );
         return createCachedResponse(idempotencyCheck.data);
       }
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
       if (idempotencyCheck.status === "processing") {
         logger.warn(
           { userId, idempotencyKey },
-          "Duplicate resume create request still processing"
+          "Duplicate resume create request still processing",
         );
         return createProcessingResponse();
       }
@@ -58,7 +58,8 @@ export async function POST(request: NextRequest) {
 
     // Rate Limiting
     const constants = await getConstants();
-    const rateLimitResult = await checkRateLimit(`${userId}:resume:create`, {
+    const rateLimitResult = await checkDistributedRateLimit(userId!, {
+      scope: "resume-create",
       limit: constants.RATE_LIMITS.RESUME_CREATE_PER_HOUR,
       windowMs: 60 * 60 * 1000, // 1 hour
     });
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
       return handleApiError(
         null,
         "Rate limit exceeded. Max 10 resumes per hour.",
-        429
+        429,
       );
     }
 
@@ -89,7 +90,7 @@ export async function POST(request: NextRequest) {
         new Error("Invalid resume data"),
         "Invalid resume data: " +
           validationResult.error?.issues?.map((e) => e.message).join(", "),
-        400
+        400,
       );
     }
     const validatedBody = validationResult.data;

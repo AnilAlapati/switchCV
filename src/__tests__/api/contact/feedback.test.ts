@@ -16,6 +16,17 @@ jest.mock("@/lib/services/supportFeedbackService", () => ({
   },
 }));
 
+jest.mock("@/lib/utils/distributedRateLimit", () => ({
+  checkDistributedRateLimit: jest
+    .fn()
+    .mockResolvedValue({
+      allowed: true,
+      remaining: 4,
+      limit: 5,
+      resetIn: 3600,
+    }),
+}));
+
 // Mock api-helpers
 jest.mock("@/lib/utils/api-helpers", () => ({
   getClientIp: jest.fn(),
@@ -70,7 +81,7 @@ function createRequest(body: unknown): NextRequest {
         "User-Agent": "jest-test/1.0",
       },
       body: JSON.stringify(body),
-    }
+    },
   );
 }
 
@@ -90,9 +101,9 @@ describe("POST /api/contact/feedback", () => {
           error instanceof Error ? error.message : String(error);
         return NextResponse.json(
           { error: message || "Error", details: errorMessage },
-          { status }
+          { status },
         );
-      }
+      },
     );
   });
 
@@ -206,7 +217,7 @@ describe("POST /api/contact/feedback", () => {
       expect.objectContaining({
         ipAddress: "127.0.0.1",
         userAgent: "jest-test/1.0",
-      })
+      }),
     );
   });
 });

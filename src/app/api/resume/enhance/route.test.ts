@@ -33,12 +33,12 @@ jest.mock("@/lib/utils/api-helpers", () => {
               error instanceof Error
                 ? error.message
                 : error
-                ? String(error)
-                : undefined,
+                  ? String(error)
+                  : undefined,
           },
-          { status }
+          { status },
         );
-      }
+      },
     ),
     getAuthenticatedUserId: jest.fn().mockResolvedValue({ userId: "user-123" }),
     safeParseBody: jest.fn(async (req) => {
@@ -50,6 +50,13 @@ jest.mock("@/lib/utils/api-helpers", () => {
 // Mock rateLimit
 jest.mock("@/lib/utils/rateLimit", () => ({
   checkRateLimit: jest.fn().mockReturnValue({ allowed: true }),
+}));
+
+// Mock distributedRateLimit (route uses this instead of in-memory rateLimit)
+jest.mock("@/lib/utils/distributedRateLimit", () => ({
+  checkDistributedRateLimit: jest
+    .fn()
+    .mockResolvedValue({ allowed: true, remaining: 10 }),
 }));
 
 import { generateResumeEnhancement } from "@/lib/resumeEnhancer";
@@ -187,7 +194,7 @@ describe("POST /api/resume/enhance", () => {
       expect(data).toEqual(mockEnhancementResult);
       expect(mockGenerateResumeEnhancement).toHaveBeenCalledWith(
         expect.objectContaining({ title: "Senior Software Engineer" }),
-        "Senior Software Engineer position requiring React and Node.js experience"
+        "Senior Software Engineer position requiring React and Node.js experience",
       );
     });
 
@@ -203,7 +210,7 @@ describe("POST /api/resume/enhance", () => {
       expect(data).toEqual(mockEnhancementResult);
       expect(mockGenerateResumeEnhancement).toHaveBeenCalledWith(
         expect.objectContaining({ title: "Senior Software Engineer" }),
-        undefined
+        undefined,
       );
     });
   });
@@ -235,13 +242,13 @@ describe("POST /api/resume/enhance", () => {
       expect(data.error).toBe("Failed to enhance resume");
       expect(logger.error).toHaveBeenCalledWith(
         { err: expect.any(Error) },
-        "Error enhancing resume:"
+        "Error enhancing resume:",
       );
     });
 
     it("should return 500 when JSON parsing fails", async () => {
       (mockRequest.json as jest.Mock).mockRejectedValue(
-        new SyntaxError("Invalid JSON")
+        new SyntaxError("Invalid JSON"),
       );
 
       const response = await POST(mockRequest);

@@ -31,7 +31,7 @@ import {
   handleApiError,
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
-import { checkRateLimit } from "@/lib/utils/rateLimit";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 import { getConstants } from "@/lib/getSystemConfig";
 import { notificationRequestSchema } from "@/lib/validations/notification";
 
@@ -46,7 +46,6 @@ interface NotificationActionData {
   webhookUrl?: string;
 }
 
-
 export async function POST(request: NextRequest) {
   try {
     const { userId: authUserId, error: authError } =
@@ -56,13 +55,11 @@ export async function POST(request: NextRequest) {
 
     // Rate Limit
     const constants = await getConstants();
-    const rateLimitResult = await checkRateLimit(
-      `${authUserId}:notifications`,
-      {
-        limit: constants.RATE_LIMITS.NOTIFICATIONS_PER_MINUTE,
-        windowMs: 60 * 1000, // 1 minute
-      }
-    );
+    const rateLimitResult = await checkDistributedRateLimit(authUserId!, {
+      scope: "notifications",
+      limit: constants.RATE_LIMITS.NOTIFICATIONS_PER_MINUTE,
+      windowMs: 60 * 1000, // 1 minute
+    });
 
     if (!rateLimitResult.allowed) {
       return handleApiError(null, "Too many requests", 429);
@@ -81,12 +78,16 @@ export async function POST(request: NextRequest) {
 
     // Type-narrow optional data fields for each action
     const notificationId = (data?.notificationId ?? "") as string;
-    const preference = (data?.preference ?? {}) as Partial<NotificationPreference>;
-    const actionData = (data ?? undefined) as NotificationActionData | undefined;
+    const preference = (data?.preference ??
+      {}) as Partial<NotificationPreference>;
+    const actionData = (data ?? undefined) as
+      | NotificationActionData
+      | undefined;
 
     switch (action) {
       case "send":
-        if (!actionData) return handleApiError(null, "Missing notification data", 400);
+        if (!actionData)
+          return handleApiError(null, "Missing notification data", 400);
         return handleSend(userId, actionData);
 
       case "mark-read":
@@ -102,7 +103,8 @@ export async function POST(request: NextRequest) {
         return handleGetPreferences(userId);
 
       case "update-preference":
-        if (!data?.preference) return handleApiError(null, "Missing required fields", 400);
+        if (!data?.preference)
+          return handleApiError(null, "Missing required fields", 400);
         return handleUpdatePreference(userId, preference);
 
       case "get-delivery-status":
@@ -170,7 +172,7 @@ async function handleSend(userId: string, data: NotificationActionData) {
     userId,
     payload,
     channels as NotificationChannel[],
-    priority as NotificationPriority
+    priority as NotificationPriority,
   );
 
   // Send through all channels
@@ -196,7 +198,11 @@ async function handleMarkRead(notificationId: string, authUserId: string) {
   // Ownership check
   const notification = await getNotification(notificationId);
   if (!notification || notification.recipientId !== authUserId) {
-    return handleApiError(null, "Forbidden: You do not own this notification", 403);
+    return handleApiError(
+      null,
+      "Forbidden: You do not own this notification",
+      403,
+    );
   }
 
   await markAsRead(notificationId);
@@ -223,7 +229,11 @@ async function handleDelete(notificationId: string, authUserId: string) {
   // Ownership check
   const notification = await getNotification(notificationId);
   if (!notification || notification.recipientId !== authUserId) {
-    return handleApiError(null, "Forbidden: You do not own this notification", 403);
+    return handleApiError(
+      null,
+      "Forbidden: You do not own this notification",
+      403,
+    );
   }
 
   await deleteNotification(notificationId);
@@ -272,7 +282,10 @@ async function handleGetPreferences(userId: string) {
   });
 }
 
-async function handleUpdatePreference(userId: string, preference: Partial<NotificationPreference>) {
+async function handleUpdatePreference(
+  userId: string,
+  preference: Partial<NotificationPreference>,
+) {
   if (!userId || !preference) {
     return handleApiError(null, "Missing required fields", 400);
   }
@@ -309,7 +322,10 @@ async function handleGetStatistics(userId: string | null) {
   });
 }
 
-async function handleGetDeliveryStatus(notificationId: string | null, authUserId: string) {
+async function handleGetDeliveryStatus(
+  notificationId: string | null,
+  authUserId: string,
+) {
   if (!notificationId) {
     return handleApiError(null, "Missing notificationId", 400);
   }
@@ -317,7 +333,11 @@ async function handleGetDeliveryStatus(notificationId: string | null, authUserId
   // Ownership check: verify notification belongs to this user
   const notification = await getNotification(notificationId);
   if (!notification || notification.recipientId !== authUserId) {
-    return handleApiError(null, "Forbidden: You do not own this notification", 403);
+    return handleApiError(
+      null,
+      "Forbidden: You do not own this notification",
+      403,
+    );
   }
 
   const status = getDeliveryStatus(notificationId);

@@ -1,6 +1,6 @@
 // Mock dependencies BEFORE imports to avoid circular reference
 jest.mock("@/lib/logger");
-jest.mock("@/lib/utils/rateLimit");
+jest.mock("@/lib/utils/distributedRateLimit");
 jest.mock("@/lib/security/accessMonitor");
 
 jest.mock("firebase-admin/firestore", () => ({
@@ -55,12 +55,20 @@ jest.mock("@/lib/utils/api-helpers", () => ({
   getAuthenticatedUserId: jest.fn(),
 }));
 
-import { getResume, updateResume, deleteResume, trackResumeView } from "@/lib/services/resumeService";
+import {
+  getResume,
+  updateResume,
+  deleteResume,
+  trackResumeView,
+} from "@/lib/services/resumeService";
 import { getUserTier } from "@/lib/services/userService";
-import { checkRateLimit } from "@/lib/utils/rateLimit";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 import { checkSequentialAccess } from "@/lib/security/accessMonitor";
 import { FieldValue } from "firebase-admin/firestore";
-import { maybeGetAuthenticatedUserId, getAuthenticatedUserId } from "@/lib/utils/api-helpers";
+import {
+  maybeGetAuthenticatedUserId,
+  getAuthenticatedUserId,
+} from "@/lib/utils/api-helpers";
 
 // ... existing mocks for userService, config.server, resumeEditor, resumeVisibility ...
 
@@ -82,7 +90,9 @@ describe("Resume ID API Route Coverage", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (checkRateLimit as jest.Mock).mockResolvedValue({ allowed: true });
+    (checkDistributedRateLimit as jest.Mock).mockResolvedValue({
+      allowed: true,
+    });
     (checkSequentialAccess as jest.Mock).mockResolvedValue(true);
   });
 
@@ -102,9 +112,12 @@ describe("Resume ID API Route Coverage", () => {
     });
 
     it("should return 404 if resume not found", async () => {
-      (getResume as jest.Mock).mockResolvedValue({ resume: null, access: "none" });
+      (getResume as jest.Mock).mockResolvedValue({
+        resume: null,
+        access: "none",
+      });
       const req = new NextRequest(
-        "http://localhost/api/resumes/" + mockResumeId
+        "http://localhost/api/resumes/" + mockResumeId,
       );
       const res = await route.GET(req, {
         params: Promise.resolve({ id: mockResumeId }),
@@ -114,11 +127,14 @@ describe("Resume ID API Route Coverage", () => {
 
     it("should return full resume for owner", async () => {
       const mockData = { userId: mockUserId, title: "My Resume" };
-      (getResume as jest.Mock).mockResolvedValue({ resume: mockData, access: "owner" });
+      (getResume as jest.Mock).mockResolvedValue({
+        resume: mockData,
+        access: "owner",
+      });
       (maybeGetAuthenticatedUserId as jest.Mock).mockResolvedValue(mockUserId);
 
       const req = new NextRequest(
-        "http://localhost/api/resumes/" + mockResumeId
+        "http://localhost/api/resumes/" + mockResumeId,
       );
       const res = await route.GET(req, {
         params: Promise.resolve({ id: mockResumeId }),
@@ -130,11 +146,16 @@ describe("Resume ID API Route Coverage", () => {
 
     it("should return full resume for admin", async () => {
       const mockData = { userId: "other-user", title: "Other Resume" };
-      (getResume as jest.Mock).mockResolvedValue({ resume: mockData, access: "admin" });
-      (maybeGetAuthenticatedUserId as jest.Mock).mockResolvedValue("admin-user");
+      (getResume as jest.Mock).mockResolvedValue({
+        resume: mockData,
+        access: "admin",
+      });
+      (maybeGetAuthenticatedUserId as jest.Mock).mockResolvedValue(
+        "admin-user",
+      );
 
       const req = new NextRequest(
-        "http://localhost/api/resumes/" + mockResumeId
+        "http://localhost/api/resumes/" + mockResumeId,
       );
       const res = await route.GET(req, {
         params: Promise.resolve({ id: mockResumeId }),
@@ -145,11 +166,16 @@ describe("Resume ID API Route Coverage", () => {
 
     it("should return full resume if access granted to recruiter", async () => {
       const mockData = { userId: "jobseeker-1", title: "JobSeeker Resume" };
-      (getResume as jest.Mock).mockResolvedValue({ resume: mockData, access: "granted" });
-      (maybeGetAuthenticatedUserId as jest.Mock).mockResolvedValue("recruiter-1");
+      (getResume as jest.Mock).mockResolvedValue({
+        resume: mockData,
+        access: "granted",
+      });
+      (maybeGetAuthenticatedUserId as jest.Mock).mockResolvedValue(
+        "recruiter-1",
+      );
 
       const req = new NextRequest(
-        "http://localhost/api/resumes/" + mockResumeId
+        "http://localhost/api/resumes/" + mockResumeId,
       );
       const res = await route.GET(req, {
         params: Promise.resolve({ id: mockResumeId }),
@@ -161,11 +187,16 @@ describe("Resume ID API Route Coverage", () => {
     it("should return 404 if access denied", async () => {
       // The current route logic returns 404 if access is "none"
       const mockData = { userId: "jobseeker-1", title: "JobSeeker Resume" };
-      (getResume as jest.Mock).mockResolvedValue({ resume: mockData, access: "none" });
-      (maybeGetAuthenticatedUserId as jest.Mock).mockResolvedValue("recruiter-1");
+      (getResume as jest.Mock).mockResolvedValue({
+        resume: mockData,
+        access: "none",
+      });
+      (maybeGetAuthenticatedUserId as jest.Mock).mockResolvedValue(
+        "recruiter-1",
+      );
 
       const req = new NextRequest(
-        "http://localhost/api/resumes/" + mockResumeId
+        "http://localhost/api/resumes/" + mockResumeId,
       );
       const res = await route.GET(req, {
         params: Promise.resolve({ id: mockResumeId }),
@@ -179,11 +210,14 @@ describe("Resume ID API Route Coverage", () => {
         title: "Public Resume",
         isPublic: true,
       };
-      (getResume as jest.Mock).mockResolvedValue({ resume: mockData, access: "public_snapshot" });
+      (getResume as jest.Mock).mockResolvedValue({
+        resume: mockData,
+        access: "public_snapshot",
+      });
       (maybeGetAuthenticatedUserId as jest.Mock).mockResolvedValue(null);
 
       const req = new NextRequest(
-        "http://localhost/api/resumes/" + mockResumeId
+        "http://localhost/api/resumes/" + mockResumeId,
       );
       const res = await route.GET(req, {
         params: Promise.resolve({ id: mockResumeId }),
@@ -199,11 +233,14 @@ describe("Resume ID API Route Coverage", () => {
         title: "Private Resume",
         isPublic: false,
       };
-      (getResume as jest.Mock).mockResolvedValue({ resume: null, access: "none" });
+      (getResume as jest.Mock).mockResolvedValue({
+        resume: null,
+        access: "none",
+      });
       (maybeGetAuthenticatedUserId as jest.Mock).mockResolvedValue(null);
 
       const req = new NextRequest(
-        "http://localhost/api/resumes/" + mockResumeId
+        "http://localhost/api/resumes/" + mockResumeId,
       );
       const res = await route.GET(req, {
         params: Promise.resolve({ id: mockResumeId }),
@@ -217,11 +254,14 @@ describe("Resume ID API Route Coverage", () => {
         title: "Public Resume",
         isPublic: true,
       };
-      (getResume as jest.Mock).mockResolvedValue({ resume: mockData, access: "public_snapshot" });
+      (getResume as jest.Mock).mockResolvedValue({
+        resume: mockData,
+        access: "public_snapshot",
+      });
       (maybeGetAuthenticatedUserId as jest.Mock).mockResolvedValue(null);
 
       const req = new NextRequest(
-        "http://localhost/api/resumes/" + mockResumeId + "?view=full"
+        "http://localhost/api/resumes/" + mockResumeId + "?view=full",
       );
       const res = await route.GET(req, {
         params: Promise.resolve({ id: mockResumeId }),
@@ -234,8 +274,13 @@ describe("Resume ID API Route Coverage", () => {
 
   describe("PATCH", () => {
     it("should update visibility", async () => {
-      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: mockUserId });
-      (getResume as jest.Mock).mockResolvedValue({ resume: {}, access: "owner" });
+      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+        userId: mockUserId,
+      });
+      (getResume as jest.Mock).mockResolvedValue({
+        resume: {},
+        access: "owner",
+      });
       (updateResume as jest.Mock).mockResolvedValue(undefined);
 
       const req = new NextRequest(
@@ -243,7 +288,7 @@ describe("Resume ID API Route Coverage", () => {
         {
           method: "PATCH",
           body: JSON.stringify({ isPublic: true }),
-        }
+        },
       );
       const res = await route.PATCH(req, {
         params: Promise.resolve({ id: mockResumeId }),
@@ -257,7 +302,7 @@ describe("Resume ID API Route Coverage", () => {
         {
           method: "PATCH",
           body: JSON.stringify({ isPublic: "not-a-boolean" }),
-        }
+        },
       );
       const res = await route.PATCH(req, {
         params: Promise.resolve({ id: mockResumeId }),
@@ -268,8 +313,13 @@ describe("Resume ID API Route Coverage", () => {
 
   describe("PUT", () => {
     it("should update resume if editing allowed", async () => {
-      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: mockUserId });
-      (getResume as jest.Mock).mockResolvedValue({ resume: { title: "Old" }, access: "owner" });
+      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+        userId: mockUserId,
+      });
+      (getResume as jest.Mock).mockResolvedValue({
+        resume: { title: "Old" },
+        access: "owner",
+      });
       (getUserTier as jest.Mock).mockResolvedValue("premium");
       (updateResume as jest.Mock).mockResolvedValue(undefined);
 
@@ -278,7 +328,7 @@ describe("Resume ID API Route Coverage", () => {
         {
           method: "PUT",
           body: JSON.stringify({ resume: { title: "Updated" } }),
-        }
+        },
       );
       const res = await route.PUT(req, {
         params: Promise.resolve({ id: mockResumeId }),
@@ -287,8 +337,13 @@ describe("Resume ID API Route Coverage", () => {
     });
 
     it("should return 400 for invalid resume payload", async () => {
-      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: mockUserId });
-      (getResume as jest.Mock).mockResolvedValue({ resume: {}, access: "owner" });
+      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+        userId: mockUserId,
+      });
+      (getResume as jest.Mock).mockResolvedValue({
+        resume: {},
+        access: "owner",
+      });
       (getUserTier as jest.Mock).mockResolvedValue("premium");
 
       const req = new NextRequest(
@@ -296,7 +351,7 @@ describe("Resume ID API Route Coverage", () => {
         {
           method: "PUT",
           body: JSON.stringify({ resume: "not-an-object" }),
-        }
+        },
       );
       const res = await route.PUT(req, {
         params: Promise.resolve({ id: mockResumeId }),
@@ -305,8 +360,13 @@ describe("Resume ID API Route Coverage", () => {
     });
 
     it("should return 403 if editing restricted by tier", async () => {
-      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: mockUserId });
-      (getResume as jest.Mock).mockResolvedValue({ resume: {}, access: "owner" });
+      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+        userId: mockUserId,
+      });
+      (getResume as jest.Mock).mockResolvedValue({
+        resume: {},
+        access: "owner",
+      });
       (getUserTier as jest.Mock).mockResolvedValue("basic");
 
       const req = new NextRequest(
@@ -314,7 +374,7 @@ describe("Resume ID API Route Coverage", () => {
         {
           method: "PUT",
           body: JSON.stringify({ resume: { title: "Updated" } }),
-        }
+        },
       );
       const res = await route.PUT(req, {
         params: Promise.resolve({ id: mockResumeId }),
@@ -325,14 +385,16 @@ describe("Resume ID API Route Coverage", () => {
 
   describe("DELETE", () => {
     it("should delete resume", async () => {
-      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({ userId: mockUserId });
+      (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
+        userId: mockUserId,
+      });
       (deleteResume as jest.Mock).mockResolvedValue(undefined);
 
       const req = new NextRequest(
         "http://localhost/api/resumes/" + mockResumeId,
         {
           method: "DELETE",
-        }
+        },
       );
       const res = await route.DELETE(req, {
         params: Promise.resolve({ id: mockResumeId }),

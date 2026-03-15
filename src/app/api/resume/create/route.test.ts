@@ -37,6 +37,17 @@ jest.mock("@/lib/utils/api-helpers", () => ({
   }),
 }));
 
+jest.mock("@/lib/utils/distributedRateLimit", () => ({
+  checkDistributedRateLimit: jest
+    .fn()
+    .mockResolvedValue({
+      allowed: true,
+      remaining: 9,
+      limit: 10,
+      resetIn: 3600,
+    }),
+}));
+
 describe("POST /api/resume/create", () => {
   beforeEach(() => {
     jest.clearAllMocks();

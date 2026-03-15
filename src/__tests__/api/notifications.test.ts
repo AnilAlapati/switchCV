@@ -2,13 +2,13 @@ import { POST, GET } from "@/app/api/notifications/route";
 import { NextRequest } from "next/server";
 import * as notificationService from "@/lib/notificationService";
 import * as notificationDelivery from "@/lib/notificationDelivery";
-import { checkRateLimit } from "@/lib/utils/rateLimit";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 import { getConstants } from "@/lib/getSystemConfig";
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 
 jest.mock("@/lib/notificationService");
 jest.mock("@/lib/notificationDelivery");
-jest.mock("@/lib/utils/rateLimit");
+jest.mock("@/lib/utils/distributedRateLimit");
 jest.mock("@/lib/getSystemConfig");
 jest.mock("@/lib/utils/api-helpers", () => ({
   getAuthenticatedUserId: jest.fn(),
@@ -24,14 +24,20 @@ describe("Notifications API", () => {
     (getConstants as jest.Mock).mockResolvedValue({
       RATE_LIMITS: { NOTIFICATIONS_PER_MINUTE: 10 },
     });
-    (checkRateLimit as jest.Mock).mockResolvedValue({ allowed: true });
+    (checkDistributedRateLimit as jest.Mock).mockResolvedValue({
+      allowed: true,
+    });
     (notificationService.getNotification as jest.Mock).mockResolvedValue({
       id: "notif-1",
       recipientId: "user-123",
       userId: "user-123",
     });
-    (notificationService.getUnreadNotifications as jest.Mock).mockResolvedValue([]);
-    (notificationService.getPreferences as jest.Mock).mockResolvedValue({ email: true });
+    (notificationService.getUnreadNotifications as jest.Mock).mockResolvedValue(
+      [],
+    );
+    (notificationService.getPreferences as jest.Mock).mockResolvedValue({
+      email: true,
+    });
   });
 
   describe("POST", () => {
@@ -45,7 +51,7 @@ describe("Notifications API", () => {
         new URL("http://localhost:3000/api/notifications"),
         {
           method: "POST",
-        }
+        },
       );
 
       const response = await POST(req);
@@ -57,13 +63,15 @@ describe("Notifications API", () => {
         userId: "user-123",
         error: null,
       });
-      (checkRateLimit as jest.Mock).mockResolvedValue({ allowed: false });
+      (checkDistributedRateLimit as jest.Mock).mockResolvedValue({
+        allowed: false,
+      });
 
       const req = new NextRequest(
         new URL("http://localhost:3000/api/notifications"),
         {
           method: "POST",
-        }
+        },
       );
 
       const response = await POST(req);
@@ -81,7 +89,7 @@ describe("Notifications API", () => {
         {
           method: "POST",
           body: JSON.stringify({ action: "send" }), // Missing userId and data
-        }
+        },
       );
 
       const response = await POST(req);
@@ -103,7 +111,7 @@ describe("Notifications API", () => {
             userId: "other-user",
             data: {},
           }),
-        }
+        },
       );
 
       const response = await POST(req);
@@ -118,7 +126,7 @@ describe("Notifications API", () => {
 
       const mockNotification = { id: "notif-1" };
       (notificationService.createNotification as jest.Mock).mockResolvedValue(
-        mockNotification
+        mockNotification,
       );
       (notificationDelivery.sendMultiChannel as jest.Mock).mockResolvedValue({
         email: "sent",
@@ -133,7 +141,7 @@ describe("Notifications API", () => {
             userId: "user-123",
             data: { type: "test", payload: {}, channels: ["email"] },
           }),
-        }
+        },
       );
 
       const response = await POST(req);
@@ -158,7 +166,7 @@ describe("Notifications API", () => {
             userId: "user-123",
             data: { notificationId: "notif-1" },
           }),
-        }
+        },
       );
 
       const response = await POST(req);
@@ -185,7 +193,7 @@ describe("Notifications API", () => {
             userId: "user-123",
             data: {},
           }),
-        }
+        },
       );
 
       const response = await POST(req);
@@ -210,13 +218,13 @@ describe("Notifications API", () => {
             userId: "user-123",
             data: { notificationId: "notif-1" },
           }),
-        }
+        },
       );
 
       const response = await POST(req);
       expect(response.status).toBe(200);
       expect(notificationService.deleteNotification).toHaveBeenCalledWith(
-        "notif-1"
+        "notif-1",
       );
     });
 
@@ -239,7 +247,7 @@ describe("Notifications API", () => {
             userId: "user-123",
             data: {},
           }),
-        }
+        },
       );
 
       const response = await POST(req);
@@ -264,7 +272,7 @@ describe("Notifications API", () => {
             userId: "user-123",
             data: { preference: { email: false } },
           }),
-        }
+        },
       );
 
       const response = await POST(req);
@@ -287,7 +295,7 @@ describe("Notifications API", () => {
             userId: "user-123",
             data: {},
           }),
-        }
+        },
       );
 
       const response = await POST(req);
@@ -303,16 +311,16 @@ describe("Notifications API", () => {
       });
 
       (notificationService.getUserNotifications as jest.Mock).mockResolvedValue(
-        [{ id: "n1" }]
+        [{ id: "n1" }],
       );
 
       const req = new NextRequest(
         new URL(
-          "http://localhost:3000/api/notifications?action=get-notifications&userId=user-123"
+          "http://localhost:3000/api/notifications?action=get-notifications&userId=user-123",
         ),
         {
           method: "GET",
-        }
+        },
       );
 
       const response = await GET(req);

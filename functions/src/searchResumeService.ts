@@ -22,6 +22,8 @@ import {
   QUERY_LIMITS,
 } from "./utils/promptSafety";
 import { checkRateLimit, RateLimitPresets } from "./middleware/rateLimiter";
+import { BillingService } from "./services/billingService";
+import { BUDGET_CAPS } from "./lib/billing/shared";
 
 // Constants (loaded from config)
 const searchConfig = config.get("search");
@@ -293,6 +295,25 @@ const searchResumesAIHandler = async (
     remaining: quotaRemaining,
     devBypass,
   });
+
+  // Budget enforcement before AI embedding call
+  const systemBudgetOk = await BillingService.checkSystemBudget(
+    BUDGET_CAPS[tier] ?? BUDGET_CAPS.basic,
+  );
+  if (!systemBudgetOk) {
+    throw new functions.https.HttpsError(
+      "resource-exhausted",
+      "System budget limit reached. AI search is temporarily unavailable.",
+    );
+  }
+
+  const userBudgetOk = await BillingService.checkBudget(userId, tier);
+  if (!userBudgetOk) {
+    throw new functions.https.HttpsError(
+      "resource-exhausted",
+      "Monthly budget limit reached for your plan. Upgrade for higher limits.",
+    );
+  }
 
   try {
     const queryEmbedding = await generateQueryEmbedding(sanitizedQuery);

@@ -19,12 +19,12 @@ import {
 } from "@/lib/utils/api-helpers";
 import { ResumeProfile } from "@/types";
 import { getDraftProfileUpdateSchema } from "@/lib/schemas/draftSchema";
-import { checkRateLimit } from "@/lib/utils/rateLimit";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 import { getConstants } from "@/lib/getSystemConfig";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ draftId: string }> }
+  { params }: { params: Promise<{ draftId: string }> },
 ) {
   try {
     const { userId, error: authError } = await getAuthenticatedUserId(request);
@@ -55,7 +55,7 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ draftId: string }> }
+  { params }: { params: Promise<{ draftId: string }> },
 ) {
   try {
     const { userId, error: authError } = await getAuthenticatedUserId(request);
@@ -63,7 +63,8 @@ export async function PATCH(
 
     // Rate Limit
     const constants = await getConstants();
-    const rateLimitResult = await checkRateLimit(`${userId}:draft:update`, {
+    const rateLimitResult = await checkDistributedRateLimit(userId!, {
+      scope: "draft-update",
       limit: constants.RATE_LIMITS.DRAFT_UPDATES_PER_MINUTE,
       windowMs: 60 * 1000, // 1 minute
     });
@@ -72,7 +73,7 @@ export async function PATCH(
       return handleApiError(
         null,
         "Too many updates. Please wait a moment.",
-        429
+        429,
       );
     }
 
@@ -99,7 +100,7 @@ export async function PATCH(
       const updatedDraft = await updateDraft(
         draftId,
         userId!,
-        (updates.profile || {}) as unknown as Partial<ResumeProfile>
+        (updates.profile || {}) as unknown as Partial<ResumeProfile>,
       );
       return NextResponse.json(updatedDraft);
     } catch (error: unknown) {
@@ -119,7 +120,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ draftId: string }> }
+  { params }: { params: Promise<{ draftId: string }> },
 ) {
   try {
     const { userId, error: authError } = await getAuthenticatedUserId(request);

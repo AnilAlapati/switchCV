@@ -31,8 +31,8 @@ jest.mock("@/lib/utils/api-helpers", () => ({
   getAuthenticatedUserId: jest.fn(),
 }));
 
-jest.mock("@/lib/utils/rateLimit", () => ({
-  checkRateLimit: jest.fn(),
+jest.mock("@/lib/utils/distributedRateLimit", () => ({
+  checkDistributedRateLimit: jest.fn(),
 }));
 
 jest.mock("@/lib/security/accessMonitor", () => ({
@@ -43,14 +43,14 @@ import {
   maybeGetAuthenticatedUserId,
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
-import { checkRateLimit } from "@/lib/utils/rateLimit";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 import { checkSequentialAccess } from "@/lib/security/accessMonitor";
 
 const mockGetUserTier = getUserTier as jest.Mock;
 const mockGetResume = getResume as jest.Mock;
 const mockUpdateResume = updateResume as jest.Mock;
 const mockDeleteResume = deleteResume as jest.Mock;
-const mockCheckRateLimit = checkRateLimit as jest.Mock;
+const mockCheckRateLimit = checkDistributedRateLimit as jest.Mock;
 const mockCheckSequentialAccess = checkSequentialAccess as jest.Mock;
 
 const buildRequest = (
@@ -498,7 +498,7 @@ describe("GET /api/resumes/[id]", () => {
   it("returns 403 (Default Deny) for unknown access type", async () => {
     mockGetResume.mockResolvedValue({
       access: "unknown-type",
-      resume: { id: "42" }
+      resume: { id: "42" },
     });
     const request = buildRequest("http://localhost/api/resumes/42", "GET");
     const response = await GET(request, {

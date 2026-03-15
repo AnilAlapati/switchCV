@@ -6,7 +6,7 @@ import {
 } from "@/lib/utils/api-helpers";
 import { logger } from "@/lib/logger";
 import { BillingService } from "@/lib/services/billingService";
-import { checkRateLimit } from "@/lib/utils/rateLimit";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 import { z } from "zod";
 import { getUserRole } from "@/lib/services/userService";
 
@@ -46,10 +46,11 @@ export async function POST(req: NextRequest) {
       return handleApiError(null, "Forbidden: Recruiter role required", 403);
     }
 
-    // 1. Rate Limiting
-    const rateLimit = await checkRateLimit(`${userId}:agent:outreach`, {
+    // 1. Distributed Rate Limiting (works across serverless instances)
+    const rateLimit = await checkDistributedRateLimit(userId!, {
       limit: RATE_LIMIT_OUTREACH,
       windowMs: 24 * 60 * 60 * 1000, // 24 hours
+      scope: "agent-outreach",
     });
 
     if (!rateLimit.allowed) {

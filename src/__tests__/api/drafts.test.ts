@@ -6,7 +6,7 @@ import {
   handleApiError,
   safeParseBody,
 } from "@/lib/utils/api-helpers";
-import { checkRateLimit } from "@/lib/utils/rateLimit";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 import { getConstants } from "@/lib/getSystemConfig";
 import {
   getDraft,
@@ -37,12 +37,14 @@ jest.mock("@/lib/utils/api-helpers", () => ({
   handleApiError: jest.fn((err, msg, status) =>
     require("next/server").NextResponse.json(
       { error: msg || "Internal Server Error", success: false },
-      { status: status || 500 }
-    )
+      { status: status || 500 },
+    ),
   ),
   safeParseBody: jest.fn(),
 }));
-jest.mock("@/lib/utils/rateLimit");
+jest.mock("@/lib/utils/distributedRateLimit", () => ({
+  checkDistributedRateLimit: jest.fn(),
+}));
 jest.mock("@/lib/getSystemConfig");
 jest.mock("@/lib/services/draftService", () => ({
   getDraft: jest.fn(),
@@ -66,7 +68,9 @@ describe("Drafts API", () => {
     (getConstants as jest.Mock).mockResolvedValue({
       RATE_LIMITS: { DRAFT_UPDATES_PER_MINUTE: 10 },
     });
-    (checkRateLimit as jest.Mock).mockResolvedValue({ allowed: true });
+    (checkDistributedRateLimit as jest.Mock).mockResolvedValue({
+      allowed: true,
+    });
   });
 
   describe("GET", () => {
@@ -88,13 +92,13 @@ describe("Drafts API", () => {
 
     it("should return 403 if not owner", async () => {
       (getDraft as jest.Mock).mockRejectedValue(
-        new Error("Forbidden: Not the owner of this draft")
+        new Error("Forbidden: Not the owner of this draft"),
       );
       await GET(new NextRequest("http://localhost"), { params: mockParams });
       expect(handleApiError).toHaveBeenCalledWith(
         new Error("Forbidden: Not the owner of this draft"),
         "Forbidden",
-        403
+        403,
       );
     });
 
@@ -111,12 +115,14 @@ describe("Drafts API", () => {
 
   describe("PATCH", () => {
     it("should return 429 if rate limited", async () => {
-      (checkRateLimit as jest.Mock).mockResolvedValue({ allowed: false });
+      (checkDistributedRateLimit as jest.Mock).mockResolvedValue({
+        allowed: false,
+      });
       await PATCH(new NextRequest("http://localhost"), { params: mockParams });
       expect(handleApiError).toHaveBeenCalledWith(
         null,
         "Too many updates. Please wait a moment.",
-        429
+        429,
       );
     });
 
@@ -134,7 +140,7 @@ describe("Drafts API", () => {
       expect(handleApiError).toHaveBeenCalledWith(
         expect.objectContaining({ issues: expect.any(Array) }),
         expect.stringContaining("Validation failed"),
-        400
+        400,
       );
     });
 

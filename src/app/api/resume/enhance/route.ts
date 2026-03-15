@@ -13,7 +13,7 @@ import {
   handleApiError,
   safeParseBody,
 } from "@/lib/utils/api-helpers";
-import { checkRateLimit } from "@/lib/utils/rateLimit";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 import { getConstants } from "@/lib/getSystemConfig";
 import { enhanceResumeRequestSchema } from "@/lib/validations/resume";
 
@@ -25,13 +25,11 @@ export async function POST(request: NextRequest) {
     const identifier = userId || "anonymous";
 
     const constants = await getConstants();
-    const rateLimitResult = await checkRateLimit(
-      `${identifier}:resume:enhance`,
-      {
-        limit: constants.RATE_LIMITS.RESUME_ENHANCE_PER_HOUR,
-        windowMs: 60 * 60 * 1000, // 1 hour
-      },
-    );
+    const rateLimitResult = await checkDistributedRateLimit(identifier, {
+      limit: constants.RATE_LIMITS.RESUME_ENHANCE_PER_HOUR,
+      windowMs: 60 * 60 * 1000, // 1 hour
+      scope: "resume-enhance",
+    });
 
     if (!rateLimitResult.allowed) {
       return handleApiError(

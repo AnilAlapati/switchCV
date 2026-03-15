@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   sendSupportFeedback,
   SupportFeedbackError,
-  checkRateLimit,
 } from "@/lib/services/supportFeedbackService";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 import {
   getClientIp,
   handleApiError,
@@ -35,7 +35,7 @@ const SupportFeedbackSchema = z.object({
  * Try to get authenticated user info from request (optional - doesn't fail if not logged in)
  */
 async function tryGetAuthenticatedUser(
-  request: NextRequest
+  request: NextRequest,
 ): Promise<SupportFeedbackMeta["authenticatedUser"]> {
   try {
     const userId = await maybeGetAuthenticatedUserId(request);
@@ -55,18 +55,30 @@ export async function POST(request: NextRequest) {
 
   try {
     // Rate limiting check
-    if (checkRateLimit(clientIp)) {
+    const feedbackRateLimit = await checkDistributedRateLimit(
+      clientIp ?? "unknown",
+      {
+        scope: "feedback",
+        limit: 5,
+        windowMs: 60 * 60 * 1000, // 5 per hour
+      },
+    );
+    if (!feedbackRateLimit.allowed) {
       return handleApiError(
         new Error("Too many requests"),
         "You've submitted too many feedback requests. Please try again later.",
-        429
+        429,
       );
     }
 
     const rawBody = await safeParseBody(request);
     const parseResult = SupportFeedbackSchema.safeParse(rawBody);
     if (!parseResult.success) {
-      return handleApiError(parseResult.error, "Invalid feedback submission", 400);
+      return handleApiError(
+        parseResult.error,
+        "Invalid feedback submission",
+        400,
+      );
     }
 
     const body = parseResult.data;
@@ -106,7 +118,11 @@ export async function POST(request: NextRequest) {
       return handleApiError(error, "Invalid JSON payload", 400);
     }
     if (error instanceof SupportFeedbackError) {
-      return handleApiError(error, "Unable to process feedback submission", error.statusCode);
+      return handleApiError(
+        error,
+        "Unable to process feedback submission",
+        error.statusCode,
+      );
     }
 
     return handleApiError(error, "Unable to send feedback right now");

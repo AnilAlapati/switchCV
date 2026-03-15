@@ -14,6 +14,7 @@ import * as admin from "firebase-admin";
 import * as functions from "firebase-functions/v1";
 import { alertManager, AlertSeverity } from "../utils/monitoring";
 import { emailService } from "../services/emailService";
+import { toDate } from "../services/aiMonitoring/types";
 
 /** How many consecutive failures before we send an alert */
 const FAILURE_THRESHOLD = 1;
@@ -73,7 +74,10 @@ function computeApproxDowntimeMinutes(
   now: Date,
 ): number {
   const failureStartedDate = failureStartedAt?.toDate?.();
-  if (failureStartedDate instanceof Date && !Number.isNaN(failureStartedDate.valueOf())) {
+  if (
+    failureStartedDate instanceof Date &&
+    !Number.isNaN(failureStartedDate.valueOf())
+  ) {
     return Math.max(
       1,
       Math.round((now.getTime() - failureStartedDate.getTime()) / (60 * 1000)),
@@ -184,7 +188,7 @@ async function checkEmail(): Promise<ServiceCheckResult> {
 
 /**
  * Check AI Monitoring pipeline health
- * 
+ *
  * Verifies that the scheduled aggregateAiMonitoring function is
  * successfully persisting data. If lastHourlySummaryAt is missing
  * or older than 2 hours, the monitoring pipeline is down.
@@ -195,7 +199,10 @@ async function checkAiMonitoring(
 ): Promise<ServiceCheckResult> {
   const start = Date.now();
   try {
-    const stateDoc = await db.collection("monitoring").doc("aiAlertState").get();
+    const stateDoc = await db
+      .collection("monitoring")
+      .doc("aiAlertState")
+      .get();
     if (!stateDoc.exists) {
       return {
         name: "ai_monitoring_pipeline",
@@ -205,11 +212,10 @@ async function checkAiMonitoring(
     }
 
     const state = stateDoc.data() || {};
-    const lastHourlySummaryAt = state.lastHourlySummaryAt;
+    const lastSummaryDate = toDate(state.lastHourlySummaryAt);
 
-    if (!lastHourlySummaryAt) {
-      // Possible that it just hasn't run yet, but if the doc exists it should be there.
-      // We will let it pass if no traffic triggered an update.
+    if (!lastSummaryDate) {
+      // Field missing or not a valid date — aggregation may not have run yet.
       return {
         name: "ai_monitoring_pipeline",
         status: "ok",
@@ -217,17 +223,9 @@ async function checkAiMonitoring(
       };
     }
 
-    const lastSummaryDate = lastHourlySummaryAt.toDate?.() || new Date(lastHourlySummaryAt);
-    if (!(lastSummaryDate instanceof Date) || Number.isNaN(lastSummaryDate.valueOf())) {
-      return {
-        name: "ai_monitoring_pipeline",
-        status: "error",
-        error: "aiAlertState.lastHourlySummaryAt is not a valid date",
-      };
-    }
-
     // Pipeline runs every 15 mins. If it's been > 2 hours, it's definitively broken.
-    const hoursSinceLastSummary = (now.getTime() - lastSummaryDate.getTime()) / (1000 * 60 * 60);
+    const hoursSinceLastSummary =
+      (now.getTime() - lastSummaryDate.getTime()) / (1000 * 60 * 60);
     if (hoursSinceLastSummary > 2) {
       return {
         name: "ai_monitoring_pipeline",
@@ -398,7 +396,7 @@ export const healthMonitorHandler = async (
       severity,
       `Production services degraded: ${failingNames.join(", ")}`,
       `${failingServices.length} of ${results.length} services are failing:\n\n${serviceDetails}\n\n` +
-      `Consecutive failures: ${newConsecutiveFailures}`,
+        `Consecutive failures: ${newConsecutiveFailures}`,
       {
         failingServices: failingNames,
         consecutiveFailures: newConsecutiveFailures,

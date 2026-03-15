@@ -14,7 +14,7 @@ import {
   parseApprovalToken,
 } from "@/lib/utils/approval-tokens";
 import { logger } from "@/lib/logger";
-import { checkRateLimit } from "@/lib/utils/rateLimit";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 
 // ── Private helpers ─────────────────────────────────────────────────────────
 
@@ -208,7 +208,8 @@ export async function GET(request: NextRequest) {
   // 1. Rate Limiting (Public endpoint protection)
   const forwardedFor = request.headers.get("x-forwarded-for");
   const ip = forwardedFor?.split(",")[0]?.trim() || "unknown";
-  const rateLimitResult = await checkRateLimit(`approve-user:${ip}`, {
+  const rateLimitResult = await checkDistributedRateLimit(ip, {
+    scope: "user-approval",
     limit: 10,
     windowMs: 60 * 1000,
   });

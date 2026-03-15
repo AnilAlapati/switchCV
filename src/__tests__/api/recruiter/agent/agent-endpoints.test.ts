@@ -33,11 +33,18 @@ jest.mock("@/lib/utils/api-helpers", () => {
     handleApiError: jest.fn((err, msg, status) =>
       NextResponse.json(
         { error: msg || "Internal Server Error" },
-        { status: status || 500 }
-      )
+        { status: status || 500 },
+      ),
     ),
   };
 });
+
+// Mock distributedRateLimit (routes use distributed rate limiting)
+jest.mock("@/lib/utils/distributedRateLimit", () => ({
+  checkDistributedRateLimit: jest
+    .fn()
+    .mockResolvedValue({ allowed: true, remaining: 10 }),
+}));
 
 describe("Recruiter Agent Endpoints", () => {
   beforeEach(() => {

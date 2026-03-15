@@ -26,6 +26,8 @@ import {
   performanceMonitor,
 } from "./utils/monitoring";
 import { RateLimitPresets, checkRateLimit } from "./middleware/rateLimiter";
+import { BillingService } from "./services/billingService";
+import { BUDGET_CAPS } from "./lib/billing/shared";
 
 class RateLimitExceeded extends Error {
   constructor(public readonly retryAfter?: number) {
@@ -86,7 +88,10 @@ const TOKEN_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes fallback
 const MAX_CACHE_ENTRIES = 250;
 const tokenCache = new Map<string, CachedToken>();
 // In-flight dedup: prevents concurrent requests from duplicating verifyIdToken calls
-const pendingVerifications = new Map<string, Promise<admin.auth.DecodedIdToken>>();
+const pendingVerifications = new Map<
+  string,
+  Promise<admin.auth.DecodedIdToken>
+>();
 
 async function verifyIdTokenCached(
   token: string,
@@ -286,6 +291,36 @@ const generateJobMatchSuggestionsHandler = async (
               }
             }
 
+            // Budget enforcement: check system-wide cap before AI call
+            const systemBudgetOk = await BillingService.checkSystemBudget(
+              BUDGET_CAPS.enterprise,
+            );
+            if (!systemBudgetOk) {
+              throw new functions.https.HttpsError(
+                "resource-exhausted",
+                "System budget limit reached. AI generation is temporarily unavailable.",
+              );
+            }
+
+            // Per-user budget check
+            const userDoc = await admin
+              .firestore()
+              .collection("users")
+              .doc(normalizedUserId)
+              .get();
+            const userTier = (userDoc.data()?.subscriptionTier ||
+              "basic") as keyof typeof BUDGET_CAPS;
+            const userBudgetOk = await BillingService.checkBudget(
+              normalizedUserId,
+              userTier,
+            );
+            if (!userBudgetOk) {
+              throw new functions.https.HttpsError(
+                "resource-exhausted",
+                "Monthly budget limit reached for your plan. Upgrade for higher limits.",
+              );
+            }
+
             const suggestions = await generateJobMatchingSuggestions(
               validatedDescription,
               resumePayload,
@@ -410,8 +445,8 @@ ${jobDescription}
 
 Resume Skills: ${resumeData.skills.join(", ")}
 Resume Experience: ${resumeData.experience
-          .map((exp) => `${exp.title} at ${exp.company}`)
-          .join(", ")}
+        .map((exp) => `${exp.title} at ${exp.company}`)
+        .join(", ")}
 
 Provide:
 1. Skills match percentage
@@ -422,9 +457,11 @@ Provide:
       const aiAnalysis = await generateAiAnalysis(prompt, modelId);
       const insights = deriveDeterministicInsights(jobDescription, resumeData);
 
-      const deterministicSummary = `Deterministic insights:\n- Skill overlap: ${insights.skillOverlapPercent
-        }%\n- Missing skills: ${insights.missingSkills.slice(0, 5).join(", ") || "None"
-        }`;
+      const deterministicSummary = `Deterministic insights:\n- Skill overlap: ${
+        insights.skillOverlapPercent
+      }%\n- Missing skills: ${
+        insights.missingSkills.slice(0, 5).join(", ") || "None"
+      }`;
 
       return {
         analysis: `${aiAnalysis}\n\n${deterministicSummary}`.trim(),

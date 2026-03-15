@@ -170,6 +170,15 @@ export function cleanObject(value: unknown): unknown {
     return value.map((item) => cleanObject(item));
   }
 
+  // Preserve Date and Firestore Timestamp instances —
+  // Firestore SDK converts Dates to Timestamps automatically.
+  if (value instanceof Date) {
+    return value;
+  }
+  if (value && typeof value === "object" && "toDate" in value) {
+    return value;
+  }
+
   if (value && typeof value === "object") {
     return Object.entries(value).reduce<Record<string, unknown>>(
       (accumulator, [key, entry]) => {

@@ -5,9 +5,9 @@ import { NextRequest } from "next/server";
 import { POST } from "@/app/api/contact/feedback/route";
 import {
   sendSupportFeedback,
-  checkRateLimit,
   SupportFeedbackError,
 } from "@/lib/services/supportFeedbackService";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 import {
   getClientIp,
   handleApiError,
@@ -21,15 +21,35 @@ jest.mock("@/lib/services/supportFeedbackService", () => {
   return {
     ...actual,
     sendSupportFeedback: jest.fn(),
-    checkRateLimit: jest.fn(),
+    SupportFeedbackError: class SupportFeedbackError extends Error {
+      statusCode: number;
+      constructor(message: string, statusCode = 400) {
+        super(message);
+        this.name = "SupportFeedbackError";
+        this.statusCode = statusCode;
+      }
+    },
   };
 });
+jest.mock("@/lib/utils/distributedRateLimit", () => ({
+  checkDistributedRateLimit: jest
+    .fn()
+    .mockResolvedValue({
+      allowed: true,
+      remaining: 4,
+      limit: 5,
+      resetIn: 3600,
+    }),
+}));
 jest.mock("@/lib/utils/api-helpers", () => {
   const { NextResponse } = require("next/server");
   return {
     getClientIp: jest.fn(),
     handleApiError: jest.fn((error, message, status) =>
-      NextResponse.json({ error: message || "Error" }, { status: status || 500 })
+      NextResponse.json(
+        { error: message || "Error" },
+        { status: status || 500 },
+      ),
     ),
     safeParseBody: jest.fn(),
     maybeGetAuthenticatedUserId: jest.fn(),
@@ -53,7 +73,12 @@ describe("Feedback API", () => {
   });
 
   it("should submit feedback successfully for anonymous user", async () => {
-    (checkRateLimit as jest.Mock).mockReturnValue(false);
+    (checkDistributedRateLimit as jest.Mock).mockResolvedValue({
+      allowed: true,
+      remaining: 4,
+      limit: 5,
+      resetIn: 3600,
+    });
     (safeParseBody as jest.Mock).mockResolvedValue({
       name: "Test User",
       email: "test@example.com",
@@ -77,7 +102,12 @@ describe("Feedback API", () => {
   });
 
   it("should submit feedback successfully for authenticated user", async () => {
-    (checkRateLimit as jest.Mock).mockReturnValue(false);
+    (checkDistributedRateLimit as jest.Mock).mockResolvedValue({
+      allowed: true,
+      remaining: 4,
+      limit: 5,
+      resetIn: 3600,
+    });
     (safeParseBody as jest.Mock).mockResolvedValue({
       name: "Test User",
       email: "test@example.com",
@@ -104,7 +134,12 @@ describe("Feedback API", () => {
   });
 
   it("should handle auth error gracefully in tryGetAuthenticatedUser", async () => {
-    (checkRateLimit as jest.Mock).mockReturnValue(false);
+    (checkDistributedRateLimit as jest.Mock).mockResolvedValue({
+      allowed: true,
+      remaining: 4,
+      limit: 5,
+      resetIn: 3600,
+    });
     (maybeGetAuthenticatedUserId as jest.Mock).mockResolvedValue("user-123");
     (adminAuth.getUser as jest.Mock).mockRejectedValue(new Error("Auth error"));
     (safeParseBody as jest.Mock).mockResolvedValue({
@@ -121,12 +156,17 @@ describe("Feedback API", () => {
     expect(data.success).toBe(true);
     expect(sendSupportFeedback).toHaveBeenCalledWith(
       expect.any(Object),
-      expect.objectContaining({ authenticatedUser: null })
+      expect.objectContaining({ authenticatedUser: null }),
     );
   });
 
   it("should return 429 if rate limited", async () => {
-    (checkRateLimit as jest.Mock).mockReturnValue(true);
+    (checkDistributedRateLimit as jest.Mock).mockResolvedValue({
+      allowed: false,
+      remaining: 0,
+      limit: 5,
+      resetIn: 3600,
+    });
     (handleApiError as jest.Mock).mockReturnValue({ status: 429 });
 
     const response = await POST(mockRequest);
@@ -134,7 +174,12 @@ describe("Feedback API", () => {
   });
 
   it("should handle bot protection (fast fill)", async () => {
-    (checkRateLimit as jest.Mock).mockReturnValue(false);
+    (checkDistributedRateLimit as jest.Mock).mockResolvedValue({
+      allowed: true,
+      remaining: 4,
+      limit: 5,
+      resetIn: 3600,
+    });
     (safeParseBody as jest.Mock).mockResolvedValue({
       email: "bot@example.com",
       message: "I am definitely a human being and not a bot at all.",
@@ -150,20 +195,30 @@ describe("Feedback API", () => {
   });
 
   it("should handle SyntaxError", async () => {
-    (checkRateLimit as jest.Mock).mockReturnValue(false);
+    (checkDistributedRateLimit as jest.Mock).mockResolvedValue({
+      allowed: true,
+      remaining: 4,
+      limit: 5,
+      resetIn: 3600,
+    });
     (safeParseBody as jest.Mock).mockRejectedValue(
-      new SyntaxError("Unexpected token")
+      new SyntaxError("Unexpected token"),
     );
     await POST(mockRequest);
     expect(handleApiError).toHaveBeenCalledWith(
       expect.any(SyntaxError),
       "Invalid JSON payload",
-      400
+      400,
     );
   });
 
   it("should handle SupportFeedbackError", async () => {
-    (checkRateLimit as jest.Mock).mockReturnValue(false);
+    (checkDistributedRateLimit as jest.Mock).mockResolvedValue({
+      allowed: true,
+      remaining: 4,
+      limit: 5,
+      resetIn: 3600,
+    });
     (safeParseBody as jest.Mock).mockResolvedValue({
       email: "test@example.com",
       message: "Valid message long enough",
@@ -176,17 +231,22 @@ describe("Feedback API", () => {
     expect(handleApiError).toHaveBeenCalledWith(
       error,
       "Unable to process feedback submission",
-      503
+      503,
     );
   });
 
   it("should handle generic error", async () => {
-    (checkRateLimit as jest.Mock).mockReturnValue(false);
+    (checkDistributedRateLimit as jest.Mock).mockResolvedValue({
+      allowed: true,
+      remaining: 4,
+      limit: 5,
+      resetIn: 3600,
+    });
     (safeParseBody as jest.Mock).mockRejectedValue(new Error("Generic error"));
     await POST(mockRequest);
     expect(handleApiError).toHaveBeenCalledWith(
       expect.any(Error),
-      "Unable to send feedback right now"
+      "Unable to send feedback right now",
     );
   });
 });

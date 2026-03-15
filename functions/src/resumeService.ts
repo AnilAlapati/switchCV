@@ -11,6 +11,8 @@ import {
   RetryOptions,
 } from "./utils/retryHandler";
 import { z } from "zod";
+import { BillingService } from "./services/billingService";
+import { BUDGET_CAPS } from "./lib/billing/shared";
 
 const GenerateResumeSchema = z.object({
   userId: z.string().min(1),
@@ -292,6 +294,32 @@ const generateResumeContentHandler = async (
                 ? "Hourly AI generation limit reached. Please wait before trying again."
                 : "Daily AI generation limit reached. Upgrade your plan for higher limits.",
             retryAfter: usageResult.retryAfter,
+            tier: subscriptionTier,
+          });
+          return;
+        }
+
+        // Budget enforcement: check system-wide and per-user caps before AI call
+        const systemBudgetOk = await BillingService.checkSystemBudget(
+          BUDGET_CAPS[subscriptionTier as keyof typeof BUDGET_CAPS] ??
+            BUDGET_CAPS.basic,
+        );
+        if (!systemBudgetOk) {
+          res.status(429).json({
+            error:
+              "System budget limit reached. AI generation is temporarily unavailable.",
+          });
+          return;
+        }
+
+        const userBudgetOk = await BillingService.checkBudget(
+          userId,
+          subscriptionTier as keyof typeof BUDGET_CAPS,
+        );
+        if (!userBudgetOk) {
+          res.status(429).json({
+            error:
+              "Monthly budget limit reached for your plan. Upgrade for higher limits.",
             tier: subscriptionTier,
           });
           return;
