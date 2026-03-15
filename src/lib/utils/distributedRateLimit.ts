@@ -40,6 +40,8 @@ export interface DistributedRateLimitOptions {
   scope?: string;
   /** User tier for automatic limit lookup */
   tier?: string;
+  /** If true, check current usage without incrementing the counter */
+  dryRun?: boolean;
 }
 
 const RATE_LIMIT_COLLECTION = "rateLimits";
@@ -73,7 +75,7 @@ import { TIER_RATE_LIMITS, RateLimitScope } from "@/lib/config/rateLimits";
  */
 export async function checkDistributedRateLimit(
   identifier: string,
-  options: DistributedRateLimitOptions = {}
+  options: DistributedRateLimitOptions = {},
 ): Promise<DistributedRateLimitResult> {
   const { scope = "default" } = options;
   let { limit, windowMs } = options;
@@ -125,6 +127,16 @@ export async function checkDistributedRateLimit(
 
       // If no entry or window expired, start fresh
       if (!data || now - data.windowStart >= windowMs) {
+        if (options.dryRun) {
+          // Dry run: don't write, just report headroom
+          return {
+            allowed: true,
+            current: 0,
+            limit,
+            resetIn: windowMs,
+            remaining: limit,
+          };
+        }
         const newEntry: RateLimitEntry = {
           count: 1,
           windowStart: now,
@@ -140,6 +152,18 @@ export async function checkDistributedRateLimit(
           limit,
           resetIn: windowMs,
           remaining: limit - 1,
+        };
+      }
+
+      if (options.dryRun) {
+        // Dry run: report current state without incrementing
+        const resetIn = Math.max(0, data.windowStart + windowMs - now);
+        return {
+          allowed: data.count < limit,
+          current: data.count,
+          limit,
+          resetIn,
+          remaining: Math.max(0, limit - data.count),
         };
       }
 
@@ -169,7 +193,7 @@ export async function checkDistributedRateLimit(
     // Log the error for monitoring but don't expose internal details
     logger.error(
       { err: error },
-      "Distributed rate limit check failed - denying request (fail-closed):"
+      "Distributed rate limit check failed - denying request (fail-closed):",
     );
     return {
       allowed: false,
@@ -189,7 +213,7 @@ export async function checkDistributedRateLimit(
  */
 export function createDistributedRateLimiter(
   scope: string,
-  options: Omit<DistributedRateLimitOptions, "scope"> = {}
+  options: Omit<DistributedRateLimitOptions, "scope"> = {},
 ) {
   return (identifier: string) =>
     checkDistributedRateLimit(identifier, { ...options, scope });
@@ -208,7 +232,7 @@ export const aiSearchRateLimiter = createDistributedRateLimiter("ai-search", {
  * Cleanup expired rate limit entries (call periodically via scheduled function)
  */
 export async function cleanupExpiredRateLimits(
-  maxAgeMs: number = 24 * 60 * 60 * 1000
+  maxAgeMs: number = 24 * 60 * 60 * 1000,
 ): Promise<number> {
   const cutoff = Date.now() - maxAgeMs;
   const expiredDocs = await adminDb

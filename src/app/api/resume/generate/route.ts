@@ -37,38 +37,48 @@ export async function POST(request: NextRequest) {
     // Use centralized service for tier info
     const userRole = await getUserTier(userId);
 
-    const rateLimit = await checkDistributedRateLimit(userId, {
+    // Rate limit: per-conversation-turn (generous — every chat message counts here)
+    const conversationLimit = await checkDistributedRateLimit(userId, {
       tier: userRole as "basic" | "premium" | "enterprise",
-      scope: "ai_generation",
+      scope: "conversation_turn",
     });
 
-    if (!rateLimit.allowed) {
+    if (!conversationLimit.allowed) {
+      const retryMinutes = Math.ceil(conversationLimit.resetIn / 60000);
+      logger.warn(
+        { userId, retryMinutes, resetIn: conversationLimit.resetIn },
+        "Conversation turn rate limit reached",
+      );
       return handleApiError(
         new Error("Too many requests"),
-        "Too many requests. Please try again later.",
+        "You're sending messages too quickly. Please wait a few minutes and try again. Your conversation progress is saved.",
         429,
       );
     }
 
-    // Hard per-user cap: max 10 resume generations per hour (regardless of tier)
-    const generationCap = await checkDistributedRateLimit(userId, {
+    // Pre-check: Is the user at the resume creation hard cap?
+    // This is a READ-ONLY check (dryRun) — we don't increment the counter here.
+    // The counter is incremented only when a resume is actually created (after orchestration).
+    const generationCapCheck = await checkDistributedRateLimit(userId, {
       limit: RESUME_GENERATION_HARD_CAP.limit,
       windowMs: RESUME_GENERATION_HARD_CAP.windowMs,
-      scope: "resume_generation",
+      scope: "resume_creation",
+      dryRun: true,
     });
 
-    if (!generationCap.allowed) {
+    if (!generationCapCheck.allowed) {
+      const retryMinutes = Math.ceil(generationCapCheck.resetIn / 60000);
       logger.warn(
         {
           userId,
-          remaining: generationCap.remaining,
-          resetIn: generationCap.resetIn,
+          remaining: generationCapCheck.remaining,
+          resetIn: generationCapCheck.resetIn,
         },
-        "⛔ Per-user resume generation cap reached",
+        "⛔ Per-user resume creation cap reached",
       );
       return handleApiError(
-        new Error("Resume generation limit reached"),
-        "You have reached the limit of 10 resume generations per hour. Please try again later.",
+        new Error("Resume creation limit reached"),
+        "You've reached the hourly resume creation limit. Please wait a few minutes and try again. Your conversation progress is saved.",
         429,
       );
     }
@@ -197,17 +207,20 @@ export async function POST(request: NextRequest) {
       }
 
       // Return immediately with job ID
-      return NextResponse.json({
-        requestId,
-        jobId,
-        status: "pending",
-        message:
-          "Resume generation queued. Poll /api/resume/generate/status/{jobId} for updates.",
-      }, {
-        headers: {
-          "x-request-id": requestId,
+      return NextResponse.json(
+        {
+          requestId,
+          jobId,
+          status: "pending",
+          message:
+            "Resume generation queued. Poll /api/resume/generate/status/{jobId} for updates.",
         },
-      });
+        {
+          headers: {
+            "x-request-id": requestId,
+          },
+        },
+      );
     }
 
     // SYNC MODE: Delegate to orchestrator service
@@ -225,6 +238,20 @@ export async function POST(request: NextRequest) {
         requestId,
         entrypoint: "resume_generate",
       });
+
+      // Only count toward the hard cap when a resume was actually created
+      if (result.created && result.resumeId) {
+        await checkDistributedRateLimit(userId, {
+          limit: RESUME_GENERATION_HARD_CAP.limit,
+          windowMs: RESUME_GENERATION_HARD_CAP.windowMs,
+          scope: "resume_creation",
+        }).catch((err) => {
+          logger.error(
+            { err, userId },
+            "Failed to increment resume creation counter (non-blocking)",
+          );
+        });
+      }
 
       return NextResponse.json(result, {
         headers: {

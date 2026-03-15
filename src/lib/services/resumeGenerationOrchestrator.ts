@@ -208,11 +208,11 @@ export async function processSyncGeneration(
     userId,
     userTier,
     entrypoint:
-      providedEntrypoint ?? (shouldPersistResult ? "resume_generate" : "resume_preview"),
+      providedEntrypoint ??
+      (shouldPersistResult ? "resume_generate" : "resume_preview"),
     requestId,
     sessionId:
-      providedSessionId ??
-      resolveMonitoringSessionId(sessionData, requestId),
+      providedSessionId ?? resolveMonitoringSessionId(sessionData, requestId),
     conversationTurn: allMessages.length,
   });
   let monitoringSummary = {
@@ -223,59 +223,79 @@ export async function processSyncGeneration(
   let generationValidationFailureLogged = false;
 
   try {
-  logger.info(
-    {
-      flags,
-      strictValidationEnabled,
-    },
-    "🚩 Resume generation flags evaluated",
-  );
-  addPipelineBreadcrumb("flags evaluated", {
-    resume_v2_writer: flags.resume_v2_writer,
-    resume_v2_strict_validation: flags.resume_v2_strict_validation,
-    strictValidationEnabled,
-    userTier,
-  });
-
-  // Step 1: Extract data from conversation history using AI (Gemini).
-  // NO regex fallback — if AI extraction fails, we return a user-friendly
-  // error asking them to try again later.
-  let extractionResult = EMPTY_EXTRACTION_RESULT;
-
-  try {
-    const aiExtracted = await ResumeDataExtractor.extractFromConversationWithAI(
-      allMessages,
+    logger.info(
       {
-        userTier:
-          userTier === "basic" ||
-          userTier === "premium" ||
-          userTier === "enterprise"
-            ? userTier
-            : "premium",
-        observationContext,
+        flags,
+        strictValidationEnabled,
       },
+      "🚩 Resume generation flags evaluated",
     );
-    extractionResult = aiExtracted ?? EMPTY_EXTRACTION_RESULT;
+    addPipelineBreadcrumb("flags evaluated", {
+      resume_v2_writer: flags.resume_v2_writer,
+      resume_v2_strict_validation: flags.resume_v2_strict_validation,
+      strictValidationEnabled,
+      userTier,
+    });
 
-    // Distinguish between AI service failure (confidence=0) and legitimate
-    // "user hasn't provided enough data yet" (confidence>0 with empty fields).
-    // Only show the error when the AI service itself failed.
-    const aiServiceFailed =
-      aiExtracted &&
-      aiExtracted.confidence === 0 &&
-      aiExtracted.extractedFields.length === 0;
+    // Step 1: Extract data from conversation history using AI (Gemini).
+    // NO regex fallback — if AI extraction fails, we return a user-friendly
+    // error asking them to try again later.
+    let extractionResult = EMPTY_EXTRACTION_RESULT;
 
-    if (!aiExtracted || aiServiceFailed) {
+    try {
+      const aiExtracted =
+        await ResumeDataExtractor.extractFromConversationWithAI(allMessages, {
+          userTier:
+            userTier === "basic" ||
+            userTier === "premium" ||
+            userTier === "enterprise"
+              ? userTier
+              : "premium",
+          observationContext,
+        });
+      extractionResult = aiExtracted ?? EMPTY_EXTRACTION_RESULT;
+
+      // Distinguish between AI service failure (confidence=0) and legitimate
+      // "user hasn't provided enough data yet" (confidence>0 with empty fields).
+      // Only show the error when the AI service itself failed.
+      const aiServiceFailed =
+        aiExtracted &&
+        aiExtracted.confidence === 0 &&
+        aiExtracted.extractedFields.length === 0;
+
+      if (!aiExtracted || aiServiceFailed) {
+        logger.error(
+          {
+            method: (aiExtracted as { method?: string })?.method ?? "unknown",
+            userId,
+          },
+          "AI extraction service failed — asking user to retry",
+        );
+        monitoringSummary = {
+          userVisibleFailure: true,
+          finalOutcome: "extraction_failed",
+          createdResume: false,
+        };
+        return {
+          requestId: observationContext.requestId,
+          response:
+            "I'm having trouble processing your information right now. Our AI service may be temporarily unavailable. Please try again in a few minutes.",
+          progress: 0,
+        };
+      }
+
+      logger.info(
+        { method: (aiExtracted as { method?: string })?.method ?? "unknown" },
+        "AI extraction path used",
+      );
+    } catch (extractError) {
       logger.error(
-        {
-          method: (aiExtracted as { method?: string })?.method ?? "unknown",
-          userId,
-        },
-        "AI extraction service failed — asking user to retry",
+        { err: extractError, userId },
+        "Resume extraction failed — asking user to retry",
       );
       monitoringSummary = {
         userVisibleFailure: true,
-        finalOutcome: "extraction_failed",
+        finalOutcome: "extraction_exception",
         createdResume: false,
       };
       return {
@@ -287,612 +307,600 @@ export async function processSyncGeneration(
     }
 
     logger.info(
-      { method: (aiExtracted as { method?: string })?.method ?? "unknown" },
-      "AI extraction path used",
+      {
+        confidence: extractionResult.confidence,
+        extractedFields: extractionResult.extractedFields,
+        isComplete: extractionResult.isComplete,
+      },
+      "📊 Extraction Result:",
     );
-  } catch (extractError) {
-    logger.error(
-      { err: extractError, userId },
-      "Resume extraction failed — asking user to retry",
-    );
-    monitoringSummary = {
-      userVisibleFailure: true,
-      finalOutcome: "extraction_exception",
-      createdResume: false,
-    };
-    return {
-      requestId: observationContext.requestId,
-      response:
-        "I'm having trouble processing your information right now. Our AI service may be temporarily unavailable. Please try again in a few minutes.",
-      progress: 0,
-    };
-  }
-
-  logger.info(
-    {
+    addPipelineBreadcrumb("data extraction complete", {
       confidence: extractionResult.confidence,
-      extractedFields: extractionResult.extractedFields,
+      fieldCount: extractionResult.extractedFields.length,
       isComplete: extractionResult.isComplete,
-    },
-    "📊 Extraction Result:",
-  );
-  addPipelineBreadcrumb("data extraction complete", {
-    confidence: extractionResult.confidence,
-    fieldCount: extractionResult.extractedFields.length,
-    isComplete: extractionResult.isComplete,
-  });
+    });
 
-  // Step 2: Initialize conversation manager with extracted data
-  const conversationManager = new ConversationManager(
-    sessionData?.collectedData || extractionResult.data,
-  );
+    // Step 2: Initialize conversation manager with extracted data
+    const conversationManager = new ConversationManager(
+      sessionData?.collectedData || extractionResult.data,
+    );
 
-  conversationManager.updateData(extractionResult.data);
-  const progress = conversationManager.getProgress();
+    conversationManager.updateData(extractionResult.data);
+    const progress = conversationManager.getProgress();
 
-  logger.info(
-    {
-      completeness: `${progress.completenessPercentage}%`,
-      isReady: progress.isReadyToCreate,
-      missing: progress.missingFields,
-    },
-    "🎯 Progress:",
-  );
+    logger.info(
+      {
+        completeness: `${progress.completenessPercentage}%`,
+        isReady: progress.isReadyToCreate,
+        missing: progress.missingFields,
+      },
+      "🎯 Progress:",
+    );
 
-  // Step 3: Get active configuration
-  let config = getActiveConfig();
+    // Step 3: Get active configuration
+    let config = getActiveConfig();
 
-  // Check for user constraints on questions
-  const allText = allMessages
-    .filter((m) => m.isUser)
-    .map((m) => m.content)
-    .join(" ");
+    // Check for user constraints on questions
+    const allText = allMessages
+      .filter((m) => m.isUser)
+      .map((m) => m.content)
+      .join(" ");
 
-  const questionLimitMatch = allText.match(/only\s+(\d+)\s+questions?/i);
-  if (questionLimitMatch && questionLimitMatch[1]) {
-    const limit = parseInt(questionLimitMatch[1], 10);
-    if (!isNaN(limit) && limit > 0) {
-      config = {
-        ...config,
-        maxQuestionsInBetaMode: true,
-        maxBetaQuestions: limit,
-      };
-      logger.info(`🎯 User set question limit to ${limit}`);
+    const questionLimitMatch = allText.match(/only\s+(\d+)\s+questions?/i);
+    if (questionLimitMatch && questionLimitMatch[1]) {
+      const limit = parseInt(questionLimitMatch[1], 10);
+      if (!isNaN(limit) && limit > 0) {
+        config = {
+          ...config,
+          maxQuestionsInBetaMode: true,
+          maxBetaQuestions: limit,
+        };
+        logger.info(`🎯 User set question limit to ${limit}`);
+      }
     }
-  }
 
-  // Check if user explicitly wants to create/finish
-  const userWantsToCreate =
-    /create|generate|finish|done|make it|go ahead|yes|sure|ok|yep|yeah/i.test(
-      message,
-    );
-
-  // Step 3b: Build AI prompt with progress context and config
-  const currentProgress = {
-    hasName: !!conversationManager.getData().name,
-    hasEmail: !!conversationManager.getData().email,
-    hasExperience: !!conversationManager.getData().experience?.length,
-    hasEducation: !!conversationManager.getData().education?.length,
-    hasSkills: !!conversationManager.getData().skills?.length,
-  };
-
-  const prompt = buildConversationalPrompt(
-    message,
-    conversationHistory,
-    currentProgress,
-    conversationManager.getData(),
-    config,
-    userWantsToCreate,
-  );
-
-  // Step 4: Generate AI response (tier-aware with graceful fallback)
-  // When resume_v2_writer is enabled, use structured output for guaranteed valid JSON
-  type TieredResult = Awaited<ReturnType<typeof generateTextWithTier>>;
-  type LegacyResult = Awaited<ReturnType<typeof generateText>>;
-
-  let aiResponse: TieredResult | LegacyResult;
-
-  const geminiResponseSchema = flags.resume_v2_writer
-    ? zodToGeminiSchema(AIResumeResponseSchema)
-    : undefined;
-
-  try {
-    aiResponse = await generateTextWithTier({
-      prompt,
-      maxTokens: 4000,
-      temperature: 0.7,
-      userTier,
-      modelId,
-      jsonMode: flags.resume_v2_writer ? true : undefined,
-      responseSchema: geminiResponseSchema as unknown as
-        | Record<string, unknown>
-        | undefined,
-      observationContext,
-      stage: "generation",
-    });
-  } catch (tieredError) {
-    logger.error(
-      { err: tieredError, userId, userTier, modelId },
-      "Tier-based AI provider selection failed, falling back to legacy generator",
-    );
-    reportError(tieredError, {
-      source: "resumeGenerationOrchestrator.tieredAI",
-      severity: "warning",
-      meta: { userId, userTier, modelId },
-    });
-    try {
-      aiResponse = await generateText(prompt, 4000, 0.7);
-      await markAIStageRecoveredWithFallback(
-        observationContext,
-        "generation",
+    // Check if user explicitly wants to create/finish
+    // Only match clear creation intent, not simple affirmatives like "yes" or "ok"
+    // which could be answering a question
+    const userWantsToCreate =
+      /\b(create|generate|finish|done|make it|go ahead|build it|create (my |the )?resume|make (my |the )?resume|finalize)\b/i.test(
+        message,
       );
-    } catch (legacyGenerationError) {
-      monitoringSummary = {
-        userVisibleFailure: true,
-        finalOutcome: "generation_failed",
-        createdResume: false,
-      };
-      throw legacyGenerationError;
-    }
-  }
-  const normalizedAIResponse = normalizeAIResponse(aiResponse);
-  const responseText = normalizedAIResponse.text;
-  const responseProvider = getProviderFromAIResponse(aiResponse);
-  addPipelineBreadcrumb("AI generation complete", {
-    model: normalizedAIResponse.model ?? "unknown",
-    responseLength: responseText.length,
-    jsonMode: flags.resume_v2_writer ?? false,
-  });
 
-  // Track Billing
-  await BillingService.trackUsage(
-    userId,
-    normalizedAIResponse.model || "default",
-    {
-      input: Math.ceil(prompt.length / 4),
-      output: Math.ceil(responseText.length / 4),
-    },
-  );
+    // Step 3b: Build AI prompt with progress context and config
+    const currentProgress = {
+      hasName: !!conversationManager.getData().name,
+      hasEmail: !!conversationManager.getData().email,
+      hasExperience: !!conversationManager.getData().experience?.length,
+      hasEducation: !!conversationManager.getData().education?.length,
+      hasSkills: !!conversationManager.getData().skills?.length,
+    };
 
-  // Step 5: Check if AI indicates completion or if we have enough data
-  const aiIndicatesCompletion = isCompletionResponse(responseText);
+    const prompt = buildConversationalPrompt(
+      message,
+      conversationHistory,
+      currentProgress,
+      conversationManager.getData(),
+      config,
+      userWantsToCreate,
+    );
 
-  // CRITICAL FIX: Sync generated JSON with ConversationManager
-  let updatedProgress = progress;
-  let generatedJson: Record<string, unknown> | null = null;
+    // Step 4: Generate AI response (tier-aware with graceful fallback)
+    // When resume_v2_writer is enabled, use structured output for guaranteed valid JSON
+    type TieredResult = Awaited<ReturnType<typeof generateTextWithTier>>;
+    type LegacyResult = Awaited<ReturnType<typeof generateText>>;
 
-  if (flags.resume_v2_writer) {
-    // With structured output enabled, try to parse the response directly as JSON first
-    // (Gemini structured output returns raw JSON, no markdown fences)
+    let aiResponse: TieredResult | LegacyResult;
+
+    const geminiResponseSchema = flags.resume_v2_writer
+      ? zodToGeminiSchema(AIResumeResponseSchema)
+      : undefined;
+
     try {
-      const parsed = JSON.parse(responseText);
-      const validated = AIResumeResponseSchema.safeParse(parsed);
-      if (validated.success) {
-        generatedJson = validated.data as unknown as Record<string, unknown>;
-        logger.info(
-          "✅ Structured output: AI response is valid JSON matching schema",
+      aiResponse = await generateTextWithTier({
+        prompt,
+        maxTokens: 4000,
+        temperature: 0.7,
+        userTier,
+        modelId,
+        jsonMode: flags.resume_v2_writer ? true : undefined,
+        responseSchema: geminiResponseSchema as unknown as
+          | Record<string, unknown>
+          | undefined,
+        observationContext,
+        stage: "generation",
+      });
+    } catch (tieredError) {
+      logger.error(
+        { err: tieredError, userId, userTier, modelId },
+        "Tier-based AI provider selection failed, falling back to legacy generator",
+      );
+      reportError(tieredError, {
+        source: "resumeGenerationOrchestrator.tieredAI",
+        severity: "warning",
+        meta: { userId, userTier, modelId },
+      });
+      try {
+        aiResponse = await generateText(prompt, 4000, 0.7);
+        await markAIStageRecoveredWithFallback(
+          observationContext,
+          "generation",
         );
-      } else {
-        logger.warn(
-          { errors: validated.error.flatten() },
-          "⚠️ Structured output: AI returned JSON but schema validation failed, falling back to regex",
+      } catch (legacyGenerationError) {
+        monitoringSummary = {
+          userVisibleFailure: true,
+          finalOutcome: "generation_failed",
+          createdResume: false,
+        };
+        throw legacyGenerationError;
+      }
+    }
+    const normalizedAIResponse = normalizeAIResponse(aiResponse);
+    const responseText = normalizedAIResponse.text;
+    const responseProvider = getProviderFromAIResponse(aiResponse);
+    addPipelineBreadcrumb("AI generation complete", {
+      model: normalizedAIResponse.model ?? "unknown",
+      responseLength: responseText.length,
+      jsonMode: flags.resume_v2_writer ?? false,
+    });
+
+    // Track Billing
+    await BillingService.trackUsage(
+      userId,
+      normalizedAIResponse.model || "default",
+      {
+        input: Math.ceil(prompt.length / 4),
+        output: Math.ceil(responseText.length / 4),
+      },
+    );
+
+    // Step 5: Check if AI indicates completion or if we have enough data
+    const aiIndicatesCompletion = isCompletionResponse(responseText);
+
+    // CRITICAL FIX: Sync generated JSON with ConversationManager
+    let updatedProgress = progress;
+    let generatedJson: Record<string, unknown> | null = null;
+
+    if (flags.resume_v2_writer) {
+      // With structured output enabled, try to parse the response directly as JSON first
+      // (Gemini structured output returns raw JSON, no markdown fences)
+      try {
+        const parsed = JSON.parse(responseText);
+        const validated = AIResumeResponseSchema.safeParse(parsed);
+        if (validated.success) {
+          generatedJson = validated.data as unknown as Record<string, unknown>;
+          logger.info(
+            "✅ Structured output: AI response is valid JSON matching schema",
+          );
+        } else {
+          logger.warn(
+            { errors: validated.error.flatten() },
+            "⚠️ Structured output: AI returned JSON but schema validation failed, falling back to regex",
+          );
+          generatedJson = extractResumeJSON(responseText) as unknown as Record<
+            string,
+            unknown
+          > | null;
+        }
+      } catch {
+        // Not raw JSON — fall back to regex extraction (legacy markdown-fenced JSON)
+        logger.info(
+          "📋 Falling back to regex-based JSON extraction from AI response",
         );
         generatedJson = extractResumeJSON(responseText) as unknown as Record<
           string,
           unknown
         > | null;
       }
-    } catch {
-      // Not raw JSON — fall back to regex extraction (legacy markdown-fenced JSON)
-      logger.info(
-        "📋 Falling back to regex-based JSON extraction from AI response",
-      );
-      generatedJson = extractResumeJSON(responseText) as unknown as Record<
-        string,
-        unknown
-      > | null;
     }
-  }
 
-  if (generatedJson) {
-    logger.info("🧠 Syncing AI-generated JSON back to ConversationManager");
-    conversationManager.updateData(generatedJson);
-    conversationManager.markAsComplete();
-    updatedProgress = conversationManager.getProgress();
-  } else if (!flags.resume_v2_writer) {
+    if (generatedJson) {
+      logger.info("🧠 Syncing AI-generated JSON back to ConversationManager");
+      conversationManager.updateData(generatedJson);
+      conversationManager.markAsComplete();
+      updatedProgress = conversationManager.getProgress();
+    } else if (!flags.resume_v2_writer) {
+      logger.info(
+        "🛑 resume_v2_writer disabled; using extracted conversation data only",
+      );
+    }
+
+    // Determine if we should create the resume
+    let shouldCreateResume = false;
+    if (config.maxQuestionsInBetaMode) {
+      shouldCreateResume =
+        aiIndicatesCompletion ||
+        updatedProgress.completenessPercentage >= config.completionThreshold ||
+        (userWantsToCreate && updatedProgress.hasMinimumData);
+    } else {
+      shouldCreateResume =
+        aiIndicatesCompletion ||
+        updatedProgress.isReadyToCreate ||
+        (userWantsToCreate && updatedProgress.hasMinimumData);
+    }
+
     logger.info(
-      "🛑 resume_v2_writer disabled; using extracted conversation data only",
+      {
+        aiIndicatesCompletion,
+        userWantsToCreate,
+        isReadyToCreate: updatedProgress.isReadyToCreate,
+        completenessPercentage: updatedProgress.completenessPercentage,
+        completionThreshold: config.completionThreshold,
+        shouldCreateResume,
+      },
+      "🤔 Decision:",
     );
-  }
 
-  // Determine if we should create the resume
-  let shouldCreateResume = false;
-  if (config.maxQuestionsInBetaMode) {
-    shouldCreateResume =
-      aiIndicatesCompletion ||
-      updatedProgress.completenessPercentage >= config.completionThreshold ||
-      (userWantsToCreate && updatedProgress.hasMinimumData);
-  } else {
-    shouldCreateResume =
-      aiIndicatesCompletion ||
-      updatedProgress.isReadyToCreate ||
-      (userWantsToCreate && updatedProgress.hasMinimumData);
-  }
-
-  logger.info(
-    {
-      aiIndicatesCompletion,
-      userWantsToCreate,
-      isReadyToCreate: updatedProgress.isReadyToCreate,
-      completenessPercentage: updatedProgress.completenessPercentage,
-      completionThreshold: config.completionThreshold,
-      shouldCreateResume,
-    },
-    "🤔 Decision:",
-  );
-
-  // Step 6: Create resume if ready
-  if (shouldCreateResume && updatedProgress.hasMinimumData) {
-    addPipelineBreadcrumb("starting resume creation", {
-      completenessPercentage: updatedProgress.completenessPercentage,
-      pipeline: flags.resume_v2_writer ? "v2_structured" : "v1_regex",
-      hasGeneratedJson: generatedJson !== null,
-    });
-    try {
-      let resumeData = generatedJson;
-      let regenerationAttempts = 0;
-
-      if (!resumeData) {
-        resumeData = conversationManager.getData();
-      } else {
-        // Merge extracted conversation fields (name, email, phone, etc.)
-        // with AI-generated structured data. The AI schema produces
-        // summary/skills/experience/education but extraction provides
-        // top-level name/email needed by contract validation.
-        const extractedData = conversationManager.getData();
-        resumeData = {
-          ...(extractedData as Record<string, unknown>),
-          ...resumeData,
-        };
-      }
-
-      let candidateData =
-        resumeData && typeof resumeData === "object"
-          ? (resumeData as Record<string, unknown>)
-          : {};
-
-      const evaluateCandidate = (candidate: Record<string, unknown>) => {
-        const candidateManager = new ConversationManager(
-          candidate as Partial<ResumeDataRequirements>,
-        );
-        const baseValidation = candidateManager.validate({
-          strictMode: strictValidationEnabled,
-        });
-        const baseErrors = Array.isArray(baseValidation.errors)
-          ? baseValidation.errors
-          : [];
-        const contractErrors = validateStructuredResumeContract(candidate, {
-          strictMode: strictValidationEnabled,
-        });
-        const factualAlignment = evaluateFactualAlignment(
-          candidate,
-          allMessages,
-        );
-        const strictFactualErrors = strictValidationEnabled
-          ? factualAlignment.errors
-          : [];
-        const errors = [
-          ...new Set([
-            ...baseErrors,
-            ...contractErrors,
-            ...strictFactualErrors,
-          ]),
-        ];
-
-        return {
-          valid: errors.length === 0,
-          errors,
-          factualAlignment,
-        };
-      };
-
-      let validation = evaluateCandidate(candidateData);
-      let creativeAnnotations: string[] = [];
-      let creativePolishApplied = false;
-
-      const logGenerationSchemaFailure = async (
-        validationErrors: string[],
-      ): Promise<void> => {
-        if (generationValidationFailureLogged || validationErrors.length === 0) {
-          return;
-        }
-
-        generationValidationFailureLogged = true;
-        const classification = classifyAIFailure({
-          errorMessage: "Resume generation response failed schema validation",
-          schemaValidationFailed: true,
-          schemaErrorCount: validationErrors.length,
-        });
-
-        await persistAIFailureEvent({
-          context: observationContext,
-          stage: "generation",
-          provider: responseProvider,
-          model: normalizedAIResponse.model,
-          failureCode: classification.failureCode,
-          errorMessage: classification.errorMessage,
-          promptPreview: prompt,
-          responsePreview: responseText,
-          providerErrorClass: classification.providerErrorClass,
-          schemaErrorCount: validationErrors.length,
-        });
-      };
-
-      if (
-        !validation.valid &&
-        flags.resume_v2_writer &&
-        validation.errors.length > 0
-      ) {
-        await logGenerationSchemaFailure(validation.errors);
-        const repairPrompt = buildRepairPrompt(
-          responseText,
-          candidateData,
-          validation.errors,
-          allMessages,
-        );
-
-        try {
-          regenerationAttempts = 1;
-          addPipelineBreadcrumb(
-            "repair loop triggered",
-            {
-              errorCount: validation.errors.length,
-              errors: validation.errors.slice(0, 5),
-            },
-            "warning",
-          );
-          await captureServerEvent(userId, "resume_repair_triggered", {
-            errorCount: validation.errors.length,
-            userTier,
-            pipeline: flags.resume_v2_writer ? "v2_structured" : "v1_regex",
-          });
-          const repairResponse = await generateTextWithTier({
-            prompt: repairPrompt,
-            maxTokens: 2500,
-            temperature: 0.2,
-            userTier,
-            modelId,
-            observationContext,
-            stage: "repair",
-          });
-
-          await BillingService.trackUsage(
-            userId,
-            repairResponse.model || "default",
-            {
-              input: Math.ceil(repairPrompt.length / 4),
-              output: Math.ceil(repairResponse.text.length / 4),
-            },
-          );
-
-          const repairedJson = extractResumeJSON(repairResponse.text);
-          if (repairedJson) {
-            resumeData = repairedJson as unknown as Record<string, unknown>;
-            candidateData = repairedJson as unknown as Record<string, unknown>;
-            validation = evaluateCandidate(candidateData);
-            if (validation.valid) {
-              await markAIStageRecoveredWithFallback(
-                observationContext,
-                "generation",
-              );
-            }
-          }
-        } catch (repairError) {
-          logger.warn(
-            { err: repairError, userId },
-            "Validation repair pass failed; falling back to clarification flow",
-          );
-          reportError(repairError, {
-            source: "resumeGenerationOrchestrator.repairLoop",
-            severity: "warning",
-            meta: { userId },
-          });
-        }
-      }
-
-      if (validation.valid && flags.resume_v2_creative_polish) {
-        const polishStyle: CreativeStyle = desiredStyle || "professional";
-        const polishResult = applyCreativePolish(candidateData, polishStyle);
-        const polishedValidation = evaluateCandidate(polishResult.polishedData);
-
-        if (polishedValidation.valid) {
-          candidateData = polishResult.polishedData;
-          resumeData = candidateData;
-          validation = polishedValidation;
-          creativePolishApplied = polishResult.appliedCount > 0;
-          creativeAnnotations = polishResult.annotations.map(
-            (annotation) =>
-              `${annotation.path} | confidence=${annotation.confidence} | ${annotation.reason}`,
-          );
-        } else {
-          logger.warn(
-            {
-              polishStyle,
-              errors: polishedValidation.errors,
-            },
-            "Creative polish result failed validation; using factual baseline",
-          );
-        }
-      }
-
-      const qualityReport = buildQualityReport({
-        schemaValid: validation.valid,
-        validationErrors: validation.errors,
-        regenerationAttempts,
-        factualAlignmentScore: validation.factualAlignment.score,
+    // Step 6: Create resume if ready
+    if (shouldCreateResume && updatedProgress.hasMinimumData) {
+      addPipelineBreadcrumb("starting resume creation", {
+        completenessPercentage: updatedProgress.completenessPercentage,
+        pipeline: flags.resume_v2_writer ? "v2_structured" : "v1_regex",
+        hasGeneratedJson: generatedJson !== null,
       });
+      try {
+        let resumeData = generatedJson;
+        let regenerationAttempts = 0;
 
-      if (!validation.valid) {
-        await logGenerationSchemaFailure(validation.errors);
-        logger.warn({ errors: validation.errors }, "⚠️ Validation failed");
+        if (!resumeData) {
+          resumeData = conversationManager.getData();
+        } else {
+          // Merge extracted conversation fields (name, email, phone, etc.)
+          // with AI-generated structured data. The AI schema produces
+          // summary/skills/experience/education but extraction provides
+          // top-level name/email needed by contract validation.
+          const extractedData = conversationManager.getData();
+          resumeData = {
+            ...(extractedData as Record<string, unknown>),
+            ...resumeData,
+          };
+        }
 
-        const safeResponse = buildClarificationMessage(
-          candidateData,
-          validation.errors,
-        );
-        monitoringSummary = {
-          userVisibleFailure: false,
-          finalOutcome: "clarification_required",
-          createdResume: false,
+        let candidateData =
+          resumeData && typeof resumeData === "object"
+            ? (resumeData as Record<string, unknown>)
+            : {};
+
+        const evaluateCandidate = (candidate: Record<string, unknown>) => {
+          const candidateManager = new ConversationManager(
+            candidate as Partial<ResumeDataRequirements>,
+          );
+          const baseValidation = candidateManager.validate({
+            strictMode: strictValidationEnabled,
+          });
+          const baseErrors = Array.isArray(baseValidation.errors)
+            ? baseValidation.errors
+            : [];
+          const contractErrors = validateStructuredResumeContract(candidate, {
+            strictMode: strictValidationEnabled,
+          });
+          const factualAlignment = evaluateFactualAlignment(
+            candidate,
+            allMessages,
+          );
+          const strictFactualErrors = strictValidationEnabled
+            ? factualAlignment.errors
+            : [];
+          const errors = [
+            ...new Set([
+              ...baseErrors,
+              ...contractErrors,
+              ...strictFactualErrors,
+            ]),
+          ];
+
+          return {
+            valid: errors.length === 0,
+            errors,
+            factualAlignment,
+          };
         };
 
-        return {
-          requestId: observationContext.requestId,
-          response: safeResponse,
-          model: normalizedAIResponse.model,
-          progress: Math.min(updatedProgress.completenessPercentage, 95),
-          qualityReport,
-          needsClarification: true,
-          missingEvidenceFields: validation.errors,
-          clarificationChecklist: buildClarificationChecklist(
+        let validation = evaluateCandidate(candidateData);
+        let creativeAnnotations: string[] = [];
+        let creativePolishApplied = false;
+
+        const logGenerationSchemaFailure = async (
+          validationErrors: string[],
+        ): Promise<void> => {
+          if (
+            generationValidationFailureLogged ||
+            validationErrors.length === 0
+          ) {
+            return;
+          }
+
+          generationValidationFailureLogged = true;
+          const classification = classifyAIFailure({
+            errorMessage: "Resume generation response failed schema validation",
+            schemaValidationFailed: true,
+            schemaErrorCount: validationErrors.length,
+          });
+
+          await persistAIFailureEvent({
+            context: observationContext,
+            stage: "generation",
+            provider: responseProvider,
+            model: normalizedAIResponse.model,
+            failureCode: classification.failureCode,
+            errorMessage: classification.errorMessage,
+            promptPreview: prompt,
+            responsePreview: responseText,
+            providerErrorClass: classification.providerErrorClass,
+            schemaErrorCount: validationErrors.length,
+          });
+        };
+
+        if (
+          !validation.valid &&
+          flags.resume_v2_writer &&
+          validation.errors.length > 0
+        ) {
+          await logGenerationSchemaFailure(validation.errors);
+          const repairPrompt = buildRepairPrompt(
+            responseText,
             candidateData,
             validation.errors,
-          ),
-          sessionData: {
-            collectedData: candidateData,
-            progress: updatedProgress,
-          },
+            allMessages,
+          );
+
+          try {
+            regenerationAttempts = 1;
+            addPipelineBreadcrumb(
+              "repair loop triggered",
+              {
+                errorCount: validation.errors.length,
+                errors: validation.errors.slice(0, 5),
+              },
+              "warning",
+            );
+            await captureServerEvent(userId, "resume_repair_triggered", {
+              errorCount: validation.errors.length,
+              userTier,
+              pipeline: flags.resume_v2_writer ? "v2_structured" : "v1_regex",
+            });
+            const repairResponse = await generateTextWithTier({
+              prompt: repairPrompt,
+              maxTokens: 2500,
+              temperature: 0.2,
+              userTier,
+              modelId,
+              observationContext,
+              stage: "repair",
+            });
+
+            await BillingService.trackUsage(
+              userId,
+              repairResponse.model || "default",
+              {
+                input: Math.ceil(repairPrompt.length / 4),
+                output: Math.ceil(repairResponse.text.length / 4),
+              },
+            );
+
+            const repairedJson = extractResumeJSON(repairResponse.text);
+            if (repairedJson) {
+              resumeData = repairedJson as unknown as Record<string, unknown>;
+              candidateData = repairedJson as unknown as Record<
+                string,
+                unknown
+              >;
+              validation = evaluateCandidate(candidateData);
+              if (validation.valid) {
+                await markAIStageRecoveredWithFallback(
+                  observationContext,
+                  "generation",
+                );
+              }
+            }
+          } catch (repairError) {
+            logger.warn(
+              { err: repairError, userId },
+              "Validation repair pass failed; falling back to clarification flow",
+            );
+            reportError(repairError, {
+              source: "resumeGenerationOrchestrator.repairLoop",
+              severity: "warning",
+              meta: { userId },
+            });
+          }
+        }
+
+        if (validation.valid && flags.resume_v2_creative_polish) {
+          const polishStyle: CreativeStyle = desiredStyle || "professional";
+          const polishResult = applyCreativePolish(candidateData, polishStyle);
+          const polishedValidation = evaluateCandidate(
+            polishResult.polishedData,
+          );
+
+          if (polishedValidation.valid) {
+            candidateData = polishResult.polishedData;
+            resumeData = candidateData;
+            validation = polishedValidation;
+            creativePolishApplied = polishResult.appliedCount > 0;
+            creativeAnnotations = polishResult.annotations.map(
+              (annotation) =>
+                `${annotation.path} | confidence=${annotation.confidence} | ${annotation.reason}`,
+            );
+          } else {
+            logger.warn(
+              {
+                polishStyle,
+                errors: polishedValidation.errors,
+              },
+              "Creative polish result failed validation; using factual baseline",
+            );
+          }
+        }
+
+        const qualityReport = buildQualityReport({
+          schemaValid: validation.valid,
+          validationErrors: validation.errors,
+          regenerationAttempts,
+          factualAlignmentScore: validation.factualAlignment.score,
+        });
+
+        if (!validation.valid) {
+          await logGenerationSchemaFailure(validation.errors);
+          logger.warn({ errors: validation.errors }, "⚠️ Validation failed");
+
+          const safeResponse = buildClarificationMessage(
+            candidateData,
+            validation.errors,
+          );
+          monitoringSummary = {
+            userVisibleFailure: false,
+            finalOutcome: "clarification_required",
+            createdResume: false,
+          };
+
+          return {
+            requestId: observationContext.requestId,
+            response: safeResponse,
+            model: normalizedAIResponse.model,
+            progress: Math.min(updatedProgress.completenessPercentage, 95),
+            qualityReport,
+            needsClarification: true,
+            missingEvidenceFields: validation.errors,
+            clarificationChecklist: buildClarificationChecklist(
+              candidateData,
+              validation.errors,
+            ),
+            sessionData: {
+              collectedData: candidateData,
+              progress: updatedProgress,
+            },
+          };
+        }
+
+        logger.info("✨ Creating generated resume via Service");
+
+        const evidenceMap = buildEvidenceMap(candidateData, allMessages);
+        if (creativeAnnotations.length > 0) {
+          evidenceMap.creativePolishAnnotations = creativeAnnotations.slice(
+            0,
+            25,
+          );
+        }
+        const generationVersion: ResumeGenerationVersion = {
+          pipeline: creativePolishApplied
+            ? "v2_creative"
+            : flags.resume_v2_writer
+              ? "v2_structured"
+              : "v1_regex",
         };
-      }
 
-      logger.info("✨ Creating generated resume via Service");
+        if (!shouldPersistResult) {
+          monitoringSummary = {
+            userVisibleFailure: false,
+            finalOutcome: "preview_generated",
+            createdResume: false,
+          };
+          return {
+            requestId: observationContext.requestId,
+            response: "Preview generated successfully",
+            model: normalizedAIResponse.model,
+            created: false,
+            progress: 100,
+            qualityReport,
+            previewData: candidateData as GeneratedResumeInput,
+            evidenceMap,
+            sessionData: {
+              collectedData: candidateData,
+              progress: updatedProgress,
+            },
+          };
+        }
 
-      const evidenceMap = buildEvidenceMap(candidateData, allMessages);
-      if (creativeAnnotations.length > 0) {
-        evidenceMap.creativePolishAnnotations = creativeAnnotations.slice(
-          0,
-          25,
+        const { resumeId, numericId } = await saveGeneratedResume(
+          userId,
+          candidateData as GeneratedResumeInput,
+          {
+            qualityReport,
+            evidenceMap,
+            generationVersion,
+          },
         );
-      }
-      const generationVersion: ResumeGenerationVersion = {
-        pipeline: creativePolishApplied
-          ? "v2_creative"
-          : flags.resume_v2_writer
-            ? "v2_structured"
-            : "v1_regex",
-      };
 
-      if (!shouldPersistResult) {
+        const cleanResponse = "One moment, I'm finalizing your resume...";
+
+        logger.info({ data: resumeId }, "✅ Resume created successfully:");
+        addPipelineBreadcrumb("resume created", {
+          resumeId,
+          numericId,
+          pipeline: generationVersion.pipeline,
+          regenerationAttempts,
+          factualAlignmentScore: validation.factualAlignment.score,
+        });
+        await captureServerEvent(userId, "resume_generated", {
+          resumeId,
+          numericId,
+          pipeline: generationVersion.pipeline,
+          creativePolishApplied,
+          regenerationAttempts,
+          factualAlignmentScore: validation.factualAlignment.score,
+          userTier,
+        });
         monitoringSummary = {
           userVisibleFailure: false,
-          finalOutcome: "preview_generated",
-          createdResume: false,
+          finalOutcome: "resume_created",
+          createdResume: true,
         };
+
         return {
           requestId: observationContext.requestId,
-          response: "Preview generated successfully",
+          response: cleanResponse,
           model: normalizedAIResponse.model,
-          created: false,
+          resumeId,
+          numericId,
+          created: true,
           progress: 100,
           qualityReport,
-          previewData: candidateData as GeneratedResumeInput,
-          evidenceMap,
-          sessionData: {
-            collectedData: candidateData,
-            progress: updatedProgress,
-          },
         };
-      }
-
-      const { resumeId, numericId } = await saveGeneratedResume(
-        userId,
-        candidateData as GeneratedResumeInput,
-        {
-          qualityReport,
-          evidenceMap,
-          generationVersion,
-        },
-      );
-
-      const cleanResponse = "One moment, I'm finalizing your resume...";
-
-      logger.info({ data: resumeId }, "✅ Resume created successfully:");
-      addPipelineBreadcrumb("resume created", {
-        resumeId,
-        numericId,
-        pipeline: generationVersion.pipeline,
-        regenerationAttempts,
-        factualAlignmentScore: validation.factualAlignment.score,
-      });
-      await captureServerEvent(userId, "resume_generated", {
-        resumeId,
-        numericId,
-        pipeline: generationVersion.pipeline,
-        creativePolishApplied,
-        regenerationAttempts,
-        factualAlignmentScore: validation.factualAlignment.score,
-        userTier,
-      });
-      monitoringSummary = {
-        userVisibleFailure: false,
-        finalOutcome: "resume_created",
-        createdResume: true,
-      };
-
-      return {
-        requestId: observationContext.requestId,
-        response: cleanResponse,
-        model: normalizedAIResponse.model,
-        resumeId,
-        numericId,
-        created: true,
-        progress: 100,
-        qualityReport,
-      };
-    } catch (createError) {
-      addPipelineBreadcrumb(
-        "resume creation failed",
-        {
-          pipeline: flags.resume_v2_writer ? "v2_structured" : "v1_regex",
+      } catch (createError) {
+        addPipelineBreadcrumb(
+          "resume creation failed",
+          {
+            pipeline: flags.resume_v2_writer ? "v2_structured" : "v1_regex",
+            userTier,
+          },
+          "error",
+        );
+        logger.error({ err: createError }, "❌ Error creating resume:");
+        reportError(createError, {
+          source: "resumeGenerationOrchestrator.createResume",
+          severity: "error",
+          meta: { userId, userTier },
+        });
+        await captureServerEvent(userId, "resume_generation_failed", {
           userTier,
-        },
-        "error",
-      );
-      logger.error({ err: createError }, "❌ Error creating resume:");
-      reportError(createError, {
-        source: "resumeGenerationOrchestrator.createResume",
-        severity: "error",
-        meta: { userId, userTier },
-      });
-      await captureServerEvent(userId, "resume_generation_failed", {
-        userTier,
-        pipeline: flags.resume_v2_writer ? "v2_structured" : "v1_regex",
-      });
-      monitoringSummary = {
-        userVisibleFailure: true,
-        finalOutcome: "resume_creation_failed",
-        createdResume: false,
-      };
-      throw createError;
+          pipeline: flags.resume_v2_writer ? "v2_structured" : "v1_regex",
+        });
+        monitoringSummary = {
+          userVisibleFailure: true,
+          finalOutcome: "resume_creation_failed",
+          createdResume: false,
+        };
+        throw createError;
+      }
     }
-  }
 
-  // Step 7: Continue conversation (not ready yet)
-  monitoringSummary = {
-    userVisibleFailure: false,
-    finalOutcome: "conversation_continues",
-    createdResume: false,
-  };
-  return {
-    requestId: observationContext.requestId,
-    response: responseText,
-    model: normalizedAIResponse.model,
-    progress: updatedProgress.completenessPercentage,
-    sessionData: {
-      collectedData: conversationManager.getData(),
-      progress: updatedProgress,
-    },
-  };
+    // Step 7: Continue conversation (not ready yet)
+    monitoringSummary = {
+      userVisibleFailure: false,
+      finalOutcome: "conversation_continues",
+      createdResume: false,
+    };
+    return {
+      requestId: observationContext.requestId,
+      response: responseText,
+      model: normalizedAIResponse.model,
+      progress: updatedProgress.completenessPercentage,
+      sessionData: {
+        collectedData: conversationManager.getData(),
+        progress: updatedProgress,
+      },
+    };
   } finally {
     await persistAIRequestSummary({
       context: observationContext,

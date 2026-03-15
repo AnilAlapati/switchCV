@@ -67,6 +67,19 @@ Help the user build a complete, professional resume in about 3 minutes.
 - Acknowledge what they shared before asking the next question.
 - Keep responses SHORT (2-3 sentences max per turn).
 
+**CRITICAL RULE — NEVER RE-ASK FOR INFORMATION THE USER ALREADY PROVIDED:**
+- Before asking any question, carefully re-read the ENTIRE previous conversation AND the CURRENTLY COLLECTED DATA section.
+- If the user already provided a piece of information — even informally, partially, or embedded inside a longer message — do NOT ask for it again.
+- Instead, confirm what you understood: "Got it: S.B.C.E, 2010-2014, E.C.E with 7.2 CGPA."
+- If details are ambiguous, ask a TARGETED clarification (e.g. "Is S.B.C.E the full institution name, or is there a longer form?") — never re-ask the whole field.
+- Users get frustrated when they have to repeat themselves. This is the #1 priority.
+
+**BULK INPUT HANDLING:**
+- If the user pastes a large block of text containing multiple work experiences, certifications, education entries, or skills — ABSORB ALL OF IT in one go.
+- Do NOT cherry-pick one item and ask about the rest. Process the entire paste.
+- Confirm what you captured with a brief summary: "Great! I've captured 4 roles (JPMC, TEKsystems, IBM), 5 certifications, and 16 skills."
+- Then ask if they want to add anything else or if you should create the resume.
+
 **FEW-SHOT EXAMPLES:**
 
 Example 1 - Software Engineer:
@@ -212,6 +225,27 @@ INSTRUCTION: Stop asking broad follow-up questions. Generate the "RESUME_COMPLET
     prompt += `Previous conversation:\n${history}\n\n`;
   }
 
+  // Detect if the user's latest message is a bulk paste (multiple lines, structured data)
+  const lineCount = userMessage.split("\n").length;
+  const isBulkPaste = lineCount >= 5 || userMessage.length > 500;
+  if (isBulkPaste) {
+    prompt += `IMPORTANT — BULK INPUT DETECTED: The user's latest message contains a large block of text (${lineCount} lines, ${userMessage.length} chars). This likely contains multiple work experiences, certifications, skills, or education entries. You MUST:\n`;
+    prompt += `1. Parse and absorb ALL items from this paste — do NOT cherry-pick one and ignore the rest.\n`;
+    prompt += `2. Summarize what you captured: "Great! I've captured X roles, Y certifications, Z skills."\n`;
+    prompt += `3. Ask if they want to add anything or if you should create the resume now.\n`;
+    prompt += `4. Do NOT ask for dates, details, or descriptions that are already present in the pasted text.\n\n`;
+  }
+
+  // Detect user frustration (re-providing info, "I already said", "already mentioned")
+  const frustrationPattern =
+    /\b(already|i (just |already )?(gave|said|told|mentioned|provided)|right\??|i have already)\b/i;
+  if (frustrationPattern.test(userMessage)) {
+    prompt += `⚠️ USER FRUSTRATION DETECTED: The user seems to be pointing out they already provided this information. Do NOT ask for the same thing again. Instead:\n`;
+    prompt += `1. Apologize briefly: "Sorry about that!"\n`;
+    prompt += `2. Confirm what you have from the conversation.\n`;
+    prompt += `3. Move forward to the next missing piece or offer to create the resume.\n\n`;
+  }
+
   // Add progress hints to guide AI with smart question selection for beta mode
   if (currentProgress) {
     const missing: string[] = [];
@@ -227,26 +261,27 @@ INSTRUCTION: Stop asking broad follow-up questions. Generate the "RESUME_COMPLET
         activeConfig.enableSmartQuestions &&
         activeConfig.maxQuestionsInBetaMode
       ) {
-        const questionsAsked = conversationHistory.length;
+        // Count only AI assistant turns (not total messages)
+        const aiTurnsAsked = conversationHistory.filter(
+          (m) => !m.isUser,
+        ).length;
         const remainingQuestions = Math.max(
           0,
-          activeConfig.maxBetaQuestions - questionsAsked / 2,
+          activeConfig.maxBetaQuestions - aiTurnsAsked,
         );
 
         if (remainingQuestions > 0) {
           prompt += `BETA MODE: Ask ONE smart question from priority fields: ${activeConfig.priorityFields.join(
             ", ",
           )}\n`;
-          prompt += `REMAINING QUESTIONS ALLOWED: ${Math.ceil(
-            remainingQuestions,
-          )}\n`;
+          prompt += `REMAINING QUESTIONS ALLOWED: ${remainingQuestions}\n`;
+          prompt += `CRITICAL: Before asking about any field, check the conversation above AND the CURRENTLY COLLECTED DATA. If the user already provided that information, do NOT ask for it. Move to the next missing field or offer to create the resume.\n`;
         } else {
-          prompt += `BETA MODE: Maximum questions reached (${activeConfig.maxBetaQuestions}). Offer to create resume.\n`;
+          prompt += `BETA MODE: Maximum questions reached (${activeConfig.maxBetaQuestions}). You MUST offer to create the resume NOW.\n`;
           prompt += `STATUS: The following fields are NOT yet structured: ${missing.join(
             ", ",
           )}\n`;
-          prompt += `INSTRUCTION: Check the "Previous conversation" carefully. If the user has already mentioned details relevant to these fields (even if informal), DO NOT ask for them again. Instead, confirm what you understood and ask for specific details to formalize it (e.g. "You mentioned building X, what was your role there?"). Only ask for the field if it is completely missing.\n`;
-          prompt += `Ask: "I have good information. Shall I create your resume now, or add more details?"\n`;
+          prompt += `INSTRUCTION: Check the "Previous conversation" carefully. Extract whatever information exists for these fields from the conversation. Do NOT ask the user again. Instead, offer: "I have enough to build your resume. Shall I create it now, or would you like to add more details?"\n`;
         }
       } else {
         prompt += `STATUS: The following fields are NOT yet structured: ${missing.join(

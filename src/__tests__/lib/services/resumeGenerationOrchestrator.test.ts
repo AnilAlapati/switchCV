@@ -546,18 +546,86 @@ describe("Resume Generation Orchestrator", () => {
   // Additional edge cases
   // -------------------------------------------------------------------------
   describe("Edge cases", () => {
-    it("handles user requesting question limit", async () => {
+    it("injects force-create prompt instructions for explicit creation intent", async () => {
       mockGenerateTextWithTier.mockResolvedValue(
         mockAIResponse(VALID_RESPONSE_TEXT),
+      );
+
+      await processSyncGeneration(
+        buildInput({ message: "go ahead and build it" }),
+      );
+
+      const firstCallArgs = mockGenerateTextWithTier.mock.calls[0]?.[0];
+      expect(firstCallArgs).toBeDefined();
+      expect(firstCallArgs.prompt).toContain(
+        "USER REQUEST: The user explicitly wants to create the resume NOW",
+      );
+    });
+
+    it("does not treat a simple affirmative as explicit creation intent", async () => {
+      mockExtractWithStructuredOutput.mockResolvedValue({
+        success: true,
+        data: { name: "Sam" },
+        method: "ai",
+        latencyMs: 40,
+      });
+      mockGenerateTextWithTier.mockResolvedValue(
+        mockAIResponse("Thanks! What is your email address?"),
+      );
+
+      const result = await processSyncGeneration(
+        buildInput({
+          message: "yes",
+          conversationHistory: [{ content: "My name is Sam", isUser: true }],
+          persistResult: false,
+        }),
+      );
+
+      const firstCallArgs = mockGenerateTextWithTier.mock.calls[0]?.[0];
+      expect(firstCallArgs).toBeDefined();
+      expect(firstCallArgs.prompt).not.toContain(
+        "USER REQUEST: The user explicitly wants to create the resume NOW",
+      );
+      expect(result.created).toBeUndefined();
+      expect(result.response).toContain("email");
+    });
+
+    it("handles user requesting question limit", async () => {
+      const { getActiveConfig } = jest.requireMock(
+        "@/lib/services/conversationConfig",
+      );
+      (getActiveConfig as jest.Mock).mockReturnValue({
+        enableSmartQuestions: true,
+        maxQuestionsInBetaMode: false,
+        maxBetaQuestions: 5,
+        completionThreshold: 80,
+        priorityFields: ["name", "email", "experience"],
+      });
+
+      mockExtractWithStructuredOutput.mockResolvedValue({
+        success: true,
+        data: { name: "Alex" },
+        method: "ai",
+        latencyMs: 50,
+      });
+      mockGenerateTextWithTier.mockResolvedValue(
+        mockAIResponse("Thanks! What is your email address?"),
       );
 
       const result = await processSyncGeneration(
         buildInput({
           message: "Only 3 questions please, then create my resume",
+          conversationHistory: [{ content: "My name is Alex", isUser: true }],
+          persistResult: false,
         }),
       );
 
-      // Should honor the question limit config
+      const firstCallArgs = mockGenerateTextWithTier.mock.calls[0]?.[0];
+      expect(firstCallArgs).toBeDefined();
+      expect(firstCallArgs.prompt).toContain("REMAINING QUESTIONS ALLOWED: 3");
+      expect(firstCallArgs.prompt).toContain(
+        "USER REQUEST: The user explicitly wants to create the resume NOW",
+      );
       expect(result).toBeDefined();
     });
 
