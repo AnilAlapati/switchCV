@@ -101,52 +101,15 @@ async function checkGemini(): Promise<ServiceStatus> {
   }
 }
 
-async function checkEmail(): Promise<ServiceStatus> {
-  if (shouldBypassChecks()) {
-    return { status: "ok" };
-  }
-
-  const host = process.env.SMTP_HOST;
-  const port = parseInt(process.env.SMTP_PORT || "465", 10);
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-
-  if (!host || !user || !pass) {
-    return {
-      status: "error",
-    };
-  }
-
-  const start = Date.now();
-  try {
-    const { default: nodemailer } = await import("nodemailer");
-    const transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465,
-      auth: {
-        user,
-        pass,
-      },
-    });
-
-    await withTimeout(transporter.verify(), 5000, "SMTP health check");
-    return { status: "ok", latencyMs: Date.now() - start };
-  } catch (error) {
-    logger.error({ err: error }, "Email health check failed");
-    return {
-      status: "error",
-    };
-  }
-}
-
 export async function GET() {
   // Run checks sequentially to reduce peak memory pressure in SSR containers.
+  // NOTE: Email is NOT checked here — all emails are sent via Cloud Functions
+  // (Firestore `mail` collection + Firebase firestore-send-email extension),
+  // not the Next.js app. Checking SMTP here was misleading.
   const firestore = await checkFirestore();
   const ai = await checkGemini();
-  const email = await checkEmail();
 
-  const services = { firestore, ai, email };
+  const services = { firestore, ai };
   const allHealthy = Object.values(services).every(
     (service) => service.status === "ok",
   );

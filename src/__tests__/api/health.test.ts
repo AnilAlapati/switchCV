@@ -1,6 +1,5 @@
 import { GET } from "@/app/api/health/route";
 import { adminDb } from "@/lib/firebase-admin";
-import nodemailer from "nodemailer";
 
 jest.mock("@/lib/logger", () => ({
   logger: {
@@ -19,12 +18,6 @@ jest.mock("@/lib/firebase-admin", () => ({
   },
 }));
 
-jest.mock("nodemailer", () => ({
-  createTransport: jest.fn().mockReturnValue({
-    verify: jest.fn(),
-  }),
-}));
-
 // Mock global fetch
 global.fetch = jest.fn();
 
@@ -37,10 +30,6 @@ describe("Health API", () => {
       ...originalEnv,
       HEALTHCHECK_RUN_FULL: "true",
       GEMINI_API_KEY: "test-api-key", // Dummy key for testing
-      SMTP_HOST: "smtp.test.com",
-      SMTP_USER: "test-user",
-      SMTP_PASS: "test-pass", // Dummy password for testing
-      SMTP_PORT: "465",
     };
     jest.clearAllMocks();
   });
@@ -54,8 +43,6 @@ describe("Health API", () => {
       empty: false,
     });
     (global.fetch as jest.Mock).mockResolvedValue({ ok: true });
-    const mockTransporter = nodemailer.createTransport({});
-    (mockTransporter.verify as jest.Mock).mockResolvedValue(true);
 
     const response = await GET();
     const data = await response.json();
@@ -64,7 +51,7 @@ describe("Health API", () => {
     expect(data.status).toBe("ok");
     expect(data.services.firestore.status).toBe("ok");
     expect(data.services.ai.status).toBe("ok");
-    expect(data.services.email.status).toBe("ok");
+    expect(data.services.email).toBeUndefined();
   });
 
   it("should return 503 when a service is unhealthy", async () => {
@@ -72,8 +59,6 @@ describe("Health API", () => {
       new Error("Firestore down"),
     );
     (global.fetch as jest.Mock).mockResolvedValue({ ok: true });
-    const mockTransporter = nodemailer.createTransport({});
-    (mockTransporter.verify as jest.Mock).mockResolvedValue(true);
 
     const response = await GET();
     const data = await response.json();
@@ -88,8 +73,6 @@ describe("Health API", () => {
     (adminDb.collection("").get as jest.Mock).mockResolvedValue({
       empty: false,
     });
-    const mockTransporter = nodemailer.createTransport({});
-    (mockTransporter.verify as jest.Mock).mockResolvedValue(true);
 
     const response = await GET();
     const data = await response.json();
@@ -104,8 +87,6 @@ describe("Health API", () => {
       empty: false,
     });
     (global.fetch as jest.Mock).mockResolvedValue({ ok: false, status: 500 });
-    const mockTransporter = nodemailer.createTransport({});
-    (mockTransporter.verify as jest.Mock).mockResolvedValue(true);
 
     const response = await GET();
     const data = await response.json();
@@ -115,8 +96,7 @@ describe("Health API", () => {
     expect(data.services.ai.error).toBeUndefined();
   });
 
-  it("should handle missing SMTP config", async () => {
-    delete process.env.SMTP_HOST;
+  it("should not include email in health check (emails sent via Cloud Functions)", async () => {
     (adminDb.collection("").get as jest.Mock).mockResolvedValue({
       empty: false,
     });
@@ -125,9 +105,8 @@ describe("Health API", () => {
     const response = await GET();
     const data = await response.json();
 
-    expect(data.services.email.status).toBe("error");
-    // Error details are intentionally sanitized (CRITICAL-4 fix)
-    expect(data.services.email.error).toBeUndefined();
+    expect(data.services.email).toBeUndefined();
+    expect(Object.keys(data.services)).toEqual(["firestore", "ai"]);
   });
 
   it("should bypass checks if HEALTHCHECK_RUN_FULL is not true", async () => {
