@@ -21,10 +21,10 @@ const firebaseConfig = {
 };
 
 // SAFETY CHECK: Catch dev config leaking into production builds.
-// If NODE_ENV=production but projectId points to switchcv-dev, the build used
-// wrong env vars (e.g., .env.local was not removed before `firebase deploy`).
+// Uses NEXT_PUBLIC_DEPLOY_TARGET=prod (set in .env.production) to distinguish
+// a real production deploy from a dev-hosting build (which also uses NODE_ENV=production).
 if (
-  process.env.NODE_ENV === "production" &&
+  process.env.NEXT_PUBLIC_DEPLOY_TARGET === "prod" &&
   firebaseConfig.projectId === "switchcv-dev"
 ) {
   const msg =
