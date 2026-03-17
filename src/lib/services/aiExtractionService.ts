@@ -125,6 +125,7 @@ Rules:
 - For dates, preserve the original format found in the text.
 - For names, use the full name as written.
 - For phone numbers, keep the original formatting.
+- LOCATION: Only extract location if the user explicitly states where they live or are based (e.g. "I'm based in San Francisco", "located in London", "from Hyderabad"). NEVER infer location from company names (JPMC does not mean New York), university names, or any other indirect evidence. If the user did not explicitly share their location, do NOT include the location field.
 - If the input contains no extractable resume data, return an empty object.
 
 EXAMPLE — correct classification (few-shot):
@@ -161,6 +162,11 @@ export interface AIExtractionResult {
   method: "ai" | "fallback";
   /** Latency in milliseconds */
   latencyMs: number;
+  /**
+   * The model that actually ran the extraction.
+   * Should be "gemini-2.5-pro". If different, a fallback occurred — see logs.
+   */
+  model?: string;
   /** Error message if extraction failed */
   error?: string;
 }
@@ -287,11 +293,7 @@ export async function extractWithStructuredOutput(
   options: ExtractionOptions = {},
 ): Promise<AIExtractionResult> {
   const startTime = Date.now();
-  const {
-    userTier = "premium",
-    skipAI = false,
-    observationContext,
-  } = options;
+  const { skipAI = false, observationContext } = options;
 
   if (skipAI) {
     return {
@@ -321,11 +323,19 @@ export async function extractWithStructuredOutput(
 
     const prompt = `${EXTRACTION_SYSTEM_PROMPT}\n\nExtract all resume fields from the following conversation transcript. Return ONLY the structured data — no explanations, no commentary.\n\n---\nCONVERSATION TRANSCRIPT:\n${text}\n---`;
 
+    // Always use Gemini 2.5 Pro for extraction regardless of user tier.
+    // Reasons:
+    // - Only Gemini supports responseSchema (structured JSON output guarantee).
+    // - Gemini 2.5 Flash Lite (quality 7) consistently fails to parse informal
+    //   conversational text like "started at IBM then TEKsystems, now JPMC SWE3".
+    // - Pro (quality 9) costs ~$2.50/1M tokens vs $0.20 for Flash Lite — the
+    //   ~$7/month extra at 1,000 resumes is worth reliable extraction.
     const result = await generateTextWithTier({
       prompt,
       maxTokens: 4000,
       temperature: 0.1, // Low temperature for factual extraction
-      userTier,
+      userTier: "enterprise", // grants access to premium model tier
+      modelId: "gemini-2.5-pro", // pin to Gemini 2.5 Pro explicitly
       jsonMode: true,
       responseSchema: EXTRACTION_GEMINI_SCHEMA as unknown as Record<
         string,
@@ -334,6 +344,21 @@ export async function extractWithStructuredOutput(
       observationContext,
       stage: "extraction",
     });
+
+    // Warn if the provider silently fell back from our pinned model.
+    // This can happen if the circuit breaker tripped or GEMINI_API_KEY is
+    // missing — in both cases the caller should know extraction quality may
+    // be degraded.
+    if (result.model !== "gemini-2.5-pro") {
+      logger.warn(
+        {
+          expectedModel: "gemini-2.5-pro",
+          actualModel: result.model,
+          provider: result.provider,
+        },
+        "Extraction used a fallback model — quality may be lower than expected",
+      );
+    }
 
     if (!result.text) {
       recordExtractionFailure("AI returned empty response");
@@ -471,6 +496,7 @@ export async function extractWithStructuredOutput(
       success: true,
       data,
       method: "ai",
+      model: result.model,
       latencyMs: Date.now() - startTime,
     };
   } catch (error) {

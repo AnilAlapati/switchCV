@@ -125,23 +125,21 @@ export class ContactExtractor implements IExtractor {
     }
 
     // 4. Extract Location
+    // Only match explicit location phrases — never infer from commas in general text.
     const locationPatterns = [
-      /(?:located in|based in|live in)\s+([a-zA-Z]+(?: [a-zA-Z]+)?(?:,?\s+[a-zA-Z]+(?:\s+[a-zA-Z]+)?))/i,
+      /(?:located in|based in|live in|living in)\s+([a-zA-Z]+(?: [a-zA-Z]+)?(?:,?\s+[a-zA-Z]+(?:\s+[a-zA-Z]+)?))/i,
       /location:\s*([a-zA-Z]+(?: [a-zA-Z]+)?(?:,?\s+[a-zA-Z]+(?:\s+[a-zA-Z]+)?))/i,
-      /from\s+([a-zA-Z]+(?: [a-zA-Z]+)?,\s*[a-zA-Z]+(?:\s+[a-zA-Z]+)?)/i,
-      /([a-zA-Z]+(?: [a-zA-Z]+)?,\s*([a-zA-Z]{2,}))/i,
+      /(?:^|\s)from\s+([A-Z][a-zA-Z]+(?: [A-Za-z]+)?,\s*[A-Z]{2})(?=\s|$|[.,])/m,
+      // "City, ST" format — only match when the part after the comma is a 2-letter
+      // US state abbreviation to avoid false positives like "IBM, and" or "Name, email".
+      /\b([A-Z][a-zA-Z]+(?: [A-Z][a-zA-Z]+)?,\s*[A-Z]{2})(?=\s|$|[.,])/,
     ];
 
     for (const pattern of locationPatterns) {
       const match = trimmedText.match(pattern);
-      if (match) {
-        if (pattern.source.includes("([a-zA-Z]{2,}))")) {
-          data.location = match[1].trim();
-          break;
-        } else if (match[1]) {
-          data.location = match[1].trim();
-          break;
-        }
+      if (match && match[1]) {
+        data.location = match[1].trim();
+        break;
       }
     }
 
@@ -171,8 +169,7 @@ export class ContactExtractor implements IExtractor {
     // 7. Extract X (Twitter) URL
     const twitterUrlRegex =
       /https?:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/[a-zA-Z0-9_]+(?:\/)?/i;
-    const twitterHandleRegex =
-      /(?<![A-Za-z0-9._%+-])@([a-zA-Z0-9_]{1,15})\b/;
+    const twitterHandleRegex = /(?<![A-Za-z0-9._%+-])@([a-zA-Z0-9_]{1,15})\b/;
     const twitterUrlMatch = trimmedText.match(twitterUrlRegex);
     if (twitterUrlMatch) {
       data.twitter = twitterUrlMatch[0].replace(/\/$/, "");

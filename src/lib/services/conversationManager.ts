@@ -153,13 +153,34 @@ export class ConversationManager {
   }
 
   /**
-   * Update collected data with new information from conversation
+   * Update collected data with new information from conversation.
+   * Uses a protective merge: new string fields overwrite only if non-empty,
+   * and new arrays overwrite only if they have items. This prevents an
+   * incomplete extraction from erasing previously collected data.
    */
   updateData(newData: Partial<ResumeDataRequirements>): void {
-    this.collectedData = {
-      ...this.collectedData,
-      ...newData,
-    };
+    for (const [key, value] of Object.entries(newData)) {
+      if (value === undefined || value === null) continue;
+
+      // For arrays: only overwrite if the new array has items
+      if (Array.isArray(value)) {
+        if (value.length > 0) {
+          (this.collectedData as Record<string, unknown>)[key] = value;
+        }
+        continue;
+      }
+
+      // For strings: only overwrite if non-empty
+      if (typeof value === "string") {
+        if (value.trim().length > 0) {
+          (this.collectedData as Record<string, unknown>)[key] = value;
+        }
+        continue;
+      }
+
+      // Other types: overwrite directly
+      (this.collectedData as Record<string, unknown>)[key] = value;
+    }
   }
 
   /**

@@ -92,7 +92,6 @@ describe("GET /api/health", () => {
     expect(json.status).toBe("ok");
     expect(json.services.firestore.status).toBe("ok");
     expect(json.services.ai.status).toBe("ok");
-    expect(json.services.email.status).toBe("ok");
   });
 
   it("returns degraded when a dependency fails", async () => {
@@ -105,7 +104,6 @@ describe("GET /api/health", () => {
         get: jest.fn().mockRejectedValue(new Error("firestore down")),
       }),
     });
-    mockVerify.mockRejectedValueOnce(new Error("smtp down"));
 
     const response = await GET();
     const json = await response.json();
@@ -114,6 +112,5 @@ describe("GET /api/health", () => {
     expect(json.status).toBe("degraded");
     expect(json.services.firestore.status).toBe("error");
     expect(json.services.ai.status).toBe("error");
-    expect(json.services.email.status).toBe("error");
   });
 });

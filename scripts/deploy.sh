@@ -143,7 +143,18 @@ run_quality_checks() {
   # Temporarily move .env.local to avoid overriding .env.production during prod build
   if [ -f .env.local ]; then
     mv .env.local .env.local.temp_backup
+    echo "    (temporarily moved .env.local → .env.local.temp_backup)"
   fi
+  
+  # Run the prod env verification (catches misconfig even if .env.local was already absent)
+  node scripts/verify-prod-env.js || {
+    # Restore .env.local before exiting
+    if [ -f .env.local.temp_backup ]; then
+      mv .env.local.temp_backup .env.local
+    fi
+    echo -e "${RED}❌ Environment verification failed — aborting build.${NC}"
+    exit 1
+  }
   
   NODE_ENV=production npm run build --silent 2>&1 | tail -5 || true
   

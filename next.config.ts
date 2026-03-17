@@ -1,13 +1,29 @@
 import type { NextConfig } from "next";
 import packageJson from "./package.json";
+import { execSync } from "child_process";
 
-if (process.env.NODE_ENV === 'development') {
+// BUILD-TIME GUARD: Abort if dev Firebase config leaks into a prod build.
+// This catches the case where someone runs `firebase deploy` or `next build`
+// directly without using deploy.sh (which hides .env.local automatically).
+if (
+  process.env.NEXT_PUBLIC_DEPLOY_TARGET === "prod" &&
+  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID === "switchcv-dev"
+) {
+  // eslint-disable-next-line no-console
+  console.error(
+    "\n❌ FATAL: Production build is using DEV Firebase config (switchcv-dev).\n" +
+      "   .env.local is overriding .env.production.\n" +
+      "   Fix: Remove .env.local before building, or use `npm run deploy:prod`.\n",
+  );
+  process.exit(1);
+}
+
+if (process.env.NODE_ENV === "development") {
   // HMR + Firebase Admin gRPC causes exit listener accumulation in dev.
   // Setting to 0 = unlimited listeners, safe only in dev mode.
   // See docs/error_v1.md for full explanation.
   process.setMaxListeners(0);
 }
-
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,

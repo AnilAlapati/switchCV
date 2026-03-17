@@ -320,11 +320,12 @@ export async function processSyncGeneration(
       isComplete: extractionResult.isComplete,
     });
 
-    // Step 2: Initialize conversation manager with extracted data
-    const conversationManager = new ConversationManager(
-      sessionData?.collectedData || extractionResult.data,
-    );
-
+    // Step 2: Initialize conversation manager with ACCUMULATED data.
+    // Start from previous sessionData (if any), then layer fresh extraction
+    // on top using smart merge (never overwrite populated fields with empty).
+    const seedData: Partial<ResumeDataRequirements> =
+      (sessionData?.collectedData as Partial<ResumeDataRequirements>) ?? {};
+    const conversationManager = new ConversationManager(seedData);
     conversationManager.updateData(extractionResult.data);
     const progress = conversationManager.getProgress();
 

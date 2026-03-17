@@ -317,4 +317,193 @@ describe("ConversationManager", () => {
       expect(summary).toContain("enough information");
     });
   });
+
+  describe("updateData — protective merge", () => {
+    it("should NOT overwrite existing experience with an empty array", () => {
+      const manager = new ConversationManager({
+        name: "Anil",
+        email: "anil@test.com",
+        experience: [
+          {
+            title: "SWE3",
+            company: "JPMC",
+            duration: "2020-present",
+            description: "Team Lead",
+          },
+        ],
+      });
+
+      // Simulate a later extraction that has education but missed experience
+      manager.updateData({
+        education: [
+          {
+            degree: "B.Tech",
+            institution: "S.B.C.E",
+            year: "2010-2014",
+            major: "E.C.E",
+            gpa: "7.23",
+          },
+        ],
+        experience: [], // empty — extraction failed to parse experience
+      });
+
+      // Experience MUST be preserved
+      expect(manager.getData().experience).toHaveLength(1);
+      expect(manager.getData().experience![0].company).toBe("JPMC");
+      // Education should be added
+      expect(manager.getData().education).toHaveLength(1);
+    });
+
+    it("should NOT overwrite existing skills with an empty array", () => {
+      const manager = new ConversationManager({
+        name: "Anil",
+        skills: ["TypeScript", "React", "AI"],
+      });
+
+      manager.updateData({ skills: [] });
+
+      expect(manager.getData().skills).toHaveLength(3);
+    });
+
+    it("should NOT overwrite a non-empty string with an empty string", () => {
+      const manager = new ConversationManager({
+        name: "Anil",
+        summary: "Experienced engineer",
+      });
+
+      manager.updateData({ summary: "" });
+
+      expect(manager.getData().summary).toBe("Experienced engineer");
+    });
+
+    it("should NOT overwrite a non-empty string with whitespace", () => {
+      const manager = new ConversationManager({
+        name: "Anil",
+        email: "anil@test.com",
+      });
+
+      manager.updateData({ name: "  " });
+
+      expect(manager.getData().name).toBe("Anil");
+    });
+
+    it("SHOULD overwrite populated fields with populated new values", () => {
+      const manager = new ConversationManager({
+        name: "Anil",
+        email: "old@test.com",
+      });
+
+      manager.updateData({ email: "new@test.com" });
+
+      expect(manager.getData().email).toBe("new@test.com");
+    });
+
+    it("SHOULD overwrite experience array when new array has items", () => {
+      const manager = new ConversationManager({
+        experience: [
+          {
+            title: "Old Role",
+            company: "Old Corp",
+            duration: "",
+            description: "",
+          },
+        ],
+      });
+
+      manager.updateData({
+        experience: [
+          {
+            title: "SWE3",
+            company: "JPMC",
+            duration: "2020-present",
+            description: "Team Lead",
+          },
+          {
+            title: "Developer",
+            company: "IBM",
+            duration: "2015-2018",
+            description: "Software development",
+          },
+        ],
+      });
+
+      expect(manager.getData().experience).toHaveLength(2);
+      expect(manager.getData().experience![0].company).toBe("JPMC");
+    });
+
+    it("should skip undefined and null values without erasing existing data", () => {
+      const manager = new ConversationManager({
+        name: "Anil",
+        email: "anil@test.com",
+        location: "Hyderabad",
+      });
+
+      manager.updateData({
+        name: undefined,
+        email: undefined,
+      } as Partial<
+        typeof manager extends ConversationManager
+          ? Parameters<typeof manager.updateData>[0]
+          : never
+      >);
+
+      expect(manager.getData().name).toBe("Anil");
+      expect(manager.getData().email).toBe("anil@test.com");
+    });
+
+    it("simulates full multi-turn conversation without data loss", () => {
+      const manager = new ConversationManager();
+
+      // Turn 1: User gives name + email
+      manager.updateData({
+        name: "Anil A",
+        email: "anilalapati.66@gmail.com",
+      });
+      expect(manager.getData().name).toBe("Anil A");
+
+      // Turn 2: User gives experience
+      manager.updateData({
+        experience: [
+          {
+            title: "SWE3",
+            company: "JPMC",
+            duration: "current",
+            description: "Team Lead, automation projects",
+          },
+          {
+            title: "Developer",
+            company: "IBM",
+            duration: "2015-2018",
+            description: "Software development",
+          },
+        ],
+      });
+      expect(manager.getData().experience).toHaveLength(2);
+
+      // Turn 3: User gives education — extraction MISSES experience
+      manager.updateData({
+        education: [
+          {
+            degree: "B.Tech",
+            institution: "S.B.C.E",
+            year: "2010-2014",
+            major: "E.C.E",
+            gpa: "7.23",
+          },
+        ],
+        experience: [], // Extraction failed to re-extract experience
+      });
+
+      // CRITICAL: name, email, experience, AND education must ALL be present
+      const data = manager.getData();
+      expect(data.name).toBe("Anil A");
+      expect(data.email).toBe("anilalapati.66@gmail.com");
+      expect(data.experience).toHaveLength(2);
+      expect(data.education).toHaveLength(1);
+
+      const progress = manager.getProgress();
+      // name + email + experience + education = 4/6 core fields = 67%
+      expect(progress.completenessPercentage).toBeGreaterThanOrEqual(67);
+    });
+  });
 });
