@@ -23,7 +23,7 @@ const https = require("https");
 const runAll = process.argv.includes("--all");
 const caseIndex = process.argv.indexOf("--case");
 const singleCase = caseIndex !== -1 ? parseInt(process.argv[caseIndex + 1], 10) - 1 : null;
-const MODEL = "gemini-2.0-flash-lite";
+const MODEL = "gemini-2.5-flash-lite"; // was gemini-2.0-flash-lite (discontinued June 1 2026)
 
 // ─────────────────────────────────────────────
 // 5 diverse personas with realistic conversations

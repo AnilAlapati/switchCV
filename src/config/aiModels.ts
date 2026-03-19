@@ -86,14 +86,17 @@ export const AVAILABLE_AI_MODELS: AIModel[] = [
     tier: "free",
   },
   {
-    id: "gemini-2.0-flash",
-    name: "Gemini 2.0 Flash",
+    // Gemini 3.1 Flash Lite Preview — replacement for discontinued gemini-2.0-flash / gemini-2.0-flash-lite
+    // Google deprecated gemini-2.0-flash and gemini-2.0-flash-lite effective June 1, 2026.
+    // Verify the exact model ID at https://ai.google.dev/gemini-api/docs/models before going to prod.
+    id: "gemini-3.1-flash-lite-preview",
+    name: "Gemini 3.1 Flash Lite (Preview)",
     description:
-      "Fast and efficient Gemini 2.0 model, balanced speed and quality for production use",
+      "Lightweight and fast Gemini 3.1 model — the official replacement for the discontinued Gemini 2.0 Flash family",
     provider: "google",
-    modelId: "gemini-2.0-flash",
+    modelId: "gemini-3.1-flash-lite-preview",
     maxTokens: 8192,
-    costPerToken: 0.000001,
+    costPerToken: 0.0000005,
     capabilities: [
       "text-generation",
       "instruction-following",
@@ -106,15 +109,37 @@ export const AVAILABLE_AI_MODELS: AIModel[] = [
       "job-matching",
       "skill-analysis",
       "quick-edits",
+      "high-volume-tasks",
     ],
+    isEnabled: true,
+    tier: "free",
+  },
+  {
+    // DISCONTINUED — kept for display/billing history only; requests will fail after June 1 2026
+    id: "gemini-2.0-flash",
+    name: "Gemini 2.0 Flash (Discontinued)",
+    description:
+      "DISCONTINUED June 1 2026. Kept for historical cost records only.",
+    provider: "google",
+    modelId: "gemini-2.0-flash",
+    maxTokens: 8192,
+    costPerToken: 0.000001,
+    capabilities: [
+      "text-generation",
+      "instruction-following",
+      "reasoning",
+      "analysis",
+      "multimodal",
+    ],
+    recommendedFor: [],
     isEnabled: false,
     tier: "free",
   },
   {
     id: "gemini-1.5-flash",
-    name: "Gemini 1.5 Flash (Legacy)",
+    name: "Gemini 1.5 Flash (Discontinued)",
     description:
-      "Previous generation fast model from Google, still reliable for most tasks",
+      "Discontinued. Replaced by Gemini 2.5 Flash Lite. Kept for historical billing records only.",
     provider: "google",
     modelId: "gemini-1.5-flash",
     maxTokens: 8192,
@@ -137,9 +162,9 @@ export const AVAILABLE_AI_MODELS: AIModel[] = [
   },
   {
     id: "gemini-1.5-pro",
-    name: "Gemini 1.5 Pro (Legacy)",
+    name: "Gemini 1.5 Pro (Discontinued)",
     description:
-      "Previous generation advanced model from Google, maintained for compatibility",
+      "Discontinued. Replaced by Gemini 2.5 Pro. Kept for historical billing records only.",
     provider: "google",
     modelId: "gemini-1.5-pro",
     maxTokens: 32768,

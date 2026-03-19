@@ -413,7 +413,7 @@ export const AUTH = {
  */
 export const AI_CONFIG = {
   /** Default AI model */
-  DEFAULT_MODEL: "gemini-1.5-flash",
+  DEFAULT_MODEL: "gemini-2.5-flash",
 
   /** Maximum tokens for AI generation */
   MAX_TOKENS: 1000,

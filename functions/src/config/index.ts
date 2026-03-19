@@ -103,7 +103,7 @@ export class ConfigManager {
       geminiApiKey: process.env.GEMINI_API_KEY,
       groqApiKey: process.env.GROQ_API_KEY,
       openaiApiKey: process.env.OPENAI_API_KEY,
-      defaultModel: process.env.AI_DEFAULT_MODEL || "gemini-1.5-flash",
+      defaultModel: process.env.AI_DEFAULT_MODEL || "gemini-2.5-flash-lite",
       timeout: parseInt(process.env.AI_TIMEOUT_MS || "30000", 10),
       maxRetries: parseInt(process.env.AI_MAX_RETRIES || "3", 10),
     };
@@ -146,10 +146,10 @@ export class ConfigManager {
       ? process.env.CORS_ORIGIN.split(",").map((o) => o.trim())
       : isDev
         ? [
-          ...defaultCorsOrigins,
-          "http://localhost:3000",
-          "http://localhost:3001",
-        ]
+            ...defaultCorsOrigins,
+            "http://localhost:3000",
+            "http://localhost:3001",
+          ]
         : defaultCorsOrigins;
 
     this.config.security = {
@@ -267,7 +267,7 @@ export class ConfigManager {
   isEnabled(category: keyof ConfigState, feature?: string): boolean {
     try {
       const catConfig = this.get(category);
-      if (feature && typeof catConfig === 'object') {
+      if (feature && typeof catConfig === "object") {
         return Boolean((catConfig as any)[feature]);
       }
       return Boolean(catConfig);

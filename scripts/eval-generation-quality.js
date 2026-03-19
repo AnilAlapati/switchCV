@@ -43,9 +43,9 @@ const modelIndex = process.argv.indexOf("--model");
 const MODEL =
   modelIndex !== -1 && process.argv[modelIndex + 1]
     ? process.argv[modelIndex + 1]
-    : "gemini-2.0-flash-lite";
+    : "gemini-2.5-flash-lite"; // was gemini-2.0-flash-lite (discontinued June 1 2026)
 
-// Gemini Flash 2.0 Lite pricing (per 1M tokens, as of March 2026)
+// Gemini 2.5 Flash Lite pricing (per 1M tokens)
 const COST_PER_1M_INPUT_TOKENS = 0.075;  // $0.075 / 1M input tokens
 const COST_PER_1M_OUTPUT_TOKENS = 0.30;  // $0.30  / 1M output tokens
 

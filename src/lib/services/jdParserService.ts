@@ -111,7 +111,7 @@ IMPORTANT:
       prompt,
       opts.maxTokens || 1500,
       0.3,
-      "gemini-1.5-flash",
+      "gemini-2.5-flash-lite",
     );
     const parsed = JSON.parse(result.text.trim());
 

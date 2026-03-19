@@ -75,7 +75,7 @@ export async function runAgenticWorkflow(
   }
 
   // 4. MODEL SELECTION - Use tier-based models
-  // Basic/Free: Cheap models (gemini-2.0-flash)
+  // Basic/Free: Cheap models (gemini-3.1-flash-lite-preview)
   // Premium: Standard models (gemini-2.5-flash)
   // Enterprise: Best models (gemini-2.5-pro)
   const getTierModels = (
@@ -145,11 +145,13 @@ export async function runAgenticWorkflow(
     // --- TRACK COST ---
     if (isFreeTier) {
       // trackCost(ESTIMATED_COST_PER_RUN).catch(err => functions.logger.error("Failed to track cost", err));
-      BillingService
-        .trackCost(userId, ESTIMATED_COST_PER_RUN, "agentic_workflow")
-        .catch((err: any) =>
-          functions.logger.error("Failed to track billing usage", err),
-        );
+      BillingService.trackCost(
+        userId,
+        ESTIMATED_COST_PER_RUN,
+        "agentic_workflow",
+      ).catch((err: any) =>
+        functions.logger.error("Failed to track billing usage", err),
+      );
     }
 
     // --- TRACK USAGE ---

@@ -9,7 +9,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 const https = require("https");
 
-const MODEL = "gemini-2.0-flash-lite";
+const MODEL = "gemini-2.5-flash-lite"; // was gemini-2.0-flash-lite (discontinued June 1 2026)
 
 // ─────────────────────────────────────────────
 // The actual text extracted from the PDF

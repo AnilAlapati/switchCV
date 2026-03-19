@@ -39,7 +39,7 @@ class RateLimitExceeded extends Error {
 const aiConfig = config.get("ai");
 const securityConfig = config.get("security");
 const rateLimitConfig = config.get("rateLimit");
-const defaultModel = aiConfig.defaultModel || "gemini-1.5-flash";
+const defaultModel = aiConfig.defaultModel || "gemini-2.5-flash-lite";
 
 const GEMINI_API_KEY = aiConfig.geminiApiKey;
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
@@ -65,11 +65,10 @@ const helmetHandler: RequestHandler = securityConfig.enableHelmet
   : (_req, _res, next) => next();
 
 const ALLOWED_MODELS = [
-  "gemini-1.5-flash",
-  "gemini-1.5-pro",
-  "gemini-2.0-flash",
+  "gemini-2.5-flash-lite",
   "gemini-2.5-flash",
   "gemini-2.5-pro",
+  "gemini-3.1-flash-lite-preview",
 ];
 
 const jobMatchRateLimit = {
@@ -483,10 +482,10 @@ async function generateAiAnalysis(
       throw new Error("No AI provider configured - GEMINI_API_KEY required");
     }
 
-    // Default to gemini-1.5-flash if a non-Gemini model is requested
+    // Default to gemini-2.5-flash-lite if a non-Gemini model is requested
     const actualModel = modelId.startsWith("gemini-")
       ? modelId
-      : "gemini-1.5-flash";
+      : "gemini-2.5-flash-lite";
     const model = genAI.getGenerativeModel({ model: actualModel });
 
     const result = await resilientCall(

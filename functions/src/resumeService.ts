@@ -33,7 +33,7 @@ const GenerateResumeSchema = z.object({
     .passthrough(),
   template: z.string().optional().default("modern"),
   tone: z.string().optional().default("professional"),
-  modelId: z.string().optional().default("gemini-1.5-flash"),
+  modelId: z.string().optional().default("gemini-2.5-flash-lite"),
 });
 
 import { config } from "./config";
@@ -64,12 +64,14 @@ const geminiProCircuitBreaker = new CircuitBreaker(5, 60000, 2);
 
 // Map of model name → circuit breaker for fallback chain
 const MODEL_CIRCUIT_BREAKERS: Record<string, CircuitBreaker> = {
-  "gemini-1.5-flash": geminiCircuitBreaker,
-  "gemini-2.0-flash": geminiCircuitBreaker,
-  "gemini-2.5-flash": geminiCircuitBreaker,
   "gemini-2.5-flash-lite": geminiCircuitBreaker,
-  "gemini-1.5-pro": geminiProCircuitBreaker,
+  "gemini-2.5-flash": geminiCircuitBreaker,
+  "gemini-3.1-flash-lite-preview": geminiCircuitBreaker,
   "gemini-2.5-pro": geminiProCircuitBreaker,
+  // gemini-1.5-flash is 404 as of March 2026 — NOT in any fallback chain.
+  // Kept here only so stale cached model IDs don't crash the breaker lookup.
+  "gemini-1.5-flash": geminiCircuitBreaker,
+  "gemini-1.5-pro": geminiProCircuitBreaker,
 };
 
 // Retry options for AI calls
@@ -91,11 +93,10 @@ const helmetHandler = helmet({
 });
 
 const ALLOWED_MODELS = [
-  "gemini-1.5-flash",
-  "gemini-1.5-pro",
-  "gemini-2.0-flash",
+  "gemini-2.5-flash-lite",
   "gemini-2.5-flash",
   "gemini-2.5-pro",
+  "gemini-3.1-flash-lite-preview",
 ];
 
 /**
@@ -104,8 +105,12 @@ const ALLOWED_MODELS = [
  * fallback chain provides resilience for ALL tiers (including basic).
  */
 const TIER_MODEL_PREFERENCES: Record<SubscriptionTier, string[]> = {
-  basic: ["gemini-1.5-flash", "gemini-2.5-flash-lite"],
-  premium: ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-2.5-flash"],
+  basic: ["gemini-3.1-flash-lite-preview", "gemini-2.5-flash-lite"],
+  premium: [
+    "gemini-2.5-flash",
+    "gemini-3.1-flash-lite-preview",
+    "gemini-2.5-flash-lite",
+  ],
   enterprise: ALLOWED_MODELS,
 };
 
@@ -115,10 +120,10 @@ const TIER_MODEL_PREFERENCES: Record<SubscriptionTier, string[]> = {
  * Order: cheapest/fastest first, then more capable models.
  */
 const UNIVERSAL_FALLBACK_CHAIN = [
-  "gemini-1.5-flash",
-  "gemini-2.0-flash",
+  "gemini-3.1-flash-lite-preview",
+  "gemini-2.5-flash-lite",
   "gemini-2.5-flash",
-  "gemini-1.5-pro",
+  "gemini-2.5-pro",
 ];
 
 const TIER_USAGE_LIMITS: Record<
@@ -185,7 +190,7 @@ function isModelAllowedForTier(
   modelId: string,
   tier: SubscriptionTier,
 ): boolean {
-  const normalized = modelId || "gemini-1.5-flash";
+  const normalized = modelId || "gemini-2.5-flash-lite";
   const preferences = TIER_MODEL_PREFERENCES[tier] || [];
   return preferences.includes(normalized);
 }
@@ -408,10 +413,10 @@ export async function enhanceResumeWithAI(
       const client = await getGenAIClient();
       if (!client) throw new Error("Gemini client initialization failed");
 
-      // Default to gemini-1.5-flash if a non-Gemini model is requested
+      // Default to gemini-2.5-flash-lite if a non-Gemini model is requested
       const actualModel = specificModel.startsWith("gemini-")
         ? specificModel
-        : "gemini-1.5-flash";
+        : "gemini-2.5-flash-lite";
 
       return resilientCall(
         async () => {
@@ -463,7 +468,7 @@ export async function enhanceResumeWithAI(
         TIER_MODEL_PREFERENCES.basic;
       const requestedModel = modelId.startsWith("gemini-")
         ? modelId
-        : "gemini-1.5-flash";
+        : "gemini-2.5-flash-lite";
 
       // Put the requested model first, then tier preferences, then universal fallbacks
       const fallbackChain = [
