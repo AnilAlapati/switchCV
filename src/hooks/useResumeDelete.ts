@@ -66,27 +66,25 @@ export const useResumeDelete = () => {
         userId: options.userId,
       };
 
-      const url = "/api/resumes/delete";
-      let method = "POST";
-
-      if (options.method === "document-id") {
-        body.resumeDocumentId = options.value;
-        method = "POST";
-      } else if (options.method === "numeric-id") {
-        body.numericId = options.value;
-        method = "DELETE";
-      } else if (options.method === "slug") {
-        body.slug = options.value;
-        method = "POST";
-      }
-
-      const response = await fetch(url, {
-        method,
+      let url = "";
+      const fetchOptions: RequestInit = {
+        method: "DELETE",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(body),
-      });
+      };
+
+      if (options.method === "document-id" || options.method === "numeric-id") {
+        url = `/api/resumes/${options.value}`;
+        // The API route DELETE /api/resumes/[id] handles both doc-id and stringified numeric-id
+        fetchOptions.method = "DELETE";
+      } else if (options.method === "slug") {
+        // Since we migrated to numericIds = docIds, slug deletion is deprecated.
+        // We throw or handle if necessary, but returning error for safety.
+        throw new Error("Slug deletion is no longer supported. Use numeric-id.");
+      }
+
+      const response = await fetch(url, fetchOptions);
 
       const result: DeleteResponse = await response.json();
 

@@ -151,6 +151,13 @@ service cloud.firestore {
       match /surveys/{surveyId} {
         allow read, write: if isOwner(userId);
       }
+
+      // Conversation sessions — server-side only via Admin SDK
+      // Used for training data and conversation retrieval
+      match /conversationSessions/{sessionId} {
+        allow read: if false;
+        allow write: if false;
+      }
     }
 
     // Users can read and write their own profiles

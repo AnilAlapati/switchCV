@@ -40,6 +40,8 @@ export const COLLECTIONS = {
   MONITORING: "monitoring",
 
   SEED_GENERATION_LOGS: "seedGenerationLogs",
+
+  CONVERSATION_SESSIONS: "conversationSessions",
 } as const;
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];

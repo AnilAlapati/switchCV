@@ -21,6 +21,12 @@ jest.mock("@/lib/services/featureFlagService", () => ({
   isFeatureEnabled: jest.fn().mockResolvedValue(true),
 }));
 
+const mockPersistConversationSession = jest.fn().mockResolvedValue(undefined);
+jest.mock("@/lib/services/conversationStorageService", () => ({
+  persistConversationSession: (...args: unknown[]) =>
+    mockPersistConversationSession(...args),
+}));
+
 const mockPersistAIRequestSummary = jest.fn().mockResolvedValue(undefined);
 const mockPersistAIFailureEvent = jest.fn().mockResolvedValue("event-1");
 const mockMarkAIStageRecoveredWithFallback = jest
@@ -721,6 +727,21 @@ describe("Resume Generation Orchestrator", () => {
       expect(result.created).toBeUndefined();
       expect(result.progress).toBeGreaterThan(0);
       expect(mockGenerateTextWithTier).toHaveBeenCalled();
+    });
+
+    it("persists conversation session after generation", async () => {
+      mockGenerateTextWithTier.mockResolvedValue(
+        mockAIResponse(VALID_RESPONSE_TEXT),
+      );
+
+      await processSyncGeneration(buildInput());
+
+      expect(mockPersistConversationSession).toHaveBeenCalledTimes(1);
+      const sessionArg = mockPersistConversationSession.mock.calls[0][0];
+      expect(sessionArg.userId).toBe("test-user-123");
+      expect(sessionArg.messages.length).toBeGreaterThan(0);
+      expect(sessionArg.outcome).toBe("resume_created");
+      expect(sessionArg.metadata.pipeline).toBe("v2_structured");
     });
   });
 });

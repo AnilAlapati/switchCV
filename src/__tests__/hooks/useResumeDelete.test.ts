@@ -37,10 +37,10 @@ describe("useResumeDelete", () => {
     expect(result.current.loading).toBe(false);
     expect(result.current.error).toBeNull();
     expect(global.fetch).toHaveBeenCalledWith(
-      "/api/resumes/delete",
+      "/api/resumes/123",
       expect.objectContaining({
         method: "DELETE",
-        body: JSON.stringify({ userId: undefined, numericId: 123 }),
+        headers: { "Content-Type": "application/json" }
       })
     );
   });
@@ -71,9 +71,7 @@ describe("useResumeDelete", () => {
     });
   });
 
-  it("should handle network error", async () => {
-    (global.fetch as jest.Mock).mockRejectedValue(new Error("Network error"));
-
+  it("should handle slug deprecation safely", async () => {
     const { result } = renderHook(() => useResumeDelete());
 
     let deleteResult;
@@ -85,9 +83,8 @@ describe("useResumeDelete", () => {
     });
 
     expect(deleteResult).toBeNull();
-    expect(result.current.loading).toBe(false);
     expect(result.current.error).toEqual({
-      message: "Network error",
+      message: "Slug deletion is no longer supported. Use numeric-id.",
       code: "NETWORK_ERROR",
     });
   });

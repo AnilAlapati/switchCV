@@ -59,6 +59,8 @@ import {
   applyCreativePolish,
   type CreativeStyle,
 } from "@/lib/services/resumeCreativePolisher";
+import { persistConversationSession } from "@/lib/services/conversationStorageService";
+import type { ConversationMessage } from "@/lib/services/conversationStorageService";
 import { AIResumeResponseSchema } from "@/lib/schemas/aiResumeSchema";
 import { zodToGeminiSchema } from "@/lib/utils/zodToGeminiSchema";
 
@@ -903,6 +905,42 @@ export async function processSyncGeneration(
       },
     };
   } finally {
+    // Persist conversation session (fire-and-forget — never blocks generation)
+    const now = new Date().toISOString();
+    const sessionMessages: ConversationMessage[] = allMessages.map((m) => ({
+      role: m.isUser ? ("user" as const) : ("assistant" as const),
+      content: m.content,
+      timestamp: m.timestamp ?? now,
+    }));
+
+    persistConversationSession({
+      sessionId: observationContext.requestId,
+      userId,
+      resumeId: undefined, // Updated below if created
+      numericResumeId: undefined,
+      createdAt: observationContext.startedAt?.toISOString?.() ?? now,
+      updatedAt: now,
+      turnCount: sessionMessages.length,
+      messages: sessionMessages,
+      metadata: {
+        userTier,
+        pipeline: flags.resume_v2_writer ? "v2_structured" : "v1_regex",
+        inputSources: input.inputSources,
+        model: undefined,
+      },
+      outcome: monitoringSummary.createdResume
+        ? "resume_created"
+        : monitoringSummary.finalOutcome === "conversation_continues"
+          ? "in_progress"
+          : "abandoned",
+      expiresAt: "",
+    }).catch((err) => {
+      logger.error(
+        { err, userId },
+        "Failed to persist conversation session (non-blocking)",
+      );
+    });
+
     await persistAIRequestSummary({
       context: observationContext,
       userVisibleFailure: monitoringSummary.userVisibleFailure,
