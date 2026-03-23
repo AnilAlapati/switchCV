@@ -1,10 +1,14 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import AuthPage from "@/app/auth/page";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { useRouter, useSearchParams } from "next/navigation";
 
 // Mock hooks
 jest.mock("@/hooks/useAuth");
+jest.mock("@/hooks/useUserProfile", () => ({
+  useUserProfile: jest.fn(),
+}));
 jest.mock("next/navigation");
 jest.mock("@/context/SystemConfigProvider", () => {
   const { defaultSystemConfig } = jest.requireActual("@/lib/system-config");
@@ -112,6 +116,12 @@ describe("AuthPage", () => {
 
     (useSearchParams as jest.Mock).mockReturnValue({
       get: jest.fn(),
+    });
+
+    (useUserProfile as jest.Mock).mockReturnValue({
+      profile: null,
+      loading: false,
+      mutate: jest.fn(),
     });
 
     mockSignInWithGoogle.mockResolvedValue({ needsUsername: false });
@@ -237,14 +247,14 @@ describe("AuthPage", () => {
     });
   });
 
-  it("redirects to choose-username if Google user needs username", async () => {
+  it("keeps Google username onboarding on auth until approval is resolved", async () => {
     mockSignInWithGoogle.mockResolvedValue({ needsUsername: true });
     render(<AuthPage />);
     fireEvent.click(screen.getByText("Continue with Google"));
 
     await waitFor(() => {
       expect(mockSignInWithGoogle).toHaveBeenCalled();
-      expect(mockPush).toHaveBeenCalledWith("/auth/choose-username");
+      expect(mockPush).toHaveBeenCalledWith("/auth");
     });
   });
 
@@ -298,5 +308,34 @@ describe("AuthPage", () => {
 
     render(<AuthPage />);
     expect(screen.getByTestId("verification-notice")).toBeInTheDocument();
+  });
+
+  it("shows pending approval notice instead of redirecting pending users who still need usernames", async () => {
+    (useAuth as jest.Mock).mockReturnValue({
+      user: { uid: "123" },
+      loading: false,
+      needsEmailVerification: false,
+      needsUsername: true,
+      verificationEmail: "pending@example.com",
+      resendVerificationEmail: mockResendVerificationEmail,
+      refreshUser: mockRefreshUser,
+      checkNeedsUsername: mockCheckNeedsUsername,
+    });
+    (useUserProfile as jest.Mock).mockReturnValue({
+      profile: {
+        uid: "123",
+        email: "pending@example.com",
+        approvalStatus: "pending",
+      },
+      loading: false,
+      mutate: jest.fn(),
+    });
+
+    render(<AuthPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("verification-notice")).toBeInTheDocument();
+    });
+    expect(mockPush).not.toHaveBeenCalled();
   });
 });

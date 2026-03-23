@@ -2,13 +2,15 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { applyActionCode } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useDebouncedValue } from "@/hooks/useDebounce";
 import { USERNAME_CONFIG } from "@/config/constants";
-import { useUsernameChecker } from "./useAuthPage.helpers";
+import {
+  useEmailVerificationHandler,
+  useUsernameChecker,
+} from "./useAuthPage.helpers";
 import type { UsernameStatus, UseAuthPageReturn } from "./useAuthPage.types";
 
 export type {
@@ -55,7 +57,6 @@ export function useAuthPage(): UseAuthPageReturn {
     signInWithGoogle,
     resendVerificationEmail,
     refreshUser,
-    checkNeedsUsername,
   } = useAuth();
 
   // Profile — needed to gate Google/OAuth users who are pending admin approval
@@ -83,67 +84,14 @@ export function useAuthPage(): UseAuthPageReturn {
     }
   }, [searchParams]);
 
-  // Handle email verification link and custom verification success
-  useEffect(() => {
-    const handleEmailVerification = async () => {
-      const mode = searchParams.get("mode");
-      const oobCode = searchParams.get("oobCode");
-      const isCustomSuccess =
-        searchParams.get("verificationSuccess") === "true";
-
-      if (isCustomSuccess && !verificationAttempted.current) {
-        verificationAttempted.current = true;
-        setVerificationSuccess(true);
-        // Refresh user to update UI state
-        await refreshUser();
-        return;
-      }
-
-      if (
-        (mode === "verifyEmail" || mode === "verify-email") &&
-        oobCode &&
-        auth &&
-        !verificationAttempted.current
-      ) {
-        verificationAttempted.current = true;
-        setVerificationProcessing(true);
-        setError("");
-
-        try {
-          await applyActionCode(auth, oobCode);
-
-          if (auth.currentUser) {
-            await auth.currentUser.reload();
-            await auth.currentUser.getIdToken(true);
-          }
-
-          setVerificationSuccess(true);
-          setError("");
-          await refreshUser();
-        } catch (err) {
-          const firebaseError = err as { code?: string; message?: string };
-          if (firebaseError.code === "auth/expired-action-code") {
-            setError(
-              "This verification link has expired. Please request a new one.",
-            );
-          } else if (firebaseError.code === "auth/invalid-action-code") {
-            setError(
-              "This verification link is invalid or has already been used.",
-            );
-          } else {
-            setError(
-              firebaseError.message ||
-                "Failed to verify email. Please try again.",
-            );
-          }
-        } finally {
-          setVerificationProcessing(false);
-        }
-      }
-    };
-
-    handleEmailVerification();
-  }, [searchParams, refreshUser]);
+  useEmailVerificationHandler({
+    refreshUser,
+    searchParams,
+    verificationAttempted,
+    setError,
+    setVerificationProcessing,
+    setVerificationSuccess,
+  });
 
   // Redirect authenticated users
   // NOTE: !loading guard prevents this effect from firing mid-Google-sign-in.
@@ -159,19 +107,33 @@ export function useAuthPage(): UseAuthPageReturn {
       !loading &&
       !profileLoading &&
       user &&
-      !needsEmailVerification &&
-      !isPendingApproval
+      !needsEmailVerification
     ) {
-      const target = needsUsername ? "/auth/choose-username" : "/dashboard";
+      if (needsUsername && !isPendingApproval) {
+        // Users who still need a username can continue once approval is complete.
+        const target = "/auth/choose-username";
 
-      // If we just verified the email, show the success message for 2.5 seconds
-      if (verificationSuccess) {
-        const timer = setTimeout(() => {
+        // If we just verified the email, show the success message for 2.5 seconds
+        if (verificationSuccess) {
+          const timer = setTimeout(() => {
+            router.push(target);
+          }, 2500);
+          return () => clearTimeout(timer);
+        } else {
           router.push(target);
-        }, 2500);
-        return () => clearTimeout(timer);
-      } else {
-        router.push(target);
+        }
+      } else if (!isPendingApproval) {
+        // Only safely route to dashboard if they are NOT pending approval
+        const target = "/dashboard";
+        
+        if (verificationSuccess) {
+          const timer = setTimeout(() => {
+            router.push(target);
+          }, 2500);
+          return () => clearTimeout(timer);
+        } else {
+          router.push(target);
+        }
       }
     }
   }, [
@@ -183,7 +145,6 @@ export function useAuthPage(): UseAuthPageReturn {
     loading,
     profileLoading,
     router,
-    checkNeedsUsername,
     verificationSuccess,
   ]);
 
@@ -244,9 +205,9 @@ export function useAuthPage(): UseAuthPageReturn {
     setLoading(true);
     try {
       const result = await signInWithGoogle();
-      router.push(
-        result.needsUsername ? "/auth/choose-username" : "/dashboard",
-      );
+      // Return to /auth when username onboarding is still required so the
+      // approval gate can decide whether to continue to choose-username.
+      router.push(result.needsUsername ? "/auth" : "/dashboard");
     } catch (err) {
       if (
         err instanceof Error &&
@@ -347,7 +308,11 @@ export function useAuthPage(): UseAuthPageReturn {
       handleUseSuggestion,
       logout: handleLogout,
     },
-    authContext: { needsEmailVerification, verificationEmail },
+    authContext: {
+      needsEmailVerification,
+      needsUsername,
+      verificationEmail,
+    },
     isCheckingUsername,
   };
 }

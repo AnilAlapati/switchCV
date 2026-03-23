@@ -7,6 +7,7 @@ import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import ChooseUsernamePage from "@/app/auth/choose-username/page";
 
 // Mock modules
@@ -15,6 +16,9 @@ jest.mock("next/navigation", () => ({
 }));
 
 jest.mock("@/hooks/useAuth");
+jest.mock("@/hooks/useUserProfile", () => ({
+    useUserProfile: jest.fn(),
+}));
 
 // Mock SystemConfigProvider
 jest.mock("@/context/SystemConfigProvider", () => {
@@ -51,6 +55,10 @@ describe("ChooseUsernamePage", () => {
         jest.clearAllMocks();
         (useRouter as jest.Mock).mockReturnValue(mockRouter);
         mockFetch.mockReset();
+        (useUserProfile as jest.Mock).mockReturnValue({
+            profile: { approvalStatus: "approved" },
+            loading: false,
+        });
     });
 
     describe("Loading State", () => {
@@ -154,6 +162,20 @@ describe("ChooseUsernamePage", () => {
             await waitFor(() => {
                 expect(mockRouter.replace).toHaveBeenCalledWith("/dashboard");
             });
+        });
+
+        it("should redirect pending users back to auth", async () => {
+            (useUserProfile as jest.Mock).mockReturnValue({
+                profile: { approvalStatus: "pending" },
+                loading: false,
+            });
+
+            render(<ChooseUsernamePage />);
+
+            await waitFor(() => {
+                expect(mockRouter.replace).toHaveBeenCalledWith("/auth");
+            });
+            expect(mockCheckNeedsUsername).not.toHaveBeenCalled();
         });
     });
 

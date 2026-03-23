@@ -42,6 +42,7 @@ export interface UseAuthPageReturn {
   actions: AuthPageActions;
   authContext: {
     needsEmailVerification: boolean;
+    needsUsername: boolean;
     verificationEmail: string | null;
   };
   isCheckingUsername: boolean;

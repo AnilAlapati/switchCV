@@ -7,6 +7,13 @@ import * as functions from "firebase-functions/v1";
 import { randomUUID, createHash, randomBytes } from "crypto";
 import { config } from "../config";
 
+const LOCAL_BASE_URL = "http://localhost:3000";
+const PROJECT_BASE_URLS: Record<string, string> = {
+  "switchcv-dev": "https://switchcv-dev.web.app",
+  "switchcv-staging": "https://switchcv-staging.web.app",
+  "switchcv-e5136": "https://switchcv.com",
+};
+
 const defaultVerificationPath =
   process.env.VERIFICATION_PATH ||
   process.env.NEXT_PUBLIC_AUTH_VERIFICATION_PATH ||
@@ -15,6 +22,85 @@ const defaultVerificationPath =
 export const normalizeBase = (value: string): string =>
   value.endsWith("/") ? value.slice(0, -1) : value;
 
+const resolveProjectId = (): string | undefined =>
+  process.env.GCLOUD_PROJECT ||
+  process.env.GOOGLE_CLOUD_PROJECT ||
+  process.env.GCP_PROJECT ||
+  process.env.FIREBASE_PROJECT_ID ||
+  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+
+const isLocalhostUrl = (value: string): boolean => {
+  try {
+    const hostname = new URL(value).hostname;
+    return hostname === "localhost" || hostname === "127.0.0.1";
+  } catch {
+    return value.includes("localhost") || value.includes("127.0.0.1");
+  }
+};
+
+export const resolvePublicBaseUrl = (): string => {
+  const explicitBaseUrl =
+    process.env.WEBSITE_URL ||
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    process.env.NEXT_PUBLIC_APP_URL;
+
+  if (process.env.FUNCTIONS_EMULATOR === "true") {
+    return normalizeBase(explicitBaseUrl || LOCAL_BASE_URL);
+  }
+
+  const projectId = resolveProjectId();
+  const fallbackBaseUrl = PROJECT_BASE_URLS["switchcv-e5136"];
+  const projectBaseUrl = projectId ? PROJECT_BASE_URLS[projectId] : undefined;
+
+  if (!explicitBaseUrl) {
+    if (!projectBaseUrl) {
+      functions.logger.warn(
+        {
+          projectId: projectId || "unknown",
+          fallbackBaseUrl,
+        },
+        "Unknown project ID for email links; using fallback public base URL",
+      );
+      return normalizeBase(fallbackBaseUrl);
+    }
+
+    return normalizeBase(projectBaseUrl);
+  }
+
+  const normalizedExplicitBaseUrl = normalizeBase(explicitBaseUrl);
+  if (!projectBaseUrl) {
+    functions.logger.warn(
+      {
+        projectId: projectId || "unknown",
+        explicitBaseUrl: normalizedExplicitBaseUrl,
+      },
+      "Unknown project ID for email links; using explicit public base URL",
+    );
+    return normalizedExplicitBaseUrl;
+  }
+
+  const normalizedProjectBaseUrl = normalizeBase(projectBaseUrl);
+  const knownProjectMismatch =
+    Object.values(PROJECT_BASE_URLS)
+      .map((url) => normalizeBase(url))
+      .includes(normalizedExplicitBaseUrl) &&
+    normalizedExplicitBaseUrl !== normalizedProjectBaseUrl;
+
+  if (isLocalhostUrl(normalizedExplicitBaseUrl) || knownProjectMismatch) {
+    functions.logger.warn(
+      {
+        projectId: projectId || "unknown",
+        explicitBaseUrl: normalizedExplicitBaseUrl,
+        resolvedBaseUrl: normalizedProjectBaseUrl,
+      },
+      "Overriding mismatched public base URL for email links",
+    );
+    return normalizedProjectBaseUrl;
+  }
+
+  return normalizedExplicitBaseUrl;
+};
+
 export const buildVerificationLink = (): string => {
   const explicitLink =
     process.env.AUTH_VERIFICATION_URL || process.env.EMAIL_VERIFICATION_URL;
@@ -22,9 +108,7 @@ export const buildVerificationLink = (): string => {
     return explicitLink;
   }
 
-  const baseUrl = normalizeBase(
-    process.env.WEBSITE_URL || "https://switchcv.com",
-  );
+  const baseUrl = resolvePublicBaseUrl();
   const path = defaultVerificationPath.startsWith("/")
     ? defaultVerificationPath
     : `/${defaultVerificationPath}`;
@@ -49,9 +133,7 @@ export const generateCustomVerificationToken = async (
     used: false,
   });
 
-  const baseUrl = normalizeBase(
-    process.env.WEBSITE_URL || "https://switchcv.com",
-  );
+  const baseUrl = resolvePublicBaseUrl();
   return `${baseUrl}/api/auth/verify?token=${token}`;
 };
 

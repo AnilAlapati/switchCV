@@ -152,6 +152,13 @@ export async function GET(request: NextRequest) {
     // Token is valid - proceed with decline
     const userId = requestData.userId;
     const userEmail = requestData.email;
+    const userRef = adminDb.collection("users").doc(userId);
+    const userDoc = await userRef.get();
+    const reservedUsername =
+      typeof userDoc.data()?.username === "string" &&
+      userDoc.data()?.username.trim().length > 0
+        ? userDoc.data()?.username.trim()
+        : null;
 
     // Get decline reason from system config in Firestore
     let declineReason =
@@ -176,19 +183,29 @@ export async function GET(request: NextRequest) {
       disabled: true,
     });
 
-    // Update user document
-    await adminDb.collection("users").doc(userId).update({
+    const batch = adminDb.batch();
+
+    // Update user document and release any claimed username so declined
+    // registrations cannot permanently block it.
+    batch.update(userRef, {
       approvalStatus: "declined",
       accountDisabled: true,
+      needsUsername: false,
+      username: null,
       updatedAt: new Date(),
     });
 
-    // Update approval request
-    await requestRef.update({
+    batch.update(requestRef, {
       status: "declined",
       processedAt: new Date(),
       updatedAt: new Date(),
     });
+
+    if (reservedUsername) {
+      batch.delete(adminDb.collection("usernames").doc(reservedUsername));
+    }
+
+    await batch.commit();
 
     // Send decline notification email
     await adminDb.collection("mail").add({

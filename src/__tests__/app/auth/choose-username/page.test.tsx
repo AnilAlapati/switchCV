@@ -2,6 +2,7 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import ChooseUsernamePage from "@/app/auth/choose-username/page";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { useDebouncedValue } from "@/hooks/useDebounce";
 
 // Mock next/navigation
@@ -12,6 +13,10 @@ jest.mock("next/navigation", () => ({
 // Mock hooks
 jest.mock("@/hooks/useAuth", () => ({
   useAuth: jest.fn(),
+}));
+
+jest.mock("@/hooks/useUserProfile", () => ({
+  useUserProfile: jest.fn(),
 }));
 
 jest.mock("@/hooks/useDebounce", () => ({
@@ -47,6 +52,10 @@ describe("ChooseUsernamePage", () => {
       setUsername: mockSetUsername,
       checkNeedsUsername: mockCheckNeedsUsername,
     });
+    (useUserProfile as jest.Mock).mockReturnValue({
+      profile: { approvalStatus: "approved" },
+      loading: false,
+    });
     mockCheckNeedsUsername.mockResolvedValue(true);
     mockSetUsername.mockResolvedValue(undefined);
     (useDebouncedValue as jest.Mock).mockReturnValue({ debouncedValue: "", isPending: false });
@@ -75,6 +84,20 @@ describe("ChooseUsernamePage", () => {
     await waitFor(() => {
       expect(mockRouter.replace).toHaveBeenCalledWith("/dashboard");
     });
+  });
+
+  it("redirects pending users back to auth before they can claim a username", async () => {
+    (useUserProfile as jest.Mock).mockReturnValue({
+      profile: { approvalStatus: "pending" },
+      loading: false,
+    });
+
+    render(<ChooseUsernamePage />);
+
+    await waitFor(() => {
+      expect(mockRouter.replace).toHaveBeenCalledWith("/auth");
+    });
+    expect(mockCheckNeedsUsername).not.toHaveBeenCalled();
   });
 
   it("checks availability when username is debounced", async () => {

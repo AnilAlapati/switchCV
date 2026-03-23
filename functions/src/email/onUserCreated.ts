@@ -8,13 +8,13 @@ import {
   AuditAction,
   ResourceType,
 } from "../services/auditLogger";
-import { config } from "../config";
 import {
   getUserApprovalConfig,
   shouldAutoApprove,
   generateApprovalToken,
   buildVerificationLink,
   generateCustomVerificationToken,
+  resolvePublicBaseUrl,
 } from "./shared";
 import {
   buildAdminApprovalEmailHtml,
@@ -43,7 +43,7 @@ export const onUserCreatedHandler = async (
 
     // Check if manual user approval is enabled
     const approvalConfig = await getUserApprovalConfig();
-    const websiteUrl = config.get("app").websiteUrl;
+    const websiteUrl = resolvePublicBaseUrl();
 
     // Check for auto-approve domains
     const isAutoApproved = user.email

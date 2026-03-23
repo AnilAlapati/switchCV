@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { useDebouncedValue } from "@/hooks/useDebounce";
 import { USERNAME_CONFIG } from "@/config/constants";
 import { UsernameInput } from "@/components/auth/UsernameInput";
@@ -23,6 +24,7 @@ type AvailabilityStatus =
 export default function ChooseUsernamePage() {
   const router = useRouter();
   const { user, loading, setUsername, checkNeedsUsername } = useAuth();
+  const { profile, loading: profileLoading } = useUserProfile();
 
   const [username, setUsernameInput] = useState("");
   const [status, setStatus] = useState<AvailabilityStatus>("idle");
@@ -48,12 +50,27 @@ export default function ChooseUsernamePage() {
   })();
 
   useEffect(() => {
-    if (!loading && user) {
+    if (!loading && !profileLoading && user) {
+      if (
+        profile?.approvalStatus === "pending" ||
+        profile?.approvalStatus === "declined"
+      ) {
+        router.replace("/auth");
+        return;
+      }
+
       checkNeedsUsername().then((needs) => {
         if (!needs) router.replace("/dashboard");
       });
     }
-  }, [loading, user, checkNeedsUsername, router]);
+  }, [
+    loading,
+    profile?.approvalStatus,
+    profileLoading,
+    user,
+    checkNeedsUsername,
+    router,
+  ]);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/auth");
@@ -154,7 +171,7 @@ export default function ChooseUsernamePage() {
     if (suggestion) setUsernameInput(suggestion);
   };
 
-  if (loading) {
+  if (loading || profileLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#FFFFF8]">
         <div data-testid="loading-spinner" className="w-6 h-6 border-2 border-black border-t-transparent rounded-full animate-spin"></div>

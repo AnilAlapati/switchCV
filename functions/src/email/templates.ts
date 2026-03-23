@@ -7,6 +7,42 @@ import { config } from "../config";
 
 // ── Admin approval email ────────────────────────────────────────────────────
 
+const getAuthTypeLabel = (
+  user: admin.auth.UserRecord,
+  userData: admin.firestore.DocumentData | undefined,
+): string => {
+  const providerId =
+    userData?.authProvider || user.providerData?.[0]?.providerId || "unknown";
+
+  if (providerId === "google.com") {
+    return "Google sign-in";
+  }
+
+  if (providerId === "password") {
+    return "Email/password";
+  }
+
+  return providerId;
+};
+
+const getUsernameLabel = (
+  user: admin.auth.UserRecord,
+  userData: admin.firestore.DocumentData | undefined,
+): string => {
+  if (userData?.username) {
+    return userData.username;
+  }
+
+  const providerId =
+    userData?.authProvider || user.providerData?.[0]?.providerId || "unknown";
+
+  if (providerId === "google.com") {
+    return "Will be chosen after approval";
+  }
+
+  return "Not set";
+};
+
 export function buildAdminApprovalEmailHtml(
   user: admin.auth.UserRecord,
   userData: admin.firestore.DocumentData | undefined,
@@ -16,7 +52,8 @@ export function buildAdminApprovalEmailHtml(
 ): string {
   const firstName = userData?.firstName || user.displayName || "New User";
   const email = user.email || "No email provided";
-  const username = userData?.username || "Not set";
+  const username = getUsernameLabel(user, userData);
+  const authType = getAuthTypeLabel(user, userData);
   const createdAt = new Date().toISOString();
 
   return `
@@ -49,6 +86,10 @@ export function buildAdminApprovalEmailHtml(
           <td style="color: #1F2937; padding: 8px 0; font-weight: 500;">${username}</td>
         </tr>
         <tr>
+          <td style="color: #6B7280; padding: 8px 0;">Auth Type:</td>
+          <td style="color: #1F2937; padding: 8px 0; font-weight: 500;">${authType}</td>
+        </tr>
+        <tr>
           <td style="color: #6B7280; padding: 8px 0;">User ID:</td>
           <td style="color: #1F2937; padding: 8px 0; font-family: monospace; font-size: 12px;">${user.uid}</td>
         </tr>
@@ -71,6 +112,9 @@ export function buildAdminApprovalEmailHtml(
     <p style="color: #6B7280; font-size: 14px; text-align: center;">
       Click the button above to approve or decline this registration.
     </p>
+    <p style="color: #6B7280; font-size: 13px; text-align: center;">
+      Google sign-in users choose their username after approval, so a missing username here is expected.
+    </p>
 
     <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
     <p style="color: #a0aec0; font-size: 12px; text-align: center;">
@@ -90,7 +134,8 @@ export function buildAdminApprovalEmailText(
 ): string {
   const firstName = userData?.firstName || user.displayName || "New User";
   const email = user.email || "No email provided";
-  const username = userData?.username || "Not set";
+  const username = getUsernameLabel(user, userData);
+  const authType = getAuthTypeLabel(user, userData);
   const createdAt = new Date().toISOString();
 
   return `NEW USER REGISTRATION APPROVAL
@@ -102,6 +147,7 @@ USER INFORMATION
 Name: ${firstName}
 Email: ${email}
 Username: ${username}
+Auth Type: ${authType}
 User ID: ${user.uid}
 Registered: ${createdAt}
 
@@ -109,6 +155,9 @@ ACTIONS
 -------
 Approve User: ${approveUrl}
 Decline User: ${declineUrl}
+
+---
+Google sign-in users choose their username after approval, so a missing username here is expected.
 
 ---
 This is an automated notification from SwitchCV User Approval System.`;

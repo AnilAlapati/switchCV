@@ -12,9 +12,13 @@ import { CreateResumeWelcome } from "@/components/create-resume/CreateResumeWelc
 import { AILoadingState } from "@/components/create-resume/AILoadingState";
 import { ResumeProgress } from "@/components/create-resume/ResumeProgress";
 import { SessionRestoreDialog } from "@/components/create-resume/SessionRestoreDialog";
+import { ResumePreview } from "@/components/ResumePreview";
 import { getVerificationRoute } from "@/lib/config";
 import { Bot, User } from "lucide-react";
 import { useResumeCreation } from "@/hooks/useResumeCreation";
+import type { ResumeDataRequirements } from "@/lib/services/conversationManager";
+import { mapSessionDataToPreviewProfile } from "./previewProfile";
+
 
 const VERIFICATION_ROUTE = getVerificationRoute();
 
@@ -107,6 +111,11 @@ export default function CreateResume() {
 
   const shouldShowProgress = progress > 0;
 
+  const previewProfile = mapSessionDataToPreviewProfile(
+    ((sessionData as any)?.collectedData as Partial<ResumeDataRequirements>) ||
+      {},
+  );
+
   return (
     <DashboardBackground>
       <div className="flex flex-col h-screen w-screen overflow-hidden bg-background">
@@ -150,24 +159,15 @@ export default function CreateResume() {
           />
         )}
 
-        {shouldShowProgress && (
-          <div className="hidden lg:flex fixed top-32 right-10 z-20 justify-end pointer-events-none">
-            <div className="pointer-events-auto">
-              <ResumeProgress
-                {...resumeProgressProps}
-                className="border-primary/30 shadow-lg bg-card/80 backdrop-blur-md"
-              />
-            </div>
-          </div>
-        )}
-
-        <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full relative overflow-hidden">
-          <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 pt-4 pb-4">
-            {shouldShowProgress && (
-              <div className="lg:hidden mb-6">
-                <ResumeProgress {...resumeProgressProps} />
-              </div>
-            )}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Chat Column */}
+          <div className="flex-1 flex flex-col relative w-full lg:w-1/2 lg:max-w-3xl mx-auto lg:border-r lg:border-border/50 bg-background overflow-hidden">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 pt-4 pb-4">
+              {shouldShowProgress && (
+                <div className="lg:hidden mb-6">
+                  <ResumeProgress {...resumeProgressProps} />
+                </div>
+              )}
 
             {messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center min-h-[60vh] animate-in fade-in slide-in-from-bottom-8 duration-1000">
@@ -273,6 +273,25 @@ export default function CreateResume() {
                 onSubmit={handleSubmit}
                 stage={stage}
               />
+            </div>
+          </div>
+          </div>
+
+          {/* Preview Column */}
+          <div className="hidden lg:flex flex-col w-1/2 bg-gray-50/50 overflow-y-auto relative">
+            {shouldShowProgress && (
+              <div className="absolute top-4 right-4 z-20">
+                <ResumeProgress
+                  {...resumeProgressProps}
+                  className="border-primary/30 shadow-lg bg-card/80 backdrop-blur-md"
+                />
+              </div>
+            )}
+            <div className="p-8 max-w-4xl mx-auto w-full">
+              <div className="flex items-center gap-2 mb-4 text-sm font-medium text-gray-700">
+                👁️ Live Preview
+              </div>
+              <ResumePreview profile={previewProfile} compact={false} />
             </div>
           </div>
         </div>

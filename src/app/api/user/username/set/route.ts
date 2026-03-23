@@ -82,6 +82,22 @@ export async function POST(request: NextRequest) {
                 throw new Error("USER_NOT_FOUND");
             }
 
+            const userData = userSnap.data() as {
+                approvalStatus?: string;
+                accountDisabled?: boolean;
+            };
+
+            if (userData.approvalStatus === "pending") {
+                throw new Error("APPROVAL_PENDING");
+            }
+
+            if (
+                userData.approvalStatus === "declined" ||
+                userData.accountDisabled === true
+            ) {
+                throw new Error("ACCOUNT_DISABLED");
+            }
+
             // Reserve the username
             transaction.set(usernameRef, {
                 uid: userId,
@@ -114,6 +130,20 @@ export async function POST(request: NextRequest) {
             return NextResponse.json(
                 { error: "User profile not found" },
                 { status: 404 },
+            );
+        }
+
+        if (errorCode === "APPROVAL_PENDING") {
+            return NextResponse.json(
+                { error: "Your account is still pending approval." },
+                { status: 403 },
+            );
+        }
+
+        if (errorCode === "ACCOUNT_DISABLED") {
+            return NextResponse.json(
+                { error: "Your account is not eligible to claim a username." },
+                { status: 403 },
             );
         }
 

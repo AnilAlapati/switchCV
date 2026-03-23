@@ -8,6 +8,7 @@ import { checkRateLimit, RateLimitPresets } from "../middleware/rateLimiter";
 import {
   buildVerificationLink,
   generateCustomVerificationToken,
+  resolvePublicBaseUrl,
 } from "./shared";
 import { buildWelcomeEmailHtml, buildWelcomeEmailText } from "./templates";
 
@@ -60,12 +61,13 @@ export const resendVerificationEmailHandler = async (
 
     // Generate verification link with multiple fallbacks
     let verificationLink = buildVerificationLink(); // Start with manual fallback
+    const websiteUrl = resolvePublicBaseUrl();
     try {
       // Try Firebase's link with redirect
       verificationLink = await admin
         .auth()
         .generateEmailVerificationLink(email, {
-          url: `${process.env.WEBSITE_URL || "https://switchcv.com"}/dashboard`,
+          url: `${websiteUrl}/dashboard`,
           handleCodeInApp: false,
         });
     } catch (e1) {
@@ -100,7 +102,6 @@ export const resendVerificationEmailHandler = async (
     }
 
     const firstName = userData?.firstName || user.displayName || "User";
-    const websiteUrl = process.env.WEBSITE_URL || "https://switchcv.com";
 
     // Use Firebase Trigger Email Extension (same as feedback emails)
     await admin
