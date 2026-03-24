@@ -63,6 +63,22 @@ jobs:
         env:
           FIREBASE_CLI_EXPERIMENTS: webframeworks
 
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          version: ">= 448.0.0"
+
+      - name: Clean up old Artifact Registry images
+        run: |
+          chmod +x scripts/artifact-registry-cleanup.sh
+          ./scripts/artifact-registry-cleanup.sh \
+            --project switchcv-e5136 \
+            --location us-central1 \
+            --repo gcf-artifacts \
+            --keep 5
+        # Non-fatal — a cleanup failure must not block the deployment
+        continue-on-error: true
+
   validate_sync:
     name: Validate Environment Sync
     runs-on: ubuntu-latest

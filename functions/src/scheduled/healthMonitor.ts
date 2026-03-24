@@ -38,36 +38,6 @@ interface HealthState {
   lastAlertSent: FirebaseFirestore.Timestamp | null;
 }
 
-const MAX_ERROR_DETAIL_LENGTH = 200;
-
-function summarizeHttpError(status: number, rawBody: string): string {
-  const body = rawBody.trim();
-  if (!body) {
-    return `API returned ${status}`;
-  }
-
-  try {
-    const parsed = JSON.parse(body) as { error?: { message?: string } };
-    const message = parsed.error?.message?.trim();
-    if (message) {
-      const truncated =
-        message.length > MAX_ERROR_DETAIL_LENGTH
-          ? `${message.slice(0, MAX_ERROR_DETAIL_LENGTH)}...`
-          : message;
-      return `API returned ${status}: ${truncated}`;
-    }
-  } catch {
-    // Fall through to plain-text summarization.
-  }
-
-  const normalized = body.replace(/\s+/g, " ");
-  const truncated =
-    normalized.length > MAX_ERROR_DETAIL_LENGTH
-      ? `${normalized.slice(0, MAX_ERROR_DETAIL_LENGTH)}...`
-      : normalized;
-  return `API returned ${status}: ${truncated}`;
-}
-
 function computeApproxDowntimeMinutes(
   failureStartedAt: FirebaseFirestore.Timestamp | null | undefined,
   consecutiveFailures: number,
@@ -111,9 +81,19 @@ async function checkFirestore(
 }
 
 /**
- * Check Gemini AI API availability
+ * Check Gemini AI API availability — KEY EXISTENCE ONLY.
+ *
+ * We intentionally do NOT make a live HTTP call to the Gemini API here.
+ * A real API call on every health check run (previously every 30 min, now
+ * every hour) costs ~1,440–2,880 Gemini API invocations/month with zero
+ * user traffic — this was the root cause of the +6207% Gemini cost spike.
+ *
+ * Key presence is a sufficient signal: if the key is missing the function
+ * will fail on its first real use and alert then. A live probe would only
+ * detect a key revocation scenario, which happens extremely rarely and is
+ * better caught by actual request failures logged to Cloud Functions.
  */
-async function checkGeminiAI(): Promise<ServiceCheckResult> {
+function checkGeminiAI(): ServiceCheckResult {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return {
@@ -122,39 +102,10 @@ async function checkGeminiAI(): Promise<ServiceCheckResult> {
       error: "GEMINI_API_KEY not configured",
     };
   }
-
-  const start = Date.now();
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
-      { method: "GET" },
-    );
-
-    if (!response.ok) {
-      const error = summarizeHttpError(response.status, await response.text());
-      functions.logger.warn("Gemini AI health check failed", {
-        statusCode: response.status,
-        error,
-      });
-      return {
-        name: "gemini_ai",
-        status: "error",
-        error,
-      };
-    }
-
-    return {
-      name: "gemini_ai",
-      status: "ok",
-      latencyMs: Date.now() - start,
-    };
-  } catch (error) {
-    return {
-      name: "gemini_ai",
-      status: "error",
-      error: error instanceof Error ? error.message : String(error),
-    };
-  }
+  return {
+    name: "gemini_ai",
+    status: "ok",
+  };
 }
 
 /**

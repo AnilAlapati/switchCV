@@ -90,19 +90,7 @@ export const resendVerificationEmail = regionalFunctions.https.onCall(
   },
 );
 
-export const cleanupAuditLogs = regionalFunctions.pubsub
-  .schedule("every day 02:00")
-  .timeZone("UTC")
-  .onRun(async (context) => {
-    if (!isProductionEnvironment()) {
-      functions.logger.info(
-        "[COST GUARD] cleanupAuditLogs blocked in dev environment",
-      );
-      return { skipped: true, reason: "dev environment" };
-    }
-    const { cleanupAuditLogsHandler } = await import("./emailFunctions");
-    return cleanupAuditLogsHandler(context);
-  });
+// cleanupAuditLogs consolidated into nightlyCleanup (see CLEANUP TASKS section)
 
 // ==================== DATA SYNC & FAN-OUT ====================
 
@@ -202,7 +190,7 @@ export const processResumeGenerationAsync = regionalFunctions
 
 export const aggregateGlobalStats = regionalFunctions
   .runWith({ timeoutSeconds: 60, memory: "256MB" })
-  .pubsub.schedule("0 * * * *")
+  .pubsub.schedule("0 */6 * * *") // Every 6 hours (reduced from hourly to save ~600 invocations/month)
   .timeZone("UTC")
   .onRun(async (context) => {
     if (!isProductionEnvironment()) {
@@ -246,50 +234,67 @@ export const cleanupAnalyticsEvents = regionalFunctions.pubsub
   });
 
 // ==================== CLEANUP TASKS ====================
-
-export const cleanupExpiredResumes = regionalFunctions.pubsub
-  .schedule("10 2 * * *")
+// nightlyCleanup consolidates 5 former nightly jobs into 1 Cloud Scheduler job:
+//   cleanupAuditLogs, cleanupExpiredResumes, cleanupRateLimits,
+//   cleanupRecruiterSearchHistory, cleanupAiMonitoringData
+// Savings: 4 fewer Scheduler jobs (~$0.40/month) + fewer cold starts nightly
+export const nightlyCleanup = regionalFunctions
+  .runWith({ timeoutSeconds: 540, memory: "512MB" })
+  .pubsub.schedule("0 2 * * *") // Daily at 2:00 AM UTC
   .timeZone("UTC")
   .onRun(async (context) => {
     if (!isProductionEnvironment()) {
       functions.logger.info(
-        "[COST GUARD] cleanupExpiredResumes blocked in dev environment",
+        "[COST GUARD] nightlyCleanup blocked in dev environment",
       );
       return { skipped: true, reason: "dev environment" };
     }
-    const { cleanupExpiredResumesHandler } =
-      await import("./resumeCleanupService");
-    return cleanupExpiredResumesHandler(context);
-  });
+    const results: Record<string, unknown> = {};
 
-export const cleanupRateLimits = regionalFunctions.pubsub
-  .schedule("every 24 hours")
-  .timeZone("UTC")
-  .onRun(async (context) => {
-    if (!isProductionEnvironment()) {
-      functions.logger.info(
-        "[COST GUARD] cleanupRateLimits blocked in dev environment",
-      );
-      return { skipped: true, reason: "dev environment" };
-    }
-    const { cleanupRateLimitsHandler } =
-      await import("./rateLimitCleanupService");
-    return cleanupRateLimitsHandler(context);
-  });
+    const [
+      { cleanupAuditLogsHandler },
+      { cleanupExpiredResumesHandler },
+      { cleanupRateLimitsHandler },
+      { cleanupRecruiterSearchHistoryHandler },
+      { cleanupAiMonitoringDataHandler },
+    ] = await Promise.all([
+      import("./emailFunctions"),
+      import("./resumeCleanupService"),
+      import("./rateLimitCleanupService"),
+      import("./recruiterService"),
+      import("./scheduled/cleanupAiMonitoringData"),
+    ]);
 
-export const cleanupRecruiterSearchHistory = regionalFunctions.pubsub
-  .schedule("0 3 * * *")
-  .timeZone("UTC")
-  .onRun(async (context) => {
-    if (!isProductionEnvironment()) {
-      functions.logger.info(
-        "[COST GUARD] cleanupRecruiterSearchHistory blocked in dev environment",
-      );
-      return { skipped: true, reason: "dev environment" };
+    const tasks: Array<{ name: string; fn: () => Promise<unknown> }> = [
+      { name: "auditLogs", fn: () => cleanupAuditLogsHandler(context) },
+      {
+        name: "expiredResumes",
+        fn: () => cleanupExpiredResumesHandler(context),
+      },
+      { name: "rateLimits", fn: () => cleanupRateLimitsHandler(context) },
+      {
+        name: "recruiterSearchHistory",
+        fn: () => cleanupRecruiterSearchHistoryHandler(context),
+      },
+      {
+        name: "aiMonitoringData",
+        fn: () => cleanupAiMonitoringDataHandler(context),
+      },
+    ];
+
+    for (const task of tasks) {
+      try {
+        results[task.name] = await task.fn();
+      } catch (err) {
+        functions.logger.error(`[nightlyCleanup] ${task.name} failed`, { err });
+        results[task.name] = { error: true };
+      }
     }
-    const { cleanupRecruiterSearchHistoryHandler } =
-      await import("./recruiterService");
-    return cleanupRecruiterSearchHistoryHandler(context);
+
+    functions.logger.info("[nightlyCleanup] All cleanups completed", {
+      results,
+    });
+    return results;
   });
 
 export const notifyExpiringResumes = regionalFunctions.pubsub
@@ -310,7 +315,7 @@ export const notifyExpiringResumes = regionalFunctions.pubsub
 // ==================== BILLING ====================
 
 export const aggregateBilling = regionalFunctions.pubsub
-  .schedule("every 1 hours")
+  .schedule("0 */6 * * *") // Every 6 hours (reduced from hourly — billing totals don't fluctuate minute-to-minute)
   .timeZone("UTC")
   .onRun(async (context) => {
     if (!isProductionEnvironment()) {
@@ -330,7 +335,7 @@ export const aggregateBilling = regionalFunctions.pubsub
  * Uses existing AlertManager → emailService pipeline for notifications.
  */
 export const budgetMonitor = regionalFunctions.pubsub
-  .schedule("0 * * * *") // Every hour, on the hour
+  .schedule("0 */6 * * *") // Every 6 hours (reduced from hourly — saves ~600 invocations/month)
   .timeZone("UTC")
   .onRun(async (context) => {
     if (!isProductionEnvironment()) {
@@ -351,7 +356,7 @@ export const healthMonitor = regionalFunctions
   .runWith({
     secrets: ["GEMINI_API_KEY"],
   })
-  .pubsub.schedule("*/30 * * * *") // Every 30 minutes
+  .pubsub.schedule("0 * * * *") // Every hour (reduced from every 30 min — saves ~720 invocations/month)
   .timeZone("UTC")
   .onRun(async (context) => {
     if (!isProductionEnvironment()) {
@@ -366,7 +371,7 @@ export const healthMonitor = regionalFunctions
 
 export const aggregateAiMonitoring = regionalFunctions
   .runWith({ timeoutSeconds: 120, memory: "256MB" })
-  .pubsub.schedule("every 15 minutes")
+  .pubsub.schedule("0 * * * *") // Every hour (reduced from every 15 min — saves ~2,160 invocations/month)
   .timeZone("UTC")
   .onRun(async (context) => {
     if (!isProductionEnvironment()) {
@@ -375,9 +380,8 @@ export const aggregateAiMonitoring = regionalFunctions
       );
       return { skipped: true, reason: "dev environment" };
     }
-    const { aggregateAiMonitoringHandler } = await import(
-      "./scheduled/aggregateAiMonitoring"
-    );
+    const { aggregateAiMonitoringHandler } =
+      await import("./scheduled/aggregateAiMonitoring");
     return aggregateAiMonitoringHandler(context);
   });
 
@@ -391,27 +395,12 @@ export const sendAiMonitoringDigest = regionalFunctions.pubsub
       );
       return { skipped: true, reason: "dev environment" };
     }
-    const { sendAiMonitoringDigestHandler } = await import(
-      "./scheduled/sendAiMonitoringDigest"
-    );
+    const { sendAiMonitoringDigestHandler } =
+      await import("./scheduled/sendAiMonitoringDigest");
     return sendAiMonitoringDigestHandler(context);
   });
 
-export const cleanupAiMonitoringData = regionalFunctions.pubsub
-  .schedule("30 3 * * *")
-  .timeZone("UTC")
-  .onRun(async (context) => {
-    if (!isProductionEnvironment()) {
-      functions.logger.info(
-        "[COST GUARD] cleanupAiMonitoringData blocked in dev environment",
-      );
-      return { skipped: true, reason: "dev environment" };
-    }
-    const { cleanupAiMonitoringDataHandler } = await import(
-      "./scheduled/cleanupAiMonitoringData"
-    );
-    return cleanupAiMonitoringDataHandler(context);
-  });
+// cleanupAiMonitoringData consolidated into nightlyCleanup (see CLEANUP TASKS section)
 
 export const monitorAiMonitoringHealth = regionalFunctions.pubsub
   .schedule("0 4 * * *") // Daily at 4 AM UTC
@@ -423,9 +412,8 @@ export const monitorAiMonitoringHealth = regionalFunctions.pubsub
       );
       return { skipped: true, reason: "dev environment" };
     }
-    const { monitorAiMonitoringHealthHandler } = await import(
-      "./scheduled/monitorAiMonitoringHealth"
-    );
+    const { monitorAiMonitoringHealthHandler } =
+      await import("./scheduled/monitorAiMonitoringHealth");
     return monitorAiMonitoringHealthHandler(context);
   });
 
