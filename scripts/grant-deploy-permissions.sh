@@ -47,6 +47,12 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
     --member="serviceAccount:$SERVICE_ACCOUNT" \
     --role="roles/secretmanager.secretAccessor"
 
+# Deploy validation resolves secret version metadata (`secretmanager.versions.get`),
+# which requires viewer access in addition to payload access.
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+    --member="serviceAccount:$SERVICE_ACCOUNT" \
+    --role="roles/secretmanager.viewer"
+
 # 9. Grant Secret Accessor to Runtime Service Accounts (Compute & App Engine)
 # This is required because the deployment validates that the runtime account has access.
 COMPUTE_SA="${COMPUTE_SA:-${PROJECT_NUMBER}-compute@developer.gserviceaccount.com}"
@@ -70,6 +76,9 @@ if gcloud iam service-accounts describe "$GITHUB_ACTIONS_SA" --project="$PROJECT
     gcloud projects add-iam-policy-binding $PROJECT_ID \
         --member="serviceAccount:$GITHUB_ACTIONS_SA" \
         --role="roles/secretmanager.secretAccessor"
+    gcloud projects add-iam-policy-binding $PROJECT_ID \
+        --member="serviceAccount:$GITHUB_ACTIONS_SA" \
+        --role="roles/secretmanager.viewer"
 fi
 
 # 10. Grant secret-level access for deployment and runtime service accounts
