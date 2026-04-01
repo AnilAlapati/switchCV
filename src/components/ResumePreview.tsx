@@ -25,11 +25,16 @@ export const ResumePreview = ({
   profile,
   compact = false,
 }: ResumePreviewProps) => {
-  if (
-    !profile.title &&
-    !profile.summary &&
-    (profile.experience || []).length === 0
-  ) {
+  const hasAnyContent =
+    !!profile.title ||
+    !!profile.summary ||
+    !!(profile.experience && profile.experience.length > 0) ||
+    !!(profile.education && profile.education.length > 0) ||
+    !!(profile.skills && profile.skills.length > 0) ||
+    !!profile.personalInfo?.name ||
+    !!profile.contact?.email?.value;
+
+  if (!hasAnyContent) {
     return (
       <div className="bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 p-8 text-center">
         <p className="text-gray-500">

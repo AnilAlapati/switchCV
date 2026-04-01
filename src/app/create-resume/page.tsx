@@ -16,7 +16,6 @@ import { ResumePreview } from "@/components/ResumePreview";
 import { getVerificationRoute } from "@/lib/config";
 import { Bot, User } from "lucide-react";
 import { useResumeCreation } from "@/hooks/useResumeCreation";
-import type { ResumeDataRequirements } from "@/lib/services/conversationManager";
 import { mapSessionDataToPreviewProfile } from "./previewProfile";
 
 
@@ -112,7 +111,7 @@ export default function CreateResume() {
   const shouldShowProgress = progress > 0;
 
   const previewProfile = mapSessionDataToPreviewProfile(
-    ((sessionData as any)?.collectedData as Partial<ResumeDataRequirements>) ||
+    ((sessionData as Record<string, unknown>)?.collectedData as Record<string, unknown>) ||
       {},
   );
 
