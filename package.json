@@ -72,7 +72,7 @@
     "next": "^15.5.14",
     "next-intl": "^4.7.0",
     "next-swagger-doc": "^0.4.1",
-    "nodemailer": "^7.0.11",
+    "nodemailer": "^8.0.4",
     "path-browserify": "^1.0.1",
     "pdf-parse": "^2.4.5",
     "pino": "^10.1.0",
@@ -151,6 +151,7 @@
     "tar": "7.5.13",
     "terser-webpack-plugin": "5.3.17",
     "dompurify": "3.3.2",
-    "immutable": "4.3.8"
+    "immutable": "4.3.8",
+    "brace-expansion": ">=1.1.13"
   }
 }

@@ -9,9 +9,20 @@ type ServiceStatus = {
   error?: string;
 };
 
+// SECURITY FIX: Cache health check results to prevent abuse.
+// External callers hammering /api/health can no longer force repeated
+// Firestore reads and Gemini API calls.
+let cachedResult: {
+  response: ReturnType<typeof NextResponse.json>;
+  expiresAt: number;
+} | null = null;
+const CACHE_TTL_MS = 30_000; // 30 seconds
+
 const shouldBypassChecks = () =>
   process.env.NODE_ENV === "test" &&
   process.env.HEALTHCHECK_RUN_FULL !== "true";
+
+const shouldUseCache = () => process.env.NODE_ENV !== "test";
 
 async function withTimeout<T>(
   promise: Promise<T>,
@@ -102,6 +113,11 @@ async function checkGemini(): Promise<ServiceStatus> {
 }
 
 export async function GET() {
+  // Return cached result if still fresh (prevents quota/cost amplification)
+  if (shouldUseCache() && cachedResult && Date.now() < cachedResult.expiresAt) {
+    return cachedResult.response;
+  }
+
   // Run checks sequentially to reduce peak memory pressure in SSR containers.
   // NOTE: Email is NOT checked here — all emails are sent via Cloud Functions
   // (Firestore `mail` collection + Firebase firestore-send-email extension),
@@ -123,7 +139,7 @@ export async function GET() {
     ]),
   );
 
-  return NextResponse.json(
+  const response = NextResponse.json(
     {
       status: allHealthy ? "ok" : "degraded",
       timestamp: new Date().toISOString(),
@@ -131,4 +147,11 @@ export async function GET() {
     },
     { status: criticalHealthy ? 200 : 503 },
   );
+
+  // Cache the result to prevent repeated expensive checks
+  if (shouldUseCache()) {
+    cachedResult = { response, expiresAt: Date.now() + CACHE_TTL_MS };
+  }
+
+  return response;
 }

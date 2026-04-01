@@ -141,13 +141,20 @@ export async function POST(request: NextRequest) {
     }
     const trackingRequest = parseResult.data as TrackingRequest;
 
-    // Security: If userId is provided in request, it must match authenticated user
-    if (
-      trackingRequest.userId &&
-      authUserId &&
-      trackingRequest.userId !== authUserId
-    ) {
-      return handleApiError(null, "Forbidden: User ID mismatch", 403);
+    // SECURITY FIX: Prevent anonymous analytics poisoning.
+    // If userId is provided in the request, the caller MUST be authenticated
+    // and the userId MUST match. Anonymous callers cannot supply a userId.
+    if (trackingRequest.userId) {
+      if (!authUserId) {
+        return handleApiError(
+          null,
+          "Forbidden: Authentication required when userId is provided",
+          403,
+        );
+      }
+      if (trackingRequest.userId !== authUserId) {
+        return handleApiError(null, "Forbidden: User ID mismatch", 403);
+      }
     }
 
     const result = await trackAnalyticsEvent(trackingRequest);

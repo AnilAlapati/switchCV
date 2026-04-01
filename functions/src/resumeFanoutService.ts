@@ -71,7 +71,7 @@ const buildGlobalResumePayload = (
   resume: ResumeDoc,
 ): Record<string, unknown> => ({
   resumeId,
-  userId: resume.userId,
+  // SECURITY: userId intentionally omitted from recruiter-readable collection
   numericId: resume.numericId ?? resolveNumericId(resumeId),
   title: resume.title ?? "Untitled Resume",
   isPublic: resolveBoolean(resume.isPublic),
@@ -153,6 +153,9 @@ const upsertDerivedDocs = async (
 
   const userPayload = buildUserResumePayload(resumeId, resume);
   const globalPayload = buildGlobalResumePayload(resumeId, resume);
+  const visibility = resolveVisibility(resume);
+  const isPublicResume =
+    visibility === "public" && resolveBoolean(resume.published);
 
   const userDoc = db.collection("users").doc(userId);
 
@@ -171,11 +174,31 @@ const upsertDerivedDocs = async (
           "Legacy userResumes doc skipped",
         );
       }),
-    db
-      .collection("allResumes")
-      .doc(resumeId)
-      .set(globalPayload, { merge: true }),
   ];
+
+  // SECURITY: Only fan out public, published resumes to the global collection.
+  // Private or unpublished resumes must be removed from allResumes.
+  if (isPublicResume) {
+    writes.push(
+      db
+        .collection("allResumes")
+        .doc(resumeId)
+        .set(globalPayload, { merge: true }),
+    );
+  } else {
+    writes.push(
+      db
+        .collection("allResumes")
+        .doc(resumeId)
+        .delete()
+        .catch((error) => {
+          functions.logger.info(
+            { resumeId, error: error instanceof Error ? error.message : error },
+            "allResumes doc absent during private resume cleanup",
+          );
+        }),
+    );
+  }
 
   await Promise.allSettled(writes);
 };

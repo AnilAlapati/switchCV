@@ -42,12 +42,7 @@ const RATE_LIMIT_TIERS: Array<{
 ];
 
 /** Paths exempt from rate limiting */
-const RATE_LIMIT_EXEMPT = [
-  "/api/health",
-  "/api/health/infra",
-  "/api/system-config",
-  "/api/docs",
-];
+const RATE_LIMIT_EXEMPT = ["/api/system-config", "/api/docs"];
 
 interface RateLimitEntry {
   count: number;

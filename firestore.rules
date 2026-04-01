@@ -299,10 +299,11 @@ service cloud.firestore {
       // globalStats is public (marketing stats on homepage - no sensitive data)
       allow read: if slug == 'globalStats';
       
-      // Resume-specific analytics require ownership or recruiter access
+      // Resume-specific analytics require ownership or admin access
+      // SECURITY FIX: Removed recruiter blanket access — recruiters should not
+      // see analytics for resumes they don't own.
       allow read: if isAuthenticated() && (
         isOwner(resource.data.userId) || 
-        isRecruiter() ||
         isAdmin()
       );
       
@@ -320,19 +321,19 @@ service cloud.firestore {
       
       // Engagement metrics subcollection
       match /engagement/{document=**} {
-        allow read: if isAuthenticated() && (isOwner(get(/databases/$(database)/documents/analytics/$(slug)).data.userId) || isRecruiter() || isAdmin());
+        allow read: if isAuthenticated() && (isOwner(get(/databases/$(database)/documents/analytics/$(slug)).data.userId) || isAdmin());
         allow write: if false; // Server-side only
       }
       
       // Request statistics subcollection
       match /requests/{document=**} {
-        allow read: if isAuthenticated() && (isOwner(get(/databases/$(database)/documents/analytics/$(slug)).data.userId) || isRecruiter() || isAdmin());
+        allow read: if isAuthenticated() && (isOwner(get(/databases/$(database)/documents/analytics/$(slug)).data.userId) || isAdmin());
         allow write: if false; // Server-side only
       }
       
       // View analytics subcollection
       match /views/{document=**} {
-        allow read: if isAuthenticated() && (isOwner(get(/databases/$(database)/documents/analytics/$(slug)).data.userId) || isRecruiter() || isAdmin());
+        allow read: if isAuthenticated() && (isOwner(get(/databases/$(database)/documents/analytics/$(slug)).data.userId) || isAdmin());
         allow write: if false; // Server-side only
       }
     }
@@ -462,8 +463,13 @@ service cloud.firestore {
 
     // Global Resumes Collection (for recruiter search/listing)
     match /allResumes/{resumeId} {
-      // SECURITY FIX: Restrict to recruiters and admins only
-      allow read: if request.auth != null && request.auth.token.role in ['recruiter', 'admin'];
+      // SECURITY FIX: Only allow reading public, published resumes
+      // The fan-out service only writes public resumes here, but this rule
+      // adds defense-in-depth in case of fan-out bugs.
+      allow read: if request.auth != null 
+        && request.auth.token.role in ['recruiter', 'admin']
+        && resource.data.visibility == 'public'
+        && resource.data.published == true;
       allow write: if false; // Only backend can write
     }
 

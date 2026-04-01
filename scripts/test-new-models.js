@@ -6,7 +6,12 @@
 
 const https = require("https");
 
-const KEY = "AIzaSyDOgW0mHuUYnk2boE7NWdzBdXZR6PZjYDg";
+const KEY = process.env.GEMINI_API_KEY;
+if (!KEY) {
+  console.error("ERROR: GEMINI_API_KEY environment variable is not set.");
+  console.error("Usage: GEMINI_API_KEY=your-key node scripts/test-new-models.js");
+  process.exit(1);
+}
 
 const MODELS = [
   { id: "gemini-3.1-flash-lite-preview", label: "Basic tier — PRIMARY (new)" },

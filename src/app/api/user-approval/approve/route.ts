@@ -1,10 +1,11 @@
 /**
  * Public API endpoint for approving user registrations via token
  *
- * GET /api/user-approval/approve?token=SECURE_TOKEN
+ * GET  /api/user-approval/approve?token=SECURE_TOKEN → Confirmation page
+ * POST /api/user-approval/approve (token in body)    → Performs the approval
  *
- * This endpoint is public and requires no authentication.
- * Security is provided by the one-time use token.
+ * SECURITY: GET no longer mutates state. The actual approval happens on POST,
+ * preventing email scanners and link-preview bots from triggering approvals.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -204,10 +205,8 @@ async function approvePasswordUser(
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function GET(request: NextRequest) {
-  // 1. Rate Limiting (Public endpoint protection)
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  const ip = forwardedFor?.split(",")[0]?.trim() || "unknown";
+/** Shared rate-limit + token validation. Returns parsed data or an HTML error response. */
+async function validateRequest(token: string | null, ip: string) {
   const rateLimitResult = await checkDistributedRateLimit(ip, {
     scope: "user-approval",
     limit: 10,
@@ -215,150 +214,157 @@ export async function GET(request: NextRequest) {
   });
 
   if (!rateLimitResult.allowed) {
-    return new NextResponse("Too many requests. Please try again later.", {
-      status: 429,
-    });
+    return {
+      error: new NextResponse("Too many requests. Please try again later.", {
+        status: 429,
+      }),
+    };
   }
 
-  const searchParams = request.nextUrl.searchParams;
-  const token = searchParams.get("token");
-
   if (!token) {
+    return {
+      error: new NextResponse(
+        `<!DOCTYPE html><html><head><title>Invalid Request</title><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{font-family:system-ui;max-width:600px;margin:100px auto;padding:20px;text-align:center}h1{color:#dc2626}</style></head><body><h1>❌ Invalid Request</h1><p>No approval token provided.</p></body></html>`,
+        { status: 400, headers: { "Content-Type": "text/html" } },
+      ),
+    };
+  }
+
+  const parsed = parseApprovalToken(token);
+  if (!parsed || parsed.action !== "approve") {
+    logger.warn("Invalid token format or wrong action");
+    return {
+      error: new NextResponse(
+        `<!DOCTYPE html><html><head><title>Invalid Token</title><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{font-family:system-ui;max-width:600px;margin:100px auto;padding:20px;text-align:center}h1{color:#dc2626}</style></head><body><h1>❌ Invalid Token</h1><p>This approval link is invalid or malformed.</p></body></html>`,
+        { status: 400, headers: { "Content-Type": "text/html" } },
+      ),
+    };
+  }
+
+  const { requestId } = parsed;
+  const requestRef = adminDb.collection("userApprovalRequests").doc(requestId);
+  const requestDoc = await requestRef.get();
+
+  if (!requestDoc.exists) {
+    logger.warn({ requestId }, "Approval request not found");
+    return {
+      error: new NextResponse(
+        `<!DOCTYPE html><html><head><title>Request Not Found</title><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{font-family:system-ui;max-width:600px;margin:100px auto;padding:20px;text-align:center}h1{color:#dc2626}</style></head><body><h1>❌ Request Not Found</h1><p>This approval request does not exist or has been deleted.</p></body></html>`,
+        { status: 404, headers: { "Content-Type": "text/html" } },
+      ),
+    };
+  }
+
+  const requestData = requestDoc.data()!;
+
+  if (requestData.status !== "pending") {
+    return {
+      error: new NextResponse(
+        `<!DOCTYPE html><html><head><title>Already Processed</title><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{font-family:system-ui;max-width:600px;margin:100px auto;padding:20px;text-align:center}h1{color:#f59e0b}</style></head><body><h1>⚠️ Already Processed</h1><p>This user has already been ${requestData.status}.</p></body></html>`,
+        { status: 400, headers: { "Content-Type": "text/html" } },
+      ),
+    };
+  }
+
+  const isValid = validateApprovalToken(
+    token,
+    requestData.approveTokenHash,
+    requestData.approveTokenExpiresAt.toDate(),
+  );
+
+  if (!isValid) {
+    logger.warn({ requestId }, "Invalid or expired token");
+    return {
+      error: new NextResponse(
+        `<!DOCTYPE html><html><head><title>Invalid or Expired</title><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{font-family:system-ui;max-width:600px;margin:100px auto;padding:20px;text-align:center}h1{color:#dc2626}</style></head><body><h1>❌ Invalid or Expired</h1><p>This approval link is invalid or has expired.</p><p style="color:#64748b;font-size:14px">Approval links expire after 7 days.</p></body></html>`,
+        { status: 403, headers: { "Content-Type": "text/html" } },
+      ),
+    };
+  }
+
+  return { requestId, requestRef, requestData, token };
+}
+
+/**
+ * GET /api/user-approval/approve?token=SECURE_TOKEN
+ * SECURITY FIX: GET now only shows a confirmation page — no state mutation.
+ * This prevents email scanners and link-preview bots from auto-approving users.
+ */
+export async function GET(request: NextRequest) {
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  const ip = forwardedFor?.split(",")[0]?.trim() || "unknown";
+  const token = request.nextUrl.searchParams.get("token");
+
+  try {
+    const result = await validateRequest(token, ip);
+    if ("error" in result) return result.error;
+
+    const { requestData } = result;
+
+    // Show confirmation page with a POST form — no mutation happens here
     return new NextResponse(
       `<!DOCTYPE html>
       <html>
         <head>
-          <title>Invalid Request</title>
+          <title>Confirm Approval</title>
           <meta name="viewport" content="width=device-width, initial-scale=1">
           <style>
             body { font-family: system-ui; max-width: 600px; margin: 100px auto; padding: 20px; text-align: center; }
-            h1 { color: #dc2626; }
+            h1 { color: #3b82f6; }
+            .email { color: #3b82f6; font-weight: 500; }
+            button { background: #10b981; color: white; border: none; padding: 14px 32px; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 20px; }
+            button:hover { background: #059669; }
+            button:disabled { background: #9ca3af; cursor: not-allowed; }
           </style>
         </head>
         <body>
-          <h1>❌ Invalid Request</h1>
-          <p>No approval token provided.</p>
+          <h1>Confirm User Approval</h1>
+          <p>You are about to approve <span class="email">${requestData.email}</span></p>
+          <p style="color: #64748b; font-size: 14px;">Click the button below to confirm.</p>
+          <form method="POST" action="/api/user-approval/approve" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Processing...'">
+            <input type="hidden" name="token" value="${token}" />
+            <button type="submit">✅ Approve User</button>
+          </form>
         </body>
       </html>`,
-      { status: 400, headers: { "Content-Type": "text/html" } },
+      { status: 200, headers: { "Content-Type": "text/html" } },
     );
+  } catch (error) {
+    logger.error({ error }, "Error rendering approval confirmation");
+    return new NextResponse(
+      `<!DOCTYPE html><html><head><title>Error</title><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{font-family:system-ui;max-width:600px;margin:100px auto;padding:20px;text-align:center}h1{color:#dc2626}</style></head><body><h1>❌ Error</h1><p>An error occurred. Please try again or contact support.</p></body></html>`,
+      { status: 500, headers: { "Content-Type": "text/html" } },
+    );
+  }
+}
+
+/**
+ * POST /api/user-approval/approve
+ * Performs the actual approval mutation. Token submitted via form body.
+ */
+export async function POST(request: NextRequest) {
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  const ip = forwardedFor?.split(",")[0]?.trim() || "unknown";
+
+  // Parse form-encoded body
+  let token: string | null = null;
+  try {
+    const formData = await request.formData();
+    token = formData.get("token") as string | null;
+  } catch {
+    return new NextResponse("Invalid request body", { status: 400 });
   }
 
   try {
-    // Parse token to extract requestId
-    const parsed = parseApprovalToken(token);
-    if (!parsed || parsed.action !== "approve") {
-      logger.warn("Invalid token format or wrong action");
-      return new NextResponse(
-        `<!DOCTYPE html>
-        <html>
-          <head>
-            <title>Invalid Token</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <style>
-              body { font-family: system-ui; max-width: 600px; margin: 100px auto; padding: 20px; text-align: center; }
-              h1 { color: #dc2626; }
-            </style>
-          </head>
-          <body>
-            <h1>❌ Invalid Token</h1>
-            <p>This approval link is invalid or malformed.</p>
-          </body>
-        </html>`,
-        { status: 400, headers: { "Content-Type": "text/html" } },
-      );
-    }
+    const result = await validateRequest(token, ip);
+    if ("error" in result) return result.error;
 
-    const { requestId } = parsed;
+    const { requestRef, requestData } = result;
 
-    // Get the approval request
-    const requestRef = adminDb
-      .collection("userApprovalRequests")
-      .doc(requestId);
-    const requestDoc = await requestRef.get();
-
-    if (!requestDoc.exists) {
-      logger.warn({ requestId }, "Approval request not found");
-      return new NextResponse(
-        `<!DOCTYPE html>
-        <html>
-          <head>
-            <title>Request Not Found</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <style>
-              body { font-family: system-ui; max-width: 600px; margin: 100px auto; padding: 20px; text-align: center; }
-              h1 { color: #dc2626; }
-            </style>
-          </head>
-          <body>
-            <h1>❌ Request Not Found</h1>
-            <p>This approval request does not exist or has been deleted.</p>
-          </body>
-        </html>`,
-        { status: 404, headers: { "Content-Type": "text/html" } },
-      );
-    }
-
-    const requestData = requestDoc.data()!;
-
-    // Check if already processed
-    if (requestData.status !== "pending") {
-      return new NextResponse(
-        `<!DOCTYPE html>
-        <html>
-          <head>
-            <title>Already Processed</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <style>
-              body { font-family: system-ui; max-width: 600px; margin: 100px auto; padding: 20px; text-align: center; }
-              h1 { color: #f59e0b; }
-            </style>
-          </head>
-          <body>
-            <h1>⚠️ Already Processed</h1>
-            <p>This user has already been ${requestData.status}.</p>
-          </body>
-        </html>`,
-        { status: 400, headers: { "Content-Type": "text/html" } },
-      );
-    }
-
-    // Validate the token
-    const isValid = validateApprovalToken(
-      token,
-      requestData.approveTokenHash,
-      requestData.approveTokenExpiresAt.toDate(),
-    );
-
-    if (!isValid) {
-      logger.warn({ requestId }, "Invalid or expired token");
-      return new NextResponse(
-        `<!DOCTYPE html>
-        <html>
-          <head>
-            <title>Invalid or Expired</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <style>
-              body { font-family: system-ui; max-width: 600px; margin: 100px auto; padding: 20px; text-align: center; }
-              h1 { color: #dc2626; }
-            </style>
-          </head>
-          <body>
-            <h1>❌ Invalid or Expired</h1>
-            <p>This approval link is invalid or has expired.</p>
-            <p style="color: #64748b; font-size: 14px;">Approval links expire after 7 days.</p>
-          </body>
-        </html>`,
-        { status: 403, headers: { "Content-Type": "text/html" } },
-      );
-    }
-
-    // Token is valid - proceed with approval
     const userId = requestData.userId;
     const userEmail = requestData.email;
 
-    // Detect whether this is a Google/OAuth user (already email-verified in Firebase Auth)
-    // or an email/password user who still needs email verification after approval.
+    // Detect whether this is a Google/OAuth user
     let isOAuthUser = false;
     try {
       const authUser = await adminAuth.getUser(userId);
@@ -380,8 +386,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Update user document - mark as approved.
-    // For OAuth users do NOT set emailVerified: false — they are already verified in Firebase Auth.
+    // Update user document - mark as approved
     await adminDb
       .collection("users")
       .doc(userId)
@@ -404,29 +409,14 @@ export async function GET(request: NextRequest) {
       process.env.NEXT_PUBLIC_BASE_URL ||
       "https://switchcv.com";
 
-    // Delegate to extracted helpers (keeps GET handler lean)
     if (isOAuthUser) {
-      return approveOAuthUser(userId, userEmail, requestId, baseUrl);
+      return approveOAuthUser(userId, userEmail, result.requestId, baseUrl);
     }
-    return approvePasswordUser(userId, userEmail, requestId, baseUrl);
+    return approvePasswordUser(userId, userEmail, result.requestId, baseUrl);
   } catch (error) {
     logger.error({ error }, "Error approving user");
     return new NextResponse(
-      `<!DOCTYPE html>
-      <html>
-        <head>
-          <title>Error</title>
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <style>
-            body { font-family: system-ui; max-width: 600px; margin: 100px auto; padding: 20px; text-align: center; }
-            h1 { color: #dc2626; }
-          </style>
-        </head>
-        <body>
-          <h1>❌ Error</h1>
-          <p>An error occurred while processing the approval. Please try again or contact support.</p>
-        </body>
-      </html>`,
+      `<!DOCTYPE html><html><head><title>Error</title><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{font-family:system-ui;max-width:600px;margin:100px auto;padding:20px;text-align:center}h1{color:#dc2626}</style></head><body><h1>❌ Error</h1><p>An error occurred while processing the approval. Please try again or contact support.</p></body></html>`,
       { status: 500, headers: { "Content-Type": "text/html" } },
     );
   }
