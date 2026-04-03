@@ -57,9 +57,10 @@ const FLAG_DEFAULTS: Record<string, FeatureFlagDoc> = {
     description: "Block persistence unless strict quality checks pass",
   },
   resume_v3_function_calling: {
-    enabled: false,
+    enabled: true,
     description:
       "Function-calling resume chat (v3) — AI calls typed tools instead of free-text extraction",
+    tiers: ["enterprise"],
   },
   resume_v2_creative_polish: {
     enabled: false,

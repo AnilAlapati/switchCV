@@ -3,6 +3,22 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { ResumeReviewModal } from "@/components/ResumeReviewModal";
 import { Resume } from "@/lib/resumeComparison.types";
 
+// Mock TemplateRenderer — renders data attributes so we can assert on props
+jest.mock("@/components/resume/TemplateRenderer", () => ({
+  TemplateRenderer: ({
+    data,
+    template,
+  }: {
+    data: Record<string, unknown>;
+    template: { id: string };
+  }) => (
+    <div data-testid="template-renderer" data-template-id={template.id}>
+      <span>{String((data as { title?: string }).title ?? "")}</span>
+      <span>{String((data as { summary?: string }).summary ?? "")}</span>
+    </div>
+  ),
+}));
+
 const mockResume: Resume = {
   id: "resume-123",
   title: "John Doe's Resume",
@@ -47,10 +63,10 @@ describe("ResumeReviewModal", () => {
         isOpen={false}
         onAccept={mockOnAccept}
         onRewrite={mockOnRewrite}
-      />
+      />,
     );
     expect(
-      screen.queryByText("Review Your AI-Generated Resume")
+      screen.queryByText("Review Your AI-Generated Resume"),
     ).not.toBeInTheDocument();
   });
 
@@ -61,16 +77,18 @@ describe("ResumeReviewModal", () => {
         isOpen={true}
         onAccept={mockOnAccept}
         onRewrite={mockOnRewrite}
-      />
+      />,
     );
     expect(
-      screen.getByText("Review Your AI-Generated Resume")
+      screen.getByText("Review Your AI-Generated Resume"),
     ).toBeInTheDocument();
+
+    // Content is rendered via TemplateRenderer
+    const renderer = screen.getByTestId("template-renderer");
+    expect(renderer).toBeInTheDocument();
+    expect(renderer).toHaveAttribute("data-template-id", "clarity-v1");
     expect(screen.getByText("John Doe's Resume")).toBeInTheDocument();
     expect(screen.getByText("Experienced developer")).toBeInTheDocument();
-    expect(screen.getByText("React")).toBeInTheDocument();
-    expect(screen.getByText("Tech Corp")).toBeInTheDocument();
-    expect(screen.getByText("University")).toBeInTheDocument();
   });
 
   it("calls onAccept when accept button is clicked", async () => {
@@ -80,7 +98,7 @@ describe("ResumeReviewModal", () => {
         isOpen={true}
         onAccept={mockOnAccept}
         onRewrite={mockOnRewrite}
-      />
+      />,
     );
 
     fireEvent.click(screen.getByText("Accept & Save"));
@@ -96,11 +114,11 @@ describe("ResumeReviewModal", () => {
         isOpen={true}
         onAccept={mockOnAccept}
         onRewrite={mockOnRewrite}
-      />
+      />,
     );
 
     const textarea = screen.getByPlaceholderText(
-      /E.g., 'Make summary more concise'/
+      /E.g., 'Make summary more concise'/,
     );
     fireEvent.change(textarea, { target: { value: "Make it shorter" } });
 
@@ -117,7 +135,7 @@ describe("ResumeReviewModal", () => {
         isOpen={true}
         onAccept={mockOnAccept}
         onRewrite={mockOnRewrite}
-      />
+      />,
     );
 
     const rewriteButton = screen.getByText("Rewrite with AI").closest("button");
@@ -131,12 +149,12 @@ describe("ResumeReviewModal", () => {
         onAccept={mockOnAccept}
         onRewrite={mockOnRewrite}
         isLoading={true}
-      />
+      />,
     );
 
     expect(screen.getByText("Accept & Save").closest("button")).toBeDisabled();
     expect(
-      screen.getByText("Rewrite with AI").closest("button")
+      screen.getByText("Rewrite with AI").closest("button"),
     ).toBeDisabled();
   });
 
@@ -149,12 +167,12 @@ describe("ResumeReviewModal", () => {
         onRewrite={mockOnRewrite}
         retryCount={5}
         maxRetries={5}
-      />
+      />,
     );
 
     expect(screen.getByText(/Max rewrites reached/)).toBeInTheDocument();
     expect(
-      screen.getByText("Rewrite with AI").closest("button")
+      screen.getByText("Rewrite with AI").closest("button"),
     ).toBeDisabled();
   });
 });

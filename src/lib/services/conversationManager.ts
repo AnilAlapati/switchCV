@@ -33,6 +33,21 @@ export interface ResumeDataRequirements {
   education: EducationEntry[];
   /** Professional skills */
   skills: string[];
+  /** Personal projects, side projects, freelance work, or open-source contributions */
+  projects?: ProjectEntry[];
+}
+
+export interface ProjectEntry {
+  /** Project name or title */
+  name: string;
+  /** Brief description of the project */
+  description: string;
+  /** Technologies used (optional) */
+  technologies?: string[];
+  /** Project URL or repository link (optional) */
+  url?: string;
+  /** User's role in the project (optional) */
+  role?: string;
 }
 
 export interface ExperienceEntry {
@@ -106,6 +121,8 @@ export interface ResumeCreationFormat {
   education: EducationEntry[];
   /** Professional skills */
   skills: string[];
+  /** Personal projects (optional) */
+  projects?: ProjectEntry[];
   /** Method of creation */
   createdVia: "ai-conversation";
 }
@@ -135,6 +152,7 @@ export class ConversationManager {
     "experience",
     "education",
     "skills",
+    "projects",
   ];
 
   /** Optional fields that are nice to have */
@@ -293,6 +311,7 @@ export class ConversationManager {
       | string[]
       | ExperienceEntry[]
       | EducationEntry[]
+      | ProjectEntry[]
       | null
       | undefined,
   ): boolean {

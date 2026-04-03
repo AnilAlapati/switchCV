@@ -31,6 +31,32 @@ export class ContactExtractor implements IExtractor {
     "qa",
   ]);
 
+  private static readonly ACTION_WORDS = new Set([
+    "ok",
+    "okay",
+    "create",
+    "make",
+    "generate",
+    "build",
+    "help",
+    "please",
+    "yes",
+    "no",
+    "sure",
+    "start",
+    "begin",
+    "hi",
+    "hey",
+    "hello",
+    "thanks",
+    "thank",
+    "good",
+    "great",
+    "got",
+    "let",
+    "go",
+  ]);
+
   private static readonly SECTION_HEADINGS = new Set([
     "professional summary",
     "work experience",
@@ -72,6 +98,8 @@ export class ContactExtractor implements IExtractor {
       "and|with|but|starting|going|looking|working|here|just|not|very|really";
     const locationExclusion = "based|located|living|from|moved|moving";
     const namePatterns = [
+      // "Hey there this is Anil" or "this is John Smith"
+      /(?:[Hh]ey[\s\w,]*)?[Tt]his is\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){0,2})(?=\s|$|[.,])/,
       // "My name is A Anil and my email is ..." or similar inline contact phrasing
       /(?:[Mm]y name is|[Ii]'m|[Ii] am|[Cc]all me)\s+([A-Za-z](?:[A-Za-z'-]*)(?:\s+[A-Za-z](?:[A-Za-z'-]*)){0,3})(?=\s+(?:and\b|email\b|my\b)|$|[.,])/,
       // "My name is ...", "I'm ...", "I am ...", "Call me ..."
@@ -235,6 +263,9 @@ export class ContactExtractor implements IExtractor {
       return true;
     }
     if (/^(currently|working|looking)\b/.test(normalized)) return true;
+    // Reject UI confirmation/action phrases like "ok", "ok create", "generate resume"
+    if (tokens.some((token) => ContactExtractor.ACTION_WORDS.has(token)))
+      return true;
 
     // Reject well-known resume section headings
     if (ContactExtractor.SECTION_HEADINGS.has(normalized)) return true;

@@ -29,6 +29,27 @@ export const ExtractionExperienceEntrySchema = z.object({
     .describe("Key accomplishments or notable achievements in this role"),
 });
 
+export const ExtractionProjectEntrySchema = z.object({
+  name: z.string().describe("Project name or title"),
+  description: z
+    .string()
+    .describe(
+      "Brief description of the project, its purpose, or what was built",
+    ),
+  technologies: z
+    .array(z.string())
+    .optional()
+    .describe("Technologies, frameworks, or tools used in this project"),
+  url: z
+    .string()
+    .optional()
+    .describe("Project URL, demo link, or repository link"),
+  role: z
+    .string()
+    .optional()
+    .describe("The user's role or contribution to the project"),
+});
+
 export const ExtractionEducationEntrySchema = z.object({
   degree: z
     .string()
@@ -82,6 +103,12 @@ export const ResumeExtractionSchema = z.object({
     .array(z.string())
     .optional()
     .describe("Professional skills, technologies, and competencies"),
+  projects: z
+    .array(ExtractionProjectEntrySchema)
+    .optional()
+    .describe(
+      "Personal projects, side projects, freelance work, or open-source contributions",
+    ),
 });
 
 export type ResumeExtractionResult = z.infer<typeof ResumeExtractionSchema>;

@@ -502,8 +502,8 @@ describe("ConversationManager", () => {
       expect(data.education).toHaveLength(1);
 
       const progress = manager.getProgress();
-      // name + email + experience + education = 4/6 core fields = 67%
-      expect(progress.completenessPercentage).toBeGreaterThanOrEqual(67);
+      // name + email + experience + education = 4/7 core fields = 57%
+      expect(progress.completenessPercentage).toBeGreaterThanOrEqual(57);
     });
   });
 });

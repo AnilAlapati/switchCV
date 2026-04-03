@@ -100,28 +100,34 @@ const KNOWN_TECH_TOKENS = new Set([
   "gen ai",
 ]);
 
-/** Returns true when a string looks like a list of tech skills rather than a job title/company. */
+/** Returns true when a string looks like a list of tech skills rather than a job title/company.
+ *  Threshold raised to 0.85 to avoid discarding legitimate job titles like
+ *  "Senior React Developer" or "Node.js Lead Engineer".
+ */
 function looksLikeSkillsList(value: string): boolean {
   const tokens = value
     .toLowerCase()
-    .split(/[\s,;|•·]+/)
+    .split(/[\s,;|/•·]+/)
     .filter(Boolean);
   if (tokens.length === 0) return false;
   const techCount = tokens.filter((t) => KNOWN_TECH_TOKENS.has(t)).length;
-  return techCount / tokens.length >= 0.6 && tokens.length >= 2;
+  // Only flag as a skills list when nearly ALL tokens are tech keywords
+  // (e.g. "React Angular Firebase" is skills; "React Developer" is a title)
+  return techCount / tokens.length >= 0.85 && tokens.length >= 2;
 }
 
 /** System prompt optimised for extraction (not generation). */
 const EXTRACTION_SYSTEM_PROMPT = `You are a resume data extraction assistant. Your ONLY task is to extract structured fields from a conversation transcript where a user is describing their resume.
 
 Rules:
-- Extract ONLY information that is explicitly stated by the user. Do NOT infer or fabricate any data.
+- Extract ONLY information that is explicitly stated or confirmed by the user. Do NOT fabricate any data.
 - If a field is not present, omit it entirely (do not set it to null or empty string).
 - For experience entries, keep the original wording of descriptions and achievements.
 - For skills, list each distinct skill as a separate string.
-- When the input is a conversation transcript, [ASSISTANT] lines are questions — use them as CONTEXT ONLY to understand what the user is answering. Never extract data from [ASSISTANT] lines.
+- CONVERSATION CONTEXT: When the input is a conversation transcript, [ASSISTANT] lines are questions. However, if the [USER] confirms, agrees, or says "yes" to specific details mentioned in the [ASSISTANT] question, those confirmed details ARE valid resume data. For example, if [ASSISTANT] asks "Did you work at Google from 2020 to 2022?" and [USER] says "Yes, I was a Senior Engineer there", extract company="Google", duration="2020 - 2022", title="Senior Engineer".
 - CRITICAL — Skills vs Experience: A list of technology keywords (e.g. "API Nextjs UiPath Firebase", "prompt engineering vibe coding") is ALWAYS a skills list, NOT a job title or company name. Only extract an experience entry when there is a clear human job title (e.g. "Software Engineer", "RPA Developer", "Project Manager") paired with a clear organization name (e.g. "JPMorgan Chase", "IBM India", "Startup XYZ").
-- If a section is labelled "KEY SKILLS", "SKILLS", "TECHNICAL SKILLS", "CERTIFICATION", or "PROJECTS", its contents are NOT work experience.
+- If a section is labelled "KEY SKILLS", "SKILLS", "TECHNICAL SKILLS", or "CERTIFICATION", its contents are NOT work experience.
+- PROJECTS: If a section is labelled "PROJECTS" or the user describes personal/side projects, freelance work, or open-source contributions, extract these into the "projects" array — NOT as experience entries. Each project should have a name, description, and optionally technologies used.
 - For dates, preserve the original format found in the text.
 - For names, use the full name as written.
 - For phone numbers, keep the original formatting.
@@ -141,6 +147,16 @@ EXAMPLE — correct classification (few-shot):
 [ASSISTANT]: Any achievements you're proud of?
 [USER]: Reduced invoice processing time by 60%.
 → This is an achievement for the most recent experience entry, not a new entry.
+
+[ASSISTANT]: Did you work at Amazon from 2019 to 2021?
+[USER]: Yes, as a Backend Engineer. I built the payment microservice.
+→ experience entry: title="Backend Engineer", company="Amazon", duration="2019 - 2021", description="Built the payment microservice".
+  The user CONFIRMED the details from the assistant's question — extract them.
+
+[ASSISTANT]: Tell me about any side projects or personal work.
+[USER]: I built a budgeting app called SpendWise using React and Firebase. It's on GitHub.
+→ project entry: name="SpendWise", description="Budgeting app", technologies=["React", "Firebase"].
+  Do NOT create an experience entry for personal projects.
 
 NEGATIVE EXAMPLES — return {} (empty object) for these kinds of messages:
 
@@ -611,6 +627,16 @@ function mapExtractionToRequirements(
 
   if (extracted.skills && extracted.skills.length > 0) {
     data.skills = extracted.skills;
+  }
+
+  if (extracted.projects && extracted.projects.length > 0) {
+    data.projects = extracted.projects.map((proj) => ({
+      name: proj.name,
+      description: proj.description,
+      technologies: proj.technologies,
+      url: proj.url,
+      role: proj.role,
+    }));
   }
 
   return data;

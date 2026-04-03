@@ -39,6 +39,8 @@ export interface GeneratedResumeInput {
     endDate?: string;
     year?: string; // Alternative to endDate from CollectedResumeData
     major?: string;
+    grade?: string; // GPA, CGPA, percentage, degree classification
+    gpa?: string; // Alternative field name for grade
   }>;
   skills?: string[] | Array<{ name: string }>;
 }
@@ -120,6 +122,7 @@ export async function saveGeneratedResume(
     startDate: edu.startDate || "",
     endDate: edu.endDate || edu.year || "",
     major: edu.major || "",
+    grade: edu.grade || edu.gpa || "",
   }));
 
   const generationVersion: ResumeGenerationVersion =
