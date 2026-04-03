@@ -40,10 +40,11 @@ jest.mock("firebase-admin", () => ({
 }));
 
 jest.mock("firebase/firestore", () => ({
-  collection: jest.fn(),
+  collection: jest.fn().mockReturnValue({ _collectionRef: true }),
   query: jest.fn(),
   where: jest.fn(),
   getDocs: jest.fn(),
+  addDoc: jest.fn().mockResolvedValue({ id: "view-doc-1" }),
 }));
 
 jest.mock("@/lib/firebase", () => ({
@@ -727,9 +728,13 @@ describe("resumeService", () => {
 
   describe("trackResumeView", () => {
     it("should track resume view", async () => {
-      (mockGetDocs as jest.Mock).mockResolvedValue({ empty: true });
+      const { addDoc } = require("firebase/firestore");
+      (addDoc as jest.Mock).mockResolvedValue({ id: "view-1" });
       await trackResumeView("res-1");
-      expect(mockGetDocs).toHaveBeenCalled();
+      expect(addDoc).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ resumeId: "res-1" }),
+      );
     });
   });
 

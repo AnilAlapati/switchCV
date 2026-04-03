@@ -126,8 +126,17 @@ async function callProvider(
   prompt: string,
   maxTokens: number,
   temperature: number,
-  options?: { jsonMode?: boolean; responseSchema?: Record<string, unknown> },
-): Promise<{ text: string; model: string }> {
+  options?: {
+    jsonMode?: boolean;
+    responseSchema?: Record<string, unknown>;
+    tools?: import("@/types/ai").GeminiFunctionDeclaration[];
+    systemInstruction?: string;
+  },
+): Promise<{
+  text: string;
+  model: string;
+  toolCalls?: import("@/types/ai").AIToolCall[];
+}> {
   switch (model.provider) {
     case "openai":
       return callOpenAI(model.id, prompt, maxTokens, temperature, {
@@ -137,6 +146,8 @@ async function callProvider(
       return callGemini(model.id, prompt, maxTokens, temperature, {
         jsonMode: options?.jsonMode,
         responseSchema: options?.responseSchema,
+        tools: options?.tools,
+        systemInstruction: options?.systemInstruction,
       });
     case "anthropic":
       return callAnthropic(model.id, prompt, maxTokens, temperature);
@@ -167,6 +178,8 @@ export async function generateTextWithTier(
     modelId,
     jsonMode,
     responseSchema,
+    tools,
+    systemInstruction,
     observationContext,
     stage = "generation",
   } = options;
@@ -280,6 +293,8 @@ export async function generateTextWithTier(
       const result = await callProvider(model, prompt, maxTokens, temperature, {
         jsonMode,
         responseSchema,
+        tools,
+        systemInstruction,
       });
 
       if (breaker) breaker.recordSuccess();
@@ -307,6 +322,7 @@ export async function generateTextWithTier(
         provider: model.provider,
         tier: model.tier,
         estimatedCost,
+        ...(result.toolCalls?.length ? { toolCalls: result.toolCalls } : {}),
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Unknown error";

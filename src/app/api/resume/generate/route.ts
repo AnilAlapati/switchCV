@@ -12,7 +12,11 @@ import type { SubscriptionTier } from "@/lib/config";
 import { getResumeCount } from "@/lib/services/resumeService";
 import { createGenerationJob } from "@/lib/services/resumeGenerationQueue";
 import { GenerateResumeRequestSchema } from "@/lib/schemas/api";
-import { processSyncGeneration } from "@/lib/services/resumeGenerationOrchestrator";
+import {
+  processSyncGeneration,
+  processFunctionCallingGeneration,
+} from "@/lib/services/resumeGenerationOrchestrator";
+import { isFeatureEnabled } from "@/lib/services/featureFlagService";
 import { RESUME_GENERATION_HARD_CAP } from "@/lib/config/rateLimits";
 
 // Cloud Functions URL for async processing (configured per environment)
@@ -224,8 +228,17 @@ export async function POST(request: NextRequest) {
     }
 
     // SYNC MODE: Delegate to orchestrator service
+    // Use v3 function-calling pipeline if the feature flag is enabled for this user
+    const useV3 = await isFeatureEnabled("resume_v3_function_calling", {
+      tier: userTier,
+    }).catch(() => false);
+
+    const orchestrate = useV3
+      ? processFunctionCallingGeneration
+      : processSyncGeneration;
+
     try {
-      const result = await processSyncGeneration({
+      const result = await orchestrate({
         userId,
         message,
         conversationHistory,

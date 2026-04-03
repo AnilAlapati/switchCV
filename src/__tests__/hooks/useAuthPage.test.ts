@@ -3,8 +3,7 @@ import { useAuthPage } from "@/hooks/useAuthPage";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useDebouncedValue } from "@/hooks/useDebounce";
-import { useUsernameChecker } from "@/hooks/useAuthPage.helpers";
-import { applyActionCode } from "firebase/auth";
+import { useUsernameChecker, useEmailVerificationHandler } from "@/hooks/useAuthPage.helpers";
 
 // Mock next/navigation
 jest.mock("next/navigation", () => ({
@@ -23,10 +22,7 @@ jest.mock("@/hooks/useDebounce", () => ({
 
 jest.mock("@/hooks/useAuthPage.helpers", () => ({
     useUsernameChecker: jest.fn(),
-}));
-
-jest.mock("firebase/auth", () => ({
-    applyActionCode: jest.fn(),
+    useEmailVerificationHandler: jest.fn(),
 }));
 
 jest.mock("@/lib/firebase", () => ({
@@ -71,20 +67,21 @@ describe("useAuthPage hook", () => {
     });
 
     it("should handle email verification from search params", async () => {
-        (useSearchParams as jest.Mock).mockReturnValue({
-            get: jest.fn((key) => {
-                if (key === "mode") return "verifyEmail";
-                if (key === "oobCode") return "test-code";
-                return null;
-            }),
-        });
+        const mockSearchParams = { get: jest.fn((key: string) => {
+            if (key === "mode") return "verifyEmail";
+            if (key === "oobCode") return "test-code";
+            return null;
+        }) };
+        (useSearchParams as jest.Mock).mockReturnValue(mockSearchParams);
 
         await act(async () => {
             renderHook(() => useAuthPage());
         });
 
-        expect(applyActionCode).toHaveBeenCalledWith(expect.anything(), "test-code");
-        expect(mockAuth.refreshUser).toHaveBeenCalled();
+        // useAuthPage delegates email verification to useEmailVerificationHandler
+        expect(useEmailVerificationHandler).toHaveBeenCalledWith(
+            expect.objectContaining({ searchParams: mockSearchParams })
+        );
     });
 
     it("should handle successful sign in and redirect", async () => {

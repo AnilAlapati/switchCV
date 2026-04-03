@@ -7,53 +7,79 @@ import {
   doc,
   getDoc,
   writeBatch,
+  limit,
+  query,
 } from "firebase/firestore";
 import { logger } from "@/lib/logger";
+import { MemoryCache, coalesce } from "@/lib/utils/cache";
 
 const COLLECTION_NAME = "templates";
+
+// Templates change only on deploy — cache for 30 minutes
+const templateListCache = new MemoryCache<ResumeTemplate[]>(30 * 60 * 1000);
+const templateByIdCache = new MemoryCache<ResumeTemplate>(30 * 60 * 1000);
+const TEMPLATE_LIST_CACHE_KEY = "all_templates";
 
 export const templateService = {
   /**
    * Fetch all available resume templates.
-   * Falls back to local default templates if DB is empty or unreachable.
+   * In-memory cached for 30 minutes. Falls back to local defaults if DB is empty or unreachable.
    */
   async getAllTemplates(): Promise<ResumeTemplate[]> {
-    try {
-      const templatesRef = collection(db, COLLECTION_NAME);
-      const snapshot = await getDocs(templatesRef);
+    const cached = templateListCache.get(TEMPLATE_LIST_CACHE_KEY);
+    if (cached) return cached;
 
-      if (snapshot.empty) {
-        logger.warn("No templates found in DB, using local defaults");
+    return coalesce(TEMPLATE_LIST_CACHE_KEY, async () => {
+      try {
+        const templatesRef = collection(db, COLLECTION_NAME);
+        const snapshot = await getDocs(query(templatesRef, limit(50)));
+
+        const templates = snapshot.empty
+          ? RESUME_TEMPLATES
+          : snapshot.docs.map((d) => d.data() as ResumeTemplate);
+
+        if (snapshot.empty) {
+          logger.warn("No templates found in DB, using local defaults");
+        }
+
+        templateListCache.set(TEMPLATE_LIST_CACHE_KEY, templates);
+        return templates;
+      } catch (error) {
+        logger.error(
+          { err: error },
+          "Error fetching templates, falling back to local",
+        );
         return RESUME_TEMPLATES;
       }
-
-      return snapshot.docs.map((doc) => doc.data() as ResumeTemplate);
-    } catch (error) {
-      logger.error({ err: error }, "Error fetching templates");
-      // Fallback to local templates on error
-      return RESUME_TEMPLATES;
-    }
+    });
   },
 
   /**
    * Get a specific template by ID.
+   * Checks local static list first (always up-to-date after deploy), then Firestore.
    */
   async getTemplateById(templateId: string): Promise<ResumeTemplate | null> {
+    // Local static list is authoritative — no Firestore read needed in most cases
+    const localTemplate = RESUME_TEMPLATES.find((t) => t.id === templateId);
+    if (localTemplate) return localTemplate;
+
+    const cached = templateByIdCache.get(templateId);
+    if (cached) return cached;
+
     try {
       const docRef = doc(db, COLLECTION_NAME, templateId);
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
-        return docSnap.data() as ResumeTemplate;
+        const tmpl = docSnap.data() as ResumeTemplate;
+        templateByIdCache.set(templateId, tmpl);
+        return tmpl;
       }
 
-      // Check local defaults
-      const localTemplate = RESUME_TEMPLATES.find((t) => t.id === templateId);
-      return localTemplate || null;
+      return null;
     } catch (error) {
       logger.error({ err: error, templateId }, "Error fetching template");
-      const localTemplate = RESUME_TEMPLATES.find((t) => t.id === templateId);
-      return localTemplate || null;
+      return null;
     }
   },
 

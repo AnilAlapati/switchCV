@@ -228,7 +228,7 @@ function buildInput(
 ): SyncGenerationInput {
   return {
     userId: "test-user-123",
-    message: "Create my resume",
+    message: "go ahead and build it",
     conversationHistory: [
       {
         content:

@@ -24,6 +24,11 @@ import { EditorialResumeRenderer } from "./EditorialResumeRenderer";
 import { NoirResumeRenderer } from "./NoirResumeRenderer";
 import { CREATIVE_TEMPLATES_ENABLED } from "@/lib/features/creativeTemplates";
 import { SignalResumeRenderer } from "./SignalResumeRenderer";
+import { AtlasResumeRenderer } from "./AtlasResumeRenderer";
+import { ClarityResumeRenderer } from "./ClarityResumeRenderer";
+import { VelocityResumeRenderer } from "./VelocityResumeRenderer";
+import { NarrativeResumeRenderer } from "./NarrativeResumeRenderer";
+import { StudioResumeRenderer } from "./StudioResumeRenderer";
 
 type VisibilityLevel = "public" | "masked" | "request";
 type ContactField = "email" | "phone";
@@ -103,6 +108,61 @@ export const TemplateRenderer: React.FC<TemplateRendererProps> = ({
   if (template.id === "signal-v1") {
     return (
       <SignalResumeRenderer
+        template={template}
+        data={data}
+        isAuthenticated={isAuthenticated}
+        onRequestAccess={onRequestAccess}
+      />
+    );
+  }
+
+  if (template.id === "atlas-v1") {
+    return (
+      <AtlasResumeRenderer
+        template={template}
+        data={data}
+        isAuthenticated={isAuthenticated}
+        onRequestAccess={onRequestAccess}
+      />
+    );
+  }
+
+  if (template.id === "clarity-v1") {
+    return (
+      <ClarityResumeRenderer
+        template={template}
+        data={data}
+        isAuthenticated={isAuthenticated}
+        onRequestAccess={onRequestAccess}
+      />
+    );
+  }
+
+  if (template.id === "velocity-v1") {
+    return (
+      <VelocityResumeRenderer
+        template={template}
+        data={data}
+        isAuthenticated={isAuthenticated}
+        onRequestAccess={onRequestAccess}
+      />
+    );
+  }
+
+  if (template.id === "narrative-v1") {
+    return (
+      <NarrativeResumeRenderer
+        template={template}
+        data={data}
+        isAuthenticated={isAuthenticated}
+        onRequestAccess={onRequestAccess}
+      />
+    );
+  }
+
+  if (template.id === "studio-v1") {
+    return (
+      <StudioResumeRenderer
         template={template}
         data={data}
         isAuthenticated={isAuthenticated}

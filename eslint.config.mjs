@@ -134,6 +134,14 @@ const eslintConfig = [
     },
   },
   {
+    // DAL client.ts is the ONLY file allowed to import firebase-admin directly
+    // All other files must import from @/lib/dal instead
+    files: ["src/lib/dal/client.ts"],
+    rules: {
+      "no-restricted-imports": "off",
+    },
+  },
+  {
     // Logger file must use console - it's the wrapper
     files: ["src/lib/logger.ts"],
     rules: {

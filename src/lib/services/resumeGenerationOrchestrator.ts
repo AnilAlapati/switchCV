@@ -34,9 +34,14 @@ import {
 import { ResumeDataExtractor } from "@/lib/services/resumeDataExtractor";
 import {
   buildConversationalPrompt,
+  buildFCSystemPrompt,
   extractResumeJSON,
   isCompletionResponse,
 } from "@/lib/services/resumePrompts";
+import {
+  RESUME_TOOL_DECLARATIONS,
+  applyToolCall,
+} from "@/lib/services/resumeToolDefinitions";
 import { getActiveConfig } from "@/lib/services/conversationConfig";
 import {
   saveGeneratedResume,
@@ -240,56 +245,73 @@ export async function processSyncGeneration(
     });
 
     // Step 1: Extract data from conversation history using AI (Gemini).
+    // Pre-flight: skip extraction entirely for messages that are clearly UI
+    // meta-comments or intent signals (not resume data). This prevents the
+    // extraction AI from misclassifying phrases like "live preview" as a name
+    // or "name education skills" as self-description.
+    const META_INTENT_PATTERN =
+      /\b(how much|live preview|i just see|just see|why (is|isn't|are)|can you see|that('s| is) wrong|nothing much|create (my |the )?resume(?: now)?|create now|generate (my |the )?resume)\b/i;
+    const currentMessageIsMetaIntent = META_INTENT_PATTERN.test(message);
+
     // NO regex fallback — if AI extraction fails, we return a user-friendly
     // error asking them to try again later.
     let extractionResult = EMPTY_EXTRACTION_RESULT;
 
     try {
-      const aiExtracted =
-        await ResumeDataExtractor.extractFromConversationWithAI(allMessages, {
-          userTier:
-            userTier === "basic" ||
-            userTier === "premium" ||
-            userTier === "enterprise"
-              ? userTier
-              : "premium",
-          observationContext,
-        });
-      extractionResult = aiExtracted ?? EMPTY_EXTRACTION_RESULT;
-
-      // Distinguish between AI service failure (confidence=0) and legitimate
-      // "user hasn't provided enough data yet" (confidence>0 with empty fields).
-      // Only show the error when the AI service itself failed.
-      const aiServiceFailed =
-        aiExtracted &&
-        aiExtracted.confidence === 0 &&
-        aiExtracted.extractedFields.length === 0;
-
-      if (!aiExtracted || aiServiceFailed) {
-        logger.error(
-          {
-            method: (aiExtracted as { method?: string })?.method ?? "unknown",
-            userId,
-          },
-          "AI extraction service failed — asking user to retry",
+      if (currentMessageIsMetaIntent) {
+        logger.info(
+          { message: message.slice(0, 80) },
+          "🚫 Skipping extraction: message matches meta-intent pattern",
         );
-        monitoringSummary = {
-          userVisibleFailure: true,
-          finalOutcome: "extraction_failed",
-          createdResume: false,
-        };
-        return {
-          requestId: observationContext.requestId,
-          response:
-            "I'm having trouble processing your information right now. Our AI service may be temporarily unavailable. Please try again in a few minutes.",
-          progress: 0,
-        };
-      }
+        // Use the session data already collected; don't attempt to extract
+        // resume fields from a UI question or intent signal.
+      } else {
+        const aiExtracted =
+          await ResumeDataExtractor.extractFromConversationWithAI(allMessages, {
+            userTier:
+              userTier === "basic" ||
+              userTier === "premium" ||
+              userTier === "enterprise"
+                ? userTier
+                : "premium",
+            observationContext,
+          });
+        extractionResult = aiExtracted ?? EMPTY_EXTRACTION_RESULT;
 
-      logger.info(
-        { method: (aiExtracted as { method?: string })?.method ?? "unknown" },
-        "AI extraction path used",
-      );
+        // Distinguish between AI service failure (confidence=0) and legitimate
+        // "user hasn't provided enough data yet" (confidence>0 with empty fields).
+        // Only show the error when the AI service itself failed.
+        const aiServiceFailed =
+          aiExtracted &&
+          aiExtracted.confidence === 0 &&
+          aiExtracted.extractedFields.length === 0;
+
+        if (!aiExtracted || aiServiceFailed) {
+          logger.error(
+            {
+              method: (aiExtracted as { method?: string })?.method ?? "unknown",
+              userId,
+            },
+            "AI extraction service failed — asking user to retry",
+          );
+          monitoringSummary = {
+            userVisibleFailure: true,
+            finalOutcome: "extraction_failed",
+            createdResume: false,
+          };
+          return {
+            requestId: observationContext.requestId,
+            response:
+              "I'm having trouble processing your information right now. Our AI service may be temporarily unavailable. Please try again in a few minutes.",
+            progress: 0,
+          };
+        }
+
+        logger.info(
+          { method: (aiExtracted as { method?: string })?.method ?? "unknown" },
+          "AI extraction path used",
+        );
+      }
     } catch (extractError) {
       logger.error(
         { err: extractError, userId },
@@ -502,10 +524,26 @@ export async function processSyncGeneration(
       conversationManager.updateData(generatedJson);
       conversationManager.markAsComplete();
       updatedProgress = conversationManager.getProgress();
-    } else if (!flags.resume_v2_writer) {
-      logger.info(
-        "🛑 resume_v2_writer disabled; using extracted conversation data only",
-      );
+    } else if (!flags.resume_v2_writer && aiIndicatesCompletion) {
+      // v1 path: AI produced a markdown-fenced ```json block with isComplete:true.
+      // Extract it so ConversationManager reflects the generated data and
+      // hasMinimumData is set correctly, preventing raw JSON leaking to the user.
+      const v1Json = extractResumeJSON(responseText);
+      if (v1Json) {
+        generatedJson = v1Json as unknown as Record<string, unknown>;
+        conversationManager.updateData(
+          v1Json as Partial<ResumeDataRequirements>,
+        );
+        conversationManager.markAsComplete();
+        updatedProgress = conversationManager.getProgress();
+        logger.info(
+          "🧠 v1 path: synced AI markdown-JSON to ConversationManager",
+        );
+      } else {
+        logger.info(
+          "🛑 resume_v2_writer disabled; using extracted conversation data only",
+        );
+      }
     }
 
     // Determine if we should create the resume
@@ -889,6 +927,14 @@ export async function processSyncGeneration(
     }
 
     // Step 7: Continue conversation (not ready yet)
+    // Strip any JSON blocks or RESUME_COMPLETE markers before sending back —
+    // the AI occasionally embeds partial JSON even for non-completion turns.
+    const cleanedConversationResponse = responseText
+      .replace(/```json[\s\S]*?```/gi, "")
+      .replace(/RESUME_COMPLETE/gi, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+
     monitoringSummary = {
       userVisibleFailure: false,
       finalOutcome: "conversation_continues",
@@ -896,7 +942,7 @@ export async function processSyncGeneration(
     };
     return {
       requestId: observationContext.requestId,
-      response: responseText,
+      response: cleanedConversationResponse || responseText,
       model: normalizedAIResponse.model,
       progress: updatedProgress.completenessPercentage,
       sessionData: {
@@ -948,4 +994,290 @@ export async function processSyncGeneration(
       createdResume: monitoringSummary.createdResume,
     });
   }
+}
+
+// ==================== FUNCTION-CALLING ORCHESTRATOR (v3) ====================
+
+/**
+ * Process a resume chat turn using the Gemini function-calling (v3) path.
+ *
+ * Instead of free-text extraction, the model calls typed tools as it converses.
+ * This eliminates the "UI complaint absorbed as resume data" class of bugs.
+ *
+ * Enabled via feature flag `resume_v3_function_calling`.
+ */
+export async function processFunctionCallingGeneration(
+  input: SyncGenerationInput,
+): Promise<SyncGenerationResult> {
+  const {
+    userId,
+    message,
+    conversationHistory,
+    sessionData,
+    modelId,
+    userTier,
+    persistResult,
+    requestId: providedRequestId,
+    sessionId: providedSessionId,
+  } = input;
+
+  const shouldPersistResult = persistResult ?? true;
+  const requestId = providedRequestId ?? randomUUID();
+
+  // Restore conversation state from session
+  const collectedData =
+    (sessionData?.collectedData as Partial<ResumeDataRequirements>) ?? {};
+  const conversationManager = new ConversationManager(collectedData);
+
+  // Build conversation history prompt for context
+  const historyText =
+    conversationHistory.length > 0
+      ? conversationHistory
+          .map((m) => `${m.isUser ? "User" : "Assistant"}: ${m.content}`)
+          .join("\n")
+      : "";
+
+  const prompt = historyText
+    ? `${historyText}\nUser: ${message}`
+    : `User: ${message}`;
+
+  // System prompt with injected current state
+  const systemInstruction = buildFCSystemPrompt(
+    JSON.stringify(conversationManager.getData() ?? {}, null, 2),
+  );
+
+  let aiResponse: {
+    text: string;
+    model: string;
+    estimatedCost?: number;
+    toolCalls?: import("@/types/ai").AIToolCall[];
+  };
+
+  try {
+    aiResponse = await generateTextWithTier({
+      prompt,
+      systemInstruction,
+      maxTokens: 1200,
+      temperature: 0.5,
+      userTier,
+      modelId,
+      tools: RESUME_TOOL_DECLARATIONS,
+    });
+
+    // Track usage cost (fire-and-forget — billing failure never blocks the user)
+    if (aiResponse.estimatedCost) {
+      BillingService.trackCost(
+        userId,
+        aiResponse.estimatedCost,
+        "resume_chat_v3",
+      ).catch((err) =>
+        logger.error(
+          { err, userId },
+          "FC: billing trackCost failed (non-blocking)",
+        ),
+      );
+    }
+  } catch (err) {
+    logger.error({ err, userId }, "FC orchestrator: AI call failed");
+    return {
+      requestId,
+      response:
+        "I'm having trouble processing that right now. Please try again in a moment.",
+      progress: conversationManager.getProgress().completenessPercentage,
+      sessionData: {
+        collectedData: conversationManager.getData() as Record<string, unknown>,
+        progress: conversationManager.getProgress(),
+      },
+    };
+  }
+
+  // Apply all tool calls from the model
+  // Capture result for persisting conversation after — never use return inside
+  // this block directly. Assign to `result` instead and the finally block saves.
+  let result: SyncGenerationResult;
+  let createdResumeId: string | undefined;
+
+  try {
+    let completionTriggered = false;
+    for (const toolCall of aiResponse.toolCalls ?? []) {
+      const done = applyToolCall(
+        conversationManager,
+        toolCall.name,
+        toolCall.args,
+      );
+      if (done) completionTriggered = true;
+    }
+
+    const updatedProgress = conversationManager.getProgress();
+
+    // Check actual minimum data (name, email, summary) independently of whether
+    // markAsComplete() was called — markAsComplete() sets hasMinimumData: true
+    // unconditionally, but we must verify real fields exist before saving.
+    const rawCollected = conversationManager.getData();
+    const hasActualMinimumData = Boolean(
+      rawCollected.name && rawCollected.email && rawCollected.summary,
+    );
+
+    // If mark_complete was called and we have minimum data, save the resume
+    if (completionTriggered && hasActualMinimumData) {
+      const resumeData = conversationManager.getData() as Record<
+        string,
+        unknown
+      >;
+
+      const contractErrors = validateStructuredResumeContract(resumeData, {
+        strictMode: false,
+      });
+
+      if (contractErrors.length > 0) {
+        result = {
+          requestId,
+          response: buildClarificationMessage(resumeData, contractErrors),
+          progress: Math.min(updatedProgress.completenessPercentage, 95),
+          needsClarification: true,
+          missingEvidenceFields: contractErrors,
+          clarificationChecklist: buildClarificationChecklist(
+            resumeData,
+            contractErrors,
+          ),
+          sessionData: {
+            collectedData: resumeData,
+            progress: updatedProgress,
+          },
+        };
+      } else if (!shouldPersistResult) {
+        result = {
+          requestId,
+          response: "Preview generated successfully",
+          created: false,
+          progress: 100,
+          previewData: resumeData as GeneratedResumeInput,
+          sessionData: {
+            collectedData: resumeData,
+            progress: updatedProgress,
+          },
+        };
+      } else {
+        const { resumeId, numericId } = await saveGeneratedResume(
+          userId,
+          resumeData as GeneratedResumeInput,
+          {
+            qualityReport: buildQualityReport({
+              schemaValid: true,
+              validationErrors: [],
+            }),
+            generationVersion: { pipeline: "v3_function_calling" },
+          },
+        );
+
+        await captureServerEvent(userId, "resume_generated", {
+          resumeId,
+          numericId,
+          pipeline: "v3_function_calling",
+          userTier,
+        });
+
+        createdResumeId = resumeId;
+        result = {
+          requestId,
+          response: "One moment, I'm finalizing your resume...",
+          model: aiResponse.model,
+          resumeId,
+          numericId,
+          created: true,
+          progress: 100,
+          sessionData: {
+            collectedData: resumeData,
+            progress: updatedProgress,
+          },
+        };
+      }
+    } else if (completionTriggered && !hasActualMinimumData) {
+      // mark_complete triggered but missing required fields
+      const missingMinimum: string[] = [];
+      if (!rawCollected.name) missingMinimum.push("Name is required");
+      if (!rawCollected.email) missingMinimum.push("Email is required");
+      if (!rawCollected.summary)
+        missingMinimum.push("Professional summary is required");
+
+      result = {
+        requestId,
+        response: buildClarificationMessage(
+          rawCollected as Record<string, unknown>,
+          missingMinimum,
+        ),
+        progress: updatedProgress.completenessPercentage,
+        needsClarification: true,
+        missingEvidenceFields: missingMinimum,
+        clarificationChecklist: missingMinimum,
+        sessionData: {
+          collectedData: rawCollected as Record<string, unknown>,
+          progress: updatedProgress,
+        },
+      };
+    } else {
+      // Conversation continues — return AI text response
+      result = {
+        requestId,
+        response: aiResponse.text || "Could you tell me more?",
+        model: aiResponse.model,
+        progress: updatedProgress.completenessPercentage,
+        sessionData: {
+          collectedData: conversationManager.getData() as Record<
+            string,
+            unknown
+          >,
+          progress: updatedProgress,
+        },
+      };
+    }
+  } catch (saveErr) {
+    logger.error(
+      { err: saveErr, userId },
+      "FC orchestrator: processing failed",
+    );
+    throw saveErr;
+  } finally {
+    // Always persist the full conversation turn to Firestore for debugging/analysis
+    const now = new Date().toISOString();
+    const allTurns: ConversationMessage[] = [
+      ...conversationHistory.map((m) => ({
+        role: m.isUser ? ("user" as const) : ("assistant" as const),
+        content: m.content,
+        timestamp: (m as { timestamp?: string }).timestamp ?? now,
+      })),
+      { role: "user" as const, content: message, timestamp: now },
+    ];
+    if (aiResponse.text) {
+      allTurns.push({
+        role: "assistant" as const,
+        content: aiResponse.text,
+        timestamp: now,
+      });
+    }
+
+    persistConversationSession({
+      sessionId: providedSessionId ?? requestId,
+      userId,
+      resumeId: createdResumeId,
+      createdAt: now,
+      updatedAt: now,
+      turnCount: allTurns.length,
+      messages: allTurns,
+      metadata: {
+        userTier: userTier ?? "free",
+        pipeline: "v3_function_calling",
+        model: aiResponse.model,
+      },
+      outcome: createdResumeId ? "resume_created" : "in_progress",
+      expiresAt: "",
+    }).catch((err) => {
+      logger.error(
+        { err, userId },
+        "FC orchestrator: failed to persist conversation session (non-blocking)",
+      );
+    });
+  }
+
+  return result!;
 }

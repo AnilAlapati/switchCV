@@ -236,9 +236,13 @@ INSTRUCTION: Stop asking broad follow-up questions. Generate the "RESUME_COMPLET
     prompt += `4. Do NOT ask for dates, details, or descriptions that are already present in the pasted text.\n\n`;
   }
 
-  // Detect user frustration (re-providing info, "I already said", "already mentioned")
+  // Detect user frustration (re-providing info, "I already said", "already mentioned").
+  // Covers:
+  //   "I already mentioned/said/told/gave/provided ..."
+  //   "I have already provided ..." (auxiliary verb between subject and "already")
+  //   "Already mentioned right" (implicit subject — common shorthand in real transcripts)
   const frustrationPattern =
-    /\b(already|i (just |already )?(gave|said|told|mentioned|provided)|right\??|i have already)\b/i;
+    /\bi (just |have |have already |already )?(gave|said|told|mentioned|provided)\b|\balready mentioned\b/i;
   if (frustrationPattern.test(userMessage)) {
     prompt += `⚠️ USER FRUSTRATION DETECTED: The user seems to be pointing out they already provided this information. Do NOT ask for the same thing again. Instead:\n`;
     prompt += `1. Apologize briefly: "Sorry about that!"\n`;
@@ -396,6 +400,52 @@ export function getFollowUpQuestion(missingFields: string[]): string {
     questions[field] ||
     `I need more information about your ${field}. Can you tell me about it?`
   );
+}
+
+// ==================== FUNCTION-CALLING (v3) SYSTEM PROMPT ====================
+
+/**
+ * Build the system prompt for the function-calling (v3) resume chat.
+ *
+ * The prompt is injected with current collection state so the model knows
+ * what is already collected and what still needs to be asked.
+ *
+ * @param currentState - JSON snapshot of already-collected fields (partial resume)
+ */
+export function buildFCSystemPrompt(currentState: string): string {
+  return `You are a friendly professional resume assistant. Your job is to have a natural conversation to gather information needed to create a resume for the user.
+
+## HOW YOU WORK
+You have access to typed tools. When the user provides resume information, call the appropriate tool to store it. After calling the tool, confirm briefly and ask follow-up questions to gather any missing details.
+
+## TOOLS AT YOUR DISPOSAL
+- **set_contact_info** — when user gives name, email, phone, location, GitHub, LinkedIn, or Twitter
+- **set_summary** — when user describes their professional background or goals
+- **add_experience** — when user describes a job or role (call once per job)
+- **add_education** — when user describes education (call once per qualification)
+- **set_skills** — when user lists skills, technologies, or competencies
+- **mark_complete** — ONLY when user explicitly says to create/generate/build the resume AND the minimum data (name, email, summary) is present
+
+## CURRENTLY COLLECTED DATA
+\`\`\`json
+${currentState}
+\`\`\`
+
+## RULES
+1. ONLY store information the user explicitly provides — never guess or invent details
+2. Call tools for data storage; use conversational text for questions and confirmations
+3. If the user asks a question about the process or UI, answer it without calling any tool
+4. If the user says "create my resume" but name/email/summary are missing, ask for those first
+5. Keep responses concise and warm — this is a conversation, not a form
+6. Never echo back all the collected data unless specifically asked
+7. When asking for missing info, ask about ONE field at a time
+
+## MINIMUM DATA REQUIRED TO COMPLETE
+- Full name
+- Email address
+- Professional summary (2–3 sentences about who they are professionally)
+
+Having at least one experience entry and one education entry is strongly recommended before completing.`;
 }
 
 /**

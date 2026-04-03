@@ -61,8 +61,12 @@ export interface EducationEntry {
    * Academic grade/score — MUST be preserved exactly as stated.
    * USA: GPA (3.8/4.0) | India: CGPA (8.5/10), percentage (85%), marks (80-84.9%)
    * UK: degree classification (First Class, 2:1, 2:2) | Germany: grade (1.3)
+   * Stored as `gpa`; `grade` is accepted as an alias from legacy/AI output and
+   * is normalized to `gpa` in ConversationManager.updateData().
    */
   gpa?: string;
+  /** Alias for gpa — accepted from AI output and normalized on ingest */
+  grade?: string;
 }
 
 export interface ConversationProgress {
@@ -159,6 +163,27 @@ export class ConversationManager {
    * incomplete extraction from erasing previously collected data.
    */
   updateData(newData: Partial<ResumeDataRequirements>): void {
+    // Normalize education entries: map `grade` → `gpa` so both the AI system
+    // prompt output (uses "grade") and the extraction schema (uses "gpa") land
+    // in the same canonical field.
+    if (Array.isArray(newData.education)) {
+      newData = {
+        ...newData,
+        education: newData.education.map((entry) => {
+          if (
+            (entry as EducationEntry & { grade?: string }).grade &&
+            !entry.gpa
+          ) {
+            const { grade, ...rest } = entry as EducationEntry & {
+              grade?: string;
+            };
+            return { ...rest, gpa: grade };
+          }
+          return entry;
+        }),
+      };
+    }
+
     for (const [key, value] of Object.entries(newData)) {
       if (value === undefined || value === null) continue;
 

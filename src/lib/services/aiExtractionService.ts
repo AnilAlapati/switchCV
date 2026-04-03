@@ -140,7 +140,27 @@ EXAMPLE — correct classification (few-shot):
 
 [ASSISTANT]: Any achievements you're proud of?
 [USER]: Reduced invoice processing time by 60%.
-→ This is an achievement for the most recent experience entry, not a new entry.`;
+→ This is an achievement for the most recent experience entry, not a new entry.
+
+NEGATIVE EXAMPLES — return {} (empty object) for these kinds of messages:
+
+[USER]: how much information did you receive?
+→ {} — this is a question about the app, not resume data.
+
+[USER]: i just see name education skills in the preview, nothing much
+→ {} — this is a UI complaint. Do NOT extract "name", "education", or "skills" as field values.
+
+[USER]: why isn't the preview updating?
+→ {} — UI question. Extract nothing.
+
+[USER]: that's wrong, please fix it
+→ {} — correction intent. Extract nothing; the AI will ask the user what to fix.
+
+[USER]: create my resume now
+→ {} — creation intent only. No resume fields are being provided.
+
+[USER]: yes / ok / go ahead / sure
+→ {} — affirmative response with no data. Extract nothing.`;
 
 /** Options for the extraction call. */
 export interface ExtractionOptions {

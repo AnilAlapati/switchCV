@@ -51,7 +51,11 @@ export interface GenerationQualityReport {
 }
 
 export interface ResumeGenerationVersion {
-  pipeline: "v1_regex" | "v2_structured" | "v2_creative";
+  pipeline:
+    | "v1_regex"
+    | "v2_structured"
+    | "v2_creative"
+    | "v3_function_calling";
   version?: string;
 }
 

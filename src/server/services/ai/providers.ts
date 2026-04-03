@@ -54,8 +54,17 @@ export async function callGemini(
   prompt: string,
   maxTokens: number,
   temperature: number,
-  options?: { jsonMode?: boolean; responseSchema?: Record<string, unknown> },
-): Promise<{ text: string; model: string }> {
+  options?: {
+    jsonMode?: boolean;
+    responseSchema?: Record<string, unknown>;
+    tools?: import("@/types/ai").GeminiFunctionDeclaration[];
+    systemInstruction?: string;
+  },
+): Promise<{
+  text: string;
+  model: string;
+  toolCalls?: import("@/types/ai").AIToolCall[];
+}> {
   const apiKey =
     process.env.GEMINI_API_KEY || (await getSecret("GEMINI_API_KEY"));
   if (!apiKey) throw new Error("Gemini API key not configured");
@@ -81,8 +90,18 @@ export async function callGemini(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        ...(options?.systemInstruction
+          ? {
+              system_instruction: {
+                parts: [{ text: options.systemInstruction }],
+              },
+            }
+          : {}),
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig,
+        ...(options?.tools?.length
+          ? { tools: [{ functionDeclarations: options.tools }] }
+          : {}),
       }),
     }),
   );
@@ -93,10 +112,26 @@ export async function callGemini(
   }
 
   const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error("No text generated from Gemini");
+  const parts: Array<{
+    text?: string;
+    functionCall?: { name: string; args?: Record<string, unknown> };
+  }> = data.candidates?.[0]?.content?.parts ?? [];
+  const text = parts
+    .filter((p) => p.text)
+    .map((p) => p.text as string)
+    .join("")
+    .trim();
+  const toolCalls = parts
+    .filter((p) => p.functionCall)
+    .map((p) => ({
+      name: p.functionCall!.name,
+      args: p.functionCall!.args ?? {},
+    }));
 
-  return { text: text.trim(), model: modelId };
+  if (!text && toolCalls.length === 0)
+    throw new Error("No text or function calls generated from Gemini");
+
+  return { text, model: modelId, ...(toolCalls.length ? { toolCalls } : {}) };
 }
 
 export async function callAnthropic(

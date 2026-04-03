@@ -10,6 +10,9 @@ import { noirV1Template } from "./resumeTemplates/noir-v1";
 import { signalV1Template } from "./resumeTemplates/signal-v1";
 import { narrativeV1Template } from "./resumeTemplates/narrative-v1";
 import { studioV1Template } from "./resumeTemplates/studio-v1";
+import { atlasV1Template } from "./resumeTemplates/atlas-v1";
+import { clarityV1Template } from "./resumeTemplates/clarity-v1";
+import { velocityV1Template } from "./resumeTemplates/velocity-v1";
 
 export const RESUME_TEMPLATES: ResumeTemplate[] = [
   signalV1Template,
@@ -17,6 +20,9 @@ export const RESUME_TEMPLATES: ResumeTemplate[] = [
   modernCreativeV1Template,
   executiveV1Template,
   masonryV1Template,
+  atlasV1Template,
+  clarityV1Template,
+  velocityV1Template,
   narrativeV1Template,
   studioV1Template,
   bentoV1Template,

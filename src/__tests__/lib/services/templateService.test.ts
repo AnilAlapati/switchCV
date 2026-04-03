@@ -17,11 +17,24 @@ jest.mock("firebase/firestore", () => ({
   doc: jest.fn(),
   getDoc: jest.fn(),
   writeBatch: jest.fn(),
+  query: jest.fn((...args: unknown[]) => args[0]),
+  limit: jest.fn(() => ({})),
 }));
 
 // Mock the db
 jest.mock("@/lib/firebase", () => ({
   db: {},
+}));
+
+// Disable in-process cache so each test gets a fresh Firestore call
+jest.mock("@/lib/utils/cache", () => ({
+  MemoryCache: jest.fn().mockImplementation(() => ({
+    get: jest.fn().mockReturnValue(null),
+    set: jest.fn(),
+  })),
+  coalesce: jest
+    .fn()
+    .mockImplementation(async (_key: unknown, fn: () => unknown) => fn()),
 }));
 
 describe("templateService", () => {
@@ -46,7 +59,7 @@ describe("templateService", () => {
       expect(templates).toEqual([{ id: "db1", name: "DB Template" }]);
       expect(mockCollection).toHaveBeenCalledWith(
         expect.anything(),
-        "templates"
+        "templates",
       );
     });
 
@@ -72,15 +85,15 @@ describe("templateService", () => {
     it("should return template from DB if found", async () => {
       mockGetDoc.mockResolvedValue({
         exists: () => true,
-        data: () => ({ id: "temp1", name: "DB Template 1" }),
+        data: () => ({ id: "db-only-id", name: "DB Template 1" }),
       });
 
-      const template = await templateService.getTemplateById("temp1");
-      expect(template).toEqual({ id: "temp1", name: "DB Template 1" });
+      const template = await templateService.getTemplateById("db-only-id");
+      expect(template).toEqual({ id: "db-only-id", name: "DB Template 1" });
       expect(mockDoc).toHaveBeenCalledWith(
         expect.anything(),
         "templates",
-        "temp1"
+        "db-only-id",
       );
     });
 

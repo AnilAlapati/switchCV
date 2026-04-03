@@ -34,7 +34,10 @@ export const TEMPLATE_TIERS: Record<string, TemplateTier> = {
   "modern-creative-v1": "free",
   "executive-v1": "free",
   "masonry-v1": "free",
+  "atlas-v1": "free",
+  "clarity-v1": "free",
   // Premium templates - require premium subscription
+  "velocity-v1": "premium",
   "narrative-v1": "premium",
   "studio-v1": "premium",
   "bento-v1": "premium",
@@ -52,12 +55,7 @@ export const getAvailableTemplates = (
 ): string[] => {
   if (!CREATIVE_TEMPLATES_ENABLED) {
     // Feature disabled - only return basic templates
-    return [
-      "signal-v1",
-      "standard-v1",
-      "modern-creative-v1",
-      "executive-v1",
-    ];
+    return ["signal-v1", "standard-v1", "modern-creative-v1", "executive-v1"];
   }
 
   const tierHierarchy = {

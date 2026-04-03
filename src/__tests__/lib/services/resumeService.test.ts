@@ -26,10 +26,11 @@ jest.mock("@/lib/firebase", () => ({
 }));
 
 jest.mock("firebase/firestore", () => ({
-  collection: jest.fn(),
+  collection: jest.fn().mockReturnValue({ _collectionRef: true }),
   query: jest.fn(),
   where: jest.fn(),
   getDocs: jest.fn(),
+  addDoc: jest.fn().mockResolvedValue({ id: "view-1" }),
 }));
 
 // Mock Firebase Admin
@@ -149,29 +150,42 @@ describe("resumeService", () => {
       expect(result).toBeNull();
       expect(logger.error).toHaveBeenCalledWith(
         expect.objectContaining({ slug: "error-slug" }),
-        "Error fetching resume"
+        "Error fetching resume",
       );
     });
   });
 
   describe("trackResumeView", () => {
-    it("should query for existing views", async () => {
-      (getDocs as jest.Mock).mockResolvedValue({ empty: true });
+    beforeEach(() => {
+      const {
+        collection: colFn,
+        addDoc: addDocFn,
+      } = require("firebase/firestore");
+      (colFn as jest.Mock).mockReturnValue({ _collectionRef: "resumeViews" });
+      (addDocFn as jest.Mock).mockResolvedValue({ id: "view-1" });
+    });
+
+    it("should write a view record", async () => {
+      const { addDoc } = require("firebase/firestore");
 
       await trackResumeView(mockResumeId);
 
       expect(collection).toHaveBeenCalledWith(db, "resumeViews");
-      expect(where).toHaveBeenCalledWith("resumeId", "==", mockResumeId);
+      expect(addDoc).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ resumeId: mockResumeId }),
+      );
     });
 
     it("should handle errors gracefully and log the error", async () => {
-      (getDocs as jest.Mock).mockRejectedValue(new Error("DB Error"));
+      const { addDoc: addDocFn } = require("firebase/firestore");
+      (addDocFn as jest.Mock).mockRejectedValue(new Error("DB Error"));
 
       await trackResumeView(mockResumeId);
 
       expect(logger.error).toHaveBeenCalledWith(
         expect.objectContaining({ resumeId: mockResumeId }),
-        "Error tracking resume view"
+        "Error tracking resume view",
       );
     });
   });
@@ -242,7 +256,7 @@ describe("resumeService", () => {
     it("should throw if draft not found", async () => {
       (getDraft as jest.Mock).mockResolvedValue(null);
       await expect(publishDraft(mockDraftId, mockUserId)).rejects.toThrow(
-        "Draft not found"
+        "Draft not found",
       );
     });
   });
@@ -290,7 +304,7 @@ describe("resumeService", () => {
         }),
       });
       await expect(unpublishResume(mockResumeId, mockUserId)).rejects.toThrow(
-        "Resume not found"
+        "Resume not found",
       );
     });
 
@@ -314,7 +328,7 @@ describe("resumeService", () => {
       });
 
       await expect(unpublishResume(mockResumeId, mockUserId)).rejects.toThrow(
-        "already being edited"
+        "already being edited",
       );
     });
   });
@@ -393,7 +407,7 @@ describe("resumeService", () => {
           numericId: 5555,
           userId: mockUserId,
           status: "draft",
-        })
+        }),
       );
     });
   });
