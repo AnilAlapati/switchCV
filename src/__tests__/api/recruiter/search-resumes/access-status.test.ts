@@ -38,7 +38,7 @@ describe("access-status", () => {
 
   beforeAll(() => {
     jest.useFakeTimers();
-    jest.setSystemTime(mockNow);
+    jest.setSystemTime(mockNow.getTime());
   });
 
   afterAll(() => {

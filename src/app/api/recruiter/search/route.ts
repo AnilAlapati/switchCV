@@ -19,13 +19,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     // 1.5 Rate Limiting
-    const { checkDistributedRateLimit, aiSearchRateLimiter } = await import("@/lib/utils/distributedRateLimit");
+    const { aiSearchRateLimiter } =
+      await import("@/lib/utils/distributedRateLimit");
     const rateLimit = await aiSearchRateLimiter(authUserId);
 
     if (!rateLimit.allowed) {
-      return handleApiError(null, "Rate limit exceeded. Please try again later.", 429);
+      return handleApiError(
+        null,
+        "Rate limit exceeded. Please try again later.",
+        429,
+      );
     }
-
 
     // 2. Parse Query
     const { searchParams } = new URL(request.url);
@@ -39,16 +43,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // 3. Delegation to Service
     try {
-      const result = await RecruiterService.searchCandidates(authUserId, searchQuery);
+      const result = await RecruiterService.searchCandidates(
+        authUserId,
+        searchQuery,
+      );
 
       // 4. Response
       // Cache headers are still good to keep here at the "Edge" (Controller) level
       return NextResponse.json(result, {
         headers: {
-          'Cache-Control': 'private, max-age=60, stale-while-revalidate=600',
-        }
+          "Cache-Control": "private, max-age=60, stale-while-revalidate=600",
+        },
       });
-
     } catch (error) {
       // Handle known domain errors to preserve UX
       const errorText = String(error);
@@ -63,13 +69,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         return handleApiError(
           error,
           "Monthly search limit reached. Please upgrade to search more candidates.",
-          403
+          403,
         );
       }
 
       throw error; // Let outer catch handle unexpected errors
     }
-
   } catch (error: unknown) {
     return handleApiError(error, "Failed to search resumes");
   }

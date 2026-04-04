@@ -191,7 +191,9 @@ export async function POST(request: NextRequest) {
       logger.error({ err: metricError }, "Failed to update aggregated metrics");
     }
 
-    return NextResponse.json(result);
+    return NextResponse.json(result, {
+      headers: { "Cache-Control": "private, no-store" },
+    });
   } catch (error) {
     return handleApiError(error, "Failed to track analytics");
   }

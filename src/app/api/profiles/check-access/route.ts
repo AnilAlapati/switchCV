@@ -25,7 +25,9 @@ export async function GET(request: NextRequest) {
       currentUserId,
       resumeId,
     );
-    return NextResponse.json(result);
+    return NextResponse.json(result, {
+      headers: { "Cache-Control": "private, no-store" },
+    });
   } catch (error: unknown) {
     const errorMessage = String(error);
     if (errorMessage.toLowerCase().includes("not found")) {

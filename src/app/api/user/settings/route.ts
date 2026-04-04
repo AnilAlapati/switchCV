@@ -9,6 +9,7 @@ import {
   UserSettingsQuerySchema,
   UserSettingsUpdateSchema,
 } from "@/lib/schemas/api";
+import { cacheService } from "@/lib/services/cacheService";
 
 export async function GET(request: NextRequest) {
   try {
@@ -33,41 +34,51 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get user document using Admin SDK (bypasses Firestore security rules)
-    const userRef = collectionRef(COLLECTIONS.USERS).doc(userId!);
-    const userDoc = await userRef.get();
+    // Get user settings (cached for 5 minutes, invalidated on PUT)
+    const cacheKey = `user-settings:${userId}`;
+    const settings = await cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        const userRef = collectionRef(COLLECTIONS.USERS).doc(userId!);
+        const userDoc = await userRef.get();
 
-    if (!userDoc.exists) {
+        if (!userDoc.exists) {
+          return null;
+        }
+
+        const userData = userDoc.data();
+
+        // Ensure role field is in sync with isRecruiter (migration fix)
+        const isRecruiter = userData?.isRecruiter || false;
+        if (userData && userData.role === undefined) {
+          await userRef.set(
+            { role: isRecruiter ? "recruiter" : "jobseeker" },
+            { merge: true },
+          );
+        }
+
+        return {
+          isRecruiter,
+          displayName: userData?.displayName || "",
+          companyName: userData?.companyName || "",
+          notifications: userData?.notifications || {
+            marketing: true,
+            security: true,
+            activity: false,
+          },
+          privacy: userData?.privacy || {
+            profilePublic: true,
+            searchable: true,
+          },
+          updatedAt: userData?.settingsUpdatedAt || new Date().toISOString(),
+        };
+      },
+      { ttlSeconds: 300 },
+    );
+
+    if (!settings) {
       return handleApiError(new Error("User not found"), "User not found", 404);
     }
-
-    const userData = userDoc.data();
-
-    // Ensure role field is in sync with isRecruiter (migration fix)
-    const isRecruiter = userData?.isRecruiter || false;
-    if (userData && userData.role === undefined) {
-      // Update the document to include the role field
-      await userRef.set(
-        { role: isRecruiter ? "recruiter" : "jobseeker" },
-        { merge: true },
-      );
-    }
-
-    const settings = {
-      isRecruiter,
-      displayName: userData?.displayName || "",
-      companyName: userData?.companyName || "",
-      notifications: userData?.notifications || {
-        marketing: true,
-        security: true,
-        activity: false,
-      },
-      privacy: userData?.privacy || {
-        profilePublic: true,
-        searchable: true,
-      },
-      updatedAt: userData?.settingsUpdatedAt || new Date().toISOString(),
-    };
 
     return NextResponse.json(settings, {
       headers: {
@@ -172,6 +183,9 @@ export async function PUT(request: NextRequest) {
     await collectionRef(COLLECTIONS.USERS).doc(userId!).set(updateData, {
       merge: true,
     });
+
+    // Invalidate cached settings
+    await cacheService.invalidate(`user-settings:${userId}`);
 
     return NextResponse.json({
       success: true,

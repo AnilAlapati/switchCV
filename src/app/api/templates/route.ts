@@ -21,11 +21,18 @@ export async function GET(_request: NextRequest) {
 
     const templates = await templateService.getAllTemplates();
 
-    return NextResponse.json({
-      success: true,
-      templates,
-      count: templates.length,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        templates,
+        count: templates.length,
+      },
+      {
+        headers: {
+          "Cache-Control": "public, max-age=300, stale-while-revalidate=600",
+        },
+      },
+    );
   } catch (error) {
     logger.error({ err: error }, "Error fetching templates");
     return handleApiError(error, "Failed to fetch templates", 500);

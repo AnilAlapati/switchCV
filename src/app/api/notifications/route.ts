@@ -134,22 +134,32 @@ export async function GET(request: NextRequest) {
       return handleApiError(null, "Forbidden", 403);
     }
 
+    let notifResponse: NextResponse;
     switch (action) {
       case "get-notifications":
-        return handleGetNotifications(userId);
+        notifResponse = await handleGetNotifications(userId);
+        break;
 
       case "get-unread":
-        return handleGetUnread(userId);
+        notifResponse = await handleGetUnread(userId);
+        break;
 
       case "get-statistics":
-        return handleGetStatistics(userId || authUserId);
+        notifResponse = await handleGetStatistics(userId || authUserId);
+        break;
 
       case "get-delivery-status":
-        return handleGetDeliveryStatus(notificationId, authUserId);
+        notifResponse = await handleGetDeliveryStatus(
+          notificationId,
+          authUserId,
+        );
+        break;
 
       default:
         return handleApiError(null, "Unknown action", 400);
     }
+    notifResponse.headers.set("Cache-Control", "private, no-store");
+    return notifResponse;
   } catch (error) {
     return handleApiError(error, "Failed to process request");
   }

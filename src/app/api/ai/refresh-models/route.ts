@@ -42,14 +42,12 @@ export async function GET(request: NextRequest) {
       return handleApiError(
         new Error("Gemini API key not configured"),
         "Gemini API key not configured",
-        500
+        500,
       );
     }
 
     // Fetch latest models
-    const response = await fetch(
-      AI_ENDPOINTS.GEMINI.MODELS(apiKey)
-    );
+    const response = await fetch(AI_ENDPOINTS.GEMINI.MODELS(apiKey));
 
     if (!response.ok) {
       throw new Error(`Failed to fetch models: ${response.status}`);
@@ -70,7 +68,7 @@ export async function GET(request: NextRequest) {
       })) || [];
 
     const compatibleModels = allModels.filter((m) =>
-      m.methods?.includes("generateContent")
+      m.methods?.includes("generateContent"),
     );
 
     const jsonResponse = NextResponse.json({
@@ -82,6 +80,7 @@ export async function GET(request: NextRequest) {
       message: "Model cache will be refreshed on next API call",
     });
     attachRateLimitHeaders(jsonResponse, rateCheck.result);
+    jsonResponse.headers.set("Cache-Control", "private, no-store");
     return jsonResponse;
   } catch (error) {
     return handleApiError(error, "Failed to refresh models");

@@ -71,7 +71,6 @@ export async function POST(request: NextRequest) {
     });
 
     if (!generationCapCheck.allowed) {
-      const retryMinutes = Math.ceil(generationCapCheck.resetIn / 60000);
       logger.warn(
         {
           userId,

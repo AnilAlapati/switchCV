@@ -147,6 +147,10 @@ export async function GET() {
     },
     { status: criticalHealthy ? 200 : 503 },
   );
+  response.headers.set(
+    "Cache-Control",
+    "public, max-age=30, stale-while-revalidate=60",
+  );
 
   // Cache the result to prevent repeated expensive checks
   if (shouldUseCache()) {

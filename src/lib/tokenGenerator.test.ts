@@ -10,7 +10,7 @@ describe("TokenGenerator Utility", () => {
   beforeEach(() => {
     generator = new TokenGenerator("test-secret");
     jest.useFakeTimers();
-    jest.setSystemTime(new Date("2024-01-01T00:00:00Z"));
+    jest.setSystemTime(new Date("2024-01-01T00:00:00Z").getTime());
   });
 
   afterEach(() => {
@@ -44,7 +44,7 @@ describe("TokenGenerator Utility", () => {
 
       const sevenDaysInSeconds = 7 * 24 * 60 * 60;
       const issuedAt = Math.floor(
-        new Date("2024-01-01T00:00:00Z").getTime() / 1000
+        new Date("2024-01-01T00:00:00Z").getTime() / 1000,
       );
       const expectedExpiry = issuedAt + sevenDaysInSeconds;
 
@@ -209,7 +209,7 @@ describe("TokenGenerator Utility", () => {
 
       const isValid = generator.verifyTokenHash(
         generated.token,
-        generated.tokenHash
+        generated.tokenHash,
       );
 
       expect(isValid).toBe(true);

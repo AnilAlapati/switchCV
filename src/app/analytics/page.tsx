@@ -15,7 +15,7 @@ import {
   MetricCard,
   TierBar,
   IndustryDistribution,
-  RecentActivity
+  RecentActivity,
 } from "@/components/analytics/AnalyticsComponents";
 
 export default function AnalyticsPage() {
@@ -26,10 +26,7 @@ export default function AnalyticsPage() {
   // Use SWR hook for analytics data with caching
   // Fetch platform-wide analytics only for admins
   const canFetchPlatformAnalytics =
-    !authLoading &&
-    !roleLoading &&
-    !!user &&
-    role === "admin";
+    !authLoading && !roleLoading && !!user && role === "admin";
   const {
     analytics,
     loading: analyticsLoading,
@@ -38,11 +35,7 @@ export default function AnalyticsPage() {
   } = useSystemAnalytics(canFetchPlatformAnalytics);
 
   // General check for ANY analytics access (admin or recruiter)
-  const hasPageAccess =
-    !authLoading &&
-    !roleLoading &&
-    !!user &&
-    (role === "admin" || role === "recruiter");
+  // Access validation is handled per-section below
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -108,8 +101,8 @@ export default function AnalyticsPage() {
                 System Analytics
               </h1>
               <p className="mt-2 text-slate-600 max-w-2xl font-serif">
-                Real-time insights into platform performance, user engagement, and
-                resume metrics.
+                Real-time insights into platform performance, user engagement,
+                and resume metrics.
               </p>
             </div>
 
@@ -233,7 +226,9 @@ export default function AnalyticsPage() {
 
                   {/* Data Visualization Sections */}
                   <div className="lg:col-span-2 space-y-8">
-                    <IndustryDistribution industries={analytics.topIndustries} />
+                    <IndustryDistribution
+                      industries={analytics.topIndustries}
+                    />
                     <RecentActivity activities={analytics.recentActivity} />
                   </div>
                 </div>
@@ -245,4 +240,3 @@ export default function AnalyticsPage() {
     </DashboardBackground>
   );
 }
-

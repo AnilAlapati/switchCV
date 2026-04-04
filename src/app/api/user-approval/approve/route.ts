@@ -327,13 +327,19 @@ export async function GET(request: NextRequest) {
           </form>
         </body>
       </html>`,
-      { status: 200, headers: { "Content-Type": "text/html" } },
+      {
+        status: 200,
+        headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
+      },
     );
   } catch (error) {
     logger.error({ error }, "Error rendering approval confirmation");
     return new NextResponse(
       `<!DOCTYPE html><html><head><title>Error</title><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{font-family:system-ui;max-width:600px;margin:100px auto;padding:20px;text-align:center}h1{color:#dc2626}</style></head><body><h1>❌ Error</h1><p>An error occurred. Please try again or contact support.</p></body></html>`,
-      { status: 500, headers: { "Content-Type": "text/html" } },
+      {
+        status: 500,
+        headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
+      },
     );
   }
 }

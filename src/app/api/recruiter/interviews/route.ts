@@ -7,11 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import {
-  COLLECTIONS,
-  collectionRef,
-  serverTimestamp,
-} from "@/lib/dal";
+import { COLLECTIONS, collectionRef, serverTimestamp } from "@/lib/dal";
 import type { DocumentSnapshot } from "@/lib/dal";
 import {
   Interview,
@@ -74,9 +70,7 @@ async function verifyRecruiterRole(userId: string): Promise<boolean> {
 /**
  * Helper to convert Firestore doc to Interview object
  */
-function docToInterview(
-  doc: DocumentSnapshot
-): Interview | null {
+function docToInterview(doc: DocumentSnapshot): Interview | null {
   if (!doc.exists) return null;
   const data = doc.data()!;
   return {
@@ -89,9 +83,8 @@ function docToInterview(
 }
 
 export async function POST(request: NextRequest) {
-  const { userId: authUserId, error: authError } = await getAuthenticatedUserId(
-    request
-  );
+  const { userId: authUserId, error: authError } =
+    await getAuthenticatedUserId(request);
   if (authError || !authUserId)
     return authError || handleApiError(null, "Unauthorized", 401);
 
@@ -118,7 +111,7 @@ export async function POST(request: NextRequest) {
         return handleApiError(
           null,
           "Missing required fields: candidateId, jobId, type, scheduledTime, interviewers",
-          400
+          400,
         );
       }
       return handleApiError(null, "Invalid request payload", 400);
@@ -144,7 +137,7 @@ export async function POST(request: NextRequest) {
           type,
           new Date(scheduledTime),
           duration,
-          interviewers
+          interviewers,
         );
 
         // Save to Firestore
@@ -162,7 +155,7 @@ export async function POST(request: NextRequest) {
 
         logger.info(
           { interviewId: interview.id, candidateId },
-          "Interview scheduled"
+          "Interview scheduled",
         );
 
         return NextResponse.json(
@@ -171,15 +164,16 @@ export async function POST(request: NextRequest) {
             interview,
             message: "Interview scheduled successfully",
           },
-          { status: 201 }
+          { status: 201 },
         );
       }
 
       case "update-status": {
         const { interviewId, status } = body as UpdateStatusRequest;
 
-        const interviewRef = collectionRef(COLLECTIONS.RECRUITER_INTERVIEWS)
-          .doc(interviewId);
+        const interviewRef = collectionRef(
+          COLLECTIONS.RECRUITER_INTERVIEWS,
+        ).doc(interviewId);
         const interviewDoc = await interviewRef.get();
 
         if (!interviewDoc.exists) {
@@ -212,15 +206,16 @@ export async function POST(request: NextRequest) {
             interview: updated,
             message: "Interview status updated",
           },
-          { status: 200 }
+          { status: 200 },
         );
       }
 
       case "add-feedback": {
         const { interviewId, feedback } = body as AddFeedbackRequest;
 
-        const interviewRef = collectionRef(COLLECTIONS.RECRUITER_INTERVIEWS)
-          .doc(interviewId);
+        const interviewRef = collectionRef(
+          COLLECTIONS.RECRUITER_INTERVIEWS,
+        ).doc(interviewId);
         const interviewDoc = await interviewRef.get();
 
         if (!interviewDoc.exists) {
@@ -255,7 +250,7 @@ export async function POST(request: NextRequest) {
             interview: updated,
             message: "Feedback added successfully",
           },
-          { status: 201 }
+          { status: 201 },
         );
       }
 
@@ -277,7 +272,7 @@ export async function POST(request: NextRequest) {
           .get();
 
         const upcoming: Interview[] = snapshot.docs.map(
-          (doc) => docToInterview(doc)!
+          (doc) => docToInterview(doc)!,
         );
 
         return NextResponse.json(
@@ -286,7 +281,7 @@ export async function POST(request: NextRequest) {
             interviews: upcoming,
             count: upcoming.length,
           },
-          { status: 200 }
+          { status: 200 },
         );
       }
 
@@ -300,9 +295,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const { userId: authUserId, error: authError } = await getAuthenticatedUserId(
-    request
-  );
+  const { userId: authUserId, error: authError } =
+    await getAuthenticatedUserId(request);
   if (authError || !authUserId)
     return authError || handleApiError(null, "Unauthorized", 401);
 
@@ -333,7 +327,7 @@ export async function GET(request: NextRequest) {
           success: true,
           interview: docToInterview(interviewDoc),
         },
-        { status: 200 }
+        { status: 200, headers: { "Cache-Control": "private, no-store" } },
       );
     }
 
@@ -346,7 +340,7 @@ export async function GET(request: NextRequest) {
         .get();
 
       const candidateInterviews: Interview[] = snapshot.docs.map(
-        (doc) => docToInterview(doc)!
+        (doc) => docToInterview(doc)!,
       );
 
       return NextResponse.json(
@@ -355,7 +349,7 @@ export async function GET(request: NextRequest) {
           interviews: candidateInterviews,
           count: candidateInterviews.length,
         },
-        { status: 200 }
+        { status: 200, headers: { "Cache-Control": "private, no-store" } },
       );
     }
 
@@ -367,7 +361,7 @@ export async function GET(request: NextRequest) {
       .get();
 
     const allInterviews: Interview[] = snapshot.docs.map(
-      (doc) => docToInterview(doc)!
+      (doc) => docToInterview(doc)!,
     );
 
     return NextResponse.json(
@@ -376,7 +370,7 @@ export async function GET(request: NextRequest) {
         interviews: allInterviews,
         count: allInterviews.length,
       },
-      { status: 200 }
+      { status: 200, headers: { "Cache-Control": "private, no-store" } },
     );
   } catch (error) {
     logger.error({ err: error }, "Interviews GET error");

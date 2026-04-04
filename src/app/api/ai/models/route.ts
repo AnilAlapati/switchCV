@@ -15,16 +15,16 @@ export async function GET(request: NextRequest) {
 
     const rateLimitResult = await apiRateLimiter(userId);
     if (!rateLimitResult.allowed) {
-      return NextResponse.json(
-        { error: "Too many requests" },
-        { status: 429 }
-      );
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     }
 
     const userTier = await getUserTier(userId);
     const models = getSelectableModels(userTier);
 
-    return NextResponse.json({ tier: userTier, models });
+    return NextResponse.json(
+      { tier: userTier, models },
+      { headers: { "Cache-Control": "private, no-store" } },
+    );
   } catch (error) {
     return handleApiError(error, "Failed to load AI models");
   }

@@ -2,6 +2,7 @@
 
 import { logger } from "@/lib/logger";
 import { toast } from "sonner";
+import useSWR from "swr";
 
 import { useCallback, useEffect, useMemo, useState, Suspense } from "react";
 import { useAuth } from "@/hooks/useAuth";
@@ -20,9 +21,8 @@ import {
   EmptyState,
   TabSwitcher,
   EmptyTabContent,
-  PageHeader
+  PageHeader,
 } from "./RequestPageComponents";
-
 
 function RecruiterRequestsContent() {
   const { user, logout } = useAuth();
@@ -30,9 +30,6 @@ function RecruiterRequestsContent() {
   const searchParams = useSearchParams();
   const initialTab = (searchParams.get("tab") as TabKey) || "pending";
 
-  const [requests, setRequests] = useState<RecruiterRequest[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [requestToDelete, setRequestToDelete] =
     useState<RecruiterRequest | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -40,6 +37,29 @@ function RecruiterRequestsContent() {
   const [reRequestTarget, setReRequestTarget] =
     useState<RecruiterRequest | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
+
+  const {
+    data: requests = [],
+    error: swrError,
+    isLoading: loading,
+    mutate,
+  } = useSWR<RecruiterRequest[]>(
+    user ? ["/api/recruiter/requests", user.uid] : null,
+    async ([url]) => {
+      const token = await user!.getIdToken();
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error("Failed to load requests.");
+      const data = await response.json();
+      return data.requests as RecruiterRequest[];
+    },
+    { revalidateOnFocus: false, refreshInterval: 60_000 },
+  );
+
+  const error = swrError
+    ? String(swrError.message ?? "An error occurred while loading requests.")
+    : null;
 
   // Update activeTab when URL param changes
   useEffect(() => {
@@ -59,35 +79,6 @@ function RecruiterRequestsContent() {
     }
   }, [logout, router]);
 
-  const fetchRequests = useCallback(async () => {
-    if (!user) return;
-    setError(null);
-    try {
-      const token = await user?.getIdToken();
-      const response = await fetch(`/api/recruiter/requests`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setRequests(data.requests);
-      } else {
-        setError("Failed to load requests.");
-      }
-    } catch (error) {
-      logger.error({ err: error }, "Failed to fetch requests");
-      setError("An error occurred while loading requests.");
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-    fetchRequests();
-  }, [user, fetchRequests]);
-
   useEffect(() => {
     const interval = window.setInterval(() => {
       setNow(Date.now());
@@ -103,6 +94,11 @@ function RecruiterRequestsContent() {
     if (!requestToDelete) return;
 
     setIsDeleting(true);
+    // Optimistic update: remove from local cache immediately
+    mutate(
+      (prev) => prev?.filter((req) => req.id !== requestToDelete.id),
+      false,
+    );
     try {
       const token = await user?.getIdToken();
       const response = await fetch(
@@ -116,15 +112,15 @@ function RecruiterRequestsContent() {
       );
 
       if (response.ok) {
-        setRequests((prev) =>
-          prev.filter((req) => req.id !== requestToDelete.id),
-        );
         setRequestToDelete(null);
       } else {
+        // Revert optimistic update on failure
+        mutate();
         const data = await response.json();
         toast.error(data.error || "Failed to delete request");
       }
     } catch (error) {
+      mutate();
       logger.error({ err: error }, "Error deleting request:");
       toast.error("Error deleting request");
     } finally {
@@ -142,7 +138,7 @@ function RecruiterRequestsContent() {
 
   const handleReRequestSuccess = () => {
     closeReRequestDialog();
-    fetchRequests();
+    mutate();
   };
 
   const decoratedRequests = useMemo<DecoratedRequest[]>(() => {
@@ -188,14 +184,34 @@ function RecruiterRequestsContent() {
   const isAvailableResumesView = activeTab === "active";
   const isContactHistoryView = activeTab === "history";
 
-  const tabConfig = useMemo(() =>
-    isAvailableResumesView
-      ? [{ key: "active" as TabKey, label: "Active", count: activeRequests.length }]
-      : [
-        { key: "pending" as TabKey, label: "Pending", count: pendingRequests.length },
-        { key: "history" as TabKey, label: "History", count: historyRequests.length },
-      ],
-    [isAvailableResumesView, activeRequests.length, pendingRequests.length, historyRequests.length]
+  const tabConfig = useMemo(
+    () =>
+      isAvailableResumesView
+        ? [
+            {
+              key: "active" as TabKey,
+              label: "Active",
+              count: activeRequests.length,
+            },
+          ]
+        : [
+            {
+              key: "pending" as TabKey,
+              label: "Pending",
+              count: pendingRequests.length,
+            },
+            {
+              key: "history" as TabKey,
+              label: "History",
+              count: historyRequests.length,
+            },
+          ],
+    [
+      isAvailableResumesView,
+      activeRequests.length,
+      pendingRequests.length,
+      historyRequests.length,
+    ],
   );
 
   const emptyStateMessage = useMemo(() => {
@@ -214,18 +230,31 @@ function RecruiterRequestsContent() {
           isContactHistoryView={isContactHistoryView}
         />
 
-
         {loading ? (
           <LoadingState />
         ) : error ? (
           <ErrorState error={error} />
         ) : requests.length === 0 ? (
           <EmptyState
-            viewType={isAvailableResumesView ? "available" : isContactHistoryView ? "contact" : "requests"}
-            title={isAvailableResumesView ? "No Available Resumes Yet" : isContactHistoryView ? "No Candidates Contacted Yet" : "No Access Requests Yet"}
-            description={isAvailableResumesView
-              ? "Request access to candidate resumes to see them here."
-              : "Start discovering talent by searching for candidates and requesting access to their resumes."}
+            viewType={
+              isAvailableResumesView
+                ? "available"
+                : isContactHistoryView
+                  ? "contact"
+                  : "requests"
+            }
+            title={
+              isAvailableResumesView
+                ? "No Available Resumes Yet"
+                : isContactHistoryView
+                  ? "No Candidates Contacted Yet"
+                  : "No Access Requests Yet"
+            }
+            description={
+              isAvailableResumesView
+                ? "Request access to candidate resumes to see them here."
+                : "Start discovering talent by searching for candidates and requesting access to their resumes."
+            }
           />
         ) : (
           <div className="space-y-6">
@@ -281,7 +310,6 @@ function RecruiterRequestsContent() {
     </DashboardBackground>
   );
 }
-
 
 export default function RecruiterRequestsPage() {
   return (

@@ -156,6 +156,57 @@ const eslintConfig = [
     },
   },
   {
+    // All service files — business logic is often dense; 600 lines is appropriate
+    files: ["src/lib/services/**/*.ts", "src/server/services/**/*.ts"],
+    rules: {
+      "max-lines": ["warn", { max: 600, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
+    // Resume generation orchestrator: multi-step pipeline intentionally large.
+    // Extracted types (resumeOrchestratorTypes.ts) and FC path (resumeOrchestrator.fc.ts)
+    // already split out. Further decomposition tracked as tech debt.
+    files: ["src/lib/services/resumeGenerationOrchestrator.ts"],
+    rules: {
+      "max-lines": ["warn", { max: 1000, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
+    // Component files — complex UI components with template variations and render logic
+    files: ["src/components/**/*.tsx", "src/components/**/*.ts"],
+    rules: {
+      "max-lines": ["warn", { max: 450, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
+    // API routes — some routes handle multiple HTTP methods or complex validation
+    files: ["src/app/api/**/*.ts"],
+    rules: {
+      "max-lines": ["warn", { max: 450, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
+    // Page and layout files — can legitimately require more code for RSC patterns
+    files: ["src/app/**/page.tsx", "src/app/**/layout.tsx"],
+    rules: {
+      "max-lines": ["warn", { max: 450, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
+    // Custom hooks — complex hooks for recruiter pipelines and resume creation
+    files: ["src/hooks/**/*.ts", "src/hooks/**/*.tsx"],
+    rules: {
+      "max-lines": ["warn", { max: 450, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
+    // Type definition files and flat lib files — type unions/data can be verbose
+    files: ["src/types/**/*.ts", "src/lib/*.ts"],
+    rules: {
+      "max-lines": ["warn", { max: 400, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
     // Files that handle dynamic Firestore data structures legitimately need 'any'
     files: [
       "src/lib/utils/resumeEditor.ts",

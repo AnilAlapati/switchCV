@@ -7,11 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import {
-  COLLECTIONS,
-  collectionRef,
-  serverTimestamp,
-} from "@/lib/dal";
+import { COLLECTIONS, collectionRef, serverTimestamp } from "@/lib/dal";
 import type { DocumentSnapshot, Query } from "@/lib/dal";
 import { BulkAction } from "@/lib/recruiterDashboard.types";
 import { createBulkAction } from "@/lib/recruiterPipelineHelpers";
@@ -62,9 +58,7 @@ async function verifyRecruiterRole(userId: string): Promise<boolean> {
 /**
  * Helper to convert Firestore doc to BulkAction object
  */
-function docToBulkAction(
-  doc: DocumentSnapshot
-): BulkActionWithMeta | null {
+function docToBulkAction(doc: DocumentSnapshot): BulkActionWithMeta | null {
   if (!doc.exists) return null;
   const data = doc.data()!;
   return {
@@ -89,9 +83,8 @@ function docToBulkAction(
 }
 
 export async function POST(request: NextRequest) {
-  const { userId: authUserId, error: authError } = await getAuthenticatedUserId(
-    request
-  );
+  const { userId: authUserId, error: authError } =
+    await getAuthenticatedUserId(request);
   if (authError || !authUserId)
     return authError || handleApiError(null, "Unauthorized", 401);
 
@@ -113,7 +106,7 @@ export async function POST(request: NextRequest) {
         return handleApiError(
           null,
           "Missing required fields: actionType, candidateIds (non-empty array)",
-          400
+          400,
         );
       }
       return handleApiError(null, "Invalid request payload", 400);
@@ -139,7 +132,7 @@ export async function POST(request: NextRequest) {
 
         logger.info(
           { bulkActionId: bulkAction.id, actionType },
-          "Bulk action created"
+          "Bulk action created",
         );
 
         return NextResponse.json(
@@ -148,15 +141,16 @@ export async function POST(request: NextRequest) {
             bulkAction,
             message: "Bulk action created successfully",
           },
-          { status: 201 }
+          { status: 201 },
         );
       }
 
       case "execute": {
         const { bulkActionId } = body as ExecuteActionRequest;
 
-        const actionRef = collectionRef(COLLECTIONS.RECRUITER_BULK_ACTIONS)
-          .doc(bulkActionId);
+        const actionRef = collectionRef(COLLECTIONS.RECRUITER_BULK_ACTIONS).doc(
+          bulkActionId,
+        );
         const actionDoc = await actionRef.get();
 
         if (!actionDoc.exists) {
@@ -192,15 +186,16 @@ export async function POST(request: NextRequest) {
             bulkAction: updated,
             message: "Bulk action executed successfully",
           },
-          { status: 200 }
+          { status: 200 },
         );
       }
 
       case "cancel": {
         const { bulkActionId } = body as CancelActionRequest;
 
-        const actionRef = collectionRef(COLLECTIONS.RECRUITER_BULK_ACTIONS)
-          .doc(bulkActionId);
+        const actionRef = collectionRef(COLLECTIONS.RECRUITER_BULK_ACTIONS).doc(
+          bulkActionId,
+        );
         const actionDoc = await actionRef.get();
 
         if (!actionDoc.exists) {
@@ -218,7 +213,7 @@ export async function POST(request: NextRequest) {
           return handleApiError(
             null,
             "Only pending actions can be cancelled",
-            400
+            400,
           );
         }
 
@@ -232,7 +227,7 @@ export async function POST(request: NextRequest) {
             success: true,
             message: "Bulk action cancelled",
           },
-          { status: 200 }
+          { status: 200 },
         );
       }
 
@@ -246,9 +241,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const { userId: authUserId, error: authError } = await getAuthenticatedUserId(
-    request
-  );
+  const { userId: authUserId, error: authError } =
+    await getAuthenticatedUserId(request);
   if (authError || !authUserId)
     return authError || handleApiError(null, "Unauthorized", 401);
 
@@ -279,13 +273,16 @@ export async function GET(request: NextRequest) {
           success: true,
           bulkAction: docToBulkAction(actionDoc),
         },
-        { status: 200 }
+        { status: 200, headers: { "Cache-Control": "private, no-store" } },
       );
     }
 
     // Query with optional status filter — SECURITY: Always filter by ownership
-    let query: Query = collectionRef(COLLECTIONS.RECRUITER_BULK_ACTIONS)
-      .where("createdBy", "==", authUserId);
+    let query: Query = collectionRef(COLLECTIONS.RECRUITER_BULK_ACTIONS).where(
+      "createdBy",
+      "==",
+      authUserId,
+    );
 
     if (status) {
       query = query.where("status", "==", status);
@@ -294,15 +291,15 @@ export async function GET(request: NextRequest) {
     const snapshot = await query.orderBy("createdAt", "desc").limit(100).get();
 
     const allActions: BulkActionWithMeta[] = snapshot.docs.map(
-      (doc) => docToBulkAction(doc)!
+      (doc) => docToBulkAction(doc)!,
     );
 
     // Count by status
     const pendingCount = allActions.filter(
-      (a) => a.status === "pending"
+      (a) => a.status === "pending",
     ).length;
     const completedCount = allActions.filter(
-      (a) => a.status === "completed"
+      (a) => a.status === "completed",
     ).length;
 
     return NextResponse.json(
@@ -315,7 +312,7 @@ export async function GET(request: NextRequest) {
           completed: completedCount,
         },
       },
-      { status: 200 }
+      { status: 200, headers: { "Cache-Control": "private, no-store" } },
     );
   } catch (error) {
     logger.error({ err: error }, "Bulk actions GET error");

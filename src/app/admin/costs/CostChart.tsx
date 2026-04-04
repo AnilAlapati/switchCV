@@ -40,8 +40,8 @@ export default function CostChart({ data }: CostChartProps) {
         />
         <CartesianGrid strokeDasharray="3 3" vertical={false} />
         <Tooltip
-          formatter={(value: number | undefined) =>
-            value !== undefined ? [`$${value.toFixed(2)}`, "Cost"] : null
+          formatter={(value: unknown) =>
+            typeof value === "number" ? [`$${value.toFixed(2)}`, "Cost"] : null
           }
           contentStyle={{
             backgroundColor: "white",

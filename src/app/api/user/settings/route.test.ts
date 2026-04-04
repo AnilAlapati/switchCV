@@ -40,6 +40,16 @@ jest.mock("@/lib/utils/api-helpers", () => ({
   })),
 }));
 
+// Mock cacheService — pass through to the callback so existing tests work
+jest.mock("@/lib/services/cacheService", () => ({
+  cacheService: {
+    getOrSet: jest.fn(async (_key: string, fallback: () => Promise<unknown>) =>
+      fallback(),
+    ),
+    invalidate: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+
 describe("User Settings API", () => {
   let mockRequest: NextRequest;
   const mockCollection = jest.fn();

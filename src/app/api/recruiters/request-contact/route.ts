@@ -14,8 +14,8 @@ import { getUserRole } from "@/lib/services/userService";
 
 const FREE_RECRUITER_REQUEST_LIMIT = Number(
   process.env.RECRUITER_FREE_REQUEST_LIMIT ||
-  process.env.NEXT_PUBLIC_RECRUITER_FREE_REQUEST_LIMIT ||
-  2
+    process.env.NEXT_PUBLIC_RECRUITER_FREE_REQUEST_LIMIT ||
+    2,
 );
 
 const FREE_PLAN_ACTIVE_STATUSES: RecruiterContactRequest["status"][] = [
@@ -60,13 +60,13 @@ export async function POST(request: NextRequest) {
     }
 
     const parseResult = RequestRecruiterContactSchema.safeParse(
-      await request.json()
+      await request.json(),
     );
     if (!parseResult.success) {
       return handleApiError(
         new Error("Missing required fields"),
         "Missing required fields",
-        400
+        400,
       );
     }
     const payload = parseResult.data as RequestContactPayload;
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
       return handleApiError(
         new Error("Missing required fields"),
         "Missing required fields",
-        400
+        400,
       );
     }
 
@@ -90,20 +90,20 @@ export async function POST(request: NextRequest) {
       return handleApiError(
         new Error("Forbidden: recruiterId must match authenticated user"),
         "Forbidden: recruiterId must match authenticated user",
-        403
+        403,
       );
     }
 
     // Validate requested fields
     const validFields = ["email", "phone", "address", "personalLinks"];
     const invalidFields = payload.requestedFields.filter(
-      (f) => !validFields.includes(f)
+      (f) => !validFields.includes(f),
     );
     if (invalidFields.length > 0) {
       return handleApiError(
         new Error("Invalid fields requested"),
         "Invalid fields requested in payload",
-        400
+        400,
       );
     }
 
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
       return handleApiError(
         new Error("Recruiters cannot request their own contact info"),
         "Recruiters cannot request their own contact info",
-        400
+        400,
       );
     }
 
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
       return handleApiError(
         new Error("Resume not found"),
         "Resume not found",
-        404
+        404,
       );
     }
 
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
       return handleApiError(
         new Error("Resume does not belong to specified user"),
         "Resume does not belong to specified user",
-        400
+        400,
       );
     }
 
@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
       return handleApiError(
         new Error("You already have a pending request for this candidate"),
         "You already have a pending request for this candidate",
-        409
+        409,
       );
     }
 
@@ -171,7 +171,7 @@ export async function POST(request: NextRequest) {
       return handleApiError(
         new Error("Recruiter profile not found"),
         "Recruiter profile not found",
-        404
+        404,
       );
     }
 
@@ -181,23 +181,25 @@ export async function POST(request: NextRequest) {
 
     // SECURITY: Use server-side recruiter identity only (never client payload)
     const trustedName = String(
-      recruiterData?.displayName || recruiterData?.name || ""
+      recruiterData?.displayName || recruiterData?.name || "",
     ).trim();
     const trustedEmail = String(recruiterData?.email || "").trim();
     const trustedCompany = String(
-      recruiterData?.companyName || recruiterData?.company || ""
+      recruiterData?.companyName || recruiterData?.company || "",
     ).trim();
 
     if (!trustedName || !trustedEmail) {
       return handleApiError(
         new Error("Recruiter profile is incomplete"),
         "Recruiter profile is incomplete. Update your name and email before requesting contact access.",
-        400
+        400,
       );
     }
 
     if (subscriptionTier === "basic") {
-      const activeRequestSnapshot = await collectionRef(COLLECTIONS.RECRUITER_REQUESTS)
+      const activeRequestSnapshot = await collectionRef(
+        COLLECTIONS.RECRUITER_REQUESTS,
+      )
         .where("fromRecruiter.recruiterId", "==", payload.recruiterId)
         .where("status", "in", FREE_PLAN_ACTIVE_STATUSES)
         .limit(FREE_RECRUITER_REQUEST_LIMIT + 1)
@@ -207,7 +209,7 @@ export async function POST(request: NextRequest) {
         return handleApiError(
           new Error("Free recruiter limit reached"),
           "Free recruiter request limit reached. Upgrade for more.",
-          403
+          403,
         );
       }
     }
@@ -241,7 +243,7 @@ export async function POST(request: NextRequest) {
     });
 
     logger.info(
-      `📨 Contact request created: ${requestRef.id} from ${trustedEmail} to ${payload.userId}`
+      `📨 Contact request created: ${requestRef.id} from ${trustedEmail} to ${payload.userId}`,
     );
 
     // Create admin notification for review
@@ -300,7 +302,7 @@ export async function GET(request: NextRequest) {
       return handleApiError(
         new Error("recruiterId is required"),
         "recruiterId is required",
-        400
+        400,
       );
     }
     const { recruiterId } = queryParse.data;
@@ -310,7 +312,7 @@ export async function GET(request: NextRequest) {
       return handleApiError(
         new Error("Forbidden: Can only view your own requests"),
         "Forbidden: Can only view your own requests",
-        403
+        403,
       );
     }
 
@@ -333,19 +335,22 @@ export async function GET(request: NextRequest) {
       expired: requests.filter((r) => r.status === "expired"),
     };
 
-    return NextResponse.json({
-      success: true,
-      recruiterId,
-      requests,
-      summary: {
-        total: requests.length,
-        pending: byStatus.pending.length,
-        approved: byStatus.approved.length,
-        denied: byStatus.denied.length,
-        expired: byStatus.expired.length,
+    return NextResponse.json(
+      {
+        success: true,
+        recruiterId,
+        requests,
+        summary: {
+          total: requests.length,
+          pending: byStatus.pending.length,
+          approved: byStatus.approved.length,
+          denied: byStatus.denied.length,
+          expired: byStatus.expired.length,
+        },
+        byStatus,
       },
-      byStatus,
-    });
+      { headers: { "Cache-Control": "private, no-store" } },
+    );
   } catch (error) {
     logger.error({ err: error }, "❌ Get requests error:");
     return handleApiError(error, "Failed to fetch requests");

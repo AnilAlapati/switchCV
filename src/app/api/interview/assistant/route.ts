@@ -99,12 +99,8 @@ export async function POST(request: NextRequest) {
     }
 
     if (parseResult.data.action === "start-session") {
-      const {
-        jobTitle,
-        jobDescription,
-        companyName,
-        numberOfQuestions,
-      } = parseResult.data;
+      const { jobTitle, jobDescription, companyName, numberOfQuestions } =
+        parseResult.data;
       // SECURITY: Always use authenticated userId, never trust body userId
       const sessionUserId = authenticatedUserId;
 
@@ -161,7 +157,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId, error } = await getAuthenticatedUserId(request);
+    const { error } = await getAuthenticatedUserId(request);
     if (error) return error;
 
     const { searchParams } = new URL(request.url);
@@ -170,7 +166,10 @@ export async function GET(request: NextRequest) {
 
     if (action === "tips") {
       const tips = getInterviewTips(jobTitle || undefined);
-      return NextResponse.json(tips, { status: 200 });
+      return NextResponse.json(tips, {
+        status: 200,
+        headers: { "Cache-Control": "private, no-store" },
+      });
     }
 
     return handleApiError(null, "Invalid action. Use: ?action=tips", 400);

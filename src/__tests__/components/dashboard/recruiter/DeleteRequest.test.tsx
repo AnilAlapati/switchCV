@@ -1,5 +1,6 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { SWRConfig } from "swr";
 import RecruiterRequestsPage from "@/app/dashboard/recruiter/requests/page";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -33,9 +34,13 @@ global.alert = jest.fn();
 
 describe("RecruiterRequestsPage - Delete Functionality", () => {
   const mockUser = {
+    uid: "test-recruiter-uid",
     email: "recruiter@example.com",
     getIdToken: jest.fn().mockResolvedValue("mock-token"),
   };
+
+  const renderWithFreshCache = (ui: React.ReactElement) =>
+    render(<SWRConfig value={{ provider: () => new Map() }}>{ui}</SWRConfig>);
 
   const mockRequests = [
     {
@@ -71,7 +76,7 @@ describe("RecruiterRequestsPage - Delete Functionality", () => {
         json: async () => ({}),
       });
 
-    render(<RecruiterRequestsPage />);
+    renderWithFreshCache(<RecruiterRequestsPage />);
 
     // Wait for requests to load
     await waitFor(() => {
@@ -85,7 +90,7 @@ describe("RecruiterRequestsPage - Delete Functionality", () => {
     // Check if dialog appears
     expect(screen.getByText("Delete Request?")).toBeInTheDocument();
     expect(
-      screen.getByText(/Are you sure you want to delete/)
+      screen.getByText(/Are you sure you want to delete/),
     ).toBeInTheDocument();
 
     // Click Delete in dialog
@@ -96,14 +101,14 @@ describe("RecruiterRequestsPage - Delete Functionality", () => {
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
         expect.stringContaining(
-          "/api/recruiter/requests?requestId=req-1&resumeId=resume-1"
+          "/api/recruiter/requests?requestId=req-1&resumeId=resume-1",
         ),
         expect.objectContaining({
           method: "DELETE",
           headers: {
             Authorization: "Bearer mock-token",
           },
-        })
+        }),
       );
     });
 
@@ -120,7 +125,7 @@ describe("RecruiterRequestsPage - Delete Functionality", () => {
       json: async () => ({ requests: mockRequests }),
     });
 
-    render(<RecruiterRequestsPage />);
+    renderWithFreshCache(<RecruiterRequestsPage />);
 
     // Wait for requests to load
     await waitFor(() => {
@@ -183,7 +188,7 @@ describe("RecruiterRequestsPage - Delete Functionality", () => {
       get: jest.fn().mockReturnValue("active"),
     });
 
-    render(<RecruiterRequestsPage />);
+    renderWithFreshCache(<RecruiterRequestsPage />);
 
     await waitFor(() => {
       expect(screen.getByText("Approved Recruit")).toBeInTheDocument();
@@ -194,12 +199,12 @@ describe("RecruiterRequestsPage - Delete Functionality", () => {
 
     // And the Active tab should be selected/visible
     expect(
-      screen.getByRole("button", { name: "Active 1" })
+      screen.getByRole("button", { name: "Active 1" }),
     ).toBeInTheDocument();
 
     // Pending tab should NOT be visible in Active view
     expect(
-      screen.queryByRole("button", { name: /Pending/ })
+      screen.queryByRole("button", { name: /Pending/ }),
     ).not.toBeInTheDocument();
   });
 });

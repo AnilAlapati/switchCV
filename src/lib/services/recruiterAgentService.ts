@@ -5,6 +5,11 @@ import {
   sanitizeForPrompt,
   containsPromptInjection,
 } from "@/lib/utils/promptSafety";
+import {
+  retrieveRelevantChunks,
+  buildContextFromChunks,
+} from "@/lib/services/rag/retrievalService";
+import type { ResumeProfile } from "@/types";
 
 interface CandidateProfile {
   name?: string;
@@ -13,6 +18,8 @@ interface CandidateProfile {
   experience?: string; // Summary or raw text
   bio?: string;
   resumeId?: string;
+  /** Structured resume profile — enables RAG-based context retrieval */
+  resumeProfile?: ResumeProfile;
 }
 
 interface RecruiterContext {
@@ -141,6 +148,10 @@ export const RecruiterAgentService = {
 
   /**
    * Analyzes the match between a candidate and a job.
+   *
+   * If `candidate.resumeProfile` is provided, uses RAG to retrieve only the
+   * sections of the resume most relevant to the job description — avoiding
+   * sending the full resume to the LLM and reducing hallucination.
    */
   async analyzeMatch(
     candidate: CandidateProfile,
@@ -155,6 +166,37 @@ export const RecruiterAgentService = {
         jobDescription: job.description,
       });
 
+      // Build candidate context using RAG when structured resume is available
+      let candidateContext: string;
+      if (candidate.resumeProfile && candidate.resumeId) {
+        const query = [job.title, job.description, ...(job.requirements ?? [])]
+          .filter(Boolean)
+          .join(" ");
+
+        const chunks = await retrieveRelevantChunks(
+          query,
+          candidate.resumeId,
+          candidate.resumeProfile,
+          5,
+          0.25,
+        );
+
+        candidateContext =
+          chunks.length > 0
+            ? buildContextFromChunks(chunks)
+            : sanitizeField(candidate.bio || candidate.experience, 2000);
+
+        logger.info(
+          { resumeId: candidate.resumeId, chunksUsed: chunks.length },
+          "analyzeMatch: using RAG context",
+        );
+      } else {
+        candidateContext = sanitizeField(
+          candidate.bio || candidate.experience,
+          2000,
+        );
+      }
+
       const prompt = `
         You are an AI Talent Assessor.
         Analyze the fit between this Candidate and this Job.
@@ -162,7 +204,8 @@ export const RecruiterAgentService = {
         CANDIDATE:
         Title: ${sanitizeField(candidate.title)}
         Skills: ${sanitizeArray(candidate.skills)}
-        Bio: ${sanitizeField(candidate.bio || candidate.experience, 2000)}
+        Relevant Background:
+${candidateContext}
 
         JOB:
         Role: ${sanitizeField(job.title, 200)}
@@ -185,6 +228,10 @@ export const RecruiterAgentService = {
 
   /**
    * Screens candidates against specific criteria and returns a ranked assessment.
+   *
+   * Uses RAG to retrieve only the most relevant experience sections when
+   * `candidate.resumeProfile` is available, rather than truncating to 2000
+   * characters of raw text.
    */
   async screenCandidate(
     candidate: CandidateProfile,
@@ -203,6 +250,39 @@ export const RecruiterAgentService = {
         candidateBio: candidate.bio,
       });
 
+      // Build screening context via RAG when structured resume is available
+      let experienceContext: string;
+      if (candidate.resumeProfile && candidate.resumeId) {
+        const query = [
+          "experience skills background",
+          ...criteria.mustHave,
+          ...(criteria.niceToHave ?? []),
+        ].join(" ");
+
+        const chunks = await retrieveRelevantChunks(
+          query,
+          candidate.resumeId,
+          candidate.resumeProfile,
+          6,
+          0.2,
+        );
+
+        experienceContext =
+          chunks.length > 0
+            ? buildContextFromChunks(chunks)
+            : sanitizeField(candidate.experience || candidate.bio, 2000);
+
+        logger.info(
+          { resumeId: candidate.resumeId, chunksUsed: chunks.length },
+          "screenCandidate: using RAG context",
+        );
+      } else {
+        experienceContext = sanitizeField(
+          candidate.experience || candidate.bio,
+          2000,
+        );
+      }
+
       const prompt = `
         You are an AI Screening Agent for recruiting.
         Evaluate this candidate against the screening criteria and provide a structured assessment.
@@ -211,7 +291,8 @@ export const RecruiterAgentService = {
         Name: ${sanitizeField(candidate.name)}
         Title: ${sanitizeField(candidate.title)}
         Skills: ${sanitizeArray(candidate.skills)}
-        Experience: ${sanitizeField(candidate.experience || candidate.bio, 2000)}
+        Relevant Experience:
+${experienceContext}
 
         SCREENING CRITERIA:
         Must-Have Skills: ${sanitizeArray(criteria.mustHave)}

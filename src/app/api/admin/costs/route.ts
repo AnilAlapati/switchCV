@@ -50,7 +50,10 @@ export async function GET(request: NextRequest) {
       }))
       .reverse(); // Oldest first for charts
 
-    return NextResponse.json({ costs: data });
+    return NextResponse.json(
+      { costs: data },
+      { headers: { "Cache-Control": "private, no-store" } },
+    );
   } catch (error) {
     logger.error({ err: error }, "Failed to fetch cost data");
     return handleApiError(error, "Failed to fetch cost data");

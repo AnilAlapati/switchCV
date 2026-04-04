@@ -7,7 +7,7 @@ export class ValidationError extends Error {
   constructor(
     message: string,
     public field?: string,
-    public code: string = "VALIDATION_ERROR"
+    public code: string = "VALIDATION_ERROR",
   ) {
     super(message);
     this.name = "ValidationError";
@@ -74,7 +74,7 @@ export function validateUserId(userId: any): string {
   if (userId.length < 1 || userId.length > 128) {
     throw new ValidationError(
       "User ID must be between 1 and 128 characters",
-      "userId"
+      "userId",
     );
   }
 
@@ -98,7 +98,7 @@ export function validateModelId(modelId: any, allowedModels: string[]): string {
     throw new ValidationError(
       `Invalid model: ${modelId}. Allowed models: ${allowedModels.join(", ")}`,
       "modelId",
-      "INVALID_MODEL"
+      "INVALID_MODEL",
     );
   }
 
@@ -117,7 +117,7 @@ export function validateResumeData(data: any): void {
   if (!data.personalInfo || typeof data.personalInfo !== "object") {
     throw new ValidationError(
       "Personal info is required",
-      "resumeData.personalInfo"
+      "resumeData.personalInfo",
     );
   }
 
@@ -126,14 +126,14 @@ export function validateResumeData(data: any): void {
   if (!name || typeof name !== "string" || name.trim().length === 0) {
     throw new ValidationError(
       "Name is required",
-      "resumeData.personalInfo.name"
+      "resumeData.personalInfo.name",
     );
   }
 
   if (!email || typeof email !== "string" || !validateEmail(email)) {
     throw new ValidationError(
       "Valid email is required",
-      "resumeData.personalInfo.email"
+      "resumeData.personalInfo.email",
     );
   }
 
@@ -145,7 +145,7 @@ export function validateResumeData(data: any): void {
   if (data.summary.length > 5000) {
     throw new ValidationError(
       "Summary must be less than 5000 characters",
-      "resumeData.summary"
+      "resumeData.summary",
     );
   }
 
@@ -153,7 +153,7 @@ export function validateResumeData(data: any): void {
   if (!Array.isArray(data.experience)) {
     throw new ValidationError(
       "Experience must be an array",
-      "resumeData.experience"
+      "resumeData.experience",
     );
   }
 
@@ -161,19 +161,19 @@ export function validateResumeData(data: any): void {
     if (!exp.title || typeof exp.title !== "string") {
       throw new ValidationError(
         `Experience ${index} must have a title`,
-        `resumeData.experience[${index}].title`
+        `resumeData.experience[${index}].title`,
       );
     }
     if (!exp.company || typeof exp.company !== "string") {
       throw new ValidationError(
         `Experience ${index} must have a company`,
-        `resumeData.experience[${index}].company`
+        `resumeData.experience[${index}].company`,
       );
     }
     if (!exp.description || typeof exp.description !== "string") {
       throw new ValidationError(
         `Experience ${index} must have a description`,
-        `resumeData.experience[${index}].description`
+        `resumeData.experience[${index}].description`,
       );
     }
   });
@@ -182,7 +182,7 @@ export function validateResumeData(data: any): void {
   if (!Array.isArray(data.education)) {
     throw new ValidationError(
       "Education must be an array",
-      "resumeData.education"
+      "resumeData.education",
     );
   }
 
@@ -194,7 +194,7 @@ export function validateResumeData(data: any): void {
   if (data.skills.length === 0) {
     throw new ValidationError(
       "At least one skill is required",
-      "resumeData.skills"
+      "resumeData.skills",
     );
   }
 
@@ -202,7 +202,7 @@ export function validateResumeData(data: any): void {
     if (typeof skill !== "string") {
       throw new ValidationError(
         `Skill ${index} must be a string`,
-        `resumeData.skills[${index}]`
+        `resumeData.skills[${index}]`,
       );
     }
   });
@@ -215,21 +215,21 @@ export function validateJobDescription(description: any): string {
   if (typeof description !== "string") {
     throw new ValidationError(
       "Job description must be a string",
-      "jobDescription"
+      "jobDescription",
     );
   }
 
   if (description.trim().length === 0) {
     throw new ValidationError(
       "Job description cannot be empty",
-      "jobDescription"
+      "jobDescription",
     );
   }
 
   if (description.length > 10000) {
     throw new ValidationError(
       "Job description must be less than 10000 characters",
-      "jobDescription"
+      "jobDescription",
     );
   }
 
@@ -249,7 +249,7 @@ export function validateTone(tone: any): string {
   if (!allowedTones.includes(tone)) {
     throw new ValidationError(
       `Invalid tone. Allowed values: ${allowedTones.join(", ")}`,
-      "tone"
+      "tone",
     );
   }
 
@@ -275,7 +275,7 @@ export function validateTemplate(template: any): string {
   if (!allowedTemplates.includes(template)) {
     throw new ValidationError(
       `Invalid template. Allowed values: ${allowedTemplates.join(", ")}`,
-      "template"
+      "template",
     );
   }
 
@@ -288,7 +288,7 @@ export function validateTemplate(template: any): string {
 export function validateObject(
   obj: any,
   requiredFields: string[],
-  fieldName: string = "object"
+  fieldName: string = "object",
 ): void {
   if (!obj || typeof obj !== "object") {
     throw new ValidationError(`${fieldName} must be an object`, fieldName);
@@ -298,7 +298,7 @@ export function validateObject(
     if (!(field in obj)) {
       throw new ValidationError(
         `Missing required field: ${field}`,
-        `${fieldName}.${field}`
+        `${fieldName}.${field}`,
       );
     }
   }
@@ -309,7 +309,7 @@ export function validateObject(
  */
 export function handleValidationError(
   error: unknown,
-  context: string = "request"
+  context: string = "request",
 ): never {
   if (error instanceof ValidationError) {
     functions.logger.warn("Validation error", {
@@ -318,10 +318,14 @@ export function handleValidationError(
       message: error.message,
       code: error.code,
     });
-    throw new functions.https.HttpsError("invalid-argument", error.message, {
-      field: error.field,
-      code: error.code,
-    });
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "Invalid input. Please check your data and try again.",
+      {
+        field: error.field,
+        code: error.code,
+      },
+    );
   }
 
   // Re-throw unexpected errors
@@ -343,7 +347,7 @@ export function sanitizeRequestBody(body: any): any {
       sanitized[key] = sanitizeString(value);
     } else if (Array.isArray(value)) {
       sanitized[key] = value.map((item) =>
-        typeof item === "string" ? sanitizeString(item) : item
+        typeof item === "string" ? sanitizeString(item) : item,
       );
     } else if (value && typeof value === "object") {
       sanitized[key] = sanitizeRequestBody(value);

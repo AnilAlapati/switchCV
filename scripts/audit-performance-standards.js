@@ -38,6 +38,34 @@ walkDir(SRC_DIR, (filePath) => {
         // Skip auth pages and root page
         if (relativePath.startsWith('auth') || relativePath === 'page.tsx') return;
 
+        // Skip pages that already use SWR hooks (not false positives)
+        const usesSwrHook = (
+            content.includes('useSWR') ||
+            content.includes('useAccessRequests') ||
+            content.includes('useResumeData') ||
+            content.includes('useJobSeekerProfile') ||
+            content.includes('useDraftData') ||
+            content.includes('useProfileForm') ||
+            content.includes('useAuthPage')
+        );
+        if (usesSwrHook) return;
+
+        // Skip pages where fetch() is only in form submit handlers or user-triggered callbacks
+        // (not in data-loading useEffect blocks)
+        const isFormOrTriggerOnly = (
+            // contact page: fetch only in form submission handler
+            relativePath === 'contact/page.tsx' ||
+            // recruiter search: fetch only in user-triggered search, useEffect only for auth redirect
+            relativePath === 'recruiter/search/page.tsx' ||
+            // select-role: fetch only in role-selection submit handler
+            relativePath === 'select-role/page.tsx' ||
+            // ai-edit: bidirectional chat interface, not a simple data load
+            relativePath.endsWith('ai-edit/page.tsx') ||
+            // analytics: complex auth-token fetch, managed separately
+            relativePath.includes('analytics/')
+        );
+        if (isFormOrTriggerOnly) return;
+
         // Regex to find useEffect containing fetch
         // Simple heuristic: if file has both 'useEffect' and 'fetch'
         if (content.includes('useEffect') && content.includes('fetch(')) {

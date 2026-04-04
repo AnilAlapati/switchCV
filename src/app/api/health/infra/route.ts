@@ -207,7 +207,12 @@ export async function GET(): Promise<NextResponse> {
 
     return NextResponse.json(
       { ...response, durationMs: duration },
-      { status: statusCode },
+      {
+        status: statusCode,
+        headers: {
+          "Cache-Control": "public, max-age=30, stale-while-revalidate=60",
+        },
+      },
     );
   } catch (error) {
     logger.error({ err: error }, "Infrastructure health check failed");

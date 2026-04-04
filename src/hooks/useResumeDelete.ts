@@ -53,63 +53,67 @@ export const useResumeDelete = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<DeleteErrorState | null>(null);
 
-  const deleteResume = useCallback(async (options: {
-    method: "document-id" | "numeric-id" | "slug";
-    value: string | number;
-    userId?: string;
-  }): Promise<DeleteResponse | null> => {
-    setLoading(true);
-    setError(null);
+  const deleteResume = useCallback(
+    async (options: {
+      method: "document-id" | "numeric-id" | "slug";
+      value: string | number;
+      userId?: string;
+    }): Promise<DeleteResponse | null> => {
+      setLoading(true);
+      setError(null);
 
-    try {
-      const body: Record<string, any> = {
-        userId: options.userId,
-      };
+      try {
+        let url = "";
+        const fetchOptions: RequestInit = {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        };
 
-      let url = "";
-      const fetchOptions: RequestInit = {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      };
+        if (
+          options.method === "document-id" ||
+          options.method === "numeric-id"
+        ) {
+          url = `/api/resumes/${options.value}`;
+          // The API route DELETE /api/resumes/[id] handles both doc-id and stringified numeric-id
+          fetchOptions.method = "DELETE";
+        } else if (options.method === "slug") {
+          // Since we migrated to numericIds = docIds, slug deletion is deprecated.
+          // We throw or handle if necessary, but returning error for safety.
+          throw new Error(
+            "Slug deletion is no longer supported. Use numeric-id.",
+          );
+        }
 
-      if (options.method === "document-id" || options.method === "numeric-id") {
-        url = `/api/resumes/${options.value}`;
-        // The API route DELETE /api/resumes/[id] handles both doc-id and stringified numeric-id
-        fetchOptions.method = "DELETE";
-      } else if (options.method === "slug") {
-        // Since we migrated to numericIds = docIds, slug deletion is deprecated.
-        // We throw or handle if necessary, but returning error for safety.
-        throw new Error("Slug deletion is no longer supported. Use numeric-id.");
-      }
+        const response = await fetch(url, fetchOptions);
 
-      const response = await fetch(url, fetchOptions);
+        const result: DeleteResponse = await response.json();
 
-      const result: DeleteResponse = await response.json();
+        if (!response.ok) {
+          setError({
+            message: result.message || "Failed to delete resume",
+            code: response.status.toString(),
+          });
+          setLoading(false);
+          return null;
+        }
 
-      if (!response.ok) {
+        setLoading(false);
+        return result;
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : "Failed to delete resume";
         setError({
-          message: result.message || "Failed to delete resume",
-          code: response.status.toString(),
+          message: errorMessage,
+          code: "NETWORK_ERROR",
         });
         setLoading(false);
         return null;
       }
-
-      setLoading(false);
-      return result;
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Failed to delete resume";
-      setError({
-        message: errorMessage,
-        code: "NETWORK_ERROR",
-      });
-      setLoading(false);
-      return null;
-    }
-  }, []);
+    },
+    [],
+  );
 
   const clearError = useCallback(() => setError(null), []);
 

@@ -22,7 +22,7 @@ describe("formatDate Utility", () => {
     const now = new Date();
     const thirtySecondsAgo = new Date(now.getTime() - 30 * 1000);
 
-    jest.setSystemTime(now);
+    jest.setSystemTime(now.getTime());
     expect(formatDate(thirtySecondsAgo)).toBe("Just now");
   });
 
@@ -30,7 +30,7 @@ describe("formatDate Utility", () => {
     const now = new Date();
     const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000);
 
-    jest.setSystemTime(now);
+    jest.setSystemTime(now.getTime());
     expect(formatDate(thirtyMinutesAgo)).toBe("30m ago");
   });
 
@@ -38,7 +38,7 @@ describe("formatDate Utility", () => {
     const now = new Date();
     const fiveHoursAgo = new Date(now.getTime() - 5 * 3600 * 1000);
 
-    jest.setSystemTime(now);
+    jest.setSystemTime(now.getTime());
     expect(formatDate(fiveHoursAgo)).toBe("5h ago");
   });
 
@@ -46,7 +46,7 @@ describe("formatDate Utility", () => {
     const now = new Date();
     const threeDaysAgo = new Date(now.getTime() - 3 * 86400 * 1000);
 
-    jest.setSystemTime(now);
+    jest.setSystemTime(now.getTime());
     expect(formatDate(threeDaysAgo)).toBe("3d ago");
   });
 
@@ -54,7 +54,7 @@ describe("formatDate Utility", () => {
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400 * 1000);
 
-    jest.setSystemTime(now);
+    jest.setSystemTime(now.getTime());
     const formatted = formatDate(thirtyDaysAgo);
 
     expect(formatted).not.toContain("m ago");
@@ -67,7 +67,7 @@ describe("formatDate Utility", () => {
     const now = new Date();
     const oneMinuteAgo = new Date(now.getTime() - 60 * 1000);
 
-    jest.setSystemTime(now);
+    jest.setSystemTime(now.getTime());
     expect(formatDate(oneMinuteAgo)).toBe("1m ago");
   });
 
@@ -75,7 +75,7 @@ describe("formatDate Utility", () => {
     const now = new Date();
     const oneHourAgo = new Date(now.getTime() - 3600 * 1000);
 
-    jest.setSystemTime(now);
+    jest.setSystemTime(now.getTime());
     expect(formatDate(oneHourAgo)).toBe("1h ago");
   });
 
@@ -83,7 +83,7 @@ describe("formatDate Utility", () => {
     const now = new Date();
     const oneDayAgo = new Date(now.getTime() - 86400 * 1000);
 
-    jest.setSystemTime(now);
+    jest.setSystemTime(now.getTime());
     expect(formatDate(oneDayAgo)).toBe("1d ago");
   });
 
@@ -91,7 +91,7 @@ describe("formatDate Utility", () => {
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 86400 * 1000);
 
-    jest.setSystemTime(now);
+    jest.setSystemTime(now.getTime());
     const formatted = formatDate(sevenDaysAgo);
 
     expect(formatted).not.toContain("d ago");
@@ -101,7 +101,7 @@ describe("formatDate Utility", () => {
     const now = new Date();
     const fortyFiveMinutesAgo = new Date(now.getTime() - 45 * 60 * 1000);
 
-    jest.setSystemTime(now);
+    jest.setSystemTime(now.getTime());
     expect(formatDate(fortyFiveMinutesAgo)).toBe("45m ago");
   });
 
@@ -109,7 +109,7 @@ describe("formatDate Utility", () => {
     const now = new Date();
     const twelveHoursAgo = new Date(now.getTime() - 12 * 3600 * 1000);
 
-    jest.setSystemTime(now);
+    jest.setSystemTime(now.getTime());
     expect(formatDate(twelveHoursAgo)).toBe("12h ago");
   });
 
@@ -117,7 +117,7 @@ describe("formatDate Utility", () => {
     const now = new Date();
     const sixDaysAgo = new Date(now.getTime() - 6 * 86400 * 1000);
 
-    jest.setSystemTime(now);
+    jest.setSystemTime(now.getTime());
     expect(formatDate(sixDaysAgo)).toBe("6d ago");
   });
 
@@ -125,7 +125,7 @@ describe("formatDate Utility", () => {
     const now = new Date();
     const pastDate = new Date("2020-01-01");
 
-    jest.setSystemTime(now);
+    jest.setSystemTime(now.getTime());
     const formatted = formatDate(pastDate);
 
     expect(formatted).toBeTruthy();
@@ -136,7 +136,7 @@ describe("formatDate Utility", () => {
     const now = new Date();
     const fiftyNineMinutesAgo = new Date(now.getTime() - 59.9 * 60 * 1000);
 
-    jest.setSystemTime(now);
+    jest.setSystemTime(now.getTime());
     expect(formatDate(fiftyNineMinutesAgo)).toBe("59m ago");
   });
 
@@ -144,7 +144,7 @@ describe("formatDate Utility", () => {
     const now = new Date();
     const oldDate = new Date(now.getTime() - 30 * 86400 * 1000);
 
-    jest.setSystemTime(now);
+    jest.setSystemTime(now.getTime());
     const formatted = formatDate(oldDate);
 
     // Should be in localized format, not relative

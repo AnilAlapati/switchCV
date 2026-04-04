@@ -18,7 +18,10 @@ export async function GET(request: NextRequest) {
     if (!userId) return handleApiError(null, "Unauthorized", 401);
 
     const requests = await RecruiterService.getRecruiterRequests(userId);
-    return NextResponse.json({ requests });
+    return NextResponse.json(
+      { requests },
+      { headers: { "Cache-Control": "private, no-store" } },
+    );
   } catch (error: unknown) {
     const errorText = String(error);
     if (errorText.includes("forbidden-role")) {

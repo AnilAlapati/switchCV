@@ -6,7 +6,10 @@ import { DashboardBackground } from "@/components/dashboard/DashboardBackground"
 import { RecruiterSearchBox } from "@/components/dashboard/RecruiterSearchBox";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
-import { JDUpload, type ParsedJDPreview } from "@/components/recruiter/JDUpload";
+import {
+  JDUpload,
+  type ParsedJDPreview,
+} from "@/components/recruiter/JDUpload";
 import { SearchResults } from "@/components/recruiter/SearchResults";
 import { Loader2 } from "lucide-react";
 
@@ -17,9 +20,7 @@ function SearchPageContent() {
   const searchParams = useSearchParams();
   const modeParam = searchParams.get("mode");
 
-  const [jdText, setJdText] = useState("");
   const [parsedJD, setParsedJD] = useState<ParsedJDPreview | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [jdResults, setJdResults] = useState<any[]>([]);
   const [jdLoading, setJdLoading] = useState(false);
   const [jdError, setJdError] = useState<string | null>(null);
@@ -34,7 +35,6 @@ function SearchPageContent() {
     setJdError(null);
     setParsedJD(null);
     setJdResults([]);
-    setJdText(text);
 
     try {
       const token = await user.getIdToken();
@@ -55,16 +55,17 @@ function SearchPageContent() {
 
       setParsedJD(data.parsedJD);
       // Map results to match SearchResults component expectation
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setJdResults(data.results.map((r: any) => ({
-        userId: r.userId,
-        displayName: r.userName || r.displayName || "Unknown Candidate",
-        role: r.title || r.role || "Software Engineer",
-        skills: r.skills || [],
-        bio: r.summary || r.bio || "No summary available",
-        location: r.location,
-        hasApproval: false, // Default as we don't know yet
-      })));
+      setJdResults(
+        data.results.map((r: any) => ({
+          userId: r.userId,
+          displayName: r.userName || r.displayName || "Unknown Candidate",
+          role: r.title || r.role || "Software Engineer",
+          skills: r.skills || [],
+          bio: r.summary || r.bio || "No summary available",
+          location: r.location,
+          hasApproval: false, // Default as we don't know yet
+        })),
+      );
     } catch (err) {
       setJdError(err instanceof Error ? err.message : "Search failed");
     } finally {
@@ -119,7 +120,8 @@ function SearchPageContent() {
                       </button>
                     </div>
                     <p className="text-slate-600">
-                      Upload or paste a job description. Our AI will analyze requirements and rank candidates by fit.
+                      Upload or paste a job description. Our AI will analyze
+                      requirements and rank candidates by fit.
                     </p>
                   </div>
                   <JDUpload
@@ -150,13 +152,15 @@ function SearchPageContent() {
 
 export default function RecruiterSearchPage() {
   return (
-    <Suspense fallback={
-      <DashboardBackground>
-        <div className="min-h-screen flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-slate-900" />
-        </div>
-      </DashboardBackground>
-    }>
+    <Suspense
+      fallback={
+        <DashboardBackground>
+          <div className="min-h-screen flex items-center justify-center">
+            <Loader2 className="w-8 h-8 animate-spin text-slate-900" />
+          </div>
+        </DashboardBackground>
+      }
+    >
       <SearchPageContent />
     </Suspense>
   );

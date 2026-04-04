@@ -2,22 +2,22 @@ import { NextRequest } from "next/server";
 import { POST, GET } from "./route";
 
 // Mock auth and rate limit
-jest.mock("@/lib/utils/api-helpers", () => ({
-  getAuthenticatedUserId: jest
-    .fn()
-    .mockResolvedValue({ userId: "user123", error: null }),
-  applyRateLimit: jest.fn(),
-  handleApiError: jest.fn((error, message, status = 500) => {
-    const res: Record<string, unknown> = { error: message };
-    if (error) {
-      res.details = error instanceof Error ? error.message : String(error);
-    }
-    return {
-      status,
-      json: async () => res,
-    };
-  }),
-}));
+jest.mock("@/lib/utils/api-helpers", () => {
+  const { NextResponse } = jest.requireActual("next/server");
+  return {
+    getAuthenticatedUserId: jest
+      .fn()
+      .mockResolvedValue({ userId: "user123", error: null }),
+    applyRateLimit: jest.fn(),
+    handleApiError: jest.fn((error, message, status = 500) => {
+      const res: Record<string, unknown> = { error: message };
+      if (error) {
+        res.details = error instanceof Error ? error.message : String(error);
+      }
+      return NextResponse.json(res, { status });
+    }),
+  };
+});
 
 jest.mock("@/lib/utils/distributedRateLimit", () => ({
   checkDistributedRateLimit: jest.fn(),

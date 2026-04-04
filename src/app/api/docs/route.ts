@@ -11,7 +11,11 @@ export async function GET(request: NextRequest) {
 
   try {
     const spec = await getApiDocs();
-    return NextResponse.json(spec);
+    return NextResponse.json(spec, {
+      headers: {
+        "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
+      },
+    });
   } catch (err) {
     return handleApiError(err, "Failed to generate API docs");
   }

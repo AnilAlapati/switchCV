@@ -66,7 +66,7 @@ describe("analyticsService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
-    jest.setSystemTime(new Date(mockTimestamp));
+    jest.setSystemTime(new Date(mockTimestamp).getTime());
   });
 
   afterEach(() => {
@@ -174,7 +174,7 @@ describe("analyticsService", () => {
       };
 
       await expect(trackAnalyticsEvent(request)).rejects.toThrow(
-        "resumeId and eventType are required"
+        "resumeId and eventType are required",
       );
     });
 

@@ -52,7 +52,7 @@ describe("NotificationService", () => {
         NotificationType.PROFILE_VIEW,
         "user-1",
         payload,
-        [NotificationChannel.IN_APP]
+        [NotificationChannel.IN_APP],
       );
 
       expect(mockRepository.createNotification).toHaveBeenCalledWith(
@@ -60,7 +60,7 @@ describe("NotificationService", () => {
           type: NotificationType.PROFILE_VIEW,
           recipientId: "user-1",
           priority: NotificationPriority.MEDIUM,
-        })
+        }),
       );
       expect(result).toEqual(notification);
     });
@@ -83,7 +83,10 @@ describe("NotificationService", () => {
 
   describe("markAsRead", () => {
     it("updates status to READ", async () => {
-      const notification = { id: "1", status: NotificationStatus.DELIVERED } as any;
+      const notification = {
+        id: "1",
+        status: NotificationStatus.DELIVERED,
+      } as any;
       mockRepository.getNotification.mockResolvedValue(notification);
       mockRepository.updateNotification.mockImplementation(async (n) => n);
 
@@ -94,7 +97,7 @@ describe("NotificationService", () => {
           id: "1",
           status: NotificationStatus.READ,
           readAt: expect.any(Date),
-        })
+        }),
       );
     });
 
@@ -107,7 +110,10 @@ describe("NotificationService", () => {
 
   describe("markAsDelivered", () => {
     it("updates status to DELIVERED and logs", async () => {
-      const notification = { id: "1", status: NotificationStatus.PENDING } as any;
+      const notification = {
+        id: "1",
+        status: NotificationStatus.PENDING,
+      } as any;
       mockRepository.getNotification.mockResolvedValue(notification);
       mockRepository.updateNotification.mockImplementation(async (n) => n);
 
@@ -118,14 +124,14 @@ describe("NotificationService", () => {
           id: "1",
           status: NotificationStatus.DELIVERED,
           deliveredAt: expect.any(Date),
-        })
+        }),
       );
       expect(mockRepository.logNotification).toHaveBeenCalledWith(
         expect.objectContaining({
           notificationId: "1",
           status: NotificationStatus.DELIVERED,
           channel: NotificationChannel.EMAIL,
-        })
+        }),
       );
     });
   });
@@ -142,7 +148,7 @@ describe("NotificationService", () => {
         expect.objectContaining({
           status: NotificationStatus.SENT,
           sentAt: expect.any(Date),
-        })
+        }),
       );
     });
   });
@@ -153,7 +159,7 @@ describe("NotificationService", () => {
       const result = await service.shouldSendNotification(
         "user-1",
         NotificationType.PROFILE_VIEW,
-        NotificationChannel.EMAIL
+        NotificationChannel.EMAIL,
       );
       expect(result).toBe(false);
     });
@@ -165,7 +171,7 @@ describe("NotificationService", () => {
       const result = await service.shouldSendNotification(
         "user-1",
         NotificationType.PROFILE_VIEW,
-        NotificationChannel.EMAIL
+        NotificationChannel.EMAIL,
       );
       expect(result).toBe(false);
     });
@@ -181,7 +187,7 @@ describe("NotificationService", () => {
       const result = await service.shouldSendNotification(
         "user-1",
         NotificationType.PROFILE_VIEW,
-        NotificationChannel.EMAIL
+        NotificationChannel.EMAIL,
       );
       expect(result).toBe(false);
     });
@@ -189,7 +195,7 @@ describe("NotificationService", () => {
     it("returns false during quiet hours", async () => {
       // Mock Date to be inside quiet hours
       const mockDate = new Date("2023-01-01T14:00:00"); // 14:00
-      jest.useFakeTimers().setSystemTime(mockDate);
+      jest.useFakeTimers().setSystemTime(mockDate.getTime());
 
       mockRepository.getPreferences.mockResolvedValue([
         {
@@ -207,7 +213,7 @@ describe("NotificationService", () => {
       const result = await service.shouldSendNotification(
         "user-1",
         NotificationType.PROFILE_VIEW,
-        NotificationChannel.EMAIL
+        NotificationChannel.EMAIL,
       );
       expect(result).toBe(false);
 
@@ -216,7 +222,7 @@ describe("NotificationService", () => {
 
     it("returns true if outside quiet hours", async () => {
       const mockDate = new Date("2023-01-01T16:00:00"); // 16:00
-      jest.useFakeTimers().setSystemTime(mockDate);
+      jest.useFakeTimers().setSystemTime(mockDate.getTime());
 
       mockRepository.getPreferences.mockResolvedValue([
         {
@@ -234,7 +240,7 @@ describe("NotificationService", () => {
       const result = await service.shouldSendNotification(
         "user-1",
         NotificationType.PROFILE_VIEW,
-        NotificationChannel.EMAIL
+        NotificationChannel.EMAIL,
       );
       expect(result).toBe(true);
 
@@ -260,7 +266,7 @@ describe("NotificationService", () => {
   describe("clearOldNotifications", () => {
     it("calls deleteOlderThan with correct date", async () => {
       const now = new Date("2023-02-01T00:00:00Z");
-      jest.useFakeTimers().setSystemTime(now);
+      jest.useFakeTimers().setSystemTime(now.getTime());
 
       await service.clearOldNotifications(30);
 

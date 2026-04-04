@@ -13,6 +13,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const token = getCsrfTokenForSession(userId!);
   const response = NextResponse.json({ csrfToken: token });
-
-  return withCsrfToken(response, userId!);
+  const finalResponse = withCsrfToken(response, userId!);
+  finalResponse.headers.set("Cache-Control", "no-store");
+  return finalResponse;
 }

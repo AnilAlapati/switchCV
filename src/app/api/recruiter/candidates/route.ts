@@ -7,11 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import {
-  COLLECTIONS,
-  collectionRef,
-  serverTimestamp,
-} from "@/lib/dal";
+import { COLLECTIONS, collectionRef, serverTimestamp } from "@/lib/dal";
 import {
   Candidate,
   CandidatePriority,
@@ -68,9 +64,8 @@ async function verifyRecruiterRole(userId: string): Promise<boolean> {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const { userId: authUserId, error: authError } = await getAuthenticatedUserId(
-    request
-  );
+  const { userId: authUserId, error: authError } =
+    await getAuthenticatedUserId(request);
   if (authError || !authUserId)
     return authError || handleApiError(null, "Unauthorized", 401);
 
@@ -96,14 +91,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         return handleApiError(
           null,
           "Missing required fields: name, email, position",
-          400
+          400,
         );
       }
       if (action === "add-note") {
         return handleApiError(
           null,
           "Missing required fields: candidateId, content",
-          400
+          400,
         );
       }
       return handleApiError(null, "Invalid request payload", 400);
@@ -121,7 +116,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           position,
           phone,
           resumeUrl,
-          source
+          source,
         );
 
         // Save to Firestore
@@ -142,15 +137,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             candidate,
             message: "Candidate created successfully",
           },
-          { status: 201 }
+          { status: 201 },
         );
       }
 
       case "update-priority": {
         const { candidateId, priority } = body as UpdatePriorityRequest;
 
-        const candidateRef = collectionRef(COLLECTIONS.RECRUITER_CANDIDATES)
-          .doc(candidateId);
+        const candidateRef = collectionRef(
+          COLLECTIONS.RECRUITER_CANDIDATES,
+        ).doc(candidateId);
         const candidateDoc = await candidateRef.get();
 
         if (!candidateDoc.exists) {
@@ -179,7 +175,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             candidate: { ...updated, id: candidateId },
             message: "Candidate priority updated",
           },
-          { status: 200 }
+          { status: 200 },
         );
       }
 
@@ -188,7 +184,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           body as AddNoteRequest;
 
         // Check candidate exists
-        const candidateDoc = await collectionRef(COLLECTIONS.RECRUITER_CANDIDATES)
+        const candidateDoc = await collectionRef(
+          COLLECTIONS.RECRUITER_CANDIDATES,
+        )
           .doc(candidateId)
           .get();
 
@@ -206,7 +204,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           authUserId,
           content,
           category,
-          isPrivate
+          isPrivate,
         );
 
         // Save note to subcollection
@@ -230,7 +228,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         logger.info(
           { candidateId, noteId: note.id },
-          "Note added to candidate"
+          "Note added to candidate",
         );
 
         return NextResponse.json(
@@ -240,7 +238,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             totalNotes,
             message: "Note added successfully",
           },
-          { status: 201 }
+          { status: 201 },
         );
       }
 
@@ -254,9 +252,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const { userId: authUserId, error: authError } = await getAuthenticatedUserId(
-    request
-  );
+  const { userId: authUserId, error: authError } =
+    await getAuthenticatedUserId(request);
   if (authError || !authUserId)
     return authError || handleApiError(null, "Unauthorized", 401);
 
@@ -305,7 +302,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           candidate: { ...candidateData, id: candidateId },
           notes: candidateNotes,
         },
-        { status: 200 }
+        { status: 200, headers: { "Cache-Control": "private, no-store" } },
       );
     }
 
@@ -332,7 +329,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         candidates: allCandidates,
         count: allCandidates.length,
       },
-      { status: 200 }
+      { status: 200, headers: { "Cache-Control": "private, no-store" } },
     );
   } catch (error) {
     logger.error({ err: error }, "Candidates GET error");

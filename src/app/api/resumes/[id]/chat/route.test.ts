@@ -96,7 +96,7 @@ describe("Resume Chat API", () => {
     });
     (BillingService.checkBudget as jest.Mock).mockResolvedValue(true);
     (handleApiError as jest.Mock).mockImplementation(
-      (error, message, status) => ({ error, message, status })
+      (error, message, status) => ({ error, message, status }),
     );
     mockDoc.get.mockReset();
     mockDoc.set.mockReset();
@@ -110,7 +110,7 @@ describe("Resume Chat API", () => {
       expect(handleApiError).toHaveBeenCalledWith(
         expect.any(Error),
         "Resume ID is required",
-        400
+        400,
       );
     });
 
@@ -120,7 +120,7 @@ describe("Resume Chat API", () => {
         error: authError,
       });
       expect(await GET({} as NextRequest, { params: mockParams })).toEqual(
-        authError
+        authError,
       );
     });
 
@@ -133,7 +133,7 @@ describe("Resume Chat API", () => {
       expect(handleApiError).toHaveBeenCalledWith(
         expect.any(Error),
         "Permission denied",
-        403
+        403,
       );
     });
 
@@ -148,13 +148,16 @@ describe("Resume Chat API", () => {
       (getResumeEditGreeting as jest.Mock).mockReturnValue("Hello");
 
       await GET({} as NextRequest, { params: mockParams });
-      expect(NextResponse.json).toHaveBeenCalledWith({
-        resumeExists: true,
-        resume: { ...mockResumeData, id: mockResumeId },
-        snapshot: mockNormalized,
-        greeting: "Hello",
-        metadata: { numericId: expect.anything(), updatedAt: null },
-      });
+      expect(NextResponse.json).toHaveBeenCalledWith(
+        {
+          resumeExists: true,
+          resume: { ...mockResumeData, id: mockResumeId },
+          snapshot: mockNormalized,
+          greeting: "Hello",
+          metadata: { numericId: expect.anything(), updatedAt: null },
+        },
+        { headers: { "Cache-Control": "private, no-store" } },
+      );
     });
 
     it("should handle non-existent resume", async () => {
@@ -163,18 +166,18 @@ describe("Resume Chat API", () => {
       await GET({} as NextRequest, { params: mockParams });
       expect(NextResponse.json).toHaveBeenCalledWith(
         { resumeExists: false, greeting: "Welcome" },
-        { status: 200 }
+        { status: 200, headers: { "Cache-Control": "private, no-store" } },
       );
     });
 
     it("should handle errors gracefully", async () => {
       (getAuthenticatedUserId as jest.Mock).mockRejectedValue(
-        new Error("Auth failed")
+        new Error("Auth failed"),
       );
       await GET({} as NextRequest, { params: mockParams });
       expect(handleApiError).toHaveBeenCalledWith(
         expect.any(Error),
-        "Internal server error"
+        "Internal server error",
       );
     });
   });
@@ -183,12 +186,12 @@ describe("Resume Chat API", () => {
     it("should return 400 if message is missing", async () => {
       await POST(
         { json: jest.fn().mockResolvedValue({}) } as unknown as NextRequest,
-        { params: mockParams }
+        { params: mockParams },
       );
       expect(handleApiError).toHaveBeenCalledWith(
         expect.any(Error),
         "Message is required",
-        400
+        400,
       );
     });
 
@@ -197,7 +200,7 @@ describe("Resume Chat API", () => {
       expect(handleApiError).toHaveBeenCalledWith(
         expect.any(Error),
         "Resume ID is required",
-        400
+        400,
       );
     });
 
@@ -239,7 +242,7 @@ describe("Resume Chat API", () => {
         expect.objectContaining({
           completed: true,
           response: "Updated title — all set!",
-        })
+        }),
       );
     });
 
@@ -261,7 +264,7 @@ describe("Resume Chat API", () => {
 
       await POST(req, { params: mockParams });
       expect(NextResponse.json).toHaveBeenCalledWith(
-        expect.objectContaining({ completed: false, response: "Sure?" })
+        expect.objectContaining({ completed: false, response: "Sure?" }),
       );
     });
 
@@ -274,7 +277,7 @@ describe("Resume Chat API", () => {
       await POST(req, { params: mockParams });
       expect(NextResponse.json).toHaveBeenCalledWith(
         { response: "Fallback", resumeMissing: true },
-        { status: 200 }
+        { status: 200 },
       );
     });
 
@@ -290,7 +293,7 @@ describe("Resume Chat API", () => {
       expect(handleApiError).toHaveBeenCalledWith(
         expect.any(Error),
         "Permission denied",
-        403
+        403,
       );
     });
 
@@ -317,7 +320,7 @@ describe("Resume Chat API", () => {
         expect.objectContaining({
           completed: false,
           response: expect.stringContaining("incorrect"),
-        })
+        }),
       );
     });
 
@@ -340,7 +343,7 @@ describe("Resume Chat API", () => {
 
       await POST(req, { params: mockParams });
       expect(NextResponse.json).toHaveBeenCalledWith(
-        expect.objectContaining({ completed: true })
+        expect.objectContaining({ completed: true }),
       );
     });
 
@@ -363,7 +366,7 @@ describe("Resume Chat API", () => {
 
       await POST(req, { params: mockParams });
       expect(NextResponse.json).toHaveBeenCalledWith(
-        expect.objectContaining({ completed: true })
+        expect.objectContaining({ completed: true }),
       );
     });
 
@@ -374,7 +377,7 @@ describe("Resume Chat API", () => {
       await POST(req, { params: mockParams });
       expect(handleApiError).toHaveBeenCalledWith(
         expect.any(Error),
-        "Failed to process resume edit"
+        "Failed to process resume edit",
       );
     });
   });

@@ -56,7 +56,7 @@ describe("ResumeStatusCard", () => {
           hasResume={false}
           resumeId={null}
           resumeLoading={true}
-        />
+        />,
       );
     });
     expect(screen.getAllByText("Loading...")[0]).toBeInTheDocument();
@@ -69,7 +69,7 @@ describe("ResumeStatusCard", () => {
           hasResume={false}
           resumeId={null}
           resumeLoading={false}
-        />
+        />,
       );
     });
     expect(screen.getAllByText("Not Created")[0]).toBeInTheDocument();
@@ -83,7 +83,7 @@ describe("ResumeStatusCard", () => {
           hasResume={true}
           resumeId="resume-123"
           resumeLoading={false}
-        />
+        />,
       );
     });
     expect(screen.getAllByText("Private Draft")[0]).toBeInTheDocument();
@@ -99,7 +99,7 @@ describe("ResumeStatusCard", () => {
           hasResume={true}
           resumeId="resume-123"
           resumeLoading={false}
-        />
+        />,
       );
     });
     fireEvent.click(screen.getByText("Delete"));
@@ -109,8 +109,8 @@ describe("ResumeStatusCard", () => {
         "If you delete this resume, you will lose all its data permanently.",
         {
           exact: false,
-        }
-      )
+        },
+      ),
     ).toBeInTheDocument();
   });
 
@@ -121,13 +121,13 @@ describe("ResumeStatusCard", () => {
           hasResume={true}
           resumeId="resume-123"
           resumeLoading={false}
-        />
+        />,
       );
     });
     fireEvent.click(screen.getByText("Delete"));
     fireEvent.click(screen.getByText("Cancel"));
     expect(
-      screen.queryByText("Warning: Permanent Action")
+      screen.queryByText("Warning: Permanent Action"),
     ).not.toBeInTheDocument();
   });
 
@@ -142,24 +142,23 @@ describe("ResumeStatusCard", () => {
         hasResume={true}
         resumeId="resume-123"
         resumeLoading={false}
-      />
+      />,
     );
 
     fireEvent.click(screen.getByText("Delete"));
     // Click the confirm delete button (the one inside the modal)
     const deleteButtons = screen.getAllByRole("button", { name: /Delete/i });
     const confirmDeleteButton = deleteButtons.find((b) =>
-      b.className.includes("bg-red-600")
+      b.className.includes("bg-red-600"),
     );
     fireEvent.click(confirmDeleteButton!);
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        "/api/resume/delete",
+        "/api/resumes/resume-123",
         expect.objectContaining({
-          method: "POST",
-          body: JSON.stringify({ resumeId: "resume-123" }),
-        })
+          method: "DELETE",
+        }),
       );
     });
 
@@ -180,20 +179,20 @@ describe("ResumeStatusCard", () => {
           hasResume={true}
           resumeId="resume-123"
           resumeLoading={false}
-        />
+        />,
       );
     });
 
     fireEvent.click(screen.getByText("Delete"));
     const deleteButtons = screen.getAllByRole("button", { name: /Delete/i });
     const confirmDeleteButton = deleteButtons.find((b) =>
-      b.className.includes("bg-red-600")
+      b.className.includes("bg-red-600"),
     );
     fireEvent.click(confirmDeleteButton!);
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith(
-        "Failed to delete resume. Please try again."
+        "Failed to delete resume. Please try again.",
       );
     });
   });
@@ -207,7 +206,7 @@ describe("ResumeStatusCard", () => {
           hasResume={true}
           resumeId="resume-123"
           resumeLoading={false}
-        />
+        />,
       );
     });
 
@@ -217,12 +216,12 @@ describe("ResumeStatusCard", () => {
     fireEvent.click(screen.getByText("Delete"));
     const deleteButtons = screen.getAllByRole("button", { name: /Delete/i });
     const confirmDeleteButton = deleteButtons.find((b) =>
-      b.className.includes("bg-red-600")
+      b.className.includes("bg-red-600"),
     );
     fireEvent.click(confirmDeleteButton!);
 
     expect(toast.error).toHaveBeenCalledWith(
-      "You must be logged in to delete your resume."
+      "You must be logged in to delete your resume.",
     );
     expect(global.fetch).not.toHaveBeenCalled();
   });
@@ -234,19 +233,19 @@ describe("ResumeStatusCard", () => {
           hasResume={true}
           resumeId={null}
           resumeLoading={false}
-        />
+        />,
       );
     });
 
     fireEvent.click(screen.getByText("Delete"));
     const deleteButtons = screen.getAllByRole("button", { name: /Delete/i });
     const confirmDeleteButton = deleteButtons.find((b) =>
-      b.className.includes("bg-red-600")
+      b.className.includes("bg-red-600"),
     );
     fireEvent.click(confirmDeleteButton!);
 
     expect(toast.error).toHaveBeenCalledWith(
-      "Resume ID not found. Please refresh the page and try again."
+      "Resume ID not found. Please refresh the page and try again.",
     );
     expect(global.fetch).not.toHaveBeenCalled();
   });
@@ -258,7 +257,7 @@ describe("ResumeStatusCard", () => {
           hasResume={true}
           resumeId={null}
           resumeLoading={false}
-        />
+        />,
       );
     });
 

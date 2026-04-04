@@ -50,7 +50,7 @@ async function getResumeDocument(id: string) {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   try {
     const { id } = await params;
@@ -58,7 +58,7 @@ export async function GET(
       return handleApiError(
         new Error("Resume ID is required"),
         "Resume ID is required",
-        400
+        400,
       );
     }
 
@@ -77,7 +77,7 @@ export async function GET(
       return handleApiError(
         new Error("Too many requests"),
         "Too many requests. Please try again later.",
-        429
+        429,
       );
     }
 
@@ -86,7 +86,7 @@ export async function GET(
       const greeting = getResumeEditGreeting(false);
       return NextResponse.json(
         { resumeExists: false, greeting },
-        { status: 200 }
+        { status: 200, headers: { "Cache-Control": "private, no-store" } },
       );
     }
 
@@ -96,7 +96,7 @@ export async function GET(
       return handleApiError(
         new Error("Permission denied"),
         "Permission denied",
-        403
+        403,
       );
     }
 
@@ -104,22 +104,25 @@ export async function GET(
     const greeting = getResumeEditGreeting(
       true,
       normalized.profile.title,
-      normalized.profile.personalInfo?.name
+      normalized.profile.personalInfo?.name,
     );
 
-    return NextResponse.json({
-      resumeExists: true,
-      resume: {
-        ...resumeData,
-        id,
+    return NextResponse.json(
+      {
+        resumeExists: true,
+        resume: {
+          ...resumeData,
+          id,
+        },
+        snapshot: normalized,
+        greeting,
+        metadata: {
+          numericId: resumeData.numericId ?? docRef.id,
+          updatedAt: resumeData.updatedAt ?? null,
+        },
       },
-      snapshot: normalized,
-      greeting,
-      metadata: {
-        numericId: resumeData.numericId ?? docRef.id,
-        updatedAt: resumeData.updatedAt ?? null,
-      },
-    });
+      { headers: { "Cache-Control": "private, no-store" } },
+    );
   } catch (error) {
     logger.error({ err: error }, "Error in resume edit chat GET:");
     return handleApiError(error, "Internal server error");
@@ -128,7 +131,7 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   try {
     const { id } = await params;
@@ -136,7 +139,7 @@ export async function POST(
       return handleApiError(
         new Error("Resume ID is required"),
         "Resume ID is required",
-        400
+        400,
       );
     }
 
@@ -146,11 +149,7 @@ export async function POST(
 
     const parseResult = ResumeChatRequestSchema.safeParse(await request.json());
     if (!parseResult.success) {
-      return handleApiError(
-        parseResult.error,
-        "Message is required",
-        400
-      );
+      return handleApiError(parseResult.error, "Message is required", 400);
     }
     const {
       message,
@@ -166,7 +165,7 @@ export async function POST(
           response: fallback,
           resumeMissing: true,
         },
-        { status: 200 }
+        { status: 200 },
       );
     }
 
@@ -176,7 +175,7 @@ export async function POST(
       return handleApiError(
         new Error("Permission denied"),
         "Permission denied",
-        403
+        403,
       );
     }
 
@@ -192,10 +191,14 @@ export async function POST(
     const responseText = aiResult.text;
 
     // Track Billing
-    await BillingService.trackUsage(requestUserId!, aiResult.model || "default", {
-      input: Math.ceil(prompt.length / 4),
-      output: Math.ceil(responseText.length / 4),
-    });
+    await BillingService.trackUsage(
+      requestUserId!,
+      aiResult.model || "default",
+      {
+        input: Math.ceil(prompt.length / 4),
+        output: Math.ceil(responseText.length / 4),
+      },
+    );
 
     const completionPayload = extractResumeEditJSON(responseText);
     const isComplete =
@@ -232,16 +235,20 @@ export async function POST(
 
     // Fix for missing visibility in skills from AI response
     if ("skills" in updatedProfile && Array.isArray(updatedProfile.skills)) {
-      updatedProfile.skills = (updatedProfile.skills as Record<string, unknown>[]).map((skill) => ({
+      updatedProfile.skills = (
+        updatedProfile.skills as Record<string, unknown>[]
+      ).map((skill) => ({
         name: (skill.name as string) || "",
-        level: (skill.level as "advanced" | "intermediate" | "beginner") || "intermediate",
+        level:
+          (skill.level as "advanced" | "intermediate" | "beginner") ||
+          "intermediate",
         visibility: (skill.visibility as boolean) ?? true,
       }));
     }
 
     const mergedResume = mergeProfileIntoResume(
       resumeData,
-      updatedProfile as Record<string, unknown>
+      updatedProfile as Record<string, unknown>,
     );
     const normalizedUpdated = normalizeResumeForEditor(mergedResume);
     const sanitizedUpdate = sanitizeResumePayload(normalizedUpdated.resume);
@@ -253,7 +260,7 @@ export async function POST(
         updatedAt: timestamp,
         lastUpdatedAt: timestamp,
       },
-      { merge: true }
+      { merge: true },
     );
 
     // Fan-out Cloud Function keeps user + global indexes in sync.

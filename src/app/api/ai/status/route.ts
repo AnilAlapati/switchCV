@@ -77,17 +77,26 @@ export async function GET(request: NextRequest) {
         { userId, model: bestModel },
         "AI status check - Gemini available",
       );
-      return NextResponse.json({
-        connected: true,
-      });
+      return NextResponse.json(
+        {
+          connected: true,
+        },
+        { headers: { "Cache-Control": "private, no-store" } },
+      );
     } else if (hasOpenAI) {
-      return NextResponse.json({
-        connected: true,
-      });
+      return NextResponse.json(
+        {
+          connected: true,
+        },
+        { headers: { "Cache-Control": "private, no-store" } },
+      );
     } else {
-      return NextResponse.json({
-        connected: false,
-      });
+      return NextResponse.json(
+        {
+          connected: false,
+        },
+        { headers: { "Cache-Control": "private, no-store" } },
+      );
     }
   } catch (error) {
     return handleApiError(error, "Failed to check AI status");

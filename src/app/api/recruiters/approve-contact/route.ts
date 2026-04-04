@@ -40,13 +40,13 @@ export async function POST(request: NextRequest) {
     if (authError) return authError;
 
     const parseResult = ApproveRecruiterContactSchema.safeParse(
-      await request.json()
+      await request.json(),
     );
     if (!parseResult.success) {
       return handleApiError(
         new Error("Missing required fields"),
         "Missing required fields",
-        400
+        400,
       );
     }
     const payload = parseResult.data as ApproveContactPayload;
@@ -56,24 +56,26 @@ export async function POST(request: NextRequest) {
       return handleApiError(
         new Error("Forbidden: adminUserId must match authenticated user"),
         "Forbidden: adminUserId must match authenticated user",
-        403
+        403,
       );
     }
 
     // SECURITY: Verify the user has admin role
-    const adminDoc = await collectionRef(COLLECTIONS.USERS).doc(authUserId).get();
+    const adminDoc = await collectionRef(COLLECTIONS.USERS)
+      .doc(authUserId)
+      .get();
     const adminData = adminDoc.data();
     if (!adminData || adminData.role !== "admin") {
       return handleApiError(
         new Error("Forbidden: Only admins can approve contact requests"),
         "Forbidden: Only admins can approve contact requests",
-        403
+        403,
       );
     }
 
     // Get the contact request
     const requestRef = collectionRef(COLLECTIONS.RECRUITER_REQUESTS).doc(
-      payload.requestId
+      payload.requestId,
     );
     const requestDoc = await requestRef.get();
 
@@ -81,7 +83,7 @@ export async function POST(request: NextRequest) {
       return handleApiError(
         new Error("Request not found"),
         "Request not found",
-        404
+        404,
       );
     }
 
@@ -92,7 +94,7 @@ export async function POST(request: NextRequest) {
       return handleApiError(
         new Error("Request is no longer pending"),
         "Request status is not pending",
-        400
+        400,
       );
     }
 
@@ -103,7 +105,7 @@ export async function POST(request: NextRequest) {
       return handleApiError(
         new Error("Invalid duration"),
         "Invalid duration",
-        400
+        400,
       );
     }
 
@@ -146,14 +148,12 @@ export async function POST(request: NextRequest) {
       ipAddressWhitelist: payload.ipAddress ? [payload.ipAddress] : undefined,
     };
 
-    const tokenRef = await collectionRef(COLLECTIONS.ACCESS_TOKENS).add(tokenDocData);
+    const tokenRef = await collectionRef(COLLECTIONS.ACCESS_TOKENS).add(
+      tokenDocData,
+    );
 
     // Step 2: Generate token using Firestore doc ID as tokenId (ensures consistency)
-    const {
-      token,
-      tokenHash,
-      expiresAt: tokenExpiry,
-    } = tokenGenerator.generateToken({
+    const { tokenHash, expiresAt: tokenExpiry } = tokenGenerator.generateToken({
       tokenId: tokenRef.id, // Use Firestore doc ID — JWT, stored field, and doc ID all match
       recruiterId: contactRequest.fromRecruiter.recruiterId,
       userId: contactRequest.toUserId,
@@ -196,8 +196,9 @@ export async function POST(request: NextRequest) {
       // SECURITY: Token preview removed — do not leak tokens in notifications
     };
 
-    await collectionRef(COLLECTIONS.RECRUITER_NOTIFICATIONS)
-      .add(recruiterNotification);
+    await collectionRef(COLLECTIONS.RECRUITER_NOTIFICATIONS).add(
+      recruiterNotification,
+    );
 
     // Create notification for candidate (they're being contacted)
     const candidateNotification = {
@@ -240,10 +241,10 @@ export async function POST(request: NextRequest) {
     await collectionRef(COLLECTIONS.AUDIT_LOGS).add(auditLog);
 
     logger.info(
-      `✅ Contact request approved: ${payload.requestId} by admin ${payload.adminUserId}`
+      `✅ Contact request approved: ${payload.requestId} by admin ${payload.adminUserId}`,
     );
     logger.info(
-      `🔐 Secure token generated: ${tokenRef.id} (expires in ${duration})`
+      `🔐 Secure token generated: ${tokenRef.id} (expires in ${duration})`,
     );
 
     return NextResponse.json({

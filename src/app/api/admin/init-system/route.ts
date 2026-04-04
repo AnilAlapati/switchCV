@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
   try {
     logger.info(
       { userId },
-      "Admin initializing system collection and ID counter..."
+      "Admin initializing system collection and ID counter...",
     );
 
     // Initialize the ID counter
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
         nextResumeId: currentId + 1,
         firebaseLocation: "system/resumeIdCounter",
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     logger.error({ err: error, userId }, "Error initializing system");
@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
         nextResumeId: currentId + 1,
         firebaseLocation: "system/resumeIdCounter",
       },
-      { status: 200 }
+      { status: 200, headers: { "Cache-Control": "private, no-store" } },
     );
   } catch (error) {
     logger.error({ err: error, userId }, "Error checking system status");

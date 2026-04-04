@@ -15,9 +15,8 @@ async function verifyAdminRole(userId: string): Promise<boolean> {
 }
 
 export async function GET(request: NextRequest) {
-  const { userId: authUserId, error: authError } = await getAuthenticatedUserId(
-    request
-  );
+  const { userId: authUserId, error: authError } =
+    await getAuthenticatedUserId(request);
   if (authError || !authUserId)
     return authError || handleApiError(null, "Unauthorized", 401);
 
@@ -52,11 +51,14 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({
-      message: "All published resumes",
-      total: resumes.length,
-      resumes,
-    });
+    return NextResponse.json(
+      {
+        message: "All published resumes",
+        total: resumes.length,
+        resumes,
+      },
+      { headers: { "Cache-Control": "private, no-store" } },
+    );
   } catch (error) {
     return handleApiError(error, "Failed to fetch resumes");
   }

@@ -2,7 +2,10 @@
 // Refactored to use AnalyticsService
 
 import { NextRequest, NextResponse } from "next/server";
-import { getDashboardAnalytics, getAnalytics } from "@/lib/services/analyticsService";
+import {
+  getDashboardAnalytics,
+  getAnalytics,
+} from "@/lib/services/analyticsService";
 import { logger } from "@/lib/logger";
 import {
   getAuthenticatedUserId,
@@ -17,7 +20,9 @@ import {
 async function resolveResumeOwnerId(resumeId: string): Promise<string | null> {
   let resumeDoc = await collectionRef(COLLECTIONS.RESUMES).doc(resumeId).get();
   if (!resumeDoc.exists) {
-    resumeDoc = await collectionRef(COLLECTIONS.RESUME_PROFILES).doc(resumeId).get();
+    resumeDoc = await collectionRef(COLLECTIONS.RESUME_PROFILES)
+      .doc(resumeId)
+      .get();
   }
 
   const ownerId = resumeDoc.data()?.userId;
@@ -29,7 +34,9 @@ async function authorizeAnalyticsAccess(
   resumeId: string,
   requestedUserId?: string,
 ): Promise<{ userId: string; error?: NextResponse }> {
-  const authUserDoc = await collectionRef(COLLECTIONS.USERS).doc(authUserId).get();
+  const authUserDoc = await collectionRef(COLLECTIONS.USERS)
+    .doc(authUserId)
+    .get();
   const isAdmin = authUserDoc.data()?.role === "admin";
 
   const ownerId = await resolveResumeOwnerId(resumeId);
@@ -76,7 +83,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     } catch {
       return NextResponse.json(
         { success: false, message: "Missing resumeId or userId" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -84,7 +91,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (!parseResult.success) {
       return NextResponse.json(
         { success: false, message: "Missing resumeId or userId" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     const { resumeId } = parseResult.data;
@@ -93,7 +100,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (!resumeId) {
       return NextResponse.json(
         { success: false, message: "Missing resumeId or userId" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -135,7 +142,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     if (!parseResult.success) {
       return NextResponse.json(
         { success: false, message: "Missing resumeId or userId" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -145,7 +152,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     if (!resumeId) {
       return NextResponse.json(
         { success: false, message: "Missing resumeId or userId" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -161,7 +168,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const result = await getAnalytics(resumeId);
 
     // Flatten logic to match previous response shape
-    const analyticsRecord = result.analytics as unknown as Record<string, unknown>;
+    const analyticsRecord = result.analytics as unknown as Record<
+      string,
+      unknown
+    >;
     const analytics = {
       resumeId,
       userId,
@@ -175,11 +185,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       updatedAt: result.analytics.lastUpdatedAt,
     };
 
-    return NextResponse.json({
-      success: true,
-      data: analytics,
-      timestamp: new Date(),
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        data: analytics,
+        timestamp: new Date(),
+      },
+      { headers: { "Cache-Control": "private, no-store" } },
+    );
   } catch (error) {
     return handleApiError(error, "Failed to retrieve analytics");
   }

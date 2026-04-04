@@ -43,7 +43,10 @@ export async function GET(request: NextRequest) {
 
     const sessions = await getConversationSessions(userId, { limit });
 
-    return NextResponse.json({ sessions, count: sessions.length });
+    return NextResponse.json(
+      { sessions, count: sessions.length },
+      { headers: { "Cache-Control": "private, no-store" } },
+    );
   } catch (err) {
     return handleApiError(err, "Failed to fetch conversation sessions");
   }

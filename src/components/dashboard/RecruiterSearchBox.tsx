@@ -9,15 +9,14 @@ import { RecruiterSearchForm } from "./RecruiterSearchForm";
 import { RecruiterSearchResults } from "./RecruiterSearchResults";
 import {
   SearchStatusIndicator,
-  RecruiterSearchHeader,
   RecruiterSearchLoadingState,
 } from "./RecruiterSearchHeader";
 import { useAiSearch } from "./useAiSearch";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-interface RecruiterSearchBoxProps { }
+interface RecruiterSearchBoxProps {}
 
-export function RecruiterSearchBox({ }: RecruiterSearchBoxProps = {}) {
+export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
   const { user } = useAuth();
   const { isPremiumOrHigher, loading: tierLoading } = useTier();
   const [searchMode, setSearchMode] = useState<SearchModeType>("ai"); // Default to AI search
@@ -153,7 +152,7 @@ export function RecruiterSearchBox({ }: RecruiterSearchBoxProps = {}) {
     setNotification("Request sent successfully!");
     // Refresh search to update status
     if (searched) {
-      handleSearch({ preventDefault: () => { } } as React.FormEvent);
+      handleSearch({ preventDefault: () => {} } as React.FormEvent);
     }
   };
 

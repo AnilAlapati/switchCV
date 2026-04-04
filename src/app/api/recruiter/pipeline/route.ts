@@ -28,9 +28,8 @@ import {
 } from "@/lib/utils/api-helpers";
 
 export async function POST(request: NextRequest) {
-  const { userId: authUserId, error: authError } = await getAuthenticatedUserId(
-    request
-  );
+  const { userId: authUserId, error: authError } =
+    await getAuthenticatedUserId(request);
   if (authError || !authUserId)
     return authError || handleApiError(null, "Unauthorized", 401);
 
@@ -54,7 +53,11 @@ export async function POST(request: NextRequest) {
     const parseResult = RecruiterPipelineActionSchema.safeParse(payload);
     if (!parseResult.success) {
       if (action === "initialize") {
-        return handleApiError(null, "Missing required fields: jobId and jobTitle", 400);
+        return handleApiError(
+          null,
+          "Missing required fields: jobId and jobTitle",
+          400,
+        );
       }
       return handleApiError(null, "Invalid request payload", 400);
     }
@@ -68,22 +71,34 @@ export async function POST(request: NextRequest) {
         const pipeline = await initializePipeline(jobId, jobTitle, authUserId);
 
         return NextResponse.json(
-          { success: true, pipeline, message: "Pipeline initialized successfully" },
-          { status: 201 }
+          {
+            success: true,
+            pipeline,
+            message: "Pipeline initialized successfully",
+          },
+          { status: 201 },
         );
       }
 
       case "add-candidate": {
-        const { pipelineId, name, email, position, phone, resumeUrl } = body as AddCandidateRequest;
+        const { pipelineId, name, email, position, phone, resumeUrl } =
+          body as AddCandidateRequest;
 
         // SECURITY: Verify pipeline ownership
         const pipelineOwner = await getPipelineOwner(pipelineId);
-        if (!pipelineOwner) return handleApiError(null, "Pipeline not found", 404);
+        if (!pipelineOwner)
+          return handleApiError(null, "Pipeline not found", 404);
         if (pipelineOwner !== authUserId) {
           return handleApiError(null, "Forbidden: Not your pipeline", 403);
         }
 
-        const result = await addCandidate(pipelineId, { name, email, position, phone, resumeUrl });
+        const result = await addCandidate(pipelineId, {
+          name,
+          email,
+          position,
+          phone,
+          resumeUrl,
+        });
 
         if (!result) return handleApiError(null, "Pipeline not found", 404);
 
@@ -94,12 +109,13 @@ export async function POST(request: NextRequest) {
             totalCandidates: result.totalCandidates,
             message: "Candidate added successfully",
           },
-          { status: 201 }
+          { status: 201 },
         );
       }
 
       case "move-candidate": {
-        const { pipelineId, candidateId, newStage } = body as MoveCandidateRequest;
+        const { pipelineId, candidateId, newStage } =
+          body as MoveCandidateRequest;
 
         // SECURITY: Verify pipeline ownership
         const moveOwner = await getPipelineOwner(pipelineId);
@@ -108,13 +124,18 @@ export async function POST(request: NextRequest) {
           return handleApiError(null, "Forbidden: Not your pipeline", 403);
         }
 
-        const candidate = await moveCandidate(pipelineId, candidateId, newStage);
+        const candidate = await moveCandidate(
+          pipelineId,
+          candidateId,
+          newStage,
+        );
 
-        if (!candidate) return handleApiError(null, "Candidate or Pipeline not found", 404);
+        if (!candidate)
+          return handleApiError(null, "Candidate or Pipeline not found", 404);
 
         return NextResponse.json(
           { success: true, candidate, message: "Candidate moved successfully" },
-          { status: 200 }
+          { status: 200 },
         );
       }
 
@@ -142,7 +163,7 @@ export async function POST(request: NextRequest) {
             candidates,
             count: candidates.length,
           },
-          { status: 200 }
+          { status: 200 },
         );
       }
 
@@ -156,9 +177,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const { userId: authUserId, error: authError } = await getAuthenticatedUserId(
-    request
-  );
+  const { userId: authUserId, error: authError } =
+    await getAuthenticatedUserId(request);
   if (authError || !authUserId)
     return authError || handleApiError(null, "Unauthorized", 401);
 
@@ -185,10 +205,13 @@ export async function GET(request: NextRequest) {
       return handleApiError(null, "Forbidden: Not your pipeline", 403);
     }
 
-    return NextResponse.json({
-      success: true,
-      pipeline,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        pipeline,
+      },
+      { headers: { "Cache-Control": "private, no-store" } },
+    );
   } catch (error) {
     logger.error({ err: error }, "Pipeline GET error");
     return handleApiError(error, "Internal server error");

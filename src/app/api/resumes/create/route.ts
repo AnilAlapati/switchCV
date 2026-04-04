@@ -15,6 +15,7 @@ import {
   getResumeDeletionGraceDays,
   getResumeExpiryWarningHours,
 } from "@/lib/config.server";
+import { preIndexResume } from "@/lib/services/rag/ragService";
 
 interface CreateResumeRequest {
   userId: string;
@@ -35,9 +36,8 @@ interface CreateResumeResponse {
 export async function POST(request: NextRequest) {
   try {
     // Verify authentication
-    const { userId: authenticatedUserId, error } = await getAuthenticatedUserId(
-      request
-    );
+    const { userId: authenticatedUserId, error } =
+      await getAuthenticatedUserId(request);
     if (error) return error;
 
     // Parse request body
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       return handleApiError(
         parseResult.error,
         "Missing required fields: userId or resume",
-        400
+        400,
       );
     }
     const {
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       return handleApiError(
         new Error("Unauthorized"),
         "Unauthorized: Cannot save resume for another user",
-        403
+        403,
       );
     }
 
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
       return handleApiError(
         new Error("Plan limit reached"),
         "Maximum resume limit reached for your plan",
-        403
+        403,
       );
     }
 
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
       return handleApiError(
         new Error("Failed to generate ID"),
         "Failed to generate numeric resume ID",
-        500
+        500,
       );
     }
 
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
 
         if (warningHours) {
           const warningDate = new Date(
-            deletionDate.getTime() - warningHours * 60 * 60 * 1000
+            deletionDate.getTime() - warningHours * 60 * 60 * 1000,
           );
           countdownStartsAt = warningDate.toISOString();
         }
@@ -152,7 +152,9 @@ export async function POST(request: NextRequest) {
 
     // Persist single source of truth document. Fan-out Cloud Function will
     // propagate to user + global indexes asynchronously.
-    await collectionRef(COLLECTIONS.RESUMES).doc(String(numericId)).set(resumeDoc);
+    await collectionRef(COLLECTIONS.RESUMES)
+      .doc(String(numericId))
+      .set(resumeDoc);
 
     logger.info(
       {
@@ -161,8 +163,24 @@ export async function POST(request: NextRequest) {
         resumeTitle: resume.title,
         isPublic,
       },
-      `✅ Resume saved successfully`
+      `✅ Resume saved successfully`,
     );
+
+    // Pre-index the resume for RAG queries (fire-and-forget — doesn't block response).
+    // This means the first recruiter query after publish has embeddings ready,
+    // instead of paying indexing latency at query time.
+    if (isPublic && "profile" in resume && resume.profile) {
+      preIndexResume(
+        (resume as unknown as { profile: Parameters<typeof preIndexResume>[0] })
+          .profile,
+        String(numericId),
+      ).catch((err: unknown) => {
+        logger.error(
+          { err, numericId },
+          "RAG pre-indexing failed (non-critical — will index lazily on first query)",
+        );
+      });
+    }
 
     const response: CreateResumeResponse = {
       success: true,

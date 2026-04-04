@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import useSWR from "swr";
 import dynamic from "next/dynamic";
 import {
   Card,
@@ -9,7 +9,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { logger } from "@/lib/logger";
 
 // Lazy-load recharts (~200KB) — only loaded when admin visits this page
 const CostChart = dynamic(() => import("./CostChart"), {
@@ -27,32 +26,25 @@ interface CostData {
   lastAggregated: string;
 }
 
+const fetcher = (url: string) =>
+  fetch(url).then((r) => {
+    if (!r.ok) throw new Error("Failed to fetch cost data");
+    return r.json();
+  });
+
 export default function CostDashboard() {
-  const [data, setData] = useState<CostData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    data: result,
+    error,
+    isLoading,
+  } = useSWR<{ costs: CostData[] }>("/api/admin/costs", fetcher, {
+    revalidateOnFocus: false,
+    refreshInterval: 300_000,
+  });
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const response = await fetch("/api/admin/costs");
-        if (!response.ok) {
-          throw new Error("Failed to fetch cost data");
-        }
-        const result = await response.json();
-        setData(result.costs);
-      } catch (err) {
-        logger.error({ err }, "Error fetching cost dashboard data");
-        setError("Failed to load cost data. Please try again later.");
-      } finally {
-        setLoading(false);
-      }
-    }
+  const data = result?.costs ?? [];
 
-    fetchData();
-  }, []);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex h-96 items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -63,7 +55,7 @@ export default function CostDashboard() {
   if (error) {
     return (
       <div className="flex h-96 items-center justify-center text-red-500">
-        {error}
+        Failed to load cost data. Please try again later.
       </div>
     );
   }

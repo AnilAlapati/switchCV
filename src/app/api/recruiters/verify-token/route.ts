@@ -3,7 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { COLLECTIONS, collectionRef, serverTimestamp } from "@/lib/dal";
 import { tokenGenerator, TokenVerificationResult } from "@/lib/tokenGenerator";
 import { SecureAccessToken } from "@/types/profileSearch";
-import { handleApiError, getAuthenticatedUserId } from "@/lib/utils/api-helpers";
+import {
+  handleApiError,
+  getAuthenticatedUserId,
+} from "@/lib/utils/api-helpers";
 import { VerifyRecruiterTokenSchema } from "@/lib/schemas/api";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +23,8 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(request: NextRequest) {
   // SECURITY: Require authentication to verify tokens
-  const { userId: authUserId, error: authError } = await getAuthenticatedUserId(request);
+  const { userId: authUserId, error: authError } =
+    await getAuthenticatedUserId(request);
   if (authError || !authUserId)
     return authError || handleApiError(null, "Unauthorized", 401);
 
@@ -35,7 +39,7 @@ export async function GET(request: NextRequest) {
       return handleApiError(
         new Error("Token or tokenId is required"),
         "Token or tokenId is required",
-        400
+        400,
       );
     }
     const { token, tokenId, recruiterId } = parseResult.data;
@@ -66,7 +70,7 @@ export async function GET(request: NextRequest) {
           return handleApiError(
             new Error("Token mismatch"),
             "Token mismatch",
-            400
+            400,
           );
         }
       }
@@ -77,7 +81,7 @@ export async function GET(request: NextRequest) {
           return handleApiError(
             new Error("Token not issued to this recruiter"),
             "Token not issued to this recruiter",
-            403
+            403,
           );
         }
       }
@@ -101,12 +105,13 @@ export async function GET(request: NextRequest) {
     }
 
     // SECURITY: Verify the authenticated user owns this token
-    const tokenRecruiterId = verification.payload?.recruiterId || tokenData?.recruiterId;
+    const tokenRecruiterId =
+      verification.payload?.recruiterId || tokenData?.recruiterId;
     if (tokenRecruiterId && authUserId !== tokenRecruiterId) {
       return handleApiError(
         new Error("Forbidden: Token does not belong to authenticated user"),
         "Forbidden: Token does not belong to authenticated user",
-        403
+        403,
       );
     }
 
@@ -115,30 +120,36 @@ export async function GET(request: NextRequest) {
       return handleApiError(
         new Error("Token not issued to this recruiter"),
         "Token not issued to this recruiter",
-        403
+        403,
       );
     }
 
     // Check if token is revoked
     if (tokenData && tokenData.isRevoked) {
-      return NextResponse.json({
-        valid: false,
-        revoked: true,
-        revokedAt: tokenData.revokedAt,
-        revokeReason: tokenData.revokeReason,
-        message: "Token has been revoked",
-      });
+      return NextResponse.json(
+        {
+          valid: false,
+          revoked: true,
+          revokedAt: tokenData.revokedAt,
+          revokeReason: tokenData.revokeReason,
+          message: "Token has been revoked",
+        },
+        { headers: { "Cache-Control": "private, no-store" } },
+      );
     }
 
     if (
       tokenData?.ipAddressWhitelist &&
       tokenData.ipAddressWhitelist.length > 0
     ) {
-      if (realIp === "unknown" || !tokenData.ipAddressWhitelist.includes(realIp)) {
+      if (
+        realIp === "unknown" ||
+        !tokenData.ipAddressWhitelist.includes(realIp)
+      ) {
         return handleApiError(
           new Error("IP address not whitelisted for this token"),
           "IP address not whitelisted for this token",
-          403
+          403,
         );
       }
     }
@@ -146,33 +157,37 @@ export async function GET(request: NextRequest) {
     // Check expiration
     if (verification.valid) {
       const payloadExpiresAt = verification.payload?.expiresAt;
-      const expiresAtNum =
-        tokenData
-          ? typeof tokenData.expiresAt === "string"
-            ? new Date(tokenData.expiresAt).getTime() / 1000
-            : tokenData.expiresAt instanceof Date
-              ? tokenData.expiresAt.getTime() / 1000
-              : (tokenData.expiresAt as any)?.toDate // Handle Firestore Timestamp
-                ? (tokenData.expiresAt as any).toDate().getTime() / 1000
-                : tokenData.expiresAt
-          : payloadExpiresAt;
+      const expiresAtNum = tokenData
+        ? typeof tokenData.expiresAt === "string"
+          ? new Date(tokenData.expiresAt).getTime() / 1000
+          : tokenData.expiresAt instanceof Date
+            ? tokenData.expiresAt.getTime() / 1000
+            : (tokenData.expiresAt as any)?.toDate // Handle Firestore Timestamp
+              ? (tokenData.expiresAt as any).toDate().getTime() / 1000
+              : tokenData.expiresAt
+        : payloadExpiresAt;
 
       if (typeof expiresAtNum !== "number") {
-        return NextResponse.json({
-          valid: false,
-          message: "Token expiration missing",
-        });
+        return NextResponse.json(
+          { valid: false, message: "Token expiration missing" },
+          { headers: { "Cache-Control": "private, no-store" } },
+        );
       }
 
       if (tokenGenerator.isExpired(expiresAtNum)) {
-        return NextResponse.json({
-          valid: false,
-          expired: true,
-          expiresAt:
-            tokenData?.expiresAt ||
-            (payloadExpiresAt ? new Date(payloadExpiresAt * 1000) : undefined),
-          message: "Token has expired",
-        });
+        return NextResponse.json(
+          {
+            valid: false,
+            expired: true,
+            expiresAt:
+              tokenData?.expiresAt ||
+              (payloadExpiresAt
+                ? new Date(payloadExpiresAt * 1000)
+                : undefined),
+            message: "Token has expired",
+          },
+          { headers: { "Cache-Control": "private, no-store" } },
+        );
       }
 
       // Track usage
@@ -194,31 +209,38 @@ export async function GET(request: NextRequest) {
         tokenData?.issuedAt ||
         (payload?.issuedAt ? new Date(payload.issuedAt * 1000) : undefined);
 
-      return NextResponse.json({
-        valid: true,
-        verified: true,
-        tokenId: resolvedTokenId || payload?.tokenId,
-        recruiterId: recruiterId || payload?.recruiterId || tokenData?.recruiterId,
-        userId: payload?.userId || tokenData?.userId,
-        resumeId: payload?.resumeId || tokenData?.resumeId,
-        accessFields: payload?.accessFields || tokenData?.accessFields || [],
-        accessType: tokenData?.accessType || "read-only",
-        expiresAt: expiresAtDate,
-        issuedAt: issuedAtDate,
-        duration: tokenData?.duration,
-        remainingSeconds,
-        readableTimeRemaining:
-          tokenGenerator.getReadableTimeRemaining(expiresAtNum),
-        usageCount: tokenData?.usageCount || 0,
-        message: "Token is valid and accessible",
-      });
+      return NextResponse.json(
+        {
+          valid: true,
+          verified: true,
+          tokenId: resolvedTokenId || payload?.tokenId,
+          recruiterId:
+            recruiterId || payload?.recruiterId || tokenData?.recruiterId,
+          userId: payload?.userId || tokenData?.userId,
+          resumeId: payload?.resumeId || tokenData?.resumeId,
+          accessFields: payload?.accessFields || tokenData?.accessFields || [],
+          accessType: tokenData?.accessType || "read-only",
+          expiresAt: expiresAtDate,
+          issuedAt: issuedAtDate,
+          duration: tokenData?.duration,
+          remainingSeconds,
+          readableTimeRemaining:
+            tokenGenerator.getReadableTimeRemaining(expiresAtNum),
+          usageCount: tokenData?.usageCount || 0,
+          message: "Token is valid and accessible",
+        },
+        { headers: { "Cache-Control": "private, no-store" } },
+      );
     }
 
-    return NextResponse.json({
-      valid: false,
-      message: verification.error || "Token verification failed",
-      details: verification,
-    });
+    return NextResponse.json(
+      {
+        valid: false,
+        message: verification.error || "Token verification failed",
+        details: verification,
+      },
+      { headers: { "Cache-Control": "private, no-store" } },
+    );
   } catch (error) {
     logger.error({ err: error }, "❌ Verify token error:");
     return handleApiError(error, "Failed to verify token");
@@ -231,17 +253,20 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   // SECURITY: Require authentication to verify tokens
-  const { userId: authUserId, error: authError } = await getAuthenticatedUserId(request);
+  const { userId: authUserId, error: authError } =
+    await getAuthenticatedUserId(request);
   if (authError || !authUserId)
     return authError || handleApiError(null, "Unauthorized", 401);
 
   try {
-    const parseResult = VerifyRecruiterTokenSchema.safeParse(await request.json());
+    const parseResult = VerifyRecruiterTokenSchema.safeParse(
+      await request.json(),
+    );
     if (!parseResult.success) {
       return handleApiError(
         new Error("Token or tokenId is required"),
         "Token or tokenId is required",
-        400
+        400,
       );
     }
     const { token, tokenId, recruiterId } = parseResult.data;

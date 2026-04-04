@@ -26,7 +26,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       model: request.nextUrl.searchParams.get("model"),
     });
 
-    return NextResponse.json(payload);
+    return NextResponse.json(payload, {
+      headers: { "Cache-Control": "private, no-store" },
+    });
   } catch (error) {
     return handleApiError(
       error,

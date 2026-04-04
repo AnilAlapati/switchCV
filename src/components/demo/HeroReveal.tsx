@@ -11,14 +11,7 @@ interface HeroRevealProps {
   onRevealComplete?: () => void;
 }
 
-export function HeroReveal({
-  stage,
-  role: _role,
-  onRevealComplete: _onRevealComplete,
-}: HeroRevealProps) {
-  // Props reserved for future animation phases
-  void _role;
-  void _onRevealComplete;
+export function HeroReveal({ stage }: HeroRevealProps) {
   const groupRef = useRef<THREE.Group>(null);
   const opacity = stage === "reveal" ? 1 : 0;
 

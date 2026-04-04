@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
           reason: parseResult.error.issues[0].message,
           suggestion: username ? generateSuggestion(username) : undefined,
         },
-        { status: 200 },
+        { status: 200, headers: { "Cache-Control": "public, max-age=60" } },
       );
     }
 
@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
           reason: "This username is reserved",
           suggestion: generateSuggestion(username),
         },
-        { status: 200 },
+        { status: 200, headers: { "Cache-Control": "public, max-age=60" } },
       );
     }
 
@@ -130,7 +130,7 @@ export async function GET(request: NextRequest) {
           reason: "This username is already taken",
           suggestion: generateSuggestion(username),
         },
-        { status: 200 },
+        { status: 200, headers: { "Cache-Control": "public, max-age=60" } },
       );
     }
 
@@ -143,6 +143,7 @@ export async function GET(request: NextRequest) {
       {
         status: 200,
         headers: {
+          "Cache-Control": "public, max-age=60",
           "X-RateLimit-Limit": rateLimitResult.limit.toString(),
           "X-RateLimit-Remaining": rateLimitResult.remaining.toString(),
         },
