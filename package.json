@@ -2,6 +2,9 @@
   "name": "switchcv",
   "version": "0.1.58",
   "private": true,
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "bash scripts/dev-with-secrets.sh",
     "dev:watch": "bash scripts/dev-with-watch.sh",
