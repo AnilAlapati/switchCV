@@ -82,13 +82,11 @@ export function ResumeStatusCard({
     setIsDeleting(true);
     try {
       const token = await user.getIdToken();
-      const response = await fetch("/api/resume/delete", {
-        method: "POST",
+      const response = await fetch(`/api/resumes/${resumeId}`, {
+        method: "DELETE",
         headers: {
-          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ resumeId }),
       });
 
       if (!response.ok) {

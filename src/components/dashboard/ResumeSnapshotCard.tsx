@@ -4,6 +4,7 @@ import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { RestrictedFeature } from "@/components/ui/RestrictedFeature";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useAuth } from "@/hooks/useAuth";
 import { Edit3, Eye, Trash2, Sparkles, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import type { JobSeekerMetrics } from "@/types/dashboard";
@@ -34,6 +35,7 @@ export function ResumeSnapshotCard({
   isUpdatingVisibility,
 }: ResumeSnapshotCardProps) {
   const { tier } = useUserProfile();
+  const { user } = useAuth();
   const isBasicUser = tier === "basic";
   const resumeIdString = resumeId ? String(resumeId) : null;
   const lastUpdated = resumeData?.updatedAt || resumeData?.lastUpdatedAt;
@@ -42,12 +44,16 @@ export function ResumeSnapshotCard({
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDelete = async () => {
-    if (!resumeIdString) return;
+    if (!resumeIdString || !user) return;
 
     setIsDeleting(true);
     try {
+      const token = await user.getIdToken();
       const response = await fetch(`/api/resumes/${resumeIdString}`, {
         method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       if (!response.ok) {
@@ -127,14 +133,16 @@ export function ResumeSnapshotCard({
             <div className="flex items-center gap-3 mb-4">
               <div className="group relative">
                 <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border cursor-help ${isPublished
-                    ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                    : "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                    }`}
+                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border cursor-help ${
+                    isPublished
+                      ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                      : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                  }`}
                 >
                   <span
-                    className={`mr-1.5 h-1.5 w-1.5 rounded-full ${isPublished ? "bg-emerald-500" : "bg-amber-500"
-                      }`}
+                    className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
+                      isPublished ? "bg-emerald-500" : "bg-amber-500"
+                    }`}
                   ></span>
                   {isPublished ? "Public" : "Private"}
                 </span>
