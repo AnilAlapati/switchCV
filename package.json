@@ -20,6 +20,7 @@
     "start": "next start",
     "lint": "eslint",
     "audit:perf": "node scripts/audit-performance-standards.js",
+    "audit:lighthouse": "npx lhci autorun",
     "test": "jest",
     "test:coverage": "jest --coverage",
     "e2e": "playwright test",
