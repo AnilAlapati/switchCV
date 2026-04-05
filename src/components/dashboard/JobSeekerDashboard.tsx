@@ -209,6 +209,7 @@ export function JobSeekerDashboard({
             metrics={metrics}
             onToggleVisibility={handleToggleVisibility}
             isUpdatingVisibility={isUpdatingVisibility}
+            onDeleteSuccess={onRefreshResume}
           />
 
           {/* Only show Market Reach for Premium and Enterprise users */}

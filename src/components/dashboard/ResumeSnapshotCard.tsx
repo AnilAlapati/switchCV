@@ -22,6 +22,7 @@ interface ResumeSnapshotCardProps {
   metrics?: JobSeekerMetrics | null;
   onToggleVisibility?: () => void;
   isUpdatingVisibility?: boolean;
+  onDeleteSuccess?: () => void;
 }
 
 export function ResumeSnapshotCard({
@@ -33,6 +34,7 @@ export function ResumeSnapshotCard({
   metrics,
   onToggleVisibility,
   isUpdatingVisibility,
+  onDeleteSuccess,
 }: ResumeSnapshotCardProps) {
   const { tier } = useUserProfile();
   const { user } = useAuth();
@@ -62,7 +64,11 @@ export function ResumeSnapshotCard({
 
       toast.success("Resume deleted successfully");
       setShowDeleteDialog(false);
-      router.refresh();
+      if (onDeleteSuccess) {
+        onDeleteSuccess();
+      } else {
+        router.refresh();
+      }
     } catch {
       toast.error("Failed to delete resume");
     } finally {
