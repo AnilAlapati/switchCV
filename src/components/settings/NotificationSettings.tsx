@@ -51,12 +51,14 @@ function NotificationToggle({
       disabled={disabled}
       role="switch"
       aria-checked={enabled}
-      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${enabled ? "bg-blue-600" : "bg-gray-300"
-        } ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+        enabled ? "bg-blue-600" : "bg-gray-300"
+      } ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
     >
       <span
-        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${enabled ? "translate-x-6" : "translate-x-1"
-          }`}
+        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+          enabled ? "translate-x-6" : "translate-x-1"
+        }`}
       />
     </button>
   );
@@ -70,6 +72,13 @@ export function NotificationSettings() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
+  // Auto-clear success messages — cleanup prevents timer leak on unmount
+  useEffect(() => {
+    if (!message.startsWith("\u2713")) return;
+    const timer = setTimeout(() => setMessage(""), 3000);
+    return () => clearTimeout(timer);
+  }, [message]);
+
   useEffect(() => {
     const loadPreferences = async () => {
       try {
@@ -80,7 +89,7 @@ export function NotificationSettings() {
             profileViews: true,
             weeklyDigest: true,
             adminAlerts: true,
-          }
+          },
         );
       } catch (error) {
         logger.error({ err: error }, "Failed to load preferences:");
@@ -108,7 +117,6 @@ export function NotificationSettings() {
     try {
       await updatePreferences({ [key]: updated[key] });
       setMessage("✓ Settings saved successfully");
-      setTimeout(() => setMessage(""), 3000);
     } catch (error) {
       logger.error({ err: error }, "Failed to update preferences:");
       setMessage("✗ Failed to save settings");
@@ -131,10 +139,11 @@ export function NotificationSettings() {
       {message && (
         <div
           role="status"
-          className={`p-3 rounded text-sm ${message.includes("✓")
-            ? "bg-green-100 text-green-700"
-            : "bg-red-100 text-red-700"
-            }`}
+          className={`p-3 rounded text-sm ${
+            message.includes("✓")
+              ? "bg-green-100 text-green-700"
+              : "bg-red-100 text-red-700"
+          }`}
         >
           {message}
         </div>

@@ -27,6 +27,13 @@ export function UserProfileSettings() {
   } | null>(null);
   const [showCompanyInput, setShowCompanyInput] = useState(false);
 
+  // Auto-clear success messages — cleanup prevents timer leak on unmount
+  useEffect(() => {
+    if (message?.type !== "success") return;
+    const timer = setTimeout(() => setMessage(null), 3000);
+    return () => clearTimeout(timer);
+  }, [message]);
+
   // Fetch user profile
   useEffect(() => {
     const fetchProfile = async () => {
@@ -106,7 +113,7 @@ export function UserProfileSettings() {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
           errorData.error ||
-          `API error: ${response.status} ${response.statusText}`,
+            `API error: ${response.status} ${response.statusText}`,
         );
       }
     } catch (error) {
@@ -157,12 +164,11 @@ export function UserProfileSettings() {
           type: "success",
           text: "Company name saved!",
         });
-        setTimeout(() => setMessage(null), 3000);
       } else {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
           errorData.error ||
-          `API error: ${response.status} ${response.statusText}`,
+            `API error: ${response.status} ${response.statusText}`,
         );
       }
     } catch (error) {
@@ -257,14 +263,16 @@ export function UserProfileSettings() {
               disabled={saving}
               role="switch"
               aria-checked={settings.isRecruiter}
-              className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${settings.isRecruiter
+              className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
+                settings.isRecruiter
                   ? "bg-gradient-to-r from-cyan-500 to-blue-600"
                   : "bg-slate-700 hover:bg-slate-600"
-                } ${saving ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+              } ${saving ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
             >
               <span
-                className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${settings.isRecruiter ? "translate-x-7" : "translate-x-1"
-                  }`}
+                className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                  settings.isRecruiter ? "translate-x-7" : "translate-x-1"
+                }`}
               />
             </button>
           </div>
@@ -310,10 +318,11 @@ export function UserProfileSettings() {
       {message && (
         <div
           role="status"
-          className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 px-8 py-6 rounded-2xl text-lg font-bold transition-all duration-300 shadow-2xl z-50 border-2 ${message.type === "success"
+          className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 px-8 py-6 rounded-2xl text-lg font-bold transition-all duration-300 shadow-2xl z-50 border-2 ${
+            message.type === "success"
               ? "bg-blue-600 text-white border-blue-400"
               : "bg-yellow-500 text-slate-900 border-yellow-600"
-            }`}
+          }`}
         >
           {message.text}
         </div>

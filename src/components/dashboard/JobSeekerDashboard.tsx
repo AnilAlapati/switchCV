@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { ResumeSnapshotCard } from "@/components/dashboard/ResumeSnapshotCard";
 import { AgentStatus } from "@/components/dashboard/AgentStatus";
 import { MarketPulseCard } from "@/components/dashboard/MarketPulseCard";
@@ -101,6 +101,14 @@ export function JobSeekerDashboard({
   );
   const currentStatus = optimisticStatus ?? isPublished;
 
+  // Clear optimistic state only once SWR data has caught up — avoids race with
+  // the 5-minute dedupingInterval and variable Firestore round-trip times.
+  useEffect(() => {
+    if (optimisticStatus !== null && isPublished === optimisticStatus) {
+      setOptimisticStatus(null);
+    }
+  }, [isPublished, optimisticStatus]);
+
   const handleToggleVisibility = async () => {
     if (!user || !resumeIdString) return;
 
@@ -142,7 +150,6 @@ export function JobSeekerDashboard({
       // No state to revert — we didn't set it optimistically
     } finally {
       setIsUpdatingVisibility(false);
-      setTimeout(() => setOptimisticStatus(null), 2000);
     }
   };
 

@@ -105,7 +105,7 @@ export default function SettingsPage() {
         type: "success",
         text: "Resume ID copied to clipboard!",
       });
-      setTimeout(() => setMessage(null), 2000);
+      // Cleared automatically by the useEffect in useSettingsHandlers
     }
   };
 
