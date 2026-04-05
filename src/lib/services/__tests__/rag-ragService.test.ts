@@ -253,7 +253,7 @@ describe("queryWithRAG — no chunks found", () => {
       resumeId: "r1",
     });
 
-    expect(result.answer).toContain("couldn't find relevant information");
+    expect(result.answer).toContain("Insufficient information");
     expect(result.sourceChunks).toHaveLength(0);
     expect(result.attempts).toBe(0);
     expect(mockGenerateText).not.toHaveBeenCalled();

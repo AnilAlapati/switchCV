@@ -15,6 +15,7 @@ export type {
   RAGQueryOptions,
   RAGResult,
   EvalRetryOptions,
+  ConversationTurn,
 } from "./types";
 
 // Chunking

@@ -44,6 +44,18 @@ export interface RetrievalResult {
   score: number;
 }
 
+/**
+ * A single turn in a RAG conversation.
+ * Store on the client and pass back in `RAGQueryOptions.conversationHistory`
+ * so follow-up questions stay grounded in previous context.
+ */
+export interface ConversationTurn {
+  /** The user's question in this turn */
+  query: string;
+  /** The answer the RAG pipeline returned */
+  answer: string;
+}
+
 /** Options for RAG query */
 export interface RAGQueryOptions {
   /** The user's question or search query */
@@ -60,6 +72,13 @@ export interface RAGQueryOptions {
   temperature?: number;
   /** User ID for billing tracking */
   userId?: string;
+  /**
+   * Conversation history for follow-up questions.
+   * Each turn contains the previous query and the answer returned.
+   * Pass this from the client on subsequent requests so the LLM can
+   * answer follow-up questions in context.
+   */
+  conversationHistory?: ConversationTurn[];
 }
 
 /** Result from the full RAG pipeline */
