@@ -7,6 +7,9 @@ import { ResumeExperienceSection } from "./ResumeExperienceSection";
 import { ResumeEducationSection } from "./ResumeEducationSection";
 import { ResumeSkillsSection } from "./ResumeSkillsSection";
 import { ResumeProjectsSection } from "./ResumeProjectsSection";
+import { ResumeCertificationsSection } from "./ResumeCertificationsSection";
+import { ResumeLanguagesSection } from "./ResumeLanguagesSection";
+import { ResumeAwardsSection } from "./ResumeAwardsSection";
 
 type EnhancedContent = {
   enhancedSummary?: string;
@@ -102,7 +105,12 @@ export function ResumePageLayout({
               {/* Experience */}
               <ResumeExperienceSection
                 experience={resume.experience ?? []}
-                enhancedExperience={enhancedContent.enhancedExperience as unknown as Record<string, { enhancedDescription: string }>}
+                enhancedExperience={
+                  enhancedContent.enhancedExperience as unknown as Record<
+                    string,
+                    { enhancedDescription: string }
+                  >
+                }
               />
 
               {/* Education */}
@@ -116,6 +124,17 @@ export function ResumePageLayout({
 
               {/* Projects */}
               <ResumeProjectsSection projects={resume.projects ?? []} />
+
+              {/* Certifications */}
+              <ResumeCertificationsSection
+                certifications={resume.certifications ?? []}
+              />
+
+              {/* Awards */}
+              <ResumeAwardsSection awards={resume.awards ?? []} />
+
+              {/* Languages */}
+              <ResumeLanguagesSection languages={resume.languages ?? []} />
             </div>
           </div>
 

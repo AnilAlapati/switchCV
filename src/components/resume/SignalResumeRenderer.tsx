@@ -15,6 +15,11 @@ interface SignalResumeRendererProps {
   onRequestAccess?: () => void;
 }
 
+const TEAL = "#1F9D8E";
+const TEAL_PALE = "#E8F4F2";
+const RUST = "#C0622A";
+const RUST_PALE = "#FFF1EA";
+
 export const SignalResumeRenderer: React.FC<SignalResumeRendererProps> = ({
   data,
 }) => {
@@ -27,39 +32,76 @@ export const SignalResumeRenderer: React.FC<SignalResumeRendererProps> = ({
   const education = normalizeTimelineItems(data.education);
   const projects = normalizeProjects(data.projects);
 
+  const contactLinks: Array<{ label: string; href?: string }> = [];
+  if (personalInfo.email)
+    contactLinks.push({
+      label: personalInfo.email,
+      href: `mailto:${personalInfo.email}`,
+    });
+  if (personalInfo.phone) contactLinks.push({ label: personalInfo.phone });
+  if (personalInfo.location)
+    contactLinks.push({ label: personalInfo.location });
+  if (personalInfo.github)
+    contactLinks.push({
+      label: personalInfo.github.replace(/^https?:\/\/(www\.)?/, ""),
+      href: personalInfo.github,
+    });
+  if (personalInfo.linkedin)
+    contactLinks.push({
+      label: personalInfo.linkedin.replace(/^https?:\/\/(www\.)?/, ""),
+      href: personalInfo.linkedin,
+    });
+
   return (
-    <div className="mx-auto max-w-6xl bg-[#F7F8F4] text-[#101820] shadow-2xl">
-      <header className="border-b-4 border-[#1F9D8E] bg-[#0D1F2D] px-6 py-8 text-white md:px-10">
-        <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+    <div className="mx-auto max-w-5xl bg-[#F7F8F4] text-[#101820] shadow-2xl">
+      {/* ── HEADER ── */}
+      <header className="bg-[#0D1F2D] px-8 py-10 text-white md:px-12">
+        <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-[#8AD3CC]">
+            <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-[#1F9D8E]">
               Signal
             </p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight md:text-5xl">
+            <h1 className="mt-2 text-3xl font-extrabold tracking-tight leading-none md:text-5xl">
               {heroName}
             </h1>
-            <p className="mt-2 text-sm font-medium text-[#BFD6E2] md:text-base">
+            <p className="mt-2 text-sm font-medium text-[#7FBFB8] md:text-base">
               {heroTitle}
             </p>
           </div>
-          <div className="grid gap-1 text-sm text-[#DDEAF0]">
-            {personalInfo.email && <span>{personalInfo.email}</span>}
-            {personalInfo.phone && <span>{personalInfo.phone}</span>}
-            {personalInfo.location && <span>{personalInfo.location}</span>}
-            {personalInfo.github && <span>{personalInfo.github}</span>}
-            {personalInfo.linkedin && <span>{personalInfo.linkedin}</span>}
-          </div>
+          {contactLinks.length > 0 && (
+            <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-[#A8C8D0] md:flex-col md:items-end md:gap-1.5 md:text-right">
+              {contactLinks.map((c, i) =>
+                c.href ? (
+                  <a
+                    key={i}
+                    href={c.href}
+                    target={c.href.startsWith("http") ? "_blank" : undefined}
+                    rel="noopener noreferrer"
+                    className="hover:text-white transition-colors"
+                  >
+                    {c.label}
+                  </a>
+                ) : (
+                  <span key={i}>{c.label}</span>
+                ),
+              )}
+            </div>
+          )}
         </div>
+        {/* Teal accent bar */}
+        <div
+          className="mt-8 h-[3px] w-16 rounded-full"
+          style={{ background: TEAL }}
+        />
       </header>
 
-      <div className="grid gap-6 px-6 py-8 md:grid-cols-[2fr_1fr] md:px-10">
-        <main className="space-y-7">
+      <div className="grid gap-8 px-8 py-10 md:grid-cols-[2fr_1fr] md:px-12">
+        {/* ── MAIN ── */}
+        <main className="space-y-8">
           {data.summary && (
             <section>
-              <h2 className="mb-3 border-b border-[#D2D8D4] pb-2 text-xs font-bold uppercase tracking-[0.2em] text-[#1F9D8E]">
-                Impact Summary
-              </h2>
-              <p className="text-sm leading-7 text-[#263238] md:text-base">
+              <SectionHead color={TEAL}>Impact Summary</SectionHead>
+              <p className="mt-3 text-sm leading-7 text-[#2E3A3F] md:text-base">
                 {data.summary}
               </p>
             </section>
@@ -67,44 +109,57 @@ export const SignalResumeRenderer: React.FC<SignalResumeRendererProps> = ({
 
           {experience.length > 0 && (
             <section>
-              <h2 className="mb-3 border-b border-[#D2D8D4] pb-2 text-xs font-bold uppercase tracking-[0.2em] text-[#1F9D8E]">
-                Experience
-              </h2>
-              <div className="space-y-4">
+              <SectionHead color={TEAL}>Experience</SectionHead>
+              <div className="mt-3 space-y-6">
                 {experience.map((entry, index) => (
                   <article
                     key={`${entry.headline}-${index}`}
-                    className="border border-[#D9DEDA] bg-white p-4"
+                    className="border-l-2 pl-5"
+                    style={{ borderColor: TEAL_PALE }}
                   >
-                    <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
                       <div>
-                        <h3 className="text-base font-semibold text-[#101820]">
+                        <h3 className="text-base font-bold text-[#101820]">
                           {entry.headline}
                         </h3>
                         {entry.subline && (
-                          <p className="text-sm font-medium text-[#56646C]">
+                          <p
+                            className="text-sm font-semibold"
+                            style={{ color: TEAL }}
+                          >
                             {entry.subline}
                           </p>
                         )}
                       </div>
                       {entry.meta && (
-                        <span className="bg-[#E8F4F2] px-2 py-1 text-xs font-semibold text-[#1D6159]">
+                        <span
+                          className="rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                          style={{ background: TEAL_PALE, color: "#1D6159" }}
+                        >
                           {entry.meta}
                         </span>
                       )}
                     </div>
                     {entry.description && (
-                      <p className="mt-3 text-sm leading-6 text-[#2E3A3F]">
+                      <p className="mt-2 text-sm leading-6 text-[#2E3A3F]">
                         {entry.description}
                       </p>
                     )}
-                    {Array.isArray(entry.bullets) && entry.bullets.length > 0 && (
-                      <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-[#2E3A3F]">
-                        {entry.bullets.slice(0, 5).map((bullet, bulletIndex) => (
-                          <li key={`${entry.headline}-${bulletIndex}`}>{bullet}</li>
-                        ))}
-                      </ul>
-                    )}
+                    {Array.isArray(entry.bullets) &&
+                      entry.bullets.length > 0 && (
+                        <ul className="mt-2 space-y-1 pl-4">
+                          {entry.bullets
+                            .slice(0, 5)
+                            .map((bullet, bulletIndex) => (
+                              <li
+                                key={`${entry.headline}-bullet-${bulletIndex}`}
+                                className="list-disc text-sm leading-6 text-[#2E3A3F]"
+                              >
+                                {bullet}
+                              </li>
+                            ))}
+                        </ul>
+                      )}
                   </article>
                 ))}
               </div>
@@ -113,20 +168,18 @@ export const SignalResumeRenderer: React.FC<SignalResumeRendererProps> = ({
 
           {projects.length > 0 && (
             <section>
-              <h2 className="mb-3 border-b border-[#D2D8D4] pb-2 text-xs font-bold uppercase tracking-[0.2em] text-[#1F9D8E]">
-                Projects
-              </h2>
-              <div className="grid gap-3 md:grid-cols-2">
+              <SectionHead color={TEAL}>Projects</SectionHead>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
                 {projects.slice(0, 4).map((project, index) => (
                   <article
                     key={`${project.headline}-${index}`}
-                    className="border border-[#D9DEDA] bg-white p-4"
+                    className="rounded-lg bg-white p-4 shadow-sm ring-1 ring-black/5"
                   >
-                    <h3 className="text-sm font-semibold text-[#101820]">
+                    <h3 className="text-sm font-bold text-[#101820]">
                       {project.headline}
                     </h3>
                     {project.description && (
-                      <p className="mt-2 text-sm leading-6 text-[#2E3A3F]">
+                      <p className="mt-2 text-sm leading-6 text-[#4A5568]">
                         {project.description}
                       </p>
                     )}
@@ -137,17 +190,17 @@ export const SignalResumeRenderer: React.FC<SignalResumeRendererProps> = ({
           )}
         </main>
 
-        <aside className="space-y-6">
+        {/* ── ASIDE ── */}
+        <aside className="space-y-7">
           {skills.length > 0 && (
-            <section className="border border-[#D9DEDA] bg-white p-4">
-              <h2 className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-[#B55C30]">
-                Core Stack
-              </h2>
-              <div className="flex flex-wrap gap-2">
+            <section>
+              <SectionHead color={RUST}>Core Stack</SectionHead>
+              <div className="mt-3 flex flex-wrap gap-2">
                 {skills.map((skill) => (
                   <span
                     key={skill}
-                    className="bg-[#FFF1EA] px-2 py-1 text-xs font-semibold text-[#9B4D27]"
+                    className="rounded-full px-2.5 py-1 text-xs font-semibold"
+                    style={{ background: RUST_PALE, color: RUST }}
                   >
                     {skill}
                   </span>
@@ -157,14 +210,12 @@ export const SignalResumeRenderer: React.FC<SignalResumeRendererProps> = ({
           )}
 
           {education.length > 0 && (
-            <section className="border border-[#D9DEDA] bg-white p-4">
-              <h2 className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-[#B55C30]">
-                Education
-              </h2>
-              <div className="space-y-3">
+            <section>
+              <SectionHead color={RUST}>Education</SectionHead>
+              <div className="mt-3 space-y-4">
                 {education.map((entry, index) => (
                   <article key={`${entry.headline}-${index}`}>
-                    <h3 className="text-sm font-semibold text-[#101820]">
+                    <h3 className="text-sm font-bold text-[#101820]">
                       {entry.headline}
                     </h3>
                     {entry.subline && (
@@ -185,3 +236,19 @@ export const SignalResumeRenderer: React.FC<SignalResumeRendererProps> = ({
     </div>
   );
 };
+
+/* ─── Section heading with teal underline ─── */
+const SectionHead: React.FC<{ color: string; children: React.ReactNode }> = ({
+  color,
+  children,
+}) => (
+  <div className="flex items-center gap-3">
+    <h2
+      className="text-[10px] font-bold uppercase tracking-[0.22em]"
+      style={{ color }}
+    >
+      {children}
+    </h2>
+    <div className="flex-1 border-t border-[#D2D8D4]" />
+  </div>
+);

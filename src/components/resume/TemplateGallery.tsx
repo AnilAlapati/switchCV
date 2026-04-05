@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { TemplateMiniPreview } from "./TemplateMiniPreview";
 import {
   CREATIVE_TEMPLATES_ENABLED,
   canAccessTemplate,
@@ -216,23 +217,7 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
                 className={`aspect-[3/4] ${template.preview} relative flex items-center justify-center`}
               >
                 {/* Template Preview Mockup */}
-                <div className="w-[85%] h-[85%] bg-white rounded-lg shadow-lg overflow-hidden flex flex-col">
-                  {/* Header mock */}
-                  <div className="h-12 bg-gray-50 border-b flex items-center px-3">
-                    <div className="w-3 h-3 rounded-full bg-gray-300 mr-2" />
-                    <div className="w-20 h-2 bg-gray-200 rounded" />
-                  </div>
-                  {/* Content mock */}
-                  <div className="flex-1 p-3 space-y-2">
-                    <div className="w-full h-3 bg-gray-100 rounded" />
-                    <div className="w-3/4 h-3 bg-gray-100 rounded" />
-                    <div className="w-1/2 h-3 bg-gray-100 rounded" />
-                    <div className="mt-4 grid grid-cols-2 gap-2">
-                      <div className="h-8 bg-gray-50 rounded" />
-                      <div className="h-8 bg-gray-50 rounded" />
-                    </div>
-                  </div>
-                </div>
+                <TemplateMiniPreview templateId={template.id} />
 
                 {/* Tier Badge */}
                 <TierBadge tier={template.tier} />

@@ -14,7 +14,8 @@ import { CreateResumeWelcome } from "@/components/create-resume/CreateResumeWelc
 import { AILoadingState } from "@/components/create-resume/AILoadingState";
 import { ResumeProgress } from "@/components/create-resume/ResumeProgress";
 import { SessionRestoreDialog } from "@/components/create-resume/SessionRestoreDialog";
-import { ResumePreview } from "@/components/ResumePreview";
+import { TemplateRenderer } from "@/components/resume/TemplateRenderer";
+import { signalV1Template } from "@/lib/templates/resumeTemplates/signal-v1";
 import { getVerificationRoute } from "@/lib/config";
 import { Bot, User } from "lucide-react";
 import { useResumeCreation } from "@/hooks/useResumeCreation";
@@ -299,7 +300,38 @@ export default function CreateResume() {
               <div className="flex items-center gap-2 mb-4 text-sm font-medium text-gray-700">
                 👁️ Live Preview
               </div>
-              <ResumePreview profile={previewProfile} compact={false} />
+              {previewProfile.personalInfo?.name || previewProfile.title ? (
+                <TemplateRenderer
+                  template={signalV1Template}
+                  data={{
+                    versionId: "preview",
+                    slug: "preview",
+                    lastUpdatedAt: "",
+                    generatedText: {
+                      draft: "",
+                      polished: "",
+                      lastGeneratedAt: "",
+                    },
+                    title: "",
+                    summary: "",
+                    skills: [],
+                    experience: [],
+                    education: [],
+                    projects: [],
+                    contact: { email: { value: "", visibility: "public" } },
+                    ...previewProfile,
+                    viewerAccess: { isOwner: true, scope: "full" },
+                  }}
+                  isAuthenticated={true}
+                />
+              ) : (
+                <div className="bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 p-8 text-center">
+                  <p className="text-gray-500">
+                    👀 Your resume preview will appear here as you fill in the
+                    form
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>

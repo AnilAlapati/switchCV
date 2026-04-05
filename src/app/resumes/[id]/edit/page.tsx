@@ -28,6 +28,9 @@ const STEPS = [
   "Education",
   "Skills",
   "Projects",
+  "Certifications",
+  "Languages",
+  "Awards",
   "Contact",
   "Review",
 ];
@@ -91,8 +94,17 @@ function ResumeEditRedirect({ resumeId }: { resumeId: string }) {
 function ManualResumeEditor({ resumeId }: { resumeId: string }) {
   const router = useRouter();
   const { user, loading: authLoading, needsEmailVerification } = useAuth();
-  const { profile, updateProfile, experience, education, skills, projects } =
-    useProfileForm();
+  const {
+    profile,
+    updateProfile,
+    experience,
+    education,
+    skills,
+    projects,
+    certifications,
+    languages,
+    awards,
+  } = useProfileForm();
 
   const [currentStep, setCurrentStep] = useState(0);
   const [fetchState, setFetchState] = useState<FetchState>("idle");
@@ -271,6 +283,9 @@ function ManualResumeEditor({ resumeId }: { resumeId: string }) {
         education={education}
         skills={skills}
         projects={projects}
+        certifications={certifications}
+        languages={languages}
+        awards={awards}
       />
     </div>
   );

@@ -25,6 +25,7 @@ export {
   saveGeneratedResume,
   getResumeCount,
   updateResume,
+  updateResumeVisibility,
   deleteResume,
   checkPrivateResumeAccess,
   getResume,

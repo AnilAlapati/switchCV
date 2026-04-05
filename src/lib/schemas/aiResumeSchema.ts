@@ -123,6 +123,51 @@ export const AIResumeResponseSchema = z.object({
   education: z.array(AIEducationSchema).min(0).max(10),
   contact: AIContactSchema,
   projects: z.array(AIProjectSchema).min(0).max(10),
+  certifications: z
+    .array(
+      z.object({
+        name: z.string().min(1).max(200),
+        issuer: z.string().min(1).max(200),
+        issueDate: z.string().max(20).optional(),
+        expiryDate: z.string().max(20).optional(),
+        credentialId: z.string().max(100).optional(),
+        credentialUrl: z.string().url().max(500).optional(),
+        visibility: VisibilitySchema,
+      }),
+    )
+    .min(0)
+    .max(20)
+    .optional(),
+  languages: z
+    .array(
+      z.object({
+        language: z.string().min(1).max(100),
+        proficiency: z.enum([
+          "native",
+          "fluent",
+          "professional",
+          "conversational",
+          "basic",
+        ]),
+        visibility: VisibilitySchema,
+      }),
+    )
+    .min(0)
+    .max(20)
+    .optional(),
+  awards: z
+    .array(
+      z.object({
+        title: z.string().min(1).max(200),
+        issuer: z.string().min(1).max(200),
+        date: z.string().max(20).optional(),
+        description: z.string().max(500).optional(),
+        visibility: VisibilitySchema,
+      }),
+    )
+    .min(0)
+    .max(20)
+    .optional(),
 });
 
 /**

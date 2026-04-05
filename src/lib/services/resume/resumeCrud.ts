@@ -225,6 +225,34 @@ export async function updateResume(
 }
 
 /**
+ * Updates resume visibility fields (isPublic, visibility, published).
+ * Uses a direct Firestore write to bypass sanitizeResumePayload, which
+ * strips these fields as "reserved" in the general updateResume path.
+ */
+export async function updateResumeVisibility(
+  id: string,
+  isPublic: boolean,
+): Promise<void> {
+  const timestamp = new Date().toISOString();
+
+  await adminDb
+    .collection("resumes")
+    .doc(id)
+    .set(
+      {
+        isPublic,
+        visibility: isPublic ? "public" : "private",
+        published: isPublic,
+        updatedAt: timestamp,
+        lastUpdatedAt: timestamp,
+      },
+      { merge: true },
+    );
+
+  void cacheService.invalidate(`resume:${id}`);
+}
+
+/**
  * Deletes a resume and recycles its ID.
  */
 export async function deleteResume(id: string, userId: string): Promise<void> {

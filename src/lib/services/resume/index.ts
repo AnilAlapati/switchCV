@@ -15,23 +15,24 @@
 export { fetchResumeBySlug, trackResumeView } from "./resumeFetching";
 
 export {
-    publishDraft,
-    unpublishResume,
-    getPublishedResume,
-    getResumeEditingStatus,
+  publishDraft,
+  unpublishResume,
+  getPublishedResume,
+  getResumeEditingStatus,
 } from "./resumeLifecycle";
 
 export {
-    createResume,
-    saveGeneratedResume,
-    getResumeCount,
-    updateResume,
-    deleteResume,
-    type CreateResumeInput,
-    type GeneratedResumeInput,
-    type GeneratedResumeMetadata,
-    type GenerationQualityReport,
-    type ResumeGenerationVersion,
+  createResume,
+  saveGeneratedResume,
+  getResumeCount,
+  updateResume,
+  updateResumeVisibility,
+  deleteResume,
+  type CreateResumeInput,
+  type GeneratedResumeInput,
+  type GeneratedResumeMetadata,
+  type GenerationQualityReport,
+  type ResumeGenerationVersion,
 } from "./resumeCrud";
 
 export { checkPrivateResumeAccess, getResume } from "./resumeAccess";

@@ -7,7 +7,15 @@ jest.mock("@/components/onboarding/steps/BasicInfoStep", () => ({
   BasicInfoStep: () => <div data-testid="basic-info-step">Basic Info</div>,
 }));
 jest.mock("@/components/onboarding/steps/ExperienceStep", () => ({
-  ExperienceStep: ({ onAdd, onUpdate, onRemove }: { onAdd: () => void; onUpdate: (index: number, data: Record<string, unknown>) => void; onRemove: (index: number) => void }) => (
+  ExperienceStep: ({
+    onAdd,
+    onUpdate,
+    onRemove,
+  }: {
+    onAdd: () => void;
+    onUpdate: (index: number, data: Record<string, unknown>) => void;
+    onRemove: (index: number) => void;
+  }) => (
     <div data-testid="experience-step">
       <button onClick={onAdd}>Add</button>
       <button onClick={() => onUpdate(0, {})}>Update</button>
@@ -23,6 +31,17 @@ jest.mock("@/components/onboarding/steps/SkillsStep", () => ({
 }));
 jest.mock("@/components/onboarding/steps/ProjectsStep", () => ({
   ProjectsStep: () => <div data-testid="projects-step">Projects</div>,
+}));
+jest.mock("@/components/onboarding/steps/CertificationsStep", () => ({
+  CertificationsStep: () => (
+    <div data-testid="certifications-step">Certifications</div>
+  ),
+}));
+jest.mock("@/components/onboarding/steps/LanguagesStep", () => ({
+  LanguagesStep: () => <div data-testid="languages-step">Languages</div>,
+}));
+jest.mock("@/components/onboarding/steps/AwardsStep", () => ({
+  AwardsStep: () => <div data-testid="awards-step">Awards</div>,
 }));
 jest.mock("@/components/onboarding/steps/ContactStep", () => ({
   ContactStep: () => <div data-testid="contact-step">Contact</div>,
@@ -53,6 +72,9 @@ describe("ResumeEditWizard", () => {
     education: { add: jest.fn(), update: jest.fn(), remove: jest.fn() },
     skills: { add: jest.fn(), update: jest.fn(), remove: jest.fn() },
     projects: { add: jest.fn(), update: jest.fn(), remove: jest.fn() },
+    certifications: { add: jest.fn(), update: jest.fn(), remove: jest.fn() },
+    languages: { add: jest.fn(), update: jest.fn(), remove: jest.fn() },
+    awards: { add: jest.fn(), update: jest.fn(), remove: jest.fn() },
   };
 
   it("renders the correct step based on currentStep", () => {
@@ -66,7 +88,7 @@ describe("ResumeEditWizard", () => {
         saveError={null}
         isDirty={false}
         {...mockHandlers}
-      />
+      />,
     );
 
     expect(screen.getByTestId("basic-info-step")).toBeInTheDocument();
@@ -81,7 +103,7 @@ describe("ResumeEditWizard", () => {
         saveError={null}
         isDirty={false}
         {...mockHandlers}
-      />
+      />,
     );
     expect(screen.getByTestId("experience-step")).toBeInTheDocument();
 
@@ -95,7 +117,7 @@ describe("ResumeEditWizard", () => {
         saveError={null}
         isDirty={false}
         {...mockHandlers}
-      />
+      />,
     );
     expect(screen.getByTestId("education-step")).toBeInTheDocument();
 
@@ -109,7 +131,7 @@ describe("ResumeEditWizard", () => {
         saveError={null}
         isDirty={false}
         {...mockHandlers}
-      />
+      />,
     );
     expect(screen.getByTestId("skills-step")).toBeInTheDocument();
 
@@ -123,7 +145,7 @@ describe("ResumeEditWizard", () => {
         saveError={null}
         isDirty={false}
         {...mockHandlers}
-      />
+      />,
     );
     expect(screen.getByTestId("projects-step")).toBeInTheDocument();
 
@@ -137,9 +159,9 @@ describe("ResumeEditWizard", () => {
         saveError={null}
         isDirty={false}
         {...mockHandlers}
-      />
+      />,
     );
-    expect(screen.getByTestId("contact-step")).toBeInTheDocument();
+    expect(screen.getByTestId("certifications-step")).toBeInTheDocument();
 
     rerender(
       <ResumeEditWizard
@@ -151,7 +173,49 @@ describe("ResumeEditWizard", () => {
         saveError={null}
         isDirty={false}
         {...mockHandlers}
-      />
+      />,
+    );
+    expect(screen.getByTestId("languages-step")).toBeInTheDocument();
+
+    rerender(
+      <ResumeEditWizard
+        profile={mockProfile}
+        steps={mockSteps}
+        currentStep={7}
+        meta={null}
+        saveState="idle"
+        saveError={null}
+        isDirty={false}
+        {...mockHandlers}
+      />,
+    );
+    expect(screen.getByTestId("awards-step")).toBeInTheDocument();
+
+    rerender(
+      <ResumeEditWizard
+        profile={mockProfile}
+        steps={mockSteps}
+        currentStep={8}
+        meta={null}
+        saveState="idle"
+        saveError={null}
+        isDirty={false}
+        {...mockHandlers}
+      />,
+    );
+    expect(screen.getByTestId("contact-step")).toBeInTheDocument();
+
+    rerender(
+      <ResumeEditWizard
+        profile={mockProfile}
+        steps={mockSteps}
+        currentStep={9}
+        meta={null}
+        saveState="idle"
+        saveError={null}
+        isDirty={false}
+        {...mockHandlers}
+      />,
     );
     expect(screen.getByTestId("review-step")).toBeInTheDocument();
   });
@@ -167,7 +231,7 @@ describe("ResumeEditWizard", () => {
         saveError={null}
         isDirty={false}
         {...mockHandlers}
-      />
+      />,
     );
 
     expect(screen.getByText("ID #123")).toBeInTheDocument();
@@ -185,7 +249,7 @@ describe("ResumeEditWizard", () => {
         saveError={null}
         isDirty={false}
         {...mockHandlers}
-      />
+      />,
     );
 
     expect(screen.queryByText(/ID #/)).not.toBeInTheDocument();
@@ -203,7 +267,7 @@ describe("ResumeEditWizard", () => {
         saveError={null}
         isDirty={false}
         {...mockHandlers}
-      />
+      />,
     );
 
     expect(screen.getByText("ID #123")).toBeInTheDocument();
@@ -221,7 +285,7 @@ describe("ResumeEditWizard", () => {
         saveError={null}
         isDirty={true}
         {...mockHandlers}
-      />
+      />,
     );
 
     expect(screen.getByText("Next →")).toBeDisabled();
@@ -236,7 +300,7 @@ describe("ResumeEditWizard", () => {
         saveError={null}
         isDirty={true}
         {...mockHandlers}
-      />
+      />,
     );
     expect(screen.getByText("Saving...")).toBeDisabled();
   });
@@ -252,11 +316,11 @@ describe("ResumeEditWizard", () => {
         saveError={null}
         isDirty={false}
         {...mockHandlers}
-      />
+      />,
     );
 
     expect(
-      screen.getByText("Resume updated successfully.")
+      screen.getByText("Resume updated successfully."),
     ).toBeInTheDocument();
   });
 
@@ -271,7 +335,7 @@ describe("ResumeEditWizard", () => {
         saveError="Something went wrong"
         isDirty={false}
         {...mockHandlers}
-      />
+      />,
     );
 
     expect(screen.getByText("Something went wrong")).toBeInTheDocument();
@@ -288,7 +352,7 @@ describe("ResumeEditWizard", () => {
         saveError={null}
         isDirty={true}
         {...mockHandlers}
-      />
+      />,
     );
 
     fireEvent.click(screen.getByText("Next →"));
@@ -309,7 +373,7 @@ describe("ResumeEditWizard", () => {
         saveError={null}
         isDirty={true}
         {...mockHandlers}
-      />
+      />,
     );
 
     fireEvent.click(screen.getByText("Save Changes"));
@@ -327,13 +391,13 @@ describe("ResumeEditWizard", () => {
         saveError={null}
         isDirty={false}
         {...mockHandlers}
-      />
+      />,
     );
 
     expect(
       screen.getByText(
-        "No changes to save. Update any section to enable saving."
-      )
+        "No changes to save. Update any section to enable saving.",
+      ),
     ).toBeInTheDocument();
   });
 
@@ -348,13 +412,13 @@ describe("ResumeEditWizard", () => {
         saveError={null}
         isDirty={true}
         {...mockHandlers}
-      />
+      />,
     );
 
     expect(
       screen.queryByText(
-        "No changes to save. Update any section to enable saving."
-      )
+        "No changes to save. Update any section to enable saving.",
+      ),
     ).not.toBeInTheDocument();
   });
 
@@ -369,13 +433,13 @@ describe("ResumeEditWizard", () => {
         saveError={null}
         isDirty={false}
         {...mockHandlers}
-      />
+      />,
     );
 
     expect(
       screen.queryByText(
-        "No changes to save. Update any section to enable saving."
-      )
+        "No changes to save. Update any section to enable saving.",
+      ),
     ).not.toBeInTheDocument();
   });
 
@@ -390,7 +454,7 @@ describe("ResumeEditWizard", () => {
         saveError={null}
         isDirty={false}
         {...mockHandlers}
-      />
+      />,
     );
 
     fireEvent.click(screen.getByText("Add"));
@@ -417,11 +481,11 @@ describe("ResumeEditWizard", () => {
         saveError={null}
         isDirty={false}
         {...mockHandlers}
-      />
+      />,
     );
     // The step content should be empty
     expect(
-      container.querySelector(".bg-white.shadow-md.rounded-lg.p-4")
+      container.querySelector(".bg-white.shadow-md.rounded-lg.p-4"),
     ).toBeEmptyDOMElement();
   });
 });

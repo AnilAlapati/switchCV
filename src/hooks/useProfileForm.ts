@@ -1,5 +1,14 @@
 import { useCallback, useState } from "react";
-import { Skill, Experience, Education, Project, ResumeProfile } from "@/types";
+import {
+  Award,
+  Certification,
+  Language,
+  Skill,
+  Experience,
+  Education,
+  Project,
+  ResumeProfile,
+} from "@/types";
 
 /**
  * Custom hook for managing resume profile form state and operations
@@ -18,7 +27,10 @@ export function useProfileForm(initialProfile?: Partial<ResumeProfile>) {
         phone: { value: "", visibility: "masked" },
       },
       projects: [],
-    }
+      certifications: [],
+      languages: [],
+      awards: [],
+    },
   );
 
   const updateProfile = useCallback((updates: Partial<ResumeProfile>) => {
@@ -49,7 +61,7 @@ export function useProfileForm(initialProfile?: Partial<ResumeProfile>) {
         return { ...prev, experience };
       });
     },
-    []
+    [],
   );
 
   const removeExperience = useCallback((index: number) => {
@@ -82,7 +94,7 @@ export function useProfileForm(initialProfile?: Partial<ResumeProfile>) {
         return { ...prev, education };
       });
     },
-    []
+    [],
   );
 
   const removeEducation = useCallback((index: number) => {
@@ -143,13 +155,106 @@ export function useProfileForm(initialProfile?: Partial<ResumeProfile>) {
         return { ...prev, projects };
       });
     },
-    []
+    [],
   );
 
   const removeProject = useCallback((index: number) => {
     setProfile((prev) => ({
       ...prev,
       projects: (prev.projects || []).filter((_, i) => i !== index),
+    }));
+  }, []);
+
+  // ===== Certifications Management =====
+  const addCertification = useCallback(() => {
+    const newCert: Certification = {
+      id: crypto.randomUUID(),
+      name: "",
+      issuer: "",
+      visibility: "public",
+    };
+    setProfile((prev) => ({
+      ...prev,
+      certifications: [...(prev.certifications || []), newCert],
+    }));
+  }, []);
+
+  const updateCertification = useCallback(
+    (index: number, updates: Partial<Certification>) => {
+      setProfile((prev) => {
+        const certifications = [...(prev.certifications || [])];
+        certifications[index] = { ...certifications[index], ...updates };
+        return { ...prev, certifications };
+      });
+    },
+    [],
+  );
+
+  const removeCertification = useCallback((index: number) => {
+    setProfile((prev) => ({
+      ...prev,
+      certifications: (prev.certifications || []).filter((_, i) => i !== index),
+    }));
+  }, []);
+
+  // ===== Languages Management =====
+  const addLanguage = useCallback(() => {
+    const newLang: Language = {
+      id: crypto.randomUUID(),
+      language: "",
+      proficiency: "conversational",
+      visibility: "public",
+    };
+    setProfile((prev) => ({
+      ...prev,
+      languages: [...(prev.languages || []), newLang],
+    }));
+  }, []);
+
+  const updateLanguage = useCallback(
+    (index: number, updates: Partial<Language>) => {
+      setProfile((prev) => {
+        const languages = [...(prev.languages || [])];
+        languages[index] = { ...languages[index], ...updates };
+        return { ...prev, languages };
+      });
+    },
+    [],
+  );
+
+  const removeLanguage = useCallback((index: number) => {
+    setProfile((prev) => ({
+      ...prev,
+      languages: (prev.languages || []).filter((_, i) => i !== index),
+    }));
+  }, []);
+
+  // ===== Awards Management =====
+  const addAward = useCallback(() => {
+    const newAward: Award = {
+      id: crypto.randomUUID(),
+      title: "",
+      issuer: "",
+      visibility: "public",
+    };
+    setProfile((prev) => ({
+      ...prev,
+      awards: [...(prev.awards || []), newAward],
+    }));
+  }, []);
+
+  const updateAward = useCallback((index: number, updates: Partial<Award>) => {
+    setProfile((prev) => {
+      const awards = [...(prev.awards || [])];
+      awards[index] = { ...awards[index], ...updates };
+      return { ...prev, awards };
+    });
+  }, []);
+
+  const removeAward = useCallback((index: number) => {
+    setProfile((prev) => ({
+      ...prev,
+      awards: (prev.awards || []).filter((_, i) => i !== index),
     }));
   }, []);
 
@@ -175,6 +280,21 @@ export function useProfileForm(initialProfile?: Partial<ResumeProfile>) {
       add: addProject,
       update: updateProject,
       remove: removeProject,
+    },
+    certifications: {
+      add: addCertification,
+      update: updateCertification,
+      remove: removeCertification,
+    },
+    languages: {
+      add: addLanguage,
+      update: updateLanguage,
+      remove: removeLanguage,
+    },
+    awards: {
+      add: addAward,
+      update: updateAward,
+      remove: removeAward,
     },
   };
 }

@@ -13,6 +13,9 @@ export function ReviewStep({ profile }: ReviewStepProps) {
   const education = profile.education || [];
   const skills = profile.skills || [];
   const projects = profile.projects || [];
+  const certifications = profile.certifications || [];
+  const languages = profile.languages || [];
+  const awards = profile.awards || [];
 
   return (
     <div className="space-y-6">
@@ -38,7 +41,10 @@ export function ReviewStep({ profile }: ReviewStepProps) {
             content={
               experience.length > 0 ? (
                 experience.map((exp, i) => (
-                  <div key={exp.id || `exp-${i}`} className="ml-4 mb-2 text-sm text-gray-700">
+                  <div
+                    key={exp.id || `exp-${i}`}
+                    className="ml-4 mb-2 text-sm text-gray-700"
+                  >
                     <p>
                       <strong>{exp.role}</strong> at {exp.company} (
                       {exp.startDate} - {exp.endDate || "Present"})
@@ -56,7 +62,10 @@ export function ReviewStep({ profile }: ReviewStepProps) {
             content={
               education.length > 0 ? (
                 education.map((edu, i) => (
-                  <div key={edu.id || `edu-${i}`} className="ml-4 mb-2 text-sm text-gray-700">
+                  <div
+                    key={edu.id || `edu-${i}`}
+                    className="ml-4 mb-2 text-sm text-gray-700"
+                  >
                     <p>
                       <strong>{edu.degree}</strong> from {edu.institution} (
                       {edu.startDate})
@@ -87,7 +96,10 @@ export function ReviewStep({ profile }: ReviewStepProps) {
             content={
               projects.length > 0 ? (
                 projects.map((proj, i) => (
-                  <div key={proj.id || `proj-${i}`} className="ml-4 mb-2 text-sm text-gray-700">
+                  <div
+                    key={proj.id || `proj-${i}`}
+                    className="ml-4 mb-2 text-sm text-gray-700"
+                  >
                     <p>
                       <strong>{proj.name}</strong>
                       {proj.url && ` - ${proj.url}`}
@@ -96,6 +108,61 @@ export function ReviewStep({ profile }: ReviewStepProps) {
                 ))
               ) : (
                 <p className="text-gray-500 text-sm">No projects added</p>
+              )
+            }
+          />
+
+          <ReviewSection
+            title={`Certifications (${certifications.length})`}
+            content={
+              certifications.length > 0 ? (
+                certifications.map((cert, i) => (
+                  <div
+                    key={cert.id || `cert-${i}`}
+                    className="ml-4 mb-2 text-sm text-gray-700"
+                  >
+                    <p>
+                      <strong>{cert.name}</strong> — {cert.issuer}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-gray-500 text-sm">No certifications added</p>
+              )
+            }
+          />
+
+          <ReviewSection
+            title={`Languages (${languages.length})`}
+            content={
+              languages.length > 0 ? (
+                <p className="text-gray-700 text-sm">
+                  {languages
+                    .map((l) => `${l.language} (${l.proficiency})`)
+                    .join(", ")}
+                </p>
+              ) : (
+                <p className="text-gray-500 text-sm">No languages added</p>
+              )
+            }
+          />
+
+          <ReviewSection
+            title={`Awards (${awards.length})`}
+            content={
+              awards.length > 0 ? (
+                awards.map((award, i) => (
+                  <div
+                    key={award.id || `award-${i}`}
+                    className="ml-4 mb-2 text-sm text-gray-700"
+                  >
+                    <p>
+                      <strong>{award.title}</strong> — {award.issuer}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-gray-500 text-sm">No awards added</p>
               )
             }
           />

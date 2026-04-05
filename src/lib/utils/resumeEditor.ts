@@ -11,6 +11,9 @@ import {
   normalizeExperience,
   normalizeEducation,
   normalizeProjects,
+  normalizeCertifications,
+  normalizeLanguages,
+  normalizeAwards,
   normalizeContact,
   normalizePersonalInfo,
 } from "./resume/normalization";
@@ -54,6 +57,9 @@ export const normalizeResumeForEditor = (
   const experience = normalizeExperience(rawResume.experience);
   const education = normalizeEducation(rawResume.education);
   const projects = normalizeProjects(rawResume.projects);
+  const certifications = normalizeCertifications(rawResume.certifications);
+  const languages = normalizeLanguages(rawResume.languages);
+  const awards = normalizeAwards(rawResume.awards);
   const contact = normalizeContact(rawResume.contact);
   const personalInfo = normalizePersonalInfo(rawResume.personalInfo);
 
@@ -63,6 +69,9 @@ export const normalizeResumeForEditor = (
     experience,
     education,
     projects,
+    certifications,
+    languages,
+    awards,
     contact,
     personalInfo,
   };
@@ -74,6 +83,9 @@ export const normalizeResumeForEditor = (
     experience,
     education,
     projects,
+    certifications,
+    languages,
+    awards,
     contact,
     personalInfo,
   };
@@ -153,6 +165,18 @@ export const mergeProfileIntoResume = (
 
   if (profile.projects !== undefined) {
     updated.projects = profile.projects;
+  }
+
+  if (profile.certifications !== undefined) {
+    updated.certifications = profile.certifications;
+  }
+
+  if (profile.languages !== undefined) {
+    updated.languages = profile.languages;
+  }
+
+  if (profile.awards !== undefined) {
+    updated.awards = profile.awards;
   }
 
   if (profile.personalInfo !== undefined) {

@@ -7,6 +7,9 @@ import { ExperienceStep } from "@/components/onboarding/steps/ExperienceStep";
 import { EducationStep } from "@/components/onboarding/steps/EducationStep";
 import { SkillsStep } from "@/components/onboarding/steps/SkillsStep";
 import { ProjectsStep } from "@/components/onboarding/steps/ProjectsStep";
+import { CertificationsStep } from "@/components/onboarding/steps/CertificationsStep";
+import { LanguagesStep } from "@/components/onboarding/steps/LanguagesStep";
+import { AwardsStep } from "@/components/onboarding/steps/AwardsStep";
 import { ContactStep } from "@/components/onboarding/steps/ContactStep";
 import { ReviewStep } from "@/components/onboarding/steps/ReviewStep";
 import {
@@ -43,11 +46,18 @@ interface ResumeEditWizardProps {
   education: CollectionHandlers<ResumeProfile["education"][number]>;
   skills: CollectionHandlers<ResumeProfile["skills"][number]>;
   projects: CollectionHandlers<ResumeProfile["projects"][number]>;
+  certifications: CollectionHandlers<
+    NonNullable<ResumeProfile["certifications"]>[number]
+  >;
+  languages: CollectionHandlers<
+    NonNullable<ResumeProfile["languages"]>[number]
+  >;
+  awards: CollectionHandlers<NonNullable<ResumeProfile["awards"]>[number]>;
 }
 
 const wrapHandlers = <T,>(
   handlers: CollectionHandlers<T>,
-  onDirty: () => void
+  onDirty: () => void,
 ): CollectionHandlers<T> => ({
   add: () => {
     onDirty();
@@ -81,22 +91,37 @@ export function ResumeEditWizard({
   education,
   skills,
   projects,
+  certifications,
+  languages,
+  awards,
 }: ResumeEditWizardProps) {
   const experienceActions = useMemo(
     () => wrapHandlers(experience, onDirty),
-    [experience, onDirty]
+    [experience, onDirty],
   );
   const educationActions = useMemo(
     () => wrapHandlers(education, onDirty),
-    [education, onDirty]
+    [education, onDirty],
   );
   const skillsActions = useMemo(
     () => wrapHandlers(skills, onDirty),
-    [skills, onDirty]
+    [skills, onDirty],
   );
   const projectsActions = useMemo(
     () => wrapHandlers(projects, onDirty),
-    [projects, onDirty]
+    [projects, onDirty],
+  );
+  const certificationsActions = useMemo(
+    () => wrapHandlers(certifications, onDirty),
+    [certifications, onDirty],
+  );
+  const languagesActions = useMemo(
+    () => wrapHandlers(languages, onDirty),
+    [languages, onDirty],
+  );
+  const awardsActions = useMemo(
+    () => wrapHandlers(awards, onDirty),
+    [awards, onDirty],
   );
 
   const renderStep = () => {
@@ -140,8 +165,35 @@ export function ResumeEditWizard({
           />
         );
       case 5:
-        return <ContactStep profile={profile} onChange={onProfileChange} />;
+        return (
+          <CertificationsStep
+            certifications={profile.certifications || []}
+            onAdd={certificationsActions.add}
+            onUpdate={certificationsActions.update}
+            onRemove={certificationsActions.remove}
+          />
+        );
       case 6:
+        return (
+          <LanguagesStep
+            languages={profile.languages || []}
+            onAdd={languagesActions.add}
+            onUpdate={languagesActions.update}
+            onRemove={languagesActions.remove}
+          />
+        );
+      case 7:
+        return (
+          <AwardsStep
+            awards={profile.awards || []}
+            onAdd={awardsActions.add}
+            onUpdate={awardsActions.update}
+            onRemove={awardsActions.remove}
+          />
+        );
+      case 8:
+        return <ContactStep profile={profile} onChange={onProfileChange} />;
+      case 9:
         return <ReviewStep profile={profile} />;
       default:
         return null;

@@ -70,3 +70,48 @@ export const normalizeProjects = (value: unknown): TimelineItem[] => {
     }))
     .filter((project) => project.headline);
 };
+
+export const normalizeCertifications = (value: unknown): TimelineItem[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item: Record<string, unknown>) => ({
+      headline: item?.name as string,
+      subline: item?.issuer as string,
+      meta:
+        [
+          item?.issueDate,
+          item?.expiryDate ? `Exp ${item.expiryDate}` : undefined,
+        ]
+          .filter(Boolean)
+          .join(" · ") || undefined,
+      description: item?.credentialId
+        ? `Credential ID: ${item.credentialId}`
+        : undefined,
+      url: item?.credentialUrl as string,
+    }))
+    .filter((c) => c.headline);
+};
+
+export const normalizeLanguages = (
+  value: unknown,
+): Array<{ language: string; proficiency: string }> => {
+  if (!Array.isArray(value)) return [];
+  return (value as Record<string, unknown>[])
+    .filter((item) => item?.language)
+    .map((item) => ({
+      language: item.language as string,
+      proficiency: (item.proficiency as string) ?? "conversational",
+    }));
+};
+
+export const normalizeAwards = (value: unknown): TimelineItem[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item: Record<string, unknown>) => ({
+      headline: (item?.title ?? item?.name) as string,
+      subline: item?.issuer as string,
+      meta: (item?.date ?? item?.year) as string,
+      description: item?.description as string,
+    }))
+    .filter((a) => a.headline);
+};

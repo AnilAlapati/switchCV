@@ -30,6 +30,15 @@ jest.mock("@/components/onboarding/steps/SkillsStep", () => ({
 jest.mock("@/components/onboarding/steps/ProjectsStep", () => ({
   ProjectsStep: () => <div data-testid="projects-step" />,
 }));
+jest.mock("@/components/onboarding/steps/CertificationsStep", () => ({
+  CertificationsStep: () => <div data-testid="certifications-step" />,
+}));
+jest.mock("@/components/onboarding/steps/LanguagesStep", () => ({
+  LanguagesStep: () => <div data-testid="languages-step" />,
+}));
+jest.mock("@/components/onboarding/steps/AwardsStep", () => ({
+  AwardsStep: () => <div data-testid="awards-step" />,
+}));
 jest.mock("@/components/onboarding/steps/ContactStep", () => ({
   ContactStep: () => <div data-testid="contact-step" />,
 }));
@@ -93,6 +102,9 @@ describe("ResumeEditWizard", () => {
     education: mockHandlers,
     skills: mockHandlers,
     projects: mockHandlers,
+    certifications: mockHandlers,
+    languages: mockHandlers,
+    awards: mockHandlers,
   };
 
   beforeEach(() => {
@@ -116,9 +128,18 @@ describe("ResumeEditWizard", () => {
     expect(screen.getByTestId("projects-step")).toBeInTheDocument();
 
     rerender(<ResumeEditWizard {...defaultProps} currentStep={5} />);
-    expect(screen.getByTestId("contact-step")).toBeInTheDocument();
+    expect(screen.getByTestId("certifications-step")).toBeInTheDocument();
 
     rerender(<ResumeEditWizard {...defaultProps} currentStep={6} />);
+    expect(screen.getByTestId("languages-step")).toBeInTheDocument();
+
+    rerender(<ResumeEditWizard {...defaultProps} currentStep={7} />);
+    expect(screen.getByTestId("awards-step")).toBeInTheDocument();
+
+    rerender(<ResumeEditWizard {...defaultProps} currentStep={8} />);
+    expect(screen.getByTestId("contact-step")).toBeInTheDocument();
+
+    rerender(<ResumeEditWizard {...defaultProps} currentStep={9} />);
     expect(screen.getByTestId("review-step")).toBeInTheDocument();
 
     rerender(<ResumeEditWizard {...defaultProps} currentStep={99} />);

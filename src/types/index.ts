@@ -44,6 +44,38 @@ export interface Project {
   visibility: Visibility;
 }
 
+export interface Certification {
+  id?: string;
+  name: string;
+  issuer: string;
+  issueDate?: string;
+  expiryDate?: string;
+  credentialId?: string;
+  credentialUrl?: string;
+  visibility: Visibility;
+}
+
+export interface Language {
+  id?: string;
+  language: string;
+  proficiency:
+    | "native"
+    | "fluent"
+    | "professional"
+    | "conversational"
+    | "basic";
+  visibility: Visibility;
+}
+
+export interface Award {
+  id?: string;
+  title: string;
+  issuer: string;
+  date?: string;
+  description?: string;
+  visibility: Visibility;
+}
+
 export interface PersonalInfo {
   name?: string;
   title?: string;
@@ -89,6 +121,9 @@ export interface ResumeProfile {
   contact: ContactInfo;
   personalInfo?: PersonalInfo;
   projects: Project[];
+  certifications?: Certification[];
+  languages?: Language[];
+  awards?: Award[];
   generatedText: {
     draft: string;
     polished: string;

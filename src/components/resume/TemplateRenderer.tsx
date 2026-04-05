@@ -29,6 +29,9 @@ import { ClarityResumeRenderer } from "./ClarityResumeRenderer";
 import { VelocityResumeRenderer } from "./VelocityResumeRenderer";
 import { NarrativeResumeRenderer } from "./NarrativeResumeRenderer";
 import { StudioResumeRenderer } from "./StudioResumeRenderer";
+import { StandardResumeRenderer } from "./StandardResumeRenderer";
+import { ModernCreativeResumeRenderer } from "./ModernCreativeResumeRenderer";
+import { ExecutiveResumeRenderer } from "./ExecutiveResumeRenderer";
 
 type VisibilityLevel = "public" | "masked" | "request";
 type ContactField = "email" | "phone";
@@ -72,6 +75,39 @@ export const TemplateRenderer: React.FC<TemplateRendererProps> = ({
   onRequestAccess,
 }) => {
   // Route to specialized renderers for premium templates
+  if (template.id === "standard-v1") {
+    return (
+      <StandardResumeRenderer
+        template={template}
+        data={data}
+        isAuthenticated={isAuthenticated}
+        onRequestAccess={onRequestAccess}
+      />
+    );
+  }
+
+  if (template.id === "modern-creative-v1") {
+    return (
+      <ModernCreativeResumeRenderer
+        template={template}
+        data={data}
+        isAuthenticated={isAuthenticated}
+        onRequestAccess={onRequestAccess}
+      />
+    );
+  }
+
+  if (template.id === "executive-v1") {
+    return (
+      <ExecutiveResumeRenderer
+        template={template}
+        data={data}
+        isAuthenticated={isAuthenticated}
+        onRequestAccess={onRequestAccess}
+      />
+    );
+  }
+
   if (template.id === "masonry-v1") {
     return (
       <MasonryResumeRenderer

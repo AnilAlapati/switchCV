@@ -11,6 +11,7 @@ import { checkSequentialAccess } from "@/lib/security/accessMonitor";
 import {
   getResume,
   updateResume,
+  updateResumeVisibility,
   deleteResume,
   trackResumeView,
 } from "@/lib/services/resumeService";
@@ -198,15 +199,7 @@ export async function PATCH(
       return handleApiError(new Error("Unauthorized"), "Unauthorized", 403);
     }
 
-    // Update Visibility using service (we reuse updateResume or need a specific one?
-    // updateResume takes 'any' data so it should work if we pass partial)
-    // Actually updateResume in service does a set with merge: true.
-    // These are runtime metadata fields, not part of ResumeProfile type
-    await updateResume(id, userId, {
-      isPublic: isPublic,
-      visibility: isPublic ? "public" : "private",
-      published: isPublic,
-    } as Partial<ResumeProfile>);
+    await updateResumeVisibility(id, isPublic);
 
     return NextResponse.json({ success: true, isPublic });
   } catch (error) {
