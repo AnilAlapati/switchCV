@@ -7,6 +7,92 @@
 
 ---
 
+## Update: Resume Quota — Count Lifetime, Not Active (April 5, 2026)
+
+### Bug
+
+User `anilalapati.66@gmail.com` (basic tier, limit=1) deleted their only resume
+and was then able to create a second one — bypassing the tier limit entirely.
+
+### Root Cause
+
+The quota check counted **active Firestore documents**:
+
+```ts
+// WRONG — resets to 0 after hard delete
+const snapshot = await collectionRef(COLLECTIONS.RESUMES)
+  .where("userId", "==", userId)
+  .count()
+  .get();
+if (snapshot.data().count >= limit) return 403;
+```
+
+A hard delete (`adminDb.recursiveDelete(docRef)`) removed the document from Firestore.
+Active count went back to 0. The check passed. User could create again.
+
+Additionally, the generate route only enforced the limit for basic users — premium
+and enterprise users at their tier cap had no enforcement at all.
+
+### Fix
+
+**Single rule: count lifetime creations, not active documents.**
+
+1. **`src/lib/services/resumeQuotaService.ts`** — New reusable service:
+   - `incrementLifetimeResumeCount(userId)` — atomic Firestore increment on
+     `users/{uid}.lifetimeResumeCreations`.
+   - `getLifetimeResumeCount(userId)` — returns `max(lifetimeField, activeCount)`
+     so existing users without the field are handled without a migration script.
+   - `checkResumeCreationQuota(userId, tier)` — same logic for all tiers, limit
+     value changes per tier (basic=1, premium=50, enterprise=9999).
+
+2. **`src/lib/services/resume/resumeCrud.ts`** — `createResume` and
+   `saveGeneratedResume` both call `incrementLifetimeResumeCount` after save.
+
+3. **API routes** — Both `/api/resumes/create` and `/api/resume/generate` now
+   call `checkResumeCreationQuota` for **all** tiers, not just basic.
+
+4. **`/api/resumes/quota`** — New GET endpoint; returns quota status for the UI.
+
+5. **`src/hooks/useResumeQuota.ts`** — New hook; powers dashboard and page gate.
+
+6. **`/create-resume/page.tsx`** — Redirects to `/dashboard` with a toast if
+   `canCreate` is false, so even direct URL traversal is blocked UI-side.
+
+7. **Dashboard components** — `ResumeActionCenter` and `ResumeStatusCard` show
+   an "Upgrade to Premium" CTA instead of the "Create Resume" button when the
+   lifetime limit is reached.
+
+### Key Lesson
+
+> **Quota must be based on a counter that only ever increments, never decrements.**
+> Active document count is wrong for any resource that can be deleted.
+> A counter on the user document (incremented at creation, never modified at
+> deletion) is the correct model for lifetime limits.
+
+### Exploit Path (Historical)
+
+```
+basic user → create resume (count=1) → delete resume (hard delete, count=0)
+           → dashboard shows "Create Resume" because hasResume=false
+           → /create-resume loads with no quota check
+           → saves → count = 0 < 1 → ALLOWED
+           → repeat indefinitely
+```
+
+### Where to Find the Code
+
+| Concern                       | File                                                    |
+| ----------------------------- | ------------------------------------------------------- |
+| Core quota logic              | `src/lib/services/resumeQuotaService.ts`                |
+| Lifetime counter increment    | `src/lib/services/resume/resumeCrud.ts`                 |
+| Server enforcement (save)     | `src/app/api/resumes/create/route.ts`                   |
+| Server enforcement (generate) | `src/app/api/resume/generate/route.ts`                  |
+| Quota status API              | `src/app/api/resumes/quota/route.ts`                    |
+| Client hook                   | `src/hooks/useResumeQuota.ts`                           |
+| Tests                         | `src/lib/services/__tests__/resumeQuotaService.test.ts` |
+
+---
+
 ## Executive Summary
 
 Over 2 months, SwitchCV was built by multiple AI agents (Claude, GPT, Grok) without incident detection until a comprehensive audit revealed:
@@ -643,9 +729,10 @@ Over 19 code review documents (Feb 6–15), these 7 patterns kept re-appearing d
 ### Pattern 1: Auth Ordering — Body Parse Before Auth Check
 
 **What it looks like:**
+
 ```typescript
 export async function POST(request: NextRequest) {
-  const body = await request.json();  // ← Runs for unauthenticated users
+  const body = await request.json(); // ← Runs for unauthenticated users
   const { userId, error } = await getAuthenticatedUserId(request);
   if (error) return error;
 }
@@ -658,6 +745,7 @@ export async function POST(request: NextRequest) {
 ### Pattern 2: Error Interpolation in "Safe" Handler
 
 **What it looks like:**
+
 ```typescript
 return handleApiError(err, `Validation error: ${errorMessage}`);
 // Agent thinks handleApiError makes it safe — but the message IS sent to the client
@@ -668,9 +756,10 @@ return handleApiError(err, `Validation error: ${errorMessage}`);
 ### Pattern 3: userId Priority Inversion
 
 **What it looks like:**
+
 ```typescript
-const userId = parseResult.data.userId || authenticatedUserId;  // Body has priority!
-const userId = authenticatedUserId || bodyUserId;               // Body as fallback
+const userId = parseResult.data.userId || authenticatedUserId; // Body has priority!
+const userId = authenticatedUserId || bodyUserId; // Body as fallback
 ```
 
 **Gate:** `audit-checks.js` CHECK 13 → `USERID_PRIORITY_INVERSION` (CRITICAL) / `USERID_BODY_FALLBACK` (HIGH).
@@ -678,10 +767,13 @@ const userId = authenticatedUserId || bodyUserId;               // Body as fallb
 ### Pattern 4: Placeholder Tests
 
 **What it looks like:**
+
 ```typescript
 it("should authenticate POST request", () => {
-  const request = new Request("http://localhost/api/search", { method: "POST" });
-  expect(request.method).toBe("POST");  // ← Tests Node.js fetch API, not your app
+  const request = new Request("http://localhost/api/search", {
+    method: "POST",
+  });
+  expect(request.method).toBe("POST"); // ← Tests Node.js fetch API, not your app
 });
 ```
 
@@ -690,9 +782,10 @@ it("should authenticate POST request", () => {
 ### Pattern 5: Trivial Test Assertions
 
 **What it looks like:**
+
 ```typescript
 it("should validate authorization", () => {
-  expect(true).toBe(true);  // ← Tests nothing
+  expect(true).toBe(true); // ← Tests nothing
 });
 ```
 
@@ -701,16 +794,18 @@ it("should validate authorization", () => {
 ### Pattern 6: Broken Auth Mocks (All-403 Pattern)
 
 **What it looks like:**
+
 ```typescript
 jest.mock("@/lib/utils/api-helpers", () => ({
   getAuthenticatedUserId: jest.fn().mockResolvedValue({
-    userId: null, error: new Response("Unauthorized", { status: 403 })  // Always rejects!
+    userId: null,
+    error: new Response("Unauthorized", { status: 403 }), // Always rejects!
   }),
 }));
 
 it("should return 200", async () => {
   const response = await POST(request);
-  expect(response.status).toBe(200);  // ← Will always fail with 403
+  expect(response.status).toBe(200); // ← Will always fail with 403
 });
 ```
 
@@ -719,6 +814,7 @@ it("should return 200", async () => {
 ### Pattern 7: Missing SVG/Spinner Accessibility
 
 **What it looks like:**
+
 ```tsx
 <svg viewBox="0 0 24 24">...</svg>           // Missing aria-hidden="true"
 <div className="animate-spin">Loading...</div> // Missing role="status"
@@ -728,15 +824,15 @@ it("should return 200", async () => {
 
 ### Summary of Enforcement
 
-| Pattern | Check | Severity | Gate |
-|---|---|---|---|
-| Auth ordering | CHECK 11 | CRITICAL | audit-api-routes.js |
-| Error interpolation | CHECK 12 + ESLint | HIGH | audit-api-routes.js + lint |
-| userId inversion | CHECK 13 | CRITICAL | audit-api-routes.js |
-| Placeholder tests | PLACEHOLDER_TESTS | CRITICAL | audit-test-quality.js |
-| Trivial tests | TRIVIAL_TESTS | CRITICAL | audit-test-quality.js |
-| Broken auth mocks | AUTH_MOCK_ALWAYS_REJECTS | HIGH | audit-test-quality.js |
-| Missing a11y attrs | CHECK 14 | MEDIUM | audit-api-routes.js |
+| Pattern             | Check                    | Severity | Gate                       |
+| ------------------- | ------------------------ | -------- | -------------------------- |
+| Auth ordering       | CHECK 11                 | CRITICAL | audit-api-routes.js        |
+| Error interpolation | CHECK 12 + ESLint        | HIGH     | audit-api-routes.js + lint |
+| userId inversion    | CHECK 13                 | CRITICAL | audit-api-routes.js        |
+| Placeholder tests   | PLACEHOLDER_TESTS        | CRITICAL | audit-test-quality.js      |
+| Trivial tests       | TRIVIAL_TESTS            | CRITICAL | audit-test-quality.js      |
+| Broken auth mocks   | AUTH_MOCK_ALWAYS_REJECTS | HIGH     | audit-test-quality.js      |
+| Missing a11y attrs  | CHECK 14                 | MEDIUM   | audit-api-routes.js        |
 
 ---
 
@@ -749,22 +845,25 @@ it("should return 200", async () => {
 
 ### The Problem
 
-A severe "infinite redirect loop" affected the `/select-role` page. A user would choose their role, click "Continue to Dashboard", and instantly be redirected back to the `/select-role` screen. 
+A severe "infinite redirect loop" affected the `/select-role` page. A user would choose their role, click "Continue to Dashboard", and instantly be redirected back to the `/select-role` screen.
 
 When observing the database, the role **was** being saved correctly to Firestore! So why the loop?
 
 **The Chain of Events:**
+
 1. User clicks "Select Role"
 2. Arrow drops to `/api/user/role` and saves to Firestore.
 3. Client optimistically updates SWR cache: `mutate(newData, { revalidate: false })`
 4. Client navigates using Next.js App Router: `router.push('/dashboard')`
 5. `/dashboard` mounts and calls `useUserProfile()` (SWR hook)
 6. SWR reads the fallback cache, OR detects the route change/focus event and re-fetches from `GET /api/user/profile`.
-7. **The Race Condition:** Firestore replication latency means the backend fetch returns the *stale* profile (where role is still undefined).
+7. **The Race Condition:** Firestore replication latency means the backend fetch returns the _stale_ profile (where role is still undefined).
 8. The dashboard sees `!role` and instantly redirects the user back via `router.push('/select-role')`.
 
 ### Root Cause
+
 Combining three aggressive caching systems creates edge-case havoc:
+
 1. Next.js Client-Side Router Cache
 2. SWR's Memory/Dedupe Cache
 3. Firestore's Edge/Global Replication Latency
@@ -780,11 +879,12 @@ Break the soft navigation chain using a hard reload when critical state transiti
 router.push("/dashboard");
 
 // ✅ SAFE: Allow DB replication time, then hard reload to nuke the client cache
-await new Promise(resolve => setTimeout(resolve, 800));
+await new Promise((resolve) => setTimeout(resolve, 800));
 window.location.href = "/dashboard";
 ```
 
 ### Key Insight
+
 Opt for **hard navigation** (`window.location.href`) instead of soft navigation (`router.push`) whenever a user crosses a major **authentication or authorization boundary** (e.g. logging in, setting a mandatory profile flag, or verifying an email). The few milliseconds saved by the React Router aren't worth the catastrophic UX failures caused by stale client-side caches misinterpreting access controls.
 
 ---

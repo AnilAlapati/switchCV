@@ -10,11 +10,11 @@ import {
 import { CreateResumeSchema } from "@/lib/schemas/api";
 import { getUserTier } from "@/lib/services/userService";
 import {
-  getResumeCreationLimits,
   getResumeRetentionDays,
   getResumeDeletionGraceDays,
   getResumeExpiryWarningHours,
 } from "@/lib/config.server";
+import { checkResumeCreationQuota } from "@/lib/services/resumeQuotaService";
 import { preIndexResume } from "@/lib/services/rag/ragService";
 
 interface CreateResumeRequest {
@@ -65,24 +65,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check Quota
+    // Check quota against lifetime creation count (survives hard deletes)
     const tier = await getUserTier(userId);
-    const limits = await getResumeCreationLimits();
-    const limit = limits[tier];
+    const quota = await checkResumeCreationQuota(userId, tier);
 
-    // We use "resume_create" scope and "monthly" period (or "forever" if we want total limit)
-    // For now, let's assume it's a total limit on active resumes, but consumeQuota is for "events over time".
-    // If we want "Max 3 resumes total", we should count existing resumes, not use consumeQuota.
-    // Let's check existing resumes count first.
-
-    const existingResumesSnapshot = await collectionRef(COLLECTIONS.RESUMES)
-      .where("userId", "==", userId)
-      .count()
-      .get();
-
-    const currentCount = existingResumesSnapshot.data()?.count ?? 0;
-
-    if (currentCount >= limit) {
+    if (!quota.allowed) {
+      logger.warn(
+        { userId, tier, current: quota.current, limit: quota.limit },
+        "⛔ Resume creation blocked — lifetime limit reached",
+      );
       return handleApiError(
         new Error("Plan limit reached"),
         "Maximum resume limit reached for your plan",

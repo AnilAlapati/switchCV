@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import { generateNumericResumeId } from "@/lib/numericIdGenerator";
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 import { getUserTier } from "@/lib/services/userService";
+import { checkResumeCreationQuota } from "@/lib/services/resumeQuotaService";
 // eslint-disable-next-line no-restricted-imports
 import { adminDb } from "@/lib/firebase-admin";
 
@@ -11,7 +12,7 @@ jest.mock("@/lib/utils/api-helpers", () => ({
   getAuthenticatedUserId: jest.fn(),
   handleApiError: jest.fn((error, message, status = 500) => ({
     status,
-    json: async () => ({ error: message, details: error.message }),
+    json: async () => ({ error: message, details: error?.message }),
   })),
 }));
 
@@ -29,44 +30,53 @@ jest.mock("@/lib/services/userService", () => ({
   getUserTier: jest.fn(),
 }));
 
+// Mock the quota service — this is the unit under test for the route layer
+jest.mock("@/lib/services/resumeQuotaService", () => ({
+  checkResumeCreationQuota: jest.fn(),
+}));
+
+// Mock config.server
+jest.mock("@/lib/config.server", () => ({
+  getResumeRetentionDays: jest
+    .fn()
+    .mockResolvedValue({ basic: 7, premium: null, enterprise: null }),
+  getResumeDeletionGraceDays: jest
+    .fn()
+    .mockResolvedValue({ basic: 3, premium: null, enterprise: null }),
+  getResumeExpiryWarningHours: jest
+    .fn()
+    .mockResolvedValue({ basic: 72, premium: null, enterprise: null }),
+}));
+
+// Mock RAG service (fire-and-forget in route)
+jest.mock("@/lib/services/rag/ragService", () => ({
+  preIndexResume: jest.fn().mockResolvedValue(undefined),
+}));
+
 describe("POST /api/resumes/create", () => {
   const mockSet = jest.fn();
   const mockDoc = jest.fn();
   const mockCollection = jest.fn();
-  const mockWhere = jest.fn();
-  const mockCount = jest.fn();
-  const mockCountGet = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
 
-    // Setup default Firestore mock chain
     (adminDb.collection as jest.Mock).mockImplementation(mockCollection);
-
-    mockCollection.mockReturnValue({
-      doc: mockDoc,
-      where: mockWhere,
-    });
-    mockDoc.mockReturnValue({
-      set: mockSet,
-    });
+    mockCollection.mockReturnValue({ doc: mockDoc });
+    mockDoc.mockReturnValue({ set: mockSet });
     mockSet.mockResolvedValue(undefined);
-
-    mockWhere.mockReturnValue({
-      count: mockCount,
-    });
-
-    mockCount.mockReturnValue({
-      get: mockCountGet,
-    });
-
-    mockCountGet.mockResolvedValue({
-      data: () => ({ count: 0 }),
-    });
 
     (getUserTier as jest.Mock).mockResolvedValue("basic");
 
-    // Default auth mock
+    // Default: quota allows creation
+    (checkResumeCreationQuota as jest.Mock).mockResolvedValue({
+      allowed: true,
+      current: 0,
+      limit: 1,
+      remaining: 1,
+      tier: "basic",
+    });
+
     (getAuthenticatedUserId as jest.Mock).mockResolvedValue({
       userId: "user123",
       error: null,
@@ -102,7 +112,7 @@ describe("POST /api/resumes/create", () => {
     expect(data.error).toContain("Unauthorized");
   });
 
-  it("should create resume successfully", async () => {
+  it("should create resume successfully when quota allows", async () => {
     const mockUserId = "user123";
     const mockNumericId = 1001;
     const mockResume = { title: "My Resume" };
@@ -124,27 +134,26 @@ describe("POST /api/resumes/create", () => {
     expect(data.success).toBe(true);
     expect(data.numericId).toBe(mockNumericId);
 
-    // Verify Firestore calls
-    expect(mockCollection).toHaveBeenCalledWith("resumes");
-    expect(mockWhere).toHaveBeenCalledWith("userId", "==", mockUserId);
+    expect(checkResumeCreationQuota).toHaveBeenCalledWith("user123", "basic");
     expect(mockDoc).toHaveBeenCalledWith(String(mockNumericId));
     expect(mockSet).toHaveBeenCalledTimes(1);
   });
 
-  it("should return 403 if resume limit is reached", async () => {
-    const mockUserId = "user123";
-
+  it("should return 403 if quota service blocks creation (lifetime limit)", async () => {
     (getUserTier as jest.Mock).mockResolvedValue("basic");
-
-    // Mock existing count = 3
-    mockCountGet.mockResolvedValue({
-      data: () => ({ count: 3 }),
+    // Lifetime count = 1, limit = 1 — blocked even though active docs = 0
+    (checkResumeCreationQuota as jest.Mock).mockResolvedValue({
+      allowed: false,
+      current: 1,
+      limit: 1,
+      remaining: 0,
+      tier: "basic",
     });
 
     const req = new NextRequest("http://localhost/api/resumes/create", {
       method: "POST",
       body: JSON.stringify({
-        userId: mockUserId,
+        userId: "user123",
         resume: { title: "Resume" },
       }),
     });
@@ -154,17 +163,37 @@ describe("POST /api/resumes/create", () => {
 
     expect(res.status).toBe(403);
     expect(data.error).toBe("Maximum resume limit reached for your plan");
+    // Must NOT write to Firestore when quota is blocked
+    expect(mockSet).not.toHaveBeenCalled();
+  });
+
+  it("should enforce quota for premium tier too (not just basic)", async () => {
+    (getUserTier as jest.Mock).mockResolvedValue("premium");
+    (checkResumeCreationQuota as jest.Mock).mockResolvedValue({
+      allowed: false,
+      current: 50,
+      limit: 50,
+      remaining: 0,
+      tier: "premium",
+    });
+
+    const req = new NextRequest("http://localhost/api/resumes/create", {
+      method: "POST",
+      body: JSON.stringify({
+        userId: "user123",
+        resume: { title: "Resume" },
+      }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(403);
+    expect(mockSet).not.toHaveBeenCalled();
   });
 
   it("should set expiration date for basic tier", async () => {
     const mockUserId = "user123";
-
     (getUserTier as jest.Mock).mockResolvedValue("basic");
-
-    // Mock count = 0
-    mockCountGet.mockResolvedValue({
-      data: () => ({ count: 0 }),
-    });
+    (generateNumericResumeId as jest.Mock).mockResolvedValue(1001);
 
     const req = new NextRequest("http://localhost/api/resumes/create", {
       method: "POST",
@@ -176,7 +205,6 @@ describe("POST /api/resumes/create", () => {
 
     await POST(req);
 
-    // Verify expiresAt was set in Firestore
     const docData = mockSet.mock.calls[0][0];
     expect(docData.expiresAt).toBeDefined();
     expect(typeof docData.expiresAt).toBe("string");
@@ -191,9 +219,9 @@ describe("POST /api/resumes/create", () => {
     expect(deletionMs - countdownMs).toBe(72 * 60 * 60 * 1000);
   });
 
-  it("should handle errors", async () => {
+  it("should handle unexpected errors", async () => {
     (generateNumericResumeId as jest.Mock).mockRejectedValue(
-      new Error("ID Gen Error")
+      new Error("ID Gen Error"),
     );
 
     const req = new NextRequest("http://localhost/api/resumes/create", {

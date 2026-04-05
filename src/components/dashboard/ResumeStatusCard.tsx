@@ -9,6 +9,7 @@ import Link from "next/link";
 import { reloadPage } from "@/lib/utils/navigation";
 import { DeleteResumeDialog } from "./DeleteResumeDialog";
 import { useTier } from "@/hooks/useTier";
+import { useResumeQuota } from "@/hooks/useResumeQuota";
 import { getStatusDetails } from "./useResumeStatus";
 import { ResumeActionButtons } from "./ResumeActionButtons";
 
@@ -29,6 +30,7 @@ export function ResumeStatusCard({
 }: ResumeStatusCardProps) {
   const { user } = useAuth();
   const { isBasic } = useTier();
+  const { canCreate, limit } = useResumeQuota();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
@@ -174,7 +176,7 @@ export function ResumeStatusCard({
               onToggleVisibility={handleToggleVisibility}
               onDelete={() => setShowDeleteConfirm(true)}
             />
-          ) : (
+          ) : canCreate ? (
             <Link
               href="/create-resume"
               className="inline-flex items-center px-4 py-2 glass-button font-bold rounded-xl"
@@ -182,6 +184,7 @@ export function ResumeStatusCard({
               Create Resume
               <svg
                 className="ml-2 w-4 h-4"
+                aria-hidden="true"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -193,6 +196,13 @@ export function ResumeStatusCard({
                   d="M9 5l7 7-7 7"
                 />
               </svg>
+            </Link>
+          ) : (
+            <Link
+              href="/profile"
+              className="inline-flex items-center px-4 py-2 font-bold rounded-xl bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200 transition-colors"
+            >
+              Upgrade to create more ({limit} slot{limit === 1 ? "" : "s"} used)
             </Link>
           )}
         </div>

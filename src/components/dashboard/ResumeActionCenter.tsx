@@ -5,6 +5,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { RestrictedFeature } from "@/components/ui/RestrictedFeature";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useResumeQuota } from "@/hooks/useResumeQuota";
 
 interface ResumeActionCenterProps {
   hasResume: boolean;
@@ -28,6 +29,7 @@ export function ResumeActionCenter({
   const resumeIdString = resumeId ? String(resumeId) : null;
   const { tier } = useUserProfile();
   const isBasicUser = tier === "basic";
+  const { canCreate, limit } = useResumeQuota();
 
   const statusColor = isPublished ? "text-emerald-500" : "text-amber-500";
   const statusBg = isPublished ? "bg-emerald-500/10" : "bg-amber-500/10";
@@ -55,32 +57,43 @@ export function ResumeActionCenter({
 
         <div className="relative z-10">
           <h2 className="text-2xl font-bold text-[black] mb-2">
-            Create Your Resume
+            {canCreate ? "Create Your Resume" : "Resume Limit Reached"}
           </h2>
           <p className="text-[black] mb-6 max-w-lg font-medium">
-            Build a professional resume in minutes. Our AI-powered tools help
-            you highlight your strengths and get noticed by recruiters.
+            {canCreate
+              ? "Build a professional resume in minutes. Our AI-powered tools help you highlight your strengths and get noticed by recruiters."
+              : `You've used all ${limit} resume slot${limit === 1 ? "" : "s"} on your current plan. Upgrade to Premium to create more resumes.`}
           </p>
 
-          <Link
-            href="/create-resume"
-            className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/25 transition-all hover:shadow-cyan-500/40 hover:scale-[1.02]"
-          >
-            <svg
-              className="mr-2 h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+          {canCreate ? (
+            <Link
+              href="/create-resume"
+              className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/25 transition-all hover:shadow-cyan-500/40 hover:scale-[1.02]"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            Start Building
-          </Link>
+              <svg
+                className="mr-2 h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              Start Building
+            </Link>
+          ) : (
+            <Link
+              href="/profile"
+              className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-amber-500/25 transition-all hover:shadow-amber-500/40 hover:scale-[1.02]"
+            >
+              Upgrade to Premium
+            </Link>
+          )}
         </div>
       </div>
     );
@@ -100,8 +113,9 @@ export function ResumeActionCenter({
                   className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${statusBg} ${statusColor} ${statusBorder} cursor-help`}
                 >
                   <span
-                    className={`mr-1.5 h-1.5 w-1.5 rounded-full ${isPublished ? "bg-emerald-500" : "bg-amber-500"
-                      }`}
+                    className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
+                      isPublished ? "bg-emerald-500" : "bg-amber-500"
+                    }`}
                   ></span>
                   {statusText}
                 </div>
@@ -114,14 +128,16 @@ export function ResumeActionCenter({
                     disabled={isUpdatingVisibility}
                     className={`
                                             relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2
-                                            ${isPublished
-                        ? "bg-emerald-500"
-                        : "bg-gray-200"
-                      }
-                                            ${isUpdatingVisibility
-                        ? "opacity-50 cursor-wait"
-                        : ""
-                      }
+                                            ${
+                                              isPublished
+                                                ? "bg-emerald-500"
+                                                : "bg-gray-200"
+                                            }
+                                            ${
+                                              isUpdatingVisibility
+                                                ? "opacity-50 cursor-wait"
+                                                : ""
+                                            }
                                         `}
                     role="switch"
                     aria-checked={isPublished}
@@ -131,10 +147,11 @@ export function ResumeActionCenter({
                       aria-hidden="true"
                       className={`
                                                 pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out
-                                                ${isPublished
-                          ? "translate-x-5"
-                          : "translate-x-0"
-                        }
+                                                ${
+                                                  isPublished
+                                                    ? "translate-x-5"
+                                                    : "translate-x-0"
+                                                }
                                             `}
                     />
                   </button>
@@ -154,7 +171,11 @@ export function ResumeActionCenter({
           </div>
 
           <div className="flex gap-3">
-            <RestrictedFeature messageKey="AI_EDIT" requiredTier="premium" tooltipPosition="left">
+            <RestrictedFeature
+              messageKey="AI_EDIT"
+              requiredTier="premium"
+              tooltipPosition="left"
+            >
               {isBasicUser ? (
                 <button
                   disabled

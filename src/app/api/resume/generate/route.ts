@@ -9,7 +9,7 @@ import {
 } from "@/lib/utils/api-helpers";
 import { getUserTier } from "@/lib/services/userService";
 import type { SubscriptionTier } from "@/lib/config";
-import { getResumeCount } from "@/lib/services/resumeService";
+import { checkResumeCreationQuota } from "@/lib/services/resumeQuotaService";
 import { createGenerationJob } from "@/lib/services/resumeGenerationQueue";
 import { GenerateResumeRequestSchema } from "@/lib/schemas/api";
 import {
@@ -128,29 +128,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Enforce Quantity Limit for Basic Users
-    if (userTier === "basic") {
-      let resumeCount = 0;
-      try {
-        resumeCount = await getResumeCount(userId);
-      } catch (countError) {
-        logger.warn(
-          { err: countError, userId },
-          "Failed to get resume count, allowing request to proceed",
-        );
-      }
-
-      if (resumeCount >= 1) {
-        logger.warn(
-          { userId, resumeCount },
-          "⛔ Basic user attempted to create 2nd resume",
-        );
-        return handleApiError(
-          new Error("Resume limit reached"),
-          "You have reached the limit of 1 resume for the Basic plan. Please upgrade to Premium to create more resumes.",
-          403,
-        );
-      }
+    // Enforce resume creation quota for ALL tiers (not just basic).
+    // Uses lifetime count so hard-deleting a resume does NOT reset the quota.
+    const quota = await checkResumeCreationQuota(userId, userTier);
+    if (!quota.allowed) {
+      logger.warn(
+        { userId, tier: userTier, current: quota.current, limit: quota.limit },
+        "⛔ Resume creation blocked — lifetime limit reached",
+      );
+      return NextResponse.json(
+        {
+          error: `You have reached the limit of ${quota.limit} resume${quota.limit === 1 ? "" : "s"} for your plan. Please upgrade to create more resumes.`,
+        },
+        { status: 403 },
+      );
     }
 
     if (!message) {

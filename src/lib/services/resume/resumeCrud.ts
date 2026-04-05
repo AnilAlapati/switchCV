@@ -8,6 +8,7 @@ import type { ResumeProfile } from "@/types";
 import { logger } from "@/lib/logger";
 import { generateNumericResumeId } from "@/lib/numericIdGenerator";
 import { cacheService } from "@/lib/services/cacheService";
+import { incrementLifetimeResumeCount } from "@/lib/services/resumeQuotaService";
 
 /** Input data for creating a blank resume */
 export interface CreateResumeInput {
@@ -87,6 +88,9 @@ export async function createResume(userId: string, data: CreateResumeInput) {
   };
 
   await adminDb.collection("resumes").doc(resumeId).set(resumeData);
+
+  // Track lifetime creation count so quota survives hard deletes
+  await incrementLifetimeResumeCount(userId);
 
   return { resumeId, numericId };
 }
@@ -172,6 +176,9 @@ export async function saveGeneratedResume(
       updatedAt: resumeDocument.updatedAt,
       numericId,
     });
+
+  // Track lifetime creation count so quota survives hard deletes
+  await incrementLifetimeResumeCount(userId);
 
   return { resumeId, numericId };
 }
