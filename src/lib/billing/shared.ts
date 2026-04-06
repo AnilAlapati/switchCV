@@ -29,7 +29,7 @@ export const MODEL_PRICING: Record<string, { input: number; output: number }> =
   };
 
 export const BUDGET_CAPS = {
-  basic: 0.1,
+  basic: 0.5, // ~25-40 full resume sessions/month at gemini-2.5-flash pricing
   premium: 30.0,
   enterprise: 70.0,
 } as const;

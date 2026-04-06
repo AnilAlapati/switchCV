@@ -112,12 +112,26 @@ service cloud.firestore {
         'featureFlags',
         'policyAcceptances',
         'privacySettings',
-        'profile'
+        'profile',
+        'lifetimeResumeCreations'
       ]);
     }
 
     function userDocHasRequiredIdentity(userId) {
       return request.resource.data.uid == userId && request.resource.data.email is string;
+    }
+
+    // lifetimeResumeCreations is managed exclusively by the Admin SDK.
+    // Clients may not set it on create (other than the implicit 0 default)
+    // and may not change it on update.
+    function lifetimeCounterIsReadOnly() {
+      let fieldAbsent = !('lifetimeResumeCreations' in request.resource.data);
+      let createWithZero = resource == null
+        && request.resource.data.lifetimeResumeCreations == 0;
+      let valueUnchanged = resource != null
+        && request.resource.data.lifetimeResumeCreations
+           == resource.data.get('lifetimeResumeCreations', 0);
+      return fieldAbsent || createWithZero || valueUnchanged;
     }
 
     // Extracted user creation validation
@@ -127,7 +141,8 @@ service cloud.firestore {
         && userDocHasRequiredIdentity(userId)
         && roleTransitionAllowed()
         && tierTransitionAllowed()
-        && recruiterFlagTransitionAllowed();
+        && recruiterFlagTransitionAllowed()
+        && lifetimeCounterIsReadOnly();
     }
 
     // Extracted user update validation
@@ -137,7 +152,8 @@ service cloud.firestore {
         && existingDocHasCorrectIdentity(userId)
         && roleTransitionAllowed()
         && tierTransitionAllowed()
-        && recruiterFlagTransitionAllowed();
+        && recruiterFlagTransitionAllowed()
+        && lifetimeCounterIsReadOnly();
     }
 
     // Users can read their own user document. Writes are limited to safe fields only.

@@ -124,14 +124,28 @@ Rules:
 - If a field is not present, omit it entirely (do not set it to null or empty string).
 - For experience entries, keep the original wording of descriptions and achievements.
 - For skills, list each distinct skill as a separate string.
+- CERTIFICATIONS go into the skills array (e.g. "AWS Certified Cloud Practitioner", "PMP", "AHPRA"). Never drop them.
+
 - CONVERSATION CONTEXT: When the input is a conversation transcript, [ASSISTANT] lines are questions. However, if the [USER] confirms, agrees, or says "yes" to specific details mentioned in the [ASSISTANT] question, those confirmed details ARE valid resume data. For example, if [ASSISTANT] asks "Did you work at Google from 2020 to 2022?" and [USER] says "Yes, I was a Senior Engineer there", extract company="Google", duration="2020 - 2022", title="Senior Engineer".
+
+- FIRST-REPLY NAME RULE: When the [ASSISTANT] asks for name, email, and target role together and the [USER] responds with comma-separated or conjunction-joined values (e.g. "Anil, email@gmail.com and looking for AI roles"), the text BEFORE the first comma or "and" IS the person's name. Extract it. A single first name (like "Anil") is sufficient — do NOT require "my name is" phrasing.
+
+- BULK PASTE CONTACT INFO: When the [USER] pastes a large block of text (like a resume or CV), scan the ENTIRE paste for contact information and extract ALL of the following if present:
+  * Phone numbers — any format: "+91 9916179765", "(+91) 9916179765", "9916179765", "+1-555-123-4567"
+  * LinkedIn URLs — any format: "linkedin.com/in/username", "https://www.linkedin.com/in/username"
+  * GitHub URLs — any format: "github.com/username", "https://github.com/username"
+  * Email addresses
+  * Portfolio or personal website URLs
+  * Location (city, country) if explicitly listed as an address/location header
+  Do NOT skip these because they appear in a header or sidebar section of the paste.
+
 - CRITICAL — Skills vs Experience: A list of technology keywords (e.g. "API Nextjs UiPath Firebase", "prompt engineering vibe coding") is ALWAYS a skills list, NOT a job title or company name. Only extract an experience entry when there is a clear human job title (e.g. "Software Engineer", "RPA Developer", "Project Manager") paired with a clear organization name (e.g. "JPMorgan Chase", "IBM India", "Startup XYZ").
 - If a section is labelled "KEY SKILLS", "SKILLS", "TECHNICAL SKILLS", or "CERTIFICATION", its contents are NOT work experience.
 - PROJECTS: If a section is labelled "PROJECTS" or the user describes personal/side projects, freelance work, or open-source contributions, extract these into the "projects" array — NOT as experience entries. Each project should have a name, description, and optionally technologies used.
 - For dates, preserve the original format found in the text.
 - For names, use the full name as written.
 - For phone numbers, keep the original formatting.
-- LOCATION: Only extract location if the user explicitly states where they live or are based (e.g. "I'm based in San Francisco", "located in London", "from Hyderabad"). NEVER infer location from company names (JPMC does not mean New York), university names, or any other indirect evidence. If the user did not explicitly share their location, do NOT include the location field.
+- LOCATION: Only extract location if the user explicitly states where they live or are based (e.g. "I'm based in San Francisco", "located in London", "from Hyderabad"), or if a clear address/location line appears in a pasted resume header. NEVER infer location from company names (JPMC does not mean New York) or university names.
 - If the input contains no extractable resume data, return an empty object.
 
 EXAMPLE — correct classification (few-shot):
@@ -152,6 +166,16 @@ EXAMPLE — correct classification (few-shot):
 [USER]: Yes, as a Backend Engineer. I built the payment microservice.
 → experience entry: title="Backend Engineer", company="Amazon", duration="2019 - 2021", description="Built the payment microservice".
   The user CONFIRMED the details from the assistant's question — extract them.
+
+[ASSISTANT]: Hey! What's your name, email, and what role are you targeting?
+[USER]: Anil , anilalapati.66@gmail.com and Looking for Gen AI or Applied AI mid to senior level roles
+→ name="Anil", email="anilalapati.66@gmail.com". The text before the first comma is the name; the email is in standard format.
+
+[USER]: (+91) 9916179765\nHyderabad, INDIA\nanilalapati.66@gmail.com\nhttps://www.linkedin.com/in/anilalapati\nKEY SKILLS\nMicroservices SQL React.js Python\nRPA Developer\nIBM India Pvt Ltd\n05-2015 - 03-2020
+→ phone="(+91) 9916179765", location="Hyderabad, India", email="anilalapati.66@gmail.com", linkedin="https://www.linkedin.com/in/anilalapati"
+  skills=["Microservices","SQL","React.js","Python"]
+  experience entry: title="RPA Developer", company="IBM India Pvt Ltd", duration="05-2015 - 03-2020"
+  ALL contact fields must be extracted even though they appeared in a header/sidebar format.
 
 [ASSISTANT]: Tell me about any side projects or personal work.
 [USER]: I built a budgeting app called SpendWise using React and Firebase. It's on GitHub.

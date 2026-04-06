@@ -128,11 +128,13 @@ describe("BillingService", () => {
       expect(allowed).toBe(true);
     });
 
-    it("should return false and log error on failure", async () => {
+    it("should return true and log error on failure (fail open)", async () => {
       mockDoc.get.mockRejectedValue(new Error("Firebase error"));
 
       const allowed = await BillingService.checkBudget(userId, "basic");
-      expect(allowed).toBe(false);
+      // Fail open: a transient Firestore error must not lock out users.
+      // Per-hour rate limits still bound worst-case cost during an outage.
+      expect(allowed).toBe(true);
     });
   });
 

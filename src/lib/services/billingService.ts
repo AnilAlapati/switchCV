@@ -18,15 +18,10 @@ import {
   MODEL_PRICING,
   BUDGET_CAPS,
   BILLING_CONFIG,
-  calculateAicost
+  calculateAicost,
 } from "../billing/shared";
 
-export {
-  MODEL_PRICING,
-  BUDGET_CAPS,
-  BILLING_CONFIG,
-  calculateAicost
-};
+export { MODEL_PRICING, BUDGET_CAPS, BILLING_CONFIG, calculateAicost };
 
 export class BillingService {
   /**
@@ -54,7 +49,9 @@ export class BillingService {
     operation: string = "agentic_workflow",
   ): Promise<void> {
     const shardId = Math.floor(Math.random() * BILLING_CONFIG.NUM_SHARDS);
-    const shardRef = adminDb.collection(BILLING_CONFIG.SHARD_COLLECTION).doc(`shard_${shardId}`);
+    const shardRef = adminDb
+      .collection(BILLING_CONFIG.SHARD_COLLECTION)
+      .doc(`shard_${shardId}`);
 
     const date = new Date();
     const billingKey = `${date.getFullYear()}-${(date.getMonth() + 1)
@@ -173,9 +170,14 @@ export class BillingService {
 
       return true;
     } catch (error) {
-      logger.error({ err: error, userId }, "Failed to check budget");
-      // Fail open or closed? Security blocker says "bankruptcy-level costs", so fail CLOSED.
-      return false;
+      logger.error(
+        { err: error, userId },
+        "Failed to check budget — failing open to avoid user lockout",
+      );
+      // Fail OPEN: a transient Firestore error must not lock out users.
+      // Per-hour rate limits (60 conversation_turns, 20 ai_generation) remain active
+      // and bound worst-case cost to well under $0.05 per outage window.
+      return true;
     }
   }
 

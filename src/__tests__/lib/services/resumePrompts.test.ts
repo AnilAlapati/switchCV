@@ -330,7 +330,7 @@ IBM (2015-2018) - Junior Developer
   describe("Regression: Never re-ask system prompt rules", () => {
     it("should contain NEVER RE-ASK rule in system prompt", () => {
       expect(RESUME_ASSISTANT_SYSTEM_PROMPT).toContain(
-        "CRITICAL RULE — NEVER RE-ASK FOR INFORMATION THE USER ALREADY PROVIDED",
+        "CRITICAL RULE — CURRENTLY COLLECTED DATA IS THE GROUND TRUTH",
       );
     });
 
@@ -343,13 +343,13 @@ IBM (2015-2018) - Junior Developer
 
     it("should instruct AI to use CURRENTLY COLLECTED DATA before asking", () => {
       expect(RESUME_ASSISTANT_SYSTEM_PROMPT).toContain(
-        "re-read the ENTIRE previous conversation AND the CURRENTLY COLLECTED DATA section",
+        "NEVER ask for any field that is already present in CURRENTLY COLLECTED DATA",
       );
     });
 
     it("should instruct AI to confirm rather than re-ask", () => {
       expect(RESUME_ASSISTANT_SYSTEM_PROMPT).toContain(
-        "confirm what you understood",
+        "confirm what you captured",
       );
     });
   });
@@ -567,7 +567,7 @@ Maintained Java apps`,
       expect(prompt).toContain("REMAINING QUESTIONS ALLOWED: 1");
 
       // 4. System prompt contains NEVER RE-ASK rule
-      expect(prompt).toContain("NEVER RE-ASK FOR INFORMATION");
+      expect(prompt).toContain("CURRENTLY COLLECTED DATA IS THE GROUND TRUTH");
 
       // 5. AI should be told to check conversation before asking
       expect(prompt).toContain(
