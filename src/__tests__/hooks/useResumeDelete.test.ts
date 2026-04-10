@@ -156,7 +156,8 @@ describe("useResumeDelete", () => {
 
     const { result } = renderHook(() => useResumeDelete());
 
-    let deleteResult: { poolStats?: { poolSize: number } } | null = null;
+    let deleteResult: Awaited<ReturnType<typeof result.current.deleteResume>> =
+      null;
     await act(async () => {
       deleteResult = await result.current.deleteResume({
         method: "numeric-id",
@@ -164,6 +165,9 @@ describe("useResumeDelete", () => {
       });
     });
 
-    expect(deleteResult?.poolStats?.poolSize).toBe(5);
+    expect(
+      (deleteResult as { poolStats?: { poolSize: number } } | null)?.poolStats
+        ?.poolSize,
+    ).toBe(5);
   });
 });

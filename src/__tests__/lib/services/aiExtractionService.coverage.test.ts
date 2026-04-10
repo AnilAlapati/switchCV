@@ -100,9 +100,18 @@ const VALID_EXTRACTION = {
 };
 
 const mockObservationContext = {
-  observationId: "obs-123",
-  userId: "user-456",
+  requestId: "req-123",
   sessionId: "session-789",
+  userIdHash: "hash-456",
+  userTier: "enterprise" as const,
+  entrypoint: "resume_extract",
+  deployVersion: "test-build",
+  environment: "test",
+  conversationTurn: 1,
+  startedAt: new Date("2026-01-01T00:00:00Z"),
+  stages: {},
+  failureCount: 0,
+  fallbackCount: 0,
 };
 
 // ── extractWithStructuredOutput ────────────────────────────────────────
