@@ -4,6 +4,7 @@ import { getUserTier } from "@/lib/services/userService";
 import {
   getResume,
   updateResume,
+  updateResumeVisibility,
   deleteResume,
   trackResumeView,
 } from "@/lib/services/resumeService";
@@ -16,6 +17,7 @@ jest.mock("@/lib/services/userService", () => ({
 jest.mock("@/lib/services/resumeService", () => ({
   getResume: jest.fn(),
   updateResume: jest.fn(),
+  updateResumeVisibility: jest.fn().mockResolvedValue(undefined),
   deleteResume: jest.fn(),
   trackResumeView: jest.fn(),
 }));
@@ -89,13 +91,10 @@ describe("PATCH /api/resumes/[id]", () => {
     const data = await response.json();
     expect(data.success).toBe(true);
     expect(data.isPublic).toBe(true);
-    expect(mockUpdateResume).toHaveBeenCalledWith(
+    // Route now uses updateResumeVisibility instead of updateResume for PATCH
+    expect(updateResumeVisibility as jest.Mock).toHaveBeenCalledWith(
       "42",
-      "user-123",
-      expect.objectContaining({
-        isPublic: true,
-        visibility: "public",
-      }),
+      true,
     );
   });
 

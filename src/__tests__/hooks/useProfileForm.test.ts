@@ -16,6 +16,9 @@ describe("useProfileForm", () => {
         phone: { value: "", visibility: "masked" },
       },
       projects: [],
+      certifications: [],
+      languages: [],
+      awards: [],
     });
   });
 
@@ -117,7 +120,7 @@ describe("useProfileForm", () => {
       });
 
       expect(result.current.profile.education![0].institution).toBe(
-        "University"
+        "University",
       );
     });
 

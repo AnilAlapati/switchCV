@@ -13,6 +13,13 @@ jest.mock("@/hooks/useTier");
 jest.mock("@/hooks/useUserProfile", () => ({
   useUserProfile: jest.fn(() => ({ role: "jobseeker", loading: false })),
 }));
+jest.mock("@/hooks/useResumeQuota", () => ({
+  useResumeQuota: jest.fn(() => ({
+    canCreate: true,
+    limit: 50,
+    loading: false,
+  })),
+}));
 jest.mock("next/navigation", () => ({
   useRouter: jest.fn(),
 }));
@@ -59,6 +66,42 @@ jest.mock("@/components/create-resume/ResumeProgress", () => ({
   ResumeProgress: ({ progress }: { progress: number }) => (
     <div data-testid="resume-progress">{progress}%</div>
   ),
+}));
+
+// Additional component mocks required by page imports
+jest.mock("@/components/create-resume/CreateResumeWelcome", () => ({
+  CreateResumeWelcome: () => (
+    <div data-testid="create-resume-welcome">Your AI Career Agent</div>
+  ),
+}));
+jest.mock("@/components/create-resume/SessionRestoreDialog", () => ({
+  SessionRestoreDialog: () => null,
+}));
+jest.mock("@/components/resume/TemplateRenderer", () => ({
+  TemplateRenderer: () => <div data-testid="template-renderer" />,
+}));
+jest.mock("@/components/dashboard/DashboardBackground", () => ({
+  DashboardBackground: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+}));
+jest.mock("@/lib/templates/resumeTemplates/signal-v1", () => ({
+  signalV1Template: { id: "signal-v1", name: "Signal", sections: [] },
+}));
+jest.mock("@/app/create-resume/previewProfile", () => ({
+  mapSessionDataToPreviewProfile: jest.fn(() => ({})),
+}));
+jest.mock("sonner", () => ({
+  toast: { error: jest.fn(), success: jest.fn() },
+}));
+// Logger mock needed by useResumeCreation hook
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+  },
 }));
 
 describe("CreateResume Page", () => {

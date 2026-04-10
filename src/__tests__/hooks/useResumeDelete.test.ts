@@ -40,8 +40,8 @@ describe("useResumeDelete", () => {
       "/api/resumes/123",
       expect.objectContaining({
         method: "DELETE",
-        headers: { "Content-Type": "application/json" }
-      })
+        headers: { "Content-Type": "application/json" },
+      }),
     );
   });
 
@@ -104,5 +104,66 @@ describe("useResumeDelete", () => {
     });
 
     expect(result.current.error).toBeNull();
+  });
+
+  it("should handle non-Error thrown objects gracefully", async () => {
+    (global.fetch as jest.Mock).mockRejectedValue("string error");
+    const { result } = renderHook(() => useResumeDelete());
+
+    await act(async () => {
+      await result.current.deleteResume({ method: "numeric-id", value: 1 });
+    });
+
+    expect(result.current.error).toEqual({
+      message: "Failed to delete resume",
+      code: "NETWORK_ERROR",
+    });
+  });
+
+  it("should use default error message when API returns no message", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: jest.fn().mockResolvedValue({}),
+    });
+
+    const { result } = renderHook(() => useResumeDelete());
+
+    await act(async () => {
+      await result.current.deleteResume({ method: "document-id", value: "x" });
+    });
+
+    expect(result.current.error?.message).toBe("Failed to delete resume");
+    expect(result.current.error?.code).toBe("500");
+  });
+
+  it("should return pool stats on successful numeric-id delete", async () => {
+    const responseBody = {
+      success: true,
+      message: "Deleted",
+      numericId: 42,
+      poolStats: {
+        poolSize: 5,
+        maxSize: 100,
+        utilizationRate: 0.05,
+        totalRecycled: 1,
+      },
+    };
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: jest.fn().mockResolvedValue(responseBody),
+    });
+
+    const { result } = renderHook(() => useResumeDelete());
+
+    let deleteResult: { poolStats?: { poolSize: number } } | null = null;
+    await act(async () => {
+      deleteResult = await result.current.deleteResume({
+        method: "numeric-id",
+        value: 42,
+      });
+    });
+
+    expect(deleteResult?.poolStats?.poolSize).toBe(5);
   });
 });

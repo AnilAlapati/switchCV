@@ -164,6 +164,9 @@ describe("resumeEditor Utilities", () => {
         experience: [],
         education: [],
         projects: [],
+        certifications: [],
+        languages: [],
+        awards: [],
         contact: {
           email: { value: "", visibility: "masked" },
           phone: { value: "", visibility: "masked" },

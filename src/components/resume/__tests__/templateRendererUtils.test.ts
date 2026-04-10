@@ -2,6 +2,9 @@ import {
   normalizeSkills,
   normalizeTimelineItems,
   normalizeProjects,
+  normalizeCertifications,
+  normalizeLanguages,
+  normalizeAwards,
 } from "@/components/resume/templateRendererUtils";
 
 describe("templateRendererUtils", () => {
@@ -144,6 +147,145 @@ describe("templateRendererUtils", () => {
     it("filters out projects without a headline (name)", () => {
       const projects = [{ role: "No Name" }];
       expect(normalizeProjects(projects)).toHaveLength(0);
+    });
+  });
+
+  describe("normalizeCertifications", () => {
+    it("returns empty array for non-array values", () => {
+      expect(normalizeCertifications(null)).toEqual([]);
+      expect(normalizeCertifications(undefined)).toEqual([]);
+      expect(normalizeCertifications("cert")).toEqual([]);
+    });
+
+    it("maps certification fields correctly", () => {
+      const certs = [
+        {
+          name: "AWS Solutions Architect",
+          issuer: "Amazon",
+          issueDate: "2023-01",
+          expiryDate: "2026-01",
+          credentialId: "ABC123",
+          credentialUrl: "https://example.com/cert",
+        },
+      ];
+      const normalized = normalizeCertifications(certs);
+      expect(normalized).toHaveLength(1);
+      expect(normalized[0].headline).toBe("AWS Solutions Architect");
+      expect(normalized[0].subline).toBe("Amazon");
+      expect(normalized[0].meta).toContain("2023-01");
+      expect(normalized[0].meta).toContain("Exp 2026-01");
+      expect(normalized[0].description).toBe("Credential ID: ABC123");
+      expect(normalized[0].url).toBe("https://example.com/cert");
+    });
+
+    it("handles certification without expiry date", () => {
+      const certs = [{ name: "PMP", issuer: "PMI", issueDate: "2022-06" }];
+      const normalized = normalizeCertifications(certs);
+      expect(normalized[0].meta).toBe("2022-06");
+    });
+
+    it("handles certification without any dates", () => {
+      const certs = [{ name: "Cert", issuer: "Org" }];
+      const normalized = normalizeCertifications(certs);
+      expect(normalized[0].meta).toBeUndefined();
+    });
+
+    it("handles certification without credentialId", () => {
+      const certs = [{ name: "Cert", issuer: "Org" }];
+      const normalized = normalizeCertifications(certs);
+      expect(normalized[0].description).toBeUndefined();
+    });
+
+    it("filters out certifications without a name", () => {
+      const certs = [{ issuer: "No Name" }];
+      expect(normalizeCertifications(certs)).toHaveLength(0);
+    });
+  });
+
+  describe("normalizeLanguages", () => {
+    it("returns empty array for non-array values", () => {
+      expect(normalizeLanguages(null)).toEqual([]);
+      expect(normalizeLanguages(undefined)).toEqual([]);
+      expect(normalizeLanguages("en")).toEqual([]);
+    });
+
+    it("maps language fields correctly", () => {
+      const langs = [
+        { language: "English", proficiency: "native" },
+        { language: "Spanish", proficiency: "intermediate" },
+      ];
+      const normalized = normalizeLanguages(langs);
+      expect(normalized).toEqual([
+        { language: "English", proficiency: "native" },
+        { language: "Spanish", proficiency: "intermediate" },
+      ]);
+    });
+
+    it("defaults proficiency to 'conversational' when not provided", () => {
+      const langs = [{ language: "French" }];
+      const normalized = normalizeLanguages(langs);
+      expect(normalized[0].proficiency).toBe("conversational");
+    });
+
+    it("filters out items without a language field", () => {
+      const langs = [
+        { language: "English", proficiency: "native" },
+        { proficiency: "basic" }, // No language
+        { language: null }, // Null language
+      ];
+      const normalized = normalizeLanguages(langs);
+      expect(normalized).toHaveLength(1);
+      expect(normalized[0].language).toBe("English");
+    });
+  });
+
+  describe("normalizeAwards", () => {
+    it("returns empty array for non-array values", () => {
+      expect(normalizeAwards(null)).toEqual([]);
+      expect(normalizeAwards(undefined)).toEqual([]);
+      expect(normalizeAwards("award")).toEqual([]);
+    });
+
+    it("maps award fields using title", () => {
+      const awards = [
+        {
+          title: "Best Paper Award",
+          issuer: "ACM",
+          date: "2023-06",
+          description: "For outstanding research",
+        },
+      ];
+      const normalized = normalizeAwards(awards);
+      expect(normalized[0]).toEqual({
+        headline: "Best Paper Award",
+        subline: "ACM",
+        meta: "2023-06",
+        description: "For outstanding research",
+      });
+    });
+
+    it("maps award fields using name fallback", () => {
+      const awards = [{ name: "Employee of the Year", year: "2024" }];
+      const normalized = normalizeAwards(awards);
+      expect(normalized[0].headline).toBe("Employee of the Year");
+      expect(normalized[0].meta).toBe("2024");
+    });
+
+    it("prefers title over name", () => {
+      const awards = [{ title: "Primary", name: "Secondary" }];
+      const normalized = normalizeAwards(awards);
+      expect(normalized[0].headline).toBe("Primary");
+    });
+
+    it("prefers date over year", () => {
+      const awards = [{ title: "Award", date: "2023-01", year: "2023" }];
+      const normalized = normalizeAwards(awards);
+      expect(normalized[0].meta).toBe("2023-01");
+    });
+
+    it("filters out awards without a headline", () => {
+      const awards = [{ issuer: "No Title" }];
+      expect(normalizeAwards(awards)).toHaveLength(0);
     });
   });
 });

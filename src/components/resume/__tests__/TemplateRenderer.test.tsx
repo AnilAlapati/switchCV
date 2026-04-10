@@ -3,7 +3,8 @@ import { render, screen } from "@testing-library/react";
 import { TemplateRenderer } from "@/components/resume/TemplateRenderer";
 import { ResumeTemplate, ResumeProfile } from "@/types";
 type ViewerAccessMeta = Record<string, unknown>;
-const AnyTemplateRenderer = TemplateRenderer as unknown as React.ComponentType<any>;
+const AnyTemplateRenderer =
+  TemplateRenderer as unknown as React.ComponentType<any>;
 
 const mockTemplate = {
   id: "test-template",
@@ -379,7 +380,9 @@ describe("TemplateRenderer", () => {
   });
 
   it("renders all sections when data is provided", () => {
-    render(<AnyTemplateRenderer template={mockTemplate} data={mockData as any} />);
+    render(
+      <AnyTemplateRenderer template={mockTemplate} data={mockData as any} />,
+    );
 
     expect(screen.getAllByText("Skills")[0]).toBeInTheDocument();
     expect(screen.getAllByText("React")[0]).toBeInTheDocument();
@@ -549,7 +552,10 @@ describe("TemplateRenderer", () => {
       },
     };
     render(
-      <AnyTemplateRenderer template={mockTemplate} data={badPhoneData as any} />,
+      <AnyTemplateRenderer
+        template={mockTemplate}
+        data={badPhoneData as any}
+      />,
     );
     // Just ensure it renders the text at least
     expect(screen.getAllByText("no-digits")[0]).toBeInTheDocument();
@@ -562,7 +568,10 @@ describe("TemplateRenderer", () => {
       viewerAccess: { isMasked: true },
     };
     render(
-      <AnyTemplateRenderer template={mockTemplate} data={dataMaskedNull as any} />,
+      <AnyTemplateRenderer
+        template={mockTemplate}
+        data={dataMaskedNull as any}
+      />,
     );
     // Line 189 should be hit (returns null for each)
     expect(
@@ -573,14 +582,19 @@ describe("TemplateRenderer", () => {
   it("covers default template routing and general logic", () => {
     const standardTemplate = { ...mockTemplate, id: "standard-v1" };
     render(
-      <AnyTemplateRenderer template={standardTemplate} data={mockData as any} />,
+      <AnyTemplateRenderer
+        template={standardTemplate}
+        data={mockData as any}
+      />,
     );
     // This should fall through to the general logic and Noir renderer
     expect(screen.getAllByText(/John/).length).toBeGreaterThan(0);
   });
 
   it("covers contact visibility branches in general logic", () => {
-    const standardTemplate = { ...mockTemplate, id: "standard-v1" };
+    // Use generic template ID so the generic TemplateRenderer logic is exercised
+    // (standard-v1 delegates to StandardResumeRenderer which lacks visibility logic)
+    const genericTemplate = { ...mockTemplate, id: "test-template" };
 
     // Test public with no value
     const dataNoContact = {
@@ -593,7 +607,7 @@ describe("TemplateRenderer", () => {
     };
     render(
       <AnyTemplateRenderer
-        template={standardTemplate}
+        template={genericTemplate}
         data={dataNoContact as any}
       />,
     );
@@ -608,7 +622,7 @@ describe("TemplateRenderer", () => {
     };
     render(
       <AnyTemplateRenderer
-        template={standardTemplate}
+        template={genericTemplate}
         data={dataMaskedNoValue as any}
       />,
     );
@@ -622,7 +636,7 @@ describe("TemplateRenderer", () => {
     };
     render(
       <AnyTemplateRenderer
-        template={standardTemplate}
+        template={genericTemplate}
         data={dataRequest as any}
       />,
     );
@@ -639,7 +653,7 @@ describe("TemplateRenderer", () => {
     };
     render(
       <AnyTemplateRenderer
-        template={standardTemplate}
+        template={genericTemplate}
         data={dataNoDigits as any}
       />,
     );
@@ -657,19 +671,21 @@ describe("TemplateRenderer", () => {
   });
 
   it("covers remaining logic branches", () => {
-    const standardTemplate = { ...mockTemplate, id: "standard-v1" };
+    // Use generic template ID so the generic TemplateRenderer logic is exercised
+    // (standard-v1 delegates to StandardResumeRenderer which has different rendering)
+    const genericTemplate = { ...mockTemplate, id: "test-template" };
 
     // Line 124/127: data.viewerAccess missing or no scope
     const { viewerAccess: _, ...dataNoAccess } = mockData as any;
     render(
       <AnyTemplateRenderer
-        template={standardTemplate}
+        template={genericTemplate}
         data={{ ...dataNoAccess, viewerAccess: undefined } as any}
       />,
     );
     render(
       <AnyTemplateRenderer
-        template={standardTemplate}
+        template={genericTemplate}
         data={{ ...dataNoAccess, viewerAccess: { isOwner: false } } as any}
       />,
     );
@@ -681,7 +697,7 @@ describe("TemplateRenderer", () => {
     };
     render(
       <AnyTemplateRenderer
-        template={standardTemplate}
+        template={genericTemplate}
         data={dataUnauthorized as any}
       />,
     );
@@ -692,7 +708,7 @@ describe("TemplateRenderer", () => {
     };
     render(
       <AnyTemplateRenderer
-        template={standardTemplate}
+        template={genericTemplate}
         data={dataNoScope as any}
       />,
     );
@@ -705,7 +721,7 @@ describe("TemplateRenderer", () => {
     };
     render(
       <AnyTemplateRenderer
-        template={standardTemplate}
+        template={genericTemplate}
         data={dataMaskedWithVal as any}
       />,
     );
@@ -721,7 +737,7 @@ describe("TemplateRenderer", () => {
     };
     render(
       <AnyTemplateRenderer
-        template={standardTemplate}
+        template={genericTemplate}
         data={dataMaskedNoVal as any}
       />,
     );
@@ -729,7 +745,7 @@ describe("TemplateRenderer", () => {
     // Line 268: getFieldValue default branch (Missing value)
     const templateWithMissingField = {
       ...mockTemplate,
-      id: "standard-v1",
+      id: "test-template",
       sections: [
         {
           id: "custom",
@@ -754,7 +770,10 @@ describe("TemplateRenderer", () => {
       summary: "Summary line 1. Summary line 2.",
     };
     render(
-      <AnyTemplateRenderer template={standardTemplate} data={dataNoName as any} />,
+      <AnyTemplateRenderer
+        template={genericTemplate}
+        data={dataNoName as any}
+      />,
     );
     expect(screen.getAllByText("Title From Data").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Summary line 1").length).toBeGreaterThan(0);
@@ -767,7 +786,7 @@ describe("TemplateRenderer", () => {
     };
     render(
       <AnyTemplateRenderer
-        template={standardTemplate}
+        template={genericTemplate}
         data={dataNothing as any}
       />,
     );

@@ -66,7 +66,7 @@ describe("ReviewStep", () => {
     render(
       <ReviewStep
         profile={{ experience: [], education: [], skills: [], projects: [] }}
-      />
+      />,
     );
 
     expect(screen.getByText("No experience added")).toBeInTheDocument();
@@ -90,8 +90,9 @@ describe("ReviewStep", () => {
     };
     render(<ReviewStep profile={partialProfile} />);
 
-    expect(screen.getByText(/B/)).toBeInTheDocument();
-    expect(screen.getByText(/A/)).toBeInTheDocument();
+    // Use getAllByText since "A" appears in both experience company and Awards section title
+    expect(screen.getByText(/\bB\b/)).toBeInTheDocument();
+    expect(screen.getAllByText(/\bA\b/).length).toBeGreaterThan(0);
     expect(screen.getByText(/Present/)).toBeInTheDocument();
     expect(screen.getByText("P")).toBeInTheDocument();
     // Should not have URL dash

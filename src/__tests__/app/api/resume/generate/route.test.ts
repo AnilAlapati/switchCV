@@ -42,12 +42,25 @@ jest.mock("@/lib/services/resumeService", () => ({
   getResumeCount: jest.fn(),
 }));
 
+// Mock resumeQuotaService — route now uses checkResumeCreationQuota instead of getResumeCount
+jest.mock("@/lib/services/resumeQuotaService", () => ({
+  checkResumeCreationQuota: jest
+    .fn()
+    .mockResolvedValue({ allowed: true, current: 0, limit: 50 }),
+}));
+
+// Mock featureFlagService — route checks feature flag for v3 function-calling pipeline
+jest.mock("@/lib/services/featureFlagService", () => ({
+  isFeatureEnabled: jest.fn().mockResolvedValue(false),
+}));
+
 jest.mock("@/lib/services/resumeGenerationQueue", () => ({
   createGenerationJob: jest.fn(),
 }));
 
 jest.mock("@/lib/services/resumeGenerationOrchestrator", () => ({
   processSyncGeneration: jest.fn(),
+  processFunctionCallingGeneration: jest.fn(),
 }));
 
 describe("POST /api/resume/generate", () => {

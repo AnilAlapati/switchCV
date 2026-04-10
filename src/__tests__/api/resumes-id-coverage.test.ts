@@ -39,6 +39,7 @@ import * as route from "@/app/api/resumes/[id]/route";
 jest.mock("@/lib/services/resumeService", () => ({
   getResume: jest.fn(),
   updateResume: jest.fn(),
+  updateResumeVisibility: jest.fn().mockResolvedValue(undefined),
   deleteResume: jest.fn(),
   trackResumeView: jest.fn(),
 }));

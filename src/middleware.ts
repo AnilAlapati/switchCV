@@ -42,7 +42,12 @@ const RATE_LIMIT_TIERS: Array<{
 ];
 
 /** Paths exempt from rate limiting */
-const RATE_LIMIT_EXEMPT = ["/api/system-config", "/api/docs"];
+const RATE_LIMIT_EXEMPT = [
+  "/api/health", // Has its own 30s result cache — no quota risk
+  "/api/health/infra", // Same: internal infra health check
+  "/api/system-config",
+  "/api/docs",
+];
 
 interface RateLimitEntry {
   count: number;
