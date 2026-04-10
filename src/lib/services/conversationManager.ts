@@ -220,7 +220,8 @@ export class ConversationManager {
           // Phrases like "Interested In Vibecoding" or "Looking For AI Roles"
           // can be mis-extracted from messages like "I am interested in vibecoding".
           if (key === "name") {
-            const existing = (this.collectedData as Record<string, unknown>).name;
+            const existing = (this.collectedData as Record<string, unknown>)
+              .name;
             if (typeof existing === "string" && existing.trim().length > 0) {
               // Only allow overwrite if the new value looks like a real personal name:
               // 1-3 words, none of which are common non-name words.
