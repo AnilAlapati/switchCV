@@ -319,8 +319,28 @@ export function toErrorMessage(label: string, claims: string[]): string | null {
   return `${label}: ${claims.slice(0, 3).join(", ")}`;
 }
 
+// Placeholder strings that an LLM may write when it doesn't know the value.
+// These must be treated as "empty" by validation logic.
+const PLACEHOLDER_VALUES = new Set([
+  "missing",
+  "n/a",
+  "na",
+  "unknown",
+  "tbd",
+  "todo",
+  "placeholder",
+  "none",
+  "[unknown]",
+  "[missing]",
+  "[n/a]",
+]);
+
 export function isNonEmptyString(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length > 0;
+  return (
+    typeof value === "string" &&
+    value.trim().length > 0 &&
+    !PLACEHOLDER_VALUES.has(value.trim().toLowerCase())
+  );
 }
 
 export function asRecord(value: unknown): Record<string, unknown> | null {

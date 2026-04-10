@@ -78,10 +78,46 @@ export function validateStructuredResumeContract(
     if (!Array.isArray(experience)) {
       errors.push("Experience must be an array");
     } else {
+      // Section-header words that should never appear as a job title.
+      // These are misidentified entries extracted from non-experience sections
+      // (e.g. "LANGUAGES: English" parsed as title="LANGUAGES", company="English").
+      const SECTION_HEADER_TITLES = new Set([
+        "languages",
+        "language",
+        "skills",
+        "key skills",
+        "technical skills",
+        "core competencies",
+        "competencies",
+        "certification",
+        "certifications",
+        "licenses",
+        "projects",
+        "education",
+        "summary",
+        "objective",
+        "profile",
+        "about",
+        "contact",
+        "references",
+        "awards",
+        "achievements",
+        "hobbies",
+        "interests",
+        "publications",
+        "volunteer",
+      ]);
+
       experience.forEach((entry, index) => {
         const record = asRecord(entry);
         if (!record) {
           errors.push(`Experience entry at index ${index} must be an object`);
+          return;
+        }
+
+        const titleValue = (record.title ?? record.role ?? "") as string;
+        // Skip validation for entries that are clearly misidentified section headers
+        if (SECTION_HEADER_TITLES.has(titleValue.trim().toLowerCase())) {
           return;
         }
 
