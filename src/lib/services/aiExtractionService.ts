@@ -116,6 +116,30 @@ function looksLikeSkillsList(value: string): boolean {
   return techCount / tokens.length >= 0.85 && tokens.length >= 2;
 }
 
+/**
+ * Returns true when a string looks like a resume section header rather than
+ * a job title, company, degree, or institution. These get misclassified by
+ * the AI when users paste raw resume text with section labels.
+ */
+const SECTION_HEADER_PATTERN =
+  /^(languages?|references?|hobbies|interests|certifications?|certificates?|awards?|publications?|objective|summary|contact( info(rmation)?)?|personal (info|details)|declaration|social links?)$/i;
+
+function looksLikeSectionHeader(value: string): boolean {
+  return SECTION_HEADER_PATTERN.test(value.trim());
+}
+
+/**
+ * Returns true when text looks like conversational/frustration text
+ * rather than actual resume data (degree, institution, etc.).
+ * E.g. "what are you saying", "unable to understand", "that's wrong"
+ */
+const CONVERSATIONAL_PATTERN =
+  /\b(what are you|unable to|i don'?t understand|that'?s wrong|can you|please fix|you are|nothing|just see|how much|why (is|isn'?t|are|does)|showing|preview|update|wrong name|fix it)\b/i;
+
+function looksLikeConversationalText(value: string): boolean {
+  return CONVERSATIONAL_PATTERN.test(value.trim());
+}
+
 /** System prompt optimised for extraction (not generation). */
 const EXTRACTION_SYSTEM_PROMPT = `You are a resume data extraction assistant. Your ONLY task is to extract structured fields from a conversation transcript where a user is describing their resume.
 
@@ -209,7 +233,20 @@ NEGATIVE EXAMPLES — return {} (empty object) for these kinds of messages:
 → {} for the name field — personal interest statement. NEVER treat "I like [topic]" or "I am [adjective/verb phrase]" as a name.
 
 [USER]: I am passionate about machine learning and want to pivot into AI research
-→ {} for the name field — passion/goal statement. No person name here.`;
+→ {} for the name field — passion/goal statement. No person name here.
+
+[USER]: in preview you are showing the wrong name, thats what i am saying, can you update in preview?
+→ {} — this is a UI complaint about the preview. Do NOT extract "saying" or any other word as a name. Extract nothing.
+
+[USER]: what are you saying, unable to understand
+→ {} — this is user frustration. Do NOT create an education or experience entry from this. Extract nothing.
+
+[USER]: yes sir / ok sir
+→ {} — polite affirmative with no resume data.
+
+SECTION HEADER RULE: When the input contains section labels like "LANGUAGES", "REFERENCES", "HOBBIES", "SOCIAL LINKS", "DECLARATION", do NOT create experience or education entries from them. For example:
+- "LANGUAGES\\nEnglish\\nHindi\\nTelugu" → These are languages, NOT experience entries with title="LANGUAGES" company="English". Ignore or treat as skills.
+- "REFERENCES\\nAvailable upon request" → Ignore. Not experience or education.`;
 
 /** Options for the extraction call. */
 export interface ExtractionOptions {
@@ -635,7 +672,12 @@ function mapExtractionToRequirements(
   if (extracted.experience && extracted.experience.length > 0) {
     const validExperience = extracted.experience.filter(
       (exp) =>
-        !looksLikeSkillsList(exp.title) && !looksLikeSkillsList(exp.company),
+        !looksLikeSkillsList(exp.title) &&
+        !looksLikeSkillsList(exp.company) &&
+        !looksLikeSectionHeader(exp.title) &&
+        !looksLikeSectionHeader(exp.company) &&
+        !looksLikeConversationalText(exp.title) &&
+        !looksLikeConversationalText(exp.company),
     );
     if (validExperience.length > 0) {
       data.experience = validExperience.map((exp) => ({
@@ -649,13 +691,21 @@ function mapExtractionToRequirements(
   }
 
   if (extracted.education && extracted.education.length > 0) {
-    data.education = extracted.education.map((edu) => ({
-      degree: edu.degree,
-      institution: edu.institution,
-      year: edu.year,
-      major: edu.major,
-      gpa: edu.gpa,
-    }));
+    data.education = extracted.education
+      .filter(
+        (edu) =>
+          !looksLikeConversationalText(edu.degree) &&
+          !looksLikeConversationalText(edu.institution) &&
+          !looksLikeSectionHeader(edu.degree) &&
+          !looksLikeSectionHeader(edu.institution),
+      )
+      .map((edu) => ({
+        degree: edu.degree,
+        institution: edu.institution,
+        year: edu.year,
+        major: edu.major,
+        gpa: edu.gpa,
+      }));
   }
 
   if (extracted.skills && extracted.skills.length > 0) {

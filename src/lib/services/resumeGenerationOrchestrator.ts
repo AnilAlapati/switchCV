@@ -203,7 +203,7 @@ export async function processSyncGeneration(
     // extraction AI from misclassifying phrases like "live preview" as a name
     // or "name education skills" as self-description.
     const META_INTENT_PATTERN =
-      /\b(how much|live preview|i just see|just see|why (is|isn't|are)|can you see|that('s| is) wrong|nothing much|create (my |the )?resume(?: now)?|create now|generate (my |the )?resume)\b/i;
+      /\b(how much|live preview|i just see|just see|why (is|isn't|are)|can you see|can you update|that('s| is) wrong|nothing much|create (my |the )?resume(?: now)?|create now|generate (my |the )?resume|what are you saying|unable to understand|i don'?t understand|wrong name|showing the wrong|fix (it|the|my)|update (the |in )?preview|yes sir|ok sir)\.?\b/i;
     const currentMessageIsMetaIntent = META_INTENT_PATTERN.test(message);
 
     // NO regex fallback — if AI extraction fails, we return a user-friendly

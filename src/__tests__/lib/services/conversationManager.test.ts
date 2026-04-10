@@ -398,7 +398,7 @@ describe("ConversationManager", () => {
       expect(manager.getData().email).toBe("new@test.com");
     });
 
-    it("SHOULD overwrite experience array when new array has items", () => {
+    it("SHOULD merge experience array when new array has items (not full replace)", () => {
       const manager = new ConversationManager({
         experience: [
           {
@@ -427,8 +427,11 @@ describe("ConversationManager", () => {
         ],
       });
 
-      expect(manager.getData().experience).toHaveLength(2);
-      expect(manager.getData().experience![0].company).toBe("JPMC");
+      // Smart merge: keeps Old Corp + adds JPMC + IBM = 3 entries
+      expect(manager.getData().experience).toHaveLength(3);
+      expect(manager.getData().experience![0].company).toBe("Old Corp");
+      expect(manager.getData().experience![1].company).toBe("JPMC");
+      expect(manager.getData().experience![2].company).toBe("IBM");
     });
 
     it("should skip undefined and null values without erasing existing data", () => {

@@ -205,10 +205,55 @@ export class ConversationManager {
     for (const [key, value] of Object.entries(newData)) {
       if (value === undefined || value === null) continue;
 
-      // For arrays: only overwrite if the new array has items
+      // For arrays: smart merge to avoid overwriting data from previous turns.
+      // Experience/education/projects are merged by key fields; other arrays are replaced.
       if (Array.isArray(value)) {
         if (value.length > 0) {
-          (this.collectedData as Record<string, unknown>)[key] = value;
+          const existing = (this.collectedData as Record<string, unknown>)[key];
+          if (Array.isArray(existing) && existing.length > 0) {
+            if (key === "experience") {
+              // Merge by company+title to avoid losing earlier roles
+              const merged = [...(existing as ExperienceEntry[])];
+              for (const newEntry of value as ExperienceEntry[]) {
+                const duplicate = merged.some(
+                  (e) =>
+                    e.company?.toLowerCase() ===
+                      newEntry.company?.toLowerCase() &&
+                    e.title?.toLowerCase() === newEntry.title?.toLowerCase(),
+                );
+                if (!duplicate) merged.push(newEntry);
+              }
+              (this.collectedData as Record<string, unknown>)[key] = merged;
+            } else if (key === "education") {
+              // Merge by institution+degree
+              const merged = [...(existing as EducationEntry[])];
+              for (const newEntry of value as EducationEntry[]) {
+                const duplicate = merged.some(
+                  (e) =>
+                    e.institution?.toLowerCase() ===
+                      newEntry.institution?.toLowerCase() &&
+                    e.degree?.toLowerCase() === newEntry.degree?.toLowerCase(),
+                );
+                if (!duplicate) merged.push(newEntry);
+              }
+              (this.collectedData as Record<string, unknown>)[key] = merged;
+            } else if (key === "projects") {
+              // Merge by project name
+              const merged = [...(existing as ProjectEntry[])];
+              for (const newEntry of value as ProjectEntry[]) {
+                const duplicate = merged.some(
+                  (e) => e.name?.toLowerCase() === newEntry.name?.toLowerCase(),
+                );
+                if (!duplicate) merged.push(newEntry);
+              }
+              (this.collectedData as Record<string, unknown>)[key] = merged;
+            } else {
+              // Other arrays (e.g. skills): replace
+              (this.collectedData as Record<string, unknown>)[key] = value;
+            }
+          } else {
+            (this.collectedData as Record<string, unknown>)[key] = value;
+          }
         }
         continue;
       }
@@ -226,7 +271,7 @@ export class ConversationManager {
               // Only allow overwrite if the new value looks like a real personal name:
               // 1-3 words, none of which are common non-name words.
               const NON_NAME_WORDS =
-                /\b(interested|looking|excited|trying|working|building|learning|passionate|i am|i'm|my|the|a|an|make|suitable|roles|about|for|in|on|at|from|to|into|and|or|so|but|with|by)\b/i;
+                /\b(interested|looking|excited|trying|working|building|learning|passionate|saying|showing|update|preview|understand|unable|wrong|please|fix|create|generate|nothing|much|see|why|how|can|just|resume|i am|i'm|i don't|my|the|a|an|make|suitable|roles|about|for|in|on|at|from|to|into|and|or|so|but|with|by|sir|ok|yes|sure|go ahead)\b/i;
               const wordCount = value.trim().split(/\s+/).length;
               if (NON_NAME_WORDS.test(value) || wordCount > 4) {
                 // New extraction looks like a phrase/topic, not a person's name — keep existing
