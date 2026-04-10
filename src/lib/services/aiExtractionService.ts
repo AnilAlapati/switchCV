@@ -128,7 +128,7 @@ Rules:
 
 - CONVERSATION CONTEXT: When the input is a conversation transcript, [ASSISTANT] lines are questions. However, if the [USER] confirms, agrees, or says "yes" to specific details mentioned in the [ASSISTANT] question, those confirmed details ARE valid resume data. For example, if [ASSISTANT] asks "Did you work at Google from 2020 to 2022?" and [USER] says "Yes, I was a Senior Engineer there", extract company="Google", duration="2020 - 2022", title="Senior Engineer".
 
-- FIRST-REPLY NAME RULE: When the [ASSISTANT] asks for name, email, and target role together and the [USER] responds with comma-separated or conjunction-joined values (e.g. "Anil, email@gmail.com and looking for AI roles"), the text BEFORE the first comma or "and" IS the person's name. Extract it. A single first name (like "Anil") is sufficient — do NOT require "my name is" phrasing.
+- FIRST-REPLY NAME RULE: ONLY applies to the VERY FIRST user message in the conversation. NEVER apply this rule to later messages. When the [ASSISTANT] asks for name, email, and target role together and the [USER] responds with comma-separated or conjunction-joined values (e.g. "Anil, email@gmail.com and looking for AI roles"), the text BEFORE the first comma or "and" IS the person's name — BUT ONLY IF that text consists of 1–3 words that form a plausible personal name (e.g. "Anil", "John Doe", "Maria Santos"). If the text before the first comma is a phrase like "I am interested in X", "I like X", "I worked on X", or any sentence fragment starting with "I am/I'm/I work/I like/I built", it is NOT a name. Extract it as a skill, interest, or summary instead, or return {} for that field.
 
 - BULK PASTE CONTACT INFO: When the [USER] pastes a large block of text (like a resume or CV), scan the ENTIRE paste for contact information and extract ALL of the following if present:
   * Phone numbers — any format: "+91 9916179765", "(+91) 9916179765", "9916179765", "+1-555-123-4567"
@@ -200,7 +200,16 @@ NEGATIVE EXAMPLES — return {} (empty object) for these kinds of messages:
 → {} — creation intent only. No resume fields are being provided.
 
 [USER]: yes / ok / go ahead / sure
-→ {} — affirmative response with no data. Extract nothing.`;
+→ {} — affirmative response with no data. Extract nothing.
+
+[USER]: I am interested in vibecoding, so I built few products, make the resume suitable for roles on gen or applied ai
+→ {} for the name field — "I am interested in [topic]" expresses an interest or hobby, NEVER a person's name. Do NOT extract "interested in vibecoding" or any variation as the name field. Skills/projects in this message may still be extracted, but name MUST be left unchanged.
+
+[USER]: I like working on automation and AI, make this suitable for senior engineer roles
+→ {} for the name field — personal interest statement. NEVER treat "I like [topic]" or "I am [adjective/verb phrase]" as a name.
+
+[USER]: I am passionate about machine learning and want to pivot into AI research
+→ {} for the name field — passion/goal statement. No person name here.`;
 
 /** Options for the extraction call. */
 export interface ExtractionOptions {

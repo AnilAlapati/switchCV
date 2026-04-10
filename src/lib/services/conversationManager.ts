@@ -216,6 +216,23 @@ export class ConversationManager {
       // For strings: only overwrite if non-empty
       if (typeof value === "string") {
         if (value.trim().length > 0) {
+          // Guard: never overwrite an existing name with a non-name phrase.
+          // Phrases like "Interested In Vibecoding" or "Looking For AI Roles"
+          // can be mis-extracted from messages like "I am interested in vibecoding".
+          if (key === "name") {
+            const existing = (this.collectedData as Record<string, unknown>).name;
+            if (typeof existing === "string" && existing.trim().length > 0) {
+              // Only allow overwrite if the new value looks like a real personal name:
+              // 1-3 words, none of which are common non-name words.
+              const NON_NAME_WORDS =
+                /\b(interested|looking|excited|trying|working|building|learning|passionate|i am|i'm|my|the|a|an|make|suitable|roles|about|for|in|on|at|from|to|into|and|or|so|but|with|by)\b/i;
+              const wordCount = value.trim().split(/\s+/).length;
+              if (NON_NAME_WORDS.test(value) || wordCount > 4) {
+                // New extraction looks like a phrase/topic, not a person's name — keep existing
+                continue;
+              }
+            }
+          }
           (this.collectedData as Record<string, unknown>)[key] = value;
         }
         continue;
