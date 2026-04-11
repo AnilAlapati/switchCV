@@ -20,6 +20,7 @@ import {
   createResumeEnhancementPrompt,
   parseAIResponse
 } from "@/lib/services/ai/resume-enhancer";
+import { containsPromptInjection } from "@/lib/utils/promptSafety";
 
 export async function OPTIONS(request: NextRequest): Promise<NextResponse> {
   return handleCorsPreflightRequest(request);
@@ -95,6 +96,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const { resumeData, tone = "professional", mode = "standard" } = body;
+
+    // SECURITY: Check for prompt injection in resume text fields
+    const textFields = [
+      resumeData.summary,
+      resumeData.personalInfo?.name,
+    ].filter(Boolean) as string[];
+    if (textFields.some((field) => containsPromptInjection(field))) {
+      logger.warn({ userId }, "Prompt injection attempt detected in generate-resume");
+      return handleApiError(null, "Invalid characters in input", 400, request);
+    }
 
     // 3. PROPOSED: Agentic Workflow Logic (replaces standard flow if enabled)
 

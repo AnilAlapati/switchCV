@@ -163,6 +163,18 @@ function checkBroken403Pattern(filePath, content) {
     const mockReturnsNull = /getAuthenticatedUserId[\s\S]*?mockResolvedValue\s*\(\s*\{[\s\S]*?userId\s*:\s*(?:null|undefined)/.test(content);
 
     if (mockReturnsError || mockReturnsNull) {
+        // Check if the file ALSO has per-test overrides that return a valid userId.
+        // Pattern: mockResolvedValue({ userId: "some-string", error: null })
+        // OR: mockResolvedValue({ userId: "some-string" }) without error (error defaults to undefined/falsy)
+        // This indicates tests properly set up both auth-failure and auth-success cases.
+        const hasValidUserIdMock = /getAuthenticatedUserId[\s\S]*?mockResolvedValue\s*\(\s*\{[\s\S]*?userId\s*:\s*["'`][^"'`]+["'`]/.test(content)
+            || /mockResolvedValue\s*\(\s*\{[^}]*userId\s*:\s*["'`][^"'`]+["'`]/.test(content);
+
+        if (hasValidUserIdMock) {
+            // File has both auth-failure and auth-success mock setups → per-test overrides, not a bug
+            return;
+        }
+
         // Check if there are expects for 200/201 status codes
         const expects200 = /expect.*status.*200|expect.*200|\.status\)\.toBe\(200\)|toEqual.*200/.test(content);
         const expects201 = /expect.*status.*201|expect.*201|\.status\)\.toBe\(201\)|toEqual.*201/.test(content);

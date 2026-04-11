@@ -237,7 +237,7 @@ function createSecurityContext(
     default-src 'self';
     script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${isDev ? "'unsafe-eval'" : ""};
     style-src 'self' 'unsafe-inline';
-    img-src 'self' data: https: blob:;
+    img-src 'self' data: blob: https://www.google.com https://via.placeholder.com https://lh3.googleusercontent.com https://firebasestorage.googleapis.com;
     font-src 'self' data:;
     connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net https://firestore.googleapis.com wss://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.google-analytics.com https://*.posthog.com https://us.i.posthog.com;
     frame-src 'self' https://*.firebaseapp.com https://*.googleapis.com;

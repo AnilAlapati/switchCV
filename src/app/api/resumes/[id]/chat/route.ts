@@ -22,6 +22,7 @@ import {
 } from "@/lib/utils/api-helpers";
 import { getTierForRole } from "@/lib/services/userService";
 import { ResumeChatRequestSchema } from "@/lib/schemas/api";
+import { containsPromptInjection } from "@/lib/utils/promptSafety";
 
 interface ConversationMessage {
   id?: string;
@@ -156,6 +157,12 @@ export async function POST(
       conversationHistory = [],
       sessionData,
     } = parseResult.data as ResumeChatRequest;
+
+    // SECURITY: Check for prompt injection attempts
+    if (containsPromptInjection(message)) {
+      logger.warn({ userId: requestUserId }, "Prompt injection attempt detected in resume chat");
+      return handleApiError(null, "Invalid characters in input", 400);
+    }
 
     const { docRef, snapshot } = await getResumeDocument(id);
     if (!snapshot.exists) {

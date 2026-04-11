@@ -9,6 +9,7 @@ import { GenerateResumePreviewRequestSchema } from "@/lib/schemas/api";
 import { getUserTier } from "@/lib/services/userService";
 import type { SubscriptionTier } from "@/lib/config";
 import { processSyncGeneration } from "@/lib/services/resumeGenerationOrchestrator";
+import { containsPromptInjection } from "@/lib/utils/promptSafety";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const requestId = request.headers.get("x-request-id") ?? randomUUID();
@@ -34,6 +35,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       desiredStyle,
       strictMode,
     } = parseResult.data;
+
+    // SECURITY: Check for prompt injection attempts
+    if (message && containsPromptInjection(message)) {
+      logger.warn({ userId }, "Prompt injection attempt detected in resume preview");
+      return handleApiError(null, "Invalid characters in input", 400);
+    }
 
     let userTier: SubscriptionTier = "basic";
     try {

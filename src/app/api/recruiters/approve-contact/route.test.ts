@@ -279,6 +279,8 @@ describe("POST /api/recruiters/approve-contact", () => {
     expect(data.duration).toBe("1day");
     expect(mockAdd).toHaveBeenCalledTimes(4); // token + recruiter notification + candidate notification + audit log
     expect(mockUpdate).toHaveBeenCalledTimes(2); // token update + request update
+    expect(mockAdd.mock.calls[1][0]).not.toHaveProperty("candidateEmail");
+    expect(mockAdd.mock.calls[1][0].message).not.toContain("user@example.com");
   });
 
   it("should handle different durations correctly", async () => {

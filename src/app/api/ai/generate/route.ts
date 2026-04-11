@@ -27,6 +27,7 @@ import { lookupCache, storeInCache } from "@/lib/services/semanticCache";
 import {
   GenerateRequestSchema
 } from "@/lib/schemas/api/ai.schemas";
+import { containsPromptInjection } from "@/lib/utils/promptSafety";
 import {
   RateLimitError,
   EntitlementError,
@@ -99,6 +100,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       role,
       skipCache,
     } = validationResult.data;
+
+    // SECURITY: Check for prompt injection attempts
+    if (containsPromptInjection(prompt)) {
+      logger.warn({ userId, requestId }, "Prompt injection attempt detected in AI generate");
+      return handleApiError(null, "Invalid characters in input", 400);
+    }
 
     // Semantic cache lookup (unless explicitly skipped)
     if (!skipCache && userId) {

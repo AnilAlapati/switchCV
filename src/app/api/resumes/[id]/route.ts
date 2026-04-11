@@ -17,7 +17,6 @@ import {
 } from "@/lib/services/resumeService";
 import { getUserTier } from "@/lib/services/userService";
 import { UpdateResumeRequestSchema } from "@/lib/schemas/api/resume.schemas";
-import type { ResumeProfile } from "@/types";
 
 export async function GET(
   request: NextRequest,

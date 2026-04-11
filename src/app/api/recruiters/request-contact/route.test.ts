@@ -325,6 +325,9 @@ describe("POST /api/recruiters/request-contact", () => {
     expect(data.success).toBe(true);
     expect(data.requestId).toBe("request-123");
     expect(mockAdd).toHaveBeenCalledTimes(2); // request + notification
+    expect(mockAdd.mock.calls[0][0]).not.toHaveProperty("userEmail");
+    expect(mockAdd.mock.calls[0][0]).not.toHaveProperty("toUserEmail");
+    expect(mockAdd.mock.calls[0][0]).not.toHaveProperty("candidateEmail");
   });
 
   it("should block basic recruiters who exceed free request limit", async () => {
@@ -487,6 +490,7 @@ describe("GET /api/recruiters/request-contact", () => {
             status: "pending",
             toUserId: "user-1",
             resumeId: "resume-1",
+            userEmail: "candidate1@example.com",
           }),
         },
         {
@@ -495,6 +499,7 @@ describe("GET /api/recruiters/request-contact", () => {
             status: "approved",
             toUserId: "user-2",
             resumeId: "resume-2",
+            toUserEmail: "candidate2@example.com",
           }),
         },
       ],
@@ -512,6 +517,8 @@ describe("GET /api/recruiters/request-contact", () => {
     expect(data.success).toBe(true);
     expect(data.recruiterId).toBe("recruiter-123");
     expect(data.requests).toHaveLength(2);
+    expect(data.requests[0]).not.toHaveProperty("userEmail");
+    expect(data.requests[0]).not.toHaveProperty("toUserEmail");
     expect(data.summary.pending).toBe(1);
     expect(data.summary.approved).toBe(1);
   });

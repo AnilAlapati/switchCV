@@ -11,6 +11,7 @@ import {
   RequestRecruiterContactSchema,
 } from "@/lib/schemas/api";
 import { getUserRole } from "@/lib/services/userService";
+import { sanitizeRecruiterRequestForRecruiterView } from "@/lib/recruiterRequests/privacy";
 
 const FREE_RECRUITER_REQUEST_LIMIT = Number(
   process.env.RECRUITER_FREE_REQUEST_LIMIT ||
@@ -323,8 +324,10 @@ export async function GET(request: NextRequest) {
       .get();
 
     const requests = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
+      ...sanitizeRecruiterRequestForRecruiterView({
+        id: doc.id,
+        ...doc.data(),
+      }),
     })) as (RecruiterContactRequest & { id: string })[];
 
     // Group by status

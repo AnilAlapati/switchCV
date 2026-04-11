@@ -373,17 +373,27 @@ async function handleJobMatchError(
   }
 
   if (error instanceof ValidationError) {
+    functions.logger.warn("Validation error in job match", {
+      message: error.message,
+      field: error.field,
+      requestId,
+    });
     return {
       status: 400,
-      payload: { error: error.message, field: error.field },
+      payload: { error: "Invalid input" },
     };
   }
 
   if (error instanceof functions.https.HttpsError) {
     const status = mapHttpsCodeToStatus(error.code);
+    functions.logger.warn("HttpsError in job match", {
+      message: error.message,
+      code: error.code,
+      requestId,
+    });
     return {
       status,
-      payload: { error: error.message, code: error.code },
+      payload: { error: "Request failed" },
     };
   }
 

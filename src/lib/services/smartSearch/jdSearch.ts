@@ -4,6 +4,7 @@ import { functions } from "@/lib/firebase";
 import { performHybridSearch } from "./searchEngine";
 import { rerankByJDMatch } from "./scoring";
 import type { JDSearchOptions, JDSearchResult } from "./types";
+import { getUserRole } from "@/lib/services/userService";
 
 /**
  * Search for candidates by job description
@@ -14,10 +15,15 @@ export async function searchByJobDescription(
     options: JDSearchOptions,
 ): Promise<JDSearchResult> {
     const startTime = Date.now();
-    const { jdText, limit = 50, useAI = true } = options;
+    const { jdText, recruiterId, limit = 50, useAI = true } = options;
+
+    const requesterRole = await getUserRole(recruiterId);
+    if (requesterRole !== "recruiter" && requesterRole !== "admin") {
+        throw new Error("forbidden-role");
+    }
 
     logger.info(
-        { jdLength: jdText.length, useAI, limit },
+        { recruiterId, jdLength: jdText.length, useAI, limit },
         "Starting JD-based search",
     );
 

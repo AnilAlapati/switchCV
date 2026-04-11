@@ -201,8 +201,6 @@ service cloud.firestore {
     match /recruiterRequests/{requestId} {
       // Candidate can read their own requests
       allow read: if request.auth != null && request.auth.uid == resource.data.toUserId;
-      // Recruiter can read their own requests
-      allow read: if request.auth != null && request.auth.uid == resource.data.fromRecruiter.recruiterId;
       // Admins can read all requests
       allow read: if isAdmin();
       
@@ -210,7 +208,10 @@ service cloud.firestore {
       allow create: if isRecruiter()
         && request.resource.data.fromRecruiter.recruiterId == request.auth.uid
         && request.resource.data.toUserId is string
-        && request.resource.data.status == 'pending';
+        && request.resource.data.status == 'pending'
+        && !('candidateEmail' in request.resource.data)
+        && !('toUserEmail' in request.resource.data)
+        && !('userEmail' in request.resource.data);
       
       // Only admins can update
       allow update: if isAdmin();

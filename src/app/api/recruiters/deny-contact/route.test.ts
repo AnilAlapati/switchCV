@@ -281,6 +281,7 @@ describe("POST /api/recruiters/deny-contact", () => {
       // Verify update and add were called
       expect(mockUpdate).toHaveBeenCalledTimes(1);
       expect(mockAdd).toHaveBeenCalledTimes(2); // Notification and audit log
+      expect(mockAdd.mock.calls[0][0].message).not.toContain("user@test.com");
     });
   });
 

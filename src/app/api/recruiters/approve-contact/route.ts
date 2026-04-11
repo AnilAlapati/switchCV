@@ -8,6 +8,7 @@ import {
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
 import { ApproveRecruiterContactSchema } from "@/lib/schemas/api";
+import { getRecruiterRequestTargetLabel } from "@/lib/recruiterRequests/privacy";
 
 export const dynamic = "force-dynamic";
 
@@ -88,6 +89,7 @@ export async function POST(request: NextRequest) {
     }
 
     const contactRequest = requestDoc.data() as RecruiterContactRequest;
+    const requestTargetLabel = getRecruiterRequestTargetLabel(contactRequest);
 
     // Verify request is still pending
     if (contactRequest.status !== "pending") {
@@ -185,11 +187,12 @@ export async function POST(request: NextRequest) {
       recruiterId: contactRequest.fromRecruiter.recruiterId,
       requestId: payload.requestId,
       candidateId: contactRequest.toUserId,
-      candidateEmail: contactRequest.toUserEmail,
+      resumeId: contactRequest.resumeId,
+      resumeTitle: contactRequest.resumeTitle,
       approvedAt: serverTimestamp(),
       expiresAt: new Date(tokenExpiry * 1000),
       duration,
-      message: `Your request to contact ${contactRequest.toUserEmail} has been approved. Access expires in ${duration}.`,
+      message: `Your request for ${requestTargetLabel} has been approved. Access expires in ${duration}.`,
       timestamp: serverTimestamp(),
       read: false,
       actionUrl: `/recruiter/portal/requests/${payload.requestId}`,

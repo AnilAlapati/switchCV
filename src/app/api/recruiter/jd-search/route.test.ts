@@ -16,6 +16,10 @@ jest.mock("@/lib/services/smartSearchService", () => ({
     searchByJobDescription: jest.fn(),
 }));
 
+jest.mock("@/lib/services/userService", () => ({
+    getUserRole: jest.fn().mockResolvedValue("recruiter"),
+}));
+
 jest.mock("@/lib/logger", () => ({
     logger: {
         info: jest.fn(),
@@ -27,6 +31,7 @@ jest.mock("@/lib/logger", () => ({
 
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 import { searchByJobDescription } from "@/lib/services/smartSearchService";
+import { getUserRole } from "@/lib/services/userService";
 
 const mockGetAuthenticatedUserId = getAuthenticatedUserId as jest.MockedFunction<
     typeof getAuthenticatedUserId
@@ -34,6 +39,7 @@ const mockGetAuthenticatedUserId = getAuthenticatedUserId as jest.MockedFunction
 const mockSearchByJobDescription = searchByJobDescription as jest.MockedFunction<
     typeof searchByJobDescription
 >;
+const mockGetUserRole = getUserRole as jest.MockedFunction<typeof getUserRole>;
 
 describe("POST /api/recruiter/jd-search", () => {
     beforeEach(() => {
@@ -87,6 +93,22 @@ describe("POST /api/recruiter/jd-search", () => {
         expect(response.status).toBe(400);
         const body = await response.json();
         expect(body.error).toContain("Invalid JSON");
+    });
+
+    it("returns 403 if the authenticated user is not a recruiter or admin", async () => {
+        mockGetAuthenticatedUserId.mockResolvedValue({
+            userId: "test-jobseeker-id",
+            error: undefined,
+        });
+        mockGetUserRole.mockResolvedValueOnce("jobseeker");
+
+        const request = createMockRequest({ jdText: "A".repeat(60) });
+        const response = await POST(request);
+        const body = await response.json();
+
+        expect(response.status).toBe(403);
+        expect(body.error).toBe("Forbidden: Recruiter role required");
+        expect(mockSearchByJobDescription).not.toHaveBeenCalled();
     });
 
     it("returns search results for valid JD text", async () => {

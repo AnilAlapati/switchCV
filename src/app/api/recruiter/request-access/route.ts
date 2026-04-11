@@ -79,8 +79,6 @@ export async function POST(request: NextRequest) {
       return handleApiError(null, "User not found", 404);
     }
 
-    const userData = userDoc.data();
-
     // Check if request already exists
     const existingQuery = await collectionRef(COLLECTIONS.RECRUITER_REQUESTS)
       .where("resumeId", "==", String(resumeId))
@@ -129,7 +127,6 @@ export async function POST(request: NextRequest) {
           companyName: recruiterProfile.companyName || "",
         },
         resumeTitle: title,
-        userEmail: userData?.email, // Candidate email (masked or real depending on admin)
         requestedFields,
         status: "pending",
         createdAt: serverTimestamp(),

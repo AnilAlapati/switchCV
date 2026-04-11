@@ -215,6 +215,38 @@ describe.skip("Firestore Security Rules", () => {
         db.collection("recruiterRequests").doc(requestId).get()
       );
     });
+
+    it("denies recruiters from reading request documents directly", async () => {
+      await testEnv.withSecurityRulesDisabled(async (ctx) => {
+        await ctx
+          .firestore()
+          .collection("recruiterRequests")
+          .doc(requestId)
+          .set({
+            fromRecruiter: { recruiterId },
+            toUserId: candidateId,
+            status: "pending",
+            userEmail: "candidate@example.com",
+          });
+      });
+
+      const db = getDb(recruiterId, "recruiter");
+      await assertFails(
+        db.collection("recruiterRequests").doc(requestId).get()
+      );
+    });
+
+    it("denies recruiter request creation when candidate email fields are included", async () => {
+      const db = getDb(recruiterId, "recruiter");
+      await assertFails(
+        db.collection("recruiterRequests").doc("req_2").set({
+          fromRecruiter: { recruiterId },
+          toUserId: candidateId,
+          status: "pending",
+          userEmail: "candidate@example.com",
+        })
+      );
+    });
   });
 
   describe("System Collections", () => {

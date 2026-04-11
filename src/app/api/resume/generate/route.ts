@@ -18,6 +18,7 @@ import {
 } from "@/lib/services/resumeGenerationOrchestrator";
 import { isFeatureEnabled } from "@/lib/services/featureFlagService";
 import { RESUME_GENERATION_HARD_CAP } from "@/lib/config/rateLimits";
+import { containsPromptInjection } from "@/lib/utils/promptSafety";
 
 // Cloud Functions URL for async processing (configured per environment)
 const ASYNC_PROCESSOR_URL = process.env.ASYNC_RESUME_PROCESSOR_URL;
@@ -150,6 +151,12 @@ export async function POST(request: NextRequest) {
         "Message is required",
         400,
       );
+    }
+
+    // SECURITY: Check for prompt injection attempts
+    if (containsPromptInjection(message)) {
+      logger.warn({ userId }, "Prompt injection attempt detected in resume generate");
+      return handleApiError(null, "Invalid characters in input", 400);
     }
 
     // ASYNC MODE: Queue the job for background processing

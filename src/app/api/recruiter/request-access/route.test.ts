@@ -141,6 +141,8 @@ describe("POST /api/recruiter/request-access", () => {
         limit: 2, // Basic limit
       })
     );
+    expect(mockSet).toHaveBeenCalledTimes(1);
+    expect(mockSet.mock.calls[0][0]).not.toHaveProperty("userEmail");
   });
 
   it("should block request if quota exceeded", async () => {

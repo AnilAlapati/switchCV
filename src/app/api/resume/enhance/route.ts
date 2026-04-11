@@ -16,6 +16,7 @@ import {
 import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 import { getConstants } from "@/lib/getSystemConfig";
 import { enhanceResumeRequestSchema } from "@/lib/validations/resume";
+import { containsPromptInjection } from "@/lib/utils/promptSafety";
 
 export async function POST(request: NextRequest) {
   try {
@@ -51,6 +52,12 @@ export async function POST(request: NextRequest) {
     }
 
     const { resume, jobDescription } = validationResult.data;
+
+    // SECURITY: Check for prompt injection attempts in job description
+    if (jobDescription && containsPromptInjection(jobDescription)) {
+      logger.warn({ userId: identifier }, "Prompt injection attempt detected in resume enhance");
+      return handleApiError(null, "Invalid characters in input", 400);
+    }
 
     const enhancement = generateResumeEnhancement(
       resume as Resume,
