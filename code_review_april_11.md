@@ -6,32 +6,33 @@
 > **Scope:** Full codebase — 85 API routes, 268 components, 48 hooks, 105 services, 455 test files
 
 > **⚡ FIX STATUS UPDATE — April 11, 2026**  
-> Multiple findings from this review have been resolved in the same session:  
-> - ✅ npm audit: axios SSRF + 4 other vulns fixed (5 remaining in transitive deps)  
-> - ✅ Test audit script: 77 → 9 false positives eliminated  
-> - ✅ Prompt injection detection: 3 → 10 routes covered (7 added)  
-> - ✅ CSP img-src: tightened from `https:` to specific domains  
-> - ✅ jobMatchService error leak: fixed  
-> - ✅ Search engine visibility: query-level `isPublic` filter added  
+> Multiple findings from this review have been resolved in the same session:
+>
+> - ✅ npm audit: axios SSRF + 4 other vulns fixed (5 remaining in transitive deps)
+> - ✅ Test audit script: 77 → 9 false positives eliminated
+> - ✅ Prompt injection detection: 3 → 10 routes covered (7 added)
+> - ✅ CSP img-src: tightened from `https:` to specific domains
+> - ✅ jobMatchService error leak: fixed
+> - ✅ Search engine visibility: query-level `isPublic` filter added
 
 ---
 
 ## Executive Summary
 
-| Area                     | Score | Δ from Mar 14 | Verdict                                                                                      |
-| ------------------------ | ----- | ------------- | -------------------------------------------------------------------------------------------- |
-| **API Route Compliance** | 10/10 | ±0            | ✅ 85/85 routes pass audit — zero violations                                                 |
-| **TypeScript**           | 10/10 | ±0            | ✅ Zero type errors (`tsc --noEmit` clean)                                                   |
-| **ESLint**               | 10/10 | +2            | ✅ 0 errors, 0 warnings (was 0/44 — all warnings eliminated)                                |
-| **Test Suite**           | 9/10  | +1            | ✅ 4,881 pass / 0 fail / 67 skipped / 450 suites (was 4,456)                                |
-| **Test Quality**         | 7/10  | NEW           | ⚠️ ~~77~~ 9 HIGH audit findings after script fix — most were false positives                |
-| **Security**             | 8/10  | +1            | ✅ npm vulns fixed (5 remain in transitive deps), prompt injection on 10 routes, CSP tightened |
-| **Dependencies**         | 7/10  | ±0            | ⚠️ 5 remaining vulnerabilities (transitive only), 22 outdated packages                      |
-| **Performance**          | 7/10  | +1            | ⚠️ Budget enforcement added; cache layer still unused                                       |
-| **Architecture**         | 9/10  | +1            | ✅ Budget checks on all AI paths; clean separation maintained                                |
-| **Frontend Quality**     | 9/10  | ±0            | ✅ Context providers, hooks, a11y all compliant                                              |
-| **Firebase/Firestore**   | 9/10  | ±0            | ✅ 615-line rules, 15 composite indexes, field validation strict                             |
-| **Cloud Functions**      | 7.5/10 | NEW          | ⚠️ Error leak fixed; fallback chain still incomplete, large monolith services                |
+| Area                     | Score  | Δ from Mar 14 | Verdict                                                                                        |
+| ------------------------ | ------ | ------------- | ---------------------------------------------------------------------------------------------- |
+| **API Route Compliance** | 10/10  | ±0            | ✅ 85/85 routes pass audit — zero violations                                                   |
+| **TypeScript**           | 10/10  | ±0            | ✅ Zero type errors (`tsc --noEmit` clean)                                                     |
+| **ESLint**               | 10/10  | +2            | ✅ 0 errors, 0 warnings (was 0/44 — all warnings eliminated)                                   |
+| **Test Suite**           | 9/10   | +1            | ✅ 4,881 pass / 0 fail / 67 skipped / 450 suites (was 4,456)                                   |
+| **Test Quality**         | 7/10   | NEW           | ⚠️ ~~77~~ 9 HIGH audit findings after script fix — most were false positives                   |
+| **Security**             | 8/10   | +1            | ✅ npm vulns fixed (5 remain in transitive deps), prompt injection on 10 routes, CSP tightened |
+| **Dependencies**         | 7/10   | ±0            | ⚠️ 5 remaining vulnerabilities (transitive only), 22 outdated packages                         |
+| **Performance**          | 7/10   | +1            | ⚠️ Budget enforcement added; cache layer still unused                                          |
+| **Architecture**         | 9/10   | +1            | ✅ Budget checks on all AI paths; clean separation maintained                                  |
+| **Frontend Quality**     | 9/10   | ±0            | ✅ Context providers, hooks, a11y all compliant                                                |
+| **Firebase/Firestore**   | 9/10   | ±0            | ✅ 615-line rules, 15 composite indexes, field validation strict                               |
+| **Cloud Functions**      | 7.5/10 | NEW           | ⚠️ Error leak fixed; fallback chain still incomplete, large monolith services                  |
 
 **Overall Health: 8.5/10** (was 8.2 at review time, 7.5 in March) — Post-fix scores reflect npm vuln remediation, prompt injection coverage expansion, CSP tightening, and test audit script improvements. **Remaining risks: distributed rate limiting, cache integration, and Cloud Functions fallback chain.**
 
@@ -51,26 +52,26 @@
 
 ### 🔴 Issues Still Open
 
-| Issue from March 14                     | Status        | Notes                                                                                                            |
-| --------------------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Rate limiting is in-memory only         | ❌ STILL OPEN | `src/middleware.ts` still uses `Map<string, RateLimitEntry>` — resets per serverless instance                    |
+| Issue from March 14                     | Status          | Notes                                                                                                             |
+| --------------------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Rate limiting is in-memory only         | ❌ STILL OPEN   | `src/middleware.ts` still uses `Map<string, RateLimitEntry>` — resets per serverless instance                     |
 | npm audit vulnerabilities               | ✅ MOSTLY FIXED | Was 9 (1 critical, 3 high), now 5 (all transitive via `@modelcontextprotocol/sdk` + `get-uri`) — axios SSRF fixed |
-| Cache layer built but unused            | ❌ STILL OPEN | cacheService.ts, semanticCache.ts, searchCache.ts exist but not wired into services                              |
-| Circuit breaker not in Cloud Functions  | ❌ STILL OPEN | Only client-side; Cloud Functions still lack provider fallback chain                                             |
-| Error detail leakage in Cloud Functions | ✅ FIXED      | jobMatchService.ts ValidationError + HttpsError branches now return generic messages, log details server-side    |
-| Security test suite minimal             | ❌ STILL OPEN | Still only 1 file: `tests/security/backup-files.test.ts`                                                         |
-| Load tests only cover /api/health       | ❌ STILL OPEN | No expansion of k6 scenarios                                                                                     |
-| CSP slightly permissive                 | ✅ FIXED      | `img-src` changed from `https:` to specific domains (google.com, placeholder, googleusercontent, firebasestorage) |
+| Cache layer built but unused            | ❌ STILL OPEN   | cacheService.ts, semanticCache.ts, searchCache.ts exist but not wired into services                               |
+| Circuit breaker not in Cloud Functions  | ❌ STILL OPEN   | Only client-side; Cloud Functions still lack provider fallback chain                                              |
+| Error detail leakage in Cloud Functions | ✅ FIXED        | jobMatchService.ts ValidationError + HttpsError branches now return generic messages, log details server-side     |
+| Security test suite minimal             | ❌ STILL OPEN   | Still only 1 file: `tests/security/backup-files.test.ts`                                                          |
+| Load tests only cover /api/health       | ❌ STILL OPEN   | No expansion of k6 scenarios                                                                                      |
+| CSP slightly permissive                 | ✅ FIXED        | `img-src` changed from `https:` to specific domains (google.com, placeholder, googleusercontent, firebasestorage) |
 
 ### 🆕 New Issues Found
 
-| Issue                                          | Severity | Details                                                                                   |
-| ---------------------------------------------- | -------- | ----------------------------------------------------------------------------------------- |
-| ~~77~~ 9 test files with audit findings        | MEDIUM   | Was 77 — audit script fixed to recognize per-test mock overrides. 9 genuine remain        |
-| ~~Axios critical SSRF vulnerability~~          | ~~CRITICAL~~ ✅ FIXED | Fixed via `npm audit fix`                                                     |
-| 21 API routes without dedicated test files     | MEDIUM   | auth, recruiter/agent, admin, search, utils routes untested                               |
-| ~~Prompt injection detection only on 3 routes~~ | ~~MEDIUM~~ ✅ FIXED | Now on 10 routes (7 added: ai/generate, generate-resume, resume/generate, preview, enhance, chat, jd-search) |
-| Cloud Functions monolith services (600+ lines) | MEDIUM   | resumeService.ts (687L), monitoring.ts (601L)                                             |
+| Issue                                           | Severity              | Details                                                                                                      |
+| ----------------------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------ |
+| ~~77~~ 9 test files with audit findings         | MEDIUM                | Was 77 — audit script fixed to recognize per-test mock overrides. 9 genuine remain                           |
+| ~~Axios critical SSRF vulnerability~~           | ~~CRITICAL~~ ✅ FIXED | Fixed via `npm audit fix`                                                                                    |
+| 21 API routes without dedicated test files      | MEDIUM                | auth, recruiter/agent, admin, search, utils routes untested                                                  |
+| ~~Prompt injection detection only on 3 routes~~ | ~~MEDIUM~~ ✅ FIXED   | Now on 10 routes (7 added: ai/generate, generate-resume, resume/generate, preview, enhance, chat, jd-search) |
+| Cloud Functions monolith services (600+ lines)  | MEDIUM                | resumeService.ts (687L), monitoring.ts (601L)                                                                |
 
 ---
 
@@ -95,6 +96,7 @@ axios  <=1.14.0 — CRITICAL (RESOLVED via npm audit fix)
 The `audit-test-quality.js` script reports **9 remaining findings** (down from 77). The false positive reduction confirms that most test files were actually using proper per-test mock overrides.
 
 **Remaining genuine issues to investigate:**
+
 - 2 public health endpoint tests (legitimate — no auth needed)
 - ~7 files that may need mock pattern verification
 
@@ -121,15 +123,15 @@ next 13.0.0 - 15.5.14 — HIGH
 
 ### 1.5 ~~🔴~~ ⚠️ npm Vulnerability Summary (Updated April 11)
 
-| Package                         | Severity | Issue                                                                   | Status               |
-| ------------------------------- | -------- | ----------------------------------------------------------------------- | -------------------- |
-| **~~axios <=1.14.0~~**          | ~~CRITICAL~~ | ~~SSRF via header injection + cloud metadata exfiltration~~          | ✅ FIXED             |
-| **~~next 13-15.5.14~~**         | ~~HIGH~~ | ~~DoS via Server Components~~                                           | ✅ FIXED             |
-| **basic-ftp <=5.2.1**           | HIGH     | FTP command injection via CRLF + incomplete CRLF protection             | ⚠️ Transitive (get-uri → @modelcontextprotocol/sdk) |
-| **hono <=4.12.11**              | MODERATE | Cookie injection, IPv4-mapped bypass, path traversal, middleware bypass | ⚠️ Transitive (@modelcontextprotocol/sdk) |
-| **~~@hono/node-server <=1.19.12~~** | ~~MODERATE~~ | ~~Middleware bypass via repeated slashes~~                          | ✅ FIXED             |
-| **~~next-intl <4.9.1~~**        | ~~MODERATE~~ | ~~Open redirect vulnerability~~                                     | ✅ FIXED             |
-| **~~nodemailer <=8.0.4~~**      | ~~MODERATE~~ | ~~SMTP command injection via CRLF~~                                 | ✅ FIXED             |
+| Package                             | Severity     | Issue                                                                   | Status                                              |
+| ----------------------------------- | ------------ | ----------------------------------------------------------------------- | --------------------------------------------------- |
+| **~~axios <=1.14.0~~**              | ~~CRITICAL~~ | ~~SSRF via header injection + cloud metadata exfiltration~~             | ✅ FIXED                                            |
+| **~~next 13-15.5.14~~**             | ~~HIGH~~     | ~~DoS via Server Components~~                                           | ✅ FIXED                                            |
+| **basic-ftp <=5.2.1**               | HIGH         | FTP command injection via CRLF + incomplete CRLF protection             | ⚠️ Transitive (get-uri → @modelcontextprotocol/sdk) |
+| **hono <=4.12.11**                  | MODERATE     | Cookie injection, IPv4-mapped bypass, path traversal, middleware bypass | ⚠️ Transitive (@modelcontextprotocol/sdk)           |
+| **~~@hono/node-server <=1.19.12~~** | ~~MODERATE~~ | ~~Middleware bypass via repeated slashes~~                              | ✅ FIXED                                            |
+| **~~next-intl <4.9.1~~**            | ~~MODERATE~~ | ~~Open redirect vulnerability~~                                         | ✅ FIXED                                            |
+| **~~nodemailer <=8.0.4~~**          | ~~MODERATE~~ | ~~SMTP command injection via CRLF~~                                     | ✅ FIXED                                            |
 
 **5 remaining vulnerabilities** are all in transitive dependencies of `@modelcontextprotocol/sdk` (hono × 3, basic-ftp × 2). Cannot be auto-fixed without breaking semver. Monitor for upstream fix.
 
@@ -172,20 +174,15 @@ Despite 85 routes and ~109 test files, **21 routes have no corresponding test fi
 Prompt injection detection (`promptSafety.ts`) is now used in **10 locations** (was 3):
 
 **Pre-existing (3):**
+
 1. `src/app/api/seed/generate/route.ts` — Resume seed generation
 2. `src/app/api/search/semantic/route.ts` — Semantic search
 3. `src/lib/services/recruiterAgentService.ts` — Recruiter agent actions
 
-**Added April 11 (7):**
-4. `src/app/api/ai/generate/route.ts` — checks `prompt` field
-5. `src/app/api/ai/generate-resume/route.ts` — checks `resumeData.summary` and `resumeData.personalInfo.name`
-6. `src/app/api/resume/generate/route.ts` — checks `message` field
-7. `src/app/api/resume/generate/preview/route.ts` — checks `message` field
-8. `src/app/api/resume/enhance/route.ts` — checks `jobDescription` field
-9. `src/app/api/resumes/[id]/chat/route.ts` — checks `message` field
-10. `src/app/api/recruiter/jd-search/route.ts` — checks `jdText` field
+**Added April 11 (7):** 4. `src/app/api/ai/generate/route.ts` — checks `prompt` field 5. `src/app/api/ai/generate-resume/route.ts` — checks `resumeData.summary` and `resumeData.personalInfo.name` 6. `src/app/api/resume/generate/route.ts` — checks `message` field 7. `src/app/api/resume/generate/preview/route.ts` — checks `message` field 8. `src/app/api/resume/enhance/route.ts` — checks `jobDescription` field 9. `src/app/api/resumes/[id]/chat/route.ts` — checks `message` field 10. `src/app/api/recruiter/jd-search/route.ts` — checks `jdText` field
 
 **Still missing (lower priority):**
+
 - `src/app/api/interview/assistant/route.ts` — Interview assistant
 - Recruiter agent sub-routes (analyze, screen, outreach, enhance-job, interview-prep) — already protected via recruiterAgentService.ts
 
@@ -220,6 +217,7 @@ The client-side has a proper `CircuitBreaker` and `ProviderFallbackChain`, but *
 **File:** `functions/src/jobMatchService.ts` lines 376-390
 
 **Before (leaked error details):**
+
 ```typescript
 if (error instanceof ValidationError) {
   return { status: 400, payload: { error: error.message, field: error.field } };
@@ -227,13 +225,20 @@ if (error instanceof ValidationError) {
 ```
 
 **After (generic messages + server-side logging):**
+
 ```typescript
 if (error instanceof ValidationError) {
-  functions.logger.warn("Validation error in job match", { requestId, field: error.field });
+  functions.logger.warn("Validation error in job match", {
+    requestId,
+    field: error.field,
+  });
   return { status: 400, payload: { error: "Invalid input" } };
 }
 if (error instanceof HttpsError) {
-  functions.logger.warn("HTTP error in job match", { requestId, code: error.code });
+  functions.logger.warn("HTTP error in job match", {
+    requestId,
+    code: error.code,
+  });
   return { status: 500, payload: { error: "Request failed" } };
 }
 ```
@@ -495,23 +500,23 @@ The dependency count is reasonable for the project scope. No unnecessary large d
 
 ### 5.4 Network Security
 
-| Check                  | Status | Details                                      |
-| ---------------------- | ------ | -------------------------------------------- |
-| HSTS                   | ✅     | max-age=63072000; includeSubDomains; preload |
-| X-Frame-Options        | ✅     | DENY                                         |
-| X-Content-Type-Options | ✅     | nosniff                                      |
+| Check                  | Status | Details                                          |
+| ---------------------- | ------ | ------------------------------------------------ |
+| HSTS                   | ✅     | max-age=63072000; includeSubDomains; preload     |
+| X-Frame-Options        | ✅     | DENY                                             |
+| X-Content-Type-Options | ✅     | nosniff                                          |
 | CSP                    | ✅     | img-src tightened to specific domains (April 11) |
-| CSRF protection        | ✅     | Origin/Referer validation with Bearer bypass |
-| CORS headers           | ✅     | Explicit origin checking                     |
-| Rate limiting          | ⚠️     | In-memory only — not distributed             |
-| X-Powered-By           | ✅     | Removed in middleware                        |
-| COEP/COOP/CORP         | ✅     | Configured in next.config.ts                 |
+| CSRF protection        | ✅     | Origin/Referer validation with Bearer bypass     |
+| CORS headers           | ✅     | Explicit origin checking                         |
+| Rate limiting          | ⚠️     | In-memory only — not distributed                 |
+| X-Powered-By           | ✅     | Removed in middleware                            |
+| COEP/COOP/CORP         | ✅     | Configured in next.config.ts                     |
 
 ### 5.5 AI-Specific Security
 
 | Check                         | Status | Details                                                        |
 | ----------------------------- | ------ | -------------------------------------------------------------- |
-| Prompt injection detection    | ✅     | Now on 10/12+ AI-facing routes (7 added April 11)             |
+| Prompt injection detection    | ✅     | Now on 10/12+ AI-facing routes (7 added April 11)              |
 | Budget enforcement            | ✅     | System + user budget checks before all AI calls                |
 | Cost tracking                 | ✅     | AI monitoring service with sharded counters                    |
 | Model output sanitization     | ❓     | Not verified — AI responses should be sanitized before storage |
@@ -571,16 +576,16 @@ With L1 + L2 caching (already built):
 
 ### 7.1 Metrics
 
-| Metric                   | Value | Target | Status |
-| ------------------------ | ----- | ------ | ------ |
-| Test suites              | 450   | —      | ✅     |
-| Tests passing            | 4,881 | —      | ✅     |
-| Tests failing            | 0     | 0      | ✅     |
-| Tests skipped            | 67    | <50    | ⚠️     |
-| Suites skipped           | 2     | 0      | ⚠️     |
-| Audit: Critical issues   | 0     | 0      | ✅     |
-| Audit: High issues       | 9     | 0      | ⚠️ (was 77, script fixed)  |
-| API routes without tests | 21/85 | 0      | ⚠️     |
+| Metric                   | Value | Target | Status                    |
+| ------------------------ | ----- | ------ | ------------------------- |
+| Test suites              | 450   | —      | ✅                        |
+| Tests passing            | 4,881 | —      | ✅                        |
+| Tests failing            | 0     | 0      | ✅                        |
+| Tests skipped            | 67    | <50    | ⚠️                        |
+| Suites skipped           | 2     | 0      | ⚠️                        |
+| Audit: Critical issues   | 0     | 0      | ✅                        |
+| Audit: High issues       | 9     | 0      | ⚠️ (was 77, script fixed) |
+| API routes without tests | 21/85 | 0      | ⚠️                        |
 
 ### 7.2 Test Distribution
 
@@ -634,12 +639,12 @@ With L1 + L2 caching (already built):
 
 ### 8.1 Pre-commit Enforcement
 
-| Gate               | Tool                    | Status                                      |
-| ------------------ | ----------------------- | ------------------------------------------- |
-| API route audit    | `audit-api-routes.js`   | ✅ All 85 routes pass                       |
+| Gate               | Tool                    | Status                                |
+| ------------------ | ----------------------- | ------------------------------------- |
+| API route audit    | `audit-api-routes.js`   | ✅ All 85 routes pass                 |
 | Test quality audit | `audit-test-quality.js` | ✅ 9 findings (was 77 — script fixed) |
-| ESLint             | `eslint`                | ✅ 0 errors, 0 warnings                     |
-| TypeScript         | `tsc --noEmit`          | ✅ Zero type errors                         |
+| ESLint             | `eslint`                | ✅ 0 errors, 0 warnings               |
+| TypeScript         | `tsc --noEmit`          | ✅ Zero type errors                   |
 
 **Concern:** The test quality audit reports 9 remaining findings. These include 2 public health endpoints (no auth needed) and 7 edge cases to verify manually.
 
@@ -706,31 +711,31 @@ Only **3 instances** found in production code (all comments/docs, no actual call
 
 ### P0 — This Week (Production Blockers)
 
-| #   | Action                                                             | Effort   | Impact                               | Status |
-| --- | ------------------------------------------------------------------ | -------- | ------------------------------------ | ------ |
-| 1   | ~~Run `npm audit fix` — fixes axios CRITICAL, next HIGH, plus 7 more~~ | ~~30 min~~ | ~~Eliminates 9 known vulnerabilities~~ | ✅ DONE — 5 transitive remain |
-| 2   | ~~Fix 77 test auth mock patterns~~ → Audit script fixed (77→9)    | ~~2-3 days~~ | Audit script false positives eliminated | ✅ DONE — 9 genuine remain |
-| 3   | Integrate distributed rate limiter for auth + AI routes            | 1 day    | Prevents brute force and budget burn | ❌ OPEN |
+| #   | Action                                                                 | Effort       | Impact                                  | Status                        |
+| --- | ---------------------------------------------------------------------- | ------------ | --------------------------------------- | ----------------------------- |
+| 1   | ~~Run `npm audit fix` — fixes axios CRITICAL, next HIGH, plus 7 more~~ | ~~30 min~~   | ~~Eliminates 9 known vulnerabilities~~  | ✅ DONE — 5 transitive remain |
+| 2   | ~~Fix 77 test auth mock patterns~~ → Audit script fixed (77→9)         | ~~2-3 days~~ | Audit script false positives eliminated | ✅ DONE — 9 genuine remain    |
+| 3   | Integrate distributed rate limiter for auth + AI routes                | 1 day        | Prevents brute force and budget burn    | ❌ OPEN                       |
 
 ### P1 — This Sprint (High Priority)
 
-| #   | Action                                                    | Effort   | Impact                             | Status |
-| --- | --------------------------------------------------------- | -------- | ---------------------------------- | ------ |
-| 4   | ~~Add prompt injection detection to all AI-facing routes~~ | ~~1 day~~ | ~~Blocks AI manipulation attacks~~ | ✅ DONE — 7 routes added |
-| 5   | Write tests for 21 untested routes (prioritize auth + AI) | 3-4 days | Actual coverage for critical paths | ❌ OPEN |
-| 6   | ~~Fix jobMatchService error detail leakage~~              | ~~30 min~~ | ~~Closes information disclosure~~ | ✅ DONE |
-| 7   | Wire cache layer into resume reads + user settings        | 1-2 days | ~$1,000/yr Firestore savings       | ❌ OPEN |
+| #   | Action                                                     | Effort     | Impact                             | Status                   |
+| --- | ---------------------------------------------------------- | ---------- | ---------------------------------- | ------------------------ |
+| 4   | ~~Add prompt injection detection to all AI-facing routes~~ | ~~1 day~~  | ~~Blocks AI manipulation attacks~~ | ✅ DONE — 7 routes added |
+| 5   | Write tests for 21 untested routes (prioritize auth + AI)  | 3-4 days   | Actual coverage for critical paths | ❌ OPEN                  |
+| 6   | ~~Fix jobMatchService error detail leakage~~               | ~~30 min~~ | ~~Closes information disclosure~~  | ✅ DONE                  |
+| 7   | Wire cache layer into resume reads + user settings         | 1-2 days   | ~$1,000/yr Firestore savings       | ❌ OPEN                  |
 
 ### P2 — Next Sprint (Medium Priority)
 
-| #   | Action                                                           | Effort   | Impact                                    |
-| --- | ---------------------------------------------------------------- | -------- | ----------------------------------------- |
-| 8   | Wire Cloud Functions AI fallback chain (Groq/Claude)             | 2-3 days | Eliminates Gemini single point of failure |
-| 9   | Break up resumeGenerationOrchestrator.ts (950→ <300 each)        | 2 days   | Maintainability, testability              |
-| 10  | Consolidate dual resume API surface (/api/resume + /api/resumes) | 1-2 days | Reduces confusion and test burden         |
-| 11  | Expand security test suite (auth bypass, injection, BOLA)        | 3-4 days | Proactive vulnerability detection         |
-| 12  | Add load test scenarios for search, generation, analytics        | 1-2 days | Performance baseline before launch        |
-| 13  | ~~Tighten CSP: replace `img-src https:` with specific domains~~  | ~~30 min~~ | ~~Reduces XSS surface~~             | ✅ DONE |
+| #   | Action                                                           | Effort     | Impact                                    |
+| --- | ---------------------------------------------------------------- | ---------- | ----------------------------------------- | ------- |
+| 8   | Wire Cloud Functions AI fallback chain (Groq/Claude)             | 2-3 days   | Eliminates Gemini single point of failure |
+| 9   | Break up resumeGenerationOrchestrator.ts (950→ <300 each)        | 2 days     | Maintainability, testability              |
+| 10  | Consolidate dual resume API surface (/api/resume + /api/resumes) | 1-2 days   | Reduces confusion and test burden         |
+| 11  | Expand security test suite (auth bypass, injection, BOLA)        | 3-4 days   | Proactive vulnerability detection         |
+| 12  | Add load test scenarios for search, generation, analytics        | 1-2 days   | Performance baseline before launch        |
+| 13  | ~~Tighten CSP: replace `img-src https:` with specific domains~~  | ~~30 min~~ | ~~Reduces XSS surface~~                   | ✅ DONE |
 
 ### P3 — Backlog (Low Priority)
 
@@ -778,6 +783,7 @@ Only **3 instances** found in production code (all comments/docs, no actual call
 - ✅ **Search engine visibility:** Query-level `isPublic` filter added to both skill and semantic search
 
 **Remaining top priorities:**
+
 1. Distributed rate limiting (in-memory Map still in use)
 2. Cache layer integration (~$1,000/yr Firestore savings)
 3. Cloud Functions AI fallback chain (Gemini single point of failure)
