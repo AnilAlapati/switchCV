@@ -237,9 +237,9 @@ function createSecurityContext(
     default-src 'self';
     script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${isDev ? "'unsafe-eval'" : ""};
     style-src 'self' 'unsafe-inline';
-    img-src 'self' data: blob: https://www.google.com https://via.placeholder.com https://lh3.googleusercontent.com https://firebasestorage.googleapis.com;
+    img-src 'self' data: blob: https://www.google.com https://via.placeholder.com https://lh3.googleusercontent.com https://firebasestorage.googleapis.com https://ssl.gstatic.com https://accounts.google.com;
     font-src 'self' data:;
-    connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net https://firestore.googleapis.com wss://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.google-analytics.com https://*.posthog.com https://us.i.posthog.com;
+    connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net https://firestore.googleapis.com wss://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://accounts.google.com https://www.google-analytics.com https://*.posthog.com https://us.i.posthog.com;
     frame-src 'self' https://*.firebaseapp.com https://*.googleapis.com;
     worker-src 'self' blob:;
     object-src 'none';
@@ -273,6 +273,15 @@ function applySecurityHeaders(
 
 export function middleware(request: NextRequest): NextResponse | undefined {
   const { pathname } = request.nextUrl;
+
+  // ── Firebase Auth Handler Bypass ──
+  // The /__/auth/* route is a Next.js rewrite proxy for the Firebase auth handler
+  // (see next.config.ts rewrites). That page is Firebase-hosted HTML that loads
+  // scripts/images from Google CDN origins not allowed by our strict CSP.
+  // Applying our CSP to this proxy response breaks signInWithPopup.
+  if (pathname.startsWith("/__/auth/")) {
+    return NextResponse.next();
+  }
 
   // ── Correlation ID ──
   // Propagate incoming x-request-id or generate a new one for tracing

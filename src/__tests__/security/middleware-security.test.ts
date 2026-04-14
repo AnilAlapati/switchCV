@@ -387,4 +387,98 @@ describe("Middleware Security", () => {
       expect(res!.headers.get("x-powered-by")).toBeNull();
     });
   });
+
+  // =========================================================================
+  // Firebase Auth Proxy Bypass (Google Sign-In fix)
+  // =========================================================================
+  describe("Firebase Auth Proxy Bypass", () => {
+    it("should NOT set Content-Security-Policy on /__/auth/handler", () => {
+      const req = makeRequest("/__/auth/handler", { method: "GET" });
+      const res = middleware(req);
+
+      expect(res).toBeDefined();
+      expect(res!.headers.get("Content-Security-Policy")).toBeNull();
+    });
+
+    it("should NOT set Content-Security-Policy on /__/auth/iframe", () => {
+      const req = makeRequest("/__/auth/iframe", { method: "GET" });
+      const res = middleware(req);
+
+      expect(res).toBeDefined();
+      expect(res!.headers.get("Content-Security-Policy")).toBeNull();
+    });
+
+    it("should NOT set Content-Security-Policy on any /__/auth/* path", () => {
+      const paths = [
+        "/__/auth/handler",
+        "/__/auth/iframe",
+        "/__/auth/experiments",
+        "/__/auth/cordova_handler",
+      ];
+      for (const path of paths) {
+        const req = makeRequest(path, { method: "GET" });
+        const res = middleware(req);
+        expect(res!.headers.get("Content-Security-Policy")).toBeNull();
+      }
+    });
+
+    it("should still set Content-Security-Policy on normal pages", () => {
+      const req = makeRequest("/auth", { method: "GET" });
+      const res = middleware(req);
+
+      expect(res).toBeDefined();
+      expect(res!.headers.get("Content-Security-Policy")).toBeTruthy();
+    });
+
+    it("should return 200 (pass-through) for /__/auth/ paths, not block them", () => {
+      const req = makeRequest("/__/auth/handler", { method: "GET" });
+      const res = middleware(req);
+
+      expect(res).toBeDefined();
+      // Must not be blocked with 403, 429, etc.
+      expect(res!.status).not.toBe(403);
+      expect(res!.status).not.toBe(429);
+    });
+  });
+
+  // =========================================================================
+  // CSP Google OAuth domains (Google Sign-In fix)
+  // =========================================================================
+  describe("CSP Google OAuth domains", () => {
+    it("should include ssl.gstatic.com in img-src", () => {
+      const req = makeRequest("/auth", { method: "GET" });
+      const res = middleware(req);
+
+      const csp = res!.headers.get("Content-Security-Policy")!;
+      const imgSrc = csp.match(/img-src\s+([^;]+)/)?.[1] ?? "";
+      expect(imgSrc).toContain("ssl.gstatic.com");
+    });
+
+    it("should include accounts.google.com in img-src", () => {
+      const req = makeRequest("/auth", { method: "GET" });
+      const res = middleware(req);
+
+      const csp = res!.headers.get("Content-Security-Policy")!;
+      const imgSrc = csp.match(/img-src\s+([^;]+)/)?.[1] ?? "";
+      expect(imgSrc).toContain("accounts.google.com");
+    });
+
+    it("should include accounts.google.com in connect-src", () => {
+      const req = makeRequest("/auth", { method: "GET" });
+      const res = middleware(req);
+
+      const csp = res!.headers.get("Content-Security-Policy")!;
+      const connectSrc = csp.match(/connect-src\s+([^;]+)/)?.[1] ?? "";
+      expect(connectSrc).toContain("accounts.google.com");
+    });
+
+    it("should include lh3.googleusercontent.com in img-src for user avatars", () => {
+      const req = makeRequest("/dashboard", { method: "GET" });
+      const res = middleware(req);
+
+      const csp = res!.headers.get("Content-Security-Policy")!;
+      const imgSrc = csp.match(/img-src\s+([^;]+)/)?.[1] ?? "";
+      expect(imgSrc).toContain("lh3.googleusercontent.com");
+    });
+  });
 });
