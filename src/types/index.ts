@@ -21,7 +21,9 @@ export interface Experience {
   role: string;
   startDate: string;
   endDate?: string;
+  duration?: string;
   description: string;
+  achievements?: string[];
   visibility: Visibility;
 }
 

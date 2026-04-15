@@ -912,7 +912,7 @@ export async function processSyncGeneration(
       timestamp: m.timestamp ?? now,
     }));
 
-    persistConversationSession({
+    await persistConversationSession({
       sessionId: observationContext.requestId,
       userId,
       resumeId: undefined, // Updated below if created
@@ -933,11 +933,6 @@ export async function processSyncGeneration(
           ? "in_progress"
           : "abandoned",
       expiresAt: "",
-    }).catch((err) => {
-      logger.error(
-        { err, userId },
-        "Failed to persist conversation session (non-blocking)",
-      );
     });
 
     await persistAIRequestSummary({

@@ -41,6 +41,7 @@ export const AIExperienceSchema = z.object({
   startDate: z.string().min(1).max(20),
   endDate: z.string().min(1).max(20).optional(),
   description: z.string().min(1).max(2000),
+  achievements: z.array(z.string().min(1).max(500)).min(0).max(10).optional(),
   visibility: VisibilitySchema,
 });
 

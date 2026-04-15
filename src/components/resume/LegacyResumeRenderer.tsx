@@ -1,7 +1,8 @@
 import React from "react";
 
 interface LegacyExperience {
-  title: string;
+  title?: string;
+  role?: string;
   company: string;
   duration: string;
   description: string;
@@ -98,7 +99,7 @@ export const LegacyResumeRenderer: React.FC<LegacyResumeRendererProps> = ({
                 <div key={index}>
                   <div className="flex justify-between items-baseline mb-1">
                     <h3 className="text-lg font-bold text-gray-800">
-                      {exp.title}
+                      {exp.role || exp.title}
                     </h3>
                     <span className="text-sm text-gray-500 font-medium">
                       {exp.duration}
@@ -161,7 +162,9 @@ export const LegacyResumeRenderer: React.FC<LegacyResumeRendererProps> = ({
                   key={index}
                   className="bg-gray-100 text-gray-700 px-3 py-1 rounded-md text-sm font-medium border border-gray-200"
                 >
-                  {typeof skill === "object" ? (skill as LegacySkill).name : skill}
+                  {typeof skill === "object"
+                    ? (skill as LegacySkill).name
+                    : skill}
                 </span>
               ))}
             </div>

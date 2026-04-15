@@ -27,11 +27,6 @@ export interface GeminiJsonSchema {
   enum?: string[];
   minItems?: number;
   maxItems?: number;
-  minimum?: number;
-  maximum?: number;
-  minLength?: number;
-  maxLength?: number;
-  format?: string;
   nullable?: boolean;
 }
 
@@ -209,30 +204,20 @@ function convertZodType(schema: ZodTypeAny): GeminiJsonSchema {
   }
 
   // String
+  // NOTE: Gemini structured output does not support format, minLength, or maxLength
+  // on STRING types. Including them causes HTTP 400 errors from the Gemini API.
   if (defType === "string") {
     const result: GeminiJsonSchema = { type: "STRING" };
-    if (def.checks && def.checks.length > 0) {
-      const constraints = extractStringChecks(def.checks);
-      if (constraints.minLength !== undefined)
-        result.minLength = constraints.minLength;
-      if (constraints.maxLength !== undefined)
-        result.maxLength = constraints.maxLength;
-      if (constraints.format) result.format = constraints.format;
-    }
     if (schema.description) result.description = schema.description;
     return result;
   }
 
   // Number
   if (defType === "number") {
-    const result: GeminiJsonSchema = { type: "NUMBER" };
+    let result: GeminiJsonSchema = { type: "NUMBER" };
     if (def.checks && def.checks.length > 0) {
       const constraints = extractNumberChecks(def.checks);
-      if (constraints.minimum !== undefined)
-        result.minimum = constraints.minimum;
-      if (constraints.maximum !== undefined)
-        result.maximum = constraints.maximum;
-      if (constraints.isInt) result.type = "INTEGER";
+      if (constraints.isInt) result = { ...result, type: "INTEGER" };
     }
     if (schema.description) result.description = schema.description;
     return result;

@@ -39,7 +39,9 @@ export function ResumeExperienceSection({
                 </div>
               </div>
               <p className="text-slate-400 text-xs mb-4">
-                {exp.startDate} – {exp.endDate || "Present"}
+                {exp.startDate
+                  ? `${exp.startDate} – ${exp.endDate || "Present"}`
+                  : (exp.duration ?? "")}
               </p>
               <p className="text-slate-300 text-sm leading-relaxed font-normal">
                 {enhancedExperience?.[index]?.enhancedDescription ||

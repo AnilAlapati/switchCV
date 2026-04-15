@@ -13,12 +13,12 @@ import type {
 } from "./types";
 import { getStageTracking, removeUndefined } from "./types";
 
-const AI_FAILURE_EVENTS_DOC = adminDb.collection("monitoring").doc(
-  "aiFailureEvents",
-);
-const AI_REQUEST_SUMMARIES_DOC = adminDb.collection("monitoring").doc(
-  "aiRequestSummaries",
-);
+const AI_FAILURE_EVENTS_DOC = adminDb
+  .collection("monitoring")
+  .doc("aiFailureEvents");
+const AI_REQUEST_SUMMARIES_DOC = adminDb
+  .collection("monitoring")
+  .doc("aiRequestSummaries");
 
 export async function persistAIFailureEvent(
   input: AIFailureEventInput,
@@ -78,9 +78,9 @@ export async function persistAIFailureEvent(
   });
 
   try {
-    await AI_FAILURE_EVENTS_DOC.collection("events").doc(eventId).set(
-      eventDoc as Record<string, unknown>,
-    );
+    await AI_FAILURE_EVENTS_DOC.collection("events")
+      .doc(eventId)
+      .set(eventDoc as Record<string, unknown>);
     stageTracking.failureEventIds.push(eventId);
     return eventId;
   } catch (error) {
@@ -254,13 +254,11 @@ export async function persistAIRequestSummary(
   input: AIRequestSummaryInput,
 ): Promise<void> {
   const completedAt = new Date();
-  const status = deriveAIRequestStatus(
-    input.context,
-    input.userVisibleFailure,
-  );
+  const status = deriveAIRequestStatus(input.context, input.userVisibleFailure);
 
   const summaryDoc = removeUndefined({
     requestId: input.context.requestId,
+    userIdHash: input.context.userIdHash,
     entrypoint: input.context.entrypoint,
     startedAt: input.context.startedAt,
     completedAt,

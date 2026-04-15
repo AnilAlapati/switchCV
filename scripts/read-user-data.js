@@ -216,16 +216,26 @@ async function main() {
     billingSnap.docs.forEach((d) => console.log(`    ${d.id}: ${JSON.stringify(d.data()).substring(0, 200)}`));
   }
 
-  // Check aiUsageLogs
-  const usageSnap = await db.collection('aiUsageLogs').where('userId', '==', uid).limit(5).get();
-  if (!usageSnap.empty) {
-    console.log(`  AI Usage Logs (last ${usageSnap.size}):`);
-    usageSnap.docs.forEach((d) => {
-      const l = d.data();
-      console.log(`    ${ts(l.createdAt)} | model=${l.model} | tokens_in=${l.tokensIn} | tokens_out=${l.tokensOut}`);
+  // Check AI request summaries (real collection path)
+  const crypto = require('crypto');
+  const userIdHash = crypto.createHash('sha256').update(uid).digest('hex');
+  const summariesSnap = await db
+    .collection('monitoring')
+    .doc('aiRequestSummaries')
+    .collection('requests')
+    .where('userIdHash', '==', userIdHash)
+    .orderBy('startedAt', 'desc')
+    .limit(5)
+    .get();
+  if (!summariesSnap.empty) {
+    console.log(`  AI Request Summaries (last ${summariesSnap.size}):`);
+    summariesSnap.docs.forEach((d) => {
+      const s = d.data();
+      const startedAt = s.startedAt?.toDate?.()?.toISOString?.() ?? s.startedAt ?? '?';
+      console.log(`    ${startedAt} | status=${s.status} | outcome=${s.finalOutcome} | fallbacks=${s.fallbackCount}`);
     });
   } else {
-    console.log('  No AI usage logs found.');
+    console.log('  No AI request summaries found for this user.');
   }
 
   console.log(`\n${'='.repeat(60)}`);
