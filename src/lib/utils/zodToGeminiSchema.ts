@@ -75,45 +75,6 @@ function getDefType(schema: ZodTypeAny): string {
 }
 
 /**
- * Extract check constraints from Zod v4 _def.checks array.
- * In v4, checks store data in `_zod.def` or are full schema objects with `_def`.
- */
-function extractStringChecks(checks: ZodCheck[]): {
-  minLength?: number;
-  maxLength?: number;
-  format?: string;
-} {
-  const result: { minLength?: number; maxLength?: number; format?: string } =
-    {};
-
-  for (const check of checks) {
-    // Zod v4 check objects: _zod.def.check identifies the check type
-    const zodDef = check._zod?.def;
-    if (zodDef) {
-      if (zodDef.check === "min_length" && zodDef.minimum !== undefined) {
-        result.minLength = zodDef.minimum;
-      }
-      if (zodDef.check === "max_length" && zodDef.maximum !== undefined) {
-        result.maxLength = zodDef.maximum;
-      }
-    }
-
-    // Email/URL checks are full schema objects in v4 (e.g. ZodEmail)
-    const checkDef = check._def as
-      | { type?: string; format?: string }
-      | undefined;
-    if (checkDef?.format === "email") {
-      result.format = "email";
-    }
-    if (checkDef?.format === "url" || checkDef?.format === "uri") {
-      result.format = "uri";
-    }
-  }
-
-  return result;
-}
-
-/**
  * Extract number constraints from Zod v4 checks.
  */
 function extractNumberChecks(checks: ZodCheck[]): {
