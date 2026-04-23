@@ -285,6 +285,7 @@ export async function updateResumeVisibility(
         isPublic,
         visibility: isPublic ? "public" : "private",
         published: isPublic,
+        status: isPublic ? "published" : "draft",
         updatedAt: timestamp,
         lastUpdatedAt: timestamp,
       },

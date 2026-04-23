@@ -192,6 +192,7 @@ export interface DashboardResume extends ResumeProfile {
   published?: boolean;
   isPublic?: boolean;
   visibility?: string;
+  status?: "draft" | "published";
   lastUpdatedAt: string;
   updatedAt?: string;
   publishedAt?: string;

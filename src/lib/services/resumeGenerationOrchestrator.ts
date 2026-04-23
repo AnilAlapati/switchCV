@@ -58,6 +58,7 @@ import {
 } from "@/lib/services/resumeCreativePolisher";
 import { persistConversationSession } from "@/lib/services/conversationStorageService";
 import type { ConversationMessage } from "@/lib/services/conversationStorageService";
+import { adminAuth } from "@/lib/firebase-admin";
 import { AIResumeResponseSchema } from "@/lib/schemas/aiResumeSchema";
 import { zodToGeminiSchema } from "@/lib/utils/zodToGeminiSchema";
 import type {
@@ -804,6 +805,32 @@ export async function processSyncGeneration(
               progress: updatedProgress,
             },
           };
+        }
+
+        // Issue #4: If extracted name is a single word (no space), it likely
+        // came from the email-prefix. Prefer the Firebase Auth displayName.
+        const candidateName = (candidateData as Record<string, unknown>).name;
+        if (
+          typeof candidateName === "string" &&
+          candidateName.trim() &&
+          !candidateName.trim().includes(" ")
+        ) {
+          try {
+            const authUser = await adminAuth.getUser(userId);
+            if (authUser.displayName && authUser.displayName.includes(" ")) {
+              (candidateData as Record<string, unknown>).name =
+                authUser.displayName;
+              logger.info(
+                { extracted: candidateName, auth: authUser.displayName },
+                "Applied auth displayName over single-word extracted name",
+              );
+            }
+          } catch (authLookupErr) {
+            logger.warn(
+              { err: authLookupErr },
+              "Failed to look up auth displayName for name correction",
+            );
+          }
         }
 
         const { resumeId, numericId } = await saveGeneratedResume(

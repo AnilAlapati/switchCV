@@ -24,7 +24,7 @@ import {
   ResumeErrorView,
   ResumeNotFoundView,
   formatDuration,
-  type DeletionCountdownNotice
+  type DeletionCountdownNotice,
 } from "@/components/resume/ResumePageComponents";
 
 export default function ResumeView() {
@@ -152,13 +152,17 @@ export default function ResumeView() {
           if (!current) return { resume: null, accessBlock: null, error: null };
           const data = current as Record<string, unknown>;
           const resumeData = data.resume as DashboardResume;
-          if (!resumeData) return { resume: null, accessBlock: null, error: null };
+          if (!resumeData)
+            return { resume: null, accessBlock: null, error: null };
 
           return {
             resume: {
               ...(resumeData as unknown as Record<string, unknown>),
               isPublic: newVisibility,
-              visibility: (newVisibility ? "public" : "private") as "public" | "private" | "recruiter",
+              visibility: (newVisibility ? "public" : "private") as
+                | "public"
+                | "private"
+                | "recruiter",
               viewerAccess: {
                 ...(resumeData.viewerAccess || {}),
                 scope: "owner",
@@ -167,9 +171,13 @@ export default function ResumeView() {
             },
             accessBlock: data.accessBlock || null,
             error: data.error || null,
-          } as unknown as { resume: DashboardResume | null; accessBlock: null; error: null };
+          } as unknown as {
+            resume: DashboardResume | null;
+            accessBlock: null;
+            error: null;
+          };
         },
-        { revalidate: false }
+        { revalidate: false },
       );
 
       setToast({ tone: "success", message: visibilityMessage });
@@ -183,6 +191,29 @@ export default function ResumeView() {
       setIsUpdating(false);
     }
   };
+
+  const draftBanner =
+    viewerIsOwner && resume?.status === "draft" ? (
+      <div
+        role="status"
+        aria-live="polite"
+        className="sticky top-0 z-50 flex items-center justify-between gap-4 bg-amber-50 border-b border-amber-200 px-4 py-3 text-sm text-amber-900"
+      >
+        <span>
+          Your resume is saved as a draft and is only visible to you. Publish it
+          so recruiters can find you.
+        </span>
+        <button
+          type="button"
+          onClick={toggleVisibility}
+          disabled={isUpdating}
+          aria-label="Publish resume"
+          className="shrink-0 rounded-md bg-amber-600 px-3 py-1 text-white text-sm font-medium hover:bg-amber-700 disabled:opacity-50 transition-colors"
+        >
+          {isUpdating ? "Publishing…" : "Publish Now"}
+        </button>
+      </div>
+    ) : null;
 
   // Show skeleton while loading
   if (loading) {
@@ -205,14 +236,18 @@ export default function ResumeView() {
   if (template) {
     return (
       <div
-        className={`min-h-screen ${template.id === "masonry-v1" ? "" : "bg-[#FFFFF8] text-black selection:bg-black selection:text-white"
-          } p-8 font-sans relative overflow-hidden`}
+        className={`min-h-screen ${
+          template.id === "masonry-v1"
+            ? ""
+            : "bg-[#FFFFF8] text-black selection:bg-black selection:text-white"
+        } p-8 font-sans relative overflow-hidden`}
       >
         {/* Paper texture overlay */}
         {template.id !== "masonry-v1" && (
           <div className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] mix-blend-multiply bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')]" />
         )}
         <ResumeToastOverlay toast={toast} onDismiss={() => setToast(null)} />
+        {draftBanner}
         {countdownBanner}
         {editingBanner}
         {/* Privacy Toggle */}
@@ -252,10 +287,10 @@ export default function ResumeView() {
   return (
     <>
       <ResumeToastOverlay toast={toast} onDismiss={() => setToast(null)} />
+      {draftBanner}
       {countdownBanner}
       {editingBanner}
       <LegacyResumeRenderer resume={resume as unknown as LegacyResumeData} />
     </>
   );
 }
-

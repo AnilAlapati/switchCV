@@ -23,6 +23,7 @@ type ResumeWithAccess = ResumeProfile & {
   // Runtime fields added by API
   isPublic?: boolean;
   isBeingEdited?: boolean;
+  status?: "draft" | "published";
   deletionScheduledAt?: string;
   countdownStartsAt?: string;
   expirationWarningHours?: number;
@@ -38,7 +39,7 @@ type FetchResult = {
 
 const resumeFetcher = async (
   url: string,
-  token: string | null
+  token: string | null,
 ): Promise<FetchResult> => {
   const headers: HeadersInit = {};
   if (token) {
@@ -134,7 +135,7 @@ export function useResumeData(id: string | string[] | undefined) {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
       shouldRetryOnError: false, // Don't retry 4xx errors
-    }
+    },
   );
 
   const resume = fetchResult?.resume ?? null;
@@ -151,7 +152,7 @@ export function useResumeData(id: string | string[] | undefined) {
       {
         dedupingInterval: 60 * 60 * 1000, // 1 hour cache for templates (rarely change)
         revalidateOnFocus: false,
-      }
+      },
     );
 
   // If we have an access block or error, we are "done" loading even if template isn't fetched.
