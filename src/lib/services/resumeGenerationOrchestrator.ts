@@ -931,7 +931,7 @@ export async function processSyncGeneration(
       },
     };
   } finally {
-    // Persist conversation session (fire-and-forget — never blocks generation)
+    // Persist conversation session (awaited to guarantee write in serverless)
     const now = new Date().toISOString();
     const sessionMessages: ConversationMessage[] = allMessages.map((m) => ({
       role: m.isUser ? ("user" as const) : ("assistant" as const),

@@ -300,7 +300,7 @@ export async function processFunctionCallingGeneration(
       });
     }
 
-    persistConversationSession({
+    await persistConversationSession({
       sessionId: providedSessionId ?? requestId,
       userId,
       resumeId: createdResumeId,
@@ -315,11 +315,6 @@ export async function processFunctionCallingGeneration(
       },
       outcome: createdResumeId ? "resume_created" : "in_progress",
       expiresAt: "",
-    }).catch((err) => {
-      logger.error(
-        { err, userId },
-        "FC orchestrator: failed to persist conversation session (non-blocking)",
-      );
     });
   }
 
