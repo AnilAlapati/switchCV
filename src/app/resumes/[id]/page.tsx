@@ -197,7 +197,7 @@ export default function ResumeView() {
       <div
         role="status"
         aria-live="polite"
-        className="sticky top-0 z-50 flex items-center justify-between gap-4 bg-amber-50 border-b border-amber-200 px-4 py-3 text-sm text-amber-900"
+        className="sticky top-0 z-50 flex items-center justify-between gap-4 bg-amber-50 border-b border-amber-200 pl-4 pr-40 py-3 text-sm text-amber-900"
       >
         <span>
           Your resume is saved as a draft and is only visible to you. Publish it
