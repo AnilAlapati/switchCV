@@ -30,6 +30,8 @@ export interface ConversationSessionDoc {
   updatedAt: string;
   turnCount: number;
   messages: ConversationMessage[];
+  /** Structured fields extracted by the AI — used for quality checks (input vs output diff) */
+  collectedData?: Record<string, unknown>;
   metadata: {
     userTier: string;
     pipeline: string;

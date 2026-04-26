@@ -308,6 +308,7 @@ export async function processFunctionCallingGeneration(
       updatedAt: now,
       turnCount: allTurns.length,
       messages: allTurns,
+      collectedData: conversationManager.getData() as Record<string, unknown>,
       metadata: {
         userTier: userTier ?? "free",
         pipeline: "v3_function_calling",

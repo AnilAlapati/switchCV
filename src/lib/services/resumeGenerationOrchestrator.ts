@@ -182,6 +182,7 @@ export async function processSyncGeneration(
     createdResume: false,
   };
   let generationValidationFailureLogged = false;
+  let collectedDataSnapshot: Record<string, unknown> | undefined;
 
   try {
     logger.info(
@@ -305,6 +306,7 @@ export async function processSyncGeneration(
       (sessionData?.collectedData as Partial<ResumeDataRequirements>) ?? {};
     const conversationManager = new ConversationManager(seedData);
     conversationManager.updateData(extractionResult.data);
+    collectedDataSnapshot = conversationManager.getData() as Record<string, unknown>;
     const progress = conversationManager.getProgress();
 
     logger.info(
@@ -948,6 +950,7 @@ export async function processSyncGeneration(
       updatedAt: now,
       turnCount: sessionMessages.length,
       messages: sessionMessages,
+      collectedData: collectedDataSnapshot,
       metadata: {
         userTier,
         pipeline: flags.resume_v2_writer ? "v2_structured" : "v1_regex",
