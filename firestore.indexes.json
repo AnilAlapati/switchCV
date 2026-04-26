@@ -185,6 +185,20 @@
       "density": "SPARSE_ALL"
     },
     {
+      "collectionGroup": "requests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "userIdHash",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "recruiterSearchHistory",
       "queryScope": "COLLECTION",
       "fields": [

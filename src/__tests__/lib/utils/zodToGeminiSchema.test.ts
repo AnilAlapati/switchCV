@@ -18,14 +18,17 @@ describe("zodToGeminiSchema", () => {
   it("should convert a string schema with min/max length", () => {
     const schema = z.string().min(1).max(200);
     const result = zodToGeminiSchema(schema);
-    expect(result).toEqual({ type: "STRING", minLength: 1, maxLength: 200 });
+    // Gemini structured output does not support minLength/maxLength on STRING types
+    // (causes HTTP 400). The converter strips them intentionally.
+    expect(result).toEqual({ type: "STRING" });
   });
 
   it("should convert an email string schema", () => {
     const schema = z.string().email();
     const result = zodToGeminiSchema(schema);
     expect(result.type).toBe("STRING");
-    expect(result.format).toBe("email");
+    // Gemini does not support format on STRING types — stripped intentionally.
+    expect(result.format).toBeUndefined();
   });
 
   it("should convert a number schema", () => {
@@ -104,7 +107,9 @@ describe("zodToGeminiSchema", () => {
     expect(contact.type).toBe("OBJECT");
     const email = contact.properties!.email;
     expect(email.type).toBe("OBJECT");
-    expect(email.properties!.value.format).toBe("email");
+    // Gemini does not support format on STRING types — stripped intentionally.
+    expect(email.properties!.value.type).toBe("STRING");
+    expect(email.properties!.value.format).toBeUndefined();
     expect(email.properties!.visibility.enum).toEqual([
       "public",
       "masked",
