@@ -181,8 +181,10 @@ function convertZodType(schema: ZodTypeAny): GeminiJsonSchema {
     if (def.checks && def.checks.length > 0) {
       const constraints = extractNumberChecks(def.checks);
       if (constraints.isInt) result = { ...result, type: "INTEGER" };
-      if (constraints.minimum !== undefined) result.minimum = constraints.minimum;
-      if (constraints.maximum !== undefined) result.maximum = constraints.maximum;
+      if (constraints.minimum !== undefined)
+        result.minimum = constraints.minimum;
+      if (constraints.maximum !== undefined)
+        result.maximum = constraints.maximum;
     }
     if (schema.description) result.description = schema.description;
     return result;
