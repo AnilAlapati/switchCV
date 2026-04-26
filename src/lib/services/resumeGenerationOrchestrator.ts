@@ -306,7 +306,10 @@ export async function processSyncGeneration(
       (sessionData?.collectedData as Partial<ResumeDataRequirements>) ?? {};
     const conversationManager = new ConversationManager(seedData);
     conversationManager.updateData(extractionResult.data);
-    collectedDataSnapshot = conversationManager.getData() as Record<string, unknown>;
+    collectedDataSnapshot = conversationManager.getData() as Record<
+      string,
+      unknown
+    >;
     const progress = conversationManager.getProgress();
 
     logger.info(
