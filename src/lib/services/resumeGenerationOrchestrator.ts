@@ -157,13 +157,14 @@ export async function processSyncGeneration(
 
   const shouldPersistResult = persistResult ?? true;
   const requestId = providedRequestId ?? randomUUID();
+  const messageReceivedAt = new Date().toISOString();
 
   const flags = await evaluateResumeV2Flags();
   const strictValidationEnabled =
     strictMode ?? flags.resume_v2_strict_validation;
   const allMessages = [
     ...conversationHistory,
-    { content: message, isUser: true },
+    { content: message, isUser: true, timestamp: messageReceivedAt },
   ];
   const observationContext = createAIObservationContext({
     userId,
@@ -183,6 +184,8 @@ export async function processSyncGeneration(
   };
   let generationValidationFailureLogged = false;
   let collectedDataSnapshot: Record<string, unknown> | undefined;
+  let createdResumeId: string | undefined;
+  let createdNumericId: number | undefined;
 
   try {
     logger.info(
@@ -847,6 +850,8 @@ export async function processSyncGeneration(
             generationVersion,
           },
         );
+        createdResumeId = resumeId;
+        createdNumericId = numericId;
 
         const cleanResponse = "One moment, I'm finalizing your resume...";
 
@@ -947,8 +952,8 @@ export async function processSyncGeneration(
     await persistConversationSession({
       sessionId: observationContext.requestId,
       userId,
-      resumeId: undefined, // Updated below if created
-      numericResumeId: undefined,
+      ...(createdResumeId ? { resumeId: createdResumeId } : {}),
+      ...(createdNumericId ? { numericResumeId: createdNumericId } : {}),
       createdAt: observationContext.startedAt?.toISOString?.() ?? now,
       updatedAt: now,
       turnCount: sessionMessages.length,
@@ -958,7 +963,6 @@ export async function processSyncGeneration(
         userTier,
         pipeline: flags.resume_v2_writer ? "v2_structured" : "v1_regex",
         inputSources: input.inputSources,
-        model: undefined,
       },
       outcome: monitoringSummary.createdResume
         ? "resume_created"

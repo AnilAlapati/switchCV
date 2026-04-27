@@ -12,6 +12,7 @@
 
 import { logger } from "@/lib/logger";
 import { COLLECTIONS } from "@/lib/dal/collections";
+import { removeUndefined } from "@/lib/services/aiMonitoring/types";
 
 const RETENTION_DAYS = 90;
 
@@ -64,10 +65,10 @@ export async function persistConversationSession(
       .collection(COLLECTIONS.CONVERSATION_SESSIONS)
       .doc(session.sessionId);
 
-    const docData: ConversationSessionDoc = {
+    const docData = removeUndefined({
       ...session,
       expiresAt: session.expiresAt || computeExpiresAt(session.createdAt),
-    };
+    }) as ConversationSessionDoc;
 
     await docRef.set(docData, { merge: true });
 

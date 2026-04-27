@@ -67,6 +67,7 @@ export async function processFunctionCallingGeneration(
 
   const shouldPersistResult = persistResult ?? true;
   const requestId = providedRequestId ?? randomUUID();
+  const messageReceivedAt = new Date().toISOString();
 
   // Restore conversation state from session
   const collectedData =
@@ -290,7 +291,7 @@ export async function processFunctionCallingGeneration(
         content: m.content,
         timestamp: (m as { timestamp?: string }).timestamp ?? now,
       })),
-      { role: "user" as const, content: message, timestamp: now },
+      { role: "user" as const, content: message, timestamp: messageReceivedAt },
     ];
     if (aiResponse.text) {
       allTurns.push({
