@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useTier } from "@/hooks/useTier";
@@ -13,15 +13,51 @@ import { CreateResumeInputForm } from "@/components/create-resume/CreateResumeIn
 import { CreateResumeWelcome } from "@/components/create-resume/CreateResumeWelcome";
 import { AILoadingState } from "@/components/create-resume/AILoadingState";
 import { ResumeProgress } from "@/components/create-resume/ResumeProgress";
+import { ResumeFileUpload } from "@/components/create-resume/ResumeFileUpload";
 import { SessionRestoreDialog } from "@/components/create-resume/SessionRestoreDialog";
 import { TemplateRenderer } from "@/components/resume/TemplateRenderer";
 import { signalV1Template } from "@/lib/templates/resumeTemplates/signal-v1";
 import { getVerificationRoute } from "@/lib/config";
-import { Bot, User } from "lucide-react";
+import { Bot, FileUp, MessageSquare, User } from "lucide-react";
 import { useResumeCreation } from "@/hooks/useResumeCreation";
 import { mapSessionDataToPreviewProfile } from "./previewProfile";
 
 const VERIFICATION_ROUTE = getVerificationRoute();
+
+interface ResumeSessionPreviewData {
+  progress?: {
+    collectedFields?: string[];
+    missingFields?: string[];
+  };
+  collectedData?: Record<string, unknown>;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function getStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  return value.every((entry) => typeof entry === "string") ? value : undefined;
+}
+
+function getSessionPreviewData(value: unknown): ResumeSessionPreviewData {
+  if (!isRecord(value)) return {};
+
+  const progress = isRecord(value.progress)
+    ? {
+        collectedFields: getStringArray(value.progress.collectedFields),
+        missingFields: getStringArray(value.progress.missingFields),
+      }
+    : undefined;
+
+  return {
+    progress,
+    collectedData: isRecord(value.collectedData)
+      ? value.collectedData
+      : undefined,
+  };
+}
 
 export default function CreateResume() {
   const { user, loading: authLoading, needsEmailVerification } = useAuth();
@@ -51,12 +87,17 @@ export default function CreateResume() {
     handleStartFresh,
     handleSubmit,
     handleForceCreate,
+    handleUploadedDraft,
   } = useResumeCreation();
 
+  const [inputMode, setInputMode] = useState<"chat" | "upload">("chat");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const previousMessageCount = useRef(0);
 
   const loading = authLoading || profileLoading || quotaLoading;
+  const canShowUploadMode =
+    messages.length === 0 && stage === "input" && isPremiumOrHigher;
+  const isUploadMode = canShowUploadMode && inputMode === "upload";
 
   const scrollToBottom = () => {
     const el = messagesEndRef.current as HTMLElement | null;
@@ -110,19 +151,17 @@ export default function CreateResume() {
     return null;
   }
 
+  const sessionPreviewData = getSessionPreviewData(sessionData);
   const resumeProgressProps = {
     progress,
-    collectedFields: (sessionData as any)?.progress?.collectedFields,
-    missingFields: (sessionData as any)?.progress?.missingFields,
+    collectedFields: sessionPreviewData.progress?.collectedFields,
+    missingFields: sessionPreviewData.progress?.missingFields,
   };
 
   const shouldShowProgress = progress > 0;
 
   const previewProfile = mapSessionDataToPreviewProfile(
-    ((sessionData as Record<string, unknown>)?.collectedData as Record<
-      string,
-      unknown
-    >) || {},
+    sessionPreviewData.collectedData ?? {},
   );
 
   return (
@@ -171,6 +210,42 @@ export default function CreateResume() {
         <div className="flex-1 flex overflow-hidden">
           {/* Chat Column */}
           <div className="flex-1 flex flex-col relative w-full lg:w-1/2 lg:max-w-3xl mx-auto lg:border-r lg:border-border/50 bg-background overflow-hidden">
+            {canShowUploadMode && (
+              <div
+                className="flex border-b border-border/50 bg-background/95 px-4 py-2"
+                role="tablist"
+                aria-label="Resume input mode"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={inputMode === "chat"}
+                  onClick={() => setInputMode("chat")}
+                  className={`flex flex-1 items-center justify-center gap-2 border px-3 py-2 text-sm font-semibold transition-colors ${
+                    inputMode === "chat"
+                      ? "border-black bg-black text-white"
+                      : "border-gray-200 bg-white text-gray-700 hover:border-gray-400"
+                  }`}
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Chat
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={inputMode === "upload"}
+                  onClick={() => setInputMode("upload")}
+                  className={`ml-2 flex flex-1 items-center justify-center gap-2 border px-3 py-2 text-sm font-semibold transition-colors ${
+                    inputMode === "upload"
+                      ? "border-black bg-black text-white"
+                      : "border-gray-200 bg-white text-gray-700 hover:border-gray-400"
+                  }`}
+                >
+                  <FileUp className="h-4 w-4" />
+                  Upload File
+                </button>
+              </div>
+            )}
             <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 pt-4 pb-4">
               {shouldShowProgress && (
                 <div className="lg:hidden mb-6">
@@ -178,7 +253,15 @@ export default function CreateResume() {
                 </div>
               )}
 
-              {messages.length === 0 ? (
+              {isUploadMode ? (
+                <ResumeFileUpload
+                  onComplete={(uploadDraft) => {
+                    setInputMode("chat");
+                    void handleUploadedDraft(uploadDraft);
+                  }}
+                  onCancel={() => setInputMode("chat")}
+                />
+              ) : messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center min-h-[60vh] animate-in fade-in slide-in-from-bottom-8 duration-1000">
                   <CreateResumeWelcome
                     onSuggestionClick={(text) => handleSubmit(undefined, text)}
@@ -258,32 +341,34 @@ export default function CreateResume() {
               )}
             </div>
 
-            <div className="absolute bottom-0 left-0 right-0 border-t border-border/50 bg-gradient-to-t from-background via-background to-background/95 backdrop-blur-sm shadow-2xl">
-              <div className="px-4 pt-4 pb-6">
-                {messages.length > 0 &&
-                  progress >= 60 &&
-                  stage !== "complete" &&
-                  !aiLoading &&
-                  !needsClarification && (
-                    <div className="flex justify-center mb-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                      <button
-                        onClick={handleForceCreate}
-                        aria-label="Create resume now"
-                        className="bg-black hover:bg-gray-800 text-white px-6 py-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] font-bold flex items-center gap-2 transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] text-sm border-2 border-black"
-                      >
-                        <span>✨ Create Resume Now</span>
-                      </button>
-                    </div>
-                  )}
+            {!isUploadMode && (
+              <div className="absolute bottom-0 left-0 right-0 border-t border-border/50 bg-gradient-to-t from-background via-background to-background/95 backdrop-blur-sm shadow-2xl">
+                <div className="px-4 pt-4 pb-6">
+                  {messages.length > 0 &&
+                    progress >= 60 &&
+                    stage !== "complete" &&
+                    !aiLoading &&
+                    !needsClarification && (
+                      <div className="flex justify-center mb-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <button
+                          onClick={handleForceCreate}
+                          aria-label="Create resume now"
+                          className="bg-black hover:bg-gray-800 text-white px-6 py-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] font-bold flex items-center gap-2 transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] text-sm border-2 border-black"
+                        >
+                          <span>✨ Create Resume Now</span>
+                        </button>
+                      </div>
+                    )}
 
-                <CreateResumeInputForm
-                  currentInput={currentInput}
-                  onInputChange={setCurrentInput}
-                  onSubmit={handleSubmit}
-                  stage={stage}
-                />
+                  <CreateResumeInputForm
+                    currentInput={currentInput}
+                    onInputChange={setCurrentInput}
+                    onSubmit={handleSubmit}
+                    stage={stage}
+                  />
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Preview Column */}

@@ -152,6 +152,25 @@ describe("isFeatureEnabled", () => {
     ).toBe(true);
   });
 
+  it("enables resume file upload for premium and enterprise by default", async () => {
+    mockDocGet.mockResolvedValue({ exists: false });
+
+    await expect(
+      isFeatureEnabled("resume_file_upload", { tier: "premium" }),
+    ).resolves.toBe(true);
+    await expect(
+      isFeatureEnabled("resume_file_upload", { tier: "enterprise" }),
+    ).resolves.toBe(true);
+  });
+
+  it("disables resume file upload for basic by default", async () => {
+    mockDocGet.mockResolvedValue({ exists: false });
+
+    await expect(
+      isFeatureEnabled("resume_file_upload", { tier: "basic" }),
+    ).resolves.toBe(false);
+  });
+
   it("returns false when tier does not match restriction", async () => {
     mockDocGet.mockResolvedValue({ exists: false });
     expect(await isFeatureEnabled("agentic-pipeline", { tier: "basic" })).toBe(

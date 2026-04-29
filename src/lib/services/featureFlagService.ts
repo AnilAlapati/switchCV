@@ -72,6 +72,12 @@ const FLAG_DEFAULTS: Record<string, FeatureFlagDoc> = {
       "AI-powered structured extraction for resume data (replaces regex). Enabled for premium+ only.",
     tiers: ["premium", "enterprise"],
   },
+  resume_file_upload: {
+    enabled: true,
+    description:
+      "Upload PDF/DOCX/TXT to create a resume. Server-side kill switch for upload extraction.",
+    tiers: ["premium", "enterprise"],
+  },
   "agentic-pipeline": {
     enabled: true,
     description: "4-agent autonomous resume generation pipeline",

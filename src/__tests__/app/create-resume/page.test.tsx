@@ -167,6 +167,24 @@ describe("CreateResume Page", () => {
     expect(screen.getByTestId("input-form")).toBeInTheDocument();
   });
 
+  it("shows upload mode for premium users before conversation starts", async () => {
+    (useTier as jest.Mock).mockReturnValue({
+      isPremiumOrHigher: true,
+      loading: false,
+    });
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ connected: true, models: [] }),
+    });
+
+    render(<CreateResume />);
+
+    fireEvent.click(screen.getByRole("tab", { name: /upload file/i }));
+
+    expect(screen.getByTestId("resume-file-input")).toBeInTheDocument();
+    expect(screen.queryByTestId("input-form")).not.toBeInTheDocument();
+  });
+
   it("handles user input and API submission", async () => {
     (global.fetch as jest.Mock)
       .mockResolvedValueOnce({

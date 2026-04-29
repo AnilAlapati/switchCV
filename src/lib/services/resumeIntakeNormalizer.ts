@@ -1,6 +1,7 @@
 import { ResumeDataRequirements } from "@/lib/services/conversationManager";
 import { ResumeDataExtractor } from "@/lib/services/resumeDataExtractor";
 import { logger } from "@/lib/logger";
+import type { AIObservationContext } from "@/lib/services/aiMonitoringService";
 
 export type ResumeIntakeSourceChannel = "chat" | "paste" | "pdf" | "docx";
 
@@ -325,6 +326,7 @@ export class ResumeIntakeNormalizer {
     options?: {
       userTier?: "basic" | "premium" | "enterprise";
       skipAI?: boolean;
+      observationContext?: AIObservationContext;
     },
   ): Promise<
     NormalizeResumeIntakeResult & { extractionMethod: "ai" | "regex" }
@@ -386,6 +388,7 @@ export class ResumeIntakeNormalizer {
 
         const aiResult = await extractWithStructuredOutput(cleanedText, {
           userTier: options?.userTier ?? "premium",
+          observationContext: options?.observationContext,
         });
 
         if (aiResult.success && aiResult.data) {

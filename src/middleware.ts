@@ -25,7 +25,8 @@ const RATE_LIMIT_TIERS: Array<{
   { pattern: /^\/api\/auth\//, limit: 5, windowMs: 60_000 },
   // AI generation routes — expensive, tight limits
   {
-    pattern: /^\/api\/(ai|resume\/generate|resume\/enhance)\b/,
+    pattern:
+      /^\/api\/(ai|resume\/generate|resume\/enhance|resume\/upload-and-extract)\b/,
     limit: 10,
     windowMs: 60_000,
   },

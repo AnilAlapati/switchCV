@@ -1,4 +1,5 @@
 import { ResumeIntakeNormalizer } from "@/lib/services/resumeIntakeNormalizer";
+import type { AIObservationContext } from "@/lib/services/aiMonitoringService";
 
 // ── Mocks for normalizeWithAI ──────────────────────────────────────────
 
@@ -299,6 +300,38 @@ describe("ResumeIntakeNormalizer", () => {
       expect(mockExtractWithStructuredOutput).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({ userTier: "enterprise" }),
+      );
+    });
+
+    it("passes observationContext option to AI extraction", async () => {
+      const observationContext = {
+        requestId: "request-1",
+        sessionId: "session-1",
+      } as unknown as AIObservationContext;
+      mockExtractWithStructuredOutput.mockResolvedValueOnce({
+        success: true,
+        data: { name: "Observed" },
+        latencyMs: 100,
+      });
+
+      await ResumeIntakeNormalizer.normalizeWithAI(
+        {
+          sources: [
+            {
+              channel: "pdf",
+              text: "Some resume text long enough for processing",
+            },
+          ],
+        },
+        {
+          userTier: "premium",
+          observationContext,
+        },
+      );
+
+      expect(mockExtractWithStructuredOutput).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ observationContext }),
       );
     });
 

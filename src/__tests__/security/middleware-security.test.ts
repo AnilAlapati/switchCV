@@ -348,6 +348,26 @@ describe("Middleware Security", () => {
       expect(aiLimited).toBe(true);
     });
 
+    it("should apply AI rate limits to resume upload extraction", () => {
+      const ip = `rate-test-upload-${Date.now()}`;
+      let uploadLimited = false;
+
+      for (let i = 0; i < 12; i++) {
+        const req = makeRequest("/api/resume/upload-and-extract", {
+          method: "POST",
+          origin: "http://localhost:3000",
+          ip,
+        });
+        const res = middleware(req);
+        if (res!.status === 429) {
+          uploadLimited = true;
+          break;
+        }
+      }
+
+      expect(uploadLimited).toBe(true);
+    });
+
     it("should return RATE_LIMIT_EXCEEDED error code in 429 body", async () => {
       const ip = `rate-test-code-${Date.now()}`;
 

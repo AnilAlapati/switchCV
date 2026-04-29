@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useTier } from "@/hooks/useTier";
 import { useRouter } from "next/navigation";
 import { logger } from "@/lib/logger";
+import type { ResumeUploadDraft } from "@/types/resumeUpload";
 
 export interface Message {
   id: string;
@@ -32,6 +33,33 @@ interface ResumeGenerationResponse {
   needsClarification?: boolean;
   missingEvidenceFields?: string[];
   clarificationChecklist?: string[];
+}
+
+type ResumeGenerationInputSource = "chat" | "paste" | "pdf" | "docx";
+
+interface RunGenerationOptions {
+  displayMessage: string;
+  generationMessage: string;
+  requestSessionData?: unknown;
+  inputSources?: ResumeGenerationInputSource[];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+async function getGenerationErrorMessage(
+  response: Response,
+): Promise<string> {
+  const errorData = (await response.json().catch(() => null)) as unknown;
+  const serverMessage =
+    isRecord(errorData) && typeof errorData.error === "string"
+      ? errorData.error
+      : null;
+
+  return response.status < 500 && serverMessage
+    ? serverMessage
+    : "Something went wrong. Please try again.";
 }
 
 export function useResumeCreation() {
@@ -138,7 +166,10 @@ export function useResumeCreation() {
     setClarificationIssues(pendingSession.clarificationIssues || []);
     setShowRestoreDialog(false);
     setPendingSession(null);
-    logger.info("✅ Session restored");
+    logger.info(
+      { userId: pendingSession.userId, messageCount: pendingSession.messages.length },
+      "Session restored",
+    );
   }, [pendingSession]);
 
   const handleStartFresh = useCallback(() => {
@@ -152,7 +183,7 @@ export function useResumeCreation() {
     setClarificationIssues([]);
     setShowRestoreDialog(false);
     setPendingSession(null);
-    logger.info("🆕 Started fresh");
+    logger.info({ userId: user.uid }, "Started fresh resume creation session");
   }, [user?.uid]);
 
   const checkAIStatus = useCallback(async () => {
@@ -185,15 +216,18 @@ export function useResumeCreation() {
     loadModels();
   }, [checkAIStatus, loadModels]);
 
-  const handleSubmit = useCallback(
-    async (e?: React.FormEvent, overrideInput?: string) => {
-      if (e) e.preventDefault();
-      const input = overrideInput || currentInput;
-      if (!input.trim() || !user) return;
+  const runGeneration = useCallback(
+    async ({
+      displayMessage,
+      generationMessage,
+      requestSessionData,
+      inputSources,
+    }: RunGenerationOptions) => {
+      if (!user) return;
 
       const userMessage: Message = {
         id: Date.now().toString(),
-        content: input,
+        content: displayMessage,
         isUser: true,
         timestamp: new Date(),
       };
@@ -215,24 +249,16 @@ export function useResumeCreation() {
             Authorization: `Bearer ${idToken}`,
           },
           body: JSON.stringify({
-            message: input,
+            message: generationMessage,
             conversationHistory: messages,
-            sessionData,
+            sessionData: requestSessionData ?? null,
+            inputSources,
             modelId: selectedModelId,
           }),
         });
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          const serverMsg =
-            typeof errorData?.error === "string" ? errorData.error : null;
-          // 4xx → show server-provided message (user-facing validation/quota errors)
-          // 5xx → always use generic message (avoid leaking internals)
-          const errorMsg =
-            response.status < 500 && serverMsg
-              ? serverMsg
-              : "Something went wrong. Please try again.";
-          throw new Error(errorMsg);
+          throw new Error(await getGenerationErrorMessage(response));
         }
 
         const data = (await response.json()) as ResumeGenerationResponse;
@@ -253,118 +279,67 @@ export function useResumeCreation() {
 
         if (data.resumeId) {
           setStage("complete");
-          if (user?.uid)
-            localStorage.removeItem(`resume_creation_session_${user.uid}`);
+          localStorage.removeItem(`resume_creation_session_${user.uid}`);
           setTimeout(() => router.push(`/resumes/${data.resumeId}`), 2000);
         } else {
           setStage("input");
         }
       } catch (error) {
         logger.error({ err: error }, "Error generating resume");
-        setAiError(error instanceof Error ? error.message : "Unexpected error");
+        setAiError(
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred.",
+        );
         setStage("input");
       } finally {
         setAiLoading(false);
       }
     },
-    [user, currentInput, messages, sessionData, selectedModelId, router],
+    [user, messages, selectedModelId, router],
+  );
+
+  const handleSubmit = useCallback(
+    async (e?: React.FormEvent, overrideInput?: string) => {
+      if (e) e.preventDefault();
+      const input = overrideInput ?? currentInput;
+      if (!input.trim()) return;
+
+      await runGeneration({
+        displayMessage: input,
+        generationMessage: input,
+        requestSessionData: sessionData,
+      });
+    },
+    [currentInput, runGeneration, sessionData],
   );
 
   const handleForceCreate = useCallback(async () => {
-    if (!user) return;
+    await runGeneration({
+      displayMessage: "Create my resume now",
+      generationMessage: "Create my resume now",
+      requestSessionData: sessionData,
+    });
+  }, [runGeneration, sessionData]);
 
-    const forceMessage = "Create my resume now";
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      content: forceMessage,
-      isUser: true,
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setAiLoading(true);
-    setAiError(null);
-    setNeedsClarification(false);
-    setClarificationIssues([]);
-    setStage("generating");
-
-    try {
-      const idToken = await user.getIdToken();
-      const response = await fetch("/api/resume/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
+  const handleUploadedDraft = useCallback(
+    async (uploadDraft: ResumeUploadDraft) => {
+      await runGeneration({
+        displayMessage: `Uploaded resume file: ${uploadDraft.fileName}`,
+        generationMessage: "Create my resume from the uploaded file",
+        requestSessionData: {
+          collectedData: uploadDraft.extractedData,
+          uploadSource: {
+            fileName: uploadDraft.fileName,
+            sourceChannel: uploadDraft.sourceChannel,
+            extractionMethod: uploadDraft.extractionMethod,
+          },
         },
-        body: JSON.stringify({
-          message: forceMessage,
-          conversationHistory: messages,
-          sessionData,
-          modelId: selectedModelId,
-        }),
+        inputSources: [uploadDraft.sourceChannel],
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const serverMsg =
-          typeof errorData?.error === "string" ? errorData.error : null;
-        // 4xx → show server-provided message (user-facing validation/quota errors)
-        // 5xx → always use generic message (avoid leaking internals)
-        const errorMsg =
-          response.status < 500 && serverMsg
-            ? serverMsg
-            : "Something went wrong. Please try again.";
-        throw new Error(errorMsg);
-      }
-
-      const data = (await response.json()) as ResumeGenerationResponse;
-
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: data.response || "Resume generated successfully!",
-        isUser: false,
-        timestamp: new Date(),
-      };
-
-      setMessages((prev) => [...prev, aiMessage]);
-
-      if (data.sessionData) {
-        setSessionData(data.sessionData);
-      }
-
-      if (data.progress !== undefined) {
-        setProgress(data.progress);
-      }
-
-      setNeedsClarification(!!data.needsClarification);
-      setClarificationIssues(
-        data.clarificationChecklist || data.missingEvidenceFields || [],
-      );
-
-      if (data.resumeId) {
-        setStage("complete");
-        if (user?.uid) {
-          const SESSION_KEY = `resume_creation_session_${user.uid}`;
-          localStorage.removeItem(SESSION_KEY);
-        }
-        setTimeout(() => {
-          router.push(`/resumes/${data.resumeId}`);
-        }, 2000);
-      } else {
-        setStage("input");
-      }
-    } catch (error) {
-      logger.error({ err: error }, "Error generating resume:");
-      setAiError(
-        error instanceof Error
-          ? error.message
-          : "An unexpected error occurred.",
-      );
-      setStage("input");
-    } finally {
-      setAiLoading(false);
-    }
-  }, [user, messages, sessionData, selectedModelId, router]);
+    },
+    [runGeneration],
+  );
 
   return {
     messages,
@@ -387,5 +362,6 @@ export function useResumeCreation() {
     handleStartFresh,
     handleSubmit,
     handleForceCreate,
+    handleUploadedDraft,
   };
 }
