@@ -76,7 +76,7 @@ const FLAG_DEFAULTS: Record<string, FeatureFlagDoc> = {
     enabled: true,
     description:
       "Upload PDF/DOCX/TXT to create a resume. Server-side kill switch for upload extraction.",
-    tiers: ["premium", "enterprise"],
+    tiers: ["basic", "premium", "enterprise"],
   },
   "agentic-pipeline": {
     enabled: true,
