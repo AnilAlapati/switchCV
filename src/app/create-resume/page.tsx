@@ -95,8 +95,7 @@ export default function CreateResume() {
   const previousMessageCount = useRef(0);
 
   const loading = authLoading || profileLoading || quotaLoading;
-  const canShowUploadMode =
-    messages.length === 0 && stage === "input";
+  const canShowUploadMode = messages.length === 0 && stage === "input";
   const isUploadMode = canShowUploadMode && inputMode === "upload";
 
   const scrollToBottom = () => {
