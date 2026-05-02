@@ -22,6 +22,7 @@ import {
   AIEditMissingIdView,
   AIEditLoadingView,
   ResumeMissingNotice,
+  TemplatePickerPanel,
 } from "./AiEditComponents";
 
 export default function ResumeAIEditPage() {
@@ -52,6 +53,10 @@ export default function ResumeAIEditPage() {
   const [hasChanges, setHasChanges] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
   const [showRevertConfirm, setShowRevertConfirm] = useState(false);
+  const [currentTemplateId, setCurrentTemplateId] = useState<string | null>(
+    null,
+  );
+  const [isApplyingTemplate, setIsApplyingTemplate] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const originalResume = useRef<Record<string, unknown> | null>(null);
@@ -120,6 +125,7 @@ export default function ResumeAIEditPage() {
             numericId:
               data.metadata?.numericId ?? data.resume.numericId ?? resumeId,
           });
+          setCurrentTemplateId(data.resume.templateId ?? "signal-v1");
         }
 
         if (data.greeting) {
@@ -235,6 +241,35 @@ export default function ResumeAIEditPage() {
     }
   };
 
+  const handleTemplateChange = useCallback(
+    async (templateId: string) => {
+      if (!user || !resumeId) return;
+      setIsApplyingTemplate(true);
+      try {
+        const token = await user.getIdToken();
+        const response = await fetch(`/api/resumes/${resumeId}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ templateId }),
+        });
+        if (!response.ok) throw new Error("Failed to apply template");
+        setCurrentTemplateId(templateId);
+        toast.success(
+          "Template updated! View your resume to see the new design.",
+        );
+      } catch (error) {
+        logger.error({ err: error }, "Error applying template");
+        toast.error("Failed to apply template. Please try again.");
+      } finally {
+        setIsApplyingTemplate(false);
+      }
+    },
+    [user, resumeId],
+  );
+
   const handleDiscardChanges = useCallback(async () => {
     if (!user || !resumeId || !originalResume.current) return;
 
@@ -303,6 +338,15 @@ export default function ResumeAIEditPage() {
               title={resumeMeta.title}
               summary={resumeMeta.summary}
               updatedAt={resumeMeta.updatedAt ?? null}
+            />
+          )}
+
+          {!resumeMissing && (
+            <TemplatePickerPanel
+              userTier={tier as "basic" | "premium" | "enterprise"}
+              currentTemplateId={currentTemplateId}
+              onApply={handleTemplateChange}
+              isApplying={isApplyingTemplate}
             />
           )}
 

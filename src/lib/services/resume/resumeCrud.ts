@@ -267,6 +267,29 @@ export async function updateResume(
 }
 
 /**
+ * Updates the templateId for a resume.
+ * Uses a direct Firestore write since templateId is not part of the
+ * content payload handled by sanitizeResumePayload.
+ */
+export async function updateResumeTemplate(
+  id: string,
+  templateId: string,
+): Promise<void> {
+  const timestamp = new Date().toISOString();
+
+  await adminDb.collection("resumes").doc(id).set(
+    {
+      templateId,
+      updatedAt: timestamp,
+      lastUpdatedAt: timestamp,
+    },
+    { merge: true },
+  );
+
+  void cacheService.invalidate(`resume:${id}`);
+}
+
+/**
  * Updates resume visibility fields (isPublic, visibility, published).
  * Uses a direct Firestore write to bypass sanitizeResumePayload, which
  * strips these fields as "reserved" in the general updateResume path.

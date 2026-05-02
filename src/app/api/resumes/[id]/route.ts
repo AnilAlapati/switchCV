@@ -12,6 +12,7 @@ import {
   getResume,
   updateResume,
   updateResumeVisibility,
+  updateResumeTemplate,
   deleteResume,
   trackResumeView,
 } from "@/lib/services/resumeService";
@@ -180,29 +181,34 @@ export async function PATCH(
     const { userId, error } = await getAuthenticatedUserId(request);
     if (error || !userId) return error;
 
-    const VisibilitySchema = z
-      .object({
-        isPublic: z.boolean(),
-      })
-      .strict();
+    const PatchResumeSchema = z.union([
+      z.object({ isPublic: z.boolean() }).strict(),
+      z.object({ templateId: z.string().min(1) }).strict(),
+    ]);
 
-    const parseResult = VisibilitySchema.safeParse(await request.json());
+    const parseResult = PatchResumeSchema.safeParse(await request.json());
     if (!parseResult.success) {
-      return handleApiError(parseResult.error, "Invalid visibility state", 400);
+      return handleApiError(parseResult.error, "Invalid patch payload", 400);
     }
-    const { isPublic } = parseResult.data;
 
-    // Check ownership via service
+    // Check ownership
     const { access } = await getResume(id, userId);
     if (access !== "owner") {
       return handleApiError(new Error("Unauthorized"), "Unauthorized", 403);
     }
 
-    await updateResumeVisibility(id, isPublic);
+    const data = parseResult.data;
 
-    return NextResponse.json({ success: true, isPublic });
+    if ("isPublic" in data) {
+      await updateResumeVisibility(id, data.isPublic);
+      return NextResponse.json({ success: true, isPublic: data.isPublic });
+    }
+
+    // templateId change
+    await updateResumeTemplate(id, data.templateId);
+    return NextResponse.json({ success: true, templateId: data.templateId });
   } catch (error) {
-    return handleApiError(error, "Error updating resume visibility");
+    return handleApiError(error, "Error updating resume");
   }
 }
 
