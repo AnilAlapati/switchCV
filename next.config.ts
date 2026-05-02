@@ -1,21 +1,36 @@
 import type { NextConfig } from "next";
 import packageJson from "./package.json";
 import { execSync } from "child_process";
+import fs from "fs";
+import path from "path";
 
-// BUILD-TIME GUARD: Abort if dev Firebase config leaks into a prod build.
-// This catches the case where someone runs `firebase deploy` or `next build`
-// directly without using deploy.sh (which hides .env.local automatically).
-if (
-  process.env.NEXT_PUBLIC_DEPLOY_TARGET === "prod" &&
-  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID === "switchcv-dev"
-) {
-  // eslint-disable-next-line no-console
-  console.error(
-    "\n❌ FATAL: Production build is using DEV Firebase config (switchcv-dev).\n" +
-      "   .env.local is overriding .env.production.\n" +
-      "   Fix: Remove .env.local before building, or use `npm run deploy:prod`.\n",
-  );
-  process.exit(1);
+// BUILD-TIME GUARD (un-bypassable): Read .env.production directly from disk.
+// Unlike checking process.env, this cannot be defeated by .env.local overrides
+// because .env.local cannot change what is written in the .env.production file.
+if (process.env.NODE_ENV === "production") {
+  const envProdPath = path.join(process.cwd(), ".env.production");
+  if (fs.existsSync(envProdPath)) {
+    const envProdContent = fs.readFileSync(envProdPath, "utf8");
+    const expectedProjectId = envProdContent
+      .split("\n")
+      .find((l) => l.startsWith("NEXT_PUBLIC_FIREBASE_PROJECT_ID="))
+      ?.split("=")[1]
+      ?.trim();
+    const actualProjectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    if (expectedProjectId && actualProjectId !== expectedProjectId) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `\n❌ FATAL: Production build has wrong Firebase project.\n` +
+          `   .env.production requires: ${expectedProjectId}\n` +
+          `   Build is using:           ${actualProjectId}\n\n` +
+          `   CAUSE: .env.local is overriding .env.production during build.\n` +
+          `   FIX:   Firebase config is now in .env.development (loaded only for NODE_ENV=development).\n` +
+          `          Remove NEXT_PUBLIC_FIREBASE_PROJECT_ID from .env.local if it is still there.\n` +
+          `          Or use: mv .env.local .env.local.bak && npm run build && mv .env.local.bak .env.local\n`,
+      );
+      process.exit(1);
+    }
+  }
 }
 
 if (process.env.NODE_ENV === "development") {
