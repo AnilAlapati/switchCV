@@ -159,6 +159,14 @@ export async function processSyncGeneration(
   const requestId = providedRequestId ?? randomUUID();
   const messageReceivedAt = new Date().toISOString();
 
+  // Detect if this session originated from a file upload (PDF/docx).
+  // In that case, resume claims came from the user's own document and must
+  // not be subjected to factual-alignment verification (which checks claims
+  // against chat-message evidence — there are none in an upload flow).
+  const isFileUpload =
+    (input.inputSources ?? []).some((s) => s === "pdf" || s === "docx") ||
+    !!(sessionData as Record<string, unknown> | undefined)?.wasFileUpload;
+
   const flags = await evaluateResumeV2Flags();
   const strictValidationEnabled =
     strictMode ?? flags.resume_v2_strict_validation;
@@ -577,10 +585,12 @@ export async function processSyncGeneration(
           const contractErrors = validateStructuredResumeContract(candidate, {
             strictMode: strictValidationEnabled,
           });
-          const factualAlignment = evaluateFactualAlignment(
-            candidate,
-            allMessages,
-          );
+          // Skip factual-alignment for file-upload sessions: claims came from
+          // the user's own document, not from AI, so chat-message evidence
+          // cross-checking is meaningless and would always flag every claim.
+          const factualAlignment = isFileUpload
+            ? { score: 1, errors: [], evaluatedClaims: [], supportedClaims: [], unsupportedClaims: [], unsupportedSummaryMetricClaims: [], unsupportedExperienceMetricClaims: [], unsupportedScopeClaims: [], unsupportedNonNumericAssertions: [] }
+            : evaluateFactualAlignment(candidate, allMessages);
           const strictFactualErrors = strictValidationEnabled
             ? factualAlignment.errors
             : [];
@@ -772,6 +782,7 @@ export async function processSyncGeneration(
             sessionData: {
               collectedData: candidateData,
               progress: updatedProgress,
+              ...(isFileUpload ? { wasFileUpload: true } : {}),
             },
           };
         }
@@ -811,6 +822,7 @@ export async function processSyncGeneration(
             sessionData: {
               collectedData: candidateData,
               progress: updatedProgress,
+              ...(isFileUpload ? { wasFileUpload: true } : {}),
             },
           };
         }
@@ -938,6 +950,7 @@ export async function processSyncGeneration(
       sessionData: {
         collectedData: conversationManager.getData(),
         progress: updatedProgress,
+        ...(isFileUpload ? { wasFileUpload: true } : {}),
       },
     };
   } finally {

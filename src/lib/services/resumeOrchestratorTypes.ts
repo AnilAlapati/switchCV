@@ -22,6 +22,11 @@ export interface ConversationEntry {
 export interface SessionData {
   collectedData?: Record<string, unknown>;
   progress?: Record<string, unknown>;
+  /** Set to true when the session originated from a file upload (PDF/docx).
+   * Factual-alignment verification is skipped for file-upload sessions because
+   * the claims came directly from the user's own document — they are not AI
+   * hallucinations and cannot be cross-checked against chat messages. */
+  wasFileUpload?: boolean;
 }
 
 export interface SyncGenerationInput {
