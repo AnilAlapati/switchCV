@@ -239,6 +239,8 @@ export function TemplateBar({
                           fill="none"
                           viewBox="0 0 24 24"
                           aria-hidden="true"
+                          role="status"
+                          aria-live="polite"
                         >
                           <circle
                             className="opacity-25"
