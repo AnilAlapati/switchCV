@@ -589,7 +589,17 @@ export async function processSyncGeneration(
           // the user's own document, not from AI, so chat-message evidence
           // cross-checking is meaningless and would always flag every claim.
           const factualAlignment = isFileUpload
-            ? { score: 1, errors: [], evaluatedClaims: [], supportedClaims: [], unsupportedClaims: [], unsupportedSummaryMetricClaims: [], unsupportedExperienceMetricClaims: [], unsupportedScopeClaims: [], unsupportedNonNumericAssertions: [] }
+            ? {
+                score: 1,
+                errors: [],
+                evaluatedClaims: [],
+                supportedClaims: [],
+                unsupportedClaims: [],
+                unsupportedSummaryMetricClaims: [],
+                unsupportedExperienceMetricClaims: [],
+                unsupportedScopeClaims: [],
+                unsupportedNonNumericAssertions: [],
+              }
             : evaluateFactualAlignment(candidate, allMessages);
           const strictFactualErrors = strictValidationEnabled
             ? factualAlignment.errors
