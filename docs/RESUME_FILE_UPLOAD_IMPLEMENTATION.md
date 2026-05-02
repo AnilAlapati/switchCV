@@ -3,7 +3,7 @@
 **Feature:** Upload PDF/DOCX/TXT -> extract structured resume data -> review/edit -> create resume  
 **Date:** April 29, 2026  
 **Status:** Revised after checking current auth, intake, and generation code paths  
-**Estimate:** 4-5 focused development days  
+**Estimate:** 4-5 focused development days
 
 ---
 
@@ -33,14 +33,14 @@ This keeps the upload path additive while using real typed data instead of a hid
 
 ## 2. Existing Contracts To Respect
 
-| Area | Current repo behavior | Implementation requirement |
-| --- | --- | --- |
-| API auth | `getAuthenticatedUserId()` requires `Authorization: Bearer <token>` | Upload fetch must call `user.getIdToken()` and send the header |
-| File parsing | `DocumentParser.parseFile(buffer, file.name, file.type)` already handles PDF/DOCX/TXT | Reuse it, do not write files to disk |
+| Area           | Current repo behavior                                                                                                              | Implementation requirement                                         |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| API auth       | `getAuthenticatedUserId()` requires `Authorization: Bearer <token>`                                                                | Upload fetch must call `user.getIdToken()` and send the header     |
+| File parsing   | `DocumentParser.parseFile(buffer, file.name, file.type)` already handles PDF/DOCX/TXT                                              | Reuse it, do not write files to disk                               |
 | Intake cleanup | `ResumeIntakeNormalizer.normalizeWithAI()` cleans text, strips repeated headers/footers, sections content, and falls back to regex | Use it instead of calling `extractWithStructuredOutput()` directly |
-| Generation | `/api/resume/generate` always initializes `ConversationManager` from `sessionData.collectedData` | Seed uploaded data into `sessionData`, then send a create intent |
-| Creation | `/api/resumes/create` persists final resumes | No change |
-| Feature flags | Server-side flags live in `featureFlagService.ts` with 5 minute cache | Use server gate as the source of truth |
+| Generation     | `/api/resume/generate` always initializes `ConversationManager` from `sessionData.collectedData`                                   | Seed uploaded data into `sessionData`, then send a create intent   |
+| Creation       | `/api/resumes/create` persists final resumes                                                                                       | No change                                                          |
+| Feature flags  | Server-side flags live in `featureFlagService.ts` with 5 minute cache                                                              | Use server gate as the source of truth                             |
 
 ---
 
@@ -234,7 +234,11 @@ export async function POST(request: NextRequest) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const rawText = await DocumentParser.parseFile(buffer, file.name, file.type);
+    const rawText = await DocumentParser.parseFile(
+      buffer,
+      file.name,
+      file.type,
+    );
 
     if (!rawText || rawText.trim().length < MIN_TEXT_CHARS) {
       return NextResponse.json(
@@ -522,21 +526,21 @@ const [inputMode, setInputMode] = useState<"chat" | "upload">("chat");
 
 ## 6. Security Checklist
 
-| Requirement | Implementation |
-| --- | --- |
-| Auth before body parse | `getAuthenticatedUserId(request)` is first in route |
-| Bearer token from client | `ResumeFileUpload` calls `user.getIdToken()` and sends `Authorization` |
-| Tier gate | `isFeatureEnabled("resume_file_upload", { tier })` |
-| Per-user abuse control | `checkDistributedRateLimit(userId, { tier, scope: "ai_generation" })` |
-| IP abuse control | Middleware AI tier includes upload route |
-| Budget gate | `BillingService.checkBudget(userId, userTier)` before AI call |
-| File size | 5 MB server-side hard limit |
-| File type | Extension must be allowed and MIME must match that extension |
-| No filesystem writes | Convert upload to `Buffer`, parse in memory |
-| Scanned PDF handling | Reject text under `MIN_TEXT_CHARS` with `SCANNED_PDF` |
-| Prompt injection tripwire | Run `containsPromptInjection(textForAI)` before AI extraction |
-| No raw text returned | API returns structured draft only |
-| No error leaks | Use generic client messages and `handleApiError()` |
+| Requirement               | Implementation                                                         |
+| ------------------------- | ---------------------------------------------------------------------- |
+| Auth before body parse    | `getAuthenticatedUserId(request)` is first in route                    |
+| Bearer token from client  | `ResumeFileUpload` calls `user.getIdToken()` and sends `Authorization` |
+| Tier gate                 | `isFeatureEnabled("resume_file_upload", { tier })`                     |
+| Per-user abuse control    | `checkDistributedRateLimit(userId, { tier, scope: "ai_generation" })`  |
+| IP abuse control          | Middleware AI tier includes upload route                               |
+| Budget gate               | `BillingService.checkBudget(userId, userTier)` before AI call          |
+| File size                 | 5 MB server-side hard limit                                            |
+| File type                 | Extension must be allowed and MIME must match that extension           |
+| No filesystem writes      | Convert upload to `Buffer`, parse in memory                            |
+| Scanned PDF handling      | Reject text under `MIN_TEXT_CHARS` with `SCANNED_PDF`                  |
+| Prompt injection tripwire | Run `containsPromptInjection(textForAI)` before AI extraction          |
+| No raw text returned      | API returns structured draft only                                      |
+| No error leaks            | Use generic client messages and `handleApiError()`                     |
 
 Important limitation: prompt-injection detection is a tripwire, not a full security boundary. The extraction prompt must continue treating uploaded resume text as untrusted content.
 
@@ -544,14 +548,14 @@ Important limitation: prompt-injection detection is a tripwire, not a full secur
 
 ## 7. Cost Controls
 
-| Control | Location | Value |
-| --- | --- | --- |
-| File size cap | Upload route | 5 MB |
-| Text cap before AI | Upload route | 32,000 chars |
-| Per-user AI limit | Upload route | `scope: "ai_generation"` |
-| IP AI limit | Middleware | 10 req/min |
-| Budget check | Upload route | `BillingService.checkBudget()` |
-| Tier gate | Upload route and UI | Premium/enterprise |
+| Control            | Location            | Value                          |
+| ------------------ | ------------------- | ------------------------------ |
+| File size cap      | Upload route        | 5 MB                           |
+| Text cap before AI | Upload route        | 32,000 chars                   |
+| Per-user AI limit  | Upload route        | `scope: "ai_generation"`       |
+| IP AI limit        | Middleware          | 10 req/min                     |
+| Budget check       | Upload route        | `BillingService.checkBudget()` |
+| Tier gate          | Upload route and UI | Premium/enterprise             |
 
 With this design, upload creation should not pay for extraction twice. The upload route performs extraction once, and the generation request uses seeded `sessionData.collectedData`.
 
@@ -605,3 +609,48 @@ That endpoint can call the same `isFeatureEnabled("resume_file_upload", { tier }
 - Persisting raw uploaded files to Cloud Storage.
 - Full rich editing of every experience and education field before creation.
 - New `/api/resumes/create` behavior.
+
+---
+
+## 11. Post-Launch Bugs Fixed (May 2, 2026)
+
+### Bug 1 — PDF Upload Returns 500 Error (webpack bundling conflict)
+
+**Symptom:** Uploading a PDF returned a 500 error immediately. Browser console showed:
+`TypeError: Object.defineProperty called on non-object` during evaluation of `pdfjs-dist/legacy/build/pdf.mjs`.
+
+**Root cause:** Next.js's webpack bundler tried to bundle `pdf-parse` and `pdfjs-dist` into the server bundle. Both libraries use `Object.defineProperty` at module evaluation time in a way that is incompatible with webpack's module wrapper — it only works when loaded directly by Node.js.
+
+**Fix:**
+
+- Added `pdf-parse` and `pdfjs-dist` to `serverExternalPackages` in `next.config.ts` so Next.js loads them directly from `node_modules` rather than bundling them.
+- Relaxed the MIME type check in `src/app/api/resume/upload-and-extract/route.ts` to also accept `application/octet-stream` and `application/x-pdf`. Safari and some OS file pickers report PDFs with a generic MIME type, causing valid PDFs to be rejected before parsing.
+
+**Files changed:** `next.config.ts`, `src/app/api/resume/upload-and-extract/route.ts`
+
+---
+
+### Bug 2 — Infinite Verification Loop After PDF Upload
+
+**Symptom:** After a PDF uploaded successfully and the preview showed all extracted data correctly, clicking "Create Resume" triggered a verification checklist message:
+
+> "You're very close — I just need a few exact details before I can create the resume..."
+>
+> - Unverified summary metric claims: _An introspective Senior Software Engineer with over 10 years..._
+> - Unverified experience metric claims: _Led a team of 5..., Delivered 15+ automations..._
+> - Unverified scope claims: _Delivered post-implementation maintenance..._
+
+Every subsequent reply (including "yes all claims are accurate") either caused a "Something went wrong" error or re-triggered the same checklist. The user was permanently trapped.
+
+**Root cause:** The resume generation orchestrator runs a _factual-alignment_ check after generating the resume — it cross-checks every metric claim in the resume against the chat message history to detect AI hallucinations.
+
+For PDF uploads, the only chat message in the conversation at the point of creation is `"Create my resume from the uploaded file"`. The factual-alignment checker found zero evidence for any claims (because the PDF text is never in the message history — it's stored in `sessionData.collectedData` only). **Every single claim was flagged as unverified**, sending the user into a clarification loop that had no exit path because subsequent user replies also produced no evidence.
+
+The preview worked fine because it reads directly from `sessionData` and bypasses the factual-alignment check. Only the creation path was broken.
+
+**Fix:** Added `isFileUpload` detection in `processSyncGeneration`. When the session originated from a file upload (`inputSources` contains `"pdf"` or `"docx"`, or `sessionData.wasFileUpload` is `true`), the factual-alignment evaluation is skipped entirely and replaced with a perfect-score result. The `wasFileUpload` flag is propagated in all `sessionData` returns so that follow-up chat turns in the same session also bypass verification.
+
+Claims extracted from the user's own uploaded document are not AI hallucinations — they are the user's words. Applying a hallucination check against a chat that contains none of that text is semantically incorrect.
+
+**Files changed:** `src/lib/services/resumeOrchestratorTypes.ts`, `src/lib/services/resumeGenerationOrchestrator.ts`
+₹q a?
