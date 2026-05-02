@@ -52,8 +52,9 @@ const nextConfig: NextConfig = {
       "framer-motion",
     ],
   },
-  // Removing serverExternalPackages, transpilePackages, and webpack/turbopack configs
-  // and relying on Next.js 16 defaults for the Firebase environment.
+  // pdf-parse and pdfjs-dist use ESM module patterns that break when webpack bundles them
+  // (Object.defineProperty called on non-object). Must be loaded from node_modules directly.
+  serverExternalPackages: ["pdf-parse", "pdfjs-dist"],
   transpilePackages: ["path-scurry"],
   env: {
     NEXT_PUBLIC_APP_VERSION: packageJson.version,

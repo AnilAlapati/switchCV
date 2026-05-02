@@ -24,7 +24,9 @@ const MAX_TEXT_CHARS = 32_000;
 const MIN_TEXT_CHARS = 80;
 
 const MIME_BY_EXTENSION = {
-  ".pdf": ["application/pdf"],
+  // application/octet-stream is included because some browsers/OS (e.g. Safari on macOS)
+  // report PDFs with a generic MIME type. Extension-based validation already confirms the file type.
+  ".pdf": ["application/pdf", "application/octet-stream", "application/x-pdf"],
   ".docx": [
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   ],
@@ -120,7 +122,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const rawText = await DocumentParser.parseFile(buffer, file.name, file.type);
+    const rawText = await DocumentParser.parseFile(
+      buffer,
+      file.name,
+      file.type,
+    );
 
     if (rawText.trim().length < MIN_TEXT_CHARS) {
       return NextResponse.json(
