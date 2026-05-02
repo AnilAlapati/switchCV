@@ -15,6 +15,8 @@ import { PrivacyMenu } from "@/components/resume/PrivacyMenu";
 import { RequestAccessDialog } from "@/components/RequestAccessDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useResumeData } from "@/hooks/useResumeData";
+import { useResumeQuota } from "@/hooks/useResumeQuota";
+import { TemplateBar } from "@/components/resume/TemplateBar";
 import { ResumeViewSkeleton } from "@/components/resume/ResumeViewSkeleton";
 import { DashboardResume, LegacyResumeData } from "@/types";
 
@@ -33,12 +35,16 @@ export default function ResumeView() {
   const { resume, template, accessBlock, error, loading, mutateResume } =
     useResumeData(id);
 
+  const { tier } = useResumeQuota();
+
   const [isUpdating, setIsUpdating] = useState(false);
   const [toast, setToast] = useState<ResumeToast | null>(null);
   const [showPrivacyMenu, setShowPrivacyMenu] = useState(false);
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
   const [deletionNotice, setDeletionNotice] =
     useState<DeletionCountdownNotice | null>(null);
+  const [previewTemplateId, setPreviewTemplateId] = useState<string | null>(null);
+  const [isApplyingTemplate, setIsApplyingTemplate] = useState(false);
 
   const viewerAccess = (resume?.viewerAccess as Record<string, any>) ?? {};
   const viewerIsOwner = Boolean(viewerAccess?.isOwner);
@@ -110,6 +116,50 @@ export default function ResumeView() {
     const interval = window.setInterval(updateNotice, 60000);
     return () => window.clearInterval(interval);
   }, [resume, viewerIsOwner]);
+
+  const handleApplyTemplate = async () => {
+    const resumeId = Array.isArray(id) ? id[0] : id;
+    if (!resumeId || !user || !previewTemplateId) return;
+    setIsApplyingTemplate(true);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch(`/api/resumes/${resumeId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ templateId: previewTemplateId }),
+      });
+      if (!res.ok) throw new Error("Failed to apply template");
+      // Optimistically update cache so the dependent template SWR re-fetches
+      mutateResume(
+        (current: unknown) => {
+          if (!current) return { resume: null, accessBlock: null, error: null };
+          const data = current as Record<string, unknown>;
+          const resumeData = data.resume as DashboardResume;
+          if (!resumeData) return { resume: null, accessBlock: null, error: null };
+          return {
+            resume: { ...(resumeData as unknown as Record<string, unknown>), templateId: previewTemplateId },
+            accessBlock: data.accessBlock || null,
+            error: data.error || null,
+          } as unknown as { resume: DashboardResume | null; accessBlock: null; error: null };
+        },
+        { revalidate: false },
+      );
+      setToast({ tone: "success", message: "Design saved! Your resume now uses the new layout." });
+      // Keep previewTemplateId set so the renderer doesn't flash back to the old template
+      // while the new template object is re-fetched in the background
+    } catch (err) {
+      logger.error({ err }, "Error applying template");
+      setToast({ tone: "error", message: "Failed to save design. Please try again." });
+    } finally {
+      setIsApplyingTemplate(false);
+    }
+  };
+
+  const handleCancelPreview = () => {
+    setPreviewTemplateId(null);
+    // If a template was applied, force a revalidation to load the new template object
+    mutateResume(undefined, { revalidate: true });
+  };
 
   const toggleVisibility = async () => {
     // Determine current ID safely
@@ -235,16 +285,21 @@ export default function ResumeView() {
 
   // Use the new TemplateRenderer if a template is loaded
   if (template) {
+    // For live preview: override template id without touching section config
+    const effectiveTemplate = previewTemplateId
+      ? { ...template, id: previewTemplateId }
+      : template;
+
     return (
       <div
         className={`min-h-screen ${
-          template.id === "masonry-v1"
+          effectiveTemplate.id === "masonry-v1"
             ? ""
             : "bg-[#FFFFF8] text-black selection:bg-black selection:text-white"
         } p-8 font-sans relative overflow-hidden`}
       >
         {/* Paper texture overlay */}
-        {template.id !== "masonry-v1" && (
+        {effectiveTemplate.id !== "masonry-v1" && (
           <div className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] mix-blend-multiply bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')]" />
         )}
         <ResumeToastOverlay toast={toast} onDismiss={() => setToast(null)} />
@@ -263,11 +318,24 @@ export default function ResumeView() {
         />
 
         <TemplateRenderer
-          template={template}
+          template={effectiveTemplate}
           data={resume}
           isAuthenticated={!!user}
           onRequestAccess={() => setRequestDialogOpen(true)}
         />
+
+        {/* Design picker — owner only */}
+        {viewerIsOwner && (
+          <TemplateBar
+            userTier={(tier ?? "basic") as "basic" | "premium" | "enterprise"}
+            savedTemplateId={resume.templateId ?? "signal-v1"}
+            previewTemplateId={previewTemplateId}
+            onPreview={setPreviewTemplateId}
+            onApply={handleApplyTemplate}
+            onClose={handleCancelPreview}
+            isApplying={isApplyingTemplate}
+          />
+        )}
 
         <RequestAccessDialog
           isOpen={requestDialogOpen}
