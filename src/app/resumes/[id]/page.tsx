@@ -163,6 +163,7 @@ export default function ResumeView() {
                 | "public"
                 | "private"
                 | "recruiter",
+              status: newVisibility ? "published" : "draft",
               viewerAccess: {
                 ...(resumeData.viewerAccess || {}),
                 scope: "owner",

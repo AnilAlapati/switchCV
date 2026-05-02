@@ -40,12 +40,17 @@ async function upgradeUserTier(email, tier) {
     const userId = userDoc.id;
 
     console.log(`✅ Found user: ${userId}`);
-    console.log(`   Current tier: ${userData.subscriptionTier || "basic"}`);
-    console.log(`   Upgrading to: ${tier}`);
+    console.log(`   Current subscriptionTier: ${userData.subscriptionTier || "basic"}`);
+    console.log(`   Current jobSeekerTier:    ${userData.jobSeekerTier || "basic"}`);
+    console.log(`   Current recruiterTier:    ${userData.recruiterTier || "basic"}`);
+    console.log(`   Upgrading all tiers to: ${tier}`);
 
-    // Update the tier
+    // Update all tier fields so the frontend hook (which checks jobSeekerTier first)
+    // always sees the correct value regardless of field precedence.
     await db.collection("users").doc(userId).update({
         subscriptionTier: tier,
+        jobSeekerTier: tier,
+        recruiterTier: tier,
         tierUpdatedAt: new Date().toISOString(),
         tierUpdatedBy: "admin-script",
     });
