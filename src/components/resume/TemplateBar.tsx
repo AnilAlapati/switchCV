@@ -129,12 +129,11 @@ export function TemplateBar({
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-50 flex flex-col items-center pointer-events-none print:hidden"
-      style={{ paddingBottom: "max(env(safe-area-inset-bottom, 0px), 16px)" }}
+      className="fixed top-20 right-6 z-50 flex flex-col items-end pointer-events-none print:hidden"
     >
       {/* ── Expanded Tray ── */}
       {open && (
-        <div className="pointer-events-auto w-full max-w-3xl mx-auto px-4 mb-3">
+        <div className="pointer-events-auto w-full max-w-sm mr-0 mb-3">
           <div className="bg-white/96 backdrop-blur-xl border border-gray-200/80 rounded-2xl shadow-2xl overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
@@ -184,11 +183,10 @@ export function TemplateBar({
               </button>
             </div>
 
-            {/* Template row — horizontal scroll */}
-            <div className="p-4">
-              <div
-                className="flex gap-2.5 overflow-x-auto pb-1"
-                style={{ scrollSnapType: "x mandatory" }}
+            {/* Template Grid Container */}
+            <div className="p-4 border-b border-gray-100">
+              <div 
+                className="grid grid-cols-4 gap-2"
                 role="listbox"
                 aria-label="Template designs"
               >
@@ -205,11 +203,9 @@ export function TemplateBar({
                       disabled={!accessible || isApplying}
                       onClick={() => accessible && onPreview(t.id)}
                       title={accessible ? t.name : `Requires ${t.tier} plan`}
-                      style={{ scrollSnapAlign: "start" }}
                       className={[
-                        "flex-shrink-0 flex flex-col items-center gap-1.5 rounded-xl p-1.5 transition-all",
+                        "flex flex-col items-center gap-1.5 rounded-xl p-1.5 transition-all text-center",
                         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400",
-                        "w-[72px]",
                         isSelected
                           ? "ring-2 ring-indigo-500 ring-offset-1 bg-indigo-50"
                           : accessible
