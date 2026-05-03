@@ -157,7 +157,12 @@ export function useResumeData(id: string | string[] | undefined) {
 
   // If we have an access block or error, we are "done" loading even if template isn't fetched.
   // If we have resume, we wait for template.
-  const loading = resumeLoading || (!!resume && templateLoading);
+  // fetchResult === undefined means SWR hasn't resolved yet (first render before fetch completes) -
+  // treat that as loading to prevent a one-frame flash of the "not found" state.
+  const loading =
+    resumeLoading ||
+    (shouldFetch && fetchResult === undefined) ||
+    (!!resume && templateLoading);
 
   return {
     resume,
