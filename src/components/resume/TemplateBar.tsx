@@ -127,6 +127,15 @@ export function TemplateBar({
     onClose();
   }, [onClose]);
 
+  // X button: auto-apply the previewed design then close (don't discard it)
+  const handleApplyAndClose = useCallback(async () => {
+    if (hasUnsavedChange) {
+      await onApply();
+    }
+    setOpen(false);
+    onClose();
+  }, [hasUnsavedChange, onApply, onClose]);
+
   return (
     <div className="fixed top-20 right-6 z-50 flex flex-col items-end pointer-events-none print:hidden">
       {/* ── Expanded Tray ── */}
@@ -161,7 +170,7 @@ export function TemplateBar({
               </div>
               <button
                 type="button"
-                onClick={handleClose}
+                onClick={handleApplyAndClose}
                 aria-label="Close design picker"
                 className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-400"
               >
