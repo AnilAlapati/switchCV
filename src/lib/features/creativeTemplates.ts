@@ -79,13 +79,8 @@ export const canAccessTemplate = (
   userTier: "basic" | "premium" | "enterprise",
 ): boolean => {
   if (!CREATIVE_TEMPLATES_ENABLED) {
-    // Feature disabled - only allow basic templates
-    return [
-      "signal-v1",
-      "standard-v1",
-      "modern-creative-v1",
-      "executive-v1",
-    ].includes(templateId);
+    // Feature disabled - free templates are still accessible to everyone
+    return (TEMPLATE_TIERS[templateId] ?? "free") === "free";
   }
 
   const templateTier = TEMPLATE_TIERS[templateId] || "free";
