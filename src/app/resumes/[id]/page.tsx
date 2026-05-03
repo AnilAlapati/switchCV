@@ -43,7 +43,9 @@ export default function ResumeView() {
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
   const [deletionNotice, setDeletionNotice] =
     useState<DeletionCountdownNotice | null>(null);
-  const [previewTemplateId, setPreviewTemplateId] = useState<string | null>(null);
+  const [previewTemplateId, setPreviewTemplateId] = useState<string | null>(
+    null,
+  );
   const [isApplyingTemplate, setIsApplyingTemplate] = useState(false);
 
   const viewerAccess = (resume?.viewerAccess as Record<string, any>) ?? {};
@@ -125,7 +127,10 @@ export default function ResumeView() {
       const token = await user.getIdToken();
       const res = await fetch(`/api/resumes/${resumeId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ templateId: previewTemplateId }),
       });
       if (!res.ok) throw new Error("Failed to apply template");
@@ -135,21 +140,35 @@ export default function ResumeView() {
           if (!current) return { resume: null, accessBlock: null, error: null };
           const data = current as Record<string, unknown>;
           const resumeData = data.resume as DashboardResume;
-          if (!resumeData) return { resume: null, accessBlock: null, error: null };
+          if (!resumeData)
+            return { resume: null, accessBlock: null, error: null };
           return {
-            resume: { ...(resumeData as unknown as Record<string, unknown>), templateId: previewTemplateId },
+            resume: {
+              ...(resumeData as unknown as Record<string, unknown>),
+              templateId: previewTemplateId,
+            },
             accessBlock: data.accessBlock || null,
             error: data.error || null,
-          } as unknown as { resume: DashboardResume | null; accessBlock: null; error: null };
+          } as unknown as {
+            resume: DashboardResume | null;
+            accessBlock: null;
+            error: null;
+          };
         },
         { revalidate: false },
       );
-      setToast({ tone: "success", message: "Design saved! Your resume now uses the new layout." });
+      setToast({
+        tone: "success",
+        message: "Design saved! Your resume now uses the new layout.",
+      });
       // Keep previewTemplateId set so the renderer doesn't flash back to the old template
       // while the new template object is re-fetched in the background
     } catch (err) {
       logger.error({ err }, "Error applying template");
-      setToast({ tone: "error", message: "Failed to save design. Please try again." });
+      setToast({
+        tone: "error",
+        message: "Failed to save design. Please try again.",
+      });
     } finally {
       setIsApplyingTemplate(false);
     }

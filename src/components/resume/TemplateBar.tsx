@@ -6,24 +6,94 @@ import { canAccessTemplate } from "@/lib/features/creativeTemplates";
 type Tier = "basic" | "premium" | "enterprise";
 
 const TEMPLATES = [
-  { id: "signal-v1",          name: "Signal",          tier: "free" as const,       preview: "bg-gradient-to-br from-teal-50 to-cyan-100" },
-  { id: "standard-v1",        name: "Standard",        tier: "free" as const,       preview: "bg-gradient-to-br from-gray-50 to-gray-200" },
-  { id: "modern-creative-v1", name: "Modern Creative", tier: "free" as const,       preview: "bg-gradient-to-br from-blue-50 to-indigo-100" },
-  { id: "executive-v1",       name: "Executive",       tier: "free" as const,       preview: "bg-gradient-to-br from-slate-50 to-slate-200" },
-  { id: "masonry-v1",         name: "Masonry",         tier: "free" as const,       preview: "bg-gradient-to-br from-amber-50 to-orange-100" },
-  { id: "atlas-v1",           name: "Atlas",           tier: "free" as const,       preview: "bg-gradient-to-br from-emerald-50 to-green-100" },
-  { id: "clarity-v1",         name: "Clarity",         tier: "free" as const,       preview: "bg-gradient-to-br from-violet-50 to-purple-100" },
-  { id: "narrative-v1",       name: "Narrative",       tier: "premium" as const,    preview: "bg-gradient-to-br from-sky-50 to-blue-100" },
-  { id: "studio-v1",          name: "Studio",          tier: "premium" as const,    preview: "bg-gradient-to-br from-yellow-50 to-amber-100" },
-  { id: "bento-v1",           name: "Bento",           tier: "premium" as const,    preview: "bg-gradient-to-br from-[#F5F5F7] to-[#E8E8ED]" },
-  { id: "terminal-v1",        name: "Terminal",        tier: "premium" as const,    preview: "bg-gradient-to-br from-[#1E1E1E] to-[#0D1117]" },
-  { id: "velocity-v1",        name: "Velocity",        tier: "premium" as const,    preview: "bg-gradient-to-br from-orange-50 to-red-100" },
-  { id: "editorial-v1",       name: "Editorial",       tier: "enterprise" as const, preview: "bg-gradient-to-br from-[#FAFAF8] to-[#F0EDE8]" },
-  { id: "noir-v1",            name: "Noir",            tier: "enterprise" as const, preview: "bg-black" },
+  {
+    id: "signal-v1",
+    name: "Signal",
+    tier: "free" as const,
+    preview: "bg-gradient-to-br from-teal-50 to-cyan-100",
+  },
+  {
+    id: "standard-v1",
+    name: "Standard",
+    tier: "free" as const,
+    preview: "bg-gradient-to-br from-gray-50 to-gray-200",
+  },
+  {
+    id: "modern-creative-v1",
+    name: "Modern Creative",
+    tier: "free" as const,
+    preview: "bg-gradient-to-br from-blue-50 to-indigo-100",
+  },
+  {
+    id: "executive-v1",
+    name: "Executive",
+    tier: "free" as const,
+    preview: "bg-gradient-to-br from-slate-50 to-slate-200",
+  },
+  {
+    id: "masonry-v1",
+    name: "Masonry",
+    tier: "free" as const,
+    preview: "bg-gradient-to-br from-amber-50 to-orange-100",
+  },
+  {
+    id: "atlas-v1",
+    name: "Atlas",
+    tier: "free" as const,
+    preview: "bg-gradient-to-br from-emerald-50 to-green-100",
+  },
+  {
+    id: "clarity-v1",
+    name: "Clarity",
+    tier: "free" as const,
+    preview: "bg-gradient-to-br from-violet-50 to-purple-100",
+  },
+  {
+    id: "narrative-v1",
+    name: "Narrative",
+    tier: "premium" as const,
+    preview: "bg-gradient-to-br from-sky-50 to-blue-100",
+  },
+  {
+    id: "studio-v1",
+    name: "Studio",
+    tier: "premium" as const,
+    preview: "bg-gradient-to-br from-yellow-50 to-amber-100",
+  },
+  {
+    id: "bento-v1",
+    name: "Bento",
+    tier: "premium" as const,
+    preview: "bg-gradient-to-br from-[#F5F5F7] to-[#E8E8ED]",
+  },
+  {
+    id: "terminal-v1",
+    name: "Terminal",
+    tier: "premium" as const,
+    preview: "bg-gradient-to-br from-[#1E1E1E] to-[#0D1117]",
+  },
+  {
+    id: "velocity-v1",
+    name: "Velocity",
+    tier: "premium" as const,
+    preview: "bg-gradient-to-br from-orange-50 to-red-100",
+  },
+  {
+    id: "editorial-v1",
+    name: "Editorial",
+    tier: "enterprise" as const,
+    preview: "bg-gradient-to-br from-[#FAFAF8] to-[#F0EDE8]",
+  },
+  {
+    id: "noir-v1",
+    name: "Noir",
+    tier: "enterprise" as const,
+    preview: "bg-black",
+  },
 ] as const;
 
 const TIER_BADGE: Record<string, string> = {
-  premium:    "bg-gradient-to-r from-indigo-500 to-purple-500",
+  premium: "bg-gradient-to-r from-indigo-500 to-purple-500",
   enterprise: "bg-gradient-to-r from-amber-500 to-orange-500",
 };
 
@@ -134,9 +204,7 @@ export function TemplateBar({
                       aria-selected={isSelected}
                       disabled={!accessible || isApplying}
                       onClick={() => accessible && onPreview(t.id)}
-                      title={
-                        accessible ? t.name : `Requires ${t.tier} plan`
-                      }
+                      title={accessible ? t.name : `Requires ${t.tier} plan`}
                       style={{ scrollSnapAlign: "start" }}
                       className={[
                         "flex-shrink-0 flex flex-col items-center gap-1.5 rounded-xl p-1.5 transition-all",
@@ -145,8 +213,8 @@ export function TemplateBar({
                         isSelected
                           ? "ring-2 ring-indigo-500 ring-offset-1 bg-indigo-50"
                           : accessible
-                          ? "hover:bg-gray-50 cursor-pointer"
-                          : "opacity-50 cursor-not-allowed",
+                            ? "hover:bg-gray-50 cursor-pointer"
+                            : "opacity-50 cursor-not-allowed",
                       ].join(" ")}
                     >
                       {/* Colour swatch */}
