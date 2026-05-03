@@ -9,11 +9,17 @@
 const admin = require("firebase-admin");
 
 // Initialize Firebase Admin
-if (!admin.apps.length) {
-    admin.initializeApp({
-        projectId: process.env.FIREBASE_PROJECT_ID || "switchcv-dev",
-    });
+const projectId = process.env.FIREBASE_PROJECT_ID;
+if (!projectId) {
+    console.error("❌ FIREBASE_PROJECT_ID env var is required.");
+    console.error("   Production: FIREBASE_PROJECT_ID=switchcv-e5136 node scripts/upgrade-user-tier.js ...");
+    console.error("   Dev:        FIREBASE_PROJECT_ID=switchcv-dev node scripts/upgrade-user-tier.js ...");
+    process.exit(1);
 }
+if (!admin.apps.length) {
+    admin.initializeApp({ projectId });
+}
+console.log(`🔧 Using Firebase project: ${projectId}`);
 
 const db = admin.firestore();
 
