@@ -103,6 +103,7 @@ interface TemplateBarProps {
   previewTemplateId: string | null;
   onPreview: (id: string) => void;
   onApply: () => Promise<void>;
+  onApplyAndClose?: () => Promise<void>;
   onClose: () => void;
   isApplying: boolean;
 }
@@ -113,6 +114,7 @@ export function TemplateBar({
   previewTemplateId,
   onPreview,
   onApply,
+  onApplyAndClose,
   onClose,
   isApplying,
 }: TemplateBarProps) {
@@ -127,14 +129,15 @@ export function TemplateBar({
     onClose();
   }, [onClose]);
 
-  // X button: auto-apply the previewed design then close (don't discard it)
+  // X button: silently save the previewed design and close — no toast, no revalidation
   const handleApplyAndClose = useCallback(async () => {
     if (hasUnsavedChange) {
-      await onApply();
+      await (onApplyAndClose ?? onApply)();
     }
     setOpen(false);
-    onClose();
-  }, [hasUnsavedChange, onApply, onClose]);
+    // Intentionally NOT calling onClose() here — that would trigger revalidation
+    // and revert the preview state, causing a visible flash/refresh.
+  }, [hasUnsavedChange, onApply, onApplyAndClose]);
 
   return (
     <div className="fixed top-20 right-6 z-50 flex flex-col items-end pointer-events-none print:hidden">

@@ -119,9 +119,9 @@ export default function ResumeView() {
     return () => window.clearInterval(interval);
   }, [resume, viewerIsOwner]);
 
-  const handleApplyTemplate = async () => {
+  const applyTemplateById = async (templateId: string, silent = false) => {
     const resumeId = Array.isArray(id) ? id[0] : id;
-    if (!resumeId || !user || !previewTemplateId) return;
+    if (!resumeId || !user) return;
     setIsApplyingTemplate(true);
     try {
       const token = await user.getIdToken();
@@ -131,7 +131,7 @@ export default function ResumeView() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ templateId: previewTemplateId }),
+        body: JSON.stringify({ templateId }),
       });
       if (!res.ok) throw new Error("Failed to apply template");
       // Optimistically update cache so the dependent template SWR re-fetches
@@ -145,7 +145,7 @@ export default function ResumeView() {
           return {
             resume: {
               ...(resumeData as unknown as Record<string, unknown>),
-              templateId: previewTemplateId,
+              templateId,
             },
             accessBlock: data.accessBlock || null,
             error: data.error || null,
@@ -157,12 +157,12 @@ export default function ResumeView() {
         },
         { revalidate: false },
       );
-      setToast({
-        tone: "success",
-        message: "Design saved! Your resume now uses the new layout.",
-      });
-      // Keep previewTemplateId set so the renderer doesn't flash back to the old template
-      // while the new template object is re-fetched in the background
+      if (!silent) {
+        setToast({
+          tone: "success",
+          message: "Design saved! Your resume now uses the new layout.",
+        });
+      }
     } catch (err) {
       logger.error({ err }, "Error applying template");
       setToast({
@@ -172,6 +172,17 @@ export default function ResumeView() {
     } finally {
       setIsApplyingTemplate(false);
     }
+  };
+
+  const handleApplyTemplate = async () => {
+    if (!previewTemplateId) return;
+    await applyTemplateById(previewTemplateId);
+  };
+
+  // Silent version used by the X button — no toast, no revalidation
+  const handleApplyTemplateAndClose = async () => {
+    if (!previewTemplateId) return;
+    await applyTemplateById(previewTemplateId, true);
   };
 
   const handleCancelPreview = () => {
@@ -391,6 +402,7 @@ export default function ResumeView() {
             previewTemplateId={previewTemplateId}
             onPreview={setPreviewTemplateId}
             onApply={handleApplyTemplate}
+            onApplyAndClose={handleApplyTemplateAndClose}
             onClose={handleCancelPreview}
             isApplying={isApplyingTemplate}
           />
