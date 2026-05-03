@@ -128,9 +128,7 @@ export function TemplateBar({
   }, [onClose]);
 
   return (
-    <div
-      className="fixed top-20 right-6 z-50 flex flex-col items-end pointer-events-none print:hidden"
-    >
+    <div className="fixed top-20 right-6 z-50 flex flex-col items-end pointer-events-none print:hidden">
       {/* ── Expanded Tray ── */}
       {open && (
         <div className="pointer-events-auto w-full max-w-sm mr-0 mb-3">
@@ -185,7 +183,7 @@ export function TemplateBar({
 
             {/* Template Grid Container */}
             <div className="p-4 border-b border-gray-100">
-              <div 
+              <div
                 className="grid grid-cols-4 gap-2"
                 role="listbox"
                 aria-label="Template designs"

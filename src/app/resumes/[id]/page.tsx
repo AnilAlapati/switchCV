@@ -325,16 +325,18 @@ export default function ResumeView() {
         {draftBanner}
         {countdownBanner}
         {editingBanner}
-        {/* Privacy Toggle */}
-        <PrivacyMenu
-          isPublic={resume.isPublic ?? false}
-          viewerIsOwner={viewerIsOwner}
-          isPublicPreview={isPublicPreview}
-          showPrivacyMenu={showPrivacyMenu}
-          isUpdating={isUpdating}
-          onToggleMenu={() => setShowPrivacyMenu(!showPrivacyMenu)}
-          onToggleVisibility={toggleVisibility}
-        />
+        {/* Privacy Toggle — owner only */}
+        {viewerIsOwner && (
+          <PrivacyMenu
+            isPublic={resume.isPublic ?? false}
+            viewerIsOwner={viewerIsOwner}
+            isPublicPreview={isPublicPreview}
+            showPrivacyMenu={showPrivacyMenu}
+            isUpdating={isUpdating}
+            onToggleMenu={() => setShowPrivacyMenu(!showPrivacyMenu)}
+            onToggleVisibility={toggleVisibility}
+          />
+        )}
 
         <TemplateRenderer
           template={effectiveTemplate}
@@ -342,6 +344,38 @@ export default function ResumeView() {
           isAuthenticated={!!user}
           onRequestAccess={() => setRequestDialogOpen(true)}
         />
+
+        {/* Preview access banner — non-owner visitors only */}
+        {isPublicPreview && !viewerIsOwner && (
+          <div className="fixed bottom-0 left-0 right-0 z-50 p-4 print:hidden" aria-live="polite">
+            <div className="mx-auto max-w-2xl">
+              <div className="flex items-center justify-between gap-4 rounded-2xl bg-[#1A2F25]/95 backdrop-blur-md border border-white/10 px-5 py-4 shadow-2xl">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-white">You&apos;re viewing a preview</p>
+                  <p className="text-xs text-white/60 mt-0.5 truncate">
+                    Contact details and full work history are hidden. Request access to unlock the full profile.
+                  </p>
+                </div>
+                {user ? (
+                  <button
+                    type="button"
+                    onClick={() => setRequestDialogOpen(true)}
+                    className="shrink-0 rounded-full bg-white text-[#1A2F25] px-5 py-2 text-sm font-semibold hover:bg-gray-100 transition-colors"
+                  >
+                    Request Access
+                  </button>
+                ) : (
+                  <a
+                    href="/auth"
+                    className="shrink-0 rounded-full bg-white text-[#1A2F25] px-5 py-2 text-sm font-semibold hover:bg-gray-100 transition-colors"
+                  >
+                    Sign In
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Design picker — owner only */}
         {viewerIsOwner && (
