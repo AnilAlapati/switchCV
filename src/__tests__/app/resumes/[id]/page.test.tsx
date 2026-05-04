@@ -199,11 +199,12 @@ describe("ResumeView", () => {
 
   it("handles toast dismissal", async () => {
     (useResumeData as jest.Mock).mockReturnValue({
-      resume: { id: "res1", isPublic: true },
+      resume: { id: "res1", isPublic: true, viewerAccess: { isOwner: true, scope: "owner" } },
       template: { id: "temp1" },
       accessBlock: null,
       error: null,
       loading: false,
+      mutateResume: jest.fn(),
     });
     render(<ResumeView />);
 

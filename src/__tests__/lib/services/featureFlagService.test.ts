@@ -163,12 +163,12 @@ describe("isFeatureEnabled", () => {
     ).resolves.toBe(true);
   });
 
-  it("disables resume file upload for basic by default", async () => {
+  it("enables resume file upload for basic by default", async () => {
     mockDocGet.mockResolvedValue({ exists: false });
 
     await expect(
       isFeatureEnabled("resume_file_upload", { tier: "basic" }),
-    ).resolves.toBe(false);
+    ).resolves.toBe(true);
   });
 
   it("returns false when tier does not match restriction", async () => {
