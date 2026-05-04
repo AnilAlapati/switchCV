@@ -66,6 +66,11 @@ const FLAG_DEFAULTS: Record<string, FeatureFlagDoc> = {
     enabled: false,
     description: "Evidence-backed creative polish stage for resume v2",
   },
+  resume_v2_llm_enhancement: {
+    enabled: true,
+    description:
+      "LLM-powered bullet enhancement: rewrites experience descriptions and achievements with stronger action verbs and active voice. Non-blocking — original content is used if this step fails.",
+  },
   resume_v2_ai_extraction: {
     enabled: true,
     description:

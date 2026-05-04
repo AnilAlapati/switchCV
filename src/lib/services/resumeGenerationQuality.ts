@@ -263,12 +263,14 @@ export async function evaluateResumeV2Flags(): Promise<ResumeV2Flags> {
       resume_v2_templates,
       resume_v2_strict_validation,
       resume_v2_creative_polish,
+      resume_v2_llm_enhancement,
     ] = await Promise.all([
       isFeatureEnabled("resume_v2_intake"),
       isFeatureEnabled("resume_v2_writer"),
       isFeatureEnabled("resume_v2_templates"),
       isFeatureEnabled("resume_v2_strict_validation"),
       isFeatureEnabled("resume_v2_creative_polish"),
+      isFeatureEnabled("resume_v2_llm_enhancement"),
     ]);
 
     return {
@@ -277,6 +279,7 @@ export async function evaluateResumeV2Flags(): Promise<ResumeV2Flags> {
       resume_v2_templates,
       resume_v2_strict_validation,
       resume_v2_creative_polish,
+      resume_v2_llm_enhancement,
     };
   } catch {
     return DEFAULT_RESUME_V2_FLAGS;

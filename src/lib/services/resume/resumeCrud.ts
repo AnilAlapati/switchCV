@@ -22,6 +22,9 @@ export interface GeneratedResumeInput {
   email?: string;
   phone?: string;
   location?: string;
+  linkedin?: string;
+  github?: string;
+  twitter?: string;
   summary?: string;
   experience?: Array<{
     company: string;
@@ -65,6 +68,7 @@ export interface ResumeGenerationVersion {
     | "v1_regex"
     | "v2_structured"
     | "v2_creative"
+    | "v2_enhanced"
     | "v3_function_calling";
   version?: string;
 }
@@ -185,6 +189,9 @@ export async function saveGeneratedResume(
       email: resumeData.email || "",
       phone: resumeData.phone || "",
       location: resumeData.location || "",
+      ...(resumeData.linkedin ? { linkedin: resumeData.linkedin } : {}),
+      ...(resumeData.github ? { github: resumeData.github } : {}),
+      ...(resumeData.twitter ? { twitter: resumeData.twitter } : {}),
     },
     summary: resumeData.summary || "",
     experience: normalizedExperience,

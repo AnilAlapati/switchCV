@@ -274,6 +274,7 @@ describe("resumeGenerationQuality", () => {
         resume_v2_templates: false,
         resume_v2_strict_validation: true,
         resume_v2_creative_polish: false,
+        resume_v2_llm_enhancement: true,
       });
     });
   });

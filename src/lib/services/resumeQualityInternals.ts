@@ -14,6 +14,7 @@ export interface ResumeV2Flags {
   resume_v2_templates: boolean;
   resume_v2_strict_validation: boolean;
   resume_v2_creative_polish: boolean;
+  resume_v2_llm_enhancement: boolean;
 }
 
 export interface EvidenceMessage {
@@ -72,6 +73,7 @@ export const DEFAULT_RESUME_V2_FLAGS: ResumeV2Flags = {
   resume_v2_templates: false,
   resume_v2_strict_validation: true,
   resume_v2_creative_polish: false,
+  resume_v2_llm_enhancement: true,
 };
 
 const SUMMARY_CLAIM_PATTERNS: RegExp[] = [

@@ -56,6 +56,7 @@ import {
   applyCreativePolish,
   type CreativeStyle,
 } from "@/lib/services/resumeCreativePolisher";
+import { enhanceBulletsWithLLM } from "@/lib/services/resumeBulletEnhancer";
 import { persistConversationSession } from "@/lib/services/conversationStorageService";
 import type { ConversationMessage } from "@/lib/services/conversationStorageService";
 import { adminAuth } from "@/lib/firebase-admin";
@@ -756,6 +757,34 @@ export async function processSyncGeneration(
           }
         }
 
+        // LLM bullet enhancement — runs after validation, before save.
+        // Rewrites experience descriptions/achievements with stronger verbs.
+        // Non-blocking: falls back to original content on any failure.
+        let llmEnhancementApplied = false;
+        if (validation.valid && flags.resume_v2_llm_enhancement) {
+          const enhancementResult = await enhanceBulletsWithLLM(candidateData, {
+            userId,
+            userTier,
+            observationContext,
+          });
+
+          if (enhancementResult.enhanced && enhancementResult.experience.length > 0) {
+            candidateData = {
+              ...candidateData,
+              experience: enhancementResult.experience,
+            };
+            resumeData = candidateData;
+            llmEnhancementApplied = true;
+            creativeAnnotations = [
+              ...creativeAnnotations,
+              ...enhancementResult.annotations.map((a) => `llm_enhancement | ${a}`),
+            ];
+            addPipelineBreadcrumb("LLM bullet enhancement applied", {
+              annotationCount: enhancementResult.annotations.length,
+            });
+          }
+        }
+
         const qualityReport = buildQualityReport({
           schemaValid: validation.valid,
           validationErrors: validation.errors,
@@ -809,9 +838,11 @@ export async function processSyncGeneration(
         const generationVersion: ResumeGenerationVersion = {
           pipeline: creativePolishApplied
             ? "v2_creative"
-            : flags.resume_v2_writer
-              ? "v2_structured"
-              : "v1_regex",
+            : llmEnhancementApplied
+              ? "v2_enhanced"
+              : flags.resume_v2_writer
+                ? "v2_structured"
+                : "v1_regex",
         };
 
         if (!shouldPersistResult) {

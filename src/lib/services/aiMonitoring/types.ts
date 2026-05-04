@@ -16,7 +16,11 @@ export const AI_FAILURE_CODES = [
 ] as const;
 
 export type AIFailureCode = (typeof AI_FAILURE_CODES)[number];
-export type AIObservationStage = "extraction" | "generation" | "repair";
+export type AIObservationStage =
+  | "extraction"
+  | "generation"
+  | "repair"
+  | "enhancement";
 export type AIStageStatus = "success" | "degraded" | "failed";
 export type AIRequestStatus = "success" | "degraded" | "failed";
 
