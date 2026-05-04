@@ -310,11 +310,10 @@ export function TemplateBar({
                       <>
                         <svg
                           className="w-3.5 h-3.5 animate-spin"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          aria-hidden="true"
                           role="status"
                           aria-live="polite"
+                          fill="none"
+                          viewBox="0 0 24 24"
                         >
                           <circle
                             className="opacity-25"
