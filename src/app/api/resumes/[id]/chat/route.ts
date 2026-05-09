@@ -194,7 +194,7 @@ export async function POST(
       pendingSummary: sessionData?.changeSummary as string | undefined,
     });
 
-    const aiResult = await generateText(prompt, 2600, 0.6);
+    const aiResult = await generateText(prompt, 4000, 0.6);
     const responseText = aiResult.text;
 
     // Track Billing
