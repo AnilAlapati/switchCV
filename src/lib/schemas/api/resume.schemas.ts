@@ -99,7 +99,7 @@ export const ResumeChatRequestSchema = z
   .object({
     message: z.string().min(1),
     conversationHistory: z.array(ResumeChatConversationItemSchema).optional().default([]),
-    sessionData: z.record(z.string(), z.unknown()).optional(),
+    sessionData: z.record(z.string(), z.unknown()).nullable().optional(),
   })
   .strict();
 

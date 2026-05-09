@@ -184,7 +184,7 @@ export default function ResumeAIEditPage() {
         body: JSON.stringify({
           message: userMessage.content,
           conversationHistory: historyPayload,
-          sessionData,
+          ...(sessionData !== null && { sessionData }),
         }),
       });
 
