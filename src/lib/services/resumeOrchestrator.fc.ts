@@ -212,6 +212,17 @@ export async function processFunctionCallingGeneration(
               validationErrors: [],
             }),
             generationVersion: { pipeline: "v3_function_calling" },
+            sourceContext: {
+              type: "chat" as const,
+              chatSummary: [
+                ...conversationHistory,
+                { content: message, isUser: true },
+              ]
+                .filter((m) => m.isUser)
+                .map((m) => m.content)
+                .join("\n\n")
+                .slice(0, 6_000),
+            },
           },
         );
 

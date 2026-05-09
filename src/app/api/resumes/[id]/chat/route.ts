@@ -117,6 +117,7 @@ export async function GET(
         },
         snapshot: normalized,
         greeting,
+        sourceContext: resumeData.sourceContext ?? null,
         metadata: {
           numericId: resumeData.numericId ?? docRef.id,
           updatedAt: resumeData.updatedAt ?? null,
@@ -190,11 +191,15 @@ export async function POST(
     }
 
     const normalized = normalizeResumeForEditor(resumeData);
+    const storedSourceContext = resumeData.sourceContext as
+      | { type: "upload" | "chat"; rawText?: string; chatSummary?: string }
+      | undefined;
     const prompt = buildResumeEditPrompt({
       userMessage: message,
       conversationHistory,
       resumeSnapshot: normalized,
       pendingSummary: sessionData?.changeSummary as string | undefined,
+      sourceContext: storedSourceContext ?? null,
     });
 
     const aiResult = await generateText(prompt, 4000, 0.6);

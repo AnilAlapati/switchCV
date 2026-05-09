@@ -22,6 +22,8 @@ import type {
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_TEXT_CHARS = 32_000;
 const MIN_TEXT_CHARS = 80;
+// Raw text stored on the resume document for AI editor context (kept small to limit Firestore costs)
+const SOURCE_CONTEXT_CHARS = 8_000;
 
 const MIME_BY_EXTENSION = {
   // application/octet-stream is included because some browsers/OS (e.g. Safari on macOS)
@@ -179,6 +181,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       missingFields: normalized.missingCriticalFields,
       extractionMethod: normalized.extractionMethod,
       latencyMs: Date.now() - startTime,
+      rawText: rawText.slice(0, SOURCE_CONTEXT_CHARS),
     };
 
     logger.info(

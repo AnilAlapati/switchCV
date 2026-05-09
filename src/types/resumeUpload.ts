@@ -11,6 +11,10 @@ export interface ResumeUploadDraft {
   missingFields: string[];
   extractionMethod: ResumeUploadExtractionMethod;
   latencyMs?: number;
+  /** Truncated raw text extracted from the uploaded file (max 8 000 chars).
+   * Stored on the resume document so the AI editor can refer back to the
+   * original document content when the user clicks Edit. */
+  rawText?: string;
 }
 
 export interface ResumeUploadExtractionResponse {

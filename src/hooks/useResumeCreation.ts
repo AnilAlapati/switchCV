@@ -48,9 +48,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-async function getGenerationErrorMessage(
-  response: Response,
-): Promise<string> {
+async function getGenerationErrorMessage(response: Response): Promise<string> {
   const errorData = (await response.json().catch(() => null)) as unknown;
   const serverMessage =
     isRecord(errorData) && typeof errorData.error === "string"
@@ -167,7 +165,10 @@ export function useResumeCreation() {
     setShowRestoreDialog(false);
     setPendingSession(null);
     logger.info(
-      { userId: pendingSession.userId, messageCount: pendingSession.messages.length },
+      {
+        userId: pendingSession.userId,
+        messageCount: pendingSession.messages.length,
+      },
       "Session restored",
     );
   }, [pendingSession]);
@@ -334,6 +335,9 @@ export function useResumeCreation() {
             sourceChannel: uploadDraft.sourceChannel,
             extractionMethod: uploadDraft.extractionMethod,
           },
+          ...(uploadDraft.rawText
+            ? { sourceRawText: uploadDraft.rawText }
+            : {}),
         },
         inputSources: [uploadDraft.sourceChannel],
       });

@@ -27,6 +27,10 @@ export interface SessionData {
    * the claims came directly from the user's own document — they are not AI
    * hallucinations and cannot be cross-checked against chat messages. */
   wasFileUpload?: boolean;
+  /** Raw text extracted from the uploaded file (max 8 000 chars).
+   * Forwarded to the orchestrator so it can be persisted on the resume
+   * document for use by the AI editor. */
+  sourceRawText?: string;
 }
 
 export interface SyncGenerationInput {

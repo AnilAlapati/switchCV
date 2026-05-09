@@ -154,6 +154,7 @@ describe("Resume Chat API", () => {
           resume: { ...mockResumeData, id: mockResumeId },
           snapshot: mockNormalized,
           greeting: "Hello",
+          sourceContext: null,
           metadata: { numericId: expect.anything(), updatedAt: null },
         },
         { headers: { "Cache-Control": "private, no-store" } },

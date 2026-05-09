@@ -906,6 +906,20 @@ export async function processSyncGeneration(
             qualityReport,
             evidenceMap,
             generationVersion,
+            sourceContext: isFileUpload
+              ? {
+                  type: "upload" as const,
+                  rawText: (sessionData as Record<string, unknown> | undefined)
+                    ?.sourceRawText as string | undefined,
+                }
+              : {
+                  type: "chat" as const,
+                  chatSummary: allMessages
+                    .filter((m) => m.isUser)
+                    .map((m) => m.content)
+                    .join("\n\n")
+                    .slice(0, 6_000),
+                },
           },
         );
         createdResumeId = resumeId;

@@ -119,6 +119,13 @@ interface BuildResumeEditPromptArgs {
   conversationHistory: Array<{ content: string; isUser: boolean }>;
   resumeSnapshot?: ResumeEditorNormalizationResult | null;
   pendingSummary?: string | null;
+  /** Original source material from when the resume was created.
+   * For uploads: the raw extracted text. For chat: the creation conversation. */
+  sourceContext?: {
+    type: "upload" | "chat";
+    rawText?: string;
+    chatSummary?: string;
+  } | null;
 }
 
 export function buildResumeEditPrompt({
@@ -126,6 +133,7 @@ export function buildResumeEditPrompt({
   conversationHistory,
   resumeSnapshot,
   pendingSummary,
+  sourceContext,
 }: BuildResumeEditPromptArgs): string {
   const history = conversationHistory
     .slice(-30)
@@ -154,6 +162,14 @@ export function buildResumeEditPrompt({
     )}\n\n`;
   } else {
     prompt += `No resume exists for this user. You must politely guide them to create one instead of editing.\n\n`;
+  }
+
+  if (sourceContext) {
+    if (sourceContext.type === "upload" && sourceContext.rawText) {
+      prompt += `ORIGINAL UPLOADED DOCUMENT (raw text the user submitted when creating this resume — use this to recall details that may have been missed during extraction):\n${sourceContext.rawText}\n\n`;
+    } else if (sourceContext.type === "chat" && sourceContext.chatSummary) {
+      prompt += `ORIGINAL CREATION CONVERSATION (what the user told us when building this resume — use this to recall context that may not be in the structured snapshot):\n${sourceContext.chatSummary}\n\n`;
+    }
   }
 
   if (pendingSummary) {

@@ -77,6 +77,14 @@ export interface GeneratedResumeMetadata {
   qualityReport?: GenerationQualityReport;
   evidenceMap?: Record<string, string[]>;
   generationVersion?: ResumeGenerationVersion;
+  /** Original source content stored so the AI editor can refer back to it.
+   * For file uploads: truncated raw text from the document.
+   * For chat creation: concatenated user messages from the creation conversation. */
+  sourceContext?: {
+    type: "upload" | "chat";
+    rawText?: string;
+    chatSummary?: string;
+  };
 }
 
 /**
@@ -207,6 +215,9 @@ export async function saveGeneratedResume(
     qualityReport: metadata?.qualityReport || null,
     evidenceMap: metadata?.evidenceMap || null,
     generationVersion,
+    ...(metadata?.sourceContext
+      ? { sourceContext: metadata.sourceContext }
+      : {}),
   };
 
   // Save to Firestore
