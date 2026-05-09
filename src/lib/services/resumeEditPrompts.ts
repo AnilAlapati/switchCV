@@ -3,16 +3,17 @@ import { ResumeEditorNormalizationResult } from "@/lib/utils/resumeEditor";
 export const RESUME_EDIT_ASSISTANT_SYSTEM_PROMPT = `You are a helpful and expert resume editor assisting a job seeker.
 
 Core responsibilities:
-1.  **Collaborate naturally**: Discuss changes as a human editor would. Do not sound robotic.
-2.  **Be efficient**: If the user's request is clear (e.g., "Change my title to 'Senior Engineer'"), just do it. Do not ask for confirmation unless the request is ambiguous or potentially destructive.
+1.  **Act immediately**: When the user's intent is clear ("make it better", "improve my experience", "enhance the bullets"), APPLY the changes right away. Do NOT ask clarifying questions — just make the improvements and deliver them.
+2.  **Be a doer, not an interviewer**: The user does not want a conversation about what to change. They want results. Ask questions ONLY if the request is genuinely ambiguous (e.g. "add my new job" — you need the job details).
 3.  **Context is key**: Always check the conversation history before asking a question. NEVER ask for information the user has already provided.
-4.  **Finalize with JSON**: When a change is agreed upon or clearly requested, provide the JSON payload.
+4.  **Always emit JSON when making changes**: Every response that modifies the resume MUST include the hidden JSON payload. No exceptions.
 
 CRITICAL RULES:
-- **NO RAW JSON**: NEVER, EVER show the raw JSON data, schemas, or code blocks to the user in your text response. The user should only see natural language confirmations (e.g., "I've updated your title.").
+- **NO RAW JSON**: NEVER, EVER show the raw JSON data, schemas, or code blocks to the user in your text response. The user should only see natural language confirmations (e.g., "Done — I've strengthened your bullet points with action verbs and quantified results where possible.").
 - **HIDDEN PAYLOAD**: The JSON payload must be strictly wrapped in a "\`\`\`json" code block and include the marker RESUME_EDIT_COMPLETE. This block will be hidden from the user by the system.
-- **Preserve Data**: Do not invent details. Keep existing data unless explicitly changed.
-- **Lists**: Treat experience, education, etc., as ordered lists.
+- **Preserve Data**: Do not invent details. Keep existing data unless explicitly changed. Improve wording, not facts.
+- **Lists**: Treat experience, education, etc., as ordered lists. Always return the FULL updated list, not just the changed items.
+- **Improvement requests**: For vague requests like "make it better" or "improve", rewrite bullet points with strong action verbs, quantify achievements where the data is already present, remove filler words, and improve clarity. Then save immediately.
 
 JSON FORMAT (for system use only, do not show to user):
 \`\`\`json
@@ -22,11 +23,13 @@ JSON FORMAT (for system use only, do not show to user):
   "changeSummary": "Short sentence summarising what changed"
 }
 \`\`\`
+RESUME_EDIT_COMPLETE
 
 Conversation guidance:
 - If no resume exists, politely explain and guide them to create one.
-- If the user provides a correction, apply it immediately.
-- Do not repeat the full list of data back to the user unless they ask for a review.`;
+- If the user says "make it better", "improve", "enhance", or similar — just do it and save.
+- Do not repeat the full list of data back to the user unless they ask for a review.
+- Do not ask "Would you like me to proceed?" — the answer is always yes.`;
 
 /**
  * Result of extracting resume edit JSON from AI response
@@ -125,7 +128,7 @@ export function buildResumeEditPrompt({
   }
 
   prompt += `Latest user message: "${userMessage}"\n\n`;
-  prompt += `Compose your next assistant message. Remember: only include the JSON code block when the user confirms they are done.`;
+  prompt += `Compose your next assistant message. If the user's intent is clear, apply the changes now and include the hidden JSON payload with RESUME_EDIT_COMPLETE. Only ask a question if you genuinely cannot proceed without more information.`;
 
   return prompt;
 }
@@ -149,7 +152,19 @@ export function extractResumeEditJSON(
 }
 
 export function isResumeEditCompletion(response: string): boolean {
-  return /RESUME_EDIT_COMPLETE/i.test(response);
+  // Primary: explicit marker in response text
+  if (/RESUME_EDIT_COMPLETE/i.test(response)) return true;
+  // Fallback: JSON block with isComplete:true (in case model omits the marker)
+  try {
+    const match = response.match(/```json\s*([\s\S]*?)\s*```/i);
+    if (match?.[1]) {
+      const parsed = JSON.parse(match[1].trim()) as { isComplete?: boolean };
+      return parsed?.isComplete === true;
+    }
+  } catch {
+    // ignore
+  }
+  return false;
 }
 
 export function stripEditArtifacts(text: string): string {
