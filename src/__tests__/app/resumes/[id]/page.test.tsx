@@ -140,7 +140,7 @@ describe("ResumeView", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("access-block")).toHaveTextContent(
-        "This resume is private"
+        "This resume is private",
       );
     });
   });
@@ -181,13 +181,15 @@ describe("ResumeView", () => {
         expect.objectContaining({
           method: "PATCH",
           body: JSON.stringify({ isPublic: false }), // Toggles from true to false
-        })
+        }),
       );
     });
   });
 
   it("handles visibility toggle error", async () => {
-    (global.fetch as jest.Mock).mockRejectedValueOnce(new Error("Update failed"));
+    (global.fetch as jest.Mock).mockRejectedValueOnce(
+      new Error("Update failed"),
+    );
     render(<ResumeView />);
 
     fireEvent.click(screen.getByText("Toggle Visibility"));
@@ -199,7 +201,11 @@ describe("ResumeView", () => {
 
   it("handles toast dismissal", async () => {
     (useResumeData as jest.Mock).mockReturnValue({
-      resume: { id: "res1", isPublic: true, viewerAccess: { isOwner: true, scope: "owner" } },
+      resume: {
+        id: "res1",
+        isPublic: true,
+        viewerAccess: { isOwner: true, scope: "owner" },
+      },
       template: { id: "temp1" },
       accessBlock: null,
       error: null,
@@ -262,7 +268,7 @@ describe("ResumeView", () => {
       resume: {
         id: "res1",
         isBeingEdited: true,
-        viewerAccess: { isOwner: false }
+        viewerAccess: { isOwner: false },
       },
       template: { id: "temp1" },
       accessBlock: null,

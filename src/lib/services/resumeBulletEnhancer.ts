@@ -74,9 +74,7 @@ const EnhancedOutputSchema = z.object({
 // Enhancement prompt
 // ---------------------------------------------------------------------------
 
-function buildEnhancementPrompt(
-  entries: ExperienceEntryInput[],
-): string {
+function buildEnhancementPrompt(entries: ExperienceEntryInput[]): string {
   const entriesSerialized = entries
     .map((e, i) => {
       const title = e.role || e.title || "Unknown Role";
@@ -171,9 +169,8 @@ export async function enhanceBulletsWithLLM(
 
   try {
     // Dynamic import to keep module usable outside server context
-    const { generateTextWithTier } = await import(
-      "@/server/services/aiProviderService"
-    );
+    const { generateTextWithTier } =
+      await import("@/server/services/aiProviderService");
     const { zodToGeminiSchema } = await import("@/lib/utils/zodToGeminiSchema");
 
     const prompt = buildEnhancementPrompt(entriesToEnhance);
@@ -272,7 +269,9 @@ export async function enhanceBulletsWithLLM(
           anyChanged = true;
           const title = orig.role || orig.title || "Unknown";
           if (descChanged) {
-            annotations.push(`${title} @ ${orig.company}: description enhanced`);
+            annotations.push(
+              `${title} @ ${orig.company}: description enhanced`,
+            );
           }
           if (achieveChanged) {
             annotations.push(

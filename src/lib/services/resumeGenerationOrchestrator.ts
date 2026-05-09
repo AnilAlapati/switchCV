@@ -768,7 +768,10 @@ export async function processSyncGeneration(
             observationContext,
           });
 
-          if (enhancementResult.enhanced && enhancementResult.experience.length > 0) {
+          if (
+            enhancementResult.enhanced &&
+            enhancementResult.experience.length > 0
+          ) {
             candidateData = {
               ...candidateData,
               experience: enhancementResult.experience,
@@ -777,7 +780,9 @@ export async function processSyncGeneration(
             llmEnhancementApplied = true;
             creativeAnnotations = [
               ...creativeAnnotations,
-              ...enhancementResult.annotations.map((a) => `llm_enhancement | ${a}`),
+              ...enhancementResult.annotations.map(
+                (a) => `llm_enhancement | ${a}`,
+              ),
             ];
             addPipelineBreadcrumb("LLM bullet enhancement applied", {
               annotationCount: enhancementResult.annotations.length,

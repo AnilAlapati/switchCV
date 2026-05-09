@@ -28,7 +28,9 @@ jest.mock("@/lib/logger", () => ({
 
 const mockTrackUsage = jest.fn().mockResolvedValue(undefined);
 jest.mock("@/lib/services/billingService", () => ({
-  BillingService: { trackUsage: (...args: unknown[]) => mockTrackUsage(...args) },
+  BillingService: {
+    trackUsage: (...args: unknown[]) => mockTrackUsage(...args),
+  },
 }));
 
 const mockGenerateTextWithTier = jest.fn();
@@ -60,7 +62,9 @@ const BASE_CONTEXT = {
   userTier: "enterprise",
 };
 
-function makeLLMResponse(entries: { index: number; description: string; achievements: string[] }[]): string {
+function makeLLMResponse(
+  entries: { index: number; description: string; achievements: string[] }[],
+): string {
   return JSON.stringify({ entries });
 }
 
@@ -69,7 +73,8 @@ const RICH_EXPERIENCE: ExperienceEntryInput[] = [
     role: "Software Engineer",
     company: "Acme Corp",
     duration: "2020 - 2023",
-    description: "was responsible for managing the CI/CD pipeline and helped with deployments",
+    description:
+      "was responsible for managing the CI/CD pipeline and helped with deployments",
     achievements: [],
   },
   {
@@ -93,7 +98,10 @@ describe("enhanceBulletsWithLLM", () => {
   // ---------- Guard conditions ----------
 
   it("returns early (enhanced: false) when experience array is absent", async () => {
-    const result = await enhanceBulletsWithLLM({ experience: undefined }, BASE_CONTEXT);
+    const result = await enhanceBulletsWithLLM(
+      { experience: undefined },
+      BASE_CONTEXT,
+    );
 
     expect(result.enhanced).toBe(false);
     expect(result.experience).toHaveLength(0);
@@ -102,7 +110,10 @@ describe("enhanceBulletsWithLLM", () => {
   });
 
   it("returns early (enhanced: false) when experience array is empty", async () => {
-    const result = await enhanceBulletsWithLLM({ experience: [] }, BASE_CONTEXT);
+    const result = await enhanceBulletsWithLLM(
+      { experience: [] },
+      BASE_CONTEXT,
+    );
 
     expect(result.enhanced).toBe(false);
     expect(result.experience).toHaveLength(0);
@@ -115,7 +126,10 @@ describe("enhanceBulletsWithLLM", () => {
       { company: "Corp B" }, // no description, no achievements
     ];
 
-    const result = await enhanceBulletsWithLLM({ experience: sparse }, BASE_CONTEXT);
+    const result = await enhanceBulletsWithLLM(
+      { experience: sparse },
+      BASE_CONTEXT,
+    );
 
     expect(result.enhanced).toBe(false);
     expect(mockGenerateTextWithTier).not.toHaveBeenCalled();
@@ -129,18 +143,27 @@ describe("enhanceBulletsWithLLM", () => {
         {
           index: 0,
           description: "Managed CI/CD pipeline and automated deployments",
-          achievements: ["Deployed to production 3× per week with zero downtime"],
+          achievements: [
+            "Deployed to production 3× per week with zero downtime",
+          ],
         },
         {
           index: 1,
-          description: "Led migration of monolith to microservices architecture",
-          achievements: ["Reduced deploy time by 40%", "Eliminated single point of failure"],
+          description:
+            "Led migration of monolith to microservices architecture",
+          achievements: [
+            "Reduced deploy time by 40%",
+            "Eliminated single point of failure",
+          ],
         },
       ]),
       model: "gemini-2.5-pro",
     });
 
-    const result = await enhanceBulletsWithLLM({ experience: RICH_EXPERIENCE }, BASE_CONTEXT);
+    const result = await enhanceBulletsWithLLM(
+      { experience: RICH_EXPERIENCE },
+      BASE_CONTEXT,
+    );
 
     expect(result.enhanced).toBe(true);
     expect(result.experience).toHaveLength(2);
@@ -174,14 +197,18 @@ describe("enhanceBulletsWithLLM", () => {
         },
         {
           index: 1,
-          description: "Led migration of monolith to microservices architecture",
+          description:
+            "Led migration of monolith to microservices architecture",
           achievements: ["Reduced deploy time by 40%"],
         },
       ]),
       model: "gemini-2.5-pro",
     });
 
-    const result = await enhanceBulletsWithLLM({ experience: RICH_EXPERIENCE }, BASE_CONTEXT);
+    const result = await enhanceBulletsWithLLM(
+      { experience: RICH_EXPERIENCE },
+      BASE_CONTEXT,
+    );
 
     expect(result.enhanced).toBe(false);
     expect(result.annotations).toHaveLength(0);
@@ -190,9 +217,14 @@ describe("enhanceBulletsWithLLM", () => {
   // ---------- Non-blocking failure paths ----------
 
   it("returns original content (enhanced: false) when LLM call throws", async () => {
-    mockGenerateTextWithTier.mockRejectedValue(new Error("Gemini API unavailable"));
+    mockGenerateTextWithTier.mockRejectedValue(
+      new Error("Gemini API unavailable"),
+    );
 
-    const result = await enhanceBulletsWithLLM({ experience: RICH_EXPERIENCE }, BASE_CONTEXT);
+    const result = await enhanceBulletsWithLLM(
+      { experience: RICH_EXPERIENCE },
+      BASE_CONTEXT,
+    );
 
     expect(result.enhanced).toBe(false);
     expect(result.experience).toHaveLength(2);
@@ -208,7 +240,10 @@ describe("enhanceBulletsWithLLM", () => {
       model: "gemini-2.5-pro",
     });
 
-    const result = await enhanceBulletsWithLLM({ experience: RICH_EXPERIENCE }, BASE_CONTEXT);
+    const result = await enhanceBulletsWithLLM(
+      { experience: RICH_EXPERIENCE },
+      BASE_CONTEXT,
+    );
 
     expect(result.enhanced).toBe(false);
     expect(result.experience[0].description).toBe(
@@ -223,15 +258,24 @@ describe("enhanceBulletsWithLLM", () => {
       model: "gemini-2.5-pro",
     });
 
-    const result = await enhanceBulletsWithLLM({ experience: RICH_EXPERIENCE }, BASE_CONTEXT);
+    const result = await enhanceBulletsWithLLM(
+      { experience: RICH_EXPERIENCE },
+      BASE_CONTEXT,
+    );
 
     expect(result.enhanced).toBe(false);
   });
 
   it("returns original content when LLM response has empty text", async () => {
-    mockGenerateTextWithTier.mockResolvedValue({ text: "", model: "gemini-2.5-pro" });
+    mockGenerateTextWithTier.mockResolvedValue({
+      text: "",
+      model: "gemini-2.5-pro",
+    });
 
-    const result = await enhanceBulletsWithLLM({ experience: RICH_EXPERIENCE }, BASE_CONTEXT);
+    const result = await enhanceBulletsWithLLM(
+      { experience: RICH_EXPERIENCE },
+      BASE_CONTEXT,
+    );
 
     expect(result.enhanced).toBe(false);
   });
@@ -244,14 +288,18 @@ describe("enhanceBulletsWithLLM", () => {
       text: makeLLMResponse([
         {
           index: 1,
-          description: "Led migration of monolith to microservices architecture",
+          description:
+            "Led migration of monolith to microservices architecture",
           achievements: ["Reduced deploy time by 40%", "Scaled to 10× traffic"],
         },
       ]),
       model: "gemini-2.5-pro",
     });
 
-    const result = await enhanceBulletsWithLLM({ experience: RICH_EXPERIENCE }, BASE_CONTEXT);
+    const result = await enhanceBulletsWithLLM(
+      { experience: RICH_EXPERIENCE },
+      BASE_CONTEXT,
+    );
 
     // Entry 0 is preserved as-is
     expect(result.experience[0].description).toBe(
@@ -260,7 +308,9 @@ describe("enhanceBulletsWithLLM", () => {
     expect(result.experience[0]._enhanced).toBeUndefined();
 
     // Entry 1 gets the new achievement
-    expect(result.experience[1].achievements).toContain("Scaled to 10× traffic");
+    expect(result.experience[1].achievements).toContain(
+      "Scaled to 10× traffic",
+    );
   });
 
   // ---------- Billing ----------
@@ -275,7 +325,8 @@ describe("enhanceBulletsWithLLM", () => {
         },
         {
           index: 1,
-          description: "Led migration of monolith to microservices architecture",
+          description:
+            "Led migration of monolith to microservices architecture",
           achievements: ["Reduced deploy time by 40%"],
         },
       ]),
@@ -296,7 +347,10 @@ describe("enhanceBulletsWithLLM", () => {
   });
 
   it("does not call BillingService when no entries pass the content filter", async () => {
-    const result = await enhanceBulletsWithLLM({ experience: [] }, BASE_CONTEXT);
+    const result = await enhanceBulletsWithLLM(
+      { experience: [] },
+      BASE_CONTEXT,
+    );
 
     expect(result.enhanced).toBe(false);
     expect(mockTrackUsage).not.toHaveBeenCalled();
@@ -308,7 +362,11 @@ describe("enhanceBulletsWithLLM", () => {
     mockGenerateTextWithTier.mockResolvedValue({
       text: makeLLMResponse([
         { index: 0, description: "Managed CI/CD pipeline", achievements: [] },
-        { index: 1, description: "Led migration", achievements: ["Reduced deploy time by 40%"] },
+        {
+          index: 1,
+          description: "Led migration",
+          achievements: ["Reduced deploy time by 40%"],
+        },
       ]),
       model: "gemini-2.5-pro",
     });
