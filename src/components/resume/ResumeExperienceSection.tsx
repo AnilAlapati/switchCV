@@ -43,10 +43,16 @@ export function ResumeExperienceSection({
                   ? `${exp.startDate} – ${exp.endDate || "Present"}`
                   : (exp.duration ?? "")}
               </p>
-              <p className="text-slate-300 text-sm leading-relaxed font-normal">
-                {enhancedExperience?.[index]?.enhancedDescription ||
-                  exp.description}
-              </p>
+              <div className="text-slate-300 text-sm leading-relaxed font-normal">
+                {(enhancedExperience?.[index]?.enhancedDescription || exp.description)
+                  ?.split(/\n/)
+                  .filter((line) => line.trim())
+                  .map((line, i) => (
+                    <p key={i} className="mb-1">
+                      {line}
+                    </p>
+                  ))}
+              </div>
             </div>
           ))
         ) : (

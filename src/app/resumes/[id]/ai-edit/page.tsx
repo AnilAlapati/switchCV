@@ -205,6 +205,20 @@ export default function ResumeAIEditPage() {
           updatedAt: data.resume.updatedAt ?? data.resume.lastUpdatedAt ?? null,
           numericId: data.resume.numericId ?? resumeMeta?.numericId ?? resumeId,
         });
+        toast.success(
+          <span>
+            Changes saved!{" "}
+            <a
+              href={`/resumes/${resumeId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline font-semibold"
+            >
+              View resume →
+            </a>
+          </span>,
+          { duration: 6000 },
+        );
       }
 
       if (data.sessionData) {

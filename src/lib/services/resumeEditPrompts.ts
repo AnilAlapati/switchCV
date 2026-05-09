@@ -40,10 +40,23 @@ When the user's intent is clear, apply improvements immediately and save them. N
 - **RETURN COMPLETE LISTS**: Always return the full updated list for any section you touch. Never return only the changed items.
 
 ## JSON PAYLOAD FORMAT (hidden from user — system use only)
+CRITICAL: experience[].description MUST be a single string. Separate bullet points with \\n (newline). Do NOT use a "bullets" array field. Example:
 \`\`\`json
 {
   "isComplete": true,
-  "updatedProfile": { ... full updated resume fields ... },
+  "updatedProfile": {
+    "experience": [
+      {
+        "id": "exp-legacy-0",
+        "company": "Acme Corp",
+        "role": "Senior Engineer",
+        "startDate": "Jan 2022",
+        "endDate": "Present",
+        "description": "• Led migration of monolith to microservices, reducing deploy time by 60%\\n• Built real-time data pipeline processing 2M events/day\\n• Mentored 4 junior engineers, improving team velocity by 30%",
+        "visibility": "public"
+      }
+    ]
+  },
   "changeSummary": "One sentence describing what changed"
 }
 \`\`\`
