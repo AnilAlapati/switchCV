@@ -59,7 +59,10 @@ export const CompareResumesSchema = z
 export const GenerateResumeRequestSchema = z
   .object({
     message: z.string().min(1),
-    conversationHistory: z.array(ConversationHistoryItemSchema).optional().default([]),
+    conversationHistory: z
+      .array(ConversationHistoryItemSchema)
+      .optional()
+      .default([]),
     sessionData: z.record(z.string(), z.unknown()).nullable().optional(),
     modelId: z.string().min(1).optional(),
     inputSources: z.array(z.enum(["chat", "paste", "pdf", "docx"])).optional(),
@@ -72,7 +75,10 @@ export const GenerateResumeRequestSchema = z
 export const GenerateResumePreviewRequestSchema = z
   .object({
     message: z.string().min(1),
-    conversationHistory: z.array(ConversationHistoryItemSchema).optional().default([]),
+    conversationHistory: z
+      .array(ConversationHistoryItemSchema)
+      .optional()
+      .default([]),
     sessionData: z.record(z.string(), z.unknown()).nullable().optional(),
     modelId: z.string().min(1).optional(),
     inputSources: z.array(z.enum(["chat", "paste", "pdf", "docx"])).optional(),
@@ -98,7 +104,10 @@ export const CreateResumeSchema = z
 export const ResumeChatRequestSchema = z
   .object({
     message: z.string().min(1),
-    conversationHistory: z.array(ResumeChatConversationItemSchema).optional().default([]),
+    conversationHistory: z
+      .array(ResumeChatConversationItemSchema)
+      .optional()
+      .default([]),
     sessionData: z.record(z.string(), z.unknown()).nullable().optional(),
   })
   .strict();
@@ -117,7 +126,7 @@ export const UpdateResumeRequestSchema = z.object({
           endDate: z.string().optional(),
           description: z.string().default(""),
           visibility: z.enum(["public", "masked", "request"]).default("public"),
-        })
+        }),
       )
       .optional(),
     education: z
@@ -130,7 +139,7 @@ export const UpdateResumeRequestSchema = z.object({
           endDate: z.string().optional(),
           description: z.string().optional(),
           visibility: z.enum(["public", "masked", "request"]).default("public"),
-        })
+        }),
       )
       .optional(),
     skills: z
@@ -140,7 +149,7 @@ export const UpdateResumeRequestSchema = z.object({
           name: z.string().min(1),
           level: z.string().default("intermediate"),
           visibility: z.enum(["public", "masked", "request"]).default("public"),
-        })
+        }),
       )
       .optional(),
     projects: z
@@ -151,7 +160,7 @@ export const UpdateResumeRequestSchema = z.object({
           url: z.string().optional(),
           description: z.string().default(""),
           visibility: z.enum(["public", "masked", "request"]).default("public"),
-        })
+        }),
       )
       .optional(),
     contact: z

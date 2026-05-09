@@ -160,7 +160,10 @@ export async function POST(
 
     // SECURITY: Check for prompt injection attempts
     if (containsPromptInjection(message)) {
-      logger.warn({ userId: requestUserId }, "Prompt injection attempt detected in resume chat");
+      logger.warn(
+        { userId: requestUserId },
+        "Prompt injection attempt detected in resume chat",
+      );
       return handleApiError(null, "Invalid characters in input", 400);
     }
 

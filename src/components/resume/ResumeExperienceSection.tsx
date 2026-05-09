@@ -44,7 +44,10 @@ export function ResumeExperienceSection({
                   : (exp.duration ?? "")}
               </p>
               <div className="text-slate-300 text-sm leading-relaxed font-normal">
-                {(enhancedExperience?.[index]?.enhancedDescription || exp.description)
+                {(
+                  enhancedExperience?.[index]?.enhancedDescription ||
+                  exp.description
+                )
                   ?.split(/\n/)
                   .filter((line) => line.trim())
                   .map((line, i) => (
