@@ -141,7 +141,7 @@ export async function enhanceBulletsWithLLM(
     observationContext?: AIObservationContext;
   },
 ): Promise<BulletEnhancementResult> {
-  const { userId, userTier, observationContext } = options;
+  const { userId, observationContext } = options;
 
   const rawExperience = candidateData.experience as
     | ExperienceEntryInput[]
@@ -244,7 +244,7 @@ export async function enhanceBulletsWithLLM(
 
     // Merge back: for each entry in rawExperience, apply enhancement if available
     const mergedExperience: EnhancedExperienceEntry[] = rawExperience.map(
-      (orig, i) => {
+      (orig) => {
         // Find which position this entry is in the entriesToEnhance array
         const enhanceIndex = entriesToEnhance.indexOf(orig);
         if (enhanceIndex === -1) {
