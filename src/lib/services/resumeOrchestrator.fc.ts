@@ -109,6 +109,17 @@ export async function processFunctionCallingGeneration(
       tools: RESUME_TOOL_DECLARATIONS,
     });
 
+    // Detect LLM capability gaps — logged so the system prompt can be improved
+    // over time rather than writing individual rules for each edge case.
+    const GAP_PHRASES =
+      /\b(i can't|i cannot|i don't have access|i'm not able to|i am not able to|i have no access|i'm unable to)\b/i;
+    if (GAP_PHRASES.test(aiResponse.text)) {
+      logger.warn(
+        { userId, requestId, userMessage: message, aiResponse: aiResponse.text },
+        "FC orchestrator: LLM hit a capability gap — review system prompt context",
+      );
+    }
+
     // Track usage cost (fire-and-forget — billing failure never blocks the user)
     if (aiResponse.estimatedCost) {
       BillingService.trackCost(
