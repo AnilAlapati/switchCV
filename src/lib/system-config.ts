@@ -153,18 +153,13 @@ export const defaultSystemConfig: SystemConfig = {
     costPerSearch: 0.5,
   },
   ai: {
-    defaultModel: "gemini-2.5-flash-lite",
+    defaultModel: "gemini-2.5-flash",
     embeddingModel: "text-embedding-004",
     embeddingDimension: 768,
     maxRetries: 2,
     timeoutMs: 30000,
     maxTokens: 2048,
-    preferredModels: [
-      "gemini-2.5-flash-lite",
-      "gemini-2.5-flash",
-      "gpt-4o-mini",
-      "groq/llama-3.1-8b",
-    ],
+    preferredModels: ["gemini-2.5-flash", "gpt-4o-mini", "groq/llama-3.1-8b"],
     enableCostWarnings: true,
   },
   validation: {

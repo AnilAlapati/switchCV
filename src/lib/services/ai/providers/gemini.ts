@@ -33,6 +33,7 @@ export interface GeminiStructuredOutputOptions {
  * @param temperature - Temperature (default 0.7)
  * @param model - Optional model override
  * @param structuredOutput - Optional structured output config for guaranteed JSON
+ * @param systemInstruction - Optional system instruction sent via the Gemini systemInstruction field
  */
 export async function generateWithGemini(
   prompt: string,
@@ -40,6 +41,7 @@ export async function generateWithGemini(
   temperature: number = 0.7,
   model?: string,
   structuredOutput?: GeminiStructuredOutputOptions,
+  systemInstruction?: string,
 ): Promise<{ text: string; model: string; usage?: TokenUsage }> {
   const { getSecret } = await import("@/lib/services/secretManagerService");
   const apiKey = await getSecret("GEMINI_API_KEY");
@@ -124,18 +126,21 @@ export async function generateWithGemini(
         delete generationConfig.stopSequences;
       }
 
+      const requestPayload: Record<string, unknown> = {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig,
+      };
+      if (systemInstruction) {
+        requestPayload.systemInstruction = {
+          parts: [{ text: systemInstruction }],
+        };
+      }
+
       response = await withRetry(() =>
         fetchWithTimeout(AI_ENDPOINTS.GEMINI.GENERATE(modelName, apiKey), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [{ text: prompt }],
-              },
-            ],
-            generationConfig,
-          }),
+          body: JSON.stringify(requestPayload),
         }),
       );
     } catch (error) {

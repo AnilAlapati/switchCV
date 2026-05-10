@@ -10,7 +10,7 @@ import {
 describe("resumeEditPrompts", () => {
   describe("buildResumeEditPrompt", () => {
     it("should build a prompt with resume snapshot", () => {
-      const prompt = buildResumeEditPrompt({
+      const { prompt, systemInstruction } = buildResumeEditPrompt({
         userMessage: "Change my title",
         conversationHistory: [{ content: "Hello", isUser: true }],
         resumeSnapshot: {
@@ -26,11 +26,11 @@ describe("resumeEditPrompts", () => {
         pendingSummary: "Changed title",
       });
 
-      expect(prompt).toContain(RESUME_EDIT_ASSISTANT_SYSTEM_PROMPT);
+      expect(systemInstruction).toBe(RESUME_EDIT_ASSISTANT_SYSTEM_PROMPT);
       expect(prompt).toContain("CURRENT RESUME SNAPSHOT:");
       expect(prompt).toContain("Old Title");
       expect(prompt).toContain(
-        "RECENT CHANGE SUMMARY TO REMEMBER: Changed title"
+        "RECENT CHANGE SUMMARY TO REMEMBER: Changed title",
       );
       expect(prompt).toContain("Conversation so far:");
       expect(prompt).toContain("User: Hello");
@@ -38,7 +38,7 @@ describe("resumeEditPrompts", () => {
     });
 
     it("should build a prompt without resume snapshot", () => {
-      const prompt = buildResumeEditPrompt({
+      const { prompt } = buildResumeEditPrompt({
         userMessage: "I want to edit",
         conversationHistory: [],
         resumeSnapshot: null,
@@ -52,7 +52,7 @@ describe("resumeEditPrompts", () => {
     it("should extract valid JSON", () => {
       const json = { isComplete: true, updatedProfile: { title: "New" } };
       const response = `Here is the json:\n\`\`\`json\n${JSON.stringify(
-        json
+        json,
       )}\n\`\`\``;
       const result = extractResumeEditJSON(response);
       expect(result).toEqual(json);

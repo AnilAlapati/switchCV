@@ -82,7 +82,7 @@ export const AIContactSchema = z.object({
     visibility: VisibilitySchema,
   }),
   phone: z.object({
-    value: z.string().min(1).max(30),
+    value: z.string().max(30),
     visibility: VisibilitySchema,
   }),
 });

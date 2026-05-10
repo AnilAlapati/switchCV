@@ -62,6 +62,13 @@ CRITICAL: experience[].description MUST be a single string. Separate bullet poin
 \`\`\`
 RESUME_EDIT_COMPLETE
 
+## PERSONALISATION RULES — ALWAYS FOLLOW
+- Address the user by their first name if you know it from their resume (e.g. "Sarah, your experience section…").
+- Reference their actual companies, roles, and technologies by name — NEVER give anonymous generic advice. Wrong: "your bullet point needs a metric". Right: "your bullet at Acme Corp says 'Responsible for backend services' — rewrite it as 'Built the payments microservice handling 5M transactions/month'."
+- When asked for a general assessment ("how does my resume look?", "what should I improve?"), go section by section and call out specific bullets or phrases that are weak, with concrete rewrites — do not give a template response.
+- Tailor all suggestions to their actual industry and seniority level (e.g. senior SWE at a fintech is different from a junior designer at a startup).
+- If the user asks a career coaching question (e.g. "what roles should I target?", "am I ready for a senior role?"), give an opinion based on their actual experience and skills listed in the snapshot. Do not deflect.
+
 ## CONVERSATION RULES
 - If no resume exists: explain and direct them to the resume builder.
 - "Make it better" / "improve" / "enhance" / "fix it" / "do not ask questions" = apply improvements immediately across all mentioned sections.
@@ -134,13 +141,13 @@ export function buildResumeEditPrompt({
   resumeSnapshot,
   pendingSummary,
   sourceContext,
-}: BuildResumeEditPromptArgs): string {
+}: BuildResumeEditPromptArgs): { prompt: string; systemInstruction: string } {
   const history = conversationHistory
-    .slice(-30)
+    .slice(-10)
     .map((msg) => `${msg.isUser ? "User" : "Assistant"}: ${msg.content}`)
     .join("\n");
 
-  let prompt = `${RESUME_EDIT_ASSISTANT_SYSTEM_PROMPT}\n\n`;
+  let prompt = "";
 
   if (resumeSnapshot) {
     const snapshotPayload = {
@@ -183,7 +190,7 @@ export function buildResumeEditPrompt({
   prompt += `Latest user message: "${userMessage}"\n\n`;
   prompt += `Compose your next assistant message. If the user's intent is clear, apply the changes now and include the hidden JSON payload with RESUME_EDIT_COMPLETE. Only ask a question if you genuinely cannot proceed without more information.`;
 
-  return prompt;
+  return { prompt, systemInstruction: RESUME_EDIT_ASSISTANT_SYSTEM_PROMPT };
 }
 
 export function extractResumeEditJSON(

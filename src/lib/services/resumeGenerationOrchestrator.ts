@@ -568,6 +568,29 @@ export async function processSyncGeneration(
           };
         }
 
+        // Defensive: if the merged resumeData has no summary (e.g. AI returned
+        // an empty string that passed min(1) via whitespace, or the field was
+        // missing from the AI response), fall back to the upload-extracted
+        // summary that was seeded into the ConversationManager.
+        const mergedSummary = (resumeData as Record<string, unknown>)?.summary;
+        if (
+          !mergedSummary ||
+          (typeof mergedSummary === "string" && !mergedSummary.trim())
+        ) {
+          const uploadSummary = seedData?.summary;
+          if (
+            uploadSummary &&
+            typeof uploadSummary === "string" &&
+            uploadSummary.trim()
+          ) {
+            (resumeData as Record<string, unknown>).summary = uploadSummary;
+            logger.info(
+              { uploadSummary: uploadSummary.slice(0, 80) },
+              "🔁 Applied upload-extracted summary as fallback (AI summary was empty)",
+            );
+          }
+        }
+
         let candidateData =
           resumeData && typeof resumeData === "object"
             ? (resumeData as Record<string, unknown>)
@@ -702,7 +725,24 @@ export async function processSyncGeneration(
               },
             );
 
-            const repairedJson = extractResumeJSON(repairResponse.text);
+            // Repair response may be raw JSON (from structured output) or
+            // markdown-fenced JSON (from legacy v1 path). Try raw parse first,
+            // then fall back to the markdown-fence extractor.
+            let repairedJson: Record<string, unknown> | null = null;
+            try {
+              const rawParsed = JSON.parse(
+                repairResponse.text.trim(),
+              ) as unknown;
+              if (typeof rawParsed === "object" && rawParsed !== null) {
+                repairedJson = rawParsed as Record<string, unknown>;
+              }
+            } catch {
+              repairedJson = extractResumeJSON(repairResponse.text) as Record<
+                string,
+                unknown
+              > | null;
+            }
+
             if (repairedJson) {
               resumeData = repairedJson as unknown as Record<string, unknown>;
               candidateData = repairedJson as unknown as Record<

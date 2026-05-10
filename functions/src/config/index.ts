@@ -103,7 +103,7 @@ export class ConfigManager {
       geminiApiKey: process.env.GEMINI_API_KEY,
       groqApiKey: process.env.GROQ_API_KEY,
       openaiApiKey: process.env.OPENAI_API_KEY,
-      defaultModel: process.env.AI_DEFAULT_MODEL || "gemini-2.5-flash-lite",
+      defaultModel: process.env.AI_DEFAULT_MODEL || "gemini-2.5-flash",
       timeout: parseInt(process.env.AI_TIMEOUT_MS || "30000", 10),
       maxRetries: parseInt(process.env.AI_MAX_RETRIES || "3", 10),
     };

@@ -49,6 +49,7 @@ export async function generateText(
   model?: string,
   userId?: string,
   structuredOutput?: GeminiStructuredOutputOptions,
+  systemInstruction?: string,
 ): Promise<{
   text: string;
   model: string;
@@ -70,16 +71,14 @@ export async function generateText(
       let result;
       switch (provider) {
         case "gemini":
-          result =
-            structuredOutput === undefined
-              ? await generateWithGemini(prompt, maxTokens, temperature, model)
-              : await generateWithGemini(
-                  prompt,
-                  maxTokens,
-                  temperature,
-                  model,
-                  structuredOutput,
-                );
+          result = await generateWithGemini(
+            prompt,
+            maxTokens,
+            temperature,
+            model,
+            structuredOutput,
+            systemInstruction,
+          );
           break;
         case "openai":
           result = await generateWithOpenAI(

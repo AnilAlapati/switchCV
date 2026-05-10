@@ -194,7 +194,7 @@ export async function POST(
     const storedSourceContext = resumeData.sourceContext as
       | { type: "upload" | "chat"; rawText?: string; chatSummary?: string }
       | undefined;
-    const prompt = buildResumeEditPrompt({
+    const { prompt, systemInstruction } = buildResumeEditPrompt({
       userMessage: message,
       conversationHistory,
       resumeSnapshot: normalized,
@@ -202,7 +202,15 @@ export async function POST(
       sourceContext: storedSourceContext ?? null,
     });
 
-    const aiResult = await generateText(prompt, 4000, 0.6);
+    const aiResult = await generateText(
+      prompt,
+      4000,
+      0.4,
+      undefined,
+      undefined,
+      undefined,
+      systemInstruction,
+    );
     const responseText = aiResult.text;
 
     // Track Billing
@@ -294,9 +302,11 @@ export async function POST(
       .replace(/RESUME_EDIT_COMPLETE/gi, "")
       .trim();
 
-    const successMessage = completionPayload.changeSummary
-      ? `${completionPayload.changeSummary} — all set!`
-      : finalCleanedResponse || "All set! Your resume has been updated.";
+    const successMessage =
+      finalCleanedResponse ||
+      (completionPayload.changeSummary
+        ? `${completionPayload.changeSummary} — all set!`
+        : "All set! Your resume has been updated.");
 
     return NextResponse.json({
       response: successMessage,

@@ -141,14 +141,18 @@ function looksLikeConversationalText(value: string): boolean {
 }
 
 /** System prompt optimised for extraction (not generation). */
-const EXTRACTION_SYSTEM_PROMPT = `You are a resume data extraction assistant. Your ONLY task is to extract structured fields from a conversation transcript where a user is describing their resume.
+const EXTRACTION_SYSTEM_PROMPT = `You are a resume data extraction assistant. Your task is to extract structured fields from a resume document OR a conversation transcript where a user is describing their resume.
 
 Rules:
-- Extract ONLY information that is explicitly stated or confirmed by the user. Do NOT fabricate any data.
+- Extract ONLY information that is explicitly present in the text. Do NOT fabricate any data.
 - If a field is not present, omit it entirely (do not set it to null or empty string).
 - For experience entries, keep the original wording of descriptions and achievements.
 - For skills, list each distinct skill as a separate string.
 - CERTIFICATIONS go into the skills array (e.g. "AWS Certified Cloud Practitioner", "PMP", "AHPRA"). Never drop them.
+
+- PROFESSIONAL SUMMARY: When the text contains a section labelled "Summary", "Professional Summary", "Profile", "About", "Objective", or similar, extract the FULL paragraph text of that section into the "summary" field. This is typically a 2–6 sentence paragraph near the top of the resume describing the person's background, expertise, and career goals. Do NOT skip it — summary is one of the most important fields. If the section exists but only has a header label with no paragraph text beneath it, omit the field.
+
+- RESUME DOCUMENT FORMAT: When the input is a structured resume (PDF or DOCX converted to text), extract ALL sections: contact info, professional summary, work experience, education, skills, and projects. Apply the same rules as for conversation transcripts but ignore the "conversation context" and "first-reply name" rules.
 
 - CONVERSATION CONTEXT: When the input is a conversation transcript, [ASSISTANT] lines are questions. However, if the [USER] confirms, agrees, or says "yes" to specific details mentioned in the [ASSISTANT] question, those confirmed details ARE valid resume data. For example, if [ASSISTANT] asks "Did you work at Google from 2020 to 2022?" and [USER] says "Yes, I was a Senior Engineer there", extract company="Google", duration="2020 - 2022", title="Senior Engineer".
 
@@ -246,7 +250,17 @@ NEGATIVE EXAMPLES — return {} (empty object) for these kinds of messages:
 
 SECTION HEADER RULE: When the input contains section labels like "LANGUAGES", "REFERENCES", "HOBBIES", "SOCIAL LINKS", "DECLARATION", do NOT create experience or education entries from them. For example:
 - "LANGUAGES\\nEnglish\\nHindi\\nTelugu" → These are languages, NOT experience entries with title="LANGUAGES" company="English". Ignore or treat as skills.
-- "REFERENCES\\nAvailable upon request" → Ignore. Not experience or education.`;
+- "REFERENCES\\nAvailable upon request" → Ignore. Not experience or education.
+
+EXAMPLE — professional summary extraction from resume document:
+
+PROFESSIONAL SUMMARY
+Results-driven Software Engineer with 8+ years of experience building scalable web applications. Expertise in React, Node.js, and cloud infrastructure. Proven track record of leading cross-functional teams and delivering high-impact products on time.
+→ summary = "Results-driven Software Engineer with 8+ years of experience building scalable web applications. Expertise in React, Node.js, and cloud infrastructure. Proven track record of leading cross-functional teams and delivering high-impact products on time."
+
+PROFILE
+Senior Data Scientist specialising in NLP and machine learning. Published 3 research papers and holds an MS in Computer Science from Stanford University.
+→ summary = "Senior Data Scientist specialising in NLP and machine learning. Published 3 research papers and holds an MS in Computer Science from Stanford University."`;
 
 /** Options for the extraction call. */
 export interface ExtractionOptions {
@@ -427,7 +441,7 @@ export async function extractWithStructuredOutput(
     const { generateTextWithTier } =
       await import("@/server/services/aiProviderService");
 
-    const prompt = `${EXTRACTION_SYSTEM_PROMPT}\n\nExtract all resume fields from the following conversation transcript. Return ONLY the structured data — no explanations, no commentary.\n\n---\nCONVERSATION TRANSCRIPT:\n${text}\n---`;
+    const prompt = `${EXTRACTION_SYSTEM_PROMPT}\n\nExtract all resume fields from the following text. Return ONLY the structured data — no explanations, no commentary.\n\n---\nRESUME / CONVERSATION TEXT:\n${text}\n---`;
 
     // Always use Gemini 2.5 Pro for extraction regardless of user tier.
     // Reasons:

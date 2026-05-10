@@ -217,7 +217,10 @@ describe("Resume Chat API", () => {
       mockDoc.set.mockResolvedValue(undefined);
 
       (normalizeResumeForEditor as jest.Mock).mockReturnValue({ profile: {} });
-      (buildResumeEditPrompt as jest.Mock).mockReturnValue("prompt");
+      (buildResumeEditPrompt as jest.Mock).mockReturnValue({
+        prompt: "prompt",
+        systemInstruction: "system",
+      });
       (generateText as jest.Mock).mockResolvedValue({
         text: "response",
         model: "gpt-4",
@@ -242,7 +245,7 @@ describe("Resume Chat API", () => {
       expect(NextResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
           completed: true,
-          response: "Updated title — all set!",
+          response: "Done", // stripEditArtifacts mock returns "Done"; full narrative takes precedence over changeSummary
         }),
       );
     });

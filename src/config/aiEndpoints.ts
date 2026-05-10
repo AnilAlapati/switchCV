@@ -62,9 +62,12 @@ export const AI_ENDPOINTS = {
 
 /**
  * Default stop sequences for AI generation
- * These help prevent models from generating beyond expected boundaries
+ * These help prevent models from generating beyond expected boundaries.
+ * NOTE: "##" and "\n\n\n" were removed — they cut off markdown-formatted chat
+ * responses mid-sentence whenever the model used headings or paragraph breaks.
+ * maxOutputTokens already enforces a hard length cap.
  */
-export const DEFAULT_STOP_SEQUENCES = ["---", "##", "\n\n\n"] as const;
+export const DEFAULT_STOP_SEQUENCES = ["---"] as const;
 
 /**
  * Type for accessing endpoint configuration
