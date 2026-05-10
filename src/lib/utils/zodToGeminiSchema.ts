@@ -21,6 +21,7 @@ import type { ZodTypeAny } from "zod";
 export interface GeminiJsonSchema {
   type: string;
   description?: string;
+  format?: string;
   properties?: Record<string, GeminiJsonSchema>;
   required?: string[];
   items?: GeminiJsonSchema;
