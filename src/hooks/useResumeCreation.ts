@@ -325,9 +325,13 @@ export function useResumeCreation() {
 
   const handleUploadedDraft = useCallback(
     async (uploadDraft: ResumeUploadDraft) => {
+      // Tell the AI explicitly that the data is already in the session so it
+      // doesn't ask for fields that were already extracted from the file.
+      const extractedFieldNames = uploadDraft.extractedFields.join(", ");
+      const generationMessage = `I uploaded my resume file "${uploadDraft.fileName}". The extracted data is already in your CURRENTLY COLLECTED DATA (fields: ${extractedFieldNames}). Please review it and create my resume now without asking for fields that are already present.`;
       await runGeneration({
         displayMessage: `Uploaded resume file: ${uploadDraft.fileName}`,
-        generationMessage: "Create my resume from the uploaded file",
+        generationMessage,
         requestSessionData: {
           collectedData: uploadDraft.extractedData,
           uploadSource: {

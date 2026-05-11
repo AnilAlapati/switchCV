@@ -11,6 +11,7 @@ import { ContactExtractor } from "./extractors/ContactExtractor";
 import { SkillsExtractor } from "./extractors/SkillsExtractor";
 import { ExperienceExtractor } from "./extractors/ExperienceExtractor";
 import { EducationExtractor } from "./extractors/EducationExtractor";
+import { SummaryExtractor } from "./extractors/SummaryExtractor";
 import { JSONExtractor } from "./extractors/JSONExtractor";
 import { logger } from "@/lib/logger";
 import {
@@ -192,6 +193,7 @@ export class ResumeDataExtractor {
       new SkillsExtractor(),
       new ExperienceExtractor(),
       new EducationExtractor(),
+      new SummaryExtractor(),
     ];
 
     for (const extractor of extractors) {
@@ -469,7 +471,9 @@ export class ResumeDataExtractor {
       .join(" ");
 
     if (options?.skipAI) {
-      logger.warn("AI extraction explicitly skipped — using deterministic fallback");
+      logger.warn(
+        "AI extraction explicitly skipped — using deterministic fallback",
+      );
       return this.buildDeterministicFallbackResult(messages, "skip_ai");
     }
 

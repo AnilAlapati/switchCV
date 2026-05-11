@@ -115,7 +115,12 @@ export async function processFunctionCallingGeneration(
       /\b(i can't|i cannot|i don't have access|i'm not able to|i am not able to|i have no access|i'm unable to)\b/i;
     if (GAP_PHRASES.test(aiResponse.text)) {
       logger.warn(
-        { userId, requestId, userMessage: message, aiResponse: aiResponse.text },
+        {
+          userId,
+          requestId,
+          userMessage: message,
+          aiResponse: aiResponse.text,
+        },
         "FC orchestrator: LLM hit a capability gap — review system prompt context",
       );
     }
@@ -170,8 +175,39 @@ export async function processFunctionCallingGeneration(
     // markAsComplete() was called — markAsComplete() sets hasMinimumData: true
     // unconditionally, but we must verify real fields exist before saving.
     const rawCollected = conversationManager.getData();
+
+    // Auto-synthesize summary when it is missing but enough context exists.
+    // This is the most common gap from file uploads that lack a "Summary" section.
+    // We build a short generic summary from the top experience entry so the
+    // pipeline is not blocked by an absent section header in the source file.
+    if (
+      !rawCollected.summary &&
+      rawCollected.name &&
+      Array.isArray(rawCollected.experience) &&
+      rawCollected.experience.length > 0
+    ) {
+      const topRole = rawCollected.experience[0];
+      const titlePart =
+        topRole.title && topRole.company
+          ? `${topRole.title} at ${topRole.company}`
+          : topRole.title || topRole.company || "professional";
+      const skillsPart =
+        Array.isArray(rawCollected.skills) && rawCollected.skills.length > 0
+          ? ` with expertise in ${rawCollected.skills.slice(0, 3).join(", ")}`
+          : "";
+      conversationManager.updateData({
+        summary: `Experienced ${titlePart}${skillsPart}. Dedicated professional with a track record of delivering results.`,
+      });
+      logger.info(
+        { userId, requestId },
+        "FC orchestrator: auto-synthesized summary from experience (source file had no Summary section)",
+      );
+    }
+
     const hasActualMinimumData = Boolean(
-      rawCollected.name && rawCollected.email && rawCollected.summary,
+      rawCollected.name &&
+      rawCollected.email &&
+      conversationManager.getData().summary,
     );
 
     // If mark_complete was called and we have minimum data, save the resume

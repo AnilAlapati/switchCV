@@ -137,9 +137,14 @@ export function validateResumeData(data: any): void {
     );
   }
 
-  // Validate summary
-  if (!data.summary || typeof data.summary !== "string") {
-    throw new ValidationError("Summary is required", "resumeData.summary");
+  // Validate summary — required unless experience entries are present (orchestrator auto-generates it)
+  const hasExperience =
+    Array.isArray(data.experience) && data.experience.length > 0;
+  if ((!data.summary || typeof data.summary !== "string") && !hasExperience) {
+    throw new ValidationError(
+      "Summary is required when no experience entries are provided",
+      "resumeData.summary",
+    );
   }
 
   if (data.summary.length > 5000) {

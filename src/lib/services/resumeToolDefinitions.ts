@@ -141,7 +141,7 @@ export const RESUME_TOOL_DECLARATIONS: GeminiFunctionDeclaration[] = [
   {
     name: "mark_complete",
     description:
-      "Signal that enough information has been collected to generate the resume. Only call this when the user explicitly asks to create/generate/finalize the resume AND at least name, email, and a summary have been provided.",
+      "Signal that enough information has been collected to generate the resume. Only call this when the user explicitly asks to create/generate/finalize the resume AND name + email are present, plus either a summary or at least one experience entry. If summary is absent but experience is present, still call this — the system will auto-generate the summary.",
     parameters: {
       type: "object",
       properties: {
