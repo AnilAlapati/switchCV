@@ -82,6 +82,14 @@ export async function processFunctionCallingGeneration(
           .join("\n")
       : "";
 
+  // Detect explicit creation intent BEFORE sending to AI.
+  // This lets us enforce the force-create path even when the model refuses to call
+  // mark_complete (e.g. stubbornly asks for a summary despite our instructions).
+  const userExplicitlyWantsToCreate =
+    /\b(create|generate|finish|done|make it|go ahead|build it|create (my |the )?resume|make (my |the )?resume|finalize|create now|create resume now|generate now)\b/i.test(
+      message,
+    );
+
   const prompt = historyText
     ? `${historyText}\nUser: ${message}`
     : `User: ${message}`;
@@ -204,11 +212,27 @@ export async function processFunctionCallingGeneration(
       );
     }
 
+    // After auto-synthesis summary may now be present — re-read.
+    const finalCollected = conversationManager.getData();
     const hasActualMinimumData = Boolean(
       rawCollected.name &&
       rawCollected.email &&
-      conversationManager.getData().summary,
+      // Accept auto-synthesized summary OR raw experience entries as substitute
+      (finalCollected.summary ||
+        (Array.isArray(rawCollected.experience) &&
+          rawCollected.experience.length > 0)),
     );
+
+    // Force-create path: user explicitly said "create" but the AI model
+    // failed to call mark_complete (e.g. asked for summary instead).
+    // If minimum data is available, honour the user's explicit intent.
+    if (!completionTriggered && userExplicitlyWantsToCreate && hasActualMinimumData) {
+      completionTriggered = true;
+      logger.info(
+        { userId, requestId },
+        "FC orchestrator: force-create path — explicit user intent + minimum data present",
+      );
+    }
 
     // If mark_complete was called and we have minimum data, save the resume
     if (completionTriggered && hasActualMinimumData) {
@@ -296,12 +320,19 @@ export async function processFunctionCallingGeneration(
         };
       }
     } else if (completionTriggered && !hasActualMinimumData) {
-      // mark_complete triggered but missing required fields
+      // mark_complete triggered but truly missing required fields
       const missingMinimum: string[] = [];
       if (!rawCollected.name) missingMinimum.push("Name is required");
       if (!rawCollected.email) missingMinimum.push("Email is required");
-      if (!rawCollected.summary)
-        missingMinimum.push("Professional summary is required");
+      // Summary is no longer required if experience entries are present
+      if (
+        !finalCollected.summary &&
+        !(Array.isArray(rawCollected.experience) && rawCollected.experience.length > 0)
+      ) {
+        missingMinimum.push(
+          "Please provide a brief professional summary or at least one work experience entry.",
+        );
+      }
 
       result = {
         requestId,
