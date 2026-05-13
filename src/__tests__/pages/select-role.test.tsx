@@ -108,8 +108,8 @@ describe("SelectRolePage", () => {
     const jobSeekerButton = screen.getByText("Job Seeker").closest("button");
     fireEvent.click(jobSeekerButton!);
 
-    // The button should have active styling
-    expect(jobSeekerButton).toHaveClass("border-teal-400");
+    // The button should have active styling (shadow-xl is added when selected)
+    expect(jobSeekerButton).toHaveClass("shadow-xl");
   });
 
   it("should enable Continue button when role is selected", () => {
@@ -327,7 +327,7 @@ describe("SelectRolePage", () => {
     const recruiterButton = screen.getByText("Recruiter").closest("button");
 
     fireEvent.click(jobSeekerButton!);
-    expect(jobSeekerButton).toHaveClass("border-teal-400");
+    expect(jobSeekerButton).toHaveClass("shadow-xl");
 
     fireEvent.click(recruiterButton!);
     expect(recruiterButton).toHaveClass("border-blue-400");

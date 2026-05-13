@@ -70,8 +70,60 @@ const SECTION_HEADINGS: Array<{ section: ResumeSection; pattern: RegExp }> = [
 const REQUIRED_FIELDS: Array<keyof ResumeDataRequirements> = [
   "name",
   "email",
-  "summary",
 ];
+
+function isPopulatedString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function isPopulatedArray(value: unknown): value is unknown[] {
+  return Array.isArray(value) && value.length > 0;
+}
+
+function mergeAIWithDeterministicBackstop(
+  aiData: Partial<ResumeDataRequirements>,
+  deterministicData: Partial<ResumeDataRequirements>,
+): Partial<ResumeDataRequirements> {
+  const merged: Partial<ResumeDataRequirements> = { ...aiData };
+
+  const stringFields: Array<keyof ResumeDataRequirements> = [
+    "name",
+    "email",
+    "phone",
+    "location",
+    "github",
+    "linkedin",
+    "twitter",
+    "summary",
+  ];
+
+  for (const field of stringFields) {
+    if (!isPopulatedString(merged[field])) {
+      const fallbackValue = deterministicData[field];
+      if (isPopulatedString(fallbackValue)) {
+        (merged as Record<string, unknown>)[field] = fallbackValue;
+      }
+    }
+  }
+
+  const arrayFields: Array<keyof ResumeDataRequirements> = [
+    "experience",
+    "education",
+    "skills",
+    "projects",
+  ];
+
+  for (const field of arrayFields) {
+    if (!isPopulatedArray(merged[field])) {
+      const fallbackValue = deterministicData[field];
+      if (isPopulatedArray(fallbackValue)) {
+        (merged as Record<string, unknown>)[field] = fallbackValue;
+      }
+    }
+  }
+
+  return merged;
+}
 
 function normalizeWhitespace(text: string): string {
   return (
@@ -226,6 +278,9 @@ function getMissingCriticalFields(
     return typeof value !== "string" || value.trim().length === 0;
   });
 
+  const hasSummary =
+    typeof extractedData.summary === "string" &&
+    extractedData.summary.trim().length > 0;
   const hasExperience =
     Array.isArray(extractedData.experience) &&
     extractedData.experience.length > 0;
@@ -237,6 +292,10 @@ function getMissingCriticalFields(
 
   if (!hasExperience && !hasEducation) {
     missing.push("experience_or_education");
+  }
+
+  if (!hasSummary && !hasExperience) {
+    missing.push("summary");
   }
 
   if (!hasSkills) {
@@ -371,6 +430,7 @@ export class ResumeIntakeNormalizer {
     }
 
     const cleanedText = cleanedLines.join("\n");
+    const deterministicExtraction = ResumeDataExtractor.extract(cleanedText);
     let extractionMethod: "ai" | "regex" = "regex";
     let extractedData: Partial<ResumeDataRequirements> = {};
     let extractedFields: string[] = [];
@@ -392,8 +452,11 @@ export class ResumeIntakeNormalizer {
         });
 
         if (aiResult.success && aiResult.data) {
-          extractedData = aiResult.data;
-          extractedFields = Object.keys(aiResult.data);
+          extractedData = mergeAIWithDeterministicBackstop(
+            aiResult.data,
+            deterministicExtraction.data,
+          );
+          extractedFields = Object.keys(extractedData);
           extractionMethod = "ai";
 
           logger.info(
@@ -415,9 +478,8 @@ export class ResumeIntakeNormalizer {
 
     // Fallback to regex extraction
     if (extractionMethod === "regex") {
-      const extraction = ResumeDataExtractor.extract(cleanedText);
-      extractedData = extraction.data;
-      extractedFields = extraction.extractedFields;
+      extractedData = deterministicExtraction.data;
+      extractedFields = deterministicExtraction.extractedFields;
     }
 
     const evidenceMap = buildEvidenceMap(extractedData, cleanedLines, sections);

@@ -13,15 +13,17 @@
 import { z } from "zod";
 
 export const ExtractionExperienceEntrySchema = z.object({
-  title: z.string().describe("Job title or position held"),
-  company: z.string().describe("Company or organization name"),
+  title: z.string().optional().describe("Job title or position held"),
+  company: z.string().optional().describe("Company or organization name"),
   duration: z
     .string()
+    .optional()
     .describe(
       "Employment duration, e.g. 'Jan 2020 - Present' or '2018 - 2021'",
     ),
   description: z
     .string()
+    .optional()
     .describe("Job description, key responsibilities, or summary of work"),
   achievements: z
     .array(z.string())
@@ -30,9 +32,10 @@ export const ExtractionExperienceEntrySchema = z.object({
 });
 
 export const ExtractionProjectEntrySchema = z.object({
-  name: z.string().describe("Project name or title"),
+  name: z.string().optional().describe("Project name or title"),
   description: z
     .string()
+    .optional()
     .describe(
       "Brief description of the project, its purpose, or what was built",
     ),
@@ -53,12 +56,17 @@ export const ExtractionProjectEntrySchema = z.object({
 export const ExtractionEducationEntrySchema = z.object({
   degree: z
     .string()
+    .optional()
     .describe(
       "Degree type, e.g. 'Bachelor of Science', 'MBA', 'High School Diploma'",
     ),
-  institution: z.string().describe("School, university, or institution name"),
+  institution: z
+    .string()
+    .optional()
+    .describe("School, university, or institution name"),
   year: z
     .string()
+    .optional()
     .describe("Graduation year or date range, e.g. '2020' or '2016 - 2020'"),
   major: z.string().optional().describe("Field of study or major"),
   gpa: z

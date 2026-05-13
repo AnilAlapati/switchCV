@@ -105,7 +105,7 @@ describe("Dashboard", () => {
     });
 
     render(<Dashboard />);
-    expect(screen.getByText("Loading dashboard...")).toBeInTheDocument();
+    expect(screen.getByText("SwitchCV is preparing...")).toBeInTheDocument();
   });
 
   it("redirects to auth if not logged in", () => {

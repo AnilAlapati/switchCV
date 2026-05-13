@@ -140,6 +140,14 @@ function looksLikeConversationalText(value: string): boolean {
   return CONVERSATIONAL_PATTERN.test(value.trim());
 }
 
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function cleanString(value: unknown): string {
+  return isNonEmptyString(value) ? value.trim() : "";
+}
+
 /** System prompt optimised for extraction (not generation). */
 const EXTRACTION_SYSTEM_PROMPT = `You are a resume data extraction assistant. Your task is to extract structured fields from a resume document OR a conversation transcript where a user is describing their resume.
 
@@ -686,20 +694,24 @@ function mapExtractionToRequirements(
   if (extracted.experience && extracted.experience.length > 0) {
     const validExperience = extracted.experience.filter(
       (exp) =>
-        !looksLikeSkillsList(exp.title) &&
-        !looksLikeSkillsList(exp.company) &&
-        !looksLikeSectionHeader(exp.title) &&
-        !looksLikeSectionHeader(exp.company) &&
-        !looksLikeConversationalText(exp.title) &&
-        !looksLikeConversationalText(exp.company),
+        (isNonEmptyString(exp.title) ||
+          isNonEmptyString(exp.company) ||
+          isNonEmptyString(exp.description) ||
+          (Array.isArray(exp.achievements) && exp.achievements.length > 0)) &&
+        !looksLikeSkillsList(cleanString(exp.title)) &&
+        !looksLikeSkillsList(cleanString(exp.company)) &&
+        !looksLikeSectionHeader(cleanString(exp.title)) &&
+        !looksLikeSectionHeader(cleanString(exp.company)) &&
+        !looksLikeConversationalText(cleanString(exp.title)) &&
+        !looksLikeConversationalText(cleanString(exp.company)),
     );
     if (validExperience.length > 0) {
       data.experience = validExperience.map((exp) => ({
-        title: exp.title,
-        company: exp.company,
-        duration: exp.duration,
-        description: exp.description,
-        achievements: exp.achievements,
+        title: cleanString(exp.title),
+        company: cleanString(exp.company),
+        duration: cleanString(exp.duration),
+        description: cleanString(exp.description),
+        achievements: exp.achievements?.filter(isNonEmptyString),
       }));
     }
   }
@@ -708,17 +720,22 @@ function mapExtractionToRequirements(
     data.education = extracted.education
       .filter(
         (edu) =>
-          !looksLikeConversationalText(edu.degree) &&
-          !looksLikeConversationalText(edu.institution) &&
-          !looksLikeSectionHeader(edu.degree) &&
-          !looksLikeSectionHeader(edu.institution),
+          (isNonEmptyString(edu.degree) ||
+            isNonEmptyString(edu.institution) ||
+            isNonEmptyString(edu.major) ||
+            isNonEmptyString(edu.year) ||
+            isNonEmptyString(edu.gpa)) &&
+          !looksLikeConversationalText(cleanString(edu.degree)) &&
+          !looksLikeConversationalText(cleanString(edu.institution)) &&
+          !looksLikeSectionHeader(cleanString(edu.degree)) &&
+          !looksLikeSectionHeader(cleanString(edu.institution)),
       )
       .map((edu) => ({
-        degree: edu.degree,
-        institution: edu.institution,
-        year: edu.year,
-        major: edu.major,
-        gpa: edu.gpa,
+        degree: cleanString(edu.degree),
+        institution: cleanString(edu.institution),
+        year: cleanString(edu.year),
+        major: cleanString(edu.major),
+        gpa: cleanString(edu.gpa),
       }));
   }
 
@@ -727,13 +744,21 @@ function mapExtractionToRequirements(
   }
 
   if (extracted.projects && extracted.projects.length > 0) {
-    data.projects = extracted.projects.map((proj) => ({
-      name: proj.name,
-      description: proj.description,
-      technologies: proj.technologies,
-      url: proj.url,
-      role: proj.role,
-    }));
+    const validProjects = extracted.projects.filter(
+      (proj) =>
+        isNonEmptyString(proj.name) ||
+        isNonEmptyString(proj.description) ||
+        (Array.isArray(proj.technologies) && proj.technologies.length > 0),
+    );
+    if (validProjects.length > 0) {
+      data.projects = validProjects.map((proj) => ({
+        name: cleanString(proj.name),
+        description: cleanString(proj.description),
+        technologies: proj.technologies?.filter(isNonEmptyString),
+        url: cleanString(proj.url),
+        role: cleanString(proj.role),
+      }));
+    }
   }
 
   return data;

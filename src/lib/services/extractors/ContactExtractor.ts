@@ -142,13 +142,19 @@ export class ContactExtractor implements IExtractor {
     }
 
     // 3. Extract Phone
-    const phoneRegex =
-      /(?:\+?\d{1,4}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}/;
-    const phoneMatch = trimmedText.match(phoneRegex);
-    if (phoneMatch) {
-      const digits = phoneMatch[0].replace(/\D/g, "");
-      if (digits.length >= 7 && digits.length <= 15) {
-        data.phone = phoneMatch[0].trim();
+    const phonePatterns = [
+      /\(\+\d{1,4}\)\s*\d(?:[\s.-]?\d){6,14}/,
+      /\+\d{1,4}[\s.-]?\d(?:[\s.-]?\d){6,14}/,
+      /\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}/,
+    ];
+    for (const pattern of phonePatterns) {
+      const phoneMatch = trimmedText.match(pattern);
+      if (phoneMatch) {
+        const digits = phoneMatch[0].replace(/\D/g, "");
+        if (digits.length >= 7 && digits.length <= 15) {
+          data.phone = phoneMatch[0].trim();
+          break;
+        }
       }
     }
 

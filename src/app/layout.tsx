@@ -56,7 +56,12 @@ export default async function RootLayout({
             <Suspense
               fallback={
                 <div className="min-h-screen flex items-center justify-center bg-[#FFFFF8]">
-                  <div className="w-8 h-8 border-4 border-black border-t-transparent rounded-full animate-spin"></div>
+                  <div className="flex flex-col items-center">
+                    <div className="w-12 h-12 border-4 border-black/10 border-t-emerald-500 rounded-full animate-spin mb-4"></div>
+                    <p className="text-emerald-900/60 font-medium animate-pulse">
+                      SwitchCV is preparing...
+                    </p>
+                  </div>
                 </div>
               }
             >

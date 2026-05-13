@@ -489,6 +489,20 @@ describe("Resume AI Extraction — Schema Validation", () => {
     expect(result.success).toBe(true);
   });
 
+  it("ResumeExtractionSchema accepts partial nested experience and education entries", () => {
+    const {
+      ResumeExtractionSchema,
+    } = require("@/lib/schemas/resumeExtractionSchema");
+
+    const partialNested = {
+      experience: [{ title: "Engineer", company: "Acme" }],
+      education: [{ institution: "State University", gpa: "8.5/10" }],
+    };
+
+    const result = ResumeExtractionSchema.safeParse(partialNested);
+    expect(result.success).toBe(true);
+  });
+
   it("ResumeExtractionSchema accepts empty object", () => {
     const {
       ResumeExtractionSchema,

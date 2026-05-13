@@ -54,8 +54,13 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-slate-50">
-        <div className="relative z-10 w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[#FFFFF8]">
+        <div className="flex flex-col items-center">
+          <div className="w-12 h-12 border-4 border-black/10 border-t-black rounded-full animate-spin mb-4"></div>
+          <p className="text-black/60 font-serif italic animate-pulse">
+            SwitchCV is preparing...
+          </p>
+        </div>
       </div>
     );
   }
@@ -110,7 +115,7 @@ function useHeroBackground() {
       top: `${Math.random() * 100}%`,
       delay: `${Math.random() * 3}s`,
       duration: `${2 + Math.random() * 3}s`,
-    }))
+    })),
   );
 
   useEffect(() => {

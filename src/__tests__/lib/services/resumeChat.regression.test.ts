@@ -450,6 +450,68 @@ describe("Category C — Edge cases and robustness", () => {
     );
   });
 
+  it("C1b: file upload creation persists upload source context", async () => {
+    await runScenario(
+      "C1b: file upload source context is preserved",
+      async () => {
+        const saveGeneratedResume = jest.requireMock<{
+          saveGeneratedResume: jest.Mock;
+        }>("@/lib/services/resumeService").saveGeneratedResume;
+
+        mockAIReply("Creating your resume now.", [
+          {
+            name: "mark_complete",
+            args: { confirmation_message: "Creating your resume!" },
+          },
+        ]);
+
+        await processFunctionCallingGeneration({
+          ...makeInput("Create my resume", {
+            name: "Uploaded User",
+            email: "uploaded@example.com",
+            experience: [
+              {
+                title: "Engineer",
+                company: "Acme",
+                duration: "2020 - Present",
+                description: "Built internal tools.",
+              },
+            ],
+          }),
+          sessionData: {
+            collectedData: {
+              name: "Uploaded User",
+              email: "uploaded@example.com",
+              experience: [
+                {
+                  title: "Engineer",
+                  company: "Acme",
+                  duration: "2020 - Present",
+                  description: "Built internal tools.",
+                },
+              ],
+            },
+            wasFileUpload: true,
+            sourceRawText: "Uploaded resume raw text",
+          },
+          inputSources: ["pdf"],
+          persistResult: true,
+        });
+
+        expect(saveGeneratedResume).toHaveBeenCalledWith(
+          "test-user",
+          expect.any(Object),
+          expect.objectContaining({
+            sourceContext: {
+              type: "upload",
+              rawText: "Uploaded resume raw text",
+            },
+          }),
+        );
+      },
+    );
+  });
+
   it("C2: mark_complete without minimum data asks for missing fields", async () => {
     await runScenario(
       "C2: mark_complete without minimum data asks for clarification",

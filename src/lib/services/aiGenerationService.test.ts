@@ -77,7 +77,7 @@ describe("aiGenerationService", () => {
 
             expect(result.text).toBe("Gemini Result");
             expect(result.provider).toBe("gemini");
-            expect(generateWithGemini).toHaveBeenCalledWith("prompt", 150, 0.7, undefined);
+            expect(generateWithGemini).toHaveBeenCalledWith("prompt", 150, 0.7, undefined, undefined, undefined);
             expect(generateWithOpenAI).not.toHaveBeenCalled();
             expect(providerFallback.reportSuccess).toHaveBeenCalledWith("gemini", expect.any(Number));
             expect(aiCircuitBreaker.recordSuccess).toHaveBeenCalledWith("gemini");

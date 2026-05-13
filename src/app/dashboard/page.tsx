@@ -136,10 +136,10 @@ export default function Dashboard() {
     return (
       <DashboardBackground>
         <div className="relative z-20 flex min-h-screen items-center justify-center">
-          <div className="bg-white border border-gray-200 px-8 py-6 text-center shadow-lg">
-            <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-black border-t-transparent"></div>
-            <p className="text-lg font-serif font-bold text-black tracking-tight">
-              Loading dashboard...
+          <div className="flex flex-col items-center">
+            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-emerald-500/30 border-t-emerald-500"></div>
+            <p className="text-emerald-900/60 font-medium animate-pulse">
+              SwitchCV is preparing...
             </p>
           </div>
         </div>

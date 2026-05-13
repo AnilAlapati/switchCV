@@ -40,11 +40,11 @@ export const ROLES: RoleFeature[] = [
             "Track who views your resume",
             "Control your contact info privacy",
         ],
-        gradient: "from-teal-400 to-emerald-500",
-        hoverGradient: "hover:from-teal-300 hover:to-emerald-400",
-        borderColor: "border-teal-400/50",
-        bgColor: "bg-teal-400/5",
-        activeBg: "bg-teal-400/10",
+        gradient: "from-black to-gray-800",
+        hoverGradient: "hover:from-gray-800 hover:to-gray-700",
+        borderColor: "border-black/20",
+        bgColor: "bg-black/5",
+        activeBg: "bg-black/10",
     },
     {
         id: "recruiter",
@@ -70,8 +70,8 @@ export const ROLES: RoleFeature[] = [
             "Request contact information",
             "Manage candidate pipeline",
         ],
-        gradient: "from-blue-400 to-indigo-500",
-        hoverGradient: "hover:from-blue-300 hover:to-indigo-400",
+        gradient: "from-blue-600 to-blue-800",
+        hoverGradient: "hover:from-blue-500 hover:to-blue-700",
         borderColor: "border-blue-400/50",
         bgColor: "bg-blue-400/5",
         activeBg: "bg-blue-400/10",
@@ -175,8 +175,8 @@ export function RoleCard({ role, isSelected, isSubmitting, onSelect }: RoleCardP
                         <div
                             className={`p-1 rounded-full ${isSelected
                                     ? role.id === "jobseeker"
-                                        ? "bg-teal-100 text-teal-600"
-                                        : "bg-blue-100 text-blue-600"
+                                        ? "bg-gray-100 text-black"
+                                        : "bg-blue-50 text-blue-700"
                                     : "bg-gray-100 text-gray-500"
                                 }`}
                         >

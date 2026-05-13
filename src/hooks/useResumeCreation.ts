@@ -334,6 +334,7 @@ export function useResumeCreation() {
         generationMessage,
         requestSessionData: {
           collectedData: uploadDraft.extractedData,
+          wasFileUpload: true,
           uploadSource: {
             fileName: uploadDraft.fileName,
             sourceChannel: uploadDraft.sourceChannel,

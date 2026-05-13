@@ -203,8 +203,9 @@ describe("SelectRolePage", () => {
 
             // Check for selection indicator (checkmark icon)
             await waitFor(() => {
+                // jobseeker gradient is "from-black to-gray-800"
                 const selectedIndicator = document.querySelector(
-                    '[class*="bg-gradient-to-r"][class*="from-teal"]'
+                    '[class*="from-black"]'
                 );
                 expect(selectedIndicator).toBeInTheDocument();
             });

@@ -60,6 +60,7 @@ export async function processFunctionCallingGeneration(
     sessionData,
     modelId,
     userTier,
+    inputSources,
     persistResult,
     requestId: providedRequestId,
     sessionId: providedSessionId,
@@ -73,6 +74,16 @@ export async function processFunctionCallingGeneration(
   const collectedData =
     (sessionData?.collectedData as Partial<ResumeDataRequirements>) ?? {};
   const conversationManager = new ConversationManager(collectedData);
+  const isFileUpload =
+    Boolean(sessionData?.sourceRawText) ||
+    Boolean(sessionData?.wasFileUpload) ||
+    (inputSources ?? []).some((source) =>
+      ["pdf", "docx"].includes(source),
+    );
+  const uploadRawText =
+    typeof sessionData?.sourceRawText === "string"
+      ? sessionData.sourceRawText
+      : undefined;
 
   // Build conversation history prompt for context
   const historyText =
@@ -226,7 +237,11 @@ export async function processFunctionCallingGeneration(
     // Force-create path: user explicitly said "create" but the AI model
     // failed to call mark_complete (e.g. asked for summary instead).
     // If minimum data is available, honour the user's explicit intent.
-    if (!completionTriggered && userExplicitlyWantsToCreate && hasActualMinimumData) {
+    if (
+      !completionTriggered &&
+      userExplicitlyWantsToCreate &&
+      hasActualMinimumData
+    ) {
       completionTriggered = true;
       logger.info(
         { userId, requestId },
@@ -283,17 +298,23 @@ export async function processFunctionCallingGeneration(
               validationErrors: [],
             }),
             generationVersion: { pipeline: "v3_function_calling" },
-            sourceContext: {
-              type: "chat" as const,
-              chatSummary: [
-                ...conversationHistory,
-                { content: message, isUser: true },
-              ]
-                .filter((m) => m.isUser)
-                .map((m) => m.content)
-                .join("\n\n")
-                .slice(0, 6_000),
-            },
+            sourceContext:
+              isFileUpload && uploadRawText
+                ? {
+                    type: "upload" as const,
+                    rawText: uploadRawText,
+                  }
+                : {
+                    type: "chat" as const,
+                    chatSummary: [
+                      ...conversationHistory,
+                      { content: message, isUser: true },
+                    ]
+                      .filter((m) => m.isUser)
+                      .map((m) => m.content)
+                      .join("\n\n")
+                      .slice(0, 6_000),
+                  },
           },
         );
 
@@ -327,7 +348,10 @@ export async function processFunctionCallingGeneration(
       // Summary is no longer required if experience entries are present
       if (
         !finalCollected.summary &&
-        !(Array.isArray(rawCollected.experience) && rawCollected.experience.length > 0)
+        !(
+          Array.isArray(rawCollected.experience) &&
+          rawCollected.experience.length > 0
+        )
       ) {
         missingMinimum.push(
           "Please provide a brief professional summary or at least one work experience entry.",

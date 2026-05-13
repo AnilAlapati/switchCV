@@ -62,6 +62,20 @@ describe("ResumeIntakeNormalizer", () => {
       expect(result.missingCriticalFields).toContain("experience_or_education");
     });
 
+    it("does not mark summary missing when experience is present", () => {
+      const result = ResumeIntakeNormalizer.normalize({
+        sources: [
+          {
+            channel: "paste",
+            text: "Jane Doe\njane@example.com\nEXPERIENCE\nSoftware Engineer at Acme Corp\nSKILLS\nReact",
+          },
+        ],
+      });
+
+      expect(result.draft.extractedData.experience).toHaveLength(1);
+      expect(result.missingCriticalFields).not.toContain("summary");
+    });
+
     it("handles multiple sources by merging them", () => {
       const result = ResumeIntakeNormalizer.normalize({
         sources: [
@@ -171,6 +185,34 @@ describe("ResumeIntakeNormalizer", () => {
       expect(result.extractionMethod).toBe("ai");
       expect(result.draft.extractedData.name).toBe("AI Name");
       expect(result.draft.extractedData.email).toBe("ai@test.com");
+    });
+
+    it("backfills deterministic contact fields when AI succeeds partially", async () => {
+      mockExtractWithStructuredOutput.mockResolvedValueOnce({
+        success: true,
+        data: {
+          name: "AI Name",
+          skills: ["React"],
+        },
+        latencyMs: 500,
+      });
+
+      const result = await ResumeIntakeNormalizer.normalizeWithAI({
+        sources: [
+          {
+            channel: "paste",
+            text: "CONTACT\nJane Doe\njane@example.com\n(+91) 9916179765\nSKILLS\nReact",
+          },
+        ],
+      });
+
+      expect(result.extractionMethod).toBe("ai");
+      expect(result.draft.extractedData.name).toBe("AI Name");
+      expect(result.draft.extractedData.email).toBe("jane@example.com");
+      expect(result.draft.extractedData.phone).toBe("(+91) 9916179765");
+      expect(result.draft.extractedFields).toEqual(
+        expect.arrayContaining(["name", "email", "phone", "skills"]),
+      );
     });
 
     it("uses AI extraction when source is pdf", async () => {

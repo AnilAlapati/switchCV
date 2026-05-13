@@ -16,7 +16,7 @@ import {
   Role,
   ROLES,
   SelectRoleHeader,
-  RoleCard
+  RoleCard,
 } from "@/components/select-role/SelectRoleComponents";
 
 export default function SelectRolePage() {
@@ -121,10 +121,10 @@ export default function SelectRolePage() {
       // CRITICAL FIX: The /dashboard page uses SWR which might refetch stale data from Firestore edge nodes
       // and immediately redirect the user back here.
       // 1. Give Firestore a moment to replicate the write
-      await new Promise(resolve => setTimeout(resolve, 800));
+      await new Promise((resolve) => setTimeout(resolve, 800));
 
       // 2. Use a hard navigation (window.location) instead of router.push().
-      // This forces the entire React tree to unmount and mount fresh on /dashboard, 
+      // This forces the entire React tree to unmount and mount fresh on /dashboard,
       // ensuring SWR boots up fresh instead of using a potentially poisoned soft-nav cache.
       redirectWindow("/dashboard");
     } catch (err: unknown) {
@@ -141,7 +141,12 @@ export default function SelectRolePage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#FFFFF8]">
-        <div className="w-8 h-8 border-4 border-black border-t-transparent rounded-full animate-spin"></div>
+        <div className="flex flex-col items-center">
+          <div className="w-12 h-12 border-4 border-black/10 border-t-black rounded-full animate-spin mb-4"></div>
+          <p className="text-black/60 font-serif italic animate-pulse">
+            SwitchCV is preparing...
+          </p>
+        </div>
       </div>
     );
   }
@@ -178,10 +183,11 @@ export default function SelectRolePage() {
             type="button"
             onClick={handleSelectRole}
             disabled={!selectedRole || isSubmitting}
-            className={`px-10 py-4 rounded-2xl font-semibold text-white transition-all duration-300 shadow-lg ${selectedRole && !isSubmitting
-              ? `bg-gradient-to-r ${selectedRoleData?.gradient} ${selectedRoleData?.hoverGradient} hover:shadow-xl hover:scale-105 hover:-translate-y-0.5`
-              : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
-              }`}
+            className={`px-10 py-4 rounded-2xl font-semibold text-white transition-all duration-300 shadow-lg ${
+              selectedRole && !isSubmitting
+                ? `bg-gradient-to-r ${selectedRoleData?.gradient} ${selectedRoleData?.hoverGradient} hover:shadow-xl hover:scale-105 hover:-translate-y-0.5`
+                : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+            }`}
           >
             {isSubmitting ? (
               <span className="flex items-center gap-2">
@@ -220,4 +226,3 @@ export default function SelectRolePage() {
     </div>
   );
 }
-

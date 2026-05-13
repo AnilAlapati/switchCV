@@ -158,6 +158,47 @@ describe("extractWithStructuredOutput", () => {
     expect(result.data?.skills).toEqual(["JavaScript", "TypeScript", "React"]);
   });
 
+  it("accepts useful partial nested entries instead of failing the whole extraction", async () => {
+    mockGenerateTextWithTier.mockResolvedValueOnce({
+      text: JSON.stringify({
+        name: "Jane Doe",
+        email: "jane@example.com",
+        experience: [
+          {
+            title: "Software Engineer",
+            company: "Acme Corp",
+          },
+        ],
+        education: [
+          {
+            institution: "State University",
+            gpa: "8.5/10",
+          },
+        ],
+      }),
+      model: "gemini-2.5-pro",
+      provider: "gemini",
+    });
+
+    const result = await extractWithStructuredOutput(
+      "Jane Doe jane@example.com Software Engineer at Acme Corp. State University CGPA 8.5/10.",
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.data?.experience?.[0]).toMatchObject({
+      title: "Software Engineer",
+      company: "Acme Corp",
+      duration: "",
+      description: "",
+    });
+    expect(result.data?.education?.[0]).toMatchObject({
+      institution: "State University",
+      degree: "",
+      year: "",
+      gpa: "8.5/10",
+    });
+  });
+
   it("logs warning when model is not gemini-2.5-pro (fallback model used)", async () => {
     mockGenerateTextWithTier.mockResolvedValueOnce({
       text: JSON.stringify(VALID_EXTRACTION),
