@@ -382,13 +382,19 @@ export async function processSyncGeneration(
     );
 
     // Step 4: Generate AI response (tier-aware with graceful fallback)
-    // When resume_v2_writer is enabled, use structured output for guaranteed valid JSON
+    // Only apply structured output schema when generating the final resume.
+    // Applying responseSchema on conversational turns forces Gemini to output
+    // full AIResumeResponseSchema JSON even for casual messages (e.g. "My name
+    // is Anil"), causing it to hallucinate skills/experience to satisfy the
+    // required min(1) fields and triggering premature resume creation.
     type TieredResult = Awaited<ReturnType<typeof generateTextWithTier>>;
     type LegacyResult = Awaited<ReturnType<typeof generateText>>;
 
     let aiResponse: TieredResult | LegacyResult;
 
-    const geminiResponseSchema = flags.resume_v2_writer
+    const shouldUseStructuredOutput =
+      flags.resume_v2_writer && userWantsToCreate;
+    const geminiResponseSchema = shouldUseStructuredOutput
       ? zodToGeminiSchema(AIResumeResponseSchema)
       : undefined;
 
@@ -399,7 +405,7 @@ export async function processSyncGeneration(
         temperature: 0.7,
         userTier,
         modelId,
-        jsonMode: flags.resume_v2_writer ? true : undefined,
+        jsonMode: shouldUseStructuredOutput ? true : undefined,
         responseSchema: geminiResponseSchema as unknown as
           | Record<string, unknown>
           | undefined,

@@ -214,7 +214,14 @@ export function buildConversationalPrompt(
 
   if (forceCreate) {
     prompt += `USER REQUEST: The user explicitly wants to create the resume NOW.
-INSTRUCTION: Stop asking broad follow-up questions. Generate the "RESUME_COMPLETE" response with the JSON block immediately, using only information explicitly provided by the user or already present in CURRENTLY COLLECTED DATA. Do NOT infer or fabricate missing companies, titles, descriptions, achievements, dates, grades, or metrics. Optional contact fields may be empty, but required experience/education details must come from explicit evidence already in the conversation.\n\n`;
+INSTRUCTION: Stop asking broad follow-up questions. Generate the "RESUME_COMPLETE" response with the JSON block immediately, using only information explicitly provided by the user or already present in CURRENTLY COLLECTED DATA. Do NOT infer or fabricate missing companies, titles, descriptions, achievements, dates, grades, or metrics. Optional contact fields may be empty, but required experience/education details must come from explicit evidence already in the conversation.
+
+SCHEMA FIELD MAPPING — the final JSON must use these field names (intake format → output format):
+• experience[]: "title" → "role" | "duration" (e.g. "Jan 2020 - Present") → split into "startDate" + "endDate" (omit "endDate" entirely when the role is current / duration ends with "Present")
+• education[]: "year" (e.g. "2016-2020" or "2022") → "startDate" and "endDate" where available; single year → "endDate" only | "gpa" → "grade"
+• skills[]: each plain string (e.g. "React") → { "name": "React", "level": "proficient", "visibility": "public" }
+• contact: top-level "email" → contact.email.value | top-level "phone" → contact.phone.value | both with visibility: "public"
+• title: use the user's stated target role; if absent, derive a fitting title from their most recent experience role\n\n`;
   }
 
   if (collectedData) {
