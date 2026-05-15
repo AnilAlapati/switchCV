@@ -71,6 +71,7 @@ export default function CreateResume() {
     currentInput,
     setCurrentInput,
     stage,
+    createdResumeId,
     aiLoading,
     aiError,
     aiConnectionStatus,
@@ -335,6 +336,17 @@ export default function CreateResume() {
                   ))}
 
                   <AILoadingState aiLoading={aiLoading} aiError={aiError} />
+                  {stage === "complete" && createdResumeId && !aiLoading && (
+                    <div className="flex justify-center mt-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                      <a
+                        href={`/resumes/${createdResumeId}`}
+                        className="bg-black hover:bg-gray-800 text-white px-6 py-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] font-bold flex items-center gap-2 transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] text-sm border-2 border-black"
+                        aria-label="View your resume"
+                      >
+                        <span>View Your Resume →</span>
+                      </a>
+                    </div>
+                  )}
                   <div ref={messagesEndRef} className="h-64" />
                 </div>
               )}

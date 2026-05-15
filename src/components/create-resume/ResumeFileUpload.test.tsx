@@ -12,9 +12,13 @@ jest.mock("@/hooks/useAuth");
 
 jest.mock("lucide-react", () => ({
   AlertCircle: () => <svg data-testid="icon-alert-circle" aria-hidden="true" />,
-  CheckCircle2: () => <svg data-testid="icon-check-circle" aria-hidden="true" />,
+  CheckCircle2: () => (
+    <svg data-testid="icon-check-circle" aria-hidden="true" />
+  ),
   FileText: () => <svg data-testid="icon-file-text" aria-hidden="true" />,
-  Loader2: () => <svg data-testid="icon-loader" role="status" aria-hidden="true" />,
+  Loader2: () => (
+    <svg data-testid="icon-loader" role="status" aria-hidden="true" />
+  ),
   Upload: () => <svg data-testid="icon-upload" aria-hidden="true" />,
   X: () => <svg data-testid="icon-x" aria-hidden="true" />,
 }));
@@ -63,7 +67,10 @@ describe("ResumeFileUpload", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUseAuth.mockReturnValue({ user: mockUser, loading: false } as ReturnType<typeof useAuth>);
+    mockUseAuth.mockReturnValue({
+      user: mockUser,
+      loading: false,
+    } as ReturnType<typeof useAuth>);
     global.fetch = jest.fn();
   });
 
@@ -79,11 +86,15 @@ describe("ResumeFileUpload", () => {
     render(<ResumeFileUpload onComplete={onComplete} onCancel={onCancel} />);
 
     const input = screen.getByTestId("resume-file-input");
-    const badFile = new File(["content"], "resume.xls", { type: "application/vnd.ms-excel" });
+    const badFile = new File(["content"], "resume.xls", {
+      type: "application/vnd.ms-excel",
+    });
     fireEvent.change(input, { target: { files: [badFile] } });
 
     await waitFor(() => {
-      expect(screen.getByText("Upload a PDF, DOCX, or TXT file.")).toBeInTheDocument();
+      expect(
+        screen.getByText("Upload a PDF, DOCX, or TXT file."),
+      ).toBeInTheDocument();
     });
     expect(global.fetch).not.toHaveBeenCalled();
   });
@@ -96,7 +107,9 @@ describe("ResumeFileUpload", () => {
     fireEvent.change(input, { target: { files: [bigFile] } });
 
     await waitFor(() => {
-      expect(screen.getByText("File size must be 5 MB or less.")).toBeInTheDocument();
+      expect(
+        screen.getByText("File size must be 5 MB or less."),
+      ).toBeInTheDocument();
     });
     expect(global.fetch).not.toHaveBeenCalled();
   });
@@ -112,9 +125,14 @@ describe("ResumeFileUpload", () => {
       expect(screen.getByText("Review extracted details")).toBeInTheDocument();
     });
 
-    const [url, options] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
+    const [url, options] = (global.fetch as jest.Mock).mock.calls[0] as [
+      string,
+      RequestInit,
+    ];
     expect(url).toBe("/api/resume/upload-and-extract");
-    expect((options.headers as Record<string, string>)["Authorization"]).toBe("Bearer mock-id-token");
+    expect((options.headers as Record<string, string>)["Authorization"]).toBe(
+      "Bearer mock-id-token",
+    );
     expect(options.method).toBe("POST");
   });
 
@@ -135,7 +153,9 @@ describe("ResumeFileUpload", () => {
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: false,
       status: 403,
-      json: async () => ({ error: "File upload is not available on your plan" }),
+      json: async () => ({
+        error: "File upload is not available on your plan",
+      }),
     });
     render(<ResumeFileUpload onComplete={onComplete} onCancel={onCancel} />);
 
@@ -144,7 +164,7 @@ describe("ResumeFileUpload", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText("File upload is not available on your plan.")
+        screen.getByText("File upload is not available on your plan."),
       ).toBeInTheDocument();
     });
     expect(onComplete).not.toHaveBeenCalled();
@@ -154,7 +174,10 @@ describe("ResumeFileUpload", () => {
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: false,
       status: 422,
-      json: async () => ({ error: "Could not extract text", code: "SCANNED_PDF" }),
+      json: async () => ({
+        error: "Could not extract text",
+        code: "SCANNED_PDF",
+      }),
     });
     render(<ResumeFileUpload onComplete={onComplete} onCancel={onCancel} />);
 
@@ -164,8 +187,8 @@ describe("ResumeFileUpload", () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          "This looks like a scanned PDF. Paste your resume text in chat instead."
-        )
+          "This looks like a scanned PDF. Paste your resume text in chat instead.",
+        ),
       ).toBeInTheDocument();
     });
     expect(onComplete).not.toHaveBeenCalled();
@@ -199,7 +222,9 @@ describe("ResumeFileUpload", () => {
     fireEvent.change(input, { target: { files: [makePdf()] } });
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /back to chat/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /back to chat/i }),
+      ).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("button", { name: /back to chat/i }));

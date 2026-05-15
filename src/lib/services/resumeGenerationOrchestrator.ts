@@ -1060,7 +1060,6 @@ export async function processSyncGeneration(
       },
     };
   } finally {
-    // Persist conversation session (awaited to guarantee write in serverless)
     const now = new Date().toISOString();
     const sessionMessages: ConversationMessage[] = allMessages.map((m) => ({
       role: m.isUser ? ("user" as const) : ("assistant" as const),
@@ -1068,7 +1067,9 @@ export async function processSyncGeneration(
       timestamp: m.timestamp ?? now,
     }));
 
-    await persistConversationSession({
+    // Fire-and-forget: these are observability/logging writes — they must never
+    // block or delay the HTTP response to the client.
+    void persistConversationSession({
       sessionId: observationContext.requestId,
       userId,
       ...(createdResumeId ? { resumeId: createdResumeId } : {}),
@@ -1091,7 +1092,7 @@ export async function processSyncGeneration(
       expiresAt: "",
     });
 
-    await persistAIRequestSummary({
+    void persistAIRequestSummary({
       context: observationContext,
       userVisibleFailure: monitoringSummary.userVisibleFailure,
       finalOutcome: monitoringSummary.finalOutcome,

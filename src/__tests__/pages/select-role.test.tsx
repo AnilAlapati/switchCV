@@ -157,11 +157,14 @@ describe("SelectRolePage", () => {
     const continueButton = screen.getByText("Continue to Dashboard");
     fireEvent.click(continueButton);
 
-    await waitFor(() => {
-      expect(mockSetDoc).toHaveBeenCalledTimes(1); // Only stats update, user doc is handled by API
-      expect(mockMutate).toHaveBeenCalled();
-      expect(redirectWindow).toHaveBeenCalledWith("/dashboard");
-    }, { timeout: 2000 });
+    await waitFor(
+      () => {
+        expect(mockSetDoc).toHaveBeenCalledTimes(1); // Only stats update, user doc is handled by API
+        expect(mockMutate).toHaveBeenCalled();
+        expect(redirectWindow).toHaveBeenCalledWith("/dashboard");
+      },
+      { timeout: 2000 },
+    );
   });
 
   it("should submit recruiter role and redirect to dashboard", async () => {
@@ -190,10 +193,13 @@ describe("SelectRolePage", () => {
     const continueButton = screen.getByText("Continue to Dashboard");
     fireEvent.click(continueButton);
 
-    await waitFor(() => {
-      expect(mockSetDoc).toHaveBeenCalledTimes(1);
-      expect(redirectWindow).toHaveBeenCalledWith("/dashboard");
-    }, { timeout: 2000 });
+    await waitFor(
+      () => {
+        expect(mockSetDoc).toHaveBeenCalledTimes(1);
+        expect(redirectWindow).toHaveBeenCalledWith("/dashboard");
+      },
+      { timeout: 2000 },
+    );
   });
 
   it("should display error message when submission fails", async () => {
@@ -224,7 +230,7 @@ describe("SelectRolePage", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText("Error: Something went wrong")
+        screen.getByText("Error: Something went wrong"),
       ).toBeInTheDocument();
     });
   });
@@ -242,7 +248,7 @@ describe("SelectRolePage", () => {
     mockGetIdToken.mockResolvedValue("mock-token");
     mockDoc.mockReturnValue({} as any);
     mockSetDoc.mockImplementation(
-      () => new Promise((resolve) => setTimeout(resolve, 100))
+      () => new Promise((resolve) => setTimeout(resolve, 100)),
     );
     (global.fetch as jest.Mock).mockImplementation(
       () =>
@@ -253,9 +259,9 @@ describe("SelectRolePage", () => {
                 ok: true,
                 json: async () => ({ success: true }),
               }),
-            100
-          )
-        )
+            100,
+          ),
+        ),
     );
 
     render(<SelectRolePage />);
@@ -290,7 +296,7 @@ describe("SelectRolePage", () => {
     expect(screen.getByText("Create AI-powered resumes")).toBeInTheDocument();
     expect(screen.getByText("Track who views your resume")).toBeInTheDocument();
     expect(
-      screen.getByText("Control your contact info privacy")
+      screen.getByText("Control your contact info privacy"),
     ).toBeInTheDocument();
   });
 

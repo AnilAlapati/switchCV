@@ -70,6 +70,7 @@ export function useResumeCreation() {
   const [stage, setStage] = useState<"input" | "generating" | "complete">(
     "input",
   );
+  const [createdResumeId, setCreatedResumeId] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiConnectionStatus, setAiConnectionStatus] = useState<{
@@ -178,6 +179,7 @@ export function useResumeCreation() {
     localStorage.removeItem(`resume_creation_session_${user.uid}`);
     setMessages([]);
     setStage("input");
+    setCreatedResumeId(null);
     setProgress(0);
     setSessionData(null);
     setNeedsClarification(false);
@@ -279,9 +281,10 @@ export function useResumeCreation() {
         );
 
         if (data.resumeId) {
+          setCreatedResumeId(data.resumeId);
           setStage("complete");
           localStorage.removeItem(`resume_creation_session_${user.uid}`);
-          setTimeout(() => router.push(`/resumes/${data.resumeId}`), 2000);
+          setTimeout(() => router.push(`/resumes/${data.resumeId}`), 500);
         } else {
           setStage("input");
         }
@@ -355,6 +358,7 @@ export function useResumeCreation() {
     currentInput,
     setCurrentInput,
     stage,
+    createdResumeId,
     aiLoading,
     aiError,
     aiConnectionStatus,

@@ -77,9 +77,7 @@ export async function processFunctionCallingGeneration(
   const isFileUpload =
     Boolean(sessionData?.sourceRawText) ||
     Boolean(sessionData?.wasFileUpload) ||
-    (inputSources ?? []).some((source) =>
-      ["pdf", "docx"].includes(source),
-    );
+    (inputSources ?? []).some((source) => ["pdf", "docx"].includes(source));
   const uploadRawText =
     typeof sessionData?.sourceRawText === "string"
       ? sessionData.sourceRawText
@@ -414,7 +412,8 @@ export async function processFunctionCallingGeneration(
       });
     }
 
-    await persistConversationSession({
+    // Fire-and-forget: observability write — must never block the HTTP response.
+    void persistConversationSession({
       sessionId: providedSessionId ?? requestId,
       userId,
       resumeId: createdResumeId,
