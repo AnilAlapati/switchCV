@@ -67,10 +67,7 @@ const SECTION_HEADINGS: Array<{ section: ResumeSection; pattern: RegExp }> = [
   },
 ];
 
-const REQUIRED_FIELDS: Array<keyof ResumeDataRequirements> = [
-  "name",
-  "email",
-];
+const REQUIRED_FIELDS: Array<keyof ResumeDataRequirements> = ["name", "email"];
 
 function isPopulatedString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
@@ -106,20 +103,66 @@ function mergeAIWithDeterministicBackstop(
     }
   }
 
-  const arrayFields: Array<keyof ResumeDataRequirements> = [
-    "experience",
+  // For skills, education, projects: all-or-nothing fallback.
+  const simpleArrayFields: Array<keyof ResumeDataRequirements> = [
     "education",
     "skills",
     "projects",
   ];
-
-  for (const field of arrayFields) {
+  for (const field of simpleArrayFields) {
     if (!isPopulatedArray(merged[field])) {
       const fallbackValue = deterministicData[field];
       if (isPopulatedArray(fallbackValue)) {
         (merged as Record<string, unknown>)[field] = fallbackValue;
       }
     }
+  }
+
+  // Deep-merge experience: if AI extracted entries, enrich any entry that is
+  // missing description/achievements using a matching deterministic entry.
+  // This handles the common case where AI correctly identifies title+company
+  // but the deterministic extractor captured more of the bullet-point text.
+  if (isPopulatedArray(merged.experience)) {
+    const detExp = deterministicData.experience ?? [];
+    merged.experience = (
+      merged.experience as ResumeDataRequirements["experience"]
+    ).map((aiEntry) => {
+      if (
+        aiEntry.description &&
+        aiEntry.description.trim().length > 0 &&
+        aiEntry.achievements &&
+        aiEntry.achievements.length > 0
+      ) {
+        // AI entry already has both description and achievements — keep as-is.
+        return aiEntry;
+      }
+      // Look for a deterministic entry with the same title or company.
+      const detMatch = detExp.find((det) => {
+        const titleMatch =
+          aiEntry.title &&
+          det.title &&
+          det.title.toLowerCase().trim() === aiEntry.title.toLowerCase().trim();
+        const companyMatch =
+          aiEntry.company &&
+          det.company &&
+          det.company.toLowerCase().trim() ===
+            aiEntry.company.toLowerCase().trim();
+        return titleMatch || companyMatch;
+      });
+      if (!detMatch) return aiEntry;
+      return {
+        ...aiEntry,
+        description:
+          aiEntry.description?.trim() || detMatch.description?.trim() || "",
+        achievements: aiEntry.achievements?.length
+          ? aiEntry.achievements
+          : (detMatch.achievements ?? []),
+        duration: aiEntry.duration?.trim() || detMatch.duration?.trim() || "",
+      };
+    });
+  } else if (isPopulatedArray(deterministicData.experience)) {
+    // AI returned no experience at all — fall back to deterministic.
+    merged.experience = deterministicData.experience;
   }
 
   return merged;

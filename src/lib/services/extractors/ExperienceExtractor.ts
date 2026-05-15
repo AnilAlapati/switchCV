@@ -91,6 +91,89 @@ const KNOWN_TECH_TOKENS = new Set([
 ]);
 
 /**
+ * Words that strongly indicate a job title/level rather than an organisation.
+ * Used to prevent regex patterns from misclassifying a job title as a company.
+ */
+const JOB_TITLE_INDICATORS = new Set([
+  "engineer",
+  "developer",
+  "programmer",
+  "architect",
+  "designer",
+  "analyst",
+  "manager",
+  "director",
+  "president",
+  "officer",
+  "executive",
+  "lead",
+  "head",
+  "consultant",
+  "specialist",
+  "coordinator",
+  "administrator",
+  "technician",
+  "intern",
+  "trainee",
+  "fresher",
+  "graduate",
+  "associate",
+  "principal",
+  "senior",
+  "junior",
+  "staff",
+  "scientist",
+  "researcher",
+  "strategist",
+  "advisor",
+]);
+
+/** Roman-numeral level suffixes common in job grades (e.g. "Software Engineer III"). */
+const ROMAN_LEVEL_SUFFIX = /\b(?:ii|iii|iv|vi|vii|viii|ix|xi|xii)\b/i;
+
+/** Tokens that signal an organisation name (prevents over-filtering). */
+const ORG_NAME_INDICATORS =
+  /\b(?:inc|ltd|llc|corp|pvt|group|systems|solutions|technologies|services|bank|co|foundation|labs?|ventures?|holdings?|partners)\b/i;
+
+/**
+ * Returns true when the value looks like a job title/level rather than an
+ * organisation name. Used to reject regex-matched "companies" that are
+ * actually role descriptions (e.g. "Software Engineer III").
+ */
+function looksLikeJobTitle(value: string): boolean {
+  if (!value || value.trim().length === 0) return false;
+  const normalized = value.toLowerCase().trim();
+  // If a clear org-name indicator is present, treat it as a company.
+  if (ORG_NAME_INDICATORS.test(normalized)) return false;
+  const tokens = normalized.split(/\s+/).filter(Boolean);
+  const indicatorCount = tokens.filter((t) =>
+    JOB_TITLE_INDICATORS.has(t),
+  ).length;
+  // Short string (≤ 5 words) where at least one word is a job-title indicator.
+  if (indicatorCount >= 1 && tokens.length <= 5) return true;
+  // Roman-numeral suffix (e.g. "Software Engineer III").
+  if (ROMAN_LEVEL_SUFFIX.test(normalized)) return true;
+  return false;
+}
+
+/**
+ * Returns true when the value matches a personal name pattern (e.g. "John Smith",
+ * "Anil Alapati"). Personal names at the top of a resume must never be extracted
+ * as job titles.
+ * A value is rejected as a personal name if any of its words are known job-title
+ * indicators (e.g. "Software Engineer" has "engineer" → not a personal name).
+ */
+function looksLikePersonalName(value: string): boolean {
+  const trimmed = value.trim();
+  // Must be 2–3 words, each starting with a capital letter followed by lowercase.
+  if (!/^[A-Z][a-z]+(?:\s[A-Z][a-z]+){1,2}$/.test(trimmed)) return false;
+  // If any word is a known job-title indicator, it's not a personal name.
+  const tokens = trimmed.toLowerCase().split(/\s+/);
+  if (tokens.some((t) => JOB_TITLE_INDICATORS.has(t))) return false;
+  return true;
+}
+
+/**
  * Strip sections that are NOT work-experience from the text so regex
  * patterns do not accidentally match skill rows as experience entries.
  *
@@ -241,6 +324,18 @@ export class ExperienceExtractor implements IExtractor {
           // lists of technology keywords (e.g. "API Nextjs UiPath Firebase"
           // + "Prompt Engineering Vibe coding" from a KEY SKILLS section).
           if (looksLikeSkillsList(title) || looksLikeSkillsList(company)) {
+            continue;
+          }
+
+          // Guard: reject matches where the "title" is actually the candidate's
+          // own personal name (e.g. "Anil Alapati" from the resume header).
+          if (looksLikePersonalName(title)) {
+            continue;
+          }
+
+          // Guard: reject matches where the "company" is actually a job title
+          // or seniority level (e.g. "Software Engineer III", "Senior Developer").
+          if (looksLikeJobTitle(company)) {
             continue;
           }
 
