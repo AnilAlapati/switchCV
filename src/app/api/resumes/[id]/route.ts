@@ -12,6 +12,7 @@ import {
   getResume,
   updateResume,
   updateResumeVisibility,
+  updateResumePublicViewMode,
   updateResumeTemplate,
   deleteResume,
   trackResumeView,
@@ -133,11 +134,19 @@ export async function GET(
         scope: "public",
         cacheControl: "public, s-maxage=60, stale-while-revalidate=300",
       },
+      public_full: {
+        scope: "public",
+        cacheControl: "public, s-maxage=60, stale-while-revalidate=300",
+      },
     };
 
     const config = ACCESS_CONFIGS[access];
     if (config) {
-      if (access === "granted" || access === "public_snapshot") {
+      if (
+        access === "granted" ||
+        access === "public_snapshot" ||
+        access === "public_full"
+      ) {
         await trackResumeView(id);
       }
 
@@ -147,7 +156,7 @@ export async function GET(
           ...resumeData,
           isBeingEdited,
           viewerAccess:
-            access !== "public_snapshot"
+            access !== "public_snapshot" && access !== "public_full"
               ? {
                   scope: config.scope,
                   isOwner: config.isOwner,
@@ -184,6 +193,7 @@ export async function PATCH(
     const PatchResumeSchema = z.union([
       z.object({ isPublic: z.boolean() }).strict(),
       z.object({ templateId: z.string().min(1) }).strict(),
+      z.object({ publicViewMode: z.enum(["snapshot", "full"]) }).strict(),
     ]);
 
     const parseResult = PatchResumeSchema.safeParse(await request.json());
@@ -202,6 +212,14 @@ export async function PATCH(
     if ("isPublic" in data) {
       await updateResumeVisibility(id, data.isPublic);
       return NextResponse.json({ success: true, isPublic: data.isPublic });
+    }
+
+    if ("publicViewMode" in data) {
+      await updateResumePublicViewMode(id, data.publicViewMode);
+      return NextResponse.json({
+        success: true,
+        publicViewMode: data.publicViewMode,
+      });
     }
 
     // templateId change

@@ -55,7 +55,13 @@ export async function getResume(
   userId?: string,
 ): Promise<{
   resume: PublishedResume | null;
-  access: "owner" | "admin" | "granted" | "public_snapshot" | "none";
+  access:
+    | "owner"
+    | "admin"
+    | "granted"
+    | "public_snapshot"
+    | "public_full"
+    | "none";
 }> {
   const doc = await adminDb.collection("resumes").doc(id).get();
 
@@ -99,13 +105,29 @@ export async function getResume(
   if (
     resolveResumeIsPublic(data as Parameters<typeof resolveResumeIsPublic>[0])
   ) {
-    const { sanitizeResumeForPublicView } =
+    const { sanitizeResumeForPublicView, sanitizeResumeForFullPublicView } =
       await import("@/lib/utils/resumeVisibility");
+
+    const publicViewMode = (data as Record<string, unknown>).publicViewMode;
+
+    if (publicViewMode === "full") {
+      const sanitized = sanitizeResumeForFullPublicView(data);
+      return {
+        resume: {
+          ...sanitized,
+          isBeingEdited: resume.isBeingEdited,
+          publicViewMode: "full",
+        } as unknown as PublishedResume,
+        access: "public_full",
+      };
+    }
+
     const sanitized = sanitizeResumeForPublicView(data);
     return {
       resume: {
         ...sanitized,
         isBeingEdited: resume.isBeingEdited,
+        publicViewMode: "snapshot",
       } as unknown as PublishedResume,
       access: "public_snapshot",
     };

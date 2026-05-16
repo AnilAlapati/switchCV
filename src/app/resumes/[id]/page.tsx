@@ -12,6 +12,7 @@ import {
   ResumeToastOverlay,
 } from "@/components/resume/ResumeToastOverlay";
 import { PrivacyMenu } from "@/components/resume/PrivacyMenu";
+import type { PublicViewMode } from "@/lib/utils/resumeVisibility";
 import { RequestAccessDialog } from "@/components/RequestAccessDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useResumeData } from "@/hooks/useResumeData";
@@ -52,6 +53,10 @@ export default function ResumeView() {
   const viewerIsOwner = Boolean(viewerAccess?.isOwner);
   const isPublicPreview = viewerAccess?.scope === "public-preview";
   const isBeingEdited = Boolean(resume?.isBeingEdited);
+  const publicViewMode: PublicViewMode =
+    (resume as Record<string, unknown> | null)?.publicViewMode === "full"
+      ? "full"
+      : "snapshot";
 
   const countdownBanner =
     viewerIsOwner && deletionNotice ? (
@@ -189,6 +194,65 @@ export default function ResumeView() {
     setPreviewTemplateId(null);
     // If a template was applied, force a revalidation to load the new template object
     mutateResume(undefined, { revalidate: true });
+  };
+
+  const handleChangeViewMode = async (mode: PublicViewMode) => {
+    const resumeId = Array.isArray(id) ? id[0] : id;
+    if (!resumeId || !user || isUpdating) return;
+
+    setIsUpdating(true);
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch(`/api/resumes/${resumeId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ publicViewMode: mode }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update public view mode");
+      }
+
+      mutateResume(
+        (current: unknown) => {
+          if (!current) return { resume: null, accessBlock: null, error: null };
+          const data = current as Record<string, unknown>;
+          const resumeData = data.resume as DashboardResume;
+          if (!resumeData)
+            return { resume: null, accessBlock: null, error: null };
+          return {
+            resume: {
+              ...(resumeData as unknown as Record<string, unknown>),
+              publicViewMode: mode,
+            },
+            accessBlock: data.accessBlock || null,
+            error: data.error || null,
+          } as unknown as {
+            resume: DashboardResume | null;
+            accessBlock: null;
+            error: null;
+          };
+        },
+        { revalidate: false },
+      );
+
+      const label = mode === "full" ? "Full resume" : "Snapshot";
+      setToast({
+        tone: "success",
+        message: `Public view mode set to "${label}".`,
+      });
+    } catch (err) {
+      logger.error({ err }, "Error updating public view mode");
+      setToast({
+        tone: "error",
+        message: "Failed to update view mode. Please try again.",
+      });
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const toggleVisibility = async () => {
@@ -340,12 +404,14 @@ export default function ResumeView() {
         {viewerIsOwner && (
           <PrivacyMenu
             isPublic={resume.isPublic ?? false}
+            publicViewMode={publicViewMode}
             viewerIsOwner={viewerIsOwner}
             isPublicPreview={isPublicPreview}
             showPrivacyMenu={showPrivacyMenu}
             isUpdating={isUpdating}
             onToggleMenu={() => setShowPrivacyMenu(!showPrivacyMenu)}
             onToggleVisibility={toggleVisibility}
+            onChangeViewMode={handleChangeViewMode}
           />
         )}
 
@@ -369,8 +435,9 @@ export default function ResumeView() {
                     You&apos;re viewing a preview
                   </p>
                   <p className="text-xs text-white/60 mt-0.5 truncate">
-                    Contact details and full work history are hidden. Request
-                    access to unlock the full profile.
+                    {publicViewMode === "full"
+                      ? "Contact details are hidden. Request access to unlock direct contact."
+                      : "Contact details and full work history are hidden. Request access to unlock the full profile."}
                   </p>
                 </div>
                 {user ? (

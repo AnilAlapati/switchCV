@@ -7,6 +7,13 @@ export type VisibilityLevel = "public" | "masked" | "request";
 export type FieldType = "email" | "phone";
 
 /**
+ * Controls what public viewers see when the resume is set to public.
+ * - "snapshot": contact details masked, experience/education/projects/skills hidden
+ * - "full": contact details masked, all sections visible
+ */
+export type PublicViewMode = "snapshot" | "full";
+
+/**
  * Canonical visibility resolution for resume data.
  * This is the SINGLE SOURCE OF TRUTH for determining if a resume is publicly visible.
  *
@@ -299,5 +306,36 @@ export const sanitizeResumeForPublicView = (
     projects: [],
     skills: [],
     viewerAccess,
+  } as SanitizedResumeResult;
+};
+
+/**
+ * Produce a sanitized resume payload for public viewers in "full" mode.
+ * All sections (experience, education, projects, skills) are retained.
+ * Contact details are still masked to protect privacy.
+ */
+export const sanitizeResumeForFullPublicView = (
+  resume: Record<string, unknown>,
+): SanitizedResumeResult => {
+  const snapshot = sanitizeResumeForPublicView(resume);
+  const clone = JSON.parse(JSON.stringify(resume ?? {})) as Record<
+    string,
+    unknown
+  >;
+
+  return {
+    ...clone,
+    contact: snapshot.contact,
+    personalInfo: snapshot.personalInfo,
+    experience: (clone.experience as unknown[]) ?? [],
+    education: (clone.education as unknown[]) ?? [],
+    projects: (clone.projects as unknown[]) ?? [],
+    skills: (clone.skills as unknown[]) ?? [],
+    viewerAccess: {
+      scope: "public-preview",
+      isOwner: false,
+      isMasked: true,
+      isSnapshot: false,
+    },
   } as SanitizedResumeResult;
 };

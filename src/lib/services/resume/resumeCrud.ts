@@ -337,6 +337,28 @@ export async function updateResumeVisibility(
 }
 
 /**
+ * Updates the public view mode for a resume (snapshot vs full).
+ * Only meaningful when the resume is already public.
+ */
+export async function updateResumePublicViewMode(
+  id: string,
+  publicViewMode: "snapshot" | "full",
+): Promise<void> {
+  const timestamp = new Date().toISOString();
+
+  await adminDb.collection("resumes").doc(id).set(
+    {
+      publicViewMode,
+      updatedAt: timestamp,
+      lastUpdatedAt: timestamp,
+    },
+    { merge: true },
+  );
+
+  void cacheService.invalidate(`resume:${id}`);
+}
+
+/**
  * Deletes a resume and recycles its ID.
  */
 export async function deleteResume(id: string, userId: string): Promise<void> {

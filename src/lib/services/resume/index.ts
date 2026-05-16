@@ -27,6 +27,7 @@ export {
   getResumeCount,
   updateResume,
   updateResumeVisibility,
+  updateResumePublicViewMode,
   updateResumeTemplate,
   deleteResume,
   type CreateResumeInput,

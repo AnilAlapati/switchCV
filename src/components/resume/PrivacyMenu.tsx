@@ -1,23 +1,28 @@
 import React from "react";
+import type { PublicViewMode } from "@/lib/utils/resumeVisibility";
 
 interface PrivacyMenuProps {
   isPublic: boolean;
+  publicViewMode: PublicViewMode;
   viewerIsOwner: boolean;
   isPublicPreview: boolean;
   showPrivacyMenu: boolean;
   isUpdating: boolean;
   onToggleMenu: () => void;
   onToggleVisibility: () => void;
+  onChangeViewMode: (mode: PublicViewMode) => void;
 }
 
 export function PrivacyMenu({
   isPublic,
+  publicViewMode,
   viewerIsOwner,
   isPublicPreview,
   showPrivacyMenu,
   isUpdating,
   onToggleMenu,
   onToggleVisibility,
+  onChangeViewMode,
 }: PrivacyMenuProps) {
   return (
     <div className="fixed top-6 right-6 z-50 flex flex-col items-end gap-2 print:hidden">
@@ -144,6 +149,57 @@ export function PrivacyMenu({
               </button>
             )}
           </div>
+
+          {/* Public view mode selector — owner only, only when public */}
+          {viewerIsOwner && isPublic && (
+            <div className="rounded-xl bg-slate-800/50 p-3 border border-slate-700/60">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">
+                Public view mode
+              </p>
+              <div className="flex flex-col gap-2">
+                <label className="flex items-start gap-3 cursor-pointer group">
+                  <input
+                    type="radio"
+                    name="publicViewMode"
+                    value="snapshot"
+                    checked={publicViewMode === "snapshot"}
+                    onChange={() => onChangeViewMode("snapshot")}
+                    disabled={isUpdating}
+                    className="mt-0.5 accent-emerald-500"
+                    aria-label="Snapshot — show summary only"
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-white">Snapshot</p>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Shows your name, title, and summary only. Experience,
+                      skills, and education are hidden.
+                    </p>
+                  </div>
+                </label>
+                <label className="flex items-start gap-3 cursor-pointer group">
+                  <input
+                    type="radio"
+                    name="publicViewMode"
+                    value="full"
+                    checked={publicViewMode === "full"}
+                    onChange={() => onChangeViewMode("full")}
+                    disabled={isUpdating}
+                    className="mt-0.5 accent-emerald-500"
+                    aria-label="Full resume — show all sections"
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-white">
+                      Full resume
+                    </p>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Shows all sections. Contact details remain masked until
+                      you approve access.
+                    </p>
+                  </div>
+                </label>
+              </div>
+            </div>
+          )}
 
           {isPublicPreview && (
             <div className="rounded-xl bg-amber-500/10 p-3 border border-amber-500/20">
