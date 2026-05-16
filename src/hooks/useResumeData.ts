@@ -163,8 +163,9 @@ export function useResumeData(id: string | string[] | undefined) {
 
   // Reset retry counter whenever the id changes (navigating to a different resume)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setNotFoundRetries(0);
-  }, [id, mutateResume]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [id, mutateResume]);
 
   const resume = fetchResult?.resume ?? null;
   const accessBlock = fetchResult?.accessBlock ?? null;
