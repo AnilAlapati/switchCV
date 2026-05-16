@@ -5,12 +5,14 @@ import { PrivacyMenu } from "../PrivacyMenu";
 describe("PrivacyMenu", () => {
   const defaultProps = {
     isPublic: true,
+    publicViewMode: "snapshot" as const,
     viewerIsOwner: true,
     isPublicPreview: false,
     showPrivacyMenu: false,
     isUpdating: false,
     onToggleMenu: jest.fn(),
     onToggleVisibility: jest.fn(),
+    onChangeViewMode: jest.fn(),
   };
 
   it("renders public status properly", () => {
