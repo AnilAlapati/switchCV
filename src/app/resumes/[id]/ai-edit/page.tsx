@@ -12,7 +12,6 @@ import { ResumeEditChatStatus } from "@/components/resume/ResumeEditChatStatus";
 import { ResumeEditMessageList } from "@/components/resume/ResumeEditMessageList";
 import { ResumeSnapshotCard } from "@/components/resume/ResumeSnapshotCard";
 import { getVerificationRoute } from "@/lib/config";
-import { BackgroundBlobs } from "@/components/ui/BackgroundBlobs";
 import { toast } from "sonner";
 
 const VERIFICATION_ROUTE = getVerificationRoute();
@@ -296,31 +295,53 @@ export default function ResumeAIEditPage() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden text-[#1A2F25]">
-      <div className="fixed inset-0 z-0">
-        <BackgroundBlobs />
-      </div>
-      <div className="relative z-10">
-        <ResumeEditChatHeader
-          connectionStatus={aiConnectionStatus}
-          resumeTitle={resumeMeta?.title ?? null}
-        />
+    <div className="min-h-screen bg-background">
+      <ResumeEditChatHeader
+        connectionStatus={aiConnectionStatus}
+        resumeTitle={resumeMeta?.title ?? null}
+        resumeId={resumeId}
+      />
 
-        <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-          {resumeMissing && <ResumeMissingNotice />}
+      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+        {resumeMissing && <ResumeMissingNotice />}
 
-          {resumeMeta && (
-            <ResumeSnapshotCard
-              resumeId={resumeId}
-              title={resumeMeta.title}
-              summary={resumeMeta.summary}
-              updatedAt={resumeMeta.updatedAt ?? null}
-            />
-          )}
+        {resumeMeta && (
+          <ResumeSnapshotCard
+            resumeId={resumeId}
+            title={resumeMeta.title}
+            summary={resumeMeta.summary}
+            updatedAt={resumeMeta.updatedAt ?? null}
+          />
+        )}
 
-          {hasChanges && !resumeMissing && (
-            <div className="relative">
-              {!showRevertConfirm ? (
+        {hasChanges && !resumeMissing && (
+          <div className="relative">
+            {!showRevertConfirm ? (
+              <div className="flex items-center gap-4 flex-wrap">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-green-200 bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                  <svg
+                    aria-hidden="true"
+                    className="h-3 w-3"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M4.5 12.75l6 6 9-13.5"
+                    />
+                  </svg>
+                  Changes saved
+                </span>
+                <a
+                  href={`/resumes/${resumeId}`}
+                  className="inline-flex items-center gap-1 text-sm font-semibold border-2 border-black bg-black text-white px-3 py-1 hover:bg-gray-800 transition-colors"
+                  aria-label="View your updated resume"
+                >
+                  View resume →
+                </a>
                 <button
                   type="button"
                   onClick={() => setShowRevertConfirm(true)}
@@ -330,35 +351,37 @@ export default function ResumeAIEditPage() {
                 >
                   Discard all changes
                 </button>
-              ) : (
-                <div
-                  className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3"
-                  role="alert"
+              </div>
+            ) : (
+              <div
+                className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3"
+                role="alert"
+              >
+                <p className="text-sm text-red-800">
+                  Revert resume to its state before this editing session?
+                </p>
+                <button
+                  type="button"
+                  onClick={handleDiscardChanges}
+                  disabled={isReverting}
+                  className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
                 >
-                  <p className="text-sm text-red-800">
-                    Revert resume to its state before this editing session?
-                  </p>
-                  <button
-                    type="button"
-                    onClick={handleDiscardChanges}
-                    disabled={isReverting}
-                    className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                  >
-                    {isReverting ? "Reverting…" : "Yes, revert"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowRevertConfirm(false)}
-                    disabled={isReverting}
-                    className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
+                  {isReverting ? "Reverting…" : "Yes, revert"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowRevertConfirm(false)}
+                  disabled={isReverting}
+                  className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
+        <div className="border border-gray-200 bg-white">
           <ResumeEditMessageList messages={messages} endRef={messagesEndRef} />
 
           <ResumeEditChatStatus

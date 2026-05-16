@@ -1,10 +1,14 @@
 "use client";
 
 import useSWR from "swr";
+import { useEffect, useState } from "react";
 import { useAuth } from "./useAuth";
 import { ResumeAccessBlockConfig } from "@/components/resume/ResumeAccessBlock";
 import { templateService } from "@/lib/services/templateService";
 import type { ResumeTemplate, ResumeProfile } from "@/types";
+
+const NOT_FOUND_MAX_RETRIES = 3;
+const NOT_FOUND_RETRY_DELAY_MS = 1500;
 
 /**
  * Extended resume type with viewer access metadata and runtime fields
@@ -120,6 +124,8 @@ export function useResumeData(id: string | string[] | undefined) {
   // to know FOR SURE if user is null or just loading.
   const shouldFetch = id && !authLoading;
 
+  const [notFoundRetries, setNotFoundRetries] = useState(0);
+
   const {
     data: fetchResult,
     mutate: mutateResume,
@@ -137,6 +143,28 @@ export function useResumeData(id: string | string[] | undefined) {
       shouldRetryOnError: false, // Don't retry 4xx errors
     },
   );
+
+  // When the API returns 404 immediately after resume creation, it's usually a
+  // brief Firestore propagation lag. Retry a few times before showing "not found".
+  const isNotFoundResult =
+    fetchResult?.error === "Resume not found" &&
+    !fetchResult.resume &&
+    !fetchResult.accessBlock;
+
+  useEffect(() => {
+    if (!isNotFoundResult) return;
+    if (notFoundRetries >= NOT_FOUND_MAX_RETRIES) return;
+    const timer = setTimeout(() => {
+      setNotFoundRetries((c) => c + 1);
+      void mutateResume();
+    }, NOT_FOUND_RETRY_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [isNotFoundResult, notFoundRetries, mutateResume]);
+
+  // Reset retry counter whenever the id changes (navigating to a different resume)
+  useEffect(() => {
+    setNotFoundRetries(0);
+  }, [id, mutateResume]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const resume = fetchResult?.resume ?? null;
   const accessBlock = fetchResult?.accessBlock ?? null;
@@ -159,10 +187,12 @@ export function useResumeData(id: string | string[] | undefined) {
   // If we have resume, we wait for template.
   // fetchResult === undefined means SWR hasn't resolved yet (first render before fetch completes) -
   // treat that as loading to prevent a one-frame flash of the "not found" state.
+  // isNotFoundResult with retries remaining = still loading (Firestore propagation lag).
   const loading =
     resumeLoading ||
     (shouldFetch && fetchResult === undefined) ||
-    (!!resume && templateLoading);
+    (!!resume && templateLoading) ||
+    (isNotFoundResult && notFoundRetries < NOT_FOUND_MAX_RETRIES);
 
   return {
     resume,

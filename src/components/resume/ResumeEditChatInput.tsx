@@ -34,7 +34,7 @@ export function ResumeEditChatInput({
   };
 
   return (
-    <div className="p-4 border-t border-white/40 bg-white/20 rounded-b-xl backdrop-blur-md">
+    <div className="p-4 border-t border-gray-200 bg-white">
       <form onSubmit={onSubmit} className="flex space-x-3 items-end">
         <textarea
           ref={textareaRef}
@@ -42,18 +42,24 @@ export function ResumeEditChatInput({
           onChange={(event) => onChange(event.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className="flex-1 p-4 glass-input rounded-xl text-[#1A2F25] placeholder-[#2C4A3B]/40 focus:outline-none focus:ring-2 focus:ring-[#2C4A3B]/20 transition-all resize-none min-h-[80px] max-h-[200px] overflow-y-auto shadow-sm"
+          className="flex-1 p-3 border border-gray-300 focus:border-gray-900 focus:ring-0 focus:outline-none text-sm text-gray-900 placeholder-gray-400 resize-none min-h-[80px] max-h-[200px] overflow-y-auto transition-colors"
           disabled={disabled}
           rows={3}
         />
         <button
           type="submit"
-          className="px-8 py-4 glass-button text-white rounded-xl font-bold shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98] h-[80px]"
+          className="px-6 py-3 border-2 border-black bg-black text-white text-sm font-bold hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors h-[80px]"
           disabled={disabled || !value.trim()}
         >
           {disabled ? (
             <span className="flex items-center gap-2">
-              <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" aria-hidden="true" role="status">
+              <svg
+                className="animate-spin h-4 w-4"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                role="status"
+                aria-live="polite"
+              >
                 <circle
                   className="opacity-25"
                   cx="12"
@@ -72,10 +78,10 @@ export function ResumeEditChatInput({
               Working
             </span>
           ) : (
-            <span className="flex items-center gap-2">
+            <span className="flex items-center gap-1.5">
               Send
               <svg
-                className="w-5 h-5"
+                className="w-4 h-4"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"

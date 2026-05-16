@@ -21,60 +21,61 @@ export function ResumeSnapshotCard({
   const isBasicUser = tier === "basic";
 
   return (
-    <div className="glass-panel rounded-xl p-4 transition hover:shadow-lg hover:shadow-[#2C4A3B]/10 hover:border-white">
-      <h2 className="text-lg font-semibold text-[#1A2F25] flex items-center gap-2">
+    <div className="border border-gray-200 bg-white p-4">
+      <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
         <svg
-          className="w-5 h-5 text-[#2C4A3B]"
+          className="w-4 h-4 text-gray-500"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
+          aria-hidden="true"
         >
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={2}
-            d="M5 13l4 4L19 7"
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
           />
         </svg>
-        Current Snapshot
+        Current snapshot
       </h2>
-      <p className="text-sm text-[#1A2F25]/70 mt-2">
-        <span className="font-medium text-[#1A2F25]">Title:</span>{" "}
+      <p className="text-sm text-gray-700 mt-2">
+        <span className="font-medium text-gray-900">Title:</span>{" "}
         {title || "Untitled resume"}
       </p>
       {summary && (
-        <p className="text-sm text-[#1A2F25]/70 mt-2">
-          <span className="font-medium text-[#1A2F25]">Summary:</span> {summary}
+        <p className="text-sm text-gray-600 mt-1.5">
+          <span className="font-medium text-gray-900">Summary:</span> {summary}
         </p>
       )}
       {updatedAt && (
-        <p className="text-xs text-[#2C4A3B]/60 mt-3">
+        <p className="text-xs text-gray-400 mt-2">
           Last updated {new Date(updatedAt).toLocaleString()}
         </p>
       )}
-      <div className="mt-3 flex flex-wrap gap-3">
+      <div className="mt-4 flex flex-wrap gap-2">
         <Link
           href={`/resumes/${resumeId}`}
-          className="inline-flex items-center px-3 py-1.5 text-sm glass-button font-medium rounded-lg"
+          className="inline-flex items-center px-3 py-1.5 text-sm border-2 border-black bg-black text-white font-semibold hover:bg-gray-800 transition-colors"
           target="_blank"
           rel="noopener noreferrer"
         >
-          View Public Resume
+          View public resume
         </Link>
         <RestrictedFeature messageKey="AI_EDIT" requiredTier="premium">
           {isBasicUser ? (
             <button
               disabled
-              className="inline-flex items-center px-3 py-1.5 text-sm bg-slate-100 text-slate-400 font-medium rounded-lg cursor-not-allowed border border-slate-200"
+              className="inline-flex items-center px-3 py-1.5 text-sm border border-gray-200 bg-gray-50 text-gray-400 font-medium cursor-not-allowed"
             >
-              Open Manual Editor
+              Open manual editor
             </button>
           ) : (
             <Link
               href={`/resumes/${resumeId}/edit`}
-              className="inline-flex items-center px-3 py-1.5 text-sm glass-button font-medium rounded-lg"
+              className="inline-flex items-center px-3 py-1.5 text-sm border border-gray-300 bg-white text-gray-700 font-medium hover:border-gray-900 transition-colors"
             >
-              Open Manual Editor
+              Open manual editor
             </Link>
           )}
         </RestrictedFeature>

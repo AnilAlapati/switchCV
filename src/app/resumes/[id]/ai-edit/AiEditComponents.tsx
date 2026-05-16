@@ -106,12 +106,12 @@ export function TemplatePickerPanel({
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="rounded-2xl border border-white/40 bg-white/30 backdrop-blur-md overflow-hidden">
+    <div className="border border-gray-200 bg-white overflow-hidden">
       {/* Accordion Header */}
       <button
         type="button"
         onClick={() => setOpen((p) => !p)}
-        className="w-full flex items-center justify-between px-5 py-3.5 text-left hover:bg-white/20 transition-colors"
+        className="w-full flex items-center justify-between px-5 py-3.5 text-left hover:bg-gray-50 transition-colors"
         aria-expanded={open}
       >
         <div className="flex items-center gap-2.5">
@@ -129,18 +129,18 @@ export function TemplatePickerPanel({
               d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"
             />
           </svg>
-          <span className="text-sm font-semibold text-[#1A2F25]">
+          <span className="text-sm font-semibold text-gray-900">
             Change Design Template
           </span>
           {currentTemplateId && (
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-medium capitalize">
+            <span className="text-[10px] px-2 py-0.5 border border-gray-200 bg-gray-100 text-gray-600 font-medium capitalize">
               {TEMPLATES.find((t) => t.id === currentTemplateId)?.name ??
                 currentTemplateId}
             </span>
           )}
         </div>
         <svg
-          className={`w-4 h-4 text-[#1A2F25]/50 transition-transform ${open ? "rotate-180" : ""}`}
+          className={`w-4 h-4 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -162,9 +162,6 @@ export function TemplatePickerPanel({
             {TEMPLATES.map((template) => {
               const canAccess = canAccessTemplate(template.id, userTier);
               const isSelected = currentTemplateId === template.id;
-              const isLight =
-                template.preview.includes("from-[#1E1E1E]") ||
-                template.preview === "bg-black";
 
               return (
                 <button
@@ -176,7 +173,7 @@ export function TemplatePickerPanel({
                     canAccess ? template.name : `Requires ${template.tier} plan`
                   }
                   className={`relative group flex flex-col items-center gap-1.5 rounded-xl p-1.5 text-center transition-all
-                    ${isSelected ? "ring-2 ring-indigo-500 ring-offset-1 bg-white/60" : "hover:bg-white/40"}
+                    ${isSelected ? "ring-2 ring-black ring-offset-1 bg-gray-50" : "hover:bg-gray-50"}
                     ${!canAccess ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
                   `}
                 >
@@ -205,7 +202,7 @@ export function TemplatePickerPanel({
                     )}
                     {/* Check for selected */}
                     {isSelected && (
-                      <div className="absolute top-1 left-1 w-4 h-4 bg-indigo-500 rounded-full flex items-center justify-center">
+                      <div className="absolute top-1 left-1 w-4 h-4 bg-black rounded-full flex items-center justify-center">
                         <svg
                           className="w-2.5 h-2.5 text-white"
                           fill="none"
@@ -230,16 +227,14 @@ export function TemplatePickerPanel({
                       </span>
                     )}
                   </div>
-                  <span
-                    className={`text-[10px] leading-tight font-medium truncate w-full ${isLight ? "text-[#1A2F25]" : "text-[#1A2F25]"}`}
-                  >
+                  <span className="text-[10px] leading-tight font-medium truncate w-full text-gray-700">
                     {template.name}
                   </span>
                 </button>
               );
             })}
           </div>
-          <p className="mt-3 text-[10px] text-[#1A2F25]/40">
+          <p className="mt-3 text-[10px] text-gray-400">
             Locked designs require a plan upgrade. Changes are saved instantly.
           </p>
         </div>
@@ -250,18 +245,18 @@ export function TemplatePickerPanel({
 
 export function AIEditMissingIdView() {
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-      <p className="text-gray-300">Resume ID is missing from the URL.</p>
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <p className="text-gray-500">Resume ID is missing from the URL.</p>
     </div>
   );
 }
 
 export function AIEditLoadingView({ tier }: { tier: string | null }) {
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="text-center">
-        <div className="w-16 h-16 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin mx-auto mb-4"></div>
-        <p className="text-slate-400 text-lg">
+        <div className="w-10 h-10 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-gray-500 text-sm">
           {tier === "basic" ? "Redirecting..." : "Loading editor…"}
         </p>
       </div>
@@ -271,15 +266,15 @@ export function AIEditLoadingView({ tier }: { tier: string | null }) {
 
 export function ResumeMissingNotice() {
   return (
-    <div className="bg-yellow-900/30 border border-yellow-500/50 rounded-xl p-4 text-yellow-200">
-      <p className="font-semibold mb-2">No resume on file yet</p>
-      <p className="text-sm mb-3">
-        I can only edit an existing resume. Start by creating one with our AI
-        Resume Builder, then return here to keep refining it.
+    <div className="border border-amber-200 bg-amber-50 p-4">
+      <p className="font-semibold text-amber-900 mb-1">No resume on file yet</p>
+      <p className="text-sm text-amber-800 mb-3">
+        You need an existing resume to use the AI editor. Start by creating one
+        with the AI Resume Builder, then come back to refine it here.
       </p>
       <Link
         href="/create-resume"
-        className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-yellow-400 to-orange-500 text-gray-900 font-semibold rounded-lg"
+        className="inline-flex items-center px-4 py-2 border-2 border-black bg-black text-white text-sm font-bold hover:bg-gray-800 transition-colors"
       >
         Launch AI Resume Builder
       </Link>

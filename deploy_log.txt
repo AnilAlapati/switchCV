@@ -367,3 +367,359 @@ i  hosting[switchcv-dev]: releasing new version...
 
 Project Console: https://console.firebase.google.com/project/switchcv-dev/overview
 Hosting URL: https://switchcv-dev.web.app
+
+   Thank you for trying our early preview of Next.js support on Firebase Hosting.
+   During the preview, support is best-effort and breaking changes can be expected. Proceed with caution.
+   The integration is known to work with Next.js version 12 - 15.0. You may encounter errors.
+
+   Documentation: https://firebase.google.com/docs/hosting/frameworks/nextjs
+   File a bug: https://github.com/firebase/firebase-tools/issues/new?template=bug_report.md
+   Submit a feature request: https://github.com/firebase/firebase-tools/issues/new?template=feature_request.md
+
+   We'd love to learn from you. Express your interest in helping us shape the future of Firebase Hosting: https://goo.gle/41enW5X
+
+   ▲ Next.js 15.5.16
+
+   - Environments: .env.local, .env.production
+   - Experiments (use with caution):
+     · optimizePackageImports
+
+
+   Creating an optimized production build ...
+
+ ⚠ Compiled with warnings in 25.8s
+
+./node_modules/@prisma/instrumentation/node_modules/@opentelemetry/instrumentation/build/esm/platform/node/instrumentation.js
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./node_modules/@prisma/instrumentation/node_modules/@opentelemetry/instrumentation/build/esm/platform/node/instrumentation.js
+./node_modules/@prisma/instrumentation/node_modules/@opentelemetry/instrumentation/build/esm/platform/node/index.js
+./node_modules/@prisma/instrumentation/node_modules/@opentelemetry/instrumentation/build/esm/platform/index.js
+./node_modules/@prisma/instrumentation/node_modules/@opentelemetry/instrumentation/build/esm/index.js
+./node_modules/@prisma/instrumentation/dist/index.js
+./node_modules/@sentry/node/build/cjs/integrations/tracing/prisma.js
+./node_modules/@sentry/node/build/cjs/index.js
+./node_modules/@sentry/nextjs/build/cjs/index.server.js
+./src/lib/services/resumeGenerationOrchestrator.ts
+./src/app/api/resume/generate/preview/route.ts
+
+
+ ✓ Compiled successfully in 31.0s
+
+   Linting and checking validity of types ...
+
+   Collecting page data ...
+
+{"level":30,"time":1778808954724,"env":"production","projectId":"switchcv-dev","source":"GOOGLE_CLOUD_PROJECT","msg":"Resolved Firebase project ID"}
+
+{"level":30,"time":1778808954739,"env":"production","projectId":"switchcv-dev","source":"GOOGLE_CLOUD_PROJECT","msg":"Resolved Firebase project ID"}
+
+{"level":30,"time":1778808954756,"env":"production","projectId":"switchcv-dev","source":"GOOGLE_CLOUD_PROJECT","msg":"Resolved Firebase project ID"}
+
+{"level":30,"time":1778808954780,"env":"production","projectId":"switchcv-dev","source":"GOOGLE_CLOUD_PROJECT","msg":"Resolved Firebase project ID"}
+
+{"level":30,"time":1778808954792,"env":"production","projectId":"switchcv-dev","source":"GOOGLE_CLOUD_PROJECT","msg":"Resolved Firebase project ID"}
+
+{"level":30,"time":1778808954812,"env":"production","projectId":"switchcv-dev","source":"GOOGLE_CLOUD_PROJECT","msg":"Resolved Firebase project ID"}
+
+{"level":30,"time":1778808954846,"env":"production","projectId":"switchcv-dev","source":"GOOGLE_CLOUD_PROJECT","msg":"Resolved Firebase project ID"}
+
+   Generating static pages (0/140) ...
+
+{"level":30,"time":1778808959997,"env":"production","projectId":"switchcv-dev","source":"GOOGLE_CLOUD_PROJECT","msg":"Resolved Firebase project ID"}
+
+{"level":30,"time":1778808960082,"env":"production","projectId":"switchcv-dev","source":"GOOGLE_CLOUD_PROJECT","msg":"Resolved Firebase project ID"}
+
+{"level":30,"time":1778808960129,"env":"production","projectId":"switchcv-dev","source":"GOOGLE_CLOUD_PROJECT","msg":"Resolved Firebase project ID"}
+{"level":30,"time":1778808960138,"env":"production","projectId":"switchcv-dev","source":"GOOGLE_CLOUD_PROJECT","msg":"Resolved Firebase project ID"}
+
+{"level":30,"time":1778808960179,"env":"production","projectId":"switchcv-dev","source":"GOOGLE_CLOUD_PROJECT","msg":"Resolved Firebase project ID"}
+
+{"level":30,"time":1778808960226,"env":"production","projectId":"switchcv-dev","source":"GOOGLE_CLOUD_PROJECT","msg":"Resolved Firebase project ID"}
+
+   Generating static pages (35/140) 
+
+   Generating static pages (70/140) 
+
+   Generating static pages (105/140) 
+
+ ✓ Generating static pages (140/140)
+
+   Finalizing page optimization ...
+
+   Collecting build traces ...
+
+
+
+Route (app)                                   Size  First Load JS
+┌ ƒ /                                      8.35 kB         291 kB
+├ ƒ /_not-found                              289 B         103 kB
+├ ƒ /admin                                 2.41 kB         247 kB
+├ ƒ /admin/ai-monitoring                   5.53 kB         253 kB
+├ ƒ /admin/costs                           10.8 kB         118 kB
+├ ƒ /analytics                             8.29 kB         263 kB
+├ ƒ /analytics/[resumeId]                  5.52 kB         261 kB
+├ ƒ /api/admin/ai-monitoring                 289 B         103 kB
+├ ƒ /api/admin/conversations                 289 B         103 kB
+├ ƒ /api/admin/costs                         289 B         103 kB
+├ ƒ /api/admin/init-system                   284 B         105 kB
+├ ƒ /api/admin/migrate-numeric-ids           284 B         105 kB
+├ ƒ /api/admin/migrate-resume-ids            284 B         105 kB
+├ ƒ /api/admin/stats                         289 B         103 kB
+├ ƒ /api/admin/test-secrets                  289 B         103 kB
+├ ƒ /api/admin/user-approval                 284 B         105 kB
+├ ƒ /api/ai/generate                         289 B         103 kB
+├ ƒ /api/ai/generate-resume                  289 B         103 kB
+├ ƒ /api/ai/models                           289 B         103 kB
+├ ƒ /api/ai/refresh-models                   289 B         103 kB
+├ ƒ /api/ai/status                           289 B         103 kB
+├ ƒ /api/analytics/dashboard                 284 B         105 kB
+├ ƒ /api/analytics/system                    289 B         103 kB
+├ ƒ /api/auth/request-password-reset         284 B         105 kB
+├ ƒ /api/auth/reset-password                 284 B         105 kB
+├ ƒ /api/auth/verify                         289 B         103 kB
+├ ƒ /api/contact/feedback                    284 B         105 kB
+├ ƒ /api/csrf-token                          289 B         103 kB
+├ ƒ /api/docs                                289 B         103 kB
+├ ƒ /api/drafts/[draftId]                    284 B         105 kB
+├ ƒ /api/health                              289 B         103 kB
+├ ƒ /api/health/infra                        284 B         105 kB
+├ ƒ /api/interview/assistant                 289 B         103 kB
+├ ƒ /api/jobseeker/access-requests           289 B         103 kB
+├ ƒ /api/jobseeker/metrics                   289 B         103 kB
+├ ƒ /api/jobseeker/profile                   289 B         103 kB
+├ ƒ /api/notifications                       289 B         103 kB
+├ ƒ /api/profiles/analytics                  284 B         105 kB
+├ ƒ /api/profiles/approve-access             284 B         105 kB
+├ ƒ /api/profiles/check-access               289 B         103 kB
+├ ƒ /api/profiles/request-access             284 B         105 kB
+├ ƒ /api/profiles/respond-access             284 B         105 kB
+├ ƒ /api/profiles/search                     284 B         105 kB
+├ ƒ /api/recruiter/agent/analyze             284 B         105 kB
+├ ƒ /api/recruiter/agent/enhance-job         284 B         105 kB
+├ ƒ /api/recruiter/agent/interview-prep      284 B         105 kB
+├ ƒ /api/recruiter/agent/outreach            289 B         103 kB
+├ ƒ /api/recruiter/agent/pipeline-suggest    284 B         105 kB
+├ ƒ /api/recruiter/agent/screen              284 B         105 kB
+├ ƒ /api/recruiter/bulk-actions              284 B         105 kB
+├ ƒ /api/recruiter/candidates                284 B         105 kB
+├ ƒ /api/recruiter/debug-resumes             289 B         103 kB
+├ ƒ /api/recruiter/interviews                284 B         105 kB
+├ ƒ /api/recruiter/jd-search                 289 B         103 kB
+├ ƒ /api/recruiter/metrics                   289 B         103 kB
+├ ƒ /api/recruiter/pipeline                  284 B         105 kB
+├ ƒ /api/recruiter/request-access            284 B         105 kB
+├ ƒ /api/recruiter/requests                  289 B         103 kB
+├ ƒ /api/recruiter/search                    289 B         103 kB
+├ ƒ /api/recruiter/search-resumes            284 B         105 kB
+├ ƒ /api/recruiters/approve-contact          284 B         105 kB
+├ ƒ /api/recruiters/deny-contact             284 B         105 kB
+├ ƒ /api/recruiters/request-contact          284 B         105 kB
+├ ƒ /api/recruiters/verify-token             284 B         105 kB
+├ ƒ /api/resume/compare                      284 B         105 kB
+├ ƒ /api/resume/create                       284 B         105 kB
+├ ƒ /api/resume/delete                       284 B         105 kB
+├ ƒ /api/resume/enhance                      289 B         103 kB
+├ ƒ /api/resume/generate                     284 B         105 kB
+├ ƒ /api/resume/generate/preview             284 B         105 kB
+├ ƒ /api/resume/generate/status/[jobId]      289 B         103 kB
+├ ƒ /api/resume/intake/normalize             284 B         105 kB
+├ ƒ /api/resume/map-id                       284 B         105 kB
+├ ƒ /api/resume/upload-and-extract           289 B         103 kB
+├ ƒ /api/resumes/[id]                        284 B         105 kB
+├ ƒ /api/resumes/[id]/chat                   284 B         105 kB
+├ ƒ /api/resumes/create                      284 B         105 kB
+├ ƒ /api/resumes/quota                       289 B         103 kB
+├ ƒ /api/search/ai                           284 B         105 kB
+├ ƒ /api/search/semantic                     289 B         103 kB
+├ ƒ /api/seed/generate                       289 B         103 kB
+├ ƒ /api/skills                              289 B         103 kB
+├ ƒ /api/system-config                       289 B         103 kB
+├ ƒ /api/templates                           289 B         103 kB
+├ ƒ /api/user-approval/approve               289 B         103 kB
+├ ƒ /api/user-approval/decline               289 B         103 kB
+├ ƒ /api/user/profile                        284 B         105 kB
+├ ƒ /api/user/role                           284 B         105 kB
+├ ƒ /api/user/settings                       284 B         105 kB
+├ ƒ /api/user/update-role                    289 B         103 kB
+├ ƒ /api/user/username/check                 284 B         105 kB
+├ ƒ /api/user/username/set                   284 B         105 kB
+├ ƒ /api/utils/parse-jd                      289 B         103 kB
+├ ƒ /auth                                  6.83 kB         259 kB
+├ ƒ /auth/choose-username                  3.29 kB         252 kB
+├ ƒ /auth/reset-password                   2.72 kB         105 kB
+├ ƒ /contact                               3.85 kB         259 kB
+├ ƒ /create-resume                         15.6 kB         287 kB
+├ ƒ /dashboard                             24.1 kB         289 kB
+├ ƒ /dashboard/access-requests             3.83 kB         259 kB
+├ ƒ /dashboard/recruiter/requests          5.32 kB         274 kB
+├ ƒ /demo                                  1.46 kB         104 kB
+├ ƒ /demo-resumes/[id]                       734 B         125 kB
+├ ƒ /design-gallery                        1.67 kB         125 kB
+├ ƒ /docs                                  1.38 kB         104 kB
+├ ƒ /drafts/[draftId]                      3.22 kB         268 kB
+├ ƒ /how-it-works                          10.4 kB         156 kB
+├ ƒ /maintenance                             177 B         106 kB
+├ ƒ /privacy                                 177 B         106 kB
+├ ƒ /profile                               1.71 kB         246 kB
+├ ƒ /profile/account                       4.17 kB         269 kB
+├ ƒ /profile/settings                      5.09 kB         260 kB
+├ ƒ /profile/subscription                  5.65 kB         261 kB
+├ ƒ /recruiter/search                      14.6 kB         276 kB
+├ ƒ /resumes/[id]                          9.68 kB         279 kB
+├ ƒ /resumes/[id]/ai-edit                  7.37 kB         264 kB
+├ ƒ /resumes/[id]/edit                     9.63 kB         257 kB
+├ ƒ /seed                                  1.99 kB
+         241 kB
+├ ƒ /select-role                           4.21 kB         249 kB
+├ ƒ /terms                                   177 B         106 kB
+├ ƒ /test-retention                        4.75 kB         249 kB
+├ ƒ /vibe-concepts                           177 B         106 kB
+├ ƒ /vibe-concepts/bauhaus                   289 B         103 kB
+├ ƒ /vibe-concepts/chat-build                289 B         103 kB
+├ ƒ /vibe-concepts/clay                      289 B         103 kB
+├ ƒ /vibe-concepts/cyberpunk                 289 B         103 kB
+├ ƒ /vibe-concepts/editorial                 289 B         103 kB
+├ ƒ /vibe-concepts/gallery                   921 B         150 kB
+├ ƒ /vibe-concepts/glass                     289 B         103 kB
+├ ƒ /vibe-concepts/hud                       289 B         103 kB
+├ ƒ /vibe-concepts/ide                       289 B         103 kB
+├ ƒ /vibe-concepts/indigo                    289 B         103 kB
+├ ƒ /vibe-concepts/kanban                    170 B         108 kB
+├ ƒ /vibe-concepts/luxury                    289 B         103 kB
+├ ƒ /vibe-concepts/masonry                   289 B         103 kB
+├ ƒ /vibe-concepts/neo                       289 B         103 kB
+├ ƒ /vibe-concepts/nordic                    289 B         103 kB
+├ ƒ /vibe-concepts/paper                     289 B         103 kB
+├ ƒ /vibe-concepts/retro                     289 B         103 kB
+├ ƒ /vibe-concepts/skill-tree                289 B         103 kB
+├ ƒ /vibe-concepts/space                     289 B         103 kB
+├ ƒ /vibe-concepts/sunset                    289 B         103 kB
+├ ƒ /vibe-concepts/swipe                     289 B         103 kB
+├ ƒ /vibe-concepts/terminal                  289 B         103 kB
+├ ƒ /vibe-concepts/ticker                    289 B         103 kB
+├ ƒ /vibe-concepts/timeline                  170 B         108 kB
+├ ƒ /vibe-concepts/view/[slug]             1.01 kB         151 kB
+├ ƒ /vibe-concepts/warm                      289 B         103 kB
+├ ƒ /vibe-concepts/zen                       289 B         103 kB
+└ ƒ /vibe-concepts/zen-demo                1.45 kB         143 kB
++ First Load JS shared by all               102 kB
+  ├ chunks/1255-74af92b783d20e5a.js        45.8 kB
+  ├ chunks/4bd1b696-182b6b13bdad92e3.js    54.2 kB
+  └ other shared chunks (total)            2.37 kB
+
+
+ƒ Middleware                               33.6 kB
+
+ƒ  (Dynamic)  server-rendered on demand
+
+
+Building a Cloud Function to run this application. This is needed due to:
+ • middleware
+ • Image Optimization
+ • non-static component /_not-found/page
+ • non-static component /api/admin/ai-monitoring/route
+ • non-static component /api/admin/conversations/route
+ • and 148 other reasons, use --debug to see more
+
+
+up to date in 11s
+
+137 packages are looking for funding
+  run `npm fund` for details
+i  hosting: The following function(s) are pinned to site switchcv-dev and will be deployed as well: ssrswitchcvdev
+
+=== Deploying to 'switchcv-dev'...
+
+i  deploying functions, hosting
+Running command: npm --prefix "$RESOURCE_DIR" run build
+
+> build
+> tsc
+
+✔  functions: Finished running predeploy script.
+i  functions: preparing codebase default for deployment
+i  functions: preparing codebase firebase-frameworks-switchcv-dev for deployment
+i  functions: ensuring required API cloudfunctions.googleapis.com is enabled...
+i  functions: ensuring required API cloudbuild.googleapis.com is enabled...
+i  artifactregistry: ensuring required API artifactregistry.googleapis.com is enabled...
+⚠  functions: package.json indicates an outdated version of firebase-functions. Please upgrade using npm install --save firebase-functions@latest in your functions directory.
+i  functions: Loading and analyzing source code for codebase default to determine what to deploy
+Serving at port 8286
+
+{"warning":"GEMINI_API_KEY not set. AI features disabled.","severity":"WARNING","message":"Configuration warning"}
+
+{"warning":"Email credentials not configured. Email features may not work.","severity":"WARNING","message":"Configuration warning"}
+{"warning":"WEBSITE_URL not set. Using default.","severity":"WARNING","message":"Configuration warning"}
+
+{"environment":"production","aiProviders":{"gemini":false,"groq":false,"openai":false},"emailEnabled":true,"rateLimitEnabled":true,"severity":"INFO","message":"Configuration loaded successfully"}
+
+⚠  functions: package.json indicates an outdated version of firebase-functions. Please upgrade using npm install --save firebase-functions@latest in your functions directory.
+⚠  functions: Please note that there will be breaking changes when you upgrade.
+i  functions: Loading and analyzing source code for codebase firebase-frameworks-switchcv-dev to determine what to deploy
+Serving at port 8724
+
+i  extensions: ensuring required API firebaseextensions.googleapis.com is enabled...
+i  functions: Loaded environment variables from .env.
+i  functions: Loaded environment variables from .env.
+i  functions: preparing functions directory for uploading...
+i  functions: packaged /Users/anilalapati/Development/Switch_cv_Nov_21/functions (578.68 KB) for uploading
+i  functions: packaged /Users/anilalapati/Development/Switch_cv_Nov_21/functions (579.08 KB) for uploading
+i  functions: preparing .firebase/switchcv-dev/functions directory for uploading...
+i  functions: packaged /Users/anilalapati/Development/Switch_cv_Nov_21/.firebase/switchcv-dev/functions (220.29 MB) for uploading
+i  functions: ensuring required API cloudscheduler.googleapis.com is enabled...
+i  functions: ensuring required API run.googleapis.com is enabled...
+i  functions: ensuring required API eventarc.googleapis.com is enabled...
+i  functions: ensuring required API pubsub.googleapis.com is enabled...
+i  functions: ensuring required API storage.googleapis.com is enabled...
+i  functions: generating the service identity for pubsub.googleapis.com...
+i  functions: generating the service identity for eventarc.googleapis.com...
+i  functions: ensuring required API secretmanager.googleapis.com is enabled...
+✔  functions: functions source uploaded successfully
+✔  functions: .firebase/switchcv-dev/functions source uploaded successfully
+i  hosting[switchcv-dev]: beginning deploy...
+i  hosting[switchcv-dev]: found 229 files in .firebase/switchcv-dev/hosting
+✔  hosting[switchcv-dev]: file upload complete
+i  functions: Skipping the deploy of unchanged functions.
+✔  functions[generateJobMatchSuggestions(us-central1)] Skipped (No changes detected)
+✔  functions[onUserCreated(us-central1)] Skipped (No changes detected)
+✔  functions[onRecruiterRequestCreated(us-central1)] Skipped (No changes detected)
+✔  functions[onRecruiterRequestApproved(us-central1)] Skipped (No changes detected)
+✔  functions[sendProfileViewDigest(us-central1)] Skipped (No changes detected)
+✔  functions[notifyAdminSuspiciousActivity(us-central1)] Skipped (No changes detected)
+✔  functions[resendVerificationEmail(us-central1)] Skipped (No changes detected)
+✔  functions[fanOutResumeDocuments(us-central1)] Skipped (No changes detected)
+✔  functions[indexResumeOnWrite(us-central1)] Skipped (No changes detected)
+✔  functions[reindexResume(us-central1)] Skipped (No changes detected)
+✔  functions[searchResumesAI(us-central1)] Skipped (No changes detected)
+✔  functions[getSearchQuota(us-central1)] Skipped (No changes detected)
+✔  functions[onUserRoleChanged(us-central1)] Skipped (No changes detected)
+✔  functions[setUserRole(us-central1)] Skipped (No changes detected)
+✔  functions[syncAdminWhitelist(us-central1)] Skipped (No changes detected)
+✔  functions[generateResumeContent(us-central1)] Skipped (No changes detected)
+✔  functions[nightlyCleanup(us-central1)] Skipped (No changes detected)
+✔  functions[notifyExpiringResumes(us-central1)] Skipped (No changes detected)
+✔  functions[aggregateBilling(us-central1)] Skipped (No changes detected)
+✔  functions[budgetMonitor(us-central1)] Skipped (No changes detected)
+✔  functions[healthMonitor(us-central1)] Skipped (No changes detected)
+✔  functions[processResumeGenerationAsync(us-central1)] Skipped (No changes detected)
+✔  functions[aggregateGlobalStats(us-central1)] Skipped (No changes detected)
+✔  functions[aggregateAnalyticsDaily(us-central1)] Skipped (No changes detected)
+✔  functions[cleanupAnalyticsEvents(us-central1)] Skipped (No changes detected)
+✔  functions[aggregateAiMonitoring(us-central1)] Skipped (No changes detected)
+✔  functions[sendAiMonitoringDigest(us-central1)] Skipped (No changes detected)
+✔  functions[monitorAiMonitoringHealth(us-central1)] Skipped (No changes detected)
+✔  functions[checkSecretRotation(us-central1)] Skipped (No changes detected)
+i  functions: updating Node.js 22 (2nd Gen) function firebase-frameworks-switchcv-dev:ssrswitchcvdev(us-central1)...
+✔  functions[firebase-frameworks-switchcv-dev:ssrswitchcvdev(us-central1)] Successful update operation.
+Function URL (firebase-frameworks-switchcv-dev:ssrswitchcvdev(us-central1)): https://ssrswitchcvdev-zyjxahs32q-uc.a.run.app
+i  hosting[switchcv-dev]: finalizing version...
+✔  hosting[switchcv-dev]: version finalized
+i  hosting[switchcv-dev]: releasing new version...
+✔  hosting[switchcv-dev]: release complete
+
+✔  Deploy complete!
+
+Project Console: https://console.firebase.google.com/project/switchcv-dev/overview
+Hosting URL: https://switchcv-dev.web.app
