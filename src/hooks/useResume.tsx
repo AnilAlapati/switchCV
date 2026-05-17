@@ -149,12 +149,11 @@ export const useResume = (options: { enabled?: boolean } = {}) => {
         logger.info(
           "Detected recent resume action with empty result, retrying for propagation...",
         );
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setRetryingForPropagation(true);
         const timer = setTimeout(() => {
           mutate();
-          setTimeout(() => {
-            setRetryingForPropagation(false);
-          }, 0);
+          setRetryingForPropagation(false);
           // Clear it after 5 retries or 10 seconds to avoid infinite loops
         }, 2000);
         return () => clearTimeout(timer);
