@@ -27,8 +27,12 @@ const ACCENT = "#2563EB"; // blue-600
 
 export const StandardResumeRenderer: React.FC<StandardResumeRendererProps> = ({
   data,
+  onRequestAccess,
 }) => {
   const personalInfo = data.personalInfo || {};
+  const viewerAccess = (data as any)?.viewerAccess || {};
+  const isMasked = !!viewerAccess.isMasked;
+
   const heroName = personalInfo.name || data.title || "Candidate";
   const heroTitle = personalInfo.title || "";
 
@@ -37,23 +41,29 @@ export const StandardResumeRenderer: React.FC<StandardResumeRendererProps> = ({
   const education = normalizeTimelineItems(data.education);
   const projects = normalizeProjects(data.projects);
 
-  const contacts: Array<{ label: string; href?: string }> = [];
+  const contacts: Array<{ label: string; href?: string; isMasked?: boolean }> =
+    [];
   if (personalInfo.email)
     contacts.push({
       label: personalInfo.email,
-      href: `mailto:${personalInfo.email}`,
+      href: isMasked ? undefined : `mailto:${personalInfo.email}`,
+      isMasked: isMasked && personalInfo.email.includes("***"),
     });
-  if (personalInfo.phone) contacts.push({ label: personalInfo.phone });
+  if (personalInfo.phone)
+    contacts.push({
+      label: personalInfo.phone,
+      isMasked: isMasked && personalInfo.phone.includes("***"),
+    });
   if (personalInfo.location) contacts.push({ label: personalInfo.location });
   if (personalInfo.linkedin)
     contacts.push({
       label: personalInfo.linkedin.replace(/^https?:\/\/(www\.)?/, ""),
-      href: personalInfo.linkedin,
+      href: isMasked ? undefined : personalInfo.linkedin,
     });
   if (personalInfo.github)
     contacts.push({
       label: personalInfo.github.replace(/^https?:\/\/(www\.)?/, ""),
-      href: personalInfo.github,
+      href: isMasked ? undefined : personalInfo.github,
     });
 
   return (
@@ -85,6 +95,14 @@ export const StandardResumeRenderer: React.FC<StandardResumeRendererProps> = ({
                   >
                     {c.label}
                   </a>
+                ) : c.isMasked ? (
+                  <button
+                    onClick={onRequestAccess}
+                    className="text-blue-600 hover:underline font-medium decoration-blue-300"
+                    title="Click to request contact access"
+                  >
+                    {c.label}
+                  </button>
                 ) : (
                   <span>{c.label}</span>
                 )}

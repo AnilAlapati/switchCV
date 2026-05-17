@@ -22,8 +22,12 @@ const RUST_PALE = "#FFF1EA";
 
 export const SignalResumeRenderer: React.FC<SignalResumeRendererProps> = ({
   data,
+  onRequestAccess,
 }) => {
   const personalInfo = data.personalInfo || {};
+  const viewerAccess = (data as any)?.viewerAccess || {};
+  const isMasked = !!viewerAccess.isMasked;
+
   const heroName = personalInfo.name || data.title || "Candidate";
   const heroTitle = personalInfo.title || "Engineering Professional";
 
@@ -32,24 +36,30 @@ export const SignalResumeRenderer: React.FC<SignalResumeRendererProps> = ({
   const education = normalizeTimelineItems(data.education);
   const projects = normalizeProjects(data.projects);
 
-  const contactLinks: Array<{ label: string; href?: string }> = [];
+  const contactLinks: Array<{ label: string; href?: string; isMasked?: boolean }> =
+    [];
   if (personalInfo.email)
     contactLinks.push({
       label: personalInfo.email,
-      href: `mailto:${personalInfo.email}`,
+      href: isMasked ? undefined : `mailto:${personalInfo.email}`,
+      isMasked: isMasked && personalInfo.email.includes("***"),
     });
-  if (personalInfo.phone) contactLinks.push({ label: personalInfo.phone });
+  if (personalInfo.phone)
+    contactLinks.push({
+      label: personalInfo.phone,
+      isMasked: isMasked && personalInfo.phone.includes("***"),
+    });
   if (personalInfo.location)
     contactLinks.push({ label: personalInfo.location });
   if (personalInfo.github)
     contactLinks.push({
       label: personalInfo.github.replace(/^https?:\/\/(www\.)?/, ""),
-      href: personalInfo.github,
+      href: isMasked ? undefined : personalInfo.github,
     });
   if (personalInfo.linkedin)
     contactLinks.push({
       label: personalInfo.linkedin.replace(/^https?:\/\/(www\.)?/, ""),
-      href: personalInfo.linkedin,
+      href: isMasked ? undefined : personalInfo.linkedin,
     });
 
   return (
@@ -81,6 +91,18 @@ export const SignalResumeRenderer: React.FC<SignalResumeRendererProps> = ({
                   >
                     {c.label}
                   </a>
+                ) : c.isMasked ? (
+                  <button
+                    key={i}
+                    onClick={onRequestAccess}
+                    className="group flex items-center gap-1.5 text-[#1F9D8E] hover:text-[#7FBFB8] transition-colors"
+                    title="Click to request contact access"
+                  >
+                    <span>{c.label}</span>
+                    <span className="text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">
+                      (Unlock)
+                    </span>
+                  </button>
                 ) : (
                   <span key={i}>{c.label}</span>
                 ),
