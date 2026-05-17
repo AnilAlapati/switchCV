@@ -152,7 +152,9 @@ export const useResume = (options: { enabled?: boolean } = {}) => {
         setRetryingForPropagation(true);
         const timer = setTimeout(() => {
           mutate();
-          setRetryingForPropagation(false);
+          setTimeout(() => {
+            setRetryingForPropagation(false);
+          }, 0);
           // Clear it after 5 retries or 10 seconds to avoid infinite loops
         }, 2000);
         return () => clearTimeout(timer);
