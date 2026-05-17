@@ -36,12 +36,18 @@ export const SignalResumeRenderer: React.FC<SignalResumeRendererProps> = ({
   const education = normalizeTimelineItems(data.education);
   const projects = normalizeProjects(data.projects);
 
-  const contactLinks: Array<{ label: string; href?: string; isMasked?: boolean }> =
-    [];
+  const contactLinks: Array<{
+    label: string;
+    href?: string;
+    isMasked?: boolean;
+  }> = [];
   if (personalInfo.email)
     contactLinks.push({
       label: personalInfo.email,
-      href: isMasked ? undefined : `mailto:${personalInfo.email}`,
+      href:
+        isMasked || personalInfo.email.includes("***")
+          ? undefined
+          : `mailto:${personalInfo.email}`,
       isMasked: isMasked && personalInfo.email.includes("***"),
     });
   if (personalInfo.phone)

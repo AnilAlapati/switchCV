@@ -46,7 +46,10 @@ export const StandardResumeRenderer: React.FC<StandardResumeRendererProps> = ({
   if (personalInfo.email)
     contacts.push({
       label: personalInfo.email,
-      href: isMasked ? undefined : `mailto:${personalInfo.email}`,
+      href:
+        isMasked || personalInfo.email.includes("***")
+          ? undefined
+          : `mailto:${personalInfo.email}`,
       isMasked: isMasked && personalInfo.email.includes("***"),
     });
   if (personalInfo.phone)
