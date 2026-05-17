@@ -43,6 +43,20 @@ const fetchUserResumes = async (userId: string): Promise<ResumesData> => {
       };
     }
 
+    // --- ENHANCEMENT: Aggressive fallback for new users/race conditions ---
+    // If we're here, query by UID didn't find anything in the main collection.
+    // This happens for users who:
+    // 1. Are genuinely new (0 resumes)
+    // 2. Just created a resume, and the UID query hasn't indexed the new entry yet
+    // 3. Have legacy data in resumeProfiles
+
+    // We already do a legacy fallback below, but we should verify if there's any
+    // "lingering" data or if we should trigger a small delay/retry here.
+    // For now, we continue to legacy fallback, but we add a log.
+    logger.info(
+      `No resumes found in 'resumes' for ${userId}, checking legacy 'resumeProfiles'...`,
+    );
+
     // Fallback to legacy 'resumeProfiles' only if no resumes found
     const legacyResumesRef = collection(db, "resumeProfiles");
     const legacyQ = query(
@@ -92,7 +106,7 @@ export const useResume = (options: { enabled?: boolean } = {}) => {
   const shouldFetch = enabled && !!user;
   const key = shouldFetch ? `resumes-${user!.uid}` : null;
 
-  const { data, error, isLoading, mutate } = useSWR<ResumesData>(
+  const { data, error, isLoading, mutate, isValidating } = useSWR<ResumesData>(
     key,
     () => fetchUserResumes(user!.uid),
     {
@@ -104,6 +118,12 @@ export const useResume = (options: { enabled?: boolean } = {}) => {
       revalidateOnReconnect: false,
       // Keep previous data while revalidating
       keepPreviousData: true,
+      // Enable automated retries for network issues
+      shouldRetryOnError: true,
+      errorRetryCount: 3,
+      // If we got NO resumes, but the user just performed an action,
+      // we might want to refresh more aggressively.
+      // SWR refreshInterval is usually for polling, but we'll stick to manual mutate for now.
     },
   );
 
@@ -111,6 +131,34 @@ export const useResume = (options: { enabled?: boolean } = {}) => {
   const resumes = data?.resumes || [];
 
   const hasResume = useMemo(() => resume !== null, [resume]);
+
+  // When the API returns "no resume", but we are still validating or auth just finished,
+  // we might be in a race condition where Firestore hasn't indexed the new doc yet.
+  const [retryingForPropagation, setRetryingForPropagation] = useState(false);
+
+  useEffect(() => {
+    // If we have no resumes and we're not loading, but it's a first load or after a mutation
+    if (!isLoading && !hasResume && !retryingForPropagation && user) {
+      const lastActionTime = localStorage.getItem(
+        `last_resume_action_${user.uid}`,
+      );
+      const now = Date.now();
+
+      // If a resume was created/updated in the last 10 seconds, retry fetching
+      if (lastActionTime && now - parseInt(lastActionTime) < 10000) {
+        logger.info(
+          "Detected recent resume action with empty result, retrying for propagation...",
+        );
+        setRetryingForPropagation(true);
+        const timer = setTimeout(() => {
+          mutate();
+          setRetryingForPropagation(false);
+          // Clear it after 5 retries or 10 seconds to avoid infinite loops
+        }, 2000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [isLoading, hasResume, user, mutate, retryingForPropagation]);
 
   const resumeId = useMemo(() => {
     // Use numericId if available, otherwise fall back to Firestore document ID
@@ -134,7 +182,7 @@ export const useResume = (options: { enabled?: boolean } = {}) => {
   return {
     resume: resume as DashboardResume | null,
     resumes: resumes as DashboardResume[],
-    loading: isLoading,
+    loading: isLoading || (retryingForPropagation && !hasResume),
     error: error
       ? error instanceof Error
         ? error.message

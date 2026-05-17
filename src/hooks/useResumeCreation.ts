@@ -283,6 +283,10 @@ export function useResumeCreation() {
         if (data.resumeId) {
           setCreatedResumeId(data.resumeId);
           setStage("complete");
+          localStorage.setItem(
+            `last_resume_action_${user.uid}`,
+            Date.now().toString(),
+          );
           localStorage.removeItem(`resume_creation_session_${user.uid}`);
           setTimeout(() => router.push(`/resumes/${data.resumeId}`), 500);
         } else {
