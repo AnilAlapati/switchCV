@@ -1,5 +1,9 @@
 # Release Notes
 
+## [AI.0.1.78] - 2026-05-17
+### Changed
+- Automated version increment.
+
 ## [AI.0.1.77] - 2026-05-16
 ### Changed
 - Automated version increment.
