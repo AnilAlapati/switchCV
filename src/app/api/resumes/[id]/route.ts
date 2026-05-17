@@ -156,13 +156,13 @@ export async function GET(
           ...resumeData,
           isBeingEdited,
           viewerAccess:
-            access !== "public_snapshot" && access !== "public_full"
-              ? {
+            access === "public_snapshot" || access === "public_full"
+              ? (resumeData as any).viewerAccess
+              : {
                   scope: config.scope,
                   isOwner: config.isOwner,
                   isMasked: config.isMasked,
-                }
-              : undefined,
+                },
         },
         {
           headers: { "Cache-Control": config.cacheControl },
