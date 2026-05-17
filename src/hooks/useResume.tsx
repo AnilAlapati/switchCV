@@ -3,7 +3,7 @@
 import { logger } from "@/lib/logger";
 // src/hooks/useResume.tsx
 
-import { useMemo, useCallback, useEffect } from "react";
+import { useMemo, useCallback, useEffect, useState } from "react";
 import useSWR from "swr";
 import { collection, query, where, getDocs, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
