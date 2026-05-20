@@ -70,7 +70,7 @@ describe("ResumeFileUpload", () => {
     mockUseAuth.mockReturnValue({
       user: mockUser,
       loading: false,
-    } as ReturnType<typeof useAuth>);
+    } as any);
     global.fetch = jest.fn();
   });
 

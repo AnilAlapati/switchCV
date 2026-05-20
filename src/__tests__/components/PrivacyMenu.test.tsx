@@ -5,12 +5,14 @@ import { PrivacyMenu } from "@/components/resume/PrivacyMenu";
 describe("PrivacyMenu", () => {
   const defaultProps = {
     isPublic: false,
+    publicViewMode: "full" as const,
     viewerIsOwner: true,
     isPublicPreview: false,
     showPrivacyMenu: false,
     isUpdating: false,
     onToggleMenu: jest.fn(),
     onToggleVisibility: jest.fn(),
+    onChangeViewMode: jest.fn(),
   };
 
   it("renders the trigger button with 'Private' label when not public", () => {
