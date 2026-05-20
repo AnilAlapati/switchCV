@@ -68,21 +68,21 @@ describe("ResumeSnapshotCard", () => {
 
   it("renders 'View Public Resume' link", () => {
     render(<ResumeSnapshotCard {...defaultProps} />);
-    const link = screen.getByRole("link", { name: "View Public Resume" });
+    const link = screen.getByRole("link", { name: "View public resume" });
     expect(link).toHaveAttribute("href", "/resumes/resume-123");
     expect(link).toHaveAttribute("target", "_blank");
   });
 
   it("renders 'Open Manual Editor' link for premium users", () => {
     render(<ResumeSnapshotCard {...defaultProps} />);
-    const link = screen.getByRole("link", { name: "Open Manual Editor" });
+    const link = screen.getByRole("link", { name: "Open manual editor" });
     expect(link).toHaveAttribute("href", "/resumes/resume-123/edit");
   });
 
   it("renders disabled 'Open Manual Editor' button for basic users", () => {
     (useUserProfile as jest.Mock).mockReturnValue({ tier: "basic" });
     render(<ResumeSnapshotCard {...defaultProps} />);
-    const button = screen.getByRole("button", { name: "Open Manual Editor" });
+    const button = screen.getByRole("button", { name: "Open manual editor" });
     expect(button).toBeDisabled();
     expect(button).toHaveClass("cursor-not-allowed");
   });

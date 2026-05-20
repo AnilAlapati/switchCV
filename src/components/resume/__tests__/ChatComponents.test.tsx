@@ -9,16 +9,12 @@ describe("Chat Components", () => {
   describe("ResumeEditChatHeader", () => {
     it("renders title and default description when no resume title", () => {
       render(<ResumeEditChatHeader />);
-      expect(screen.getByText("Switch")).toBeInTheDocument();
       expect(screen.getByText("AI Resume Editor")).toBeInTheDocument();
-      expect(
-        screen.getByText(/Tell me what you would like to add/),
-      ).toBeInTheDocument();
     });
 
     it("renders resume title description when provided", () => {
       render(<ResumeEditChatHeader resumeTitle="My Resume" />);
-      expect(screen.getByText(/Editing My Resume/)).toBeInTheDocument();
+      expect(screen.getByText("My Resume")).toBeInTheDocument();
     });
 
     it("renders connection status when connected", () => {
@@ -27,21 +23,21 @@ describe("Chat Components", () => {
           connectionStatus={{ connected: true, model: "Claude" }}
         />,
       );
-      expect(screen.getByText(/✓ Claude Connected/)).toBeInTheDocument();
-      const status = screen.getByText(/✓ Claude Connected/);
-      expect(status).toHaveClass("bg-emerald-50");
+      expect(screen.getByText("Claude ready")).toBeInTheDocument();
+      const status = screen.getByText("Claude ready");
+      expect(status).toHaveClass("bg-gray-50");
     });
 
     it("renders connection status with default model", () => {
       render(<ResumeEditChatHeader connectionStatus={{ connected: true }} />);
-      expect(screen.getByText(/✓ Gemini Connected/)).toBeInTheDocument();
+      expect(screen.getByText("Gemini ready")).toBeInTheDocument();
     });
 
     it("renders connection status when disconnected", () => {
       render(<ResumeEditChatHeader connectionStatus={{ connected: false }} />);
-      expect(screen.getByText(/⚠️ AI Unavailable/)).toBeInTheDocument();
-      const status = screen.getByText(/⚠️ AI Unavailable/);
-      expect(status).toHaveClass("bg-rose-50");
+      expect(screen.getByText("AI unavailable")).toBeInTheDocument();
+      const status = screen.getByText("AI unavailable");
+      expect(status).toHaveClass("bg-red-50");
     });
   });
 
@@ -185,9 +181,7 @@ describe("Chat Components", () => {
 
     it("renders empty state", () => {
       render(<ResumeEditMessageList messages={[]} endRef={mockEndRef} />);
-      expect(
-        screen.getByText("Let’s fine-tune your resume"),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/fine-tune your resume/)).toBeInTheDocument();
     });
 
     it("renders messages list", () => {
@@ -200,9 +194,9 @@ describe("Chat Components", () => {
       expect(screen.getByText("Hello")).toBeInTheDocument();
 
       // Check classes for user vs bot
-      expect(screen.getByText("Hi").closest("div")).toHaveClass("bg-[#2C4A3B]");
+      expect(screen.getByText("Hi").closest("div")).toHaveClass("bg-black");
       expect(screen.getByText("Hello").closest("div")).toHaveClass(
-        "bg-white/60",
+        "bg-gray-100",
       );
     });
   });

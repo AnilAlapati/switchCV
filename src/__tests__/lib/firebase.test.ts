@@ -120,7 +120,6 @@ describe("Firebase Configuration", () => {
       expect(status.missingKeys).toContain("apiKey");
       expect(status.missingKeys).toContain("projectId");
     });
-
   });
 
   it("should be ready when configured", () => {
@@ -193,7 +192,11 @@ describe("Analytics", () => {
   });
 
   afterEach(() => {
-    delete (global as any).window;
+    try {
+      delete (global as any).window;
+    } catch {
+      // JSDOM's window is non-configurable; no cleanup needed
+    }
   });
 
   it("should initialize analytics when supported", async () => {

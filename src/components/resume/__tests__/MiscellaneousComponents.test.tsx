@@ -56,7 +56,7 @@ describe("Miscellaneous Resume Components", () => {
           updatedAt="Jan 1, 2023"
         />,
       );
-      expect(screen.getByText("Open Manual Editor")).toBeDisabled();
+      expect(screen.getByText("Open manual editor")).toBeDisabled();
     });
 
     it("renders fallback title when missing", () => {

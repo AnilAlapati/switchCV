@@ -187,7 +187,7 @@ describe("ResumeDataExtractor", () => {
         { content: "Tell me about your education", isUser: false },
         { content: "I have a BS in CS from MIT 2023", isUser: true },
         { content: "What is your work experience?", isUser: false },
-        { content: "I worked at Google as Engineer", isUser: true },
+        { content: "I worked as Engineer at Google", isUser: true },
         { content: "What are your skills?", isUser: false },
         { content: "I know React and Node", isUser: true },
         { content: "What is your contact info?", isUser: false },

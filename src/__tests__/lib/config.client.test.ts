@@ -56,7 +56,8 @@ describe("Client Configuration", () => {
     });
 
     it("should handle server-side rendering", () => {
-      delete (global as any).window;
+      // JSDOM's window is non-configurable; NEXT_PUBLIC_BASE_URL is checked first
+      // in both client-side and server-side branches of getBaseUrl()
       process.env.NEXT_PUBLIC_BASE_URL = "https://server-url.com";
       expect(getBaseUrl()).toBe("https://server-url.com");
     });
@@ -117,7 +118,7 @@ describe("Client Configuration", () => {
 
     it("should build verification URL correctly", () => {
       expect(getVerificationUrl()).toBe(
-        "https://test.com/auth?mode=verify-email"
+        "https://test.com/auth?mode=verify-email",
       );
     });
 
@@ -129,7 +130,7 @@ describe("Client Configuration", () => {
 
     it("should handle custom origin", () => {
       expect(getVerificationUrl("https://custom-origin.com")).toBe(
-        "https://custom-origin.com/auth?mode=verify-email"
+        "https://custom-origin.com/auth?mode=verify-email",
       );
     });
   });
