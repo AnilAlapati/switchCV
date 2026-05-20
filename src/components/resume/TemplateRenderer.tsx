@@ -50,6 +50,7 @@ interface TemplateRendererProps {
   };
   isAuthenticated?: boolean;
   onRequestAccess?: () => void;
+  signInHref?: string;
 }
 
 const CONTACT_FULL_VIEW_SCOPES = new Set(["admin-view", "full"]);
@@ -73,6 +74,7 @@ export const TemplateRenderer: React.FC<TemplateRendererProps> = ({
   data,
   isAuthenticated = false,
   onRequestAccess,
+  signInHref = "/auth",
 }) => {
   // Route to specialized renderers for premium templates
   if (template.id === "standard-v1") {
@@ -459,7 +461,7 @@ export const TemplateRenderer: React.FC<TemplateRendererProps> = ({
               </button>
             ) : (
               <a
-                href="/auth"
+                href={signInHref}
                 className="group relative inline-flex items-center justify-center overflow-hidden px-8 py-3 bg-black text-white transition-all hover:bg-white hover:text-black border border-black text-sm font-medium tracking-wide"
               >
                 Sign in to View Full Profile

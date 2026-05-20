@@ -25,6 +25,15 @@ export function useAuthPage(): UseAuthPageReturn {
   const router = useRouter();
   const verificationAttempted = useRef(false);
 
+  // Resolve post-auth redirect — only allow relative paths to prevent open redirect
+  const postAuthRedirect = (() => {
+    const raw = searchParams.get("redirect");
+    if (raw && raw.startsWith("/") && !raw.startsWith("//")) {
+      return raw;
+    }
+    return "/dashboard";
+  })();
+
   // Form state
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
@@ -124,8 +133,8 @@ export function useAuthPage(): UseAuthPageReturn {
         }
       } else if (!isPendingApproval) {
         // Only safely route to dashboard if they are NOT pending approval
-        const target = "/dashboard";
-        
+        const target = postAuthRedirect;
+
         if (verificationSuccess) {
           const timer = setTimeout(() => {
             router.push(target);
@@ -146,6 +155,7 @@ export function useAuthPage(): UseAuthPageReturn {
     profileLoading,
     router,
     verificationSuccess,
+    postAuthRedirect,
   ]);
 
   // Action handlers
@@ -207,7 +217,7 @@ export function useAuthPage(): UseAuthPageReturn {
       const result = await signInWithGoogle();
       // Return to /auth when username onboarding is still required so the
       // approval gate can decide whether to continue to choose-username.
-      router.push(result.needsUsername ? "/auth" : "/dashboard");
+      router.push(result.needsUsername ? "/auth" : postAuthRedirect);
     } catch (err) {
       if (
         err instanceof Error &&
@@ -224,7 +234,7 @@ export function useAuthPage(): UseAuthPageReturn {
     } finally {
       setLoading(false);
     }
-  }, [signInWithGoogle, router]);
+  }, [signInWithGoogle, router, postAuthRedirect]);
 
   const handleResend = useCallback(async () => {
     setResending(true);

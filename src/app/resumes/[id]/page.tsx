@@ -420,6 +420,7 @@ export default function ResumeView() {
           data={resume}
           isAuthenticated={!!user}
           onRequestAccess={() => setRequestDialogOpen(true)}
+          signInHref={`/auth?redirect=/resumes/${Array.isArray(id) ? id[0] : id}`}
         />
 
         {/* Preview access banner — non-owner visitors only */}
@@ -450,7 +451,7 @@ export default function ResumeView() {
                   </button>
                 ) : (
                   <a
-                    href="/auth"
+                    href={`/auth?redirect=/resumes/${Array.isArray(id) ? id[0] : id}`}
                     className="shrink-0 rounded-full bg-white text-[#1A2F25] px-5 py-2 text-sm font-semibold hover:bg-gray-100 transition-colors"
                   >
                     Sign In
