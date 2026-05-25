@@ -12,7 +12,7 @@ interface RecruiterSearchResultsProps {
   searchMode: SearchModeType;
   onViewResume: (resumeId: string) => void;
   onRequestAccess?: (resumeId: string, userName: string) => void;
-  // TODO: Pass in current user context/job context if available, or fetch from props
+  recruiterName?: string;
   jobContext?: { title: string; description?: string };
 }
 
@@ -22,8 +22,7 @@ const badgeStyles: Record<
 > = {
   approved: {
     label: "Approved",
-    classes:
-      "bg-emerald-50 text-emerald-900 border-2 border-black",
+    classes: "bg-emerald-50 text-emerald-900 border-2 border-black",
     helper: "Full resume unlocked and ready to view",
   },
   pending: {
@@ -52,12 +51,15 @@ const Callout = ({
 }) => (
   <section className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-6 rounded-lg">
     <div
-      className={`flex items-center gap-3 rounded-lg border-2 border-black px-5 py-4 font-bold ${variant === "error"
-        ? "bg-rose-50 text-rose-900"
-        : "bg-cyan-50 text-cyan-900"
-        }`}
+      className={`flex items-center gap-3 rounded-lg border-2 border-black px-5 py-4 font-bold ${
+        variant === "error"
+          ? "bg-rose-50 text-rose-900"
+          : "bg-cyan-50 text-cyan-900"
+      }`}
     >
-      <span className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${variant === "error" ? "bg-rose-200" : "bg-cyan-200"}`}>
+      <span
+        className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${variant === "error" ? "bg-rose-200" : "bg-cyan-200"}`}
+      >
         {variant === "error" ? "!" : "i"}
       </span>
       {children}
@@ -73,6 +75,7 @@ export function RecruiterSearchResults({
   searchMode,
   onViewResume,
   onRequestAccess,
+  recruiterName = "Hiring Team",
   jobContext = {
     title: "Software Engineer",
     description:
@@ -83,7 +86,7 @@ export function RecruiterSearchResults({
   const [analyzingFor, setAnalyzingFor] = useState<string | null>(null);
   const [generatedMessage, setGeneratedMessage] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<Record<string, string>>(
-    {}
+    {},
   );
   const [isAgentLoading, setIsAgentLoading] = useState(false);
 
@@ -103,7 +106,7 @@ export function RecruiterSearchResults({
             experience: result.summary,
           },
           job: jobContext,
-          recruiter: { recruiterName: "Hiring Team" }, // This should come from auth/user context
+          recruiter: { recruiterName },
         }),
       });
 
@@ -247,7 +250,9 @@ export function RecruiterSearchResults({
             />
           </svg>
         </div>
-        <p className="text-2xl font-bold font-serif text-slate-900 mb-2">No resumes found</p>
+        <p className="text-2xl font-bold font-serif text-slate-900 mb-2">
+          No resumes found
+        </p>
         <p className="text-sm font-medium text-slate-600">
           Adjust your filters or widen the location range to discover more
           talent.

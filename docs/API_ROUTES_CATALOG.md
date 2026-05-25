@@ -694,6 +694,7 @@
 - **RESPONSE:** `{ message: string }`
 - **QUERY PARAMS:** None
 - **DESCRIPTION:** AI-generated outreach message for a candidate.
+- **NOTES:** Recruiter identity should be derived from the authenticated user session. The optional `recruiter` object is for display metadata only and should not be trusted for authorization.
 
 ---
 

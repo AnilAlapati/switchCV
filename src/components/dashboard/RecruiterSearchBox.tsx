@@ -18,6 +18,7 @@ interface RecruiterSearchBoxProps {}
 
 export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
   const { user } = useAuth();
+  const recruiterName = user?.displayName || user?.email || "Hiring Team";
   const { isPremiumOrHigher, loading: tierLoading } = useTier();
   const [searchMode, setSearchMode] = useState<SearchModeType>("ai"); // Default to AI search
   const [userId, setUserId] = useState("");
@@ -166,6 +167,34 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
     setSkills(skills.filter((_, i) => i !== index));
   };
 
+  const jobContext = useMemo(() => {
+    const trimmedQuery = aiQuery?.trim() || "";
+    const derivedTitle =
+      searchMode === "ai" && trimmedQuery
+        ? trimmedQuery.split(/[\.\?]/)[0]
+        : skills.length
+          ? `${skills[0]} Specialist`
+          : "Software Engineer";
+
+    const descriptionParts = [];
+    if (searchMode === "ai" && trimmedQuery) {
+      descriptionParts.push(`Search query: ${trimmedQuery}`);
+    }
+    if (skills.length) {
+      descriptionParts.push(`Required skills: ${skills.join(", ")}`);
+    }
+    if (location.trim()) {
+      descriptionParts.push(`Location: ${location.trim()}`);
+    }
+
+    return {
+      title: derivedTitle,
+      description:
+        descriptionParts.join(". ") ||
+        "Looking for a qualified candidate with relevant experience.",
+    };
+  }, [searchMode, aiQuery, skills, location]);
+
   // Show loading state while tier is being determined
   if (tierLoading) {
     return <RecruiterSearchLoadingState />;
@@ -221,6 +250,8 @@ export function RecruiterSearchBox({}: RecruiterSearchBoxProps = {}) {
         searchMode={effectiveSearchMode}
         onViewResume={handleViewResume}
         onRequestAccess={handleRequestAccess}
+        recruiterName={recruiterName}
+        jobContext={jobContext}
       />
 
       <RequestAccessDialog
