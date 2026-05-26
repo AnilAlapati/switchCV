@@ -242,9 +242,6 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
 
   const handleRewriteResume = useCallback(
     async (feedback: string) => {
-      // TODO: Use feedback for AI-guided regeneration in the future
-      void feedback; // Mark as intentionally unused for now
-
       if (!generatedResume) return;
 
       if (retryCount >= 5) {
@@ -253,7 +250,11 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
       }
 
       setPhase("generating");
-      setGenerationMessage(`Regenerating resume... (${retryCount + 1}/5)`);
+      setGenerationMessage(
+        feedback.trim()
+          ? `Regenerating resume based on your feedback... (${retryCount + 1}/5)`
+          : `Regenerating resume... (${retryCount + 1}/5)`,
+      );
       setRetryCount(retryCount + 1);
 
       try {
@@ -288,6 +289,7 @@ export const ResumeCreationFlow: React.FC<ResumeCreationFlowProps> = ({
           preferences.tone as "creative" | "professional" | "concise",
           undefined,
           preferences.mode as "standard" | "autonomous",
+          feedback.trim() ? feedback.trim() : undefined,
         );
 
         if (!result) {

@@ -1178,7 +1178,8 @@ npm run health-check
 ```typescript
 // ❌ WRONG - Visibility split across multiple fields
 // resumeAccess.ts
-if (data.isPublic || data.visibility === "public" || data.published === true) { }
+if (data.isPublic || data.visibility === "public" || data.published === true) {
+}
 
 // JobSeekerDashboard.tsx (different logic)
 if (typeof resume.isPublic === "boolean") return resume.isPublic;
@@ -1196,6 +1197,7 @@ validateResumeVisibilityInvariants(resume);
 ```
 
 **Pattern:**
+
 - Define ONE canonical function for state resolution (`resolveResumeIsPublic`)
 - Add invariant validation functions (`validateResumeVisibilityInvariants`)
 - Use throughout codebase, never re-implement logic
@@ -1224,20 +1226,20 @@ export async function unpublishResume(resumeId: string, userId: string) {
   try {
     // Wait for BOTH operations
     const batch = writeBatch(db);
-    
+
     batch.update(db.collection("resumes").doc(resumeId), {
       isPublic: false,
       visibility: "private",
       isBeingEdited: false,
       updatedAt: serverTimestamp(),
     });
-    
+
     await batch.commit(); // Wait for completion
-    
+
     // Add post-commit invariant check
     const updated = await db.collection("resumes").doc(resumeId).get();
     validateResumeVisibilityInvariants(updated.data());
-    
+
     // NOW show success to user
     return { success: true };
   } catch (err) {
@@ -1248,6 +1250,7 @@ export async function unpublishResume(resumeId: string, userId: string) {
 ```
 
 **Pattern:**
+
 - Use `writeBatch()` for multi-field updates (atomic)
 - ALWAYS `await` completion before optimistic UI update
 - Add post-commit validation on state-critical operations
@@ -1264,13 +1267,13 @@ export async function unpublishResume(resumeId: string, userId: string) {
 export async function GET(request: NextRequest) {
   const { userId } = await getAuthenticatedUserId(request);
   const { candidateId } = searchParams;
-  
+
   // Anyone can fetch any candidate!
   const candidate = await db
     .collection("recruiter-candidates")
     .doc(candidateId)
     .get();
-  
+
   return NextResponse.json(candidate.data());
 }
 
@@ -1278,17 +1281,17 @@ export async function GET(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const { userId } = await getAuthenticatedUserId(request);
   const { candidateId } = searchParams;
-  
+
   const candidate = await db
     .collection("recruiter-candidates")
     .doc(candidateId)
     .get();
-  
+
   // MUST verify ownership/tenant
   if (candidate.data()?.createdBy !== userId) {
     return handleApiError(null, "Forbidden", 403, request);
   }
-  
+
   return NextResponse.json(candidate.data());
 }
 
@@ -1307,6 +1310,7 @@ const candidates = await db
 ```
 
 **Applies to:** Any multi-tenant or multi-user resource. Check on:
+
 - `/recruiter/candidates`
 - `/recruiter/bulk-actions`
 - `/recruiter/interviews`
@@ -1318,12 +1322,12 @@ const candidates = await db
 
 **Problem:** Resume chat extraction returned raw JSON fences and `RESUME_COMPLETE` markers to users. AI model output used `grade` but schema expected `gpa`.
 
-```typescript
+````typescript
 // ❌ WRONG - Return raw model output
 export async function POST(request: NextRequest) {
   const response = await gemini.generateText(prompt);
-  return NextResponse.json({ 
-    message: response // Contains ```json ... ``` and RESUME_COMPLETE
+  return NextResponse.json({
+    message: response, // Contains ```json ... ``` and RESUME_COMPLETE
   });
 }
 
@@ -1332,47 +1336,48 @@ import { sanitizeAIOutput } from "@/lib/utils/aiOutputSanitization";
 
 export async function POST(request: NextRequest) {
   const response = await gemini.generateText(prompt);
-  
+
   // Step 1: Extract JSON from fences
   const cleaned = response
     .replace(/```json[\s\S]*?```/gi, "")
     .replace(/```[\s\S]*?```/gi, "")
     .replace(/RESUME_COMPLETE/gi, "")
     .trim();
-  
+
   // Step 2: Normalize field names (AI uses different names than schema)
   const normalized = normalizeEducationFields(cleaned);
-  
+
   // Step 3: Validate against Zod schema
   const parseResult = ResumeDataSchema.safeParse(normalized);
   if (!parseResult.success) {
     return NextResponse.json(
       { error: "Invalid resume data", details: parseResult.error.flatten() },
-      { status: 400 }
+      { status: 400 },
     );
   }
-  
+
   // Step 4: Return only user-safe message
-  const userMessage = cleaned.split('{')[0].trim(); // Extract text before JSON
+  const userMessage = cleaned.split("{")[0].trim(); // Extract text before JSON
   return NextResponse.json({ message: userMessage });
 }
 
 // Helper for field normalization
 function normalizeEducationFields(data: any) {
   if (!data.education) return data;
-  
+
   return {
     ...data,
     education: data.education.map((entry: any) => ({
       ...entry,
       gpa: entry.gpa || entry.grade, // Normalize grade → gpa
-      grade: undefined // Remove source field
-    }))
+      grade: undefined, // Remove source field
+    })),
   };
 }
-```
+````
 
 **Pattern:**
+
 - Strip markdown fences from model outputs
 - Remove sentinel markers (RESUME_COMPLETE, etc.)
 - Map AI field names to canonical schema names
@@ -1389,15 +1394,15 @@ function normalizeEducationFields(data: any) {
 export async function POST(request: NextRequest) {
   const { userId, error } = await getAuthenticatedUserId(request);
   if (error) return error;
-  
+
   const user = await getUserProfile(userId);
-  
+
   // Allow username set even if approvalStatus === "pending"
-  await db.collection("usernames").doc(username).set({ 
+  await db.collection("usernames").doc(username).set({
     reservedBy: userId,
-    reservedAt: new Date()
+    reservedAt: new Date(),
   });
-  
+
   return NextResponse.json({ success: true });
 }
 
@@ -1405,51 +1410,52 @@ export async function POST(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const { userId, error } = await getAuthenticatedUserId(request);
   if (error) return error;
-  
+
   const user = await getUserProfile(userId);
-  
+
   // Check approval status
   if (user.approvalStatus !== "approved") {
     return handleApiError(
       null,
       "Cannot reserve username until account approval is complete",
       403,
-      request
+      request,
     );
   }
-  
+
   // Reserve atomically
   const usernameDoc = await db.collection("usernames").doc(username).get();
   if (usernameDoc.exists) {
     return handleApiError(null, "Username already taken", 409, request);
   }
-  
+
   await db.collection("usernames").doc(username).set({
     reservedBy: userId,
-    reservedAt: serverTimestamp()
+    reservedAt: serverTimestamp(),
   });
-  
+
   return NextResponse.json({ success: true });
 }
 
 // On account decline, RELEASE username
 export async function declineAccount(userId: string) {
   const user = await getUserProfile(userId);
-  
+
   // MUST release reserved username
   if (user.reservedUsername) {
     await db.collection("usernames").doc(user.reservedUsername).delete();
   }
-  
+
   // Then decline account
   await db.collection("users").doc(userId).update({
     approvalStatus: "declined",
-    disabledAt: serverTimestamp()
+    disabledAt: serverTimestamp(),
   });
 }
 ```
 
 **Pattern:**
+
 - Time-gated features: approval status before resource allocation
 - Release resources on account deletion/decline
 - Use transactional operations for cleanup
@@ -1483,26 +1489,26 @@ const PROJECT_BASE_URLS = {
 
 export function resolvePublicBaseUrl(projectId: string): string {
   const url = PROJECT_BASE_URLS[projectId];
-  
+
   if (!url) {
     // Use env var as fallback
     const fallback = process.env.PUBLIC_BASE_URL;
-    
+
     if (!fallback) {
       throw new Error(
         `No PUBLIC_BASE_URL configured for project ${projectId}. ` +
         `Add to PROJECT_BASE_URLS or set PUBLIC_BASE_URL env var.`
       );
     }
-    
+
     logger.warn(
       { projectId, fallback },
       "Using PUBLIC_BASE_URL fallback (add to PROJECT_BASE_URLS)"
     );
-    
+
     return normalizeBase(fallback);
   }
-  
+
   return normalizeBase(url);
 }
 
@@ -1511,6 +1517,7 @@ PUBLIC_BASE_URL=https://your-deployment-url.com
 ```
 
 **Pattern:**
+
 - Config with per-environment overrides
 - Environment variables as fallback
 - Fail with clear error message (what's missing, how to fix)
@@ -1528,7 +1535,7 @@ export function useAuthNavigation() {
   return {
     goToDashboard: () => {
       window.location.href = "/dashboard"; // Tests crash
-    }
+    },
   };
 }
 
@@ -1546,9 +1553,9 @@ describe("useAuthNavigation", () => {
 
   it("should navigate to dashboard", () => {
     const { goToDashboard } = renderHook(() => useAuthNavigation());
-    
+
     goToDashboard();
-    
+
     expect(window.location.href).toBe("/dashboard");
   });
 });
@@ -1575,6 +1582,7 @@ describe("useAuthNavigation", () => {
 ```
 
 **Pattern:**
+
 - Mock `window.location` in `beforeEach`
 - Test both happy path and error cases
 - Use helper functions to reduce test boilerplate
@@ -1592,24 +1600,34 @@ export function generateSwaggerSpec() {
   // 500+ lines of inline object definitions
   const spec = {
     paths: {
-      "/api/resumes": { /* 200 lines */ },
-      "/api/users": { /* 200 lines */ },
+      "/api/resumes": {
+        /* 200 lines */
+      },
+      "/api/users": {
+        /* 200 lines */
+      },
       // ... more endpoints
-    }
+    },
   };
 }
 
 // ✅ CORRECT - Split by concern
 // swagger/paths.ts
 export const resumePaths = {
-  "/api/resumes": { /* definitions */ }
+  "/api/resumes": {
+    /* definitions */
+  },
 };
 
 // swagger/paths/resumes.ts
-export const resumesPaths = { /* ... */ };
+export const resumesPaths = {
+  /* ... */
+};
 
 // swagger/paths/users.ts
-export const usersPaths = { /* ... */ };
+export const usersPaths = {
+  /* ... */
+};
 
 // swagger.ts (now ~200 lines)
 import { resumePaths } from "./swagger/paths/resumes";
@@ -1621,12 +1639,13 @@ export function generateSwaggerSpec() {
       ...resumePaths,
       ...usersPaths,
       // imported from other modules
-    }
+    },
   };
 }
 ```
 
 **Enforce via ESLint:**
+
 ```javascript
 // eslint.config.mjs
 {
@@ -1639,6 +1658,7 @@ export function generateSwaggerSpec() {
 ```
 
 **Pattern:**
+
 - Max 500 lines per file (enforce via ESLint)
 - Split by feature, not by type
 - One responsible per module
@@ -1655,22 +1675,22 @@ export async function GET(request: NextRequest) {
   try {
     const adminAuth = await initializeAdminSDK();
     const healthCheck = await adminAuth.verifyIdToken("test-token");
-    
+
     return NextResponse.json({
       status: "ok",
       firebase: {
         projectId: process.env.FIREBASE_PROJECT_ID, // Leaked!
         databaseUrl: process.env.FIREBASE_DATABASE_URL, // Leaked!
-        serviceAccountEmail: "..." // Leaked!
-      }
+        serviceAccountEmail: "...", // Leaked!
+      },
     });
   } catch (err) {
     return NextResponse.json({
       status: "error",
       error: err.message, // Detailed error! Leaked!
       debug: {
-        stack: err.stack // Stack trace! Leaked!
-      }
+        stack: err.stack, // Stack trace! Leaked!
+      },
     });
   }
 }
@@ -1679,29 +1699,24 @@ export async function GET(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     // Verify we can reach Firestore
-    await adminDb.collection("_health").doc("ping").set(
-      { timestamp: serverTimestamp() },
-      { merge: true }
-    );
-    
+    await adminDb
+      .collection("_health")
+      .doc("ping")
+      .set({ timestamp: serverTimestamp() }, { merge: true });
+
     // Return only boolean status
     return NextResponse.json({ status: "ok" }, { status: 200 });
   } catch (err) {
-    logger.error(
-      { err: err.message, stack: err.stack },
-      "Health check failed"
-    );
-    
+    logger.error({ err: err.message, stack: err.stack }, "Health check failed");
+
     // Return generic status, no details to client
-    return NextResponse.json(
-      { status: "error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ status: "error" }, { status: 500 });
   }
 }
 ```
 
 **Pattern:**
+
 - Debug endpoints return boolean status only
 - Never expose project IDs, URLs, or service account details
 - Log full errors server-side, return generic messages to clients
@@ -1722,7 +1737,10 @@ export function middleware(request: NextRequest) {
   if (["POST", "PUT", "PATCH", "DELETE"].includes(request.method)) {
     const result = csrfProtection.verify(request);
     if (!result.valid) {
-      return NextResponse.json({ error: "CSRF token invalid" }, { status: 403 });
+      return NextResponse.json(
+        { error: "CSRF token invalid" },
+        { status: 403 },
+      );
     }
   }
 }
@@ -1732,7 +1750,7 @@ export const config = {
   matcher: [
     "/api/:path*", // All API routes
     "/:path*/auth:path*", // Auth pages
-  ]
+  ],
 };
 
 // ✅ Frontend includes token
@@ -1753,9 +1771,9 @@ const response = await fetch("/api/resumes/create", {
   method: "POST",
   headers: {
     "X-CSRF-Token": token,
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
   },
-  body: JSON.stringify(data)
+  body: JSON.stringify(data),
 });
 ```
 
@@ -1787,8 +1805,8 @@ export function QuickActionsGrid() {
 // ✅ CORRECT
 export function LoadingSpinner() {
   return (
-    <svg 
-      className="animate-spin" 
+    <svg
+      className="animate-spin"
       viewBox="0 0 24 24"
       role="status"
       aria-live="polite"
@@ -1811,7 +1829,7 @@ export function QuickActionsGrid() {
 // ✅ Form error accessibility
 export function FormField({ error }: { error?: string }) {
   const errorId = `error-${Math.random()}`;
-  
+
   return (
     <div>
       <input
@@ -1830,6 +1848,7 @@ export function FormField({ error }: { error?: string }) {
 ```
 
 **Accessibility Checklist:**
+
 - [ ] Forms: `aria-invalid`, `aria-describedby` on all inputs
 - [ ] Loading: `role="status"`, `aria-live="polite"` on spinners
 - [ ] Icons: `aria-hidden="true"` if decorative, `<title>` if meaningful

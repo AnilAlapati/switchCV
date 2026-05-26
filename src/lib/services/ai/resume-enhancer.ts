@@ -37,6 +37,7 @@ export const GenerateResumeSchema = z.object({
     .optional()
     .default("professional"),
   mode: z.enum(["standard", "autonomous"]).optional().default("standard"),
+  feedback: z.string().max(1000).optional(),
 });
 
 export type GenerateResumeRequest = z.infer<typeof GenerateResumeSchema>;
@@ -47,6 +48,7 @@ export type GenerateResumeRequest = z.infer<typeof GenerateResumeSchema>;
 export function createResumeEnhancementPrompt(
   resumeData: GenerateResumeRequest["resumeData"],
   tone: string,
+  feedback?: string,
 ): string {
   const {
     personalInfo,
@@ -63,6 +65,10 @@ export function createResumeEnhancementPrompt(
           `${exp.title} at ${exp.company} (${exp.duration}): ${exp.description}`,
       )
       .join("\n") || "No experience provided";
+
+  const feedbackInstruction = feedback
+    ? `\n\nFEEDBACK: ${feedback}\nPlease revise the enhanced content to address this feedback while preserving strong action verbs and concise language.`
+    : "";
 
   return `You are an expert resume writer and career coach. Enhance the following resume content with professional language and impactful descriptions.
 
@@ -90,7 +96,7 @@ ${
     .join("\n") || "No education provided"
 }
 
-TONE: ${tone}
+TONE: ${tone}${feedbackInstruction}
 
 Please provide enhancements in the following JSON format (IMPORTANT - respond ONLY with valid JSON):
 {

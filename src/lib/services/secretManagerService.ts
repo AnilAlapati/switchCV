@@ -241,10 +241,13 @@ export class SecretManagerService {
       const data = doc.data();
       return {
         lastRotated: data?.lastRotated?.toDate() || new Date(0),
-        version: data?.version || "unknown"
+        version: data?.version || "unknown",
       };
     } catch (error) {
-      logger.warn({ err: error, secretName: name }, "Failed to fetch secret metadata");
+      logger.warn(
+        { err: error, secretName: name },
+        "Failed to fetch secret metadata",
+      );
       return null;
     }
   }
@@ -272,18 +275,69 @@ export class SecretManagerService {
         throw new Error(`Secret ${name} does not meet strength requirements`);
       }
 
-      // TODO: Update in Firebase Secret Manager
-      // For now, log the rotation attempt
       logger.info({ secretName: name, rotatedBy }, "Secret rotation requested");
 
-      // Update metadata
-      await this.updateSecretMetadata(name, rotatedBy);
+      let versionName: string | undefined;
+
+      if (this.secretClient && this.projectId) {
+        const secretPath = `projects/${this.projectId}/secrets/${name}`;
+        try {
+          const [version] = await this.secretClient.addSecretVersion({
+            parent: secretPath,
+            payload: {
+              data: Buffer.from(newValue, "utf8"),
+            },
+          });
+          versionName = version.name?.split("/").pop();
+        } catch (error: unknown) {
+          const err = error as { code?: number; message?: string };
+          const isNotFound =
+            err.code === 5 || err.message?.toLowerCase().includes("not found");
+
+          if (!isNotFound) {
+            throw error;
+          }
+
+          logger.info(
+            { secretName: name, projectId: this.projectId },
+            "Secret not found in Secret Manager, creating a new secret",
+          );
+
+          await this.secretClient.createSecret({
+            parent: `projects/${this.projectId}`,
+            secretId: name,
+            secret: {
+              replication: {
+                automatic: {},
+              },
+            },
+          });
+
+          const [version] = await this.secretClient.addSecretVersion({
+            parent: secretPath,
+            payload: {
+              data: Buffer.from(newValue, "utf8"),
+            },
+          });
+          versionName = version.name?.split("/").pop();
+        }
+      } else {
+        logger.warn(
+          {
+            secretName: name,
+            environment: process.env.NODE_ENV,
+          },
+          "Secret Manager unavailable; secret rotation will update metadata only",
+        );
+      }
+
+      await this.updateSecretMetadata(name, rotatedBy, versionName);
 
       // Invalidate cache
       this.cache.delete(name);
 
       logger.info(
-        { secretName: name, rotatedBy },
+        { secretName: name, rotatedBy, version: versionName },
         "Secret rotated successfully",
       );
     } catch (error) {
@@ -298,17 +352,30 @@ export class SecretManagerService {
   private async updateSecretMetadata(
     name: string,
     rotatedBy: string,
+    version?: string,
   ): Promise<void> {
-    // TODO: Save to Firestore collection 'secretMetadata'
     const metadata = {
       secretName: name,
       lastRotated: new Date(),
       rotatedBy,
-      version: Date.now().toString(),
-      environment: process.env.NODE_ENV,
+      version: version || Date.now().toString(),
+      environment: process.env.NODE_ENV || "unknown",
+      updatedAt: new Date(),
     };
 
-    logger.info(metadata, "Secret metadata updated");
+    try {
+      const { adminDb } = await import("@/lib/firebase-admin");
+      await adminDb
+        .collection("secretMetadata")
+        .doc(name)
+        .set(metadata, { merge: true });
+      logger.info(metadata, "Secret metadata updated");
+    } catch (error) {
+      logger.error(
+        { err: error, secretName: name },
+        "Failed to persist secret metadata",
+      );
+    }
   }
 
   /**
@@ -318,17 +385,29 @@ export class SecretManagerService {
     secretName: string,
     userId?: string,
   ): Promise<void> {
-    // TODO: Save to Firestore collection 'secretAccessLogs' with retention policy
-    // For now, just log to application logs
-    logger.debug(
-      {
+    try {
+      const { adminDb } = await import("@/lib/firebase-admin");
+      await adminDb.collection("secretAccessLogs").add({
         secretName,
         accessedBy: userId || "system",
-        accessedAt: new Date().toISOString(),
-        environment: process.env.NODE_ENV,
-      },
-      "Secret accessed",
-    );
+        accessedAt: new Date(),
+        environment: process.env.NODE_ENV || "unknown",
+      });
+      logger.debug(
+        {
+          secretName,
+          accessedBy: userId || "system",
+          accessedAt: new Date().toISOString(),
+          environment: process.env.NODE_ENV || "unknown",
+        },
+        "Secret accessed",
+      );
+    } catch (error) {
+      logger.warn(
+        { err: error, secretName, userId },
+        "Failed to persist secret access audit log",
+      );
+    }
   }
 
   /**

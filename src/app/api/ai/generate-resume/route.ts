@@ -18,7 +18,7 @@ import {
   GenerateResumeRequest,
   GenerateResumeSchema,
   createResumeEnhancementPrompt,
-  parseAIResponse
+  parseAIResponse,
 } from "@/lib/services/ai/resume-enhancer";
 import { containsPromptInjection } from "@/lib/utils/promptSafety";
 
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         new Error("Unauthorized"),
         "Unauthorized",
         401,
-        request
+        request,
       );
     }
 
@@ -57,18 +57,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         new Error("Too many requests"),
         "Too many requests. Please try again later.",
         429,
-        request
+        request,
       );
     }
 
     // 3. Billing & Budget Check
-    const budgetAllowed = await BillingService.checkBudget(userId, userRole as "basic" | "premium" | "enterprise");
+    const budgetAllowed = await BillingService.checkBudget(
+      userId,
+      userRole as "basic" | "premium" | "enterprise",
+    );
     if (!budgetAllowed) {
       return handleApiError(
         new Error("Budget exceeded"),
         "Monthly usage limit reached. Please upgrade your plan.",
         402,
-        request
+        request,
       );
     }
 
@@ -82,7 +85,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           new Error("Invalid request body"),
           "Validation failed for request body",
           400,
-          request
+          request,
         );
       }
       body = validationResult.data;
@@ -91,19 +94,28 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         new Error("Invalid JSON body"),
         "Invalid JSON body",
         400,
-        request
+        request,
       );
     }
 
-    const { resumeData, tone = "professional", mode = "standard" } = body;
+    const {
+      resumeData,
+      tone = "professional",
+      mode = "standard",
+      feedback,
+    } = body;
 
     // SECURITY: Check for prompt injection in resume text fields
     const textFields = [
       resumeData.summary,
       resumeData.personalInfo?.name,
+      feedback,
     ].filter(Boolean) as string[];
     if (textFields.some((field) => containsPromptInjection(field))) {
-      logger.warn({ userId }, "Prompt injection attempt detected in generate-resume");
+      logger.warn(
+        { userId },
+        "Prompt injection attempt detected in generate-resume",
+      );
       return handleApiError(null, "Invalid characters in input", 400, request);
     }
 
@@ -117,11 +129,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     let aiModel = "";
     let aiProvider = "";
 
+    const agentInstructions = feedback
+      ? `Please revise this resume using the following feedback: ${feedback}`
+      : undefined;
+
     // Try Agentic Workflow
     const agenticResult = await runAgenticWorkflow(userId, userRole, {
       userResume: JSON.stringify(resumeData),
       jobDescription: "", // Not provided in current API schema
-      mode: mode as "standard" | "autonomous", // Pass mode to orchestrator
+      mode: mode as "standard" | "autonomous",
       outputFormatInstruction: `
                 Please provide enhancements in the following JSON format (IMPORTANT - respond ONLY with valid JSON):
                 {
@@ -131,6 +147,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                     "improvementTips": [...]
                 }
              `,
+      instructions: agentInstructions,
     });
 
     let suggestedTemplateId: string | undefined;
@@ -143,21 +160,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       designReasoning = agenticResult.reasoning;
       aiModel = "agentic-workflow";
       aiProvider = "google"; // Assumed primary provider for agentic
-      logger.info({ userId, suggestedTemplateId }, "🚀 Agentic Workflow Executed Successfully");
+      logger.info(
+        { userId, suggestedTemplateId },
+        "🚀 Agentic Workflow Executed Successfully",
+      );
     } else {
       // Fallback to standard flow
       // Create prompt for AI
-      const prompt = createResumeEnhancementPrompt(resumeData, tone);
+      const prompt = createResumeEnhancementPrompt(resumeData, tone, feedback);
 
       logger.info(
         {
           userId,
           name: resumeData.personalInfo.name,
           tone,
+          feedbackProvided: Boolean(feedback),
           skillCount: (resumeData.skills || []).length,
           experienceCount: (resumeData.experience || []).length,
         },
-        "🤖 Starting AI resume enhancement (Standard Flow)..."
+        "🤖 Starting AI resume enhancement (Standard Flow)...",
       );
 
       // Call AI service
@@ -182,13 +203,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         provider: aiProvider,
         responseLength: aiResponseText.length,
       },
-      "✅ AI generation successful"
+      "✅ AI generation successful",
     );
 
     // Track Billing
     // Estimate tokens (1 char ~= 0.25 tokens for simple estimation if provider doesn't return usage)
     const estimatedInputTokens = Math.ceil(
-      JSON.stringify(resumeData).length / 4
+      JSON.stringify(resumeData).length / 4,
     );
     const estimatedOutputTokens = Math.ceil(aiResponseText.length / 4);
 
@@ -206,21 +227,23 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         data: enhancedContent,
         model: aiModel,
         provider: aiProvider,
-        recommendations: suggestedTemplateId ? {
-          templateId: suggestedTemplateId,
-          reasoning: designReasoning
-        } : undefined
+        recommendations: suggestedTemplateId
+          ? {
+              templateId: suggestedTemplateId,
+              reasoning: designReasoning,
+            }
+          : undefined,
       },
       {
         headers: createCorsHeaders(request),
-      }
+      },
     );
   } catch (error: unknown) {
     return handleApiError(
       error,
       "Failed to generate resume enhancement",
       500,
-      request
+      request,
     );
   }
 }
