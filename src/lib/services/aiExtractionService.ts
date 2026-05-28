@@ -559,8 +559,23 @@ export async function extractWithStructuredOutput(
       };
     }
 
+    // Recursively clean up null values, converting them to undefined/omitted
+    const cleanNulls = (obj: any): any => {
+      if (Array.isArray(obj)) {
+        return obj.map(cleanNulls);
+      } else if (obj !== null && typeof obj === "object") {
+        return Object.fromEntries(
+          Object.entries(obj)
+            .map(([k, v]) => [k, cleanNulls(v)])
+            .filter(([_, v]) => v !== null),
+        );
+      }
+      return obj;
+    };
+    const cleanedParsed = cleanNulls(parsed);
+
     // Validate with Zod schema
-    const validated = ResumeExtractionSchema.safeParse(parsed);
+    const validated = ResumeExtractionSchema.safeParse(cleanedParsed);
     if (!validated.success) {
       logger.warn(
         { errors: validated.error.flatten() },
