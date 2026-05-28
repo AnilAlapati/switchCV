@@ -18,10 +18,19 @@ import {
   MODEL_PRICING,
   BUDGET_CAPS,
   BILLING_CONFIG,
+  MONTHLY_BUDGET_HARD_CAP,
+  MONTHLY_BUDGET_SOFT_CAP,
   calculateAicost,
 } from "../billing/shared";
 
-export { MODEL_PRICING, BUDGET_CAPS, BILLING_CONFIG, calculateAicost };
+export {
+  MODEL_PRICING,
+  BUDGET_CAPS,
+  BILLING_CONFIG,
+  MONTHLY_BUDGET_HARD_CAP,
+  MONTHLY_BUDGET_SOFT_CAP,
+  calculateAicost,
+};
 
 export class BillingService {
   /**
@@ -150,6 +159,17 @@ export class BillingService {
       .padStart(2, "0")}`;
 
     try {
+      const systemBudgetOk = await this.checkSystemBudget(
+        MONTHLY_BUDGET_HARD_CAP,
+      );
+      if (!systemBudgetOk) {
+        logger.warn(
+          { userId, tier, hardCap: MONTHLY_BUDGET_HARD_CAP },
+          "System monthly hard budget cap reached",
+        );
+        return false;
+      }
+
       const docRef = adminDb
         .collection(BILLING_CONFIG.COLLECTION)
         .doc(userId)
@@ -159,6 +179,21 @@ export class BillingService {
 
       const currentCost = snapshot.exists ? snapshot.data()?.totalCost || 0 : 0;
       const budgetLimit = BUDGET_CAPS[tier] || BUDGET_CAPS.basic;
+
+      if (
+        currentCost >= MONTHLY_BUDGET_SOFT_CAP &&
+        currentCost < budgetLimit
+      ) {
+        logger.warn(
+          {
+            userId,
+            currentCost,
+            softCap: MONTHLY_BUDGET_SOFT_CAP,
+            budgetLimit,
+          },
+          "Monthly soft budget cap exceeded",
+        );
+      }
 
       if (currentCost >= budgetLimit) {
         logger.warn(
@@ -172,12 +207,9 @@ export class BillingService {
     } catch (error) {
       logger.error(
         { err: error, userId },
-        "Failed to check budget — failing open to avoid user lockout",
+        "Failed to check budget — failing closed to protect AI spend",
       );
-      // Fail OPEN: a transient Firestore error must not lock out users.
-      // Per-hour rate limits (60 conversation_turns, 20 ai_generation) remain active
-      // and bound worst-case cost to well under $0.05 per outage window.
-      return true;
+      return false;
     }
   }
 

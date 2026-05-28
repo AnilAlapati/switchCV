@@ -14,7 +14,6 @@
  * Exits 0 on pass, 1 on failure.
  */
 
-/* eslint-disable @typescript-eslint/no-require-imports */
 const https = require("https");
 
 // ─────────────────────────────────────────────

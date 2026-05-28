@@ -2,6 +2,7 @@ import {
   aiCircuitBreaker,
   ProviderType,
 } from "@/lib/services/ai/CircuitBreaker";
+import { aiProviderHealthService } from "@/lib/services/aiProviderHealthService";
 
 interface ProviderHealth {
   consecutiveFailures: number;
@@ -60,7 +61,10 @@ class ProviderFallbackChain {
     const candidates = Array.from(this.health.entries())
       .filter(([provider]) => {
         // Filter out OPEN circuits immediately
-        return aiCircuitBreaker.getStatus(provider) !== "OPEN";
+        return (
+          aiCircuitBreaker.getStatus(provider) !== "OPEN" &&
+          aiProviderHealthService.isProviderAvailable(provider)
+        );
       })
       .sort((a, b) => b[1].score - a[1].score) // Descending score
       .map(([provider]) => provider);
@@ -76,6 +80,7 @@ class ProviderFallbackChain {
     const stats = this.health.get(provider);
     if (!stats) return;
 
+    aiProviderHealthService.recordSuccess(provider, { latencyMs });
     stats.successCount++;
     stats.consecutiveFailures = 0;
     stats.lastUsedAt = Date.now();
@@ -97,6 +102,7 @@ class ProviderFallbackChain {
     const stats = this.health.get(provider);
     if (!stats) return;
 
+    aiProviderHealthService.recordFailure(provider);
     stats.failureCount++;
     stats.consecutiveFailures++;
     stats.lastUsedAt = Date.now();

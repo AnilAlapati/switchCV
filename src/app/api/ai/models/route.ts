@@ -5,7 +5,7 @@ import {
   handleApiError,
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
-import { apiRateLimiter } from "@/lib/utils/rateLimit";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,12 +13,15 @@ export async function GET(request: NextRequest) {
     if (error) return error;
     if (!userId) return handleApiError(null, "Unauthorized", 401);
 
-    const rateLimitResult = await apiRateLimiter(userId);
+    const userTier = await getUserTier(userId);
+    const rateLimitResult = await checkDistributedRateLimit(userId, {
+      tier: userTier,
+      scope: "default",
+    });
     if (!rateLimitResult.allowed) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     }
 
-    const userTier = await getUserTier(userId);
     const models = getSelectableModels(userTier);
 
     return NextResponse.json(

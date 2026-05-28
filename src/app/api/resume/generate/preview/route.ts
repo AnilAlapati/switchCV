@@ -7,8 +7,10 @@ import {
 } from "@/lib/utils/api-helpers";
 import { GenerateResumePreviewRequestSchema } from "@/lib/schemas/api";
 import { getUserTier } from "@/lib/services/userService";
+import { BillingService } from "@/lib/services/billingService";
 import type { SubscriptionTier } from "@/lib/config";
 import { processSyncGeneration } from "@/lib/services/resumeGenerationOrchestrator";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 import { containsPromptInjection } from "@/lib/utils/promptSafety";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -49,6 +51,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       logger.warn(
         { err: tierError, userId },
         "Failed to load user tier for preview, defaulting to basic",
+      );
+    }
+
+    const rateLimit = await checkDistributedRateLimit(userId, {
+      tier: userTier,
+      scope: "ai_generation",
+    });
+    if (!rateLimit.allowed) {
+      return handleApiError(
+        null,
+        "Too many preview generation requests. Please wait and try again.",
+        429,
+        request,
+      );
+    }
+
+    const budgetAllowed = await BillingService.checkBudget(userId, userTier);
+    if (!budgetAllowed) {
+      return handleApiError(
+        new Error("Budget exceeded"),
+        "Monthly usage limit reached. Please upgrade your plan.",
+        402,
+        request,
       );
     }
 

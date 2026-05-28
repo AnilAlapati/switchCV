@@ -361,26 +361,25 @@ async function main() {
   const chunksB = buildChunks(RESUME_B, "resume_b");
   const indexedA = await indexChunks(chunksA);
   const indexedB = await indexChunks(chunksB);
-  const indexedBoth = [...indexedA, ...indexedB];
 
   console.log(`✅ Indexed ${indexedA.length} chunks for Arjun, ${indexedB.length} for Priya`);
 
   // Q1: Relevance / backend strength
-  const q1 = await runTest(
+  await runTest(
     "Q1 — RELEVANCE (backend strength)",
     "Is this candidate strong in backend engineering? Explain with evidence.",
     indexedA
   );
 
   // Q2: Precision (only backend skills)
-  const q2 = await runTest(
+  await runTest(
     "Q2 — PRECISION (skill filter)",
     "List only backend-related skills from this resume. Ignore everything else.",
     indexedA
   );
 
   // Q3: Hallucination check (metrics)
-  const q3 = await runTest(
+  await runTest(
     "Q3 — HALLUCINATION CHECK (metrics)",
     "What metrics or achievements does this candidate have?",
     indexedA
@@ -409,7 +408,7 @@ async function main() {
   console.log(`\n📄 ANSWER:\n${q4}`);
 
   // Q5: Context limitation (distributed systems)
-  const q5 = await runTest(
+  await runTest(
     "Q5 — CONTEXT LIMITATION (distributed systems)",
     "What experience does this candidate have with distributed systems?",
     indexedA
@@ -423,7 +422,7 @@ async function main() {
   );
 
   // Q7: Follow-up memory test — now passes real conversation history
-  const q7 = await runTest(
+  await runTest(
     "Q7 — FOLLOW-UP MEMORY (justify Q6 answer)",
     "Can you justify that with specific examples?",
     indexedA,

@@ -9,7 +9,7 @@
  */
 
 import React from "react";
-import { ResumeProfile, ResumeTemplate } from "@/types";
+import { ResumeProfile, ResumeTemplate, ViewerAccessMeta } from "@/types";
 import {
   normalizeSkills,
   normalizeTimelineItems,
@@ -25,12 +25,17 @@ interface StandardResumeRendererProps {
 
 const ACCENT = "#2563EB"; // blue-600
 
+type ResumeProfileWithViewerAccess = ResumeProfile & {
+  viewerAccess?: ViewerAccessMeta & { isMasked?: boolean };
+};
+
 export const StandardResumeRenderer: React.FC<StandardResumeRendererProps> = ({
   data,
   onRequestAccess,
 }) => {
   const personalInfo = data.personalInfo || {};
-  const viewerAccess = (data as any)?.viewerAccess || {};
+  const viewerAccess =
+    (data as ResumeProfileWithViewerAccess).viewerAccess || {};
   const isMasked = !!viewerAccess.isMasked;
 
   const heroName = personalInfo.name || data.title || "Candidate";

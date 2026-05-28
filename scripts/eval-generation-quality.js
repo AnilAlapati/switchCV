@@ -31,7 +31,6 @@
  * Estimated run: < 60 s  |  cost: ~$0.01–$0.05 for 10 cases
  */
 
-/* eslint-disable @typescript-eslint/no-require-imports */
 const https = require("https");
 const path = require("path");
 
@@ -52,7 +51,6 @@ const COST_PER_1M_OUTPUT_TOKENS = 0.30;  // $0.30  / 1M output tokens
 // ──────────────────────────────────────────────────────────────────────────────
 // Register TypeScript support for gold dataset import
 // ──────────────────────────────────────────────────────────────────────────────
-const tsConfigPath = path.resolve(__dirname, "../tsconfig.json");
 try {
   require("tsconfig-paths").register({
     baseUrl: path.resolve(__dirname, ".."),
@@ -179,7 +177,7 @@ function callGeminiAPI(apiKey, prompt, model) {
  * Parse and validate the AI extraction response.
  * Returns { valid, data, issues }.
  */
-function validateExtractionResponse(text, goldCase) {
+function validateExtractionResponse(text) {
   let parsed;
   try {
     parsed = JSON.parse(text);

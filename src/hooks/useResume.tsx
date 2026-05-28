@@ -106,7 +106,7 @@ export const useResume = (options: { enabled?: boolean } = {}) => {
   const shouldFetch = enabled && !!user;
   const key = shouldFetch ? `resumes-${user!.uid}` : null;
 
-  const { data, error, isLoading, mutate, isValidating } = useSWR<ResumesData>(
+  const { data, error, isLoading, mutate } = useSWR<ResumesData>(
     key,
     () => fetchUserResumes(user!.uid),
     {

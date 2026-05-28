@@ -36,7 +36,7 @@ function authHeaders() {
 
 // ---------- Scenarios ----------
 
-export default function () {
+export default function apiEndpointsLoadTest() {
   group("Public endpoints", () => {
     // Health check
     const health = http.get(`${BASE_URL}/api/health`);

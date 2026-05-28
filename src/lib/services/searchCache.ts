@@ -19,7 +19,7 @@ interface CacheStats {
     lastCleanup: number;
 }
 
-const DEFAULT_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const DEFAULT_TTL_MS = 60 * 60 * 1000; // 1 hour
 const MAX_CACHE_SIZE = 1000;
 const CLEANUP_INTERVAL_MS = 60 * 1000; // 1 minute
 

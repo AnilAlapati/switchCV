@@ -7,10 +7,12 @@ import {
   handleApiError,
   getAuthenticatedUserId,
 } from "@/lib/utils/api-helpers";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
 
 jest.mock("@/lib/services/aiProviderService");
 jest.mock("@/lib/services/userService");
 jest.mock("@/lib/utils/api-helpers");
+jest.mock("@/lib/utils/distributedRateLimit");
 
 const mockGetSelectableModels = getSelectableModels as jest.MockedFunction<
   typeof getSelectableModels
@@ -21,12 +23,23 @@ const mockGetAuthenticatedUserId =
 const mockHandleApiError = handleApiError as jest.MockedFunction<
   typeof handleApiError
 >;
+const mockCheckDistributedRateLimit =
+  checkDistributedRateLimit as jest.MockedFunction<
+    typeof checkDistributedRateLimit
+  >;
 
 describe("GET /api/ai/models", () => {
   let mockRequest: NextRequest;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockCheckDistributedRateLimit.mockResolvedValue({
+      allowed: true,
+      current: 1,
+      limit: 10,
+      resetIn: 60000,
+      remaining: 9,
+    });
     mockRequest = new NextRequest("http://localhost:3000/api/ai/models");
   });
 

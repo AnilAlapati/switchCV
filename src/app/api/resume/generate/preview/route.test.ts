@@ -3,6 +3,8 @@ import { POST } from "./route";
 import { getAuthenticatedUserId } from "@/lib/utils/api-helpers";
 import { getUserTier } from "@/lib/services/userService";
 import { processSyncGeneration } from "@/lib/services/resumeGenerationOrchestrator";
+import { checkDistributedRateLimit } from "@/lib/utils/distributedRateLimit";
+import { BillingService } from "@/lib/services/billingService";
 
 jest.mock("@/lib/utils/api-helpers", () => ({
   getAuthenticatedUserId: jest.fn(),
@@ -23,6 +25,16 @@ jest.mock("@/lib/services/resumeGenerationOrchestrator", () => ({
   processSyncGeneration: jest.fn(),
 }));
 
+jest.mock("@/lib/utils/distributedRateLimit", () => ({
+  checkDistributedRateLimit: jest.fn(),
+}));
+
+jest.mock("@/lib/services/billingService", () => ({
+  BillingService: {
+    checkBudget: jest.fn(),
+  },
+}));
+
 jest.mock("@/lib/logger", () => ({
   logger: {
     info: jest.fn(),
@@ -34,6 +46,14 @@ jest.mock("@/lib/logger", () => ({
 describe("POST /api/resume/generate/preview", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (checkDistributedRateLimit as jest.Mock).mockResolvedValue({
+      allowed: true,
+      current: 1,
+      limit: 50,
+      resetIn: 60000,
+      remaining: 49,
+    });
+    (BillingService.checkBudget as jest.Mock).mockResolvedValue(true);
   });
 
   it("returns auth error when unauthenticated", async () => {

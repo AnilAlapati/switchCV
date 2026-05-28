@@ -34,6 +34,9 @@ export const BUDGET_CAPS = {
   enterprise: 70.0,
 } as const;
 
+export const MONTHLY_BUDGET_SOFT_CAP = 30.0;
+export const MONTHLY_BUDGET_HARD_CAP = 70.0;
+
 export const BILLING_CONFIG = {
   NUM_SHARDS: 10,
   SHARD_COLLECTION: "system/billing/shards",

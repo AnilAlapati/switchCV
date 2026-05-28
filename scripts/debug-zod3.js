@@ -13,7 +13,7 @@ for (const c of strMin._def.checks) {
       if (typeof val !== "function") {
         console.log(`  prop ${p}:`, JSON.stringify(val));
       }
-    } catch (e) { console.log(`  prop ${p}: [error]`); }
+    } catch { console.log(`  prop ${p}: [error]`); }
   }
 }
 
@@ -28,7 +28,7 @@ for (const c of numMin._def.checks) {
       if (typeof val !== "function") {
         console.log(`  prop ${p}:`, JSON.stringify(val));
       }
-    } catch (e) { console.log(`  prop ${p}: [error]`); }
+    } catch { console.log(`  prop ${p}: [error]`); }
   }
 }
 
@@ -43,7 +43,7 @@ for (const c of strLen._def.checks) {
       if (typeof val !== "function") {
         console.log(`  prop ${p}:`, JSON.stringify(val));
       }
-    } catch (e) { console.log(`  prop ${p}: [error]`); }
+    } catch { console.log(`  prop ${p}: [error]`); }
   }
 }
 
@@ -57,7 +57,7 @@ for (const p of arrProps) {
     if (typeof val !== "function" && typeof val !== "object") {
       console.log(`  _def.${p}:`, val);
     }
-  } catch(e) {}
+  } catch {}
 }
 console.log("array _def.minLength:", arr._def.minLength);
 console.log("array _def.element:", arr._def.element?.constructor?.name);
@@ -70,7 +70,7 @@ if (arr._def.checks) {
       try {
         const val = c[p];
         if (typeof val !== "function") console.log(`    prop ${p}:`, JSON.stringify(val));
-      } catch(e) {}
+      } catch {}
     }
   }
 }

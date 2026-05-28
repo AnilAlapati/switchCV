@@ -15,11 +15,9 @@
  *   node scripts/benchmark-extraction.js --verbose
  */
 
-/* eslint-disable @typescript-eslint/no-require-imports */
 const path = require("path");
 
 // Register path aliases for @/ imports
-const tsConfigPath = path.resolve(__dirname, "../tsconfig.json");
 try {
   require("tsconfig-paths").register({
     baseUrl: path.resolve(__dirname, ".."),

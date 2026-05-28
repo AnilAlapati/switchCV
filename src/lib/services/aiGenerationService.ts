@@ -62,10 +62,17 @@ export async function generateText(
   const providers = providerFallback.getPrioritizedProviders();
   const errors: Record<string, string> = {};
 
-  for (const provider of providers) {
+  for (const [attemptIndex, provider] of providers.entries()) {
     const startTime = Date.now();
 
     try {
+      if (attemptIndex > 0) {
+        logger.warn(
+          { from: providers[attemptIndex - 1], to: provider, attemptIndex },
+          "Switching AI provider after fallback",
+        );
+      }
+
       logger.info({ provider }, "Attempting AI generation");
 
       let result;

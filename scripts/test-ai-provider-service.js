@@ -6,7 +6,6 @@
  */
 
 const { generateTextWithTier } = require('../src/server/services/aiProviderService');
-const { logger } = require('../src/lib/logger');
 
 async function testAIService() {
     console.log('🚀 Testing AI Provider Service Integration...');

@@ -1,6 +1,5 @@
 import type { NextConfig } from "next";
 import packageJson from "./package.json";
-import { execSync } from "child_process";
 import fs from "fs";
 import path from "path";
 

@@ -10,6 +10,16 @@ jest.mock("@/lib/utils/api-helpers", () => ({
     }),
 }));
 
+jest.mock("@/lib/utils/distributedRateLimit", () => ({
+    checkDistributedRateLimit: jest.fn().mockResolvedValue({
+        allowed: true,
+        current: 1,
+        limit: 5,
+        resetIn: 60000,
+        remaining: 4,
+    }),
+}));
+
 import { GET } from "./route";
 import { verifyEmailToken } from "@/lib/services/authService";
 

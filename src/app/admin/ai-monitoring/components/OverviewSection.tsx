@@ -1,6 +1,10 @@
 "use client";
 
-import { AIDailyMetricsDoc, PersistedAIIncident } from "@/types/aiMonitoring";
+import {
+  AIDailyMetricsDoc,
+  AIProviderHealthSnapshot,
+  PersistedAIIncident,
+} from "@/types/aiMonitoring";
 
 interface OverviewSectionProps {
   overview:
@@ -8,6 +12,7 @@ interface OverviewSectionProps {
         days: number;
         latestDailyMetrics: AIDailyMetricsDoc | null;
         openIncidentCount: number;
+        providerHealth?: AIProviderHealthSnapshot[];
       }
     | undefined;
   openIncidents: Record<string, PersistedAIIncident> | undefined;
@@ -88,6 +93,57 @@ export function OverviewSection({
           </div>
         </div>
       </div>
+
+      {overview.providerHealth && overview.providerHealth.length > 0 && (
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+          <h3 className="text-lg font-bold text-slate-900 mb-4">
+            Provider Health
+          </h3>
+          <div className="grid gap-3 md:grid-cols-3">
+            {overview.providerHealth.map((provider) => (
+              <div
+                key={provider.provider}
+                className="rounded-lg border border-slate-200 p-4"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-semibold capitalize text-slate-900">
+                    {provider.provider}
+                  </span>
+                  <span
+                    className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                      provider.status === "disabled"
+                        ? "bg-red-100 text-red-700"
+                        : provider.status === "degraded"
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-emerald-100 text-emerald-700"
+                    }`}
+                  >
+                    {provider.status}
+                  </span>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-3 text-sm text-slate-600">
+                  <div>
+                    <div className="text-xs uppercase text-slate-400">
+                      Error rate
+                    </div>
+                    <div className="font-semibold text-slate-900">
+                      {(provider.errorRate * 100).toFixed(1)}%
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs uppercase text-slate-400">
+                      Avg latency
+                    </div>
+                    <div className="font-semibold text-slate-900">
+                      {Math.round(provider.averageLatencyMs)}ms
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {overview.openIncidentCount > 0 && openIncidents && (
         <div className="bg-red-50 p-6 rounded-xl border border-red-200">

@@ -31,6 +31,7 @@ export interface GeminiJsonSchema {
   minimum?: number;
   maximum?: number;
   nullable?: boolean;
+  propertyOrdering?: string[];
 }
 
 /** Internal Zod v4 _def shape */
@@ -148,11 +149,11 @@ function convertZodType(schema: ZodTypeAny): GeminiJsonSchema {
   const def = schema._def as ZodDef;
   const defType = getDefType(schema);
 
-  // Unwrap optional
+  // Unwrap optional. Optional fields are omitted from the object's `required`
+  // list. Do not also mark them nullable; Gemini's responseSchema path treats
+  // nullable differently and can reject optional nullable fields.
   if (defType === "optional") {
-    const inner = convertZodType(def.innerType as ZodTypeAny);
-    inner.nullable = true;
-    return inner;
+    return convertZodType(def.innerType as ZodTypeAny);
   }
 
   // Unwrap nullable
@@ -249,6 +250,7 @@ function convertZodType(schema: ZodTypeAny): GeminiJsonSchema {
     const result: GeminiJsonSchema = {
       type: "OBJECT",
       properties,
+      propertyOrdering: Object.keys(properties),
     };
 
     if (required.length > 0) {

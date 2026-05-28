@@ -1,5 +1,6 @@
 import { FieldPath } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase-admin";
+import { aiProviderHealthService } from "@/lib/services/aiProviderHealthService";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -183,6 +184,7 @@ export async function getAdminAiMonitoringData(
       openIncidentCount: Object.keys(
         (openIncidents as Record<string, unknown>) ?? {},
       ).length,
+      providerHealth: aiProviderHealthService.getSnapshots(),
     },
     failureEvents: failureEventsSnap.docs.map((doc) =>
       serializeDoc(doc.id, doc.data() as Record<string, unknown>),

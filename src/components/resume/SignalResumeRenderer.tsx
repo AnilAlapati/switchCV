@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ResumeProfile, ResumeTemplate } from "@/types";
+import { ResumeProfile, ResumeTemplate, ViewerAccessMeta } from "@/types";
 import {
   normalizeProjects,
   normalizeSkills,
@@ -20,12 +20,17 @@ const TEAL_PALE = "#E8F4F2";
 const RUST = "#C0622A";
 const RUST_PALE = "#FFF1EA";
 
+type ResumeProfileWithViewerAccess = ResumeProfile & {
+  viewerAccess?: ViewerAccessMeta & { isMasked?: boolean };
+};
+
 export const SignalResumeRenderer: React.FC<SignalResumeRendererProps> = ({
   data,
   onRequestAccess,
 }) => {
   const personalInfo = data.personalInfo || {};
-  const viewerAccess = (data as any)?.viewerAccess || {};
+  const viewerAccess =
+    (data as ResumeProfileWithViewerAccess).viewerAccess || {};
   const isMasked = !!viewerAccess.isMasked;
 
   const heroName = personalInfo.name || data.title || "Candidate";

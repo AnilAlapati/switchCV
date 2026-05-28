@@ -15,6 +15,7 @@ jest.mock("@/lib/firebase-admin", () => {
   };
   const mockCollection = {
     doc: jest.fn(() => mockDoc),
+    get: jest.fn(),
   };
   mockDoc.collection.mockReturnValue(mockCollection);
 
@@ -47,6 +48,10 @@ describe("BillingService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (adminDb.collection("").get as jest.Mock).mockResolvedValue({
+      empty: true,
+      docs: [],
+    });
   });
 
   describe("calculateCost", () => {
@@ -128,13 +133,11 @@ describe("BillingService", () => {
       expect(allowed).toBe(true);
     });
 
-    it("should return true and log error on failure (fail open)", async () => {
+    it("should return false and log error on failure (fail closed)", async () => {
       mockDoc.get.mockRejectedValue(new Error("Firebase error"));
 
       const allowed = await BillingService.checkBudget(userId, "basic");
-      // Fail open: a transient Firestore error must not lock out users.
-      // Per-hour rate limits still bound worst-case cost during an outage.
-      expect(allowed).toBe(true);
+      expect(allowed).toBe(false);
     });
   });
 

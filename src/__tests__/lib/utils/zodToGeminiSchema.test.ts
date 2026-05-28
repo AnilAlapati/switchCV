@@ -89,7 +89,7 @@ describe("zodToGeminiSchema", () => {
     const result = zodToGeminiSchema(schema);
     expect(result.required).toContain("name");
     expect(result.required).not.toContain("bio");
-    expect(result.properties!.bio.nullable).toBe(true);
+    expect(result.properties!.bio.nullable).toBeUndefined();
   });
 
   it("should convert nested object schemas", () => {
@@ -205,6 +205,9 @@ describe("zodToGeminiSchema", () => {
     expect(result.properties!.skills).toBeDefined();
     expect(result.properties!.experience).toBeDefined();
     expect(result.properties!.contact).toBeDefined();
+    expect(result.propertyOrdering).toEqual(
+      Object.keys(result.properties ?? {}),
+    );
     expect(result.required).toContain("title");
     expect(result.required).toContain("skills");
     expect(result.required).toContain("experience");

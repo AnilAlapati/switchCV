@@ -84,7 +84,7 @@ function sampleGeneratePayload(sessionId) {
 
 // ---------- Scenarios ----------
 
-export default function () {
+export default function resumePipelineLoadTest() {
   if (!AUTH_TOKEN) {
     // eslint-disable-next-line no-console
     console.warn(
@@ -155,7 +155,7 @@ export default function () {
             "cleanup delete: not 500": (r) => r.status < 500,
           });
         }
-      } catch (_) {
+      } catch {
         // Cleanup is best-effort
       }
     }

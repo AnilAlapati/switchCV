@@ -70,7 +70,7 @@ function randomSkill() {
 
 // ---------- Scenarios ----------
 
-export default function () {
+export default function searchFlowLoadTest() {
   if (!AUTH_TOKEN) {
     // eslint-disable-next-line no-console
     console.warn(
@@ -136,7 +136,7 @@ export default function () {
             errorRate.add(profileRes.status >= 500);
           });
         }
-      } catch (_) {
+      } catch {
         // Parse failure is non-critical
       }
     }

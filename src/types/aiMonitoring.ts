@@ -83,6 +83,17 @@ export interface PersistedAIIncident extends AIIncident {
     recoveryCandidateAt?: string | null;
 }
 
+export interface AIProviderHealthSnapshot {
+    provider: string;
+    status: "healthy" | "degraded" | "disabled";
+    disabledUntil: string | null;
+    errorRate: number;
+    schemaErrorRate: number;
+    averageLatencyMs: number;
+    sampleCount: number;
+    lastUpdatedAt: string | null;
+}
+
 export interface AdminAiMonitoringQuery {
     requestId?: string | null;
     limit?: string | null;
@@ -98,6 +109,7 @@ export interface AdminAiMonitoringResponse {
         days: number;
         latestDailyMetrics: AIDailyMetricsDoc | null;
         openIncidentCount: number;
+        providerHealth?: AIProviderHealthSnapshot[];
     };
     failureEvents?: AIFailureEventDoc[];
     requestSummaries?: AIRequestSummaryDoc[];
