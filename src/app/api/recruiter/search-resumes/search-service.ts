@@ -67,7 +67,7 @@ export async function performBasicSearch(
         results.push({
           resumeId: userId,
           title: resumeData.title || "Untitled Resume",
-          userName: getDisplayName(userData as Partial<User>),
+          userName: getDisplayName(userData as Partial<User>, accessStatus),
           userId: mapping.userId,
           createdAt: resumeData.createdAt || new Date().toISOString(),
           accessStatus,
@@ -113,7 +113,7 @@ export async function performBasicSearch(
       results.push({
         resumeId: resumeSnapshot.id,
         title: resumeData.title || "Untitled Resume",
-        userName: getDisplayName(userData as Partial<User>),
+        userName: getDisplayName(userData as Partial<User>, accessStatus),
         userId: resumeData.userId,
         createdAt: resumeData.createdAt || new Date().toISOString(),
         accessStatus,
@@ -161,7 +161,7 @@ export async function performBasicSearch(
     results.push({
       resumeId: resumeDoc.id,
       title: resumeData.title || "Untitled Resume",
-      userName: getDisplayName(userData as Partial<User>),
+      userName: getDisplayName(userData as Partial<User>, accessStatus),
       userId: userId,
       createdAt: resumeData.createdAt || new Date().toISOString(),
       accessStatus,
@@ -295,7 +295,7 @@ export async function performPremiumSearch(
       results.push({
         resumeId: resumeDoc.id,
         title: resumeData.title || "Untitled Resume",
-        userName: getDisplayName(userData),
+        userName: getDisplayName(userData, accessStatus),
         userId,
         skills: resumeSkills.filter(Boolean).slice(0, 5),
         location: candidateLocations[0] || undefined,

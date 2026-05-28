@@ -106,6 +106,25 @@ export const maskPhone = (phone: string): string => {
 };
 
 /**
+ * Masks candidate name to protect privacy
+ * Shows first name and the initial of the surname/second part (e.g. "Anil Alapati" -> "Anil A.")
+ */
+export const maskName = (name: string): string => {
+  if (!name) return "";
+  const clean = name.trim();
+  if (!clean) return "";
+  const parts = clean.split(/\s+/);
+  if (parts.length <= 1) {
+    return parts[0];
+  }
+  const firstName = parts[0];
+  const secondPart = parts[1];
+  const initial = secondPart.charAt(0).toUpperCase();
+  return `${firstName} ${initial}.`;
+};
+
+
+/**
  * Renders contact field based on visibility settings
  * @param value - The contact information value
  * @param visibility - The visibility level (public, masked, request)
@@ -286,6 +305,18 @@ export const sanitizeResumeForPublicView = (
     sanitizedPersonalInfo.phone =
       phoneVisibility === "request" ? "Available upon request" : maskedPhone;
   }
+  if (typeof sanitizedPersonalInfo.name === "string") {
+    sanitizedPersonalInfo.name = maskName(sanitizedPersonalInfo.name);
+  }
+
+  // Also mask top-level names on clone if present
+  if (typeof clone.name === "string") {
+    clone.name = maskName(clone.name);
+  }
+  if (typeof clone.userName === "string") {
+    clone.userName = maskName(clone.userName);
+  }
+
 
   const viewerAccess: ViewerAccessMeta & {
     isMasked?: boolean;

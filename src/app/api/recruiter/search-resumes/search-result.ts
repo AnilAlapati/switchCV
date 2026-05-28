@@ -1,5 +1,6 @@
 import type { User } from "@/types";
 import type { AccessStatus } from "./access-status";
+import { maskName } from "@/lib/utils/resumeVisibility";
 
 export interface SearchResultCard {
   resumeId: string;
@@ -19,8 +20,17 @@ export function maskEmail(email: string): string {
   return `${maskedUser}@${domain}`;
 }
 
-export function getDisplayName(userData: Partial<User>): string {
-  if (userData.displayName) return userData.displayName;
-  if (userData.email) return maskEmail(userData.email);
-  return "Unknown";
+export function getDisplayName(userData: Partial<User>, accessStatus?: AccessStatus): string {
+  let name = "Unknown";
+  if (userData.displayName) {
+    name = userData.displayName;
+  } else if (userData.email) {
+    name = maskEmail(userData.email);
+  }
+
+  if (accessStatus && accessStatus !== "approved") {
+    return maskName(name);
+  }
+  return name;
 }
+

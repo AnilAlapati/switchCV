@@ -29,5 +29,19 @@ describe("search-result utilities", () => {
     it("should return 'Unknown' if both are missing", () => {
       expect(getDisplayName({})).toBe("Unknown");
     });
+
+    it("should mask name if accessStatus is present and not approved", () => {
+      expect(getDisplayName({ displayName: "Anil Alapati" }, "none")).toBe("Anil A.");
+      expect(getDisplayName({ displayName: "Anil Alapati" }, "pending")).toBe("Anil A.");
+      expect(getDisplayName({ displayName: "Anil Alapati" }, "denied")).toBe("Anil A.");
+    });
+
+    it("should NOT mask name if accessStatus is approved", () => {
+      expect(getDisplayName({ displayName: "Anil Alapati" }, "approved")).toBe("Anil Alapati");
+    });
+
+    it("should NOT mask name if accessStatus is missing/undefined", () => {
+      expect(getDisplayName({ displayName: "Anil Alapati" })).toBe("Anil Alapati");
+    });
   });
 });

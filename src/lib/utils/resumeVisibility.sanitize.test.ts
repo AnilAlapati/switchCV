@@ -15,7 +15,7 @@ describe("resumeVisibility Utilities - sanitizeResumeForPublicView", () => {
     },
   };
 
-  it("masks email and phone values", () => {
+  it("masks email, phone, and name values", () => {
     const sanitized = sanitizeResumeForPublicView(baseResume);
 
     expect(sanitized.contact.email.value).toBe("j***@example.com");
@@ -24,6 +24,7 @@ describe("resumeVisibility Utilities - sanitizeResumeForPublicView", () => {
     expect(sanitized.contact.phone.visibility).toBe("masked");
     expect(sanitized.personalInfo.email).toBe("j***@example.com");
     expect(sanitized.personalInfo.phone).toBe("***-***-4567");
+    expect(sanitized.personalInfo.name).toBe("John D.");
   });
 
   it("preserves request visibility without revealing values", () => {
