@@ -29,7 +29,7 @@ export const EditorialResumeRenderer: React.FC<
 > = ({ data }) => {
   const personalInfo = data.personalInfo || {};
   const name = personalInfo.name || data.title || "Your Name";
-  const title = personalInfo.title || "Professional Title";
+  const title = personalInfo.title || "";
   const summary = data.summary || "";
 
   const skills = normalizeSkills(data.skills);

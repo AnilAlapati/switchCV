@@ -34,7 +34,7 @@ export const TerminalResumeRenderer: React.FC<TerminalResumeRendererProps> = ({
 
   const personalInfo = data.personalInfo || {};
   const heroName = personalInfo.name || data.title || "developer";
-  const heroTitle = personalInfo.title || "Software Engineer";
+  const heroTitle = personalInfo.title || "";
 
   const skills = normalizeSkills(data.skills);
   const experience = normalizeTimelineItems(data.experience);

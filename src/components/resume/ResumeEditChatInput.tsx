@@ -59,6 +59,7 @@ export function ResumeEditChatInput({
             >
               <svg
                 className="animate-spin h-4 w-4"
+                role="status"
                 viewBox="0 0 24 24"
                 aria-hidden="true"
               >

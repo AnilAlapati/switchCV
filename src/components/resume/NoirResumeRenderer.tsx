@@ -29,7 +29,7 @@ export const NoirResumeRenderer: React.FC<NoirResumeRendererProps> = ({
 }) => {
   const personalInfo = data.personalInfo || {};
   const name = personalInfo.name || data.title || "Your Name";
-  const title = personalInfo.title || "Professional Title";
+  const title = personalInfo.title || "";
 
   const skills = normalizeSkills(data.skills);
   const experience = normalizeTimelineItems(data.experience);

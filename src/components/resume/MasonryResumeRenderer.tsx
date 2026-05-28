@@ -20,7 +20,7 @@ export const MasonryResumeRenderer: React.FC<MasonryResumeRendererProps> = ({
 }) => {
   const personalInfo = data.personalInfo || {};
   const heroName = personalInfo.name || data.title || "Untitled";
-  const heroTitle = personalInfo.title || "Professional";
+  const heroTitle = personalInfo.title || "";
 
   // Prepare ordered sections
   const skills = normalizeSkills(data.skills);

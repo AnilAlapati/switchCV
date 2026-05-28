@@ -34,7 +34,7 @@ export const SignalResumeRenderer: React.FC<SignalResumeRendererProps> = ({
   const isMasked = !!viewerAccess.isMasked;
 
   const heroName = personalInfo.name || data.title || "Candidate";
-  const heroTitle = personalInfo.title || "Engineering Professional";
+  const heroTitle = personalInfo.title || "";
 
   const skills = normalizeSkills(data.skills);
   const experience = normalizeTimelineItems(data.experience);

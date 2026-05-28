@@ -29,6 +29,56 @@ const MIN_SAMPLES_FOR_DISABLE = 5;
 class AIProviderHealthService {
   private events = new Map<ProviderType, ProviderEvent[]>();
   private disabledUntil = new Map<ProviderType, number>();
+  private lastSyncedAt = 0;
+  private isSyncing = false;
+
+  private async syncFromFirestore(): Promise<void> {
+    if (this.isSyncing || Date.now() - this.lastSyncedAt < 10000) return;
+    this.isSyncing = true;
+    try {
+      const { adminDb } = await import("@/lib/firebase-admin");
+      const doc = await adminDb.collection("monitoring").doc("providerHealthState").get();
+      if (doc.exists) {
+        const data = doc.data() as Record<ProviderType, { disabledUntil?: string | null } | undefined>;
+        if (data) {
+          const now = Date.now();
+          for (const [provider, details] of Object.entries(data)) {
+            const untilStr = details?.disabledUntil;
+            if (untilStr) {
+              const until = new Date(untilStr).getTime();
+              if (until > now) {
+                this.disabledUntil.set(provider as ProviderType, until);
+              } else {
+                this.disabledUntil.delete(provider as ProviderType);
+              }
+            }
+          }
+        }
+      }
+      this.lastSyncedAt = Date.now();
+    } catch (err) {
+      logger.warn({ err }, "Failed to sync AI provider health from Firestore");
+    } finally {
+      this.isSyncing = false;
+    }
+  }
+
+  private async persistHealthStateToFirestore(): Promise<void> {
+    try {
+      const { adminDb } = await import("@/lib/firebase-admin");
+      const data: Record<string, unknown> = {};
+      const providers: ProviderType[] = ["gemini", "openai", "groq"];
+      for (const p of providers) {
+        const until = this.disabledUntil.get(p);
+        data[p] = {
+          disabledUntil: until ? new Date(until).toISOString() : null,
+        };
+      }
+      await adminDb.collection("monitoring").doc("providerHealthState").set(data, { merge: true });
+    } catch (err) {
+      logger.error({ err }, "Failed to persist AI provider health state to Firestore");
+    }
+  }
 
   recordSuccess(
     provider: ProviderType,
@@ -55,12 +105,16 @@ class AIProviderHealthService {
   }
 
   isProviderAvailable(provider: ProviderType): boolean {
+    // Non-blocking trigger of background sync
+    this.syncFromFirestore().catch(() => {});
+
     const disabledUntil = this.disabledUntil.get(provider);
     if (!disabledUntil) return true;
 
     if (Date.now() >= disabledUntil) {
       this.disabledUntil.delete(provider);
       logger.info({ provider }, "AI provider re-enabled after recovery window");
+      this.persistHealthStateToFirestore().catch(() => {});
       return true;
     }
 
@@ -68,6 +122,9 @@ class AIProviderHealthService {
   }
 
   getSnapshots(): AIProviderHealthSnapshot[] {
+    // Non-blocking trigger of background sync
+    this.syncFromFirestore().catch(() => {});
+
     const providers: ProviderType[] = ["gemini", "openai", "groq"];
     return providers.map((provider) => this.getSnapshot(provider));
   }
@@ -75,6 +132,7 @@ class AIProviderHealthService {
   resetForTests(): void {
     this.events.clear();
     this.disabledUntil.clear();
+    this.lastSyncedAt = 0;
   }
 
   private record(provider: ProviderType, event: ProviderEvent): void {
@@ -99,6 +157,7 @@ class AIProviderHealthService {
         },
         "AI provider disabled by health policy",
       );
+      this.persistHealthStateToFirestore().catch(() => {});
     }
   }
 

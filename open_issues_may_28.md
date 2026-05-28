@@ -34,12 +34,12 @@
 | ----- | -------------- | -------- |
 | #1 Rate limiting | 🟡 Partial | Existing edge middleware already had path-tiered limits. Added/confirmed distributed Firestore limits on cost/auth-sensitive route gaps: `/api/ai/models`, `/api/auth/verify`, and resume preview generation. Remaining: true distributed global middleware is not possible in Edge with Firebase Admin; keep route-level distributed enforcement plus edge IP guard. |
 | #2 Billing/cost control | ✅ Fixed core enforcement | Added shared `$30` soft / `$70` hard constants, system hard-cap check, per-user cap enforcement, and fail-closed behavior on budget-check failures. Existing Firestore rules already deny client writes to billing docs. |
-| #3 AI provider circuit breaker | 🟡 Partial | Added `aiProviderHealthService`, 10-minute rolling error/latency/schema health snapshots, 30-minute provider disable window, fallback-chain filtering, provider switch logging, and admin dashboard provider-health display. Remaining: Cloud Functions scheduled monitor/persistence. |
+| #3 AI provider circuit breaker | ✅ Fixed | Added `aiProviderHealthService` with Firestore background synchronization, 10-minute rolling error/latency/schema health snapshots, 30-minute provider disable window, fallback-chain filtering, provider switch logging, admin dashboard provider-health display, and scheduled Cloud Function provider health check monitor. |
 | #4 Gemini schema bug | ✅ Fixed locally | Stopped marking optional fields as `nullable` in Gemini `responseSchema`, added `propertyOrdering`, and updated schema tests. This matches Gemini's OpenAPI `responseSchema` behavior and avoids optional-nullable `INVALID_ARGUMENT` failures. |
 | #5 Loading spinner a11y | ✅ Fixed | Moved `role="status"` and `aria-live="polite"` to the visible loading wrapper and kept the SVG decorative. |
 | #6 ESLint cleanup | ✅ Mostly fixed | Reduced lint warnings from 33 to 5. Remaining warnings are only max-line warnings tied to file-size refactors. |
 | #7 File size budget | ⏳ Pending | Not refactored in this pass; remaining lint warnings identify the oversized files. |
-| #8 Vector monitoring | 🟡 Partial | Added `src/lib/services/vectorQualityMonitor.ts` for sampled embedding dimension, zero-vector, stale-vector, norm, and quality score checks. Remaining: scheduled Cloud Function/dashboard wiring. |
+| #8 Vector monitoring | ✅ Fixed | Added `src/lib/services/vectorQualityMonitor.ts` and daily scheduled Cloud Function `vectorQualityCheck.ts` for automated sampling, dimension checks, zero-vector/stale-vector checks, and drift reporting with automated alerts. |
 | #9 Search cache | 🟡 Partial | Existing in-memory search cache was present; increased search result TTL to 1 hour. Redis remains optional future infrastructure. |
 | #10 Unused imports/vars | ✅ Fixed | Removed the listed unused import/variables and related script-only unused warnings. |
 
@@ -133,9 +133,9 @@
 
 **Files to Update:**
 
-- [x] `src/lib/services/aiProviderHealthService.ts` - NEW: track provider health/latency
+- [x] `src/lib/services/aiProviderHealthService.ts` - NEW: track provider health/latency (Firestore-synced)
 - [x] `src/lib/services/ProviderFallbackChain.ts` - Add health-aware filtering
-- [ ] `functions/src/scheduled/providerHealthCheck.ts` - NEW: scheduled health monitor
+- [x] `functions/src/scheduled/providerHealthCheck.ts` - NEW: scheduled health monitor
 - [x] Monitoring dashboard - Show provider health status
 
 **Implementation Details:**
@@ -298,8 +298,8 @@ npm test -- src/lib/services/__tests__/resumeGenerationOrchestrator.test.ts
 **Files to Add:**
 
 - [x] `src/lib/services/vectorQualityMonitor.ts` - NEW: track embedding drift
-- [ ] `functions/src/scheduled/vectorQualityCheck.ts` - NEW: daily drift check
-- [ ] Dashboard - Show embedding quality metrics
+- [x] `functions/src/scheduled/vectorQualityCheck.ts` - NEW: daily drift check
+- [x] Dashboard - Show embedding quality metrics (now fully wired!)
 
 **Blocking:** No (monitoring recommendation)
 
@@ -365,7 +365,7 @@ npm test -- src/lib/services/__tests__/resumeGenerationOrchestrator.test.ts
 
 - [x] Issue #1: Rate limiting implemented for route-level distributed enforcement; dashboard visualization pending
 - [x] Issue #2: Billing enforcement implemented ✅
-- [x] Issue #3: Circuit breaker/provider health implemented; scheduled monitor pending
+- [x] Issue #3: Circuit breaker/provider health implemented with Firestore synchronization and scheduled Cloud Function monitor ✅
 - [x] Issue #4: Gemini schema bug fixed ✅
 
 **High Priority Status:**

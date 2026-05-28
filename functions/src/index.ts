@@ -369,6 +369,38 @@ export const healthMonitor = regionalFunctions
     return healthMonitorHandler(context);
   });
 
+export const providerHealthCheck = regionalFunctions
+  .pubsub.schedule("*/10 * * * *") // Every 10 minutes
+  .timeZone("UTC")
+  .onRun(async (context) => {
+    if (!isProductionEnvironment()) {
+      functions.logger.info(
+        "[COST GUARD] providerHealthCheck blocked in dev environment",
+      );
+      return { skipped: true, reason: "dev environment" };
+    }
+    const { providerHealthCheckHandler } = await import(
+      "./scheduled/providerHealthCheck"
+    );
+    return providerHealthCheckHandler(context);
+  });
+
+export const vectorQualityCheck = regionalFunctions
+  .pubsub.schedule("0 3 * * *") // Daily at 3:00 AM UTC
+  .timeZone("UTC")
+  .onRun(async (context) => {
+    if (!isProductionEnvironment()) {
+      functions.logger.info(
+        "[COST GUARD] vectorQualityCheck blocked in dev environment",
+      );
+      return { skipped: true, reason: "dev environment" };
+    }
+    const { vectorQualityCheckHandler } = await import(
+      "./scheduled/vectorQualityCheck"
+    );
+    return vectorQualityCheckHandler(context);
+  });
+
 export const aggregateAiMonitoring = regionalFunctions
   .runWith({ timeoutSeconds: 120, memory: "256MB" })
   .pubsub.schedule("0 * * * *") // Every hour (reduced from every 15 min — saves ~2,160 invocations/month)

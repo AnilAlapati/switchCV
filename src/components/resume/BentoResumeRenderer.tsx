@@ -29,7 +29,7 @@ export const BentoResumeRenderer: React.FC<BentoResumeRendererProps> = ({
 }) => {
   const personalInfo = data.personalInfo || {};
   const heroName = personalInfo.name || data.title || "Your Name";
-  const heroTitle = personalInfo.title || "Professional Title";
+  const heroTitle = personalInfo.title || "";
 
   const skills = normalizeSkills(data.skills);
   const experience = normalizeTimelineItems(data.experience);
