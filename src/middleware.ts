@@ -3,7 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 /**
  * Next.js Edge Middleware
  *
- * 1. Rate Limiting: In-memory sliding window per IP with path-based tiers
+ * 1. Rate Limiting: In-memory fixed-window per IP with path-based tiers
+ *    ⚠️  Note: This is a fixed-window algorithm (not true sliding window).
+ *    A burst of up to 2× the limit is possible at window boundaries.
+ *    The in-memory store is per-isolate in Edge Runtime — not shared across
+ *    instances. For critical auth brute-force protection, add a distributed
+ *    store (e.g., Upstash Redis) as a secondary check.
  * 2. CSRF Validation: Origin/Referer check for state-changing requests
  * 3. CSP Headers: Content Security Policy with nonces
  */
@@ -87,7 +92,9 @@ function checkRateLimitMiddleware(
 
   // Find matching tier
   const tier = RATE_LIMIT_TIERS.find((t) => t.pattern.test(pathname));
-  if (!tier) return { allowed: true, remaining: 999, resetMs: 0 };
+  // No matching tier — path is not rate-limited (should not happen for /api/* due to catch-all)
+  const UNLIMITED = Number.MAX_SAFE_INTEGER;
+  if (!tier) return { allowed: true, remaining: UNLIMITED, resetMs: 0 };
 
   const key = `${ip}:${tier.pattern.source}`;
   const now = Date.now();
@@ -146,12 +153,12 @@ const CSRF_EXEMPT_PATHS = [
 const PROTECTED_METHODS = new Set(["POST", "PUT", "DELETE", "PATCH"]);
 
 /**
- * Check if a request path is exempt from CSRF validation
+ * Check if a request path is exempt from CSRF validation.
+ * Uses exact match only to prevent future endpoints from silently
+ * inheriting CSRF exemption via prefix matching.
  */
 function isCsrfExemptPath(pathname: string): boolean {
-  return CSRF_EXEMPT_PATHS.some(
-    (exempt) => pathname === exempt || pathname.startsWith(`${exempt}/`),
-  );
+  return CSRF_EXEMPT_PATHS.includes(pathname);
 }
 
 /**
@@ -214,12 +221,19 @@ function validateOrigin(request: NextRequest): boolean {
   // 1. CSRF attacks rely on the browser automatically sending cookies
   // 2. Bearer tokens are not automatically attached by browsers
   // 3. An attacker's malicious page cannot read the user's Bearer token
+  //
+  // Security: We require a minimum token length to prevent trivial bypass
+  // with "Bearer fake". Real Firebase ID tokens are 800+ chars (JWT format).
   const authHeader = request.headers.get("authorization");
-  if (authHeader?.startsWith("Bearer ")) {
+  const MIN_BEARER_TOKEN_LENGTH = 20;
+  if (
+    authHeader?.startsWith("Bearer ") &&
+    authHeader.length > "Bearer ".length + MIN_BEARER_TOKEN_LENGTH
+  ) {
     return true;
   }
 
-  // No origin, no referer, no bearer token — reject
+  // No origin, no referer, no valid bearer token — reject
   return false;
 }
 
@@ -262,12 +276,15 @@ function createSecurityContext(
 function applySecurityHeaders(
   response: NextResponse,
   requestId: string,
-  nonce: string,
+  _nonce: string,
   cspHeader: string,
 ): NextResponse {
   response.headers.set("Content-Security-Policy", cspHeader);
   response.headers.set("x-request-id", requestId);
-  response.headers.set("x-nonce", nonce);
+  // Security: Do NOT set x-nonce on the response — the nonce is already embedded
+  // in the CSP header and forwarded to route handlers via request headers.
+  // Exposing it in response headers would allow attackers who can read headers
+  // to inject scripts matching the nonce.
   response.headers.delete("x-powered-by");
   return response;
 }
@@ -295,10 +312,21 @@ export function middleware(request: NextRequest): NextResponse | undefined {
   if (pathname.startsWith("/api/")) {
     // ── Rate Limiting (all methods, all API routes except exempt) ──
     if (!isRateLimitExempt(pathname)) {
-      const ip =
-        request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-        request.headers.get("x-real-ip") ||
-        "unknown";
+      // Extract client IP with validation.
+      // x-forwarded-for can be spoofed if the CDN/load balancer doesn't strip it.
+      // We validate the format to reject obviously malicious values.
+      const rawForwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+      const rawRealIp = request.headers.get("x-real-ip");
+      const isValidIpFormat = (ip: string | undefined | null): ip is string =>
+        !!ip && /^[\d.:a-fA-F]{3,45}$/.test(ip) && ip.length <= 45;
+
+      // Use validated IP, or generate a per-request unique key to avoid
+      // all unknown-IP requests sharing a single rate-limit bucket.
+      const ip = isValidIpFormat(rawForwardedFor)
+        ? rawForwardedFor
+        : isValidIpFormat(rawRealIp)
+          ? rawRealIp
+          : `anon-${crypto.randomUUID().slice(0, 8)}`;
 
       const rateResult = checkRateLimitMiddleware(ip, pathname);
 
