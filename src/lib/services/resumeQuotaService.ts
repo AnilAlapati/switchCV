@@ -31,7 +31,7 @@
  */
 
 import { adminDb } from "@/lib/firebase-admin";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, type WriteBatch } from "firebase-admin/firestore";
 import { logger } from "@/lib/logger";
 import type { SubscriptionTier } from "@/lib/config";
 import { getResumeCreationLimits } from "@/lib/config.server";
@@ -69,6 +69,20 @@ export async function getLifetimeResumeCount(userId: string): Promise<number> {
   // value was set first, and so that legacy users aren't accidentally given
   // a free pass after deleting their only resume.
   return Math.max(lifetimeField, activeCount);
+}
+
+/**
+ * Stages the lifetime resume creation increment in an existing write batch.
+ */
+export function stageLifetimeResumeCountIncrement(
+  batch: WriteBatch,
+  userId: string,
+): void {
+  batch.set(
+    adminDb.collection("users").doc(userId),
+    { lifetimeResumeCreations: FieldValue.increment(1) },
+    { merge: true },
+  );
 }
 
 /**

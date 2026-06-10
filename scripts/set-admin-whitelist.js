@@ -12,12 +12,16 @@
  *   node scripts/set-admin-whitelist.js --dev     # dev only
  *   node scripts/set-admin-whitelist.js --prod    # prod only
  *
+ * Requires APPROVED_BY_UID to be the Firebase UID of an existing admin whose
+ * Auth custom claim and users/{uid}.role are both "admin".
+ *
  * Requires GOOGLE_APPLICATION_CREDENTIALS or firebase CLI login credentials.
  */
 
 const admin = require("firebase-admin");
 
 const EMAIL = "anilalapati.66@gmail.com";
+const APPROVED_BY_UID = process.env.APPROVED_BY_UID;
 
 const PROJECTS = {
   dev: "switchcv-dev",
@@ -39,6 +43,12 @@ if (args.includes("--dev")) {
 }
 
 async function addToWhitelist(label, projectId) {
+  if (!APPROVED_BY_UID) {
+    throw new Error(
+      "APPROVED_BY_UID is required. Set it to an existing dual-verified admin UID."
+    );
+  }
+
   console.log(`\n▶  [${label.toUpperCase()}] Connecting to project: ${projectId}`);
 
   const app = admin.initializeApp({ projectId }, `app-${label}`);
@@ -52,6 +62,10 @@ async function addToWhitelist(label, projectId) {
 
   await ref.set(
     {
+      email: EMAIL,
+      approved: true,
+      approvedByUid: APPROVED_BY_UID,
+      approvedAt: admin.firestore.FieldValue.serverTimestamp(),
       addedAt: admin.firestore.FieldValue.serverTimestamp(),
       addedBy: "set-admin-whitelist.js",
     },

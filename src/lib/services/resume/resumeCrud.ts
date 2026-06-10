@@ -8,7 +8,7 @@ import type { ResumeProfile } from "@/types";
 import { logger } from "@/lib/logger";
 import { generateNumericResumeId } from "@/lib/numericIdGenerator";
 import { cacheService } from "@/lib/services/cacheService";
-import { incrementLifetimeResumeCount } from "@/lib/services/resumeQuotaService";
+import { stageLifetimeResumeCountIncrement } from "@/lib/services/resumeQuotaService";
 
 /** Input data for creating a blank resume */
 export interface CreateResumeInput {
@@ -106,10 +106,10 @@ export async function createResume(userId: string, data: CreateResumeInput) {
     status: "draft",
   };
 
-  await adminDb.collection("resumes").doc(resumeId).set(resumeData);
-
-  // Track lifetime creation count so quota survives hard deletes
-  await incrementLifetimeResumeCount(userId);
+  const batch = adminDb.batch();
+  batch.set(adminDb.collection("resumes").doc(resumeId), resumeData);
+  stageLifetimeResumeCountIncrement(batch, userId);
+  await batch.commit();
 
   return { resumeId, numericId };
 }
@@ -220,25 +220,27 @@ export async function saveGeneratedResume(
       : {}),
   };
 
-  // Save to Firestore
-  await adminDb.collection("resumes").doc(resumeId).set(resumeDocument);
+  const batch = adminDb.batch();
+  batch.set(adminDb.collection("resumes").doc(resumeId), resumeDocument);
 
   // Also save to user's subcollection (Legacy support or fast lookup)
-  await adminDb
-    .collection("users")
-    .doc(userId)
-    .collection("userResumes")
-    .doc(resumeId)
-    .set({
+  batch.set(
+    adminDb
+      .collection("users")
+      .doc(userId)
+      .collection("userResumes")
+      .doc(resumeId),
+    {
       id: resumeId,
       title: resumeDocument.title,
       createdAt: resumeDocument.createdAt,
       updatedAt: resumeDocument.updatedAt,
       numericId,
-    });
+    },
+  );
 
-  // Track lifetime creation count so quota survives hard deletes
-  await incrementLifetimeResumeCount(userId);
+  stageLifetimeResumeCountIncrement(batch, userId);
+  await batch.commit();
 
   return { resumeId, numericId };
 }
