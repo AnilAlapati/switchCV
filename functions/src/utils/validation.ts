@@ -1,4 +1,23 @@
 import * as functions from "firebase-functions";
+import type { ResumeData } from "../types";
+
+const ALLOWED_TONES = ["professional", "creative", "concise"] as const;
+const ALLOWED_TEMPLATES = [
+  "modern",
+  "classic",
+  "creative",
+  "minimal",
+  "professional",
+] as const;
+
+export type ResumeTone = (typeof ALLOWED_TONES)[number];
+export type ResumeTemplate = (typeof ALLOWED_TEMPLATES)[number];
+
+type SanitizedRequestBody = Record<string, unknown>;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
 
 /**
  * Validation error
@@ -17,7 +36,7 @@ export class ValidationError extends Error {
 /**
  * Sanitize string input
  */
-export function sanitizeString(input: any, maxLength: number = 1000): string {
+export function sanitizeString(input: unknown, maxLength: number = 1000): string {
   if (typeof input !== "string") {
     throw new ValidationError("Input must be a string");
   }
@@ -66,7 +85,7 @@ export function validateUrl(url: string): boolean {
 /**
  * Validate user ID format (Firebase UID)
  */
-export function validateUserId(userId: any): string {
+export function validateUserId(userId: unknown): string {
   if (typeof userId !== "string") {
     throw new ValidationError("User ID must be a string", "userId");
   }
@@ -89,12 +108,15 @@ export function validateUserId(userId: any): string {
 /**
  * Validate model ID against allowed list
  */
-export function validateModelId(modelId: any, allowedModels: string[]): string {
+export function validateModelId<TModel extends string>(
+  modelId: unknown,
+  allowedModels: readonly TModel[],
+): TModel {
   if (typeof modelId !== "string") {
     throw new ValidationError("Model ID must be a string", "modelId");
   }
 
-  if (!allowedModels.includes(modelId)) {
+  if (!allowedModels.includes(modelId as TModel)) {
     throw new ValidationError(
       `Invalid model: ${modelId}. Allowed models: ${allowedModels.join(", ")}`,
       "modelId",
@@ -102,19 +124,19 @@ export function validateModelId(modelId: any, allowedModels: string[]): string {
     );
   }
 
-  return modelId;
+  return modelId as TModel;
 }
 
 /**
  * Validate resume data structure
  */
-export function validateResumeData(data: any): void {
-  if (!data || typeof data !== "object") {
+export function validateResumeData(data: unknown): asserts data is ResumeData {
+  if (!isRecord(data)) {
     throw new ValidationError("Resume data must be an object", "resumeData");
   }
 
   // Validate personal info
-  if (!data.personalInfo || typeof data.personalInfo !== "object") {
+  if (!isRecord(data.personalInfo)) {
     throw new ValidationError(
       "Personal info is required",
       "resumeData.personalInfo",
@@ -147,7 +169,7 @@ export function validateResumeData(data: any): void {
     );
   }
 
-  if (data.summary.length > 5000) {
+  if (typeof data.summary === "string" && data.summary.length > 5000) {
     throw new ValidationError(
       "Summary must be less than 5000 characters",
       "resumeData.summary",
@@ -162,7 +184,13 @@ export function validateResumeData(data: any): void {
     );
   }
 
-  data.experience.forEach((exp: any, index: number) => {
+  data.experience.forEach((exp: unknown, index: number) => {
+    if (!isRecord(exp)) {
+      throw new ValidationError(
+        `Experience ${index} must be an object`,
+        `resumeData.experience[${index}]`,
+      );
+    }
     if (!exp.title || typeof exp.title !== "string") {
       throw new ValidationError(
         `Experience ${index} must have a title`,
@@ -203,7 +231,7 @@ export function validateResumeData(data: any): void {
     );
   }
 
-  data.skills.forEach((skill: any, index: number) => {
+  data.skills.forEach((skill: unknown, index: number) => {
     if (typeof skill !== "string") {
       throw new ValidationError(
         `Skill ${index} must be a string`,
@@ -216,7 +244,7 @@ export function validateResumeData(data: any): void {
 /**
  * Validate job description
  */
-export function validateJobDescription(description: any): string {
+export function validateJobDescription(description: unknown): string {
   if (typeof description !== "string") {
     throw new ValidationError(
       "Job description must be a string",
@@ -244,58 +272,48 @@ export function validateJobDescription(description: any): string {
 /**
  * Validate tone parameter
  */
-export function validateTone(tone: any): string {
-  const allowedTones = ["professional", "creative", "concise"];
-
+export function validateTone(tone: unknown): ResumeTone {
   if (typeof tone !== "string") {
     throw new ValidationError("Tone must be a string", "tone");
   }
 
-  if (!allowedTones.includes(tone)) {
+  if (!ALLOWED_TONES.includes(tone as ResumeTone)) {
     throw new ValidationError(
-      `Invalid tone. Allowed values: ${allowedTones.join(", ")}`,
+      `Invalid tone. Allowed values: ${ALLOWED_TONES.join(", ")}`,
       "tone",
     );
   }
 
-  return tone;
+  return tone as ResumeTone;
 }
 
 /**
  * Validate template parameter
  */
-export function validateTemplate(template: any): string {
-  const allowedTemplates = [
-    "modern",
-    "classic",
-    "creative",
-    "minimal",
-    "professional",
-  ];
-
+export function validateTemplate(template: unknown): ResumeTemplate {
   if (typeof template !== "string") {
     throw new ValidationError("Template must be a string", "template");
   }
 
-  if (!allowedTemplates.includes(template)) {
+  if (!ALLOWED_TEMPLATES.includes(template as ResumeTemplate)) {
     throw new ValidationError(
-      `Invalid template. Allowed values: ${allowedTemplates.join(", ")}`,
+      `Invalid template. Allowed values: ${ALLOWED_TEMPLATES.join(", ")}`,
       "template",
     );
   }
 
-  return template;
+  return template as ResumeTemplate;
 }
 
 /**
  * Generic object validator
  */
 export function validateObject(
-  obj: any,
+  obj: unknown,
   requiredFields: string[],
   fieldName: string = "object",
 ): void {
-  if (!obj || typeof obj !== "object") {
+  if (!isRecord(obj)) {
     throw new ValidationError(`${fieldName} must be an object`, fieldName);
   }
 
@@ -340,12 +358,12 @@ export function handleValidationError(
 /**
  * Sanitize and validate entire request body
  */
-export function sanitizeRequestBody(body: any): any {
-  if (!body || typeof body !== "object") {
+export function sanitizeRequestBody(body: unknown): SanitizedRequestBody {
+  if (!isRecord(body)) {
     throw new ValidationError("Request body must be an object");
   }
 
-  const sanitized: any = {};
+  const sanitized: SanitizedRequestBody = {};
 
   for (const [key, value] of Object.entries(body)) {
     if (typeof value === "string") {

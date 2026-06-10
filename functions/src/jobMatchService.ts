@@ -69,7 +69,7 @@ const ALLOWED_MODELS = [
   "gemini-2.5-flash",
   "gemini-2.5-pro",
   "gemini-3.1-flash-lite-preview",
-];
+] as const;
 
 const jobMatchRateLimit = {
   ...RateLimitPresets.JOB_MATCHING,
@@ -146,6 +146,12 @@ async function verifyIdTokenCached(
 }
 
 const normalize = (value: string): string => value.trim().toLowerCase();
+
+function getRequestBody(body: unknown): Record<string, unknown> {
+  return body !== null && typeof body === "object" && !Array.isArray(body)
+    ? (body as Record<string, unknown>)
+    : {};
+}
 
 function extractKeywords(text: string): string[] {
   const matches = text.toLowerCase().match(/[a-z0-9+#.\-]{3,}/g) || [];
@@ -244,12 +250,11 @@ const generateJobMatchSuggestionsHandler = async (
               jobDescription,
               resumeData,
               modelId = defaultModel,
-            } = req.body ?? {};
+            } = getRequestBody(req.body);
 
             const normalizedUserId = validateUserId(userId);
             const validatedDescription = validateJobDescription(jobDescription);
-            const resumePayload = resumeData as ResumeData;
-            validateResumeData(resumePayload);
+            validateResumeData(resumeData);
             const selectedModel = validateModelId(modelId, ALLOWED_MODELS);
 
             const authHeader = req.headers.authorization;
@@ -322,7 +327,7 @@ const generateJobMatchSuggestionsHandler = async (
 
             const suggestions = await generateJobMatchingSuggestions(
               validatedDescription,
-              resumePayload,
+              resumeData,
               selectedModel,
             );
 
@@ -447,7 +452,8 @@ export async function generateJobMatchingSuggestions(
   return performanceMonitor.measure(
     "services.jobMatch.generate",
     async () => {
-      const prompt = `Analyze this job description and resume to provide matching suggestions.
+      try {
+        const prompt = `Analyze this job description and resume to provide matching suggestions.
 
 Job Description:
 ${jobDescription}
@@ -463,20 +469,34 @@ Provide:
 3. Experience alignment suggestions
 4. Resume customization tips for this job`;
 
-      const aiAnalysis = await generateAiAnalysis(prompt, modelId);
-      const insights = deriveDeterministicInsights(jobDescription, resumeData);
+        const aiAnalysis = await generateAiAnalysis(prompt, modelId);
+        const insights = deriveDeterministicInsights(jobDescription, resumeData);
 
-      const deterministicSummary = `Deterministic insights:\n- Skill overlap: ${
-        insights.skillOverlapPercent
-      }%\n- Missing skills: ${
-        insights.missingSkills.slice(0, 5).join(", ") || "None"
-      }`;
+        const deterministicSummary = `Deterministic insights:\n- Skill overlap: ${
+          insights.skillOverlapPercent
+        }%\n- Missing skills: ${
+          insights.missingSkills.slice(0, 5).join(", ") || "None"
+        }`;
 
-      return {
-        analysis: `${aiAnalysis}\n\n${deterministicSummary}`.trim(),
-        matchScore: insights.matchScore,
-        recommendations: insights.recommendations,
-      };
+        return {
+          analysis: `${aiAnalysis}\n\n${deterministicSummary}`.trim(),
+          matchScore: insights.matchScore,
+          recommendations: insights.recommendations,
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        functions.logger.error("Job match generation failed", {
+          message,
+          modelId,
+        });
+        await alertManager.sendAlert(
+          AlertSeverity.ERROR,
+          "Job match generation failure",
+          message,
+          { modelId },
+        );
+        throw error;
+      }
     },
     MetricType.AI_API_CALL,
     { modelId },

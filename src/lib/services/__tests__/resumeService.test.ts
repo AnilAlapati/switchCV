@@ -629,10 +629,9 @@ describe("resumeService", () => {
         },
       });
 
-      const resumeDocRef = mockDoc.mock.results[0]?.value;
-      expect(resumeDocRef?.set).toHaveBeenCalled();
+      expect(mockBatch.set).toHaveBeenCalled();
 
-      const savedResume = resumeDocRef?.set.mock.calls[0]?.[0];
+      const savedResume = mockBatch.set.mock.calls[0]?.[1];
       expect(savedResume?.qualityReport?.schemaValid).toBe(true);
       expect(savedResume?.evidenceMap?.summary).toEqual(["I build web apps"]);
       expect(savedResume?.generationVersion?.pipeline).toBe("v2_structured");
