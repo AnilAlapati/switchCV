@@ -112,7 +112,7 @@
     "@types/react-dom": "^19.2.3",
     "@types/swagger-ui-react": "^5.18.0",
     "babel-jest": "^30.2.0",
-    "baseline-browser-mapping": "^2.10.14",
+    "baseline-browser-mapping": "^2.11.22",
     "chokidar-cli": "^3.0.0",
     "eslint": "^9.39.4",
     "eslint-config-next": "15.1.0",
